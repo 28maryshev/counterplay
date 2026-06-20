@@ -34,6 +34,7 @@ Thumbs.db
 
 # Внутренние файлы разработки
 ROADMAP.md
+CLAUDE.md
 pipeline/diag.py
 pipeline/games_check.py
 pipeline/check_db.py
