@@ -1,7 +1,6 @@
 // engine.js — данные чемпионов и движок рекомендаций (ЗАГЛУШКА для теста).
-// ВАЖНО: винрейты / контр-матчапы / синергия здесь СИНТЕТИЧЕСКИЕ —
-// детерминированно сгенерированы, чтобы обкатать механику. Реальные данные
-// придут из пайплайна MATCH-V5 (этап 3). Файл работает и в браузере, и в Node.
+// Винрейты / контр-матчапы / синергия СИНТЕТИЧЕСКИЕ — детерминированно из id.
+// Реальные данные придут из пайплайна MATCH-V5. Работает в браузере и Node.
 
 (function () {
   const ROLES = [
@@ -13,214 +12,371 @@
   ];
   const ROLE_KEYS = ROLES.map((r) => r.key);
 
-  // id — идентификатор из Data Dragon (для иконок). baseWR — базовый винрейт (заглушка).
+  const K = 50; // Лаплас-сглаживание (совпадает с RecommendationEngine.cs)
+  let _data = null; // реальные данные из window.CP_DATA (pipeline/data.js)
+
+  function loadRealData(d) { _data = d; }
+  function smoothed(s) {
+    if (!s || !s.g) return null; // нет данных → вернём null → упадём на синтетику
+    return (s.w + K / 2) / (s.g + K);
+  }
+
   const CHAMPIONS = [
-    // Top
-    { id: 'Garen',       name: 'Гарен',       role: 'top',     baseWR: 51.2 },
-    { id: 'Darius',      name: 'Дариус',      role: 'top',     baseWR: 50.4 },
-    { id: 'Sett',        name: 'Сетт',        role: 'top',     baseWR: 50.8 },
-    { id: 'Malphite',    name: 'Мальфит',     role: 'top',     baseWR: 51.6 },
-    { id: 'Aatrox',      name: 'Аатрокс',     role: 'top',     baseWR: 49.3 },
-    { id: 'Fiora',       name: 'Фиора',       role: 'top',     baseWR: 49.8 },
-    { id: 'Camille',     name: 'Камилл',      role: 'top',     baseWR: 49.5 },
-    { id: 'Nasus',       name: 'Насус',       role: 'top',     baseWR: 50.9 },
-    { id: 'Renekton',    name: 'Ренектон',    role: 'top',     baseWR: 50.1 },
-    { id: 'Irelia',      name: 'Ирелия',      role: 'top',     baseWR: 49.6 },
-    { id: 'Jax',         name: 'Джакс',       role: 'top',     baseWR: 50.7 },
-    { id: 'Teemo',       name: 'Тимо',        role: 'top',     baseWR: 50.3 },
-    { id: 'Kennen',      name: 'Кеннен',      role: 'top',     baseWR: 50.0 },
-    { id: 'Mordekaiser', name: 'Мордекайзер', role: 'top',     baseWR: 51.4 },
-    { id: 'Illaoi',      name: 'Иллаой',      role: 'top',     baseWR: 51.1 },
-    { id: 'Riven',       name: 'Ривен',       role: 'top',     baseWR: 49.2 },
-    { id: 'Urgot',       name: 'Ургот',       role: 'top',     baseWR: 50.6 },
-    { id: 'Ornn',        name: 'Орнн',        role: 'top',     baseWR: 50.9 },
-    { id: 'Gragas',      name: 'Грагас',      role: 'top',     baseWR: 50.2 },
-    // Jungle
-    { id: 'LeeSin',      name: 'Ли Син',      role: 'jungle',  baseWR: 48.6 },
-    { id: 'Sejuani',     name: 'Сеюани',      role: 'jungle',  baseWR: 51.4 },
-    { id: 'Warwick',     name: 'Варвик',      role: 'jungle',  baseWR: 51.0 },
-    { id: 'Kayn',        name: 'Кайн',        role: 'jungle',  baseWR: 50.2 },
-    { id: 'Vi',          name: 'Вай',         role: 'jungle',  baseWR: 50.0 },
-    { id: 'Viego',       name: 'Виего',       role: 'jungle',  baseWR: 49.7 },
-    { id: 'Hecarim',     name: 'Хекарим',     role: 'jungle',  baseWR: 51.3 },
-    { id: 'Graves',      name: 'Грейвс',      role: 'jungle',  baseWR: 50.5 },
-    { id: 'Nidalee',     name: 'Нидали',      role: 'jungle',  baseWR: 48.9 },
-    { id: 'Elise',       name: 'Элиза',       role: 'jungle',  baseWR: 49.4 },
-    { id: 'Amumu',       name: 'Аму-Му',      role: 'jungle',  baseWR: 51.7 },
-    { id: 'Shyvana',     name: 'Шайвана',     role: 'jungle',  baseWR: 50.6 },
-    { id: 'MasterYi',    name: 'Мастер И',    role: 'jungle',  baseWR: 50.8 },
-    { id: 'Nunu',        name: 'Нуну',        role: 'jungle',  baseWR: 51.1 },
-    { id: 'RekSai',      name: 'Рек\'Сай',    role: 'jungle',  baseWR: 49.8 },
-    { id: 'JarvanIV',    name: 'Джарван IV',  role: 'jungle',  baseWR: 50.3 },
-    { id: 'Zac',         name: 'Зак',         role: 'jungle',  baseWR: 51.2 },
-    { id: 'Nocturne',    name: 'Нoctюрн',     role: 'jungle',  baseWR: 50.4 },
-    // Mid
-    { id: 'Ahri',        name: 'Ари',         role: 'mid',     baseWR: 51.1 },
-    { id: 'Yasuo',       name: 'Ясуо',        role: 'mid',     baseWR: 49.0 },
-    { id: 'Yone',        name: 'Йоне',        role: 'mid',     baseWR: 49.3 },
-    { id: 'Zed',         name: 'Зед',         role: 'mid',     baseWR: 49.4 },
-    { id: 'Lux',         name: 'Люкс',        role: 'mid',     baseWR: 50.9 },
-    { id: 'Syndra',      name: 'Синдра',      role: 'mid',     baseWR: 49.9 },
-    { id: 'Viktor',      name: 'Виктор',      role: 'mid',     baseWR: 50.6 },
-    { id: 'Ekko',        name: 'Экко',        role: 'mid',     baseWR: 50.3 },
-    { id: 'Fizz',        name: 'Физз',        role: 'mid',     baseWR: 49.7 },
-    { id: 'Orianna',     name: 'Орианна',     role: 'mid',     baseWR: 50.5 },
-    { id: 'Akali',       name: 'Акали',       role: 'mid',     baseWR: 49.2 },
-    { id: 'Katarina',    name: 'Катарина',    role: 'mid',     baseWR: 49.8 },
-    { id: 'TwistedFate', name: 'Судьба',      role: 'mid',     baseWR: 50.1 },
-    { id: 'Corki',       name: 'Корки',       role: 'mid',     baseWR: 50.4 },
-    { id: 'Leblanc',     name: 'Лебланк',     role: 'mid',     baseWR: 49.5 },
-    { id: 'Vex',         name: 'Векс',        role: 'mid',     baseWR: 51.0 },
-    { id: 'Velkoz',      name: 'Вел\'Коз',    role: 'mid',     baseWR: 50.8 },
-    { id: 'Malzahar',    name: 'Малзахар',    role: 'mid',     baseWR: 50.7 },
-    // ADC
-    { id: 'Jinx',        name: 'Джинкс',      role: 'adc',     baseWR: 51.3 },
-    { id: 'Caitlyn',     name: 'Кейтлин',     role: 'adc',     baseWR: 49.6 },
-    { id: 'Ezreal',      name: 'Эзреаль',     role: 'adc',     baseWR: 49.1 },
-    { id: 'Kaisa',       name: 'Каиса',       role: 'adc',     baseWR: 50.5 },
-    { id: 'Jhin',        name: 'Джин',        role: 'adc',     baseWR: 50.7 },
-    { id: 'Ashe',        name: 'Эш',          role: 'adc',     baseWR: 50.1 },
-    { id: 'Tristana',    name: 'Тристана',    role: 'adc',     baseWR: 50.3 },
-    { id: 'Sivir',       name: 'Сивир',       role: 'adc',     baseWR: 50.9 },
-    { id: 'Vayne',       name: 'Вейн',        role: 'adc',     baseWR: 49.4 },
-    { id: 'MissFortune', name: 'Мисс Фортюн', role: 'adc',    baseWR: 51.1 },
-    { id: 'Draven',      name: 'Дрейвен',     role: 'adc',     baseWR: 49.8 },
-    { id: 'Samira',      name: 'Самира',      role: 'adc',     baseWR: 49.6 },
-    { id: 'Xayah',       name: 'Зайя',        role: 'adc',     baseWR: 50.0 },
-    { id: 'Lucian',      name: 'Люциан',      role: 'adc',     baseWR: 49.9 },
-    { id: 'KogMaw',      name: 'Kog\'Maw',    role: 'adc',     baseWR: 51.5 },
-    { id: 'Twitch',      name: 'Твич',        role: 'adc',     baseWR: 50.4 },
-    // Support
-    { id: 'Thresh',      name: 'Треш',        role: 'support', baseWR: 49.8 },
-    { id: 'Lulu',        name: 'Лулу',        role: 'support', baseWR: 51.0 },
-    { id: 'Leona',       name: 'Леона',       role: 'support', baseWR: 50.9 },
-    { id: 'Nautilus',    name: 'Наутилус',    role: 'support', baseWR: 50.6 },
-    { id: 'Bard',        name: 'Бард',        role: 'support', baseWR: 49.4 },
-    { id: 'Soraka',      name: 'Сорака',      role: 'support', baseWR: 51.2 },
-    { id: 'Pyke',        name: 'Пайк',        role: 'support', baseWR: 49.0 },
-    { id: 'Blitzcrank',  name: 'Блицкранк',   role: 'support', baseWR: 50.4 },
-    { id: 'Karma',       name: 'Карма',       role: 'support', baseWR: 50.7 },
-    { id: 'Nami',        name: 'Нами',        role: 'support', baseWR: 50.5 },
-    { id: 'Janna',       name: 'Джанна',      role: 'support', baseWR: 51.3 },
-    { id: 'Morgana',     name: 'Моргана',     role: 'support', baseWR: 50.8 },
-    { id: 'Alistar',     name: 'Алистар',     role: 'support', baseWR: 50.1 },
-    { id: 'Zyra',        name: 'Зайра',       role: 'support', baseWR: 50.3 },
-    { id: 'Sona',        name: 'Сона',        role: 'support', baseWR: 51.5 },
-    { id: 'Seraphine',   name: 'Серафина',    role: 'support', baseWR: 50.6 },
-    { id: 'Brand',       name: 'Брэнд',       role: 'support', baseWR: 50.2 },
-    { id: 'Rakan',       name: 'Рейкан',      role: 'support', baseWR: 50.3 },
-    { id: 'Rell',        name: 'Релль',       role: 'support', baseWR: 50.5 },
-    { id: 'Renata',      name: 'Рената',      role: 'support', baseWR: 50.1 },
-    { id: 'Taric',       name: 'Тарик',       role: 'support', baseWR: 50.8 },
-    { id: 'Milio',       name: 'Милио',       role: 'support', baseWR: 51.1 },
-    { id: 'Senna',       name: 'Сенна',       role: 'support', baseWR: 51.4 },
+    // ── Top ──────────────────────────────────────────────────────────────────
+    { id: 'Aatrox',      name: 'Аатрокс',       role: 'top',     baseWR: 49.3 },
+    { id: 'Ambessa',     name: 'Амбесса',        role: 'top',     baseWR: 50.0 },
+    { id: 'Camille',     name: 'Камилл',         role: 'top',     baseWR: 49.5 },
+    { id: 'Chogath',     name: 'Чо\'Гат',        role: 'top',     baseWR: 50.5 },
+    { id: 'Darius',      name: 'Дариус',         role: 'top',     baseWR: 50.4 },
+    { id: 'DrMundo',     name: 'Доктор Мундо',   role: 'top',     baseWR: 50.8 },
+    { id: 'Fiora',       name: 'Фиора',          role: 'top',     baseWR: 49.8 },
+    { id: 'Gangplank',   name: 'Гангпланк',      role: 'top',     baseWR: 49.6 },
+    { id: 'Garen',       name: 'Гарен',          role: 'top',     baseWR: 51.2 },
+    { id: 'Gnar',        name: 'Гнар',           role: 'top',     baseWR: 49.9 },
+    { id: 'Gragas',      name: 'Грагас',         role: 'top',     baseWR: 50.2 },
+    { id: 'Gwen',        name: 'Гвен',           role: 'top',     baseWR: 50.3 },
+    { id: 'Illaoi',      name: 'Иллаой',         role: 'top',     baseWR: 51.1 },
+    { id: 'Irelia',      name: 'Ирелия',         role: 'top',     baseWR: 49.6 },
+    { id: 'Jax',         name: 'Джакс',          role: 'top',     baseWR: 50.7 },
+    { id: 'Jayce',       name: 'Джейс',          role: 'top',     baseWR: 49.4 },
+    { id: 'Kayle',       name: 'Кейль',          role: 'top',     baseWR: 50.1 },
+    { id: 'Kennen',      name: 'Кеннен',         role: 'top',     baseWR: 50.0 },
+    { id: 'Kled',        name: 'Клед',           role: 'top',     baseWR: 50.2 },
+    { id: 'KSante',      name: 'К\'Санте',       role: 'top',     baseWR: 49.8 },
+    { id: 'Malphite',    name: 'Мальфит',        role: 'top',     baseWR: 51.6 },
+    { id: 'Mordekaiser', name: 'Мордекайзер',    role: 'top',     baseWR: 51.4 },
+    { id: 'Nasus',       name: 'Насус',          role: 'top',     baseWR: 50.9 },
+    { id: 'Olaf',        name: 'Олаф',           role: 'top',     baseWR: 50.1 },
+    { id: 'Ornn',        name: 'Орнн',           role: 'top',     baseWR: 50.9 },
+    { id: 'Quinn',       name: 'Квин',           role: 'top',     baseWR: 49.7 },
+    { id: 'Renekton',    name: 'Ренектон',       role: 'top',     baseWR: 50.1 },
+    { id: 'Riven',       name: 'Ривен',          role: 'top',     baseWR: 49.2 },
+    { id: 'Rumble',      name: 'Рамбл',          role: 'top',     baseWR: 50.4 },
+    { id: 'Sett',        name: 'Сетт',           role: 'top',     baseWR: 50.8 },
+    { id: 'Shen',        name: 'Шен',            role: 'top',     baseWR: 50.6 },
+    { id: 'Singed',      name: 'Синджед',        role: 'top',     baseWR: 50.3 },
+    { id: 'Sion',        name: 'Сион',           role: 'top',     baseWR: 50.5 },
+    { id: 'Teemo',       name: 'Тимо',           role: 'top',     baseWR: 50.3 },
+    { id: 'Trundle',     name: 'Трандл',         role: 'top',     baseWR: 50.6 },
+    { id: 'Tryndamere',  name: 'Трандамер',      role: 'top',     baseWR: 49.9 },
+    { id: 'Urgot',       name: 'Ургот',          role: 'top',     baseWR: 50.6 },
+    { id: 'Yorick',      name: 'Йорик',          role: 'top',     baseWR: 50.7 },
+    // ── Jungle ───────────────────────────────────────────────────────────────
+    { id: 'Amumu',       name: 'Аму-Му',         role: 'jungle',  baseWR: 51.7 },
+    { id: 'BelVeth',     name: 'Бэл\'Вет',       role: 'jungle',  baseWR: 50.0 },
+    { id: 'Briar',       name: 'Бриар',          role: 'jungle',  baseWR: 50.0 },
+    { id: 'Diana',       name: 'Диана',          role: 'jungle',  baseWR: 50.4 },
+    { id: 'Elise',       name: 'Элиза',          role: 'jungle',  baseWR: 49.4 },
+    { id: 'Evelynn',     name: 'Эвелинн',        role: 'jungle',  baseWR: 49.8 },
+    { id: 'Fiddlesticks',name: 'Фиддлстикс',     role: 'jungle',  baseWR: 51.0 },
+    { id: 'Graves',      name: 'Грейвс',         role: 'jungle',  baseWR: 50.5 },
+    { id: 'Hecarim',     name: 'Хекарим',        role: 'jungle',  baseWR: 51.3 },
+    { id: 'Ivern',       name: 'Айверн',         role: 'jungle',  baseWR: 50.2 },
+    { id: 'JarvanIV',    name: 'Джарван IV',     role: 'jungle',  baseWR: 50.3 },
+    { id: 'Karthus',     name: 'Картус',         role: 'jungle',  baseWR: 50.6 },
+    { id: 'Kayn',        name: 'Кайн',           role: 'jungle',  baseWR: 50.2 },
+    { id: 'KhaZix',      name: 'Ка\'Зикс',       role: 'jungle',  baseWR: 50.1 },
+    { id: 'Kindred',     name: 'Сородичи',       role: 'jungle',  baseWR: 49.9 },
+    { id: 'LeeSin',      name: 'Ли Син',         role: 'jungle',  baseWR: 48.6 },
+    { id: 'Lillia',      name: 'Лиллия',         role: 'jungle',  baseWR: 50.3 },
+    { id: 'MasterYi',    name: 'Мастер И',       role: 'jungle',  baseWR: 50.8 },
+    { id: 'Nidalee',     name: 'Нидали',         role: 'jungle',  baseWR: 48.9 },
+    { id: 'Nocturne',    name: 'Ноктюрн',        role: 'jungle',  baseWR: 50.4 },
+    { id: 'Nunu',        name: 'Нуну',           role: 'jungle',  baseWR: 51.1 },
+    { id: 'Rammus',      name: 'Рамус',          role: 'jungle',  baseWR: 51.0 },
+    { id: 'RekSai',      name: 'Рек\'Сай',       role: 'jungle',  baseWR: 49.8 },
+    { id: 'Rengar',      name: 'Ренгар',         role: 'jungle',  baseWR: 49.5 },
+    { id: 'Sejuani',     name: 'Сеюани',         role: 'jungle',  baseWR: 51.4 },
+    { id: 'Shaco',       name: 'Шако',           role: 'jungle',  baseWR: 49.3 },
+    { id: 'Shyvana',     name: 'Шайвана',        role: 'jungle',  baseWR: 50.6 },
+    { id: 'Skarner',     name: 'Скарнер',        role: 'jungle',  baseWR: 50.2 },
+    { id: 'Udyr',        name: 'Удыр',           role: 'jungle',  baseWR: 50.7 },
+    { id: 'Vi',          name: 'Вай',            role: 'jungle',  baseWR: 50.0 },
+    { id: 'Viego',       name: 'Виего',          role: 'jungle',  baseWR: 49.7 },
+    { id: 'Volibear',    name: 'Волибир',        role: 'jungle',  baseWR: 50.5 },
+    { id: 'Warwick',     name: 'Варвик',         role: 'jungle',  baseWR: 51.0 },
+    { id: 'Wukong',      name: 'Укун',           role: 'jungle',  baseWR: 50.6 },
+    { id: 'XinZhao',     name: 'Синь Чжао',      role: 'jungle',  baseWR: 50.4 },
+    { id: 'Zac',         name: 'Зак',            role: 'jungle',  baseWR: 51.2 },
+    // ── Mid ──────────────────────────────────────────────────────────────────
+    { id: 'Ahri',        name: 'Ари',            role: 'mid',     baseWR: 51.1 },
+    { id: 'Akali',       name: 'Акали',          role: 'mid',     baseWR: 49.2 },
+    { id: 'Akshan',      name: 'Аксан',          role: 'mid',     baseWR: 50.0 },
+    { id: 'Anivia',      name: 'Анивия',         role: 'mid',     baseWR: 50.5 },
+    { id: 'Annie',       name: 'Энни',           role: 'mid',     baseWR: 50.8 },
+    { id: 'AurelionSol', name: 'Аурелион Сол',   role: 'mid',     baseWR: 51.2 },
+    { id: 'Aurora',      name: 'Аврора',         role: 'mid',     baseWR: 50.0 },
+    { id: 'Azir',        name: 'Азир',           role: 'mid',     baseWR: 49.5 },
+    { id: 'Cassiopeia',  name: 'Кассиопея',      role: 'mid',     baseWR: 50.4 },
+    { id: 'Corki',       name: 'Корки',          role: 'mid',     baseWR: 50.4 },
+    { id: 'Ekko',        name: 'Экко',           role: 'mid',     baseWR: 50.3 },
+    { id: 'Fizz',        name: 'Физз',           role: 'mid',     baseWR: 49.7 },
+    { id: 'Galio',       name: 'Галио',          role: 'mid',     baseWR: 50.6 },
+    { id: 'Heimerdinger',name: 'Хеймердингер',   role: 'mid',     baseWR: 50.1 },
+    { id: 'Hwei',        name: 'Хвей',           role: 'mid',     baseWR: 50.3 },
+    { id: 'Kassadin',    name: 'Кассадин',       role: 'mid',     baseWR: 50.2 },
+    { id: 'Katarina',    name: 'Катарина',       role: 'mid',     baseWR: 49.8 },
+    { id: 'Leblanc',     name: 'Лебланк',        role: 'mid',     baseWR: 49.5 },
+    { id: 'Lissandra',   name: 'Лиссандра',      role: 'mid',     baseWR: 50.7 },
+    { id: 'Lux',         name: 'Люкс',           role: 'mid',     baseWR: 50.9 },
+    { id: 'Malzahar',    name: 'Малзахар',       role: 'mid',     baseWR: 50.7 },
+    { id: 'Naafiri',     name: 'Нафири',         role: 'mid',     baseWR: 50.0 },
+    { id: 'Neeko',       name: 'Нико',           role: 'mid',     baseWR: 50.2 },
+    { id: 'Orianna',     name: 'Орианна',        role: 'mid',     baseWR: 50.5 },
+    { id: 'Qiyana',      name: 'Кияна',          role: 'mid',     baseWR: 49.6 },
+    { id: 'Ryze',        name: 'Рэйз',           role: 'mid',     baseWR: 49.8 },
+    { id: 'Swain',       name: 'Суэйн',          role: 'mid',     baseWR: 50.5 },
+    { id: 'Sylas',       name: 'Сайлас',         role: 'mid',     baseWR: 49.9 },
+    { id: 'Syndra',      name: 'Синдра',         role: 'mid',     baseWR: 49.9 },
+    { id: 'Taliyah',     name: 'Талия',          role: 'mid',     baseWR: 50.4 },
+    { id: 'Talon',       name: 'Талон',          role: 'mid',     baseWR: 50.0 },
+    { id: 'TwistedFate', name: 'Судьба',         role: 'mid',     baseWR: 50.1 },
+    { id: 'Veigar',      name: 'Вейгар',         role: 'mid',     baseWR: 51.0 },
+    { id: 'Velkoz',      name: 'Вел\'Коз',       role: 'mid',     baseWR: 50.8 },
+    { id: 'Vex',         name: 'Векс',           role: 'mid',     baseWR: 51.0 },
+    { id: 'Viktor',      name: 'Виктор',         role: 'mid',     baseWR: 50.6 },
+    { id: 'Vladimir',    name: 'Владимир',       role: 'mid',     baseWR: 50.3 },
+    { id: 'Xerath',      name: 'Ксерат',         role: 'mid',     baseWR: 50.6 },
+    { id: 'Yasuo',       name: 'Ясуо',           role: 'mid',     baseWR: 49.0 },
+    { id: 'Yone',        name: 'Йоне',           role: 'mid',     baseWR: 49.3 },
+    { id: 'Zed',         name: 'Зед',            role: 'mid',     baseWR: 49.4 },
+    { id: 'Ziggs',       name: 'Зиггс',          role: 'mid',     baseWR: 50.3 },
+    { id: 'Zoe',         name: 'Зо',             role: 'mid',     baseWR: 50.1 },
+    // ── ADC ──────────────────────────────────────────────────────────────────
+    { id: 'Aphelios',    name: 'Афелиос',        role: 'adc',     baseWR: 50.2 },
+    { id: 'Ashe',        name: 'Эш',             role: 'adc',     baseWR: 50.1 },
+    { id: 'Caitlyn',     name: 'Кейтлин',        role: 'adc',     baseWR: 49.6 },
+    { id: 'Draven',      name: 'Дрейвен',        role: 'adc',     baseWR: 49.8 },
+    { id: 'Ezreal',      name: 'Эзреаль',        role: 'adc',     baseWR: 49.1 },
+    { id: 'Jhin',        name: 'Джин',           role: 'adc',     baseWR: 50.7 },
+    { id: 'Jinx',        name: 'Джинкс',         role: 'adc',     baseWR: 51.3 },
+    { id: 'Kaisa',       name: 'Каиса',          role: 'adc',     baseWR: 50.5 },
+    { id: 'Kalista',     name: 'Калиста',        role: 'adc',     baseWR: 49.7 },
+    { id: 'KogMaw',      name: 'Kog\'Maw',       role: 'adc',     baseWR: 51.5 },
+    { id: 'Lucian',      name: 'Люциан',         role: 'adc',     baseWR: 49.9 },
+    { id: 'MissFortune', name: 'Мисс Фортюн',   role: 'adc',     baseWR: 51.1 },
+    { id: 'Nilah',       name: 'Нила',           role: 'adc',     baseWR: 50.0 },
+    { id: 'Samira',      name: 'Самира',         role: 'adc',     baseWR: 49.6 },
+    { id: 'Sivir',       name: 'Сивир',          role: 'adc',     baseWR: 50.9 },
+    { id: 'Smolder',     name: 'Смолдер',        role: 'adc',     baseWR: 50.0 },
+    { id: 'Tristana',    name: 'Тристана',       role: 'adc',     baseWR: 50.3 },
+    { id: 'Twitch',      name: 'Твич',           role: 'adc',     baseWR: 50.4 },
+    { id: 'Varus',       name: 'Варус',          role: 'adc',     baseWR: 50.2 },
+    { id: 'Vayne',       name: 'Вейн',           role: 'adc',     baseWR: 49.4 },
+    { id: 'Xayah',       name: 'Зайя',           role: 'adc',     baseWR: 50.0 },
+    { id: 'Zeri',        name: 'Зери',           role: 'adc',     baseWR: 50.1 },
+    // ── Support ──────────────────────────────────────────────────────────────
+    { id: 'Alistar',     name: 'Алистар',        role: 'support', baseWR: 50.1 },
+    { id: 'Bard',        name: 'Бард',           role: 'support', baseWR: 49.4 },
+    { id: 'Blitzcrank',  name: 'Блицкранк',      role: 'support', baseWR: 50.4 },
+    { id: 'Brand',       name: 'Брэнд',          role: 'support', baseWR: 50.2 },
+    { id: 'Braum',       name: 'Браум',          role: 'support', baseWR: 50.7 },
+    { id: 'Janna',       name: 'Джанна',         role: 'support', baseWR: 51.3 },
+    { id: 'Karma',       name: 'Карма',          role: 'support', baseWR: 50.7 },
+    { id: 'Leona',       name: 'Леона',          role: 'support', baseWR: 50.9 },
+    { id: 'Lulu',        name: 'Лулу',           role: 'support', baseWR: 51.0 },
+    { id: 'Maokai',      name: 'Маокай',         role: 'support', baseWR: 50.8 },
+    { id: 'Milio',       name: 'Милио',          role: 'support', baseWR: 51.1 },
+    { id: 'Morgana',     name: 'Моргана',        role: 'support', baseWR: 50.8 },
+    { id: 'Nami',        name: 'Нами',           role: 'support', baseWR: 50.5 },
+    { id: 'Nautilus',    name: 'Наутилус',       role: 'support', baseWR: 50.6 },
+    { id: 'Pantheon',    name: 'Пантеон',        role: 'support', baseWR: 50.0 },
+    { id: 'Poppy',       name: 'Поппи',          role: 'support', baseWR: 50.5 },
+    { id: 'Pyke',        name: 'Пайк',           role: 'support', baseWR: 49.0 },
+    { id: 'Rakan',       name: 'Рейкан',         role: 'support', baseWR: 50.3 },
+    { id: 'Rell',        name: 'Релль',          role: 'support', baseWR: 50.5 },
+    { id: 'Renata',      name: 'Рената',         role: 'support', baseWR: 50.1 },
+    { id: 'Senna',       name: 'Сенна',          role: 'support', baseWR: 51.4 },
+    { id: 'Seraphine',   name: 'Серафина',       role: 'support', baseWR: 50.6 },
+    { id: 'Sona',        name: 'Сона',           role: 'support', baseWR: 51.5 },
+    { id: 'Soraka',      name: 'Сорака',         role: 'support', baseWR: 51.2 },
+    { id: 'TahmKench',   name: 'Тахм Кенч',      role: 'support', baseWR: 50.9 },
+    { id: 'Taric',       name: 'Тарик',          role: 'support', baseWR: 50.8 },
+    { id: 'Thresh',      name: 'Треш',           role: 'support', baseWR: 49.8 },
+    { id: 'Yuumi',       name: 'Юуми',           role: 'support', baseWR: 50.4 },
+    { id: 'Zilean',      name: 'Зилеан',         role: 'support', baseWR: 51.0 },
+    { id: 'Zyra',        name: 'Зайра',          role: 'support', baseWR: 50.3 },
   ];
 
   const byId   = (id)   => CHAMPIONS.find((c) => c.id === id) || null;
   const byRole = (role) => CHAMPIONS.filter((c) => c.role === role);
 
   // ─── Теги чемпионов ─────────────────────────────────────────────────────────
-  // Используются для семантического определения типа синергии.
   const TAGS = {
     // Top
-    Garen:       ['juggernaut', 'tank'],
-    Darius:      ['juggernaut', 'dive', 'hard_cc'],
-    Sett:        ['juggernaut', 'engage', 'hard_cc'],
-    Malphite:    ['engage', 'hard_cc', 'ult_malphite', 'tank'],
-    Aatrox:      ['sustain', 'dive', 'hard_cc'],
-    Fiora:       ['split', 'dive', 'mobility'],
-    Camille:     ['dive', 'hard_cc', 'mobility'],
-    Nasus:       ['juggernaut', 'scale', 'cc'],
-    Renekton:    ['dive', 'hard_cc', 'aggressive'],
-    Irelia:      ['dive', 'mobility', 'hard_cc', 'scale'],
-    Jax:         ['scale', 'dive', 'hard_cc'],
-    Teemo:       ['poke', 'zone_control', 'stealth'],
-    Kennen:      ['engage', 'hard_cc', 'burst', 'zone_control'],
-    Mordekaiser: ['dive', 'cc', 'zone_control', 'scale'],
-    Illaoi:      ['zone_control', 'sustain', 'hard_cc'],
-    Riven:       ['dive', 'burst', 'mobility', 'hard_cc'],
-    Urgot:       ['burst', 'hard_cc', 'zone_control'],
-    Ornn:        ['engage', 'hard_cc', 'tank', 'peel'],
-    Gragas:      ['engage', 'hard_cc', 'cc', 'zone_control', 'dive'],
+    Aatrox:       ['sustain', 'dive', 'hard_cc'],
+    Ambessa:      ['dive', 'burst', 'mobility', 'aggressive'],
+    Camille:      ['dive', 'hard_cc', 'mobility'],
+    Chogath:      ['tank', 'hard_cc', 'dive', 'scale'],
+    Darius:       ['juggernaut', 'dive', 'hard_cc'],
+    DrMundo:      ['tank', 'sustain', 'scale', 'juggernaut'],
+    Fiora:        ['split', 'dive', 'mobility'],
+    Gangplank:    ['poke', 'scale', 'zone_control'],
+    Garen:        ['juggernaut', 'tank'],
+    Gnar:         ['engage', 'hard_cc', 'poke', 'scale'],
+    Gragas:       ['engage', 'hard_cc', 'cc', 'zone_control', 'dive'],
+    Gwen:         ['dive', 'sustain', 'scale', 'mobility'],
+    Illaoi:       ['zone_control', 'sustain', 'hard_cc'],
+    Irelia:       ['dive', 'mobility', 'hard_cc', 'scale'],
+    Jax:          ['scale', 'dive', 'hard_cc'],
+    Jayce:        ['poke', 'cc', 'burst', 'mobility'],
+    Kayle:        ['scale', 'hypercarry', 'ult_invuln', 'needs_peel'],
+    Kennen:       ['engage', 'hard_cc', 'burst', 'zone_control'],
+    Kled:         ['aggressive', 'dive', 'hard_cc', 'engage'],
+    KSante:       ['tank', 'engage', 'hard_cc', 'mobility', 'dive'],
+    Malphite:     ['engage', 'hard_cc', 'ult_malphite', 'tank'],
+    Mordekaiser:  ['dive', 'cc', 'zone_control', 'scale'],
+    Nasus:        ['juggernaut', 'scale', 'cc'],
+    Olaf:         ['dive', 'aggressive', 'sustain', 'juggernaut'],
+    Ornn:         ['engage', 'hard_cc', 'tank', 'peel'],
+    Quinn:        ['poke', 'aggressive', 'mobility'],
+    Renekton:     ['dive', 'hard_cc', 'aggressive'],
+    Riven:        ['dive', 'burst', 'mobility', 'hard_cc'],
+    Rumble:       ['zone_control', 'burst', 'cc'],
+    Sett:         ['juggernaut', 'engage', 'hard_cc'],
+    Shen:         ['engage', 'hard_cc', 'peel', 'tank', 'utility'],
+    Singed:       ['cc', 'tank', 'sustain', 'zone_control'],
+    Sion:         ['engage', 'hard_cc', 'tank', 'juggernaut'],
+    Teemo:        ['poke', 'zone_control', 'stealth'],
+    Trundle:      ['dive', 'cc', 'sustain', 'anti_tank'],
+    Tryndamere:   ['dive', 'hypercarry', 'scale', 'mobility'],
+    Urgot:        ['burst', 'hard_cc', 'zone_control'],
+    Yorick:       ['zone_control', 'scale', 'split'],
     // Jungle
-    LeeSin:      ['dive', 'cc', 'hard_cc', 'mobility'],
-    Sejuani:     ['engage', 'hard_cc', 'channels_ult', 'tank'],
-    Warwick:     ['dive', 'hard_cc', 'sustain'],
-    Kayn:        ['dive', 'burst', 'mobility', 'stealth'],
-    Vi:          ['dive', 'hard_cc', 'engage'],
-    Viego:       ['dive', 'burst', 'stealth'],
-    Hecarim:     ['engage', 'dive', 'mobility', 'hard_cc'],
-    Graves:      ['dive', 'burst', 'mobility'],
-    Nidalee:     ['poke', 'mobility', 'burst'],
-    Elise:       ['dive', 'cc', 'hard_cc', 'burst'],
-    Amumu:       ['engage', 'hard_cc', 'channels_ult', 'tank'],
-    Shyvana:     ['scale', 'dive', 'zone_control'],
-    MasterYi:    ['dive', 'scale', 'hypercarry', 'mobility'],
-    Nunu:        ['engage', 'peel', 'channels_ult', 'cc', 'hard_cc'],
-    RekSai:      ['dive', 'cc', 'mobility'],
-    JarvanIV:    ['engage', 'hard_cc', 'dive', 'ult_trap'],
-    Zac:         ['engage', 'hard_cc', 'cc', 'tank', 'dive'],
-    Nocturne:    ['dive', 'burst', 'stealth', 'hard_cc'],
+    Amumu:        ['engage', 'hard_cc', 'channels_ult', 'tank'],
+    BelVeth:      ['dive', 'burst', 'mobility', 'scale', 'hypercarry'],
+    Briar:        ['dive', 'burst', 'aggressive', 'hard_cc', 'channels_ult'],
+    Diana:        ['dive', 'burst', 'cc', 'hard_cc', 'engage'],
+    Elise:        ['dive', 'cc', 'hard_cc', 'burst'],
+    Evelynn:      ['dive', 'burst', 'stealth', 'mobility'],
+    Fiddlesticks: ['channels_ult', 'cc', 'hard_cc', 'poke'],
+    Graves:       ['dive', 'burst', 'mobility'],
+    Hecarim:      ['engage', 'dive', 'mobility', 'hard_cc'],
+    Ivern:        ['peel', 'shield', 'cc', 'utility'],
+    JarvanIV:     ['engage', 'hard_cc', 'dive', 'ult_trap'],
+    Karthus:      ['poke', 'burst', 'channels_ult', 'scale'],
+    Kayn:         ['dive', 'burst', 'mobility'],
+    KhaZix:       ['dive', 'burst', 'stealth', 'mobility'],
+    Kindred:      ['cc', 'utility', 'scale', 'ult_invuln'],
+    LeeSin:       ['dive', 'cc', 'hard_cc', 'mobility'],
+    Lillia:       ['cc', 'hard_cc', 'mobility', 'poke'],
+    MasterYi:     ['dive', 'scale', 'hypercarry', 'mobility'],
+    Nidalee:      ['poke', 'mobility', 'burst'],
+    Nocturne:     ['dive', 'burst', 'stealth', 'hard_cc'],
+    Nunu:         ['engage', 'peel', 'channels_ult', 'cc', 'hard_cc'],
+    Rammus:       ['engage', 'hard_cc', 'tank', 'cc'],
+    RekSai:       ['dive', 'cc', 'mobility'],
+    Rengar:       ['dive', 'burst', 'stealth'],
+    Sejuani:      ['engage', 'hard_cc', 'channels_ult', 'tank'],
+    Shaco:        ['burst', 'stealth', 'cc', 'mobility'],
+    Shyvana:      ['scale', 'dive', 'zone_control'],
+    Skarner:      ['engage', 'hard_cc', 'dive', 'tank'],
+    Udyr:         ['engage', 'hard_cc', 'tank', 'juggernaut', 'dive'],
+    Vi:           ['dive', 'hard_cc', 'engage'],
+    Viego:        ['dive', 'burst', 'stealth'],
+    Volibear:     ['dive', 'engage', 'hard_cc', 'tank'],
+    Warwick:      ['dive', 'hard_cc', 'sustain'],
+    Wukong:       ['engage', 'hard_cc', 'dive', 'burst'],
+    XinZhao:      ['dive', 'cc', 'hard_cc', 'engage', 'aggressive'],
+    Zac:          ['engage', 'hard_cc', 'cc', 'tank', 'dive'],
     // Mid
-    Ahri:        ['burst', 'mobility', 'cc'],
-    Yasuo:       ['dive', 'burst', 'mobility', 'ult_airborne'],
-    Yone:        ['dive', 'burst', 'mobility', 'ult_airborne'],
-    Zed:         ['burst', 'dive', 'stealth', 'mobility'],
-    Lux:         ['burst', 'cc', 'hard_cc', 'poke', 'shield'],
-    Syndra:      ['burst', 'cc', 'hard_cc'],
-    Viktor:      ['poke', 'burst', 'cc', 'scale'],
-    Ekko:        ['dive', 'burst', 'mobility'],
-    Fizz:        ['dive', 'burst', 'mobility', 'cc'],
-    Orianna:     ['ult_orianna', 'poke', 'cc', 'hard_cc'],
-    Akali:       ['dive', 'burst', 'stealth', 'mobility'],
-    Katarina:    ['dive', 'burst', 'mobility', 'channels_ult'],
-    TwistedFate: ['cc', 'hard_cc', 'burst', 'roam'],
-    Corki:       ['poke', 'mobility', 'scale'],
-    Leblanc:     ['burst', 'dive', 'mobility', 'cc'],
-    Vex:         ['burst', 'cc', 'hard_cc', 'poke'],
-    Velkoz:      ['poke', 'burst', 'channels_ult'],
-    Malzahar:    ['burst', 'hard_cc', 'zone_control'],
+    Ahri:         ['burst', 'mobility', 'cc'],
+    Akali:        ['dive', 'burst', 'stealth', 'mobility'],
+    Akshan:       ['poke', 'mobility', 'cc', 'utility'],
+    Anivia:       ['cc', 'hard_cc', 'zone_control', 'poke'],
+    Annie:        ['burst', 'hard_cc', 'engage', 'cc'],
+    AurelionSol:  ['burst', 'cc', 'hard_cc', 'scale', 'poke'],
+    Aurora:       ['burst', 'mobility', 'cc', 'dive'],
+    Azir:         ['poke', 'zone_control', 'hard_cc', 'scale'],
+    Cassiopeia:   ['poke', 'cc', 'hard_cc', 'scale'],
+    Corki:        ['poke', 'mobility', 'scale'],
+    Ekko:         ['dive', 'burst', 'mobility'],
+    Fizz:         ['dive', 'burst', 'mobility', 'cc'],
+    Galio:        ['engage', 'hard_cc', 'tank', 'cc', 'peel'],
+    Heimerdinger: ['poke', 'zone_control', 'cc'],
+    Hwei:         ['poke', 'burst', 'cc', 'zone_control'],
+    Kassadin:     ['dive', 'burst', 'mobility', 'cc'],
+    Katarina:     ['dive', 'burst', 'mobility', 'channels_ult'],
+    Leblanc:      ['burst', 'dive', 'mobility', 'cc'],
+    Lissandra:    ['burst', 'cc', 'hard_cc', 'engage', 'zone_control'],
+    Lux:          ['burst', 'cc', 'hard_cc', 'poke', 'shield'],
+    Malzahar:     ['burst', 'hard_cc', 'zone_control'],
+    Naafiri:      ['dive', 'burst', 'mobility', 'aggressive'],
+    Neeko:        ['burst', 'cc', 'hard_cc', 'engage', 'zone_control'],
+    Orianna:      ['ult_orianna', 'poke', 'cc', 'hard_cc'],
+    Qiyana:       ['burst', 'dive', 'mobility', 'cc', 'hard_cc'],
+    Ryze:         ['poke', 'burst', 'scale', 'cc'],
+    Swain:        ['poke', 'cc', 'sustain', 'scale', 'zone_control'],
+    Sylas:        ['dive', 'burst', 'mobility', 'cc', 'hard_cc'],
+    Syndra:       ['burst', 'cc', 'hard_cc'],
+    Taliyah:      ['poke', 'zone_control', 'cc', 'hard_cc'],
+    Talon:        ['dive', 'burst', 'stealth', 'mobility', 'roam'],
+    TwistedFate:  ['cc', 'hard_cc', 'burst', 'roam'],
+    Veigar:       ['burst', 'cc', 'hard_cc', 'scale'],
+    Velkoz:       ['poke', 'burst', 'channels_ult'],
+    Vex:          ['burst', 'cc', 'hard_cc', 'poke'],
+    Viktor:       ['poke', 'burst', 'cc', 'scale'],
+    Vladimir:     ['poke', 'sustain', 'scale', 'dive'],
+    Xerath:       ['poke', 'burst', 'cc', 'hard_cc'],
+    Yasuo:        ['dive', 'burst', 'mobility', 'ult_airborne'],
+    Yone:         ['dive', 'burst', 'mobility', 'ult_airborne'],
+    Zed:          ['burst', 'dive', 'stealth', 'mobility'],
+    Ziggs:        ['poke', 'burst', 'zone_control', 'cc'],
+    Zoe:          ['burst', 'poke', 'cc', 'hard_cc', 'mobility'],
     // ADC
-    Jinx:        ['scale', 'hypercarry', 'poke', 'needs_peel'],
-    Caitlyn:     ['trap', 'poke', 'scale'],
-    Ezreal:      ['poke', 'mobility'],
-    Kaisa:       ['scale', 'hypercarry', 'mobility', 'dive'],
-    Jhin:        ['poke', 'cc'],
-    Ashe:        ['poke', 'cc', 'hard_cc'],
-    Tristana:    ['scale', 'aggressive', 'mobility', 'dive'],
-    Sivir:       ['scale', 'utility'],
-    Vayne:       ['scale', 'hypercarry', 'needs_peel', 'dive'],
-    MissFortune: ['poke', 'burst', 'channels_ult', 'aggressive'],
-    Draven:      ['aggressive', 'kill_lane', 'hypercarry'],
-    Samira:      ['aggressive', 'dive', 'mobility'],
-    Xayah:       ['scale', 'xayah_pair', 'cc'],
-    Lucian:      ['aggressive', 'poke', 'mobility', 'lucian'],
-    KogMaw:      ['scale', 'hypercarry', 'needs_peel', 'poke'],
-    Twitch:      ['scale', 'hypercarry', 'stealth', 'needs_peel'],
+    Aphelios:     ['scale', 'hypercarry', 'needs_peel', 'poke'],
+    Ashe:         ['poke', 'cc', 'hard_cc'],
+    Caitlyn:      ['trap', 'poke', 'scale'],
+    Draven:       ['aggressive', 'kill_lane', 'hypercarry'],
+    Ezreal:       ['poke', 'mobility'],
+    Jhin:         ['poke', 'cc'],
+    Jinx:         ['scale', 'hypercarry', 'poke', 'needs_peel'],
+    Kaisa:        ['scale', 'hypercarry', 'mobility', 'dive'],
+    Kalista:      ['scale', 'aggressive', 'hypercarry', 'utility'],
+    KogMaw:       ['scale', 'hypercarry', 'needs_peel', 'poke'],
+    Lucian:       ['aggressive', 'poke', 'mobility', 'lucian'],
+    MissFortune:  ['poke', 'burst', 'channels_ult', 'aggressive'],
+    Nilah:        ['aggressive', 'dive', 'scale', 'mobility'],
+    Samira:       ['aggressive', 'dive', 'mobility'],
+    Sivir:        ['scale', 'utility'],
+    Smolder:      ['scale', 'hypercarry', 'poke', 'needs_peel'],
+    Tristana:     ['scale', 'aggressive', 'mobility', 'dive'],
+    Twitch:       ['scale', 'hypercarry', 'stealth', 'needs_peel'],
+    Varus:        ['poke', 'cc', 'hard_cc', 'scale'],
+    Vayne:        ['scale', 'hypercarry', 'needs_peel', 'dive'],
+    Xayah:        ['scale', 'xayah_pair', 'cc'],
+    Zeri:         ['scale', 'hypercarry', 'mobility', 'aggressive'],
     // Support
-    Thresh:      ['hook', 'engage', 'hard_cc', 'peel', 'utility'],
-    Lulu:        ['peel', 'shield', 'cc', 'hard_cc'],
-    Leona:       ['engage', 'hard_cc', 'tank'],
-    Nautilus:    ['hook', 'engage', 'hard_cc', 'tank'],
-    Bard:        ['roam', 'cc', 'hard_cc', 'utility'],
-    Soraka:      ['peel', 'heal', 'cc'],
-    Pyke:        ['hook', 'cc', 'roam', 'burst'],
-    Blitzcrank:  ['hook', 'engage', 'cc', 'hard_cc'],
-    Karma:       ['peel', 'poke', 'shield', 'cc', 'mobility'],
-    Nami:        ['peel', 'cc', 'hard_cc', 'heal', 'nami_e'],
-    Janna:       ['peel', 'disengage', 'shield', 'hard_cc'],
-    Morgana:     ['shield', 'cc', 'hard_cc', 'poke'],
-    Alistar:     ['engage', 'hard_cc', 'peel', 'heal', 'tank'],
-    Zyra:        ['poke', 'cc', 'zone_control'],
-    Sona:        ['peel', 'heal', 'cc', 'hard_cc', 'shield'],
-    Seraphine:   ['peel', 'cc', 'hard_cc', 'shield', 'heal', 'poke'],
-    Brand:       ['poke', 'burst'],
-    Rakan:       ['engage', 'cc', 'hard_cc', 'xayah_pair', 'peel', 'mobility'],
-    Rell:        ['engage', 'hard_cc', 'tank'],
-    Renata:      ['utility', 'cc', 'shield', 'peel'],
-    Taric:       ['peel', 'heal', 'cc', 'hard_cc', 'ult_invuln'],
-    Milio:       ['peel', 'heal', 'shield', 'cc'],
-    Senna:       ['poke', 'peel', 'scale', 'cc', 'heal'],
+    Alistar:      ['engage', 'hard_cc', 'peel', 'heal', 'tank'],
+    Bard:         ['roam', 'cc', 'hard_cc', 'utility'],
+    Blitzcrank:   ['hook', 'engage', 'cc', 'hard_cc'],
+    Brand:        ['poke', 'burst'],
+    Braum:        ['peel', 'engage', 'hard_cc', 'shield'],
+    Janna:        ['peel', 'disengage', 'shield', 'hard_cc'],
+    Karma:        ['peel', 'poke', 'shield', 'cc', 'mobility'],
+    Leona:        ['engage', 'hard_cc', 'tank'],
+    Lulu:         ['peel', 'shield', 'cc', 'hard_cc'],
+    Maokai:       ['engage', 'hard_cc', 'tank', 'peel', 'cc'],
+    Milio:        ['peel', 'heal', 'shield', 'cc'],
+    Morgana:      ['shield', 'cc', 'hard_cc', 'poke'],
+    Nami:         ['peel', 'cc', 'hard_cc', 'heal', 'nami_e'],
+    Nautilus:     ['hook', 'engage', 'hard_cc', 'tank'],
+    Pantheon:     ['engage', 'hard_cc', 'dive', 'burst', 'cc'],
+    Poppy:        ['engage', 'hard_cc', 'peel', 'tank', 'disengage'],
+    Pyke:         ['hook', 'cc', 'roam', 'burst'],
+    Rakan:        ['engage', 'cc', 'hard_cc', 'xayah_pair', 'peel', 'mobility'],
+    Rell:         ['engage', 'hard_cc', 'tank'],
+    Renata:       ['utility', 'cc', 'shield', 'peel'],
+    Senna:        ['poke', 'peel', 'scale', 'cc', 'heal'],
+    Seraphine:    ['peel', 'cc', 'hard_cc', 'shield', 'heal', 'poke'],
+    Sona:         ['peel', 'heal', 'cc', 'hard_cc', 'shield'],
+    Soraka:       ['peel', 'heal', 'cc'],
+    TahmKench:    ['peel', 'tank', 'hard_cc', 'sustain', 'shield'],
+    Taric:        ['peel', 'heal', 'cc', 'hard_cc', 'ult_invuln'],
+    Thresh:       ['hook', 'engage', 'hard_cc', 'peel', 'utility'],
+    Yuumi:        ['peel', 'heal', 'shield', 'cc'],
+    Zilean:       ['utility', 'cc', 'hard_cc', 'peel', 'ult_invuln'],
+    Zyra:         ['poke', 'cc', 'zone_control'],
   };
 
   function getTags(id) { return TAGS[id] || []; }
@@ -228,7 +384,6 @@
   function hasAnyTag(id, tags) { return tags.some((t) => getTags(id).includes(t)); }
 
   // ─── Семантическая синергия ──────────────────────────────────────────────────
-  // allies: [{id, name, role}]
   function detectSynergies(champId, allies) {
     const labels = [];
     const myTags = getTags(champId);
@@ -255,19 +410,19 @@
         continue;
       }
 
-      // ── Ганк-синергия (джангл с дайвом) ────────────────
+      // ── Ганк-синергия ───────────────────────────────────
       if (aRole === 'jungle' && hasAnyTag(aId, ['dive', 'engage']) && myHas(['engage', 'hook', 'hard_cc'])) {
         labels.push({ icon: '🗡️', text: 'Ганк-синергия с ' + aName + ': СС держит, ' + aName + ' прыгает — лёгкое убийство' });
         continue;
       }
 
-      // ── Ульт-синергия: кукан → Ясуо/Йоне ──────────────
+      // ── Ульт-синергия: Ясуо/Йоне ───────────────────────
       if (hasAnyTag(aId, ['ult_airborne']) && myHas(['engage', 'hard_cc'])) {
         labels.push({ icon: '🌪️', text: 'Ульт-синергия с ' + aName + ': любой кукан активирует его ульт' });
         continue;
       }
 
-      // ── Ульт-синергия: CC → каналирующий ульт (МФ, Вел'Коз, Катарина) ──
+      // ── Ульт-синергия: каналирующий ульт ───────────────
       if (hasAnyTag(aId, ['channels_ult']) && myHas(['hard_cc', 'engage'])) {
         labels.push({ icon: '🎶', text: 'Ульт-синергия с ' + aName + ': СС фиксирует врагов под ультом' });
         continue;
@@ -285,9 +440,9 @@
         continue;
       }
 
-      // ── Ульт-синергия: Тарик (неуязвимость) ───────────
-      if (hasAnyTag(aId, ['ult_invuln']) && myHas(['dive', 'burst'])) {
-        labels.push({ icon: '🛡️', text: 'Тарик даёт неуязвимость во время дайва — прыгаешь без риска умереть' });
+      // ── Тарик/Зилеан/Кайнд (неуязвимость) ─────────────
+      if (hasAnyTag(aId, ['ult_invuln']) && myHas(['dive', 'burst', 'hypercarry'])) {
+        labels.push({ icon: '🛡️', text: aName + ' даёт неуязвимость — прыгаешь/атакуешь без риска умереть' });
         continue;
       }
 
@@ -299,7 +454,7 @@
 
       // ── Защита гиперкэрри ───────────────────────────────
       if (hasAnyTag(aId, ['hypercarry', 'needs_peel']) && myHas(['peel', 'shield', 'heal'])) {
-        labels.push({ icon: '🛡️', text: 'Защита гиперкэрри ' + aName + ': твоя задача — пилить и лечить' });
+        labels.push({ icon: '🛡️', text: 'Защита гиперкэрри ' + aName + ': щит и пилинг в приоритете' });
         continue;
       }
 
@@ -309,7 +464,7 @@
         continue;
       }
 
-      // ── Пилинг для адк, который сам прыгает ─────────────
+      // ── Пилинг для мобильного адк ───────────────────────
       if (aRole === 'adc' && hasAnyTag(aId, ['dive', 'mobility']) && myHas(['peel', 'shield'])) {
         labels.push({ icon: '🔰', text: 'Прикрытие для ' + aName + ': пока он прыгает, ты защищаешь от фокуса' });
         continue;
@@ -347,7 +502,6 @@
   const W = { base: 1.0, direct: 2.5, other: 0.8, synergy: 1.2 };
   const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 
-  // state: { myRole, ally:{role:id|null}, enemy:{role:id|null}, bans:[id] }
   function recommend(state) {
     const { myRole, ally, enemy } = state;
     const banned = new Set(state.bans || []);
@@ -360,38 +514,54 @@
     const directOppId   = enemy[myRole] || null;
     const otherEnemyIds = ROLE_KEYS.filter((r) => r !== myRole).map((r) => enemy[r]).filter(Boolean);
 
-    // Союзники с ролями — нужны для семантической синергии
     const allyData = ROLE_KEYS.filter((r) => r !== myRole).map((r) => {
       const id = ally[r];
       if (!id) return null;
       const ac = byId(id);
       return { id, role: r, name: ac ? ac.name : id };
     }).filter(Boolean);
-    const allyIds = allyData.map((a) => a.id);
 
     const candidates = byRole(myRole).filter((c) => !banned.has(c.id) && !taken.has(c.id));
 
     const scored = candidates.map((c) => {
-      const base = c.baseWR - 50;
-      const direct = directOppId ? counter(c.id, directOppId) : 0;
+      // Base WR — реальные данные если есть, иначе синтетика
+      const bwStat  = _data?.base_wr[c.id]?.[myRole];
+      const bwReal  = smoothed(bwStat);
+      const base    = bwReal !== null ? (bwReal - 0.5) * 100 : c.baseWR - 50;
+      const displayWR = bwReal !== null ? bwReal * 100 : c.baseWR;
 
+      // Матчап с прямым оппонентом
+      let direct = 0;
+      if (directOppId) {
+        const mStat = _data?.matchup[c.id + '/' + directOppId]?.[myRole];
+        const mReal = smoothed(mStat);
+        direct = mReal !== null ? (mReal - 0.5) * 100 : counter(c.id, directOppId);
+      }
+
+      // Матчапы против прочих врагов
       const otherCounters = otherEnemyIds.map((e) => {
-        const ec = byId(e);
-        return { id: e, name: ec ? ec.name : e, val: counter(c.id, e) };
+        const ec    = byId(e);
+        const mStat = _data?.matchup[c.id + '/' + e]?.[myRole];
+        const mReal = smoothed(mStat);
+        const val   = mReal !== null ? (mReal - 0.5) * 100 : counter(c.id, e);
+        return { id: e, name: ec ? ec.name : e, val };
       });
       const other = avg(otherCounters.map((x) => x.val));
 
-      const allySyns = allyData.map((a) => ({
-        id: a.id, name: a.name, role: a.role, val: synergy(c.id, a.id),
-      }));
+      // Синергия с союзниками
+      const allySyns = allyData.map((a) => {
+        const sStat = _data?.synergy[c.id + '/' + a.id]?.[myRole + '/' + a.role];
+        const sReal = smoothed(sStat);
+        const val   = sReal !== null ? (sReal - 0.5) * 100 : synergy(c.id, a.id);
+        return { id: a.id, name: a.name, role: a.role, val };
+      });
       const syn = avg(allySyns.map((x) => x.val));
 
-      // Семантические метки синергии влияют на скоринг: +0.5 per label
       const synLabels = detectSynergies(c.id, allyData);
       const synBonus  = synLabels.length * 0.5;
 
       const score = W.base * base + W.direct * direct + W.other * other + W.synergy * (syn + synBonus);
-      return { id: c.id, name: c.name, baseWR: c.baseWR,
+      return { id: c.id, name: c.name, baseWR: displayWR,
                parts: { base, direct, other, syn }, directOppId,
                otherCounters, allySyns, allyData, synLabels, score };
     });
@@ -400,28 +570,24 @@
     return scored;
   }
 
-  // ─── Объяснение ─────────────────────────────────────────────────────────────
   function explain(rec) {
     const lines = [];
 
-    // Семантические метки синергии — на первом месте
     for (const lbl of rec.synLabels || []) {
       lines.push(lbl.icon + ' ' + lbl.text);
     }
 
-    // Прямой оппонент
     if (rec.directOppId) {
       const opp     = byId(rec.directOppId);
       const oppName = opp ? opp.name : rec.directOppId;
       const d       = rec.parts.direct;
-      if (d >= 2)        lines.push('Уверенно выигрывает линию против ' + oppName + ' (+' + d.toFixed(1) + '%) — можно давить с первых уровней.');
+      if (d >= 2)        lines.push('Уверенно выигрывает линию против ' + oppName + ' (+' + d.toFixed(1) + '%).');
       else if (d >= 0.5) lines.push('Небольшое преимущество в матчапе против ' + oppName + ' (+' + d.toFixed(1) + '%).');
-      else if (d <= -2)  lines.push('Сложный матчап против ' + oppName + ' (' + d.toFixed(1) + '%) — нужна осторожная игра, но состав это компенсирует.');
+      else if (d <= -2)  lines.push('Сложный матчап против ' + oppName + ' (' + d.toFixed(1) + '%) — состав компенсирует.');
       else if (d < -0.5) lines.push('Небольшое давление со стороны ' + oppName + ' (' + d.toFixed(1) + '%) — не критично.');
-      else               lines.push('Нейтральный матчап против ' + oppName + ' — исход линии зависит от игры.');
+      else               lines.push('Нейтральный матчап против ' + oppName + '.');
     }
 
-    // Статистическая синергия (если нет семантических меток)
     if ((rec.synLabels || []).length === 0) {
       const goodSyn = [...(rec.allySyns || [])].sort((a, b) => b.val - a.val).filter((x) => x.val >= 1.5);
       if (goodSyn.length > 0) {
@@ -429,23 +595,21 @@
         lines.push('Сильная синергия с ' + names + ': вместе создают опасные комбинации.');
       } else if (rec.parts.syn >= 0.5 && (rec.allySyns || []).length > 0) {
         const best = [...(rec.allySyns || [])].sort((a, b) => b.val - a.val)[0];
-        if (best && best.val > 0) lines.push('Хорошо работает с ' + best.name + ' — совместные действия приносят результат.');
+        if (best && best.val > 0) lines.push('Хорошо работает с ' + best.name + '.');
       }
     }
 
-    // Матчапы против остальных врагов
     const goodEnemy = [...(rec.otherCounters || [])].sort((a, b) => b.val - a.val).filter((x) => x.val >= 1.5);
     if (goodEnemy.length > 0) {
       const names = goodEnemy.slice(0, 2).map((x) => x.name).join(' и ');
-      lines.push('Выгодные матчапы против ' + names + ' — хорошо вписывается в состав врагов.');
+      lines.push('Выгодные матчапы против ' + names + '.');
     } else if (rec.parts.other >= 0.5 && (rec.otherCounters || []).length > 0) {
       lines.push('Комфортно играет против текущего состава врагов.');
     }
 
-    // Базовый WR
-    if (rec.baseWR >= 51.5)      lines.push('Один из сильнейших в патче — базовый WR ' + rec.baseWR.toFixed(1) + '%.');
+    if (rec.baseWR >= 51.5)      lines.push('Один из сильнейших в патче — WR ' + rec.baseWR.toFixed(1) + '%.');
     else if (rec.baseWR >= 51.0) lines.push('Хороший базовый WR ' + rec.baseWR.toFixed(1) + '%.');
-    else if (rec.baseWR < 49.5)  lines.push('Низкий базовый WR ' + rec.baseWR.toFixed(1) + '% — требует уверенного знания чемпиона.');
+    else if (rec.baseWR < 49.5)  lines.push('Низкий WR ' + rec.baseWR.toFixed(1) + '% — требует уверенного знания.');
 
     if (lines.length === 0) lines.push('Нейтральный пик, база ' + rec.baseWR.toFixed(1) + '%.');
     return lines;
@@ -474,6 +638,7 @@
     byId, byRole, getTags, hasTag, hasAnyTag,
     counter, synergy, recommend, explain,
     topCounters, topSynergies, detectSynergies, W,
+    loadRealData,
   };
   if (typeof window !== 'undefined') window.CP = CP;
   if (typeof module !== 'undefined' && module.exports) module.exports = CP;

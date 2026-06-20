@@ -73,13 +73,81 @@ public static class ChampionTags
         [105] = ["dive", "burst"],                     // Fizz
 
         // ── Топы ──────────────────────────────────────────────────────────────
-        [122] = ["dive", "juggernaut"],                // Darius
-        [31]  = ["cc", "dive", "scale"],               // Cho'Gath
+        [122] = ["dive", "juggernaut", "hard_cc"],     // Darius
+        [31]  = ["cc", "dive", "scale", "tank"],       // Cho'Gath
         [114] = ["dive", "cc"],                        // Fiora
-        [86]  = ["juggernaut"],                        // Garen
+        [86]  = ["juggernaut", "tank"],                // Garen
         [420] = ["cc", "engage", "dive"],              // Illaoi
-        [516] = ["engage", "cc"],                      // Ornn
-        [57]  = ["engage", "cc"],                      // Maokai
+        [516] = ["engage", "cc", "hard_cc", "tank"],   // Ornn
+        [150] = ["engage", "hard_cc", "poke", "scale"],// Gnar
+        [126] = ["poke", "cc", "burst"],               // Jayce
+        [10]  = ["scale", "hypercarry", "ult_invuln"], // Kayle
+        [240] = ["aggressive", "dive", "hard_cc"],     // Kled
+        [897] = ["tank", "engage", "hard_cc"],         // K'Sante
+        [75]  = ["juggernaut", "scale", "cc"],         // Nasus
+        [92]  = ["dive", "burst", "mobility"],         // Riven
+        [14]  = ["engage", "hard_cc", "tank"],         // Sion
+        [98]  = ["engage", "hard_cc", "peel", "tank"], // Shen
+        [27]  = ["cc", "tank"],                        // Singed
+        [23]  = ["dive", "hypercarry", "scale"],       // Tryndamere
+        [48]  = ["dive", "cc", "sustain"],             // Trundle
+        [106] = ["dive", "engage", "hard_cc", "tank"], // Volibear
+        [62]  = ["engage", "hard_cc", "dive", "burst"],// Wukong
+        [83]  = ["zone_control", "scale"],             // Yorick
+        [6]   = ["burst", "hard_cc"],                  // Urgot
+        [887] = ["dive", "sustain", "scale"],          // Gwen
+        // ── Дополнительные джанглеры ─────────────────────────────────────────
+        [121] = ["dive", "burst", "stealth", "mobility"],      // Kha'Zix
+        [5]   = ["dive", "cc", "hard_cc", "engage"],           // Xin Zhao
+        [9]   = ["channels_ult", "cc", "hard_cc"],             // Fiddlesticks
+        [28]  = ["dive", "burst", "stealth", "mobility"],      // Evelynn
+        [30]  = ["channels_ult", "poke", "burst", "scale"],    // Karthus
+        [33]  = ["engage", "hard_cc", "tank"],                 // Rammus
+        [35]  = ["burst", "stealth", "cc"],                    // Shaco
+        [72]  = ["engage", "hard_cc", "dive", "tank"],         // Skarner
+        [77]  = ["engage", "hard_cc", "tank", "dive"],         // Udyr
+        [876] = ["cc", "hard_cc", "mobility", "poke"],         // Lillia
+        [429] = ["scale", "aggressive", "hypercarry"],         // Kalista
+        [200] = ["dive", "burst", "mobility", "hypercarry"],   // Bel'Veth
+        // ── Дополнительные мидеры ────────────────────────────────────────────
+        [1]   = ["burst", "hard_cc", "engage"],                // Annie
+        [3]   = ["engage", "hard_cc", "tank", "peel"],         // Galio
+        [13]  = ["poke", "burst", "scale", "cc"],              // Ryze
+        [34]  = ["cc", "hard_cc", "zone_control"],             // Anivia
+        [38]  = ["dive", "burst", "mobility", "cc"],           // Kassadin
+        [45]  = ["burst", "cc", "hard_cc", "scale"],           // Veigar
+        [50]  = ["poke", "cc", "sustain", "zone_control"],     // Swain
+        [68]  = ["zone_control", "burst", "cc"],               // Rumble
+        [74]  = ["poke", "zone_control", "cc"],                // Heimerdinger
+        [91]  = ["dive", "burst", "stealth", "mobility"],      // Talon
+        [99]  = ["burst", "cc", "hard_cc", "poke", "shield"], // Lux
+        [101] = ["poke", "burst", "cc", "hard_cc"],            // Xerath
+        [115] = ["poke", "burst", "zone_control"],             // Ziggs
+        [127] = ["burst", "cc", "hard_cc", "engage"],          // Lissandra
+        [131] = ["dive", "burst", "cc", "hard_cc", "engage"],  // Diana
+        [136] = ["burst", "cc", "hard_cc", "scale"],           // Aurelion Sol
+        [142] = ["burst", "poke", "cc", "hard_cc"],            // Zoe
+        [163] = ["poke", "zone_control", "cc", "hard_cc"],     // Taliyah
+        [166] = ["poke", "mobility", "cc"],                    // Akshan
+        [246] = ["burst", "dive", "mobility", "cc", "hard_cc"],// Qiyana
+        [268] = ["poke", "zone_control", "hard_cc", "scale"],  // Azir
+        [517] = ["dive", "burst", "mobility", "cc"],           // Sylas
+        [518] = ["burst", "cc", "hard_cc", "engage"],          // Neeko
+        [893] = ["burst", "mobility", "cc", "dive"],           // Aurora
+        // ── Дополнительные ADC ───────────────────────────────────────────────
+        [67]  = ["scale", "hypercarry", "needs_peel", "dive"], // Vayne
+        [110] = ["poke", "cc", "hard_cc", "scale"],            // Varus
+        [145] = ["scale", "hypercarry", "mobility", "dive"],   // Kai'Sa
+        [221] = ["scale", "hypercarry", "mobility"],           // Zeri
+        [523] = ["scale", "hypercarry", "needs_peel", "poke"], // Aphelios
+        [895] = ["aggressive", "dive", "scale"],               // Nilah
+        // ── Дополнительные саппорты ──────────────────────────────────────────
+        [26]  = ["utility", "cc", "hard_cc", "peel", "ult_invuln"], // Zilean
+        [57]  = ["engage", "hard_cc", "tank", "peel"],         // Maokai
+        [78]  = ["engage", "hard_cc", "peel", "tank"],         // Poppy
+        [80]  = ["engage", "hard_cc", "dive", "burst"],        // Pantheon
+        [223] = ["peel", "tank", "hard_cc", "sustain"],        // Tahm Kench
+        [350] = ["peel", "heal", "shield", "cc"],              // Yuumi
     };
 
     public static IReadOnlyCollection<string> Get(int champId) =>

@@ -46,11 +46,21 @@
     <div id="grid" class="grid"></div>
   </section>
 
-  <footer class="foot">
-    Винрейты, контр-матчапы и синергия — синтетические заглушки для теста. Реальные данные подключим из пайплайна MATCH-V5.
+  <footer class="foot" id="dataFooter">
+    Данные: синтетика (запусти pipeline/export.py для реальных данных)
   </footer>
 
+  <script src="pipeline/data.js" onerror="console.log('data.js не найден, используем синтетику')"></script>
   <script src="engine.js"></script>
   <script src="app.js"></script>
+  <script>
+    if (window.CP_DATA) {
+      CP.loadRealData(window.CP_DATA);
+      const m = window.CP_DATA.meta;
+      document.getElementById('dataFooter').textContent =
+        'Данные: реальные — ' + m.tier + ', патчи ' + m.patches.join(', ') +
+        ' · Not endorsed by Riot Games';
+    }
+  </script>
 </body>
 </html>

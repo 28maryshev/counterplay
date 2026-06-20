@@ -2,8 +2,10 @@
 bin/
 obj/
 
-# База данных с реальными матчами (большая, приватная)
+# База данных и сгенерированные файлы (приватные/большие)
 pipeline/data.db
+pipeline/data.js
+pipeline/champion_map.json
 pipeline/data.db-wal
 pipeline/data.db-shm
 *.db
