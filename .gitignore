@@ -1,0 +1,33 @@
+# Build output
+bin/
+obj/
+
+# База данных с реальными матчами (большая, приватная)
+pipeline/data.db
+pipeline/data.db-wal
+pipeline/data.db-shm
+*.db
+*.db-wal
+*.db-shm
+
+# API ключи — никогда не коммитить
+*.key
+.env
+secrets.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vs/
+.vscode/settings.json
+*.user
+
+# Claude Code (локальные настройки, не для репо)
+.claude/

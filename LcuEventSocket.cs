@@ -1,0 +1,95 @@
+using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+
+namespace Counterplay;
+
+/// <summary>Разобранное событие OnJsonApiEvent.</summary>
+public sealed record LcuEvent(string Uri, string EventType, JsonElement Data);
+
+/// <summary>
+/// WebSocket к LCU (протокол WAMP). Подписывается на все JSON-события
+/// и отдаёт их потоком; фильтрация по uri — на стороне потребителя.
+/// </summary>
+public sealed class LcuEventSocket : IAsyncDisposable
+{
+    private readonly LcuCredentials _creds;
+    private ClientWebSocket? _ws;
+
+    public LcuEventSocket(LcuCredentials creds) => _creds = creds;
+
+    public async Task ConnectAsync(CancellationToken ct)
+    {
+        _ws = new ClientWebSocket();
+        _ws.Options.SetRequestHeader("Authorization", _creds.AuthHeader);
+        // Тот же самоподписанный серт LCU на localhost.
+        _ws.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+
+        await _ws.ConnectAsync(_creds.WsUri, ct);
+
+        // WAMP: [5, topic] = SUBSCRIBE. Подписываемся на все события, фильтруем по uri ниже.
+        await SendAsync("[5,\"OnJsonApiEvent\"]", ct);
+    }
+
+    private Task SendAsync(string json, CancellationToken ct)
+    {
+        var bytes = Encoding.UTF8.GetBytes(json);
+        return _ws!.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+    }
+
+    public async IAsyncEnumerable<LcuEvent> ReadEventsAsync([EnumeratorCancellation] CancellationToken ct)
+    {
+        var buffer = new byte[64 * 1024];
+        var sb = new StringBuilder();
+
+        while (_ws!.State == WebSocketState.Open && !ct.IsCancellationRequested)
+        {
+            sb.Clear();
+            WebSocketReceiveResult result;
+            do
+            {
+                result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    yield break;
+                sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+            }
+            while (!result.EndOfMessage);
+
+            if (sb.Length == 0) continue;
+            if (TryParse(sb.ToString()) is { } ev) yield return ev;
+        }
+    }
+
+    // Формат события: [8, "OnJsonApiEvent", { data, eventType, uri }]
+    private static LcuEvent? TryParse(string text)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() < 3) return null;
+            if (root[0].GetInt32() != 8) return null; // 8 = EVENT
+
+            var payload = root[2];
+            var uri  = payload.GetProperty("uri").GetString() ?? "";
+            var type = payload.GetProperty("eventType").GetString() ?? "";
+            var data = payload.GetProperty("data").Clone(); // переживёт Dispose() документа
+            return new LcuEvent(uri, type, data);
+        }
+        catch
+        {
+            return null; // не та форма сообщения — игнорируем
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_ws is { State: WebSocketState.Open })
+        {
+            try { await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None); }
+            catch { /* ignore */ }
+        }
+        _ws?.Dispose();
+    }
+}

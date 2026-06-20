@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Counterplay — тестовый драфт</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">COUNTERPLAY<span class="sub">тестовый драфт</span></div>
+    <div class="controls">
+      <label>Моя роль:&nbsp;<select id="myRole"></select></label>
+      <button id="banToggle" class="btn">Бан: выкл</button>
+      <button id="reset" class="btn">Сброс</button>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="col ally" aria-label="Союзники">
+      <h2>Союзники</h2>
+      <div class="slots" id="allySlots"></div>
+    </section>
+
+    <section class="col center">
+      <h2>Рекомендуемые пики</h2>
+      <div id="recs"></div>
+    </section>
+
+    <section class="col enemy" aria-label="Враги">
+      <h2>Враги</h2>
+      <div class="slots" id="enemySlots"></div>
+    </section>
+  </main>
+
+  <section class="bansbar">
+    <span class="banslabel">Баны</span>
+    <div id="bans" class="bans"></div>
+  </section>
+
+  <section class="gridwrap">
+    <div class="gridhead">
+      <span>Выбери слот, затем кликни чемпиона <span id="activeInfo"></span></span>
+      <input type="search" id="search" placeholder="Поиск чемпиона…" aria-label="Поиск чемпиона">
+    </div>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <footer class="foot">
+    Винрейты, контр-матчапы и синергия — синтетические заглушки для теста. Реальные данные подключим из пайплайна MATCH-V5.
+  </footer>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
