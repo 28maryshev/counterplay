@@ -31,3 +31,10 @@ Thumbs.db
 
 # Claude Code (локальные настройки, не для репо)
 .claude/
+
+# Внутренние файлы разработки
+ROADMAP.md
+pipeline/diag.py
+pipeline/games_check.py
+pipeline/check_db.py
+pipeline/multicheck.py
