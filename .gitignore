@@ -1,6 +1,8 @@
 # Build output
 bin/
 obj/
+publish/
+Releases/
 
 # База данных и сгенерированные файлы (приватные/большие)
 pipeline/data.db

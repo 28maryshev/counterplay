@@ -9,10 +9,23 @@
     <AssemblyName>Counterplay</AssemblyName>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms> <!-- для значка в системном трее (NotifyIcon) -->
+    <Version>1.0.0</Version>             <!-- версия для Velopack/обновлений -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Иконка .exe и ярлыков (если положен файл assets\logo.ico) -->
+    <ApplicationIcon Condition="Exists('assets\logo.ico')">assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!-- Логотип кладём рядом с приложением для окна/трея (если есть) -->
+  <ItemGroup Condition="Exists('assets\logo.ico')">
+    <None Include="assets\logo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>assets\logo.ico</Link>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
 </Project>

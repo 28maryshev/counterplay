@@ -106,6 +106,9 @@ public sealed class RecommendationEngine : IDisposable
             Path.Combine("pipeline", "data.db"),
             Path.Combine(AppContext.BaseDirectory, "data.db"),
             Path.Combine(AppContext.BaseDirectory, "pipeline", "data.db"),
+            // Постоянное место для установленной версии (скачивается при первом запуске).
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                         "Counterplay", "data.db"),
             @"C:\Counterplay\pipeline\data.db",
         };
         return candidates.FirstOrDefault(p => File.Exists(p) && HasData(p));
@@ -160,7 +163,12 @@ public sealed class RecommendationEngine : IDisposable
 
         // Учитываем ховеры (EffectiveChampionId): рекомендации обновляются ещё
         // на этапе наведения чемпиона союзником/врагом, не дожидаясь лока.
-        var directOppId   = state.DirectOpponent?.EffectiveChampionId ?? 0;
+        var directOppId = state.DirectOpponent?.EffectiveChampionId ?? 0;
+        // Роли врагов скрыты (Blind/Solo-Duo) → прямого оппонента по позиции нет.
+        // Определяем его эвристикой: враг, у которого частая роль = моей.
+        if (directOppId == 0)
+            directOppId = InferDirectOpponent(state, myRole);
+
         var otherEnemyIds = state.TheirTeam
             .Where(p => p.EffectiveChampionId != 0 && p.EffectiveChampionId != directOppId)
             .Select(p => p.EffectiveChampionId).ToList();
@@ -208,6 +216,45 @@ public sealed class RecommendationEngine : IDisposable
             .OrderByDescending(r => r.Score)
             .Take(6)
             .ToList();
+    }
+
+    // Прямой оппонент, когда роли врагов скрыты: ищем врага, чья ЧАСТАЯ роль
+    // совпадает с моей. Если на мою роль никто не подходит — оппонента нет.
+    private int InferDirectOpponent(DraftState state, string myRole)
+    {
+        foreach (var p in state.TheirTeam)
+        {
+            var id = p.EffectiveChampionId;
+            if (id == 0) continue;
+            if (InferPrimaryRole(id) == myRole) return id;
+        }
+        return 0;
+    }
+
+    private readonly Dictionary<int, string> _roleCache = new();
+
+    // Самая частая роль чемпиона по числу игр (base_wr), с кэшем.
+    private string InferPrimaryRole(int champId)
+    {
+        if (_roleCache.TryGetValue(champId, out var cached)) return cached;
+        var role = "";
+        try
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = @"
+                SELECT role FROM base_wr
+                WHERE champion_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                GROUP BY role ORDER BY SUM(games) DESC LIMIT 1";
+            cmd.Parameters.AddWithValue("@c",  champId);
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+            role = cmd.ExecuteScalar() as string ?? "";
+        }
+        catch { /* нет данных — пустая роль */ }
+        _roleCache[champId] = role;
+        return role;
     }
 
     // ---------- Запросы к БД — агрегируют по 3 патчам ----------

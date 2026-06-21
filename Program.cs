@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using Counterplay;
+using Velopack;
+using Velopack.Sources;
 
 class Program
 {
@@ -11,6 +13,9 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
+        // Velopack: обязательно ПЕРВОЙ строкой — обрабатывает хуки установки/обновления.
+        VelopackApp.Build().Run();
+
         AttachConsole(-1); // -1 = ATTACH_PARENT_PROCESS
 
         using var cts = new CancellationTokenSource();
@@ -46,7 +51,11 @@ class Program
 
     static async Task RunLcuAsync(OverlayWindow overlay, string[] args, CancellationToken ct)
     {
-        var lockfilePath = args.Length > 0 ? args[0] : LockfileReader.DefaultPath;
+        // Путь к lockfile: из аргумента, иначе null → автопоиск клиента на любом ПК.
+        var lockfilePath = args.Length > 0 ? args[0] : null;
+
+        // Проверка обновлений при каждом запуске (только для установленной версии).
+        await CheckForUpdatesAsync(overlay, ct);
 
         // Data Dragon + иконки грузим один раз при старте
         overlay.ShowStatus("Загружаю данные чемпионов…");
@@ -55,6 +64,9 @@ class Program
         overlay.ShowStatus("Загружаю иконки чемпионов…");
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
+
+        // Гарантируем наличие data.db (скачиваем при первом запуске установленной версии).
+        await DataDb.EnsureAsync(msg => overlay.ShowStatus(msg), ct);
 
         // Внешний цикл — переподключение при перезапуске клиента
         while (!ct.IsCancellationRequested)
@@ -135,11 +147,11 @@ class Program
             {
                 case "/lol-gameflow/v1/session":
                     var phase = PhaseOf(ev.Data);
-                    var inGame = phase is "GameStart" or "InProgress" or "Reconnect";
-                    if (inGame)
+                    // Фаза геймфлоу — единственный источник правды для трея.
+                    if (phase is "GameStart" or "InProgress" or "Reconnect")
                     {
-                        // Игра идёт — прячем оверлей в трей (страховка, если скрытие
-                        // в финализации не сработало), вернётся после матча.
+                        // Игра идёт — оверлей скрыт в трее (не разворачиваем ни при каких
+                        // событиях, иначе прозрачное topmost-окно блокирует вход в игру).
                         overlay.HideToTray();
                         lastHash = "";
                     }
@@ -151,20 +163,20 @@ class Program
                         overlay.ShowStatus($"Фаза: {phase}");
                         lastHash = "";
                     }
-                    else
-                    {
-                        overlay.RestoreFromTray();
-                    }
+                    // ChampSelect: НЕ восстанавливаем здесь — показ управляется
+                    // обработчиком champ-select и флагом _inTray. Иначе разворачивали бы
+                    // окно обратно во время FINALIZATION (за 5с до игры).
                     break;
 
                 case "/lol-champ-select/v1/session":
                     if (ev.EventType == "Delete")
                     {
-                        // Дродж/отмена — отменяем запланированное скрытие.
+                        // Конец драфта: в игру или дродж. НЕ восстанавливаем из трея —
+                        // видимостью управляет фаза геймфлоу (Lobby/EndOfGame вернёт окно,
+                        // GameStart оставит скрытым). Иначе при входе в игру окно всплывёт.
                         hideCts?.Cancel(); hideCts = null;
-                        overlay.RestoreFromTray();
                         overlay.UpdateRecommendations(null, null);
-                        overlay.ShowStatus("Жду следующего чемп-выбора…");
+                        overlay.ShowStatus("Жду следующего чемп-выбора…"); // подавится, если в трее
                         lastHash = "";
                     }
                     else
@@ -214,6 +226,27 @@ class Program
             return (ph, left);
         }
         return ("", 0);
+    }
+
+    // Проверка/применение обновлений из GitHub Releases при каждом запуске.
+    // Для dev-сборки (не установленной через Velopack) — тихо пропускается.
+    static async Task CheckForUpdatesAsync(OverlayWindow overlay, CancellationToken ct)
+    {
+        try
+        {
+            var mgr = new UpdateManager(new GithubSource("https://github.com/28maryshev/counterplay", null, false));
+            if (!mgr.IsInstalled) return; // запущено из dev-сборки — не обновляемся
+
+            overlay.ShowStatus("Проверка обновлений…");
+            var info = await mgr.CheckForUpdatesAsync();
+            if (info == null) return; // актуальная версия
+
+            overlay.ShowStatus("Загружаю обновление…");
+            await mgr.DownloadUpdatesAsync(info);
+            // Применяем и перезапускаемся в новую версию.
+            mgr.ApplyUpdatesAndRestart(info);
+        }
+        catch { /* офлайн / нет релизов — работаем на текущей версии */ }
     }
 
     static string PhaseOf(JsonElement data) =>

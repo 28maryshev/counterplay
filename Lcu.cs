@@ -1,8 +1,59 @@
+using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 
 namespace Counterplay;
+
+/// <summary>Автопоиск установленного клиента LoL (lockfile) на любом ПК.</summary>
+public static class LcuFinder
+{
+    private static readonly string[] ProcNames = ["LeagueClientUx", "LeagueClient"];
+
+    /// Находит путь к lockfile: сначала по запущенному процессу клиента
+    /// (его папка = каталог установки), затем по типичным путям. null — не найден.
+    public static string? FindLockfilePath()
+    {
+        // 1. По процессу клиента — работает при любой папке установки.
+        foreach (var name in ProcNames)
+        {
+            foreach (var proc in Process.GetProcessesByName(name))
+            {
+                try
+                {
+                    var exe = proc.MainModule?.FileName;
+                    var dir = string.IsNullOrEmpty(exe) ? null : Path.GetDirectoryName(exe);
+                    if (dir != null)
+                    {
+                        var lf = Path.Combine(dir, "lockfile");
+                        if (File.Exists(lf)) return lf;
+                    }
+                }
+                catch { /* доступ к модулю может быть запрещён — идём дальше */ }
+                finally { proc.Dispose(); }
+            }
+        }
+
+        // 2. Типичные места установки на всех дисках.
+        foreach (var p in CommonPaths())
+            if (File.Exists(p)) return p;
+
+        return null;
+    }
+
+    private static IEnumerable<string> CommonPaths()
+    {
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            if (!d.IsReady) continue;
+            var r = d.RootDirectory.FullName;
+            yield return Path.Combine(r, "Riot Games", "League of Legends", "lockfile");
+            yield return Path.Combine(r, "Games", "Riot Games", "League of Legends", "lockfile");
+            yield return Path.Combine(r, "Program Files", "Riot Games", "League of Legends", "lockfile");
+            yield return Path.Combine(r, "Program Files (x86)", "Riot Games", "League of Legends", "lockfile");
+        }
+    }
+}
 
 /// <summary>Учётные данные LCU из lockfile (name:pid:port:password:protocol).</summary>
 public sealed record LcuCredentials(string Name, int Pid, int Port, string Password, string Protocol)
@@ -36,21 +87,17 @@ public static class LockfileReader
         return new LcuCredentials(p[0], int.Parse(p[1]), int.Parse(p[2]), p[3], p[4]);
     }
 
-    /// Ждёт появления lockfile (клиент может быть ещё не запущен).
-    public static async Task<LcuCredentials> WaitForAsync(string path, CancellationToken ct)
+    /// Ждёт появления lockfile. Если explicitPath не задан — автопоиск клиента
+    /// (по процессу/типичным путям) на каждой итерации, т.е. работает на любом ПК.
+    public static async Task<LcuCredentials> WaitForAsync(string? explicitPath, CancellationToken ct)
     {
-        var announced = false;
         while (!ct.IsCancellationRequested)
         {
-            if (File.Exists(path))
+            var path = explicitPath ?? LcuFinder.FindLockfilePath();
+            if (path != null && File.Exists(path))
             {
                 try { return Read(path); }
                 catch (IOException) { /* файл ещё дописывается — подождём */ }
-            }
-            else if (!announced)
-            {
-                Console.WriteLine($"Жду запуск клиента LoL (lockfile: {path}) …");
-                announced = true;
             }
             await Task.Delay(1000, ct);
         }

@@ -1,0 +1,59 @@
+# Build Counterplay installer (Velopack) and optionally publish a GitHub release.
+#
+#   .\build\release.ps1 -Version 1.0.1
+#   .\build\release.ps1 -Version 1.0.1 -Upload -Token <github_token>
+#
+# Output: .\Releases\Counterplay-win-Setup.exe and update packages.
+# NOTE: data.db is NOT bundled. The app downloads it on first run from the
+# latest release. So every release must include data.db as an asset (this
+# script uploads it via gh when -Upload is used).
+
+param(
+  [string]$Version = "1.0.0",
+  [string]$Token   = $env:GITHUB_TOKEN,
+  [switch]$Upload
+)
+
+$ErrorActionPreference = "Stop"
+Set-Location (Join-Path $PSScriptRoot "..")
+
+$repo = "https://github.com/28maryshev/counterplay"
+
+# 1. Velopack CLI (vpk)
+if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) {
+  Write-Host "Installing vpk (Velopack CLI)..."
+  dotnet tool install -g vpk
+  $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+}
+
+# 2. Self-contained publish (bundles .NET runtime and native deps)
+$pub = "publish"
+if (Test-Path $pub) { Remove-Item $pub -Recurse -Force }
+dotnet publish Counterplay.csproj -c Release -r win-x64 --self-contained true -o $pub
+
+# 3. Build Setup.exe and update package (with logo icon if present)
+$iconArgs = @()
+if (Test-Path "assets\logo.ico") { $iconArgs = @("--icon", "assets\logo.ico") }
+vpk pack --packId Counterplay --packTitle Counterplay --packVersion $Version --packDir $pub --mainExe Counterplay.exe @iconArgs
+
+Write-Host ""
+Write-Host "Done: installer and release files are in .\Releases" -ForegroundColor Green
+Write-Host "Reminder: data.db must be attached to the release (for first-run download)." -ForegroundColor Yellow
+
+# 4. (optional) publish release to GitHub and upload data.db asset
+if ($Upload) {
+  if (-not $Token) { throw "Need -Token or GITHUB_TOKEN environment variable" }
+
+  vpk upload github --repoUrl $repo --publish --releaseName "Counterplay v$Version" --tag "v$Version" --token $Token
+
+  if (Get-Command gh -ErrorAction SilentlyContinue) {
+    if (Test-Path "pipeline\data.db") {
+      Write-Host "Uploading data.db to release v$Version..."
+      gh release upload "v$Version" "pipeline\data.db" --clobber
+    } else {
+      Write-Host "pipeline\data.db not found - add data.db to the release manually." -ForegroundColor Yellow
+    }
+  } else {
+    Write-Host "gh CLI not found - add data.db to release v$Version manually." -ForegroundColor Yellow
+  }
+}

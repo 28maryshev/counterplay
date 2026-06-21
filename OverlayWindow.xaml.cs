@@ -109,9 +109,12 @@ public partial class OverlayWindow : Window
     private void EnsureTray()
     {
         if (_tray != null) return;
+        System.Drawing.Icon trayIcon;
+        try { trayIcon = File.Exists(LogoPath) ? new System.Drawing.Icon(LogoPath) : System.Drawing.SystemIcons.Application; }
+        catch { trayIcon = System.Drawing.SystemIcons.Application; }
         _tray = new System.Windows.Forms.NotifyIcon
         {
-            Icon    = System.Drawing.SystemIcons.Application,
+            Icon    = trayIcon,
             Text    = "Counterplay",
             Visible = false,
         };
@@ -132,9 +135,7 @@ public partial class OverlayWindow : Window
         if (_inTray) return;
         _inTray = true;
         _tray!.Visible = true;
-        Hide();
-        _tray.ShowBalloonTip(2500, "Counterplay",
-            "Свёрнуто на время игры — вернётся после матча", System.Windows.Forms.ToolTipIcon.Info);
+        Hide(); // тихо, без всплывающего уведомления
     });
 
     /// Вернуть оверлей из трея (после игры / в меню).
@@ -168,9 +169,17 @@ public partial class OverlayWindow : Window
     private void ResSW(object s, MouseButtonEventArgs e) => StartResize(ResDir.BottomLeft,  e);
     private void ResSE(object s, MouseButtonEventArgs e) => StartResize(ResDir.BottomRight, e);
 
+    // Путь к логотипу рядом с приложением (если положен).
+    private static string LogoPath =>
+        System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "logo.ico");
+
     public OverlayWindow()
     {
         InitializeComponent();
+
+        // Логотип окна (если есть assets\logo.ico) — иначе стандартный.
+        try { if (File.Exists(LogoPath)) Icon = new BitmapImage(new Uri(LogoPath)); }
+        catch { /* битый ico — пропускаем */ }
 
         // Стартуем в полном режиме с явными размерами
         SizeToContent = SizeToContent.Manual;
