@@ -9,7 +9,7 @@
     <AssemblyName>Counterplay</AssemblyName>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms> <!-- для значка в системном трее (NotifyIcon) -->
-    <Version>1.0.2</Version>             <!-- версия для Velopack/обновлений -->
+    <Version>1.0.3</Version>             <!-- версия для Velopack/обновлений -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <!-- Иконка .exe и ярлыков (если положен файл assets\logo.ico) -->
     <ApplicationIcon Condition="Exists('assets\logo.ico')">assets\logo.ico</ApplicationIcon>
