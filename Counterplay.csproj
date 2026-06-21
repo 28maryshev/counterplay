@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Counterplay</RootNamespace>
     <AssemblyName>Counterplay</AssemblyName>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>

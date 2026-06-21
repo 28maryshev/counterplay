@@ -64,4 +64,13 @@ public static class DataDragon
             return $"https://ddragon.leagueoflegends.com/cdn/{_version}/img/champion/{info.DdId}.png";
         return "";
     }
+
+    /// Все пары id → URL иконки (для предзагрузки).
+    public static IReadOnlyDictionary<int, string> GetAllIconUrls()
+    {
+        if (_champions is null) return new Dictionary<int, string>();
+        return _champions.ToDictionary(
+            kvp => kvp.Key,
+            kvp => $"https://ddragon.leagueoflegends.com/cdn/{_version}/img/champion/{kvp.Value.DdId}.png");
+    }
 }

@@ -57,9 +57,22 @@ public sealed class LcuEventSocket : IAsyncDisposable
             while (!result.EndOfMessage);
 
             if (sb.Length == 0) continue;
-            if (TryParse(sb.ToString()) is { } ev) yield return ev;
+
+            var text = sb.ToString();
+            // Дешёвый префильтр: подписка идёт на ВСЕ события, но нам нужны
+            // только две темы. При переходе в игру клиент шлёт лавину событий —
+            // полный JSON-парсинг каждого зря грузит CPU и тормозит вычитку
+            // сокета. Пропускаем нерелевантные ещё до парсинга по подстроке uri.
+            if (!IsRelevant(text)) continue;
+
+            if (TryParse(text) is { } ev) yield return ev;
         }
     }
+
+    // URI, на которые реагирует потребитель (см. Program.RunSessionAsync).
+    private static bool IsRelevant(string text) =>
+        text.Contains("/lol-champ-select/v1/session", StringComparison.Ordinal) ||
+        text.Contains("/lol-gameflow/v1/session",     StringComparison.Ordinal);
 
     // Формат события: [8, "OnJsonApiEvent", { data, eventType, uri }]
     private static LcuEvent? TryParse(string text)

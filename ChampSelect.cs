@@ -8,7 +8,12 @@ public sealed record DraftPlayer(
     int ChampionId,    // 0 = ещё не залочен
     int PickIntentId,  // наведённый (ховер) чемпион; 0 = нет
     string Position,   // top/jungle/middle/bottom/utility, "" = роль не раскрыта
-    bool IsLocalPlayer);
+    bool IsLocalPlayer)
+{
+    // Чемпион для рекомендаций: залоченный, иначе наведённый (ховер).
+    // Позволяет пересчитывать пик ещё на этапе наведения, до лока.
+    public int EffectiveChampionId => ChampionId > 0 ? ChampionId : PickIntentId;
+}
 
 /// <summary>Снимок состояния champ select.</summary>
 public sealed record DraftState(
