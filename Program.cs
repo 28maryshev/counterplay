@@ -16,7 +16,7 @@ class Program
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        var app     = new Application();
+        var app     = new System.Windows.Application();
         var overlay = new OverlayWindow();
         overlay.Show();
 
@@ -27,7 +27,7 @@ class Program
             catch (Exception ex)
             {
                 overlay.Dispatcher.Invoke(() =>
-                    MessageBox.Show(ex.Message, "Counterplay", MessageBoxButton.OK, MessageBoxImage.Error));
+                    System.Windows.MessageBox.Show(ex.Message, "Counterplay", MessageBoxButton.OK, MessageBoxImage.Error));
             }
             finally
             {
@@ -127,6 +127,7 @@ class Program
         await socket.ConnectAsync(ct);
 
         var lastHash = "";
+        CancellationTokenSource? hideCts = null; // запланированное скрытие в трей
 
         await foreach (var ev in socket.ReadEventsAsync(ct))
         {
@@ -134,17 +135,34 @@ class Program
             {
                 case "/lol-gameflow/v1/session":
                     var phase = PhaseOf(ev.Data);
-                    if (phase != "ChampSelect")
+                    var inGame = phase is "GameStart" or "InProgress" or "Reconnect";
+                    if (inGame)
                     {
+                        // Игра идёт — прячем оверлей в трей (страховка, если скрытие
+                        // в финализации не сработало), вернётся после матча.
+                        overlay.HideToTray();
+                        lastHash = "";
+                    }
+                    else if (phase != "ChampSelect")
+                    {
+                        // Меню/лобби/конец игры — возвращаем оверлей из трея.
+                        overlay.RestoreFromTray();
                         overlay.UpdateRecommendations(null, null);
                         overlay.ShowStatus($"Фаза: {phase}");
                         lastHash = "";
+                    }
+                    else
+                    {
+                        overlay.RestoreFromTray();
                     }
                     break;
 
                 case "/lol-champ-select/v1/session":
                     if (ev.EventType == "Delete")
                     {
+                        // Дродж/отмена — отменяем запланированное скрытие.
+                        hideCts?.Cancel(); hideCts = null;
+                        overlay.RestoreFromTray();
                         overlay.UpdateRecommendations(null, null);
                         overlay.ShowStatus("Жду следующего чемп-выбора…");
                         lastHash = "";
@@ -152,7 +170,22 @@ class Program
                     else
                     {
                         var draft = ChampSelectParser.Parse(ev.Data);
-                        var hash  = DraftHash(draft);
+
+                        // За 5 секунд до конца финализации прячем оверлей в трей.
+                        var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);
+                        if (timerPhase == "FINALIZATION" && hideCts == null)
+                        {
+                            hideCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                            var delay = Math.Max(0, timeLeftMs - 5000);
+                            var token = hideCts.Token;
+                            _ = Task.Run(async () =>
+                            {
+                                try { await Task.Delay(TimeSpan.FromMilliseconds(delay), token); overlay.HideToTray(); }
+                                catch (OperationCanceledException) { }
+                            }, token);
+                        }
+
+                        var hash = DraftHash(draft);
                         if (hash == lastHash) break;
                         lastHash = hash;
                         overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
@@ -161,7 +194,26 @@ class Program
             }
         }
 
+        hideCts?.Cancel();
         engine?.Dispose();
+    }
+
+    // Достаёт фазу таймера чемп-селекта и остаток времени (мс).
+    static (string phase, double leftMs) ChampSelectTimer(JsonElement data)
+    {
+        if (data.ValueKind == JsonValueKind.Object &&
+            data.TryGetProperty("timer", out var t) && t.ValueKind == JsonValueKind.Object)
+        {
+            var ph = t.TryGetProperty("phase", out var p) && p.ValueKind == JsonValueKind.String
+                ? p.GetString() ?? "" : "";
+            double left = 0;
+            if (t.TryGetProperty("adjustedTimeLeftInPhase", out var l) && l.ValueKind == JsonValueKind.Number)
+                left = l.GetDouble();
+            else if (t.TryGetProperty("timeLeftInPhase", out var l2) && l2.ValueKind == JsonValueKind.Number)
+                left = l2.GetDouble();
+            return (ph, left);
+        }
+        return ("", 0);
     }
 
     static string PhaseOf(JsonElement data) =>

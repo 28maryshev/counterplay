@@ -32,6 +32,10 @@ public partial class OverlayWindow : Window
     // больше не привязываем (до нажатия кнопки-пина).
     private bool _userMoved;
 
+    // Сворачивание в системный трей на время игры.
+    private System.Windows.Forms.NotifyIcon? _tray;
+    private bool _inTray;
+
     // Win32 для resize без оконного хрома
     [DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -100,6 +104,48 @@ public partial class OverlayWindow : Window
         if (!_userMoved) AnchorToClient();
     }
 
+    // ── Системный трей (скрытие на время игры) ────────────────────────────
+
+    private void EnsureTray()
+    {
+        if (_tray != null) return;
+        _tray = new System.Windows.Forms.NotifyIcon
+        {
+            Icon    = System.Drawing.SystemIcons.Application,
+            Text    = "Counterplay",
+            Visible = false,
+        };
+        _tray.DoubleClick += (_, _) => RestoreFromTray();
+
+        var menu = new System.Windows.Forms.ContextMenuStrip();
+        menu.Items.Add("Показать", null, (_, _) => RestoreFromTray());
+        menu.Items.Add("Выход",    null, (_, _) => System.Windows.Application.Current.Shutdown());
+        _tray.ContextMenuStrip = menu;
+
+        Closed += (_, _) => { _tray?.Dispose(); _tray = null; };
+    }
+
+    /// Свернуть оверлей в трей (на время игры). Вызывается из фонового потока.
+    public void HideToTray() => Dispatcher.InvokeAsync(() =>
+    {
+        EnsureTray();
+        if (_inTray) return;
+        _inTray = true;
+        _tray!.Visible = true;
+        Hide();
+        _tray.ShowBalloonTip(2500, "Counterplay",
+            "Свёрнуто на время игры — вернётся после матча", System.Windows.Forms.ToolTipIcon.Info);
+    });
+
+    /// Вернуть оверлей из трея (после игры / в меню).
+    public void RestoreFromTray() => Dispatcher.InvokeAsync(() =>
+    {
+        if (!_inTray) return;
+        _inTray = false;
+        if (_tray != null) _tray.Visible = false;
+        Show();
+    });
+
     private IntPtr Hwnd => new System.Windows.Interop.WindowInteropHelper(this).Handle;
 
     private enum ResDir { Left=1, Right=2, Top=3, TopLeft=4, TopRight=5, Bottom=6, BottomLeft=7, BottomRight=8 }
@@ -150,7 +196,7 @@ public partial class OverlayWindow : Window
         AnchorToClient();
     }
     private void OnClose(object sender, RoutedEventArgs e)     => Hide();
-    private void OnKeyDown(object sender, KeyEventArgs e)
+    private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape) Hide();
     }
@@ -217,6 +263,7 @@ public partial class OverlayWindow : Window
         MinHeight = 0;
         Width     = IdleW;
 
+        if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
     }
@@ -293,6 +340,7 @@ public partial class OverlayWindow : Window
             CompactScroll.Visibility = Visibility.Visible;
         }
 
+        if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
     }
@@ -402,7 +450,7 @@ public partial class OverlayWindow : Window
         double? RowY(int i)
         {
             if (list.ItemContainerGenerator.ContainerFromIndex(i) is not FrameworkElement c) return null;
-            var top = c.TransformToVisual(canvas).Transform(new Point(0, 0)).Y;
+            var top = c.TransformToVisual(canvas).Transform(new System.Windows.Point(0, 0)).Y;
             // центр портрета: отступы Border(1+3) + Grid(2) + половина эллипса 36
             return top + 6 + 36;
         }
@@ -411,7 +459,8 @@ public partial class OverlayWindow : Window
         for (int ci = 0; ci < combos.Count; ci++)
         {
             var brush = new SolidColorBrush(
-                (Color)ColorConverter.ConvertFromString(ComboColors[ci % ComboColors.Length]));
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                    ComboColors[ci % ComboColors.Length]));
             brush.Freeze();
             double vx = 80 + ci * 9; // вертикаль скобки со сдвигом на каждую связку
 

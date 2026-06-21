@@ -8,6 +8,7 @@
     <RootNamespace>Counterplay</RootNamespace>
     <AssemblyName>Counterplay</AssemblyName>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms> <!-- для значка в системном трее (NotifyIcon) -->
   </PropertyGroup>
 
   <ItemGroup>
