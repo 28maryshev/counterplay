@@ -82,11 +82,14 @@ class Program
             {
                 return;
             }
-            catch (HttpRequestException)
+            catch (Exception ex) when (ex is HttpRequestException
+                                          or System.Net.WebSockets.WebSocketException
+                                          or IOException)
             {
-                // Клиент закрылся или lockfile устарел — ждём нового
-                overlay.ShowStatus("Соединение потеряно, жду перезапуска…");
-                await Task.Delay(3000, ct);
+                // Клиент закрылся (WebSocket оборван без рукопожатия), lockfile устарел
+                // или сеть моргнула — НЕ падаем, ждём клиент снова.
+                overlay.ShowStatus("Соединение потеряно, жду перезапуска клиента…");
+                try { await Task.Delay(3000, ct); } catch (OperationCanceledException) { return; }
             }
         }
     }
