@@ -204,7 +204,11 @@ public partial class OverlayWindow : Window
         _userMoved = false;
         AnchorToClient();
     }
-    private void OnClose(object sender, RoutedEventArgs e)     => Hide();
+    // Крестик полностью закрывает программу (а не прячет — иначе окно
+    // возвращалось при следующем событии LCU). Свернуть на время игры — это
+    // делает кнопка-пин/трей автоматически.
+    private void OnClose(object sender, RoutedEventArgs e) =>
+        System.Windows.Application.Current.Shutdown();
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape) Hide();
