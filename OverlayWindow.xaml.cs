@@ -35,6 +35,8 @@ public partial class OverlayWindow : Window
     // Сворачивание в системный трей на время игры.
     private System.Windows.Forms.NotifyIcon? _tray;
     private bool _inTray;
+    // true = свёрнуто пользователем (крестик) — автоматический возврат не разворачивает.
+    private bool _userHidden;
 
     // Win32 для resize без оконного хрома
     [DllImport("user32.dll")]
@@ -118,29 +120,36 @@ public partial class OverlayWindow : Window
             Text    = "Counterplay",
             Visible = false,
         };
-        _tray.DoubleClick += (_, _) => RestoreFromTray();
+        // Восстановление по двойному клику / меню — принудительное (с ручного сворачивания).
+        _tray.DoubleClick += (_, _) => RestoreFromTray(force: true);
 
         var menu = new System.Windows.Forms.ContextMenuStrip();
-        menu.Items.Add("Показать", null, (_, _) => RestoreFromTray());
+        menu.Items.Add("Показать", null, (_, _) => RestoreFromTray(force: true));
         menu.Items.Add("Выход",    null, (_, _) => System.Windows.Application.Current.Shutdown());
         _tray.ContextMenuStrip = menu;
 
         Closed += (_, _) => { _tray?.Dispose(); _tray = null; };
     }
 
-    /// Свернуть оверлей в трей (на время игры). Вызывается из фонового потока.
-    public void HideToTray() => Dispatcher.InvokeAsync(() =>
+    /// Свернуть оверлей в трей. userInitiated=true (крестик) — не разворачивать
+    /// автоматически (только по клику в трее). Вызывается из фонового потока тоже.
+    public void HideToTray(bool userInitiated = false) => Dispatcher.InvokeAsync(() =>
     {
         EnsureTray();
+        if (userInitiated) _userHidden = true;
         if (_inTray) return;
         _inTray = true;
         _tray!.Visible = true;
         Hide(); // тихо, без всплывающего уведомления
     });
 
-    /// Вернуть оверлей из трея (после игры / в меню).
-    public void RestoreFromTray() => Dispatcher.InvokeAsync(() =>
+    /// Вернуть оверлей из трея. force=true — по явному действию пользователя
+    /// (клик в трее). Автовозврат (force=false) не сработает, если пользователь
+    /// свернул окно сам.
+    public void RestoreFromTray(bool force = false) => Dispatcher.InvokeAsync(() =>
     {
+        if (_userHidden && !force) return; // свёрнуто вручную — ждём действия пользователя
+        _userHidden = false;
         if (!_inTray) return;
         _inTray = false;
         if (_tray != null) _tray.Visible = false;
@@ -204,11 +213,10 @@ public partial class OverlayWindow : Window
         _userMoved = false;
         AnchorToClient();
     }
-    // Крестик полностью закрывает программу (а не прячет — иначе окно
-    // возвращалось при следующем событии LCU). Свернуть на время игры — это
-    // делает кнопка-пин/трей автоматически.
-    private void OnClose(object sender, RoutedEventArgs e) =>
-        System.Windows.Application.Current.Shutdown();
+    // Крестик сворачивает окно в трей (значок остаётся). Окно не вернётся само
+    // при событиях LCU — только по двойному клику в трее. Полный выход — пункт
+    // «Выход» в меню значка.
+    private void OnClose(object sender, RoutedEventArgs e) => HideToTray(userInitiated: true);
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape) Hide();
