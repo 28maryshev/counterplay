@@ -505,12 +505,12 @@ public partial class OverlayWindow : Window
 
     private static string RoleRu(string pos) => pos.ToLowerInvariant() switch
     {
-        "top"     => "Топ",
-        "jungle"  => "Джунгли",
-        "middle"  => "Мид",
-        "bottom"  => "Бот",
-        "utility" => "Поддержка",
-        _         => pos,
+        "top"     => "ТОП",
+        "jungle"  => "ДЖУНГЛИ",
+        "middle"  => "МИД",
+        "bottom"  => "БОТ",
+        "utility" => "ПОДДЕРЖКА",
+        _         => pos.ToUpperInvariant(),
     };
 
     // Ширина полоски показателя (трек ~226px). Дельта масштабируется так, что
