@@ -9,6 +9,7 @@ public sealed record Recommendation(
     double DirectDelta,   // %пп матчап vs прямой оппонент
     double OtherDelta,    // %пп средний vs прочие враги
     double SynergyDelta,  // %пп средняя синергия с союзниками
+    double ComfortDelta,  // бонус за «комфорт»: часто наигранный чемпион игрока
     string[] Reasons);
 
 public sealed class RecommendationEngine : IDisposable
@@ -22,6 +23,17 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_DIRECT  = 2.5;
     private const double W_OTHER   = 0.8;
     private const double W_SYNERGY = 1.2;
+    private const double W_POOL    = 1.0; // вес «комфорта» (наигранность чемпиона)
+
+    // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
+    public IReadOnlyDictionary<int, long> Mastery { get; set; } =
+        new Dictionary<int, long>();
+
+    // Бонус за наигранность: сатурирующая кривая 0..~8 (200k очков ≈ +5.7).
+    private double ComfortDelta(int champId) =>
+        Mastery.TryGetValue(champId, out var pts) && pts > 0
+            ? 8.0 * pts / (pts + 80_000.0)
+            : 0.0;
 
     // Минимум игр на роли суммарно по всем агрегируемым патчам.
     private const int MIN_GAMES = 30;
@@ -209,9 +221,13 @@ public sealed class RecommendationEngine : IDisposable
                 var synDelta = synRaw.Count > 0
                     ? Delta(synRaw.Sum(x => x.G), synRaw.Sum(x => x.W), K_PAIR) : 0.0;
 
-                var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta + wSynergy * synDelta;
-                var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly, otherDelta, otherByEnemy, baseDelta);
-                return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, reasons);
+                var comfortDelta = ComfortDelta(champId); // наигранность игрока
+
+                var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
+                            + wSynergy * synDelta + W_POOL * comfortDelta;
+                var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
+                                           otherDelta, otherByEnemy, baseDelta, comfortDelta);
+                return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, reasons);
             })
             .OrderByDescending(r => r.Score)
             .Take(6)
@@ -439,9 +455,13 @@ public sealed class RecommendationEngine : IDisposable
         double directDelta, int    directOppId,
         double synDelta,    IReadOnlyList<(int Id, string Role, double Delta)> synByAlly,
         double otherDelta,  IReadOnlyList<(int Id, double Delta)> otherByEnemy,
-        double baseDelta)
+        double baseDelta,   double comfortDelta)
     {
         var lines = new List<string>();
+
+        // 0. Комфорт: часто наигранный чемпион игрока — упоминаем первым.
+        if      (comfortDelta >= 5.0) lines.Add("Ты много играешь на этом чемпионе — уверенный комфорт-пик.");
+        else if (comfortDelta >= 2.5) lines.Add("Знакомый чемпион из твоего пула — комфортный выбор.");
 
         // 1. Развёрнутые объяснения синергии с конкретными союзниками.
         // Сначала пары с наибольшей статистической синергией. Дедупим по ТИПУ

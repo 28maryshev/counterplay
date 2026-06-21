@@ -116,12 +116,14 @@ class Program
         }
 
         var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct);
+        var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
 
         RecommendationEngine? engine = null;
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is not null)
         {
             engine = RecommendationEngine.Create(dbPath, tierBucket);
+            engine.Mastery = mastery;
             overlay.ShowStatus($"Готов · {engine.TierBucket} · {engine.PatchDisplay}");
         }
         else

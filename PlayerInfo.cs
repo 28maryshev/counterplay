@@ -28,6 +28,36 @@ public static class PlayerInfo
         }
     }
 
+    /// Очки мастерства текущего игрока по чемпионам (championId → points).
+    /// Берётся из LCU, ключ Riot не нужен. Пусто, если недоступно.
+    public static async Task<Dictionary<int, long>> GetMasteryAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        var result = new Dictionary<int, long>();
+        try
+        {
+            var (status, body) = await http.GetAsync(
+                "/lol-champion-mastery/v1/local-player/champion-mastery", ct);
+            if (status != 200) return result;
+
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return result;
+
+            foreach (var m in doc.RootElement.EnumerateArray())
+            {
+                if (m.TryGetProperty("championId", out var idEl) &&
+                    m.TryGetProperty("championPoints", out var ptsEl) &&
+                    idEl.ValueKind == JsonValueKind.Number)
+                {
+                    var id  = idEl.GetInt32();
+                    var pts = ptsEl.ValueKind == JsonValueKind.Number ? ptsEl.GetInt64() : 0;
+                    if (id > 0 && pts > 0) result[id] = pts;
+                }
+            }
+        }
+        catch { /* недоступно — пустой пул */ }
+        return result;
+    }
+
     public static string TierToBucket(string tier) => tier switch
     {
         "IRON" or "BRONZE" or "SILVER"                    => "silver",
