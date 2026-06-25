@@ -99,6 +99,31 @@ public static class ChampionTraits
 
     public static bool IsNeutral(int id) => NeutralSet.Contains(id);
 
+    /// Доминирующий архетип одного чемпиона (для значка). null — неизвестен.
+    public static Arch? ChampArch(int id)
+    {
+        var (f, d, p) = Archetype(id);
+        if (f + d + p <= 0) return null;
+        if (f >= d && f >= p) return Arch.FrontToBack;
+        return d >= p ? Arch.Dive : Arch.PickPoke;
+    }
+
+    /// Человекочитаемый ярлык стиля команды по составу. Пусто, если чемпионов < 2.
+    public static string StyleLabel(IReadOnlyList<int> ids)
+    {
+        if (ids.Count < 2) return "";
+        var (f, d, p) = TeamArchetype(ids);
+        if (f + d + p <= 0) return "";
+
+        var max = Math.Max(f, Math.Max(d, p));
+        // Второй по величине — чтобы отличить «явный» стиль от «смешанного».
+        var second = (f == max ? Math.Max(d, p) : d == max ? Math.Max(f, p) : Math.Max(f, d));
+        if (max < 0.45 || max - second < 0.12) return "Смешанный";
+
+        if (f == max) return "Фронт-ту-бэк";
+        return d == max ? "Дайв" : "Пик/пок";
+    }
+
     // Инструменты (грубые 0..2) — из тегов ChampionTags.
     public static int Engage(int id)   => ChampionTags.Has(id, "engage") ? 2 : ChampionTags.Has(id, "hard_cc") ? 1 : 0;
     public static int Gapclose(int id) => ChampionTags.Has(id, "dive") ? 2 : ChampionTags.Has(id, "mobility") ? 1 : 0;

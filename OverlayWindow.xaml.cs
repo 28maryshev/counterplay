@@ -410,6 +410,16 @@ public partial class OverlayWindow : Window
             MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole);
             EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole);
 
+            // Ярлык стиля состава (Фронт / Дайв / Пик-пок / Смешанный).
+            var myIds    = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
+                                       .Select(p => p.EffectiveChampionId).ToList();
+            var enemyIds = draft.TheirTeam.Where(p => p.EffectiveChampionId != 0)
+                                          .Select(p => p.EffectiveChampionId).ToList();
+            var myStyle    = ChampionTraits.StyleLabel(myIds);
+            var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
+            MyTeamStyle.Text    = myStyle.Length    > 0 ? $"Стиль: {myStyle}"    : "";
+            EnemyTeamStyle.Text = enemyStyle.Length > 0 ? $"Стиль: {enemyStyle}" : "";
+
             var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
             var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
             MyTeamCombos.ItemsSource     = ToCards(myCombos,    ally: true);
@@ -541,6 +551,16 @@ public partial class OverlayWindow : Window
                 }
             }
 
+            // Значок архетипа (камень/ножницы/бумага), определяется по чемпиону.
+            string archGlyph = "", archColor = "#888888", archTip = "";
+            if (hasChamp && ChampionTraits.ChampArch(champId) is { } arch)
+                (archGlyph, archColor, archTip) = arch switch
+                {
+                    ChampionTraits.Arch.FrontToBack => ("✊", "#E8506E", "Фронт-ту-бэк"),
+                    ChampionTraits.Arch.Dive        => ("✋", "#E8B84B", "Дайв"),
+                    _                               => ("✌", "#4BC0C8", "Пик/пок"),
+                };
+
             return new ChampSlotCard
             {
                 Name        = hasChamp
@@ -559,6 +579,9 @@ public partial class OverlayWindow : Window
                 IsEmpty     = !hasChamp,
                 SideLabel   = sideLabel,
                 SideIcons   = sideIcons,
+                ArchGlyph   = archGlyph,
+                ArchColor   = archColor,
+                ArchTip     = archTip,
             };
         }).ToList();
     }
@@ -633,6 +656,12 @@ public sealed class ChampSlotCard
     public List<ImageSource> SideIcons   { get; init; } = [];
     public Visibility        SideVisibility =>
         SideIcons.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    // Значок архетипа чемпиона (камень/ножницы/бумага).
+    public string      ArchGlyph      { get; init; } = "";
+    public string      ArchColor      { get; init; } = "#888888";
+    public string      ArchTip        { get; init; } = "";
+    public Visibility  ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     // Выделение слота локального игрока (мой пик)
     public bool         IsMe            { get; init; }
