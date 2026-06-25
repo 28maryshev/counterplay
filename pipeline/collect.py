@@ -198,8 +198,10 @@ def api_call(fn, *args, **kwargs):
                 wait = int(e.response.headers.get('Retry-After', 10))
                 print(f'  [429] Rate limit — жду {wait}s…', flush=True)
                 time.sleep(wait)
-            elif code == 401:
-                sys.exit('\n[401] API-ключ недействителен или истёк. Обнови ключ на developer.riotgames.com')
+            elif code in (401, 403):
+                sys.exit(f'\n[{code}] API-ключ недействителен или истёк. Сгенерируй новый dev-ключ на '
+                         'developer.riotgames.com (он живёт 24 ч и аннулируется при регенерации) '
+                         'и запусти снова — собранное уже сохранено.')
             elif code == 404:
                 return None  # ресурс не найден — пропускаем
             else:
@@ -253,40 +255,45 @@ def collect(api_key: str, tier_bucket: str, target_games: int, db_path: str, day
     print(f'\nВсего puuid: {len(puuids)}. Начинаю сбор матчей…\n')
 
     total = 0
-
-    for puuid in puuids:
-        if total >= target_games:
-            break
-
-        match_ids = api_call(
-            watcher.match.matchlist_by_puuid,
-            REGION_MATCH, puuid,
-            queue=QUEUE_RANKED, count=20, start_time=start_time
-        )
-        if not match_ids:
-            continue
-
-        for mid in match_ids:
+    try:
+        for i, puuid in enumerate(puuids, 1):
             if total >= target_games:
                 break
-            if is_processed(con, mid):
+
+            # Регулярная строка прогресса по игрокам — видно, что сбор идёт.
+            print(f'  игрок {i}/{len(puuids)} · собрано {total}/{target_games}', flush=True)
+
+            match_ids = api_call(
+                watcher.match.matchlist_by_puuid,
+                REGION_MATCH, puuid,
+                queue=QUEUE_RANKED, count=30, start_time=start_time
+            )
+            if not match_ids:
                 continue
 
-            match = api_call(watcher.match.by_id, REGION_MATCH, mid)
-            if not match:
-                continue
+            for mid in match_ids:
+                if total >= target_games:
+                    break
+                if is_processed(con, mid):
+                    continue
 
-            process_match(con, match, tier_bucket)
-            con.commit()
-            total += 1
+                match = api_call(watcher.match.by_id, REGION_MATCH, mid)
+                if not match:
+                    continue
 
-            if total % 50 == 0:
-                print(f'  {total}/{target_games} матчей…', flush=True)
+                process_match(con, match, tier_bucket)
+                con.commit()
+                total += 1
+
+                if total % 10 == 0:
+                    print(f'    +{total}/{target_games} матчей…', flush=True)
+    except KeyboardInterrupt:
+        print('\nОстановка по Ctrl+C — сохраняю собранное…', flush=True)
 
     # Сбрасываем WAL в основной файл — иначе C# в ReadOnly-режиме не увидит данные.
     con.execute("PRAGMA wal_checkpoint(FULL)")
     con.close()
-    print(f'\nГотово. Новых матчей: {total}. База: {db_path}')
+    print(f'\nГотово. Новых матчей за прогон: {total}. База: {db_path}')
 
 
 # ---------- CLI ----------
@@ -304,8 +311,8 @@ if __name__ == '__main__':
                    help='Путь к SQLite-базе (по умолчанию: data.db)')
     p.add_argument('--days',  type=int, default=30,
                    help='Брать матчи только за последние N дней (по умолчанию: 30)')
-    p.add_argument('--pages', type=int, default=1,
-                   help='Сколько страниц игроков брать из каждого дивизиона (по умолчанию: 1)')
+    p.add_argument('--pages', type=int, default=3,
+                   help='Сколько страниц игроков брать из каждого дивизиона (по умолчанию: 3 → больше игроков → больше матчей)')
     args = p.parse_args()
 
     collect(args.key, args.tier, args.games, args.db, args.days, args.pages)
