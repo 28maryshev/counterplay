@@ -23,7 +23,10 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_DIRECT  = 2.5;
     private const double W_OTHER   = 0.8;
     private const double W_SYNERGY = 1.2;
-    private const double W_POOL    = 1.0; // вес «комфорта» (наигранность чемпиона)
+    private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
+    private const double W_NEUTRAL  = 1.0; // нейтральный пик при неопределённости
+    private const double W_TRIFECTA = 0.8; // архетип-контра (камень-ножницы-бумага)
+    private const double W_STYLE    = 0.6; // анти-стиль: инструменты против компы врага
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -34,6 +37,61 @@ public sealed class RecommendationEngine : IDisposable
         Mastery.TryGetValue(champId, out var pts) && pts > 0
             ? 8.0 * pts / (pts + 80_000.0)
             : 0.0;
+
+    // Драфт-фичи: нейтральный пик (при неопределённости), трифекта композиций
+    // и анти-стиль (инструменты против доминирующего архетипа врага).
+    // Возвращает суммарный взвешенный бонус к score и причины для UI.
+    private static (double Bonus, List<string> Reasons) DraftFit(
+        int champId, ChampionTraits.Arch? enemyDom, double uncertainty)
+    {
+        double bonus = 0;
+        var reasons = new List<string>();
+
+        // 5. Нейтральный пик — безопасен при неизвестном составе.
+        if (ChampionTraits.IsNeutral(champId) && uncertainty > 0.1)
+        {
+            bonus += W_NEUTRAL * uncertainty;
+            if (uncertainty >= 0.5)
+                reasons.Add("Нейтральный пик — безопасен, пока состав врага не ясен.");
+        }
+
+        if (enemyDom is { } dom)
+        {
+            var (f2b, dive, pick) = ChampionTraits.Archetype(champId);
+
+            // 2. Трифекта: что нужно взять, чтобы побить доминанту врага.
+            //    dive ← frontToBack, pickPoke ← dive, frontToBack ← pickPoke.
+            var want = dom switch
+            {
+                ChampionTraits.Arch.Dive       => f2b,
+                ChampionTraits.Arch.PickPoke   => dive,
+                _                              => pick, // FrontToBack ← pickPoke
+            };
+            bonus += W_TRIFECTA * want;
+
+            // 3. Анти-стиль: конкретные инструменты против стиля врага.
+            double style = dom switch
+            {
+                ChampionTraits.Arch.PickPoke =>
+                    ChampionTraits.Gapclose(champId) + ChampionTraits.Engage(champId),
+                ChampionTraits.Arch.Dive =>
+                    ChampionTraits.Peel(champId) + ChampionTraits.Disengage(champId),
+                _ /* FrontToBack */ =>
+                    (ChampionTraits.LongRange(champId) ? 2 : 0) + ChampionTraits.Burst(champId),
+            };
+            bonus += W_STYLE * style;
+
+            if (style >= 3)
+                reasons.Add(dom switch
+                {
+                    ChampionTraits.Arch.PickPoke   => "Вкатывается на их дальнобойный состав (заход/рывки).",
+                    ChampionTraits.Arch.Dive       => "Прикрывает команду от их дайва (пил/дизенгейдж).",
+                    _                              => "Перебивает их фронт дальним уроном/бёрстом.",
+                });
+        }
+
+        return (bonus, reasons);
+    }
 
     // Минимум игр на роли суммарно по всем агрегируемым патчам.
     private const int MIN_GAMES = 30;
@@ -193,6 +251,16 @@ public sealed class RecommendationEngine : IDisposable
         var knownEnemies = state.TheirTeam.Count(p => p.EffectiveChampionId != 0);
         var wSynergy = W_SYNERGY + (W_DIRECT - W_SYNERGY) * Math.Max(0.0, 1.0 - knownEnemies / 5.0);
 
+        // ── Драфт-фичи (архетип/нейтральность) ──────────────────────────────
+        var allEnemyIds = state.TheirTeam
+            .Where(p => p.EffectiveChampionId != 0).Select(p => p.EffectiveChampionId).ToList();
+        // Неопределённость драфта: 1.0 если врагов не видно, 0 если все 5 + есть оппонент.
+        var uncertainty = Math.Clamp(
+            1.0 - knownEnemies / 5.0 + (directOppId == 0 ? 0.2 : 0.0), 0.0, 1.0);
+        // Доминирующий архетип врага определяем при 2+ известных пиках.
+        ChampionTraits.Arch? enemyDom = allEnemyIds.Count >= 2
+            ? ChampionTraits.Dominant(allEnemyIds) : null;
+
         return candidates
             .Where(id => !taken.Contains(id))
             .Select(champId =>
@@ -223,10 +291,15 @@ public sealed class RecommendationEngine : IDisposable
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
+                // Драфт-фичи: нейтральность, трифекта, анти-стиль.
+                var (draftBonus, draftReasons) =
+                    DraftFit(champId, enemyDom, uncertainty);
+
                 var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
-                            + wSynergy * synDelta + W_POOL * comfortDelta;
+                            + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
-                                           otherDelta, otherByEnemy, baseDelta, comfortDelta);
+                                           otherDelta, otherByEnemy, baseDelta, comfortDelta)
+                                .Concat(draftReasons).ToArray();
                 return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, reasons);
             })
             .OrderByDescending(r => r.Score)

@@ -4,7 +4,7 @@ namespace Counterplay;
 
 public static class DataDragon
 {
-    private sealed record ChampInfo(string Name, string DdId);
+    private sealed record ChampInfo(string Name, string DdId, string[] Tags);
 
     private static Dictionary<int, ChampInfo>? _champions;
     private static string _version = "14.10.1";
@@ -36,9 +36,16 @@ public static class DataDragon
                     val.TryGetProperty("name", out var nameEl) &&
                     int.TryParse(keyEl.GetString(), out var id))
                 {
+                    var tags = Array.Empty<string>();
+                    if (val.TryGetProperty("tags", out var tagsEl) && tagsEl.ValueKind == JsonValueKind.Array)
+                        tags = tagsEl.EnumerateArray()
+                                     .Where(x => x.ValueKind == JsonValueKind.String)
+                                     .Select(x => x.GetString()!).ToArray();
+
                     _champions[id] = new ChampInfo(
                         Name: nameEl.GetString() ?? entry.Name,
-                        DdId: entry.Name);
+                        DdId: entry.Name,
+                        Tags: tags);
                 }
             }
             Console.WriteLine($"Data Dragon загружен: {_champions.Count} чемпионов, патч {_version}.");
@@ -56,6 +63,10 @@ public static class DataDragon
         if (_champions is not null && _champions.TryGetValue(id, out var info)) return info.Name;
         return $"id={id}";
     }
+
+    /// Классовые теги чемпиона из Data Dragon (Fighter/Tank/Mage/Assassin/Marksman/Support).
+    public static string[] ClassTags(int id) =>
+        _champions is not null && _champions.TryGetValue(id, out var info) ? info.Tags : [];
 
     /// URL иконки для оверлея.
     public static string IconUrl(int id)
