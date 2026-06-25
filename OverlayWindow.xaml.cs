@@ -354,7 +354,7 @@ public partial class OverlayWindow : Window
         var recs  = _lastRecs;
         var draft = _lastDraft;
 
-        // Фаза банов: показываем рекомендуемые баны (простым списком).
+        // Фаза банов: показываем рекомендуемые баны (в том же разделе, что и пики).
         if (draft?.InBanPhase == true)
         {
             if (_lastBans is null || _lastBans.Count == 0)
@@ -363,7 +363,22 @@ public partial class OverlayWindow : Window
                 ShowIdle();
                 return;
             }
-            RenderBans(_lastBans, draft);
+            RestoreModeSize();
+            if (_isFullMode)
+            {
+                RenderBansFull(_lastBans, draft);
+                CompactScroll.Visibility = Visibility.Collapsed;
+                FullView.Visibility      = Visibility.Visible;
+            }
+            else
+            {
+                RenderBansCompact(_lastBans, draft);
+                FullView.Visibility      = Visibility.Collapsed;
+                CompactScroll.Visibility = Visibility.Visible;
+            }
+            if (_inTray) return;
+            Show();
+            AnchorIfNotMoved();
             return;
         }
 
@@ -415,15 +430,13 @@ public partial class OverlayWindow : Window
 
     // ── Фаза банов ─────────────────────────────────────────────────────────
 
-    private void RenderBans(IReadOnlyList<BanRec> bans, DraftState draft)
+    private void RenderBansCompact(IReadOnlyList<BanRec> bans, DraftState draft)
     {
-        RestoreModeSize();
         PickHint.Visibility = Visibility.Collapsed;
         var roleLabel = draft.MyPosition is { Length: > 0 } pos
             ? RecommendationEngine.LcuToDbRole(pos) : "—";
         StatusText.Text = $"Роль: {roleLabel} — кого банить:";
 
-        // Используем простой компактный список (иконка/имя/причина) для банов.
         RecList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
         {
             Rank       = $"{i + 1}.",
@@ -433,13 +446,6 @@ public partial class OverlayWindow : Window
             Reason     = b.Reasons.FirstOrDefault() ?? "",
             Icon       = IconCache.Get(b.ChampionId),
         }).ToList();
-
-        FullView.Visibility      = Visibility.Collapsed;
-        CompactScroll.Visibility = Visibility.Visible;
-
-        if (_inTray) return;
-        Show();
-        AnchorIfNotMoved();
     }
 
     // ── Компактный вид ────────────────────────────────────────────────────
@@ -483,11 +489,11 @@ public partial class OverlayWindow : Window
                 ReasonText = string.Join("\n", r.Reasons),
                 BaseBar    = ToBar(r.BaseDelta),
                 DirectBar  = ToBar(r.DirectDelta),
-                OtherBar   = ToBar(r.OtherDelta),
+                OtherBar   = ToBar(r.StyleDelta),   // строка «Против их стиля»
                 SynBar     = ToBar(r.SynergyDelta),
                 BaseText   = Signed(r.BaseDelta),
                 DirectText = Signed(r.DirectDelta),
-                OtherText  = Signed(r.OtherDelta),
+                OtherText  = Signed(r.StyleDelta),
                 SynText    = Signed(r.SynergyDelta),
                 ArchGlyph  = ag,
                 ArchColor  = ac,
@@ -496,35 +502,62 @@ public partial class OverlayWindow : Window
             };
         }).ToList();
 
-        if (draft != null)
+        RecScroll.Visibility = Visibility.Visible;   // показываем пики
+        BanScroll.Visibility = Visibility.Collapsed;
+        if (draft != null) RenderTeams(draft);
+    }
+
+    // Полный вид для фазы банов: тот же раздел (команды + центр), но в центре баны.
+    private void RenderBansFull(IReadOnlyList<BanRec> bans, DraftState draft)
+    {
+        var roleLabel = draft.MyPosition is { Length: > 0 } pos
+            ? RecommendationEngine.LcuToDbRole(pos) : "—";
+        StatusText.Text     = $"Роль: {roleLabel} — кого банить:";
+        PickHint.Visibility = Visibility.Collapsed;
+
+        BanFullList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
         {
-            var myRole = RecommendationEngine.LcuToDbRole(draft.MyPosition);
-            MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole);
-            EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole);
+            Rank   = $"{i + 1}.",
+            Name   = DataDragon.Name(b.ChampionId),
+            Reason = b.Reasons.FirstOrDefault() ?? "",
+            Icon   = IconCache.Get(b.ChampionId),
+        }).ToList();
 
-            // Ярлык стиля состава (Фронт / Дайв / Пик-пок / Смешанный).
-            var enemyIds = draft.TheirTeam.Where(p => p.EffectiveChampionId != 0)
-                                          .Select(p => p.EffectiveChampionId).ToList();
-            var myStyle    = ChampionTraits.StyleLabel(allyIds);
-            var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
-            MyTeamStyle.Text    = myStyle.Length    > 0 ? $"Стиль: {myStyle}"    : "";
-            EnemyTeamStyle.Text = enemyStyle.Length > 0 ? $"Стиль: {enemyStyle}" : "";
+        RecScroll.Visibility = Visibility.Collapsed; // показываем баны
+        BanScroll.Visibility = Visibility.Visible;
+        RenderTeams(draft);
+    }
 
-            var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
-            MyTeamCombos.ItemsSource     = ToCards(myCombos,    ally: true);
-            EnemyTeamCombos.ItemsSource  = ToCards(enemyCombos, ally: false);
-            MyCombosHeader.Visibility    = myCombos.Count    > 0 ? Visibility.Visible : Visibility.Collapsed;
-            EnemyCombosHeader.Visibility = enemyCombos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    // Команды по бокам (слоты, стиль, связки, линии) — общее для пиков и банов.
+    private void RenderTeams(DraftState draft)
+    {
+        var myRole = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+        MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole);
+        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole);
 
-            // Линии-коннекторы рисуем после раскладки (контейнеры строк ещё не готовы).
-            var myTeam    = draft.MyTeam;
-            var enemyTeam = draft.TheirTeam;
-            Dispatcher.InvokeAsync(() =>
-            {
-                DrawTeamLines(MyTeamLines,    MyTeamList,    myTeam,    myCombos);
-                DrawTeamLines(EnemyTeamLines, EnemyTeamList, enemyTeam, enemyCombos);
-            }, DispatcherPriority.Loaded);
-        }
+        var allyIds  = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
+                                   .Select(p => p.EffectiveChampionId).ToList();
+        var enemyIds = draft.TheirTeam.Where(p => p.EffectiveChampionId != 0)
+                                      .Select(p => p.EffectiveChampionId).ToList();
+        var myStyle    = ChampionTraits.StyleLabel(allyIds);
+        var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
+        MyTeamStyle.Text    = myStyle.Length    > 0 ? $"Стиль: {myStyle}"    : "";
+        EnemyTeamStyle.Text = enemyStyle.Length > 0 ? $"Стиль: {enemyStyle}" : "";
+
+        var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
+        var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
+        MyTeamCombos.ItemsSource     = ToCards(myCombos,    ally: true);
+        EnemyTeamCombos.ItemsSource  = ToCards(enemyCombos, ally: false);
+        MyCombosHeader.Visibility    = myCombos.Count    > 0 ? Visibility.Visible : Visibility.Collapsed;
+        EnemyCombosHeader.Visibility = enemyCombos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        var myTeam    = draft.MyTeam;
+        var enemyTeam = draft.TheirTeam;
+        Dispatcher.InvokeAsync(() =>
+        {
+            DrawTeamLines(MyTeamLines,    MyTeamList,    myTeam,    myCombos);
+            DrawTeamLines(EnemyTeamLines, EnemyTeamList, enemyTeam, enemyCombos);
+        }, DispatcherPriority.Loaded);
     }
 
     // Палитра коннектор-линий (фиолетовый / бирюзовый / золотой), как в референсе.

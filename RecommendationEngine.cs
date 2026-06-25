@@ -12,6 +12,7 @@ public sealed record Recommendation(
     double OtherDelta,    // %пп средний vs прочие враги
     double SynergyDelta,  // %пп средняя синергия с союзниками
     double ComfortDelta,  // бонус за «комфорт»: часто наигранный чемпион игрока
+    double StyleDelta,    // вклад «против стиля врага» (трифекта + анти-стиль)
     string[] Reasons);
 
 public sealed class RecommendationEngine : IDisposable
@@ -52,10 +53,11 @@ public sealed class RecommendationEngine : IDisposable
     // Драфт-фичи: нейтральный пик (при неопределённости), трифекта композиций
     // и анти-стиль (инструменты против доминирующего архетипа врага).
     // Возвращает суммарный взвешенный бонус к score и причины для UI.
-    private static (double Bonus, List<string> Reasons) DraftFit(
+    // StyleScore — отдельно вклад «против стиля врага» (трифекта+анти-стиль), для показа в карточке.
+    private static (double Bonus, double StyleScore, List<string> Reasons) DraftFit(
         int champId, ChampionTraits.Arch? enemyDom, double uncertainty)
     {
-        double bonus = 0;
+        double bonus = 0, styleScore = 0;
         var reasons = new List<string>();
 
         // 5. Нейтральный пик — безопасен при неизвестном составе.
@@ -78,7 +80,6 @@ public sealed class RecommendationEngine : IDisposable
                 ChampionTraits.Arch.PickPoke   => dive,
                 _                              => pick, // FrontToBack ← pickPoke
             };
-            bonus += W_TRIFECTA * want;
 
             // 3. Анти-стиль: конкретные инструменты против стиля врага.
             double style = dom switch
@@ -90,7 +91,9 @@ public sealed class RecommendationEngine : IDisposable
                 _ /* FrontToBack */ =>
                     (ChampionTraits.LongRange(champId) ? 2 : 0) + ChampionTraits.Burst(champId),
             };
-            bonus += W_STYLE * style;
+
+            styleScore = W_TRIFECTA * want + W_STYLE * style;
+            bonus += styleScore;
 
             if (style >= 3)
                 reasons.Add(dom switch
@@ -101,7 +104,7 @@ public sealed class RecommendationEngine : IDisposable
                 });
         }
 
-        return (bonus, reasons);
+        return (bonus, styleScore, reasons);
     }
 
     // Минимум игр на роли суммарно по всем агрегируемым патчам.
@@ -314,7 +317,7 @@ public sealed class RecommendationEngine : IDisposable
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
                 // Драфт-фичи: нейтральность, трифекта, анти-стиль.
-                var (draftBonus, draftReasons) =
+                var (draftBonus, styleScore, draftReasons) =
                     DraftFit(champId, enemyDom, uncertainty);
 
                 // Item value (п.1): штраф за стак уязвимости + бонус за наказание врага.
@@ -335,7 +338,7 @@ public sealed class RecommendationEngine : IDisposable
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();
-                return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, reasons);
+                return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, styleScore, reasons);
             })
             .OrderByDescending(r => r.Score)
             .Take(6)

@@ -418,7 +418,8 @@
           <Border Grid.Column="1"
                   BorderBrush="#30C89B3C" BorderThickness="1,0"
                   Padding="10,0">
-            <ScrollViewer VerticalScrollBarVisibility="Hidden">
+            <Grid>
+            <ScrollViewer x:Name="RecScroll" VerticalScrollBarVisibility="Hidden">
               <ItemsControl x:Name="FullRecList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
@@ -522,7 +523,7 @@
 
                               <!-- Против вражеской команды -->
                               <Grid>
-                                <TextBlock Text="Против вражеской команды" Foreground="#7C97AC"
+                                <TextBlock Text="Против их стиля" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
                                 <TextBlock Text="{Binding OtherText}" Foreground="#E0944C"
                                            FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
@@ -554,6 +555,44 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </ScrollViewer>
+
+            <!-- Список банов (фаза банов) — в том же центре, переключается с пиками -->
+            <ScrollViewer x:Name="BanScroll" VerticalScrollBarVisibility="Hidden" Visibility="Collapsed">
+              <ItemsControl x:Name="BanFullList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Margin="0,3" CornerRadius="4" Padding="12,10" Background="#1EC84040">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding Rank}"
+                                   FontFamily="{StaticResource NumberFont}" FontSize="30" FontWeight="Bold"
+                                   Foreground="#E0584F" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Ellipse Grid.Column="1" Width="56" Height="56" VerticalAlignment="Center" Margin="0,0,12,0">
+                          <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
+                          <Ellipse.Stroke><SolidColorBrush Color="#C84040"/></Ellipse.Stroke>
+                          <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
+                        </Ellipse>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Name}" Foreground="White"
+                                     FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"/>
+                          <TextBlock Text="{Binding Reason}" Foreground="#9AB2C6"
+                                     FontFamily="{StaticResource UiFont}" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="3" Text="БАН" Foreground="#E0584F"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="16" FontWeight="Bold"
+                                   VerticalAlignment="Center"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+            </Grid>
           </Border>
 
           <!-- ВРАГИ ────────────────────────────────────────────────── -->
