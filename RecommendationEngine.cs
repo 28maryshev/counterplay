@@ -18,6 +18,7 @@ public sealed class RecommendationEngine : IDisposable
     private const double K      = 50.0; // для базового WR (данных много)
     private const double K_PAIR = 20.0; // для парных таблиц (синергия/матчап) — данных мало
     private const double PRIOR  = 0.5;
+    private const double CONF_GAMES = 40.0; // темпер синергии по объёму выборки
 
     private const double W_BASE    = 1.0;
     private const double W_DIRECT  = 2.5;
@@ -291,8 +292,12 @@ public sealed class RecommendationEngine : IDisposable
                     .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id); return (a.Id, a.Role, G: g, W: w); })
                     .ToList();
                 var synByAlly = synRaw.Select(x => (x.Id, x.Role, Delta: Delta(x.G, x.W, K_PAIR))).ToList();
+                var synGames = synRaw.Sum(x => x.G);
+                // Темпер по выборке: мало совместных игр → синергии меньше доверия,
+                // чтобы «чемпионы на 8 играх» не доминировали при ×2.5 без врагов.
+                var synConf  = synGames / (synGames + CONF_GAMES);
                 var synDelta = synRaw.Count > 0
-                    ? Delta(synRaw.Sum(x => x.G), synRaw.Sum(x => x.W), K_PAIR) : 0.0;
+                    ? Delta(synGames, synRaw.Sum(x => x.W), K_PAIR) * synConf : 0.0;
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 

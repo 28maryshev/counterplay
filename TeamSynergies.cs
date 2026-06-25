@@ -131,7 +131,7 @@ public static class TeamSynergies
 
         // 9. Два инициатора
         if ((Has(champId, "engage") || Has(champId, "hard_cc")) && (Has(allyId, "engage") || Has(allyId, "hard_cc")))
-            return ("double_engage", $"Вы оба умеете начинать драки и ловить врагов в контроль — вместе легко ловить одиночек и выигрывать пики.");
+            return ("double_engage", $"Вы с {name} оба начинаете драки и ловите врагов в контроль — вместе легко ловить одиночек и выигрывать пики.");
 
         return null;
     }
