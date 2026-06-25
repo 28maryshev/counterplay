@@ -385,23 +385,30 @@ public partial class OverlayWindow : Window
 
     private void RenderFull(IReadOnlyList<Recommendation> recs, DraftState? draft)
     {
-        FullRecList.ItemsSource = recs.Take(6).Select((r, i) => new FullRecCard
+        FullRecList.ItemsSource = recs.Take(6).Select((r, i) =>
         {
-            Rank       = $"{i + 1}.",
-            Name       = DataDragon.Name(r.ChampionId),
-            Score      = Signed(r.Score),
-            ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
-            WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
-            Icon       = IconCache.Get(r.ChampionId),
-            ReasonText = string.Join("\n", r.Reasons),
-            BaseBar    = ToBar(r.BaseDelta),
-            DirectBar  = ToBar(r.DirectDelta),
-            OtherBar   = ToBar(r.OtherDelta),
-            SynBar     = ToBar(r.SynergyDelta),
-            BaseText   = Signed(r.BaseDelta),
-            DirectText = Signed(r.DirectDelta),
-            OtherText  = Signed(r.OtherDelta),
-            SynText    = Signed(r.SynergyDelta),
+            var (ag, ac, at) = ArchBadge(r.ChampionId);
+            return new FullRecCard
+            {
+                Rank       = $"{i + 1}.",
+                Name       = DataDragon.Name(r.ChampionId),
+                Score      = Signed(r.Score),
+                ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
+                WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
+                Icon       = IconCache.Get(r.ChampionId),
+                ReasonText = string.Join("\n", r.Reasons),
+                BaseBar    = ToBar(r.BaseDelta),
+                DirectBar  = ToBar(r.DirectDelta),
+                OtherBar   = ToBar(r.OtherDelta),
+                SynBar     = ToBar(r.SynergyDelta),
+                BaseText   = Signed(r.BaseDelta),
+                DirectText = Signed(r.DirectDelta),
+                OtherText  = Signed(r.OtherDelta),
+                SynText    = Signed(r.SynergyDelta),
+                ArchGlyph  = ag,
+                ArchColor  = ac,
+                ArchTip    = at,
+            };
         }).ToList();
 
         if (draft != null)
@@ -552,14 +559,7 @@ public partial class OverlayWindow : Window
             }
 
             // Значок архетипа (камень/ножницы/бумага), определяется по чемпиону.
-            string archGlyph = "", archColor = "#888888", archTip = "";
-            if (hasChamp && ChampionTraits.ChampArch(champId) is { } arch)
-                (archGlyph, archColor, archTip) = arch switch
-                {
-                    ChampionTraits.Arch.FrontToBack => ("✊", "#E8506E", "Фронт-ту-бэк"),
-                    ChampionTraits.Arch.Dive        => ("✋", "#E8B84B", "Дайв"),
-                    _                               => ("✌", "#4BC0C8", "Пик/пок"),
-                };
+            var (archGlyph, archColor, archTip) = hasChamp ? ArchBadge(champId) : ("", "#888888", "");
 
             return new ChampSlotCard
             {
@@ -610,6 +610,17 @@ public partial class OverlayWindow : Window
     // сильные значения (≈+17пп синергии) почти заполняют полоску.
     private static double ToBar(double delta) => Math.Max(0, Math.Min(214, delta * 13));
     private static string Signed(double v)    => (v >= 0 ? "+" : "") + v.ToString("F1");
+
+    // Значок архетипа чемпиона: эмодзи камень-ножницы-бумага + цвет фона.
+    // Фронт(✊,синий) бьёт Дайв(✌,красный), Дайв бьёт Пик(✋,зелёный), Пик бьёт Фронт.
+    private static (string Glyph, string Color, string Tip) ArchBadge(int champId) =>
+        ChampionTraits.ChampArch(champId) switch
+        {
+            ChampionTraits.Arch.FrontToBack => ("✊", "#3D7EC4", "Фронт-ту-бэк"),
+            ChampionTraits.Arch.Dive        => ("✌", "#D85050", "Дайв"),
+            ChampionTraits.Arch.PickPoke    => ("✋", "#4CAE6A", "Пик/пок"),
+            _                               => ("", "#888888", ""),
+        };
 }
 
 // ── View-models ──────────────────────────────────────────────────────────────
@@ -641,6 +652,10 @@ public sealed class FullRecCard
     public string       DirectText { get; init; } = "";
     public string       OtherText  { get; init; } = "";
     public string       SynText    { get; init; } = "";
+    public string       ArchGlyph  { get; init; } = "";
+    public string       ArchColor  { get; init; } = "#888888";
+    public string       ArchTip    { get; init; } = "";
+    public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 }
 
 public sealed class ChampSlotCard

@@ -349,13 +349,13 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                Visibility="{Binding RoleIconVisibility}"/>
                         <!-- Значок архетипа (камень/ножницы/бумага) в левом верхнем углу -->
-                        <Border Width="22" Height="22" CornerRadius="11"
+                        <Border Width="27" Height="27" CornerRadius="13"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Margin="-5,-5,0,0" Visibility="{Binding ArchVisibility}"
+                                Margin="-2,-1,0,0" Visibility="{Binding ArchVisibility}"
                                 ToolTip="{Binding ArchTip}">
                           <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
                           <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
-                                     FontSize="11" Foreground="#10141A"
+                                     FontSize="14" Foreground="#10141A"
                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                       </Grid>
@@ -432,15 +432,25 @@
                                          FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
                             </StackPanel>
 
-                            <!-- Иконка -->
-                            <Ellipse Grid.Column="1" Width="64" Height="64"
-                                     VerticalAlignment="Center" Margin="0,0,14,0">
-                              <Ellipse.Fill>
-                                <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
-                              </Ellipse.Fill>
-                              <Ellipse.Stroke><SolidColorBrush Color="#C89B3C"/></Ellipse.Stroke>
-                              <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
-                            </Ellipse>
+                            <!-- Иконка + значок архетипа -->
+                            <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                              <Ellipse Width="64" Height="64">
+                                <Ellipse.Fill>
+                                  <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+                                </Ellipse.Fill>
+                                <Ellipse.Stroke><SolidColorBrush Color="#C89B3C"/></Ellipse.Stroke>
+                                <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
+                              </Ellipse>
+                              <Border Width="27" Height="27" CornerRadius="13"
+                                      HorizontalAlignment="Left" VerticalAlignment="Top"
+                                      Margin="-2,-1,0,0" Visibility="{Binding ArchVisibility}"
+                                      ToolTip="{Binding ArchTip}">
+                                <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
+                                <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
+                                           FontSize="14" Foreground="#10141A"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                              </Border>
+                            </Grid>
 
                             <!-- Имя + WR + описание: фиксированная ширина, отдельный столбец -->
                             <StackPanel Grid.Column="2" VerticalAlignment="Center"
@@ -577,13 +587,13 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                Visibility="{Binding RoleIconVisibility}"/>
                         <!-- Значок архетипа (камень/ножницы/бумага) в левом верхнем углу -->
-                        <Border Width="22" Height="22" CornerRadius="11"
+                        <Border Width="27" Height="27" CornerRadius="13"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Margin="-5,-5,0,0" Visibility="{Binding ArchVisibility}"
+                                Margin="-2,-1,0,0" Visibility="{Binding ArchVisibility}"
                                 ToolTip="{Binding ArchTip}">
                           <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
                           <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
-                                     FontSize="11" Foreground="#10141A"
+                                     FontSize="14" Foreground="#10141A"
                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                       </Grid>
