@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 
 namespace Counterplay;
 
+public sealed record BanRec(int ChampionId, double Score, string[] Reasons);
+
 public sealed record Recommendation(
     int    ChampionId,
     double Score,
@@ -31,6 +33,11 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_VULN     = 2.0; // штраф за стак одной уязвимости в команде
     private const double W_EXPLOIT  = 1.0; // бонус за наказание вынужденного предмета врага
     private const double W_STRUCT   = 1.2; // структурная синергия джангл↔саппорт
+
+    // Веса рекомендации банов.
+    private const double W_BAN_META    = 1.0; // сила чемпиона в патче (WR)
+    private const double W_BAN_POP     = 1.0; // популярность (часто пикается)
+    private const double W_BAN_COUNTER = 1.5; // насколько контрит твой пул
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -333,6 +340,80 @@ public sealed class RecommendationEngine : IDisposable
             .OrderByDescending(r => r.Score)
             .Take(6)
             .ToList();
+    }
+
+    // ---------- Рекомендация банов ----------
+
+    /// Кого банить: сильные/популярные в патче чемпионы твоей роли, которые ещё и
+    /// плохи лично для тебя (контрят твой пул). Возвращает топ-N.
+    public IReadOnlyList<BanRec> RecommendBans(DraftState state, int top = 5)
+    {
+        var myRole = LcuToDbRole(state.MyPosition);
+        if (string.IsNullOrEmpty(myRole)) return [];
+
+        var stats = RoleStats(myRole);            // champId → (games, wins)
+        if (stats.Count == 0) return [];
+        var maxGames = stats.Values.Max(v => v.Games);
+
+        var taken = new HashSet<int>();
+        foreach (var p in state.MyTeam.Concat(state.TheirTeam))
+            if (p.EffectiveChampionId != 0) taken.Add(p.EffectiveChampionId);
+        foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
+            if (b != 0) taken.Add(b);
+
+        // Мои мейны на этой роли (по мастерству) — чтобы банить их контр-пики.
+        var myMains = Mastery
+            .Where(kv => stats.ContainsKey(kv.Key))
+            .OrderByDescending(kv => kv.Value)
+            .Take(3).Select(kv => kv.Key).ToList();
+
+        return stats.Keys
+            .Where(id => !taken.Contains(id))
+            .Select(x =>
+            {
+                var (g, w) = stats[x];
+                var metaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100;     // сила в патче, %пп
+                var pop    = maxGames > 0 ? g / maxGames : 0;             // популярность 0..1
+                // x бьёт мои пики: -Delta(мой мейн vs x) усреднённо по мейнам.
+                var counterMe = myMains.Count > 0
+                    ? myMains.Average(m => { var (mg, mw) = RawMatchup(m, myRole, x); return -Delta(mg, mw, K_PAIR); })
+                    : 0.0;
+
+                var score = W_BAN_META * metaWr + W_BAN_POP * (pop * 10) + W_BAN_COUNTER * counterMe;
+
+                var reasons = new List<string>();
+                if (counterMe >= 2.0 && myMains.Count > 0)
+                    reasons.Add($"Контрит твой пул (бьёт {DataDragon.Name(myMains[0])})");
+                if (metaWr >= 1.5) reasons.Add($"Сильный в патче — WR {50 + metaWr:F1}%");
+                if (pop >= 0.6)    reasons.Add("Часто пикается — частый оппонент");
+                if (reasons.Count == 0) reasons.Add("Заметный пик в патче");
+
+                return new BanRec(x, score, [.. reasons]);
+            })
+            .OrderByDescending(b => b.Score)
+            .Take(top)
+            .ToList();
+    }
+
+    // Суммарные (games, wins) по всем кандидатам роли за окно патчей.
+    private Dictionary<int, (double Games, double Wins)> RoleStats(string role)
+    {
+        var result = new Dictionary<int, (double, double)>();
+        var cmd = _db.CreateCommand();
+        cmd.CommandText = @"
+            SELECT champion_id, SUM(games), SUM(wins) FROM base_wr
+            WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+            GROUP BY champion_id HAVING SUM(games) >= @min";
+        cmd.Parameters.AddWithValue("@r",   role);
+        cmd.Parameters.AddWithValue("@t",   TierBucket);
+        cmd.Parameters.AddWithValue("@p1",  _p1);
+        cmd.Parameters.AddWithValue("@p2",  _p2);
+        cmd.Parameters.AddWithValue("@p3",  _p3);
+        cmd.Parameters.AddWithValue("@min", MIN_GAMES);
+        using var rd = cmd.ExecuteReader();
+        while (rd.Read())
+            result[rd.GetInt32(0)] = (rd.GetDouble(1), rd.GetDouble(2));
+        return result;
     }
 
     // Структурные правила синергии джангл↔саппорт (п.4): не из статистики, а из

@@ -24,7 +24,8 @@ public sealed record DraftState(
     DraftPlayer? Me,
     string MyPosition,
     DraftPlayer? DirectOpponent,   // null, если роли врага скрыты (соло/дуо)
-    bool ExposedToCounter);        // я пикаю раньше кого-то из врагов (риск контрпика)
+    bool ExposedToCounter,         // я пикаю раньше кого-то из врагов (риск контрпика)
+    bool InBanPhase);              // сейчас идёт фаза банов
 
 public static class ChampSelectParser
 {
@@ -44,9 +45,25 @@ public static class ChampSelectParser
             ? null
             : theirTeam.FirstOrDefault(p => p.Position == pos);
 
-        var exposed = ComputeExposed(session, localCell);
+        var exposed  = ComputeExposed(session, localCell);
+        var inBan    = ComputeInBanPhase(session);
 
-        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed);
+        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan);
+    }
+
+    // Идёт ли сейчас фаза банов: есть активное (in-progress) действие типа "ban".
+    private static bool ComputeInBanPhase(JsonElement session)
+    {
+        if (!session.TryGetProperty("actions", out var actions) || actions.ValueKind != JsonValueKind.Array)
+            return false;
+        foreach (var group in actions.EnumerateArray())
+        {
+            if (group.ValueKind != JsonValueKind.Array) continue;
+            foreach (var a in group.EnumerateArray())
+                if (GetStr(a, "type") == "ban" && IsTrue(a, "isInProgress"))
+                    return true;
+        }
+        return false;
     }
 
     // true, если мой пик ещё не залочен и после меня по порядку есть незавершённый

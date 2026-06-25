@@ -24,6 +24,7 @@ public partial class OverlayWindow : Window
     private double _savedFullH = FullH;
 
     private IReadOnlyList<Recommendation>? _lastRecs;
+    private IReadOnlyList<BanRec>?         _lastBans;
     private DraftState?                    _lastDraft;
     private RecommendationEngine?          _engine;
 
@@ -319,11 +320,21 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             _lastRecs  = recs;
+            _lastBans  = null;
             _lastDraft = draft;
             if (engine != null) _engine = engine;
             RenderCurrentState();
         });
     }
+
+    public void UpdateBans(IReadOnlyList<BanRec>? bans, DraftState? draft) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            _lastBans  = bans;
+            _lastRecs  = null;
+            _lastDraft = draft;
+            RenderCurrentState();
+        });
 
     // ── Рендер ────────────────────────────────────────────────────────────
 
@@ -331,6 +342,19 @@ public partial class OverlayWindow : Window
     {
         var recs  = _lastRecs;
         var draft = _lastDraft;
+
+        // Фаза банов: показываем рекомендуемые баны (простым списком).
+        if (draft?.InBanPhase == true)
+        {
+            if (_lastBans is null || _lastBans.Count == 0)
+            {
+                IdleStatusText.Text = "Фаза банов…";
+                ShowIdle();
+                return;
+            }
+            RenderBans(_lastBans, draft);
+            return;
+        }
 
         if (recs == null || recs.Count == 0)
         {
@@ -374,6 +398,35 @@ public partial class OverlayWindow : Window
         }
 
         if (_inTray) return; // во время игры окно скрыто в трее
+        Show();
+        AnchorIfNotMoved();
+    }
+
+    // ── Фаза банов ─────────────────────────────────────────────────────────
+
+    private void RenderBans(IReadOnlyList<BanRec> bans, DraftState draft)
+    {
+        RestoreModeSize();
+        PickHint.Visibility = Visibility.Collapsed;
+        var roleLabel = draft.MyPosition is { Length: > 0 } pos
+            ? RecommendationEngine.LcuToDbRole(pos) : "—";
+        StatusText.Text = $"Роль: {roleLabel} — кого банить:";
+
+        // Используем простой компактный список (иконка/имя/причина) для банов.
+        RecList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
+        {
+            Rank       = $"{i + 1}.",
+            Name       = DataDragon.Name(b.ChampionId),
+            Score      = "БАН",
+            ScoreColor = "#E0584F",
+            Reason     = b.Reasons.FirstOrDefault() ?? "",
+            Icon       = IconCache.Get(b.ChampionId),
+        }).ToList();
+
+        FullView.Visibility      = Visibility.Collapsed;
+        CompactScroll.Visibility = Visibility.Visible;
+
+        if (_inTray) return;
         Show();
         AnchorIfNotMoved();
     }

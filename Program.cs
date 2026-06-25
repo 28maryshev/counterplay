@@ -205,7 +205,10 @@ class Program
                         var hash = DraftHash(draft);
                         if (hash == lastHash) break;
                         lastHash = hash;
-                        overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
+                        if (draft.InBanPhase)
+                            overlay.UpdateBans(engine?.RecommendBans(draft), draft);
+                        else
+                            overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
                     }
                     break;
             }
@@ -265,5 +268,6 @@ class Program
         string.Join(",", s.MyTeam.Select(p  => $"{p.EffectiveChampionId}:{p.Position}")) + "|" +
         string.Join(",", s.TheirTeam.Select(p => $"{p.EffectiveChampionId}:{p.Position}")) + "|" +
         string.Join(",", s.MyTeamBans) + "|" +
-        string.Join(",", s.TheirTeamBans);
+        string.Join(",", s.TheirTeamBans) + "|" +
+        (s.InBanPhase ? "ban" : "pick");
 }
