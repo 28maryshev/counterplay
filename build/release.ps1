@@ -9,7 +9,7 @@
 # script uploads it via gh when -Upload is used).
 
 param(
-  [string]$Version = "1.0.0",
+  [string]$Version = "",                 # empty = auto-increment patch from latest tag
   [string]$Token   = $env:GITHUB_TOKEN,
   [switch]$Upload
 )
@@ -18,6 +18,22 @@ $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
 $repo = "https://github.com/28maryshev/counterplay"
+
+# Auto version: latest vX.Y.Z tag from origin, patch + 1.
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $tags = git ls-remote --tags origin 2>$null |
+          Select-String -Pattern 'refs/tags/v(\d+\.\d+\.\d+)$' |
+          ForEach-Object { $_.Matches[0].Groups[1].Value }
+  if ($tags) {
+    $latest  = $tags | Sort-Object { [version]$_ } | Select-Object -Last 1
+    $v       = [version]$latest
+    $Version = "$($v.Major).$($v.Minor).$($v.Build + 1)"
+    Write-Host "Auto version: $Version (latest tag v$latest)" -ForegroundColor Cyan
+  } else {
+    $Version = "1.0.0"
+    Write-Host "No tags found - using $Version" -ForegroundColor Cyan
+  }
+}
 
 # 1. Velopack CLI (vpk)
 if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) {
