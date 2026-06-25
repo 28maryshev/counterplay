@@ -432,37 +432,36 @@
                                          FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
                             </StackPanel>
 
-                            <!-- Иконка + значок архетипа (со связками под значком) -->
-                            <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
-                              <Ellipse Width="64" Height="64">
-                                <Ellipse.Fill>
-                                  <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
-                                </Ellipse.Fill>
-                                <Ellipse.Stroke><SolidColorBrush Color="#C89B3C"/></Ellipse.Stroke>
-                                <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
-                              </Ellipse>
-                              <!-- В левом верхнем углу: значок архетипа, под ним — черточки связок -->
-                              <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <!-- Иконка + значок архетипа; под иконкой — полоски связок -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                              <Grid>
+                                <Ellipse Width="64" Height="64">
+                                  <Ellipse.Fill>
+                                    <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+                                  </Ellipse.Fill>
+                                  <Ellipse.Stroke><SolidColorBrush Color="#C89B3C"/></Ellipse.Stroke>
+                                  <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
+                                </Ellipse>
                                 <Border Width="27" Height="27" CornerRadius="13"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding ArchVisibility}" ToolTip="{Binding ArchTip}">
                                   <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
                                   <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
                                              FontSize="14" Foreground="#10141A"
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <!-- Черточки: связки кандидата с уже выбранными союзниками -->
-                                <ItemsControl ItemsSource="{Binding SynDashes}"
-                                              HorizontalAlignment="Center" Margin="0,2,0,0">
-                                  <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                      <Border Width="22" Height="4" CornerRadius="2" Margin="0,1,0,0">
-                                        <Border.Background><SolidColorBrush Color="{Binding}"/></Border.Background>
-                                      </Border>
-                                    </DataTemplate>
-                                  </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                              </StackPanel>
-                            </Grid>
+                              </Grid>
+                              <!-- Полоски связок кандидата с союзниками — во всю ширину иконки -->
+                              <ItemsControl ItemsSource="{Binding SynDashes}" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate>
+                                    <Border Width="64" Height="4" CornerRadius="2" Margin="0,1,0,0">
+                                      <Border.Background><SolidColorBrush Color="{Binding}"/></Border.Background>
+                                    </Border>
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                            </StackPanel>
 
                             <!-- Имя + WR + описание: фиксированная ширина, отдельный столбец -->
                             <StackPanel Grid.Column="2" VerticalAlignment="Center"
