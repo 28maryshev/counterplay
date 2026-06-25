@@ -3,6 +3,7 @@ bin/
 obj/
 publish/
 Releases/
+data-version.json
 
 # База данных и сгенерированные файлы (приватные/большие)
 pipeline/data.db
