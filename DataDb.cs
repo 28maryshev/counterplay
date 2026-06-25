@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Counterplay;
@@ -30,9 +31,15 @@ public static class DataDb
         @"C:\Counterplay\pipeline\data.db",
     ];
 
+    public static string FormatSpeed(double bytesPerSec) =>
+        bytesPerSec >= 1_000_000 ? $"{bytesPerSec / 1_048_576.0:0.0} МБ/с"
+        : bytesPerSec > 0        ? $"{bytesPerSec / 1024.0:0} КБ/с"
+        : "";
+
     /// Гарантирует наличие актуальной базы. Для dev — берёт локальную как есть.
     /// Для установленной версии — сверяет версию с сервером и подкачивает свежую.
-    public static async Task EnsureAsync(Action<string>? progress, CancellationToken ct)
+    /// progress: (текст со статусом+скоростью, доля 0..1).
+    public static async Task EnsureAsync(Action<string, double>? progress, CancellationToken ct)
     {
         // 1. Локальная dev-база рядом с проектом — не трогаем.
         if (DevCandidates.Any(p => File.Exists(p) && RecommendationEngine.HasData(p)))
@@ -50,8 +57,9 @@ public static class DataDb
             // База есть и версия совпадает (или сервер недоступен) — ничего не делаем.
             if (haveDb && (remoteVer is null || remoteVer == localVer)) return;
 
-            progress?.Invoke(haveDb ? "Обновляю базу данных…" : "Скачиваю базу данных…");
-            await DownloadAsync(progress, ct);
+            var label = haveDb ? "Обновляю базу данных…" : "Скачиваю базу данных…";
+            progress?.Invoke(label, 0);
+            await DownloadAsync(label, progress, ct);
 
             if (remoteVer is not null)
                 await File.WriteAllTextAsync(LocalVersionPath, remoteVer, ct);
@@ -74,7 +82,7 @@ public static class DataDb
         catch { return null; }
     }
 
-    private static async Task DownloadAsync(Action<string>? progress, CancellationToken ct)
+    private static async Task DownloadAsync(string label, Action<string, double>? progress, CancellationToken ct)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         using var resp = await http.GetAsync(DataUrl, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -82,6 +90,10 @@ public static class DataDb
 
         var total = resp.Content.Headers.ContentLength ?? 0;
         var tmp   = LocalPath + ".tmp";
+
+        var sw = Stopwatch.StartNew();
+        long lastBytes = 0;
+        var  lastT = TimeSpan.Zero;
 
         await using (var src = await resp.Content.ReadAsStreamAsync(ct))
         await using (var dst = File.Create(tmp))
@@ -93,7 +105,17 @@ public static class DataDb
             {
                 await dst.WriteAsync(buf.AsMemory(0, n), ct);
                 read += n;
-                if (total > 0) progress?.Invoke($"Скачиваю базу данных… {read * 100 / total}%");
+
+                var now = sw.Elapsed;
+                if ((now - lastT).TotalSeconds >= 0.2 || (total > 0 && read >= total))
+                {
+                    var dt   = (now - lastT).TotalSeconds;
+                    var bps  = dt > 0 ? (read - lastBytes) / dt : 0;
+                    var frac = total > 0 ? (double)read / total : 0;
+                    lastBytes = read; lastT = now;
+                    var pctTxt = total > 0 ? $" {frac * 100:0}%" : "";
+                    progress?.Invoke($"{label}{pctTxt} · {FormatSpeed(bps)}", frac);
+                }
             }
         }
         File.Move(tmp, LocalPath, overwrite: true);

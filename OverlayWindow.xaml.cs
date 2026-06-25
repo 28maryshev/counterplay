@@ -262,6 +262,17 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             IdleStatusText.Text = msg;
+            DlBar.Visibility = Visibility.Collapsed;
+            ShowIdle();
+        });
+
+    // Прогресс загрузки со строкой состояния и полосой (обновление/база).
+    public void ShowProgress(string text, double fraction) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            IdleStatusText.Text = text;
+            DlBar.Visibility    = Visibility.Visible;
+            DlBarFill.Width     = 260.0 * Math.Clamp(fraction, 0.0, 1.0);
             ShowIdle();
         });
 

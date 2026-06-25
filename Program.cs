@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -65,8 +66,8 @@ class Program
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
 
-        // Гарантируем наличие data.db (скачиваем при первом запуске установленной версии).
-        await DataDb.EnsureAsync(msg => overlay.ShowStatus(msg), ct);
+        // Гарантируем наличие data.db (скачиваем/обновляем из дата-релиза с прогрессом).
+        await DataDb.EnsureAsync((msg, frac) => overlay.ShowProgress(msg, frac), ct);
 
         // Внешний цикл — переподключение при перезапуске клиента
         while (!ct.IsCancellationRequested)
@@ -249,8 +250,24 @@ class Program
             var info = await mgr.CheckForUpdatesAsync();
             if (info == null) return; // актуальная версия
 
-            overlay.ShowStatus("Загружаю обновление…");
-            await mgr.DownloadUpdatesAsync(info);
+            // Загрузка обновления со строкой состояния и скоростью.
+            var total = info.TargetFullRelease?.Size ?? 0L;
+            var sw = Stopwatch.StartNew();
+            long lastBytes = 0; var lastT = TimeSpan.Zero;
+            await mgr.DownloadUpdatesAsync(info, pct =>
+            {
+                var frac = pct / 100.0;
+                var now  = sw.Elapsed;
+                double bps = 0;
+                if (total > 0 && (now - lastT).TotalSeconds >= 0.2)
+                {
+                    var bytes = (long)(frac * total);
+                    bps = (bytes - lastBytes) / (now - lastT).TotalSeconds;
+                    lastBytes = bytes; lastT = now;
+                }
+                var speed = bps > 0 ? $" · {DataDb.FormatSpeed(bps)}" : "";
+                overlay.ShowProgress($"Загружаю обновление… {pct}%{speed}", frac);
+            });
             // Применяем и перезапускаемся в новую версию.
             mgr.ApplyUpdatesAndRestart(info);
         }

@@ -246,6 +246,13 @@
                      FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="Bold"
                      Foreground="#E8E0CC" TextAlignment="Center" TextWrapping="Wrap"
                      MaxWidth="300"/>
+
+          <!-- Полоса прогресса загрузки (обновление/база) -->
+          <Grid x:Name="DlBar" Width="260" Height="8" Margin="0,14,0,0" Visibility="Collapsed">
+            <Border Background="#1AFFFFFF" CornerRadius="4"/>
+            <Border x:Name="DlBarFill" HorizontalAlignment="Left" Width="0"
+                    Background="#C89B3C" CornerRadius="4"/>
+          </Grid>
         </StackPanel>
 
         <!-- ══ КОМПАКТНЫЙ ВИД ════════════════════════════════════════ -->
