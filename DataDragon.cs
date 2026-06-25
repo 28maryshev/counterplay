@@ -4,7 +4,7 @@ namespace Counterplay;
 
 public static class DataDragon
 {
-    private sealed record ChampInfo(string Name, string DdId, string[] Tags);
+    private sealed record ChampInfo(string Name, string DdId, string[] Tags, int Attack, int Magic);
 
     private static Dictionary<int, ChampInfo>? _champions;
     private static string _version = "14.10.1";
@@ -42,10 +42,19 @@ public static class DataDragon
                                      .Where(x => x.ValueKind == JsonValueKind.String)
                                      .Select(x => x.GetString()!).ToArray();
 
+                    int atk = 0, mag = 0;
+                    if (val.TryGetProperty("info", out var infoEl) && infoEl.ValueKind == JsonValueKind.Object)
+                    {
+                        if (infoEl.TryGetProperty("attack", out var aEl) && aEl.ValueKind == JsonValueKind.Number) atk = aEl.GetInt32();
+                        if (infoEl.TryGetProperty("magic",  out var mEl) && mEl.ValueKind == JsonValueKind.Number) mag = mEl.GetInt32();
+                    }
+
                     _champions[id] = new ChampInfo(
                         Name: nameEl.GetString() ?? entry.Name,
                         DdId: entry.Name,
-                        Tags: tags);
+                        Tags: tags,
+                        Attack: atk,
+                        Magic: mag);
                 }
             }
             Console.WriteLine($"Data Dragon загружен: {_champions.Count} чемпионов, патч {_version}.");
@@ -67,6 +76,10 @@ public static class DataDragon
     /// Классовые теги чемпиона из Data Dragon (Fighter/Tank/Mage/Assassin/Marksman/Support).
     public static string[] ClassTags(int id) =>
         _champions is not null && _champions.TryGetValue(id, out var info) ? info.Tags : [];
+
+    /// Преимущественно магический урон (magic > attack по Data Dragon info).
+    public static bool IsApChampion(int id) =>
+        _champions is not null && _champions.TryGetValue(id, out var info) && info.Magic > info.Attack;
 
     /// URL иконки для оверлея.
     public static string IconUrl(int id)

@@ -25,8 +25,10 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_SYNERGY = 1.2;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
     private const double W_NEUTRAL  = 1.0; // нейтральный пик при неопределённости
-    private const double W_TRIFECTA = 0.8; // архетип-контра (камень-ножницы-бумага)
+    private const double W_TRIFECTA = 0.8; //архетип-контра (камень-ножницы-бумага)
     private const double W_STYLE    = 0.6; // анти-стиль: инструменты против компы врага
+    private const double W_VULN     = 2.0; // штраф за стак одной уязвимости в команде
+    private const double W_EXPLOIT  = 1.0; // бонус за наказание вынужденного предмета врага
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -261,6 +263,9 @@ public sealed class RecommendationEngine : IDisposable
         ChampionTraits.Arch? enemyDom = allEnemyIds.Count >= 2
             ? ChampionTraits.Dominant(allEnemyIds) : null;
 
+        // Item value (п.1): союзники (без меня) и враги для профиля уязвимостей.
+        var vulnAllyIds = allyData.Select(a => a.Id).ToList();
+
         return candidates
             .Where(id => !taken.Contains(id))
             .Select(champId =>
@@ -295,8 +300,17 @@ public sealed class RecommendationEngine : IDisposable
                 var (draftBonus, draftReasons) =
                     DraftFit(champId, enemyDom, uncertainty);
 
+                // Item value (п.1): штраф за стак уязвимости + бонус за наказание врага.
+                var (vulnPen, vulnCat) = ItemValue.VulnPenalty(champId, vulnAllyIds);
+                var (exploit, forced)  = ItemValue.ExploitBonus(champId, allEnemyIds);
+                if (vulnPen >= 0.9 && vulnCat is { } vc)
+                    draftReasons.Add($"Не стакай {ItemValue.CatName(vc)} — один предмет гасит всю команду.");
+                if (exploit > 0 && forced is { } fc)
+                    draftReasons.Add($"Враг застакал {ItemValue.CatName(fc)} — наказываешь его вынужденный предмет.");
+
                 var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
-                            + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus;
+                            + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
+                            - W_VULN * vulnPen + W_EXPLOIT * exploit;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();

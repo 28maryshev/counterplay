@@ -131,4 +131,28 @@ public static class ChampionTraits
     public static int Disengage(int id)=> ChampionTags.Has(id, "disengage") ? 2 : ChampionTags.Has(id, "shield") ? 1 : 0;
     public static int Burst(int id)    => ChampionTags.Has(id, "burst") ? 2 : 0;
     public static bool LongRange(int id)=> ChampionTags.Has(id, "poke") || ChampionTags.Has(id, "range_poke") || ChampionTags.Has(id, "zone_control");
+
+    // ── Уязвимости (для item value, п.1) ────────────────────────────────────
+    // Вклад чемпиона в «CC-уязвимость» 0..1 (стак → враг берёт Mercs/тенасити).
+    public static double CcWeight(int id) =>
+        ChampionTags.Has(id, "hard_cc") ? 1.0 : ChampionTags.Has(id, "cc") ? 0.5 : 0.0;
+
+    // Завязан на автоатаки/крит/он-хит (бьётся Steelcaps/Frozen Heart/Randuin's).
+    private static readonly HashSet<int> AutoExtra =
+        [157, 777, 11, 23, 24, 10, 114, 164, 2, 5]; // Ясуо, Йоне, Йи, Тринд, Джакс, Кайл, Фиора, Камилла, Олаф, Син Чжао
+    private static readonly HashSet<int> CasterAdc = [81, 110, 161, 202]; // Эзреаль, Варус, ВелКоз, Джин — не крит/авто
+    public static bool AutoReliant(int id) =>
+        !CasterAdc.Contains(id) &&
+        (DataDragon.ClassTags(id).Contains("Marksman") || AutoExtra.Contains(id));
+
+    // Даёт командные щиты как ключевую ценность (бьётся Serpent's Fang).
+    public static bool ShieldReliant(int id) => ChampionTags.Has(id, "shield");
+
+    // Даёт хил/реген (свой или команде) — бьётся Grievous Wounds.
+    private static readonly HashSet<int> HealExtra =
+        [266, 8, 36, 19, 50, 517, 421, 223]; // Аатрокс, Влад, Мундо, Варвик, Свейн, Сайлас, РекСай?, Тамкенч
+    public static bool HealReliant(int id) =>
+        ChampionTags.Has(id, "heal") || HealExtra.Contains(id);
+
+    public static bool ApBurst(int id) => DataDragon.IsApChampion(id) && Burst(id) >= 2;
 }
