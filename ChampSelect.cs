@@ -23,7 +23,8 @@ public sealed record DraftState(
     IReadOnlyList<int> TheirTeamBans,
     DraftPlayer? Me,
     string MyPosition,
-    DraftPlayer? DirectOpponent); // null, если роли врага скрыты (соло/дуо)
+    DraftPlayer? DirectOpponent,   // null, если роли врага скрыты (соло/дуо)
+    bool ExposedToCounter);        // я пикаю раньше кого-то из врагов (риск контрпика)
 
 public static class ChampSelectParser
 {
@@ -43,7 +44,43 @@ public static class ChampSelectParser
             ? null
             : theirTeam.FirstOrDefault(p => p.Position == pos);
 
-        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp);
+        var exposed = ComputeExposed(session, localCell);
+
+        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed);
+    }
+
+    // true, если мой пик ещё не залочен и после меня по порядку есть незавершённый
+    // пик врага → меня могут контрпикнуть (актуально для драфт-режимов).
+    private static bool ComputeExposed(JsonElement session, int localCell)
+    {
+        if (localCell < 0) return false;
+        if (!session.TryGetProperty("actions", out var actions) || actions.ValueKind != JsonValueKind.Array)
+            return false;
+
+        // Плоский список действий в порядке очереди.
+        var flat = new List<JsonElement>();
+        foreach (var group in actions.EnumerateArray())
+            if (group.ValueKind == JsonValueKind.Array)
+                foreach (var a in group.EnumerateArray())
+                    flat.Add(a);
+
+        int myIdx = -1;
+        for (int i = 0; i < flat.Count; i++)
+        {
+            if (GetStr(flat[i], "type") != "pick") continue;
+            if (GetInt(flat[i], "actorCellId", -1) != localCell) continue;
+            if (IsTrue(flat[i], "completed")) return false; // я уже залочился
+            myIdx = i; break;
+        }
+        if (myIdx < 0) return false;
+
+        for (int i = myIdx + 1; i < flat.Count; i++)
+        {
+            if (GetStr(flat[i], "type") != "pick") continue;
+            if (!IsTrue(flat[i], "isAllyAction") && !IsTrue(flat[i], "completed"))
+                return true; // враг пикает после меня и ещё не залочился
+        }
+        return false;
     }
 
     private static List<DraftPlayer> ParseTeam(JsonElement session, string key, int localCell)

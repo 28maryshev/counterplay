@@ -348,6 +348,18 @@ public partial class OverlayWindow : Window
             ? $"Роль: {roleLabel} — по составу команды:"
             : $"Роль: {roleLabel} — контрпик + синергия:";
 
+        // Подсказка по порядку пика: пикаешь раньше врагов → риск контрпика.
+        if (draft?.ExposedToCounter == true)
+        {
+            PickHint.Text = "⚠ Пикаешь раньше врагов — возможен контрпик. Возьми нейтральный пик " +
+                            "или своп с тем, чей оппонент уже залочен.";
+            PickHint.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            PickHint.Visibility = Visibility.Collapsed;
+        }
+
         if (_isFullMode)
         {
             RenderFull(recs, draft);

@@ -202,10 +202,15 @@
           </StackPanel>
         </Grid>
 
-        <!-- ── Статус (мелкая строка над рекомендациями) ─────────────── -->
-        <TextBlock Grid.Row="1" x:Name="StatusText" Text="Жду запуска клиента…"
-                   FontFamily="{StaticResource UiFont}" FontSize="11"
-                   Foreground="#5A7A90" Margin="12,5,12,8"/>
+        <!-- ── Статус + подсказка по порядку пика ────────────────────── -->
+        <StackPanel Grid.Row="1" Margin="12,5,12,8">
+          <TextBlock x:Name="StatusText" Text="Жду запуска клиента…"
+                     FontFamily="{StaticResource UiFont}" FontSize="11"
+                     Foreground="#5A7A90"/>
+          <TextBlock x:Name="PickHint" Visibility="Collapsed"
+                     FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                     Foreground="#E8B84B" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        </StackPanel>
 
         <!-- ══ ЭКРАН ОЖИДАНИЯ ════════════════════════════════════════ -->
         <StackPanel Grid.Row="2" x:Name="IdlePanel" Visibility="Collapsed"
