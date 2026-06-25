@@ -21,7 +21,8 @@ public sealed class RecommendationEngine : IDisposable
     private const double K      = 50.0; // для базового WR (данных много)
     private const double K_PAIR = 20.0; // для парных таблиц (синергия/матчап) — данных мало
     private const double PRIOR  = 0.5;
-    private const double CONF_GAMES = 40.0; // темпер синергии по объёму выборки
+    private const double CONF_GAMES = 40.0;  // темпер синергии по объёму выборки
+    private const double BASE_CONF  = 250.0; // темпер базового WR по объёму выборки
 
     private const double W_BASE    = 1.0;
     private const double W_DIRECT  = 2.5;
@@ -286,7 +287,10 @@ public sealed class RecommendationEngine : IDisposable
             .Where(id => !taken.Contains(id))
             .Select(champId =>
             {
-                var baseDelta = (SmoothedWr(champId, myRole) - PRIOR) * 100;
+                // Базовый WR + темпер по выборке: мало игр → WR ближе к 50%
+                // (иначе «68% на 100 играх» раздувает оценку и обоснование).
+                var (bg, bw)  = RawBase(champId, myRole);
+                var baseDelta = Delta(bg, bw, K) * (bg / (bg + BASE_CONF));
 
                 // Прямой оппонент — отдельный матчап
                 var (dg, dw)    = directOppId != 0 ? RawMatchup(champId, myRole, directOppId) : (0, 0);
@@ -375,7 +379,8 @@ public sealed class RecommendationEngine : IDisposable
             .Select(x =>
             {
                 var (g, w) = stats[x];
-                var metaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100;     // сила в патче, %пп
+                // Сила в патче с темпером по выборке (мало игр → ближе к 50%).
+                var metaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100 * (g / (g + BASE_CONF));
                 var pop    = maxGames > 0 ? g / maxGames : 0;             // популярность 0..1
                 // x бьёт мои пики: -Delta(мой мейн vs x) усреднённо по мейнам.
                 var counterMe = myMains.Count > 0
@@ -521,7 +526,7 @@ public sealed class RecommendationEngine : IDisposable
         return list;
     }
 
-    private double SmoothedWr(int champId, string role)
+    private (double g, double w) RawBase(int champId, string role)
     {
         var cmd = _db.CreateCommand();
         cmd.CommandText = @"
@@ -533,7 +538,7 @@ public sealed class RecommendationEngine : IDisposable
         cmd.Parameters.AddWithValue("@p1", _p1);
         cmd.Parameters.AddWithValue("@p2", _p2);
         cmd.Parameters.AddWithValue("@p3", _p3);
-        return SmoothedAgg(cmd);
+        return RawAgg(cmd);
     }
 
     // Сырые (games, wins) матчапа — направленно: мой чемпион против vsId.
@@ -662,15 +667,6 @@ public sealed class RecommendationEngine : IDisposable
             return result;
         }
         catch { return []; }
-    }
-
-    private static double SmoothedAgg(SqliteCommand cmd)
-    {
-        using var rd = cmd.ExecuteReader();
-        if (!rd.Read()) return PRIOR;
-        var games = rd.GetDouble(0);
-        var wins  = rd.GetDouble(1);
-        return (wins + K / 2.0) / (games + K); // Лаплас
     }
 
     // ---------- Обоснование ----------
