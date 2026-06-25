@@ -188,7 +188,7 @@ public sealed class RecommendationEngine : IDisposable
     }
 
     // Валиден ли файл БД: ненулевой размер и есть таблица base_wr с данными.
-    private static bool HasData(string path)
+    public static bool HasData(string path)
     {
         try
         {

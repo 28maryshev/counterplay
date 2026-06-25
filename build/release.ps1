@@ -54,22 +54,10 @@ vpk pack --packId Counterplay --packTitle Counterplay --packVersion $Version --p
 
 Write-Host ""
 Write-Host "Done: installer and release files are in .\Releases" -ForegroundColor Green
-Write-Host "Reminder: data.db must be attached to the release (for first-run download)." -ForegroundColor Yellow
+Write-Host "Note: database is published separately via build\publish-data.ps1 (data release)." -ForegroundColor Yellow
 
-# 4. (optional) publish release to GitHub and upload data.db asset
+# 4. (optional) publish the app release to GitHub
 if ($Upload) {
   if (-not $Token) { throw "Need -Token or GITHUB_TOKEN environment variable" }
-
   vpk upload github --repoUrl $repo --publish --releaseName "Counterplay v$Version" --tag "v$Version" --token $Token
-
-  if (Get-Command gh -ErrorAction SilentlyContinue) {
-    if (Test-Path "pipeline\data.db") {
-      Write-Host "Uploading data.db to release v$Version..."
-      gh release upload "v$Version" "pipeline\data.db" --clobber
-    } else {
-      Write-Host "pipeline\data.db not found - add data.db to the release manually." -ForegroundColor Yellow
-    }
-  } else {
-    Write-Host "gh CLI not found - add data.db to release v$Version manually." -ForegroundColor Yellow
-  }
 }
