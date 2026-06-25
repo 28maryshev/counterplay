@@ -385,6 +385,14 @@ public partial class OverlayWindow : Window
 
     private void RenderFull(IReadOnlyList<Recommendation> recs, DraftState? draft)
     {
+        // Связки союзников и их цвета — нужны и панели, и дашикам рекомендаций.
+        var allyIds  = draft?.MyTeam.Where(p => p.EffectiveChampionId != 0)
+                                    .Select(p => p.EffectiveChampionId).ToList() ?? [];
+        var myCombos = draft != null ? DetectCombos(draft.MyTeam, ally: true) : [];
+        var comboColorByName = new Dictionary<string, string>();
+        for (int i = 0; i < myCombos.Count; i++)
+            comboColorByName[myCombos[i].Name] = ComboColors[i % ComboColors.Length];
+
         FullRecList.ItemsSource = recs.Take(6).Select((r, i) =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
@@ -408,6 +416,7 @@ public partial class OverlayWindow : Window
                 ArchGlyph  = ag,
                 ArchColor  = ac,
                 ArchTip    = at,
+                SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
             };
         }).ToList();
 
@@ -418,16 +427,13 @@ public partial class OverlayWindow : Window
             EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole);
 
             // Ярлык стиля состава (Фронт / Дайв / Пик-пок / Смешанный).
-            var myIds    = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
-                                       .Select(p => p.EffectiveChampionId).ToList();
             var enemyIds = draft.TheirTeam.Where(p => p.EffectiveChampionId != 0)
                                           .Select(p => p.EffectiveChampionId).ToList();
-            var myStyle    = ChampionTraits.StyleLabel(myIds);
+            var myStyle    = ChampionTraits.StyleLabel(allyIds);
             var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
             MyTeamStyle.Text    = myStyle.Length    > 0 ? $"Стиль: {myStyle}"    : "";
             EnemyTeamStyle.Text = enemyStyle.Length > 0 ? $"Стиль: {enemyStyle}" : "";
 
-            var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
             var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
             MyTeamCombos.ItemsSource     = ToCards(myCombos,    ally: true);
             EnemyTeamCombos.ItemsSource  = ToCards(enemyCombos, ally: false);
@@ -468,6 +474,26 @@ public partial class OverlayWindow : Window
             AccentColor = ally ? "#C89B3C" : "#C84040",
             LineColor   = ComboColors[i % ComboColors.Length],
         }).ToList();
+
+    // Цветные «черточки» под иконкой рекомендации: если кандидат входит в одну
+    // из связок, уже сложившихся у союзников, — дашик цвета этой связки.
+    private static List<string> SynDashesFor(
+        int candidateId, List<int> allyIds, Dictionary<string, string> comboColorByName)
+    {
+        var result = new List<string>();
+        if (candidateId == 0 || allyIds.Count == 0 || comboColorByName.Count == 0) return result;
+        if (allyIds.Contains(candidateId)) return result;
+
+        var team = allyIds.Append(candidateId).Select(id => (Id: id, Role: "")).ToList();
+        foreach (var combo in TeamSynergies.Detect(team, forAlly: true))
+        {
+            if (!combo.ChampionIds.Contains(candidateId)) continue;          // кандидат — участник
+            if (comboColorByName.TryGetValue(combo.Name, out var color)      // и связка уже есть у союзников
+                && !result.Contains(color))
+                result.Add(color);
+        }
+        return result;
+    }
 
     // Рисует скобки-коннекторы, связывающие портреты участников каждой связки.
     private void DrawTeamLines(
@@ -656,6 +682,7 @@ public sealed class FullRecCard
     public string       ArchColor  { get; init; } = "#888888";
     public string       ArchTip    { get; init; } = "";
     public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
 }
 
 public sealed class ChampSlotCard
