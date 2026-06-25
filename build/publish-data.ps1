@@ -14,12 +14,14 @@ Set-Location (Join-Path $PSScriptRoot "..")
 if (-not (Test-Path $Db)) { throw "Database not found: $Db (run collect.py first)" }
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "gh CLI not found (winget install GitHub.cli; gh auth login)" }
 
-# Version = latest patch present in the DB (version-sorted).
-$ver = (python -c "import sqlite3; c=sqlite3.connect(r'$Db'); ps=[r[0] for r in c.execute('SELECT DISTINCT patch FROM base_wr') if r[0] and r[0][0].isdigit()]; ps.sort(key=lambda s: tuple(int(x) for x in s.split('.'))); print(ps[-1] if ps else '0.0')").Trim()
-Write-Host "Data version (latest patch): $ver"
+# Latest patch (for display/info) and content hash (for change detection).
+$patch = (python -c "import sqlite3; c=sqlite3.connect(r'$Db'); ps=[r[0] for r in c.execute('SELECT DISTINCT patch FROM base_wr') if r[0] and r[0][0].isdigit()]; ps.sort(key=lambda s: tuple(int(x) for x in s.split('.'))); print(ps[-1] if ps else '0.0')").Trim()
+$hash  = (Get-FileHash $Db -Algorithm SHA256).Hash.Substring(0, 16)
+Write-Host "Data: patch $patch, hash $hash"
 
-# Manifest (UTF-8 without BOM so JsonDocument parses cleanly).
-$manifest = [ordered]@{ version = $ver; updated = (Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json
+# version = content hash -> users update on ANY change (new patch or just more games).
+# Manifest is UTF-8 without BOM so JsonDocument parses cleanly.
+$manifest = [ordered]@{ version = $hash; patch = $patch; updated = (Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json
 [System.IO.File]::WriteAllText((Join-Path $PWD "data-version.json"), $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
 # Ensure the 'data' release exists (rolling assets, separate from app releases).
