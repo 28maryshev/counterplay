@@ -30,6 +30,7 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_STYLE    = 0.6; // анти-стиль: инструменты против компы врага
     private const double W_VULN     = 2.0; // штраф за стак одной уязвимости в команде
     private const double W_EXPLOIT  = 1.0; // бонус за наказание вынужденного предмета врага
+    private const double W_STRUCT   = 1.2; // структурная синергия джангл↔саппорт
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -267,6 +268,10 @@ public sealed class RecommendationEngine : IDisposable
         // Item value (п.1): союзники (без меня) и враги для профиля уязвимостей.
         var vulnAllyIds = allyData.Select(a => a.Id).ToList();
 
+        // Структурная синергия (п.4): id союзных джанглера и АДК.
+        var jungleAllyId = allyData.FirstOrDefault(a => a.Role == "jungle").Id;
+        var adcAllyId    = allyData.FirstOrDefault(a => a.Role == "adc").Id;
+
         return candidates
             .Where(id => !taken.Contains(id))
             .Select(champId =>
@@ -313,9 +318,13 @@ public sealed class RecommendationEngine : IDisposable
                 if (exploit > 0 && forced is { } fc)
                     draftReasons.Add($"Враг застакал {ItemValue.CatName(fc)} — наказываешь его вынужденный предмет.");
 
+                // Структурная синергия джангл↔саппорт (п.4).
+                var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId);
+                draftReasons.AddRange(structReasons);
+
                 var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
-                            - W_VULN * vulnPen + W_EXPLOIT * exploit;
+                            - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();
@@ -324,6 +333,46 @@ public sealed class RecommendationEngine : IDisposable
             .OrderByDescending(r => r.Score)
             .Take(6)
             .ToList();
+    }
+
+    // Структурные правила синергии джангл↔саппорт (п.4): не из статистики, а из
+    // логики команды («агро-джанглеру нужен сетап», «оллин-АДК нужен инициатор»).
+    private static (double Bonus, List<string> Reasons) StructuralBonus(
+        int champId, string myRole, int jungleAllyId, int adcAllyId)
+    {
+        double b = 0;
+        var reasons = new List<string>();
+
+        // Союзный джанглер агрессивен, но без своего жёсткого контроля → ему нужен
+        // лейнер с CC-сетапом и приоритетом; слабый ранний рушит его план.
+        if (jungleAllyId != 0 &&
+            ChampionTraits.EarlyPower(jungleAllyId) >= 2 && ChampionTraits.HardCc(jungleAllyId) == 0)
+        {
+            if (ChampionTraits.HardCc(champId) >= 1)
+            {
+                b += 1;
+                reasons.Add($"Джанглер {DataDragon.Name(jungleAllyId)} агрессивный без контроля — ты даёшь сетап под ганки.");
+            }
+            if (ChampionTraits.EarlyPower(champId) >= 2) b += 0.5;
+            if (ChampionTraits.EarlyPower(champId) == 0) b -= 1;
+        }
+
+        // Саппорт под стиль АДК.
+        if (myRole == "support" && adcAllyId != 0)
+        {
+            if (ChampionTraits.EngageDependentAdc(adcAllyId) && ChampionTraits.Engage(champId) >= 2)
+            {
+                b += 1;
+                reasons.Add($"АДК {DataDragon.Name(adcAllyId)} хочет захода — ты открываешь для него драки.");
+            }
+            if (ChampionTraits.ScaleAdcCarry(adcAllyId) && ChampionTraits.Peel(champId) >= 2)
+            {
+                b += 1;
+                reasons.Add($"АДК {DataDragon.Name(adcAllyId)} скейлер — твой пил/энчант даёт ему доскейлить.");
+            }
+        }
+
+        return (b, reasons);
     }
 
     // Прямой оппонент, когда роли врагов скрыты: ищем врага, чья ЧАСТАЯ роль

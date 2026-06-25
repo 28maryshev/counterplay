@@ -155,4 +155,25 @@ public static class ChampionTraits
         ChampionTags.Has(id, "heal") || HealExtra.Contains(id);
 
     public static bool ApBurst(int id) => DataDragon.IsApChampion(id) && Burst(id) >= 2;
+
+    // ── Структурная синергия jg↔sup (п.4) ───────────────────────────────────
+    // Сила в ранней игре 0..3.
+    public static int EarlyPower(int id)
+    {
+        if (ChampionTags.Has(id, "aggressive") || ChampionTags.Has(id, "kill_lane")) return 3;
+        if (ChampionTags.Has(id, "hypercarry")) return 0; // гиперкэрри слабы рано
+        if (ChampionTags.Has(id, "scale"))      return 1;
+        return 2;
+    }
+
+    // Сила жёсткого контроля 0..2.
+    public static int HardCc(int id) =>
+        ChampionTags.Has(id, "hard_cc") ? 2 : ChampionTags.Has(id, "cc") ? 1 : 0;
+
+    // АДК, которым нужен инициатор-саппорт (агрессивные оллин-керри).
+    private static readonly HashSet<int> EngageAdc = [145, 360, 119, 236, 895, 429, 18];
+    // АДК-скейлеры/авто, которым лучше энчантер/пил (нейтрализовать линию, дать скейлить).
+    private static readonly HashSet<int> ScaleAdc  = [901, 15, 222, 523, 96, 67, 29, 202];
+    public static bool EngageDependentAdc(int id) => EngageAdc.Contains(id);
+    public static bool ScaleAdcCarry(int id)      => ScaleAdc.Contains(id);
 }
