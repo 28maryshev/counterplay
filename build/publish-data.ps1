@@ -23,8 +23,12 @@ $manifest = [ordered]@{ version = $ver; updated = (Get-Date).ToUniversalTime().T
 [System.IO.File]::WriteAllText((Join-Path $PWD "data-version.json"), $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
 # Ensure the 'data' release exists (rolling assets, separate from app releases).
+# Use LASTEXITCODE (not $?) and avoid Stop terminating on gh's stderr.
+$ErrorActionPreference = "Continue"
 gh release view data 1>$null 2>$null
-if (-not $?) { gh release create data --title "Data" --notes "Central database, updated each patch" }
-
+if ($LASTEXITCODE -ne 0) {
+  gh release create data --title "Data" --notes "Central database, updated each patch"
+}
 gh release upload data $Db "data-version.json" --clobber
+if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
 Write-Host "Uploaded data.db + data-version.json to 'data' release." -ForegroundColor Green
