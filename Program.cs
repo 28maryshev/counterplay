@@ -125,7 +125,7 @@ class Program
         {
             engine = RecommendationEngine.Create(dbPath, tierBucket);
             engine.Mastery = mastery;
-            overlay.ShowStatus($"Готов · {engine.TierBucket} · {engine.PatchDisplay}");
+            overlay.ShowReady($"Готов · {engine.TierBucket} · {engine.PatchDisplay}");
         }
         else
         {
@@ -166,7 +166,9 @@ class Program
                         // Меню/лобби/конец игры — возвращаем оверлей из трея.
                         overlay.RestoreFromTray();
                         overlay.UpdateRecommendations(null, null);
-                        overlay.ShowStatus($"Фаза: {phase}");
+                        // Меню/лобби/конец игры — программа простаивает: показываем
+                        // сноску о программе и карусель советов вместо «Готов».
+                        overlay.ShowReady($"Готов · фаза: {phase}");
                         lastHash = "";
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
@@ -268,6 +270,9 @@ class Program
                 var speed = bps > 0 ? $" · {DataDb.FormatSpeed(bps)}" : "";
                 overlay.ShowProgress($"Загружаю обновление… {pct}%{speed}", frac);
             });
+            // Скачивание завершено — Velopack дальше распаковывает/проверяет молча
+            // (тот самый «застрявший» хвост). Показываем неопределённую стадию.
+            overlay.ShowProgressBusy("Применяю обновление, перезапуск…");
             // Применяем и перезапускаемся в новую версию.
             mgr.ApplyUpdatesAndRestart(info);
         }

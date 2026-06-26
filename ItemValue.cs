@@ -34,8 +34,8 @@ public static class ItemValue
     private static double Concave(double x) => x <= 1 ? 0 : Math.Pow(x - 1, 1.5);
 
     /// Штраф за то, что кандидат усиливает уже имеющуюся уязвимость команды.
-    /// Возвращает величину (≥0) и категорию-виновника (для пояснения).
-    public static (double Penalty, Cat? Cat) VulnPenalty(int candidate, IReadOnlyList<int> allyIds)
+    /// Возвращает величину (≥0), категорию-виновника и итоговое число уязвимых.
+    public static (double Penalty, Cat? Cat, int Count) VulnPenalty(int candidate, IReadOnlyList<int> allyIds)
     {
         var before = Profile(allyIds);
         var after  = Profile(allyIds.Append(candidate));
@@ -47,7 +47,8 @@ public static class ItemValue
             total += d;
             if (d > worst) { worst = d; worstCat = (Cat)i; }
         }
-        return (total, worst > 0.01 ? worstCat : null);
+        var count = worstCat is { } wc ? (int)Math.Round(after[(int)wc]) : 0;
+        return (total, worst > 0.01 ? worstCat : null, count);
     }
 
     /// Категория, которую враг вынужден контрить предметом (если стак ≥2).

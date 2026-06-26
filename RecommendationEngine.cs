@@ -21,7 +21,7 @@ public sealed class RecommendationEngine : IDisposable
     private const double K      = 50.0; // для базового WR (данных много)
     private const double K_PAIR = 20.0; // для парных таблиц (синергия/матчап) — данных мало
     private const double PRIOR  = 0.5;
-    private const double CONF_GAMES = 40.0;  // темпер синергии по объёму выборки
+    private const double CONF_GAMES = 60.0;  // темпер синергии по объёму выборки
     private const double BASE_CONF  = 250.0; // темпер базового WR по объёму выборки
 
     private const double W_BASE    = 1.0;
@@ -262,9 +262,12 @@ public sealed class RecommendationEngine : IDisposable
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
 
         // Динамический вес синергии: без информации о врагах синергия с союзниками
-        // важна так же, как контрпик против прямого оппонента.
+        // важнее, но НЕ настолько, чтобы перебить сильный базовый пик шумной парной
+        // статистикой (потолок 1.9, не полный W_DIRECT=2.5) — иначе чемпион на
+        // десятке совместных игр всплывает в топ при пустой вражеской команде.
+        const double W_SYN_MAX = 1.9;
         var knownEnemies = state.TheirTeam.Count(p => p.EffectiveChampionId != 0);
-        var wSynergy = W_SYNERGY + (W_DIRECT - W_SYNERGY) * Math.Max(0.0, 1.0 - knownEnemies / 5.0);
+        var wSynergy = W_SYNERGY + (W_SYN_MAX - W_SYNERGY) * Math.Max(0.0, 1.0 - knownEnemies / 5.0);
 
         // ── Драфт-фичи (архетип/нейтральность) ──────────────────────────────
         var allEnemyIds = state.TheirTeam
@@ -325,10 +328,15 @@ public sealed class RecommendationEngine : IDisposable
                     DraftFit(champId, enemyDom, uncertainty);
 
                 // Item value (п.1): штраф за стак уязвимости + бонус за наказание врага.
-                var (vulnPen, vulnCat) = ItemValue.VulnPenalty(champId, vulnAllyIds);
+                var (vulnPen, vulnCat, vulnCnt) = ItemValue.VulnPenalty(champId, vulnAllyIds);
                 var (exploit, forced)  = ItemValue.ExploitBonus(champId, allEnemyIds);
                 if (vulnPen >= 0.9 && vulnCat is { } vc)
-                    draftReasons.Add($"Не стакай {ItemValue.CatName(vc)} — один предмет гасит всю команду.");
+                {
+                    var tail = vulnCnt >= 4 ? "один предмет гасит почти всю команду"
+                             : vulnCnt == 3 ? "одним предметом враг гасит сразу троих"
+                             :                "одним предметом враг гасит сразу двоих";
+                    draftReasons.Add($"Не стакай {ItemValue.CatName(vc)} — {tail}.");
+                }
                 if (exploit > 0 && forced is { } fc)
                     draftReasons.Add($"Враг застакал {ItemValue.CatName(fc)} — наказываешь его вынужденный предмет.");
 

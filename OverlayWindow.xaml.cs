@@ -54,6 +54,8 @@ public partial class OverlayWindow : Window
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr h); // окно свёрнуто в панель задач
+    [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr h, out RECT r);
 
     private struct RECT { public int Left, Top, Right, Bottom; }
@@ -105,6 +107,83 @@ public partial class OverlayWindow : Window
     private void AnchorIfNotMoved()
     {
         if (!_userMoved) AnchorToClient();
+    }
+
+    // ── Слежение за окном клиента LoL ─────────────────────────────────────
+    // Оверлей повторяет поведение окна клиента: свернули клиент → оверлей в трей,
+    // развернули → вернулся и приклеился сбоку, передвинули клиент → переклеился.
+    // Ручное перетаскивание оверлея (_userMoved) снимает только переклейку,
+    // но сворачивание/возврат в трей по клиенту продолжает работать.
+
+    private DispatcherTimer? _followTimer;
+    private RECT _lastClientRect;
+    private bool _followHidden; // в трей убрал именно фолловер (клиент свёрнут)
+
+    // Находит окно клиента (RCLIENT) даже свёрнутым — без фильтра по размеру.
+    private static bool TryFindClientWindow(out IntPtr hwnd)
+    {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((h, _) =>
+        {
+            if (!IsWindowVisible(h)) return true;
+            var title = new System.Text.StringBuilder(256);
+            GetWindowText(h, title, 256);
+            if (!title.ToString().StartsWith("League of Legends", StringComparison.Ordinal)) return true;
+            var cls = new System.Text.StringBuilder(256);
+            GetClassName(h, cls, 256);
+            if (cls.ToString() is "RCLIENT" or "RiotWindowClass")
+            {
+                found = h; return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        hwnd = found;
+        return found != IntPtr.Zero;
+    }
+
+    private void StartWindowFollow()
+    {
+        if (_followTimer != null) return;
+        _followTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        _followTimer.Tick += (_, _) => FollowClientWindow();
+        _followTimer.Start();
+    }
+
+    private void FollowClientWindow()
+    {
+        if (!TryFindClientWindow(out var h)) return; // клиент закрыт — не трогаем
+
+        if (IsIconic(h))
+        {
+            // Клиент свёрнут → прячем оверлей в трей (если не убран игрой/вручную).
+            if (!_inTray && !_userHidden)
+            {
+                _followHidden = true;
+                HideToTray();
+            }
+            return;
+        }
+
+        // Клиент развёрнут.
+        if (_followHidden)
+        {
+            // Возвращаем именно то, что прятал фолловер, и фиксируем сбоку.
+            _followHidden = false;
+            RestoreFromTray();   // не развернёт, если свёрнуто вручную крестиком
+            AnchorIfNotMoved();  // приклеит сбоку, если оверлей не двигали руками
+            return;
+        }
+
+        // Клиент передвинули/изменили размер → переклеиваемся к его краю.
+        if (!_inTray && !_userMoved && GetWindowRect(h, out var r))
+        {
+            if (r.Left != _lastClientRect.Left || r.Top != _lastClientRect.Top ||
+                r.Right != _lastClientRect.Right || r.Bottom != _lastClientRect.Bottom)
+            {
+                _lastClientRect = r;
+                AnchorToClient();
+            }
+        }
     }
 
     // ── Системный трей (скрытие на время игры) ────────────────────────────
@@ -200,6 +279,9 @@ public partial class OverlayWindow : Window
 
         Left = SystemParameters.PrimaryScreenWidth - FullW - 24;
         Top  = 60;
+
+        // Слежение за окном клиента (свернуть/развернуть/переместить).
+        StartWindowFollow();
     }
 
     private void OnDrag(object sender, MouseButtonEventArgs e)
@@ -263,6 +345,21 @@ public partial class OverlayWindow : Window
         {
             IdleStatusText.Text = msg;
             DlBar.Visibility = Visibility.Collapsed;
+            PulseAnim(false);
+            SetLoadingMode();
+            ShowIdle();
+        });
+
+    // Готов и простаивает: вместо «Готов» — сноска о программе + карусель советов.
+    public void ShowReady(string status) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            ReadyStatusText.Text = status;
+            DlBar.Visibility = Visibility.Collapsed;
+            PulseAnim(false);
+            LoadingInfo.Visibility = Visibility.Collapsed;
+            ReadyInfo.Visibility   = Visibility.Visible;
+            StartTips();
             ShowIdle();
         });
 
@@ -273,8 +370,98 @@ public partial class OverlayWindow : Window
             IdleStatusText.Text = text;
             DlBar.Visibility    = Visibility.Visible;
             DlBarFill.Width     = 260.0 * Math.Clamp(fraction, 0.0, 1.0);
+            PulseAnim(true);   // скользящий блик — бар «живой» даже на плато %
+            SetLoadingMode();
             ShowIdle();
         });
+
+    // Неопределённый прогресс: фоновая работа без процентов (распаковка/проверка).
+    // Полоса полная, но блик продолжает бежать — видно, что процесс идёт.
+    public void ShowProgressBusy(string text) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            IdleStatusText.Text = text;
+            DlBar.Visibility    = Visibility.Visible;
+            DlBarFill.Width     = 260.0;
+            PulseAnim(true);
+            SetLoadingMode();
+            ShowIdle();
+        });
+
+    // Управление бегущим бликом на полосе прогресса.
+    private bool _pulseOn;
+    private void PulseAnim(bool on)
+    {
+        if (on == _pulseOn) return;
+        _pulseOn = on;
+        if (on)
+        {
+            DlBarPulse.Visibility = Visibility.Visible;
+            var anim = new System.Windows.Media.Animation.DoubleAnimation(-70, 260,
+                new Duration(TimeSpan.FromSeconds(1.1)))
+            {
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+            };
+            DlBarPulseT.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, anim);
+        }
+        else
+        {
+            DlBarPulseT.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, null);
+            DlBarPulse.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    // ── Карусель советов по пику (поле фиксированного размера, смена раз в 15 с) ──
+
+    private static readonly string[] _tips =
+    {
+        "Контрпик на линии против прямого оппонента важнее общего винрейта чемпиона.",
+        "Не стакай один тип урона: миксуй физический и магический, иначе один предмет врага гасит пол-команды.",
+        "Команде нужен фронтлайн — кто-то должен начинать драки и принимать урон на себя.",
+        "Пикай в комфорт: знакомый чемпион обычно сильнее непривычного контрпика.",
+        "Против поука нужны заход и мобильность; против дайва — контроль и пил для своего кэрри.",
+        "Последний пик — преимущество: подбирай под уже открытый состав врага.",
+        "Бан убирает либо самых сильных в патче, либо то, против чего тебе тяжелее всего.",
+        "Связки решают тимфайты: контроль+бёрст ловят одиночку, заход+пил держат кэрри живым.",
+    };
+
+    private int _tipIdx = -1;
+    private System.Windows.Threading.DispatcherTimer? _tipTimer;
+
+    // Переключение на стадию загрузки/ожидания — прячем готовность и стопаем карусель.
+    private void SetLoadingMode()
+    {
+        LoadingInfo.Visibility = Visibility.Visible;
+        ReadyInfo.Visibility   = Visibility.Collapsed;
+        _tipTimer?.Stop();
+    }
+
+    private void StartTips()
+    {
+        if (_tipTimer == null)
+        {
+            _tipTimer = new System.Windows.Threading.DispatcherTimer
+            { Interval = TimeSpan.FromSeconds(40) };
+            _tipTimer.Tick += (_, _) => NextTip();
+        }
+        if (_tipIdx < 0)
+        {
+            // случайный стартовый совет — чтобы не всегда первый
+            _tipIdx = new Random().Next(_tips.Length) - 1;
+            NextTip();
+        }
+        _tipTimer.Start();
+    }
+
+    private void NextTip()
+    {
+        _tipIdx = (_tipIdx + 1) % _tips.Length;
+        TipText.Text = _tips[_tipIdx];
+        // мягкое проявление при смене
+        TipText.BeginAnimation(OpacityProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0,
+                new Duration(TimeSpan.FromMilliseconds(350))));
+    }
 
     // Экран ожидания: маленькое окно, спиннер и крупная подпись стадии.
     private void ShowIdle()
@@ -487,7 +674,7 @@ public partial class OverlayWindow : Window
                 WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
                 Icon       = IconCache.Get(r.ChampionId),
                 ReasonText = string.Join("\n", r.Reasons),
-                BaseBar    = ToBar(r.BaseDelta),
+                BaseBar    = ToBaseBar(r.BaseDelta),
                 DirectBar  = ToBar(r.DirectDelta),
                 OtherBar   = ToBar(r.StyleDelta),   // строка «Против их стиля»
                 SynBar     = ToBar(r.SynergyDelta),
@@ -744,6 +931,10 @@ public partial class OverlayWindow : Window
     // Ширина полоски показателя (трек ~226px). Дельта масштабируется так, что
     // сильные значения (≈+17пп синергии) почти заполняют полоску.
     private static double ToBar(double delta) => Math.Max(0, Math.Min(214, delta * 13));
+
+    // Базовый WR после темпера упирается в ~+3пп, поэтому у него своя шкала:
+    // +3 = полная полоса (значит +2.5 ≈ 83%), иначе строка выглядела бы пустой.
+    private static double ToBaseBar(double delta) => Math.Max(0, Math.Min(214, delta * 71));
     private static string Signed(double v)    => (v >= 0 ? "+" : "") + v.ToString("F1");
 
     // Значок архетипа чемпиона: эмодзи камень-ножницы-бумага + цвет фона.

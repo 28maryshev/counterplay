@@ -12,13 +12,96 @@
         KeyDown="OnKeyDown">
 
   <Window.Resources>
-    <!-- Основной текст -->
-    <FontFamily x:Key="UiFont">Segoe UI</FontFamily>
+    <!-- Основной текст — Geist (встроен в сборку), как на сайте. Запасной Segoe UI. -->
+    <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
     <!-- Заголовки/имена — только системные шрифты (без проприетарных шрифтов Riot,
          Beaufort/Spiegel использовать нельзя — это IP Riot Games). -->
     <FontFamily x:Key="DisplayFont">Constantia, Segoe UI Semibold, Segoe UI</FontFamily>
     <!-- Цифры позиции — отдельный «спортивный» шрифт, контрастный остальному -->
     <FontFamily x:Key="NumberFont">Bahnschrift SemiBold, Bahnschrift, Impact, Segoe UI Black</FontFamily>
+
+    <!-- Логотип-марка (как на сайте): тёмная плитка + раздельное сине-красное кольцо -->
+    <DrawingImage x:Key="BrandMark">
+      <DrawingImage.Drawing>
+        <DrawingGroup>
+          <!-- Плитка -->
+          <GeometryDrawing Brush="#0B1322">
+            <GeometryDrawing.Geometry>
+              <RectangleGeometry Rect="8,8,240,240" RadiusX="54" RadiusY="54"/>
+            </GeometryDrawing.Geometry>
+            <GeometryDrawing.Pen><Pen Thickness="2" Brush="#1E2A3A"/></GeometryDrawing.Pen>
+          </GeometryDrawing>
+          <!-- Внешнее тонкое кольцо: синее (лево) -->
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="7" StartLineCap="Round" EndLineCap="Round">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#6FE6F2" Offset="0"/>
+                    <GradientStop Color="#36D6E7" Offset="0.5"/>
+                    <GradientStop Color="#2B6FD0" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry>
+              <PathGeometry Figures="M128,38 A90,90 0 0 0 128,218"/>
+            </GeometryDrawing.Geometry>
+          </GeometryDrawing>
+          <!-- Внешнее тонкое кольцо: красное (право) -->
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="7" StartLineCap="Round" EndLineCap="Round">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                    <GradientStop Color="#FF8A66" Offset="0"/>
+                    <GradientStop Color="#FF5A4D" Offset="0.5"/>
+                    <GradientStop Color="#B8232B" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry>
+              <PathGeometry Figures="M128,38 A90,90 0 0 1 128,218"/>
+            </GeometryDrawing.Geometry>
+          </GeometryDrawing>
+          <!-- Основное кольцо: синее (лево) -->
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="21" StartLineCap="Round" EndLineCap="Round">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#6FE6F2" Offset="0"/>
+                    <GradientStop Color="#36D6E7" Offset="0.5"/>
+                    <GradientStop Color="#2B6FD0" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry>
+              <PathGeometry Figures="M128,64 A64,64 0 0 0 128,192"/>
+            </GeometryDrawing.Geometry>
+          </GeometryDrawing>
+          <!-- Основное кольцо: красное (право) -->
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="21" StartLineCap="Round" EndLineCap="Round">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                    <GradientStop Color="#FF8A66" Offset="0"/>
+                    <GradientStop Color="#FF5A4D" Offset="0.5"/>
+                    <GradientStop Color="#B8232B" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry>
+              <PathGeometry Figures="M128,64 A64,64 0 0 1 128,192"/>
+            </GeometryDrawing.Geometry>
+          </GeometryDrawing>
+        </DrawingGroup>
+      </DrawingImage.Drawing>
+    </DrawingImage>
 
     <!-- Карточка командной связки (комбо) — общая для союзников и врагов -->
     <DataTemplate x:Key="ComboTemplate">
@@ -183,9 +266,14 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBlock Text="C O U N T E R P L A Y"
-                     FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
-                     Foreground="#C89B3C" VerticalAlignment="Center"/>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Image Source="{StaticResource BrandMark}" Width="22" Height="22"
+                   Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                       VerticalAlignment="Center">
+              <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/>
+            </TextBlock>
+          </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
             <Button x:Name="PinBtn" Content="📌" Click="OnPin"
                     Background="Transparent" BorderThickness="0"
@@ -217,42 +305,100 @@
                     VerticalAlignment="Center" HorizontalAlignment="Center"
                     Margin="24,18,24,28">
 
-          <!-- Три точки, поочередно медленно мигающие -->
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,18">
-            <StackPanel.Triggers>
-              <EventTrigger RoutedEvent="Loaded">
-                <BeginStoryboard>
-                  <Storyboard RepeatBehavior="Forever">
-                    <DoubleAnimation Storyboard.TargetName="Dot1" Storyboard.TargetProperty="Opacity"
-                                     From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
-                                     BeginTime="0:0:0.0"/>
-                    <DoubleAnimation Storyboard.TargetName="Dot2" Storyboard.TargetProperty="Opacity"
-                                     From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
-                                     BeginTime="0:0:0.4"/>
-                    <DoubleAnimation Storyboard.TargetName="Dot3" Storyboard.TargetProperty="Opacity"
-                                     From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
-                                     BeginTime="0:0:0.8"/>
-                  </Storyboard>
-                </BeginStoryboard>
-              </EventTrigger>
-            </StackPanel.Triggers>
-            <Ellipse x:Name="Dot1" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
-            <Ellipse x:Name="Dot2" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
-            <Ellipse x:Name="Dot3" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
+          <!-- ── Стадия загрузки/ожидания: точки + крупный статус + прогресс ── -->
+          <StackPanel x:Name="LoadingInfo">
+            <!-- Три точки, поочередно медленно мигающие -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,18">
+              <StackPanel.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                  <BeginStoryboard>
+                    <Storyboard RepeatBehavior="Forever">
+                      <DoubleAnimation Storyboard.TargetName="Dot1" Storyboard.TargetProperty="Opacity"
+                                       From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
+                                       BeginTime="0:0:0.0"/>
+                      <DoubleAnimation Storyboard.TargetName="Dot2" Storyboard.TargetProperty="Opacity"
+                                       From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
+                                       BeginTime="0:0:0.4"/>
+                      <DoubleAnimation Storyboard.TargetName="Dot3" Storyboard.TargetProperty="Opacity"
+                                       From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
+                                       BeginTime="0:0:0.8"/>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </EventTrigger>
+              </StackPanel.Triggers>
+              <Ellipse x:Name="Dot1" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
+              <Ellipse x:Name="Dot2" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
+              <Ellipse x:Name="Dot3" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
+            </StackPanel>
+
+            <!-- Крупная подпись текущей стадии -->
+            <TextBlock x:Name="IdleStatusText" Text="Жду запуска клиента…"
+                       FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="Bold"
+                       Foreground="#E8E0CC" TextAlignment="Center" TextWrapping="Wrap"
+                       MaxWidth="300"/>
+
+            <!-- Полоса прогресса загрузки (обновление/база) -->
+            <Grid x:Name="DlBar" Width="260" Height="8" Margin="0,14,0,0"
+                  Visibility="Collapsed" ClipToBounds="True">
+              <Border Background="#1AFFFFFF" CornerRadius="4"/>
+              <Border x:Name="DlBarFill" HorizontalAlignment="Left" Width="0"
+                      Background="#C89B3C" CornerRadius="4"/>
+              <!-- Скользящий блик: бар «живой» даже когда % замер на распаковке -->
+              <Border x:Name="DlBarPulse" HorizontalAlignment="Left" Width="70"
+                      CornerRadius="4" IsHitTestVisible="False">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#00FFFFFF" Offset="0"/>
+                    <GradientStop Color="#66FFFFFF" Offset="0.5"/>
+                    <GradientStop Color="#00FFFFFF" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Border.RenderTransform>
+                  <TranslateTransform x:Name="DlBarPulseT" X="-70"/>
+                </Border.RenderTransform>
+              </Border>
+            </Grid>
           </StackPanel>
 
-          <!-- Крупная подпись текущей стадии -->
-          <TextBlock x:Name="IdleStatusText" Text="Жду запуска клиента…"
-                     FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="Bold"
-                     Foreground="#E8E0CC" TextAlignment="Center" TextWrapping="Wrap"
-                     MaxWidth="300"/>
+          <!-- ── Готов: сноска о программе + карусель советов по пику ── -->
+          <StackPanel x:Name="ReadyInfo" Visibility="Collapsed" MaxWidth="282">
+            <!-- Логотип -->
+            <Image Source="{StaticResource BrandMark}" Width="72" Height="72"
+                   Margin="0,0,0,14" HorizontalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+            <!-- Маленькая строка состояния (бакет · патч) -->
+            <TextBlock x:Name="ReadyStatusText" Text="Готов"
+                       FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                       Foreground="#C89B3C" Opacity="0.85" TextAlignment="Center"
+                       Margin="0,0,0,11"/>
 
-          <!-- Полоса прогресса загрузки (обновление/база) -->
-          <Grid x:Name="DlBar" Width="260" Height="8" Margin="0,14,0,0" Visibility="Collapsed">
-            <Border Background="#1AFFFFFF" CornerRadius="4"/>
-            <Border x:Name="DlBarFill" HorizontalAlignment="Left" Width="0"
-                    Background="#C89B3C" CornerRadius="4"/>
-          </Grid>
+            <!-- Что это / зачем / как улучшит игру -->
+            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="#C9D2DC"
+                       TextWrapping="Wrap" LineHeight="17">
+              <Run Foreground="#E8B84B" FontWeight="Bold">Помощник по драфту.</Run><Run xml:space="preserve"> Считает контрпики против врагов, синергию с союзниками и кого банить — по реальной статистике текущего патча. Обновляется на каждый ховер.</Run>
+            </TextBlock>
+            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="#C9D2DC"
+                       TextWrapping="Wrap" LineHeight="17" Margin="0,8,0,0">
+              <Run Foreground="#E8B84B" FontWeight="Bold">✊ ✌ ✋ Тип состава.</Run><Run xml:space="preserve"> Фронт-ту-бэк ✊ бьёт дайв ✌, дайв бьёт пик-поук ✋, а пик-поук бьёт фронт-ту-бэк. Бери состав, который контрит врагов.</Run>
+            </TextBlock>
+            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="#C9D2DC"
+                       TextWrapping="Wrap" LineHeight="17" Margin="0,8,0,0">
+              <Run Foreground="#E8B84B" FontWeight="Bold">Под тебя.</Run><Run xml:space="preserve"> Учитывает твою наигранность — комфортные чемпионы в приоритете, без слепых контрпиков.</Run>
+            </TextBlock>
+
+            <!-- Карусель советов: поле фиксированного размера, смена раз в 40 с -->
+            <Border Margin="0,15,0,0" Width="282" Height="118" CornerRadius="7"
+                    Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
+                    Padding="13,10">
+              <StackPanel>
+                <TextBlock Text="СОВЕТ ПО ПИКУ" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold" Foreground="#C89B3C"
+                           Opacity="0.8" Margin="0,0,0,6"/>
+                <TextBlock x:Name="TipText" FontFamily="{StaticResource UiFont}" FontSize="12"
+                           Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
         </StackPanel>
 
         <!-- ══ КОМПАКТНЫЙ ВИД ════════════════════════════════════════ -->
