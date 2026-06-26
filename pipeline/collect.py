@@ -22,6 +22,8 @@ import time
 import sys
 from pathlib import Path
 
+import requests  # зависимость riotwatcher — для перехвата сетевых обрывов
+
 try:
     from riotwatcher import LolWatcher, ApiError
 except ImportError:
@@ -207,6 +209,7 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
 # ---------- API-вызов с retry ----------
 
 def api_call(fn, *args, **kwargs):
+    net_retries = 0
     while True:
         try:
             time.sleep(RATE_DELAY)
@@ -226,6 +229,16 @@ def api_call(fn, *args, **kwargs):
             else:
                 print(f'  [ApiError {code}] {e}', flush=True)
                 return None
+        except (requests.exceptions.RequestException, ConnectionError, OSError) as e:
+            # Обрыв соединения / таймаут / DNS — НЕ роняем автономный прогон,
+            # а ждём и повторяем с нарастающей паузой; после серии неудач — пропуск.
+            net_retries += 1
+            if net_retries > 6:
+                print(f'  [сеть] не восстановилось ({type(e).__name__}) — пропускаю запрос', flush=True)
+                return None
+            wait = min(60, 5 * net_retries)
+            print(f'  [сеть] {type(e).__name__}: повтор через {wait}s (попытка {net_retries})', flush=True)
+            time.sleep(wait)
 
 
 # ---------- Перебор игроков бакета ----------
