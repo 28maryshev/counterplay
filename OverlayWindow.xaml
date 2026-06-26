@@ -14,11 +14,10 @@
   <Window.Resources>
     <!-- Основной текст — Geist (встроен в сборку), как на сайте. Запасной Segoe UI. -->
     <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
-    <!-- Заголовки/имена — только системные шрифты (без проприетарных шрифтов Riot,
-         Beaufort/Spiegel использовать нельзя — это IP Riot Games). -->
-    <FontFamily x:Key="DisplayFont">Constantia, Segoe UI Semibold, Segoe UI</FontFamily>
-    <!-- Цифры позиции — отдельный «спортивный» шрифт, контрастный остальному -->
-    <FontFamily x:Key="NumberFont">Bahnschrift SemiBold, Bahnschrift, Impact, Segoe UI Black</FontFamily>
+    <!-- Заголовки/имена — тоже Geist, чтобы весь интерфейс был единым шрифтом. -->
+    <FontFamily x:Key="DisplayFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+    <!-- Цифры позиции — тоже Geist (единый шрифт). -->
+    <FontFamily x:Key="NumberFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
 
     <!-- Сине-красный «волновой» градиент (как на сайте): cyan → синий → красный.
          Используется для рамки окна и фоновых «дымок». -->
