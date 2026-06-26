@@ -192,7 +192,13 @@ public partial class OverlayWindow : Window
     {
         if (_tray != null) return;
         System.Drawing.Icon trayIcon;
-        try { trayIcon = File.Exists(LogoPath) ? new System.Drawing.Icon(LogoPath) : System.Drawing.SystemIcons.Application; }
+        // Грузим иконку трея в малом системном размере (чётче 16×16, берёт нужный кадр ICO).
+        try
+        {
+            trayIcon = File.Exists(LogoPath)
+                ? new System.Drawing.Icon(LogoPath, System.Windows.Forms.SystemInformation.SmallIconSize)
+                : System.Drawing.SystemIcons.Application;
+        }
         catch { trayIcon = System.Drawing.SystemIcons.Application; }
         _tray = new System.Windows.Forms.NotifyIcon
         {

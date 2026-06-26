@@ -20,7 +20,18 @@
     <!-- Цифры позиции — отдельный «спортивный» шрифт, контрастный остальному -->
     <FontFamily x:Key="NumberFont">Bahnschrift SemiBold, Bahnschrift, Impact, Segoe UI Black</FontFamily>
 
-    <!-- Логотип-марка (как на сайте): тёмная плитка + раздельное сине-красное кольцо -->
+    <!-- Сине-красный «волновой» градиент (как на сайте): cyan → синий → красный.
+         Используется для рамки окна и фоновых «дымок». -->
+    <LinearGradientBrush x:Key="WaveBrush" StartPoint="0,0" EndPoint="1,0">
+      <GradientStop Color="#36D6E7" Offset="0"/>
+      <GradientStop Color="#3B82C4" Offset="0.5"/>
+      <!-- красный приглушён прозрачностью, чтобы не «кричал» -->
+      <GradientStop Color="#88F0685E" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
+         Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
+         а не смыканием дуг. Левая половина синяя, правая красная. -->
     <DrawingImage x:Key="BrandMark">
       <DrawingImage.Drawing>
         <DrawingGroup>
@@ -31,74 +42,70 @@
             </GeometryDrawing.Geometry>
             <GeometryDrawing.Pen><Pen Thickness="2" Brush="#1E2A3A"/></GeometryDrawing.Pen>
           </GeometryDrawing>
-          <!-- Внешнее тонкое кольцо: синее (лево) -->
-          <GeometryDrawing>
-            <GeometryDrawing.Pen>
-              <Pen Thickness="7" StartLineCap="Round" EndLineCap="Round">
-                <Pen.Brush>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#6FE6F2" Offset="0"/>
-                    <GradientStop Color="#36D6E7" Offset="0.5"/>
-                    <GradientStop Color="#2B6FD0" Offset="1"/>
-                  </LinearGradientBrush>
-                </Pen.Brush>
-              </Pen>
-            </GeometryDrawing.Pen>
-            <GeometryDrawing.Geometry>
-              <PathGeometry Figures="M128,38 A90,90 0 0 0 128,218"/>
-            </GeometryDrawing.Geometry>
-          </GeometryDrawing>
-          <!-- Внешнее тонкое кольцо: красное (право) -->
-          <GeometryDrawing>
-            <GeometryDrawing.Pen>
-              <Pen Thickness="7" StartLineCap="Round" EndLineCap="Round">
-                <Pen.Brush>
-                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
-                    <GradientStop Color="#FF8A66" Offset="0"/>
-                    <GradientStop Color="#FF5A4D" Offset="0.5"/>
-                    <GradientStop Color="#B8232B" Offset="1"/>
-                  </LinearGradientBrush>
-                </Pen.Brush>
-              </Pen>
-            </GeometryDrawing.Pen>
-            <GeometryDrawing.Geometry>
-              <PathGeometry Figures="M128,38 A90,90 0 0 1 128,218"/>
-            </GeometryDrawing.Geometry>
-          </GeometryDrawing>
-          <!-- Основное кольцо: синее (лево) -->
-          <GeometryDrawing>
-            <GeometryDrawing.Pen>
-              <Pen Thickness="21" StartLineCap="Round" EndLineCap="Round">
-                <Pen.Brush>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#6FE6F2" Offset="0"/>
-                    <GradientStop Color="#36D6E7" Offset="0.5"/>
-                    <GradientStop Color="#2B6FD0" Offset="1"/>
-                  </LinearGradientBrush>
-                </Pen.Brush>
-              </Pen>
-            </GeometryDrawing.Pen>
-            <GeometryDrawing.Geometry>
-              <PathGeometry Figures="M128,64 A64,64 0 0 0 128,192"/>
-            </GeometryDrawing.Geometry>
-          </GeometryDrawing>
-          <!-- Основное кольцо: красное (право) -->
-          <GeometryDrawing>
-            <GeometryDrawing.Pen>
-              <Pen Thickness="21" StartLineCap="Round" EndLineCap="Round">
-                <Pen.Brush>
-                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
-                    <GradientStop Color="#FF8A66" Offset="0"/>
-                    <GradientStop Color="#FF5A4D" Offset="0.5"/>
-                    <GradientStop Color="#B8232B" Offset="1"/>
-                  </LinearGradientBrush>
-                </Pen.Brush>
-              </Pen>
-            </GeometryDrawing.Pen>
-            <GeometryDrawing.Geometry>
-              <PathGeometry Figures="M128,64 A64,64 0 0 1 128,192"/>
-            </GeometryDrawing.Geometry>
-          </GeometryDrawing>
+          <!-- Синяя половина (обрезка слева, разрыв 120..136) -->
+          <DrawingGroup>
+            <DrawingGroup.ClipGeometry><RectangleGeometry Rect="0,0,120,256"/></DrawingGroup.ClipGeometry>
+            <GeometryDrawing>
+              <GeometryDrawing.Pen>
+                <Pen Thickness="7">
+                  <Pen.Brush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#6FE6F2" Offset="0"/>
+                      <GradientStop Color="#36D6E7" Offset="0.5"/>
+                      <GradientStop Color="#2B6FD0" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Pen.Brush>
+                </Pen>
+              </GeometryDrawing.Pen>
+              <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="90" RadiusY="90"/></GeometryDrawing.Geometry>
+            </GeometryDrawing>
+            <GeometryDrawing>
+              <GeometryDrawing.Pen>
+                <Pen Thickness="21">
+                  <Pen.Brush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#6FE6F2" Offset="0"/>
+                      <GradientStop Color="#36D6E7" Offset="0.5"/>
+                      <GradientStop Color="#2B6FD0" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Pen.Brush>
+                </Pen>
+              </GeometryDrawing.Pen>
+              <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="64" RadiusY="64"/></GeometryDrawing.Geometry>
+            </GeometryDrawing>
+          </DrawingGroup>
+          <!-- Красная половина (обрезка справа) -->
+          <DrawingGroup>
+            <DrawingGroup.ClipGeometry><RectangleGeometry Rect="136,0,120,256"/></DrawingGroup.ClipGeometry>
+            <GeometryDrawing>
+              <GeometryDrawing.Pen>
+                <Pen Thickness="7">
+                  <Pen.Brush>
+                    <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                      <GradientStop Color="#FF8A66" Offset="0"/>
+                      <GradientStop Color="#FF5A4D" Offset="0.5"/>
+                      <GradientStop Color="#B8232B" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Pen.Brush>
+                </Pen>
+              </GeometryDrawing.Pen>
+              <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="90" RadiusY="90"/></GeometryDrawing.Geometry>
+            </GeometryDrawing>
+            <GeometryDrawing>
+              <GeometryDrawing.Pen>
+                <Pen Thickness="21">
+                  <Pen.Brush>
+                    <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                      <GradientStop Color="#FF8A66" Offset="0"/>
+                      <GradientStop Color="#FF5A4D" Offset="0.5"/>
+                      <GradientStop Color="#B8232B" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Pen.Brush>
+                </Pen>
+              </GeometryDrawing.Pen>
+              <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="64" RadiusY="64"/></GeometryDrawing.Geometry>
+            </GeometryDrawing>
+          </DrawingGroup>
         </DrawingGroup>
       </DrawingImage.Drawing>
     </DrawingImage>
@@ -148,7 +155,7 @@
   <Grid>
 
     <!-- ═══════════════ ОСНОВНОЙ КОНТЕНТ ═══════════════ -->
-    <Border Background="#D8071223" BorderBrush="#C89B3C" BorderThickness="1"
+    <Border Background="#D8071223" BorderBrush="{StaticResource WaveBrush}" BorderThickness="1.4"
             CornerRadius="4" Margin="5">
       <Border.Effect>
         <DropShadowEffect Color="Black" BlurRadius="16" ShadowDepth="3" Opacity="0.7"/>
@@ -168,30 +175,30 @@
           <Rectangle>
             <Rectangle.Fill>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#12C89B3C" Offset="0"/>
+                <GradientStop Color="#1636D6E7" Offset="0"/>
                 <GradientStop Color="#00071223" Offset="0.45"/>
-                <GradientStop Color="#0E2C5C8C" Offset="1"/>
+                <GradientStop Color="#0CFF5A4D" Offset="1"/>
               </LinearGradientBrush>
             </Rectangle.Fill>
           </Rectangle>
 
-          <!-- угловое золотое свечение сверху-слева -->
+          <!-- синее свечение сверху-слева (как левая половина логотипа) -->
           <Ellipse Width="560" Height="320" HorizontalAlignment="Left"
                    VerticalAlignment="Top" Margin="-140,-110,0,0">
             <Ellipse.Fill>
               <RadialGradientBrush>
-                <GradientStop Color="#22C89B3C" Offset="0"/>
-                <GradientStop Color="#00C89B3C" Offset="1"/>
+                <GradientStop Color="#2636D6E7" Offset="0"/>
+                <GradientStop Color="#0036D6E7" Offset="1"/>
               </RadialGradientBrush>
             </Ellipse.Fill>
           </Ellipse>
-          <!-- холодное свечение снизу-справа -->
+          <!-- красное свечение снизу-справа (как правая половина логотипа) -->
           <Ellipse Width="620" Height="360" HorizontalAlignment="Right"
                    VerticalAlignment="Bottom" Margin="0,0,-160,-120">
             <Ellipse.Fill>
               <RadialGradientBrush>
-                <GradientStop Color="#1A2C7BC8" Offset="0"/>
-                <GradientStop Color="#002C7BC8" Offset="1"/>
+                <GradientStop Color="#10FF5A4D" Offset="0"/>
+                <GradientStop Color="#00FF5A4D" Offset="1"/>
               </RadialGradientBrush>
             </Ellipse.Fill>
           </Ellipse>
@@ -201,9 +208,9 @@
             <Canvas.Resources>
               <!-- общий стиль кривой -->
               <Style x:Key="Wisp" TargetType="Path">
-                <Setter Property="Stroke" Value="#C89B3C"/>
-                <Setter Property="StrokeThickness" Value="1.4"/>
-                <Setter Property="Opacity" Value="0.10"/>
+                <Setter Property="Stroke" Value="{StaticResource WaveBrush}"/>
+                <Setter Property="StrokeThickness" Value="1.6"/>
+                <Setter Property="Opacity" Value="0.22"/>
                 <Setter Property="StrokeStartLineCap" Value="Round"/>
                 <Setter Property="StrokeEndLineCap" Value="Round"/>
               </Style>
