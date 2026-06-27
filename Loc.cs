@@ -21,7 +21,8 @@ public static class Loc
         new("de", "Deutsch",   "de_DE"),
         new("fr", "Français",  "fr_FR"),
         new("tr", "Türkçe",    "tr_TR"),
-        new("ko", "한국어",     "ko_KR")
+        new("ko", "한국어",     "ko_KR"),
+        new("zh", "中文",       "zh_CN")
     ];
 
     private static JsonDocument? _doc;          // текущий язык
