@@ -21,6 +21,8 @@ class Program
 
         Loc.Init(); // язык интерфейса: сохранённый выбор → язык Windows → English
 
+        _ = Telemetry.PingAsync(); // анонимный пинг для статистики активных пользователей
+
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
