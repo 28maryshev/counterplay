@@ -66,7 +66,7 @@ public sealed class RecommendationEngine : IDisposable
         {
             bonus += W_NEUTRAL * uncertainty;
             if (uncertainty >= 0.5)
-                reasons.Add("Нейтральный пик — безопасен, пока состав врага не ясен.");
+                reasons.Add(Loc.T("reason.neutral"));
         }
 
         if (enemyDom is { } dom)
@@ -97,12 +97,12 @@ public sealed class RecommendationEngine : IDisposable
             bonus += styleScore;
 
             if (style >= 3)
-                reasons.Add(dom switch
+                reasons.Add(Loc.T(dom switch
                 {
-                    ChampionTraits.Arch.PickPoke   => "Вкатывается на их дальнобойный состав (заход/рывки).",
-                    ChampionTraits.Arch.Dive       => "Прикрывает команду от их дайва (пил/дизенгейдж).",
-                    _                              => "Перебивает их фронт дальним уроном/бёрстом.",
-                });
+                    ChampionTraits.Arch.PickPoke   => "reason.antiPickPoke",
+                    ChampionTraits.Arch.Dive       => "reason.antiDive",
+                    _                              => "reason.antiFront",
+                }));
         }
 
         return (bonus, styleScore, reasons);
@@ -332,13 +332,13 @@ public sealed class RecommendationEngine : IDisposable
                 var (exploit, forced)  = ItemValue.ExploitBonus(champId, allEnemyIds);
                 if (vulnPen >= 0.9 && vulnCat is { } vc)
                 {
-                    var tail = vulnCnt >= 4 ? "один предмет гасит почти всю команду"
-                             : vulnCnt == 3 ? "одним предметом враг гасит сразу троих"
-                             :                "одним предметом враг гасит сразу двоих";
-                    draftReasons.Add($"Не стакай {ItemValue.CatName(vc)} — {tail}.");
+                    var tail = vulnCnt >= 4 ? Loc.T("reason.vulnNearAll")
+                             : vulnCnt == 3 ? Loc.T("reason.vuln3")
+                             :                Loc.T("reason.vuln2");
+                    draftReasons.Add(Loc.T("reason.dontStack", ItemValue.CatName(vc), tail));
                 }
                 if (exploit > 0 && forced is { } fc)
-                    draftReasons.Add($"Враг застакал {ItemValue.CatName(fc)} — наказываешь его вынужденный предмет.");
+                    draftReasons.Add(Loc.T("reason.exploit", ItemValue.CatName(fc)));
 
                 // Структурная синергия джангл↔саппорт (п.4).
                 var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId);
@@ -399,10 +399,10 @@ public sealed class RecommendationEngine : IDisposable
 
                 var reasons = new List<string>();
                 if (counterMe >= 2.0 && myMains.Count > 0)
-                    reasons.Add($"Контрит твой пул (бьёт {DataDragon.Name(myMains[0])})");
-                if (metaWr >= 1.5) reasons.Add($"Сильный в патче — WR {50 + metaWr:F1}%");
-                if (pop >= 0.6)    reasons.Add("Часто пикается — частый оппонент");
-                if (reasons.Count == 0) reasons.Add("Заметный пик в патче");
+                    reasons.Add(Loc.T("reason.countersPool", DataDragon.Name(myMains[0])));
+                if (metaWr >= 1.5) reasons.Add(Loc.T("reason.strongPatch", $"{50 + metaWr:F1}"));
+                if (pop >= 0.6)    reasons.Add(Loc.T("reason.oftenPicked"));
+                if (reasons.Count == 0) reasons.Add(Loc.T("reason.notablePick"));
 
                 return new BanRec(x, score, [.. reasons]);
             })
@@ -448,7 +448,7 @@ public sealed class RecommendationEngine : IDisposable
             if (ChampionTraits.HardCc(champId) >= 1)
             {
                 b += 1;
-                reasons.Add($"Джанглер {DataDragon.Name(jungleAllyId)} агрессивный без контроля — ты даёшь сетап под ганки.");
+                reasons.Add(Loc.T("reason.jgSetup", DataDragon.Name(jungleAllyId)));
             }
             if (ChampionTraits.EarlyPower(champId) >= 2) b += 0.5;
             if (ChampionTraits.EarlyPower(champId) == 0) b -= 1;
@@ -460,12 +460,12 @@ public sealed class RecommendationEngine : IDisposable
             if (ChampionTraits.EngageDependentAdc(adcAllyId) && ChampionTraits.Engage(champId) >= 2)
             {
                 b += 1;
-                reasons.Add($"АДК {DataDragon.Name(adcAllyId)} хочет захода — ты открываешь для него драки.");
+                reasons.Add(Loc.T("reason.adcEngage", DataDragon.Name(adcAllyId)));
             }
             if (ChampionTraits.ScaleAdcCarry(adcAllyId) && ChampionTraits.Peel(champId) >= 2)
             {
                 b += 1;
-                reasons.Add($"АДК {DataDragon.Name(adcAllyId)} скейлер — твой пил/энчант даёт ему доскейлить.");
+                reasons.Add(Loc.T("reason.adcScale", DataDragon.Name(adcAllyId)));
             }
         }
 
@@ -689,8 +689,8 @@ public sealed class RecommendationEngine : IDisposable
         var lines = new List<string>();
 
         // 0. Комфорт: часто наигранный чемпион игрока — упоминаем первым.
-        if      (comfortDelta >= 5.0) lines.Add("Ты много играешь на этом чемпионе — уверенный комфорт-пик.");
-        else if (comfortDelta >= 2.5) lines.Add("Знакомый чемпион из твоего пула — комфортный выбор.");
+        if      (comfortDelta >= 5.0) lines.Add(Loc.T("reason.comfortHigh"));
+        else if (comfortDelta >= 2.5) lines.Add(Loc.T("reason.comfortMid"));
 
         // 1. Развёрнутые объяснения синергии с конкретными союзниками.
         // Сначала пары с наибольшей статистической синергией. Дедупим по ТИПУ
@@ -710,11 +710,11 @@ public sealed class RecommendationEngine : IDisposable
         if (directOppId != 0)
         {
             var oppName = DataDragon.Name(directOppId);
-            if      (directDelta >=  3.0) lines.Add($"Уверенно выигрывает линию против {oppName} (+{directDelta:F1}%)");
-            else if (directDelta >=  1.5) lines.Add($"Выигрывает линию против {oppName} (+{directDelta:F1}%)");
-            else if (directDelta >=  0.5) lines.Add($"Небольшое преимущество против {oppName}");
-            else if (directDelta <= -2.0) lines.Add($"Сложный матчап vs {oppName} ({directDelta:F1}%)");
-            else                          lines.Add($"Нейтральный матчап против {oppName}");
+            if      (directDelta >=  3.0) lines.Add(Loc.T("reason.lineWinStrong", oppName, $"{directDelta:F1}"));
+            else if (directDelta >=  1.5) lines.Add(Loc.T("reason.lineWin", oppName, $"{directDelta:F1}"));
+            else if (directDelta >=  0.5) lines.Add(Loc.T("reason.lineEdge", oppName));
+            else if (directDelta <= -2.0) lines.Add(Loc.T("reason.lineHard", oppName, $"{directDelta:F1}"));
+            else                          lines.Add(Loc.T("reason.lineNeutral", oppName));
         }
 
         // 3. Выгодные матчапы против конкретных врагов
@@ -725,21 +725,21 @@ public sealed class RecommendationEngine : IDisposable
             if (good.Count > 0)
             {
                 var names = string.Join(", ", good.Select(x => DataDragon.Name(x.Id)));
-                lines.Add($"Выгодные матчапы против {names}");
+                lines.Add(Loc.T("reason.favMatchups", names));
             }
         }
 
         // 4. Если понятных объяснений не нашлось, но статистика хорошая —
         // мягкая общая фраза вместо сухих процентов.
         if (explained == 0 && synByAlly.Count > 0 && synDelta > 0.5)
-            lines.Add("Хорошо сочетается с текущим составом твоей команды.");
+            lines.Add(Loc.T("reason.fitsTeam"));
 
         // 5. Базовый WR
-        if      (baseDelta >=  2.5) lines.Add($"Один из сильнейших в патче — WR {50 + baseDelta:F1}%");
-        else if (baseDelta >=  1.0) lines.Add($"Хороший базовый WR {50 + baseDelta:F1}%");
-        else if (baseDelta <= -1.5) lines.Add($"Низкий WR {50 + baseDelta:F1}% — нужно знать чемпиона");
+        if      (baseDelta >=  2.5) lines.Add(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}"));
+        else if (baseDelta >=  1.0) lines.Add(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}"));
+        else if (baseDelta <= -1.5) lines.Add(Loc.T("reason.baseLow", $"{50 + baseDelta:F1}"));
 
-        if (lines.Count == 0) lines.Add($"Нейтральный пик, WR ≈{50 + baseDelta:F1}%");
+        if (lines.Count == 0) lines.Add(Loc.T("reason.baseNeutral", $"{50 + baseDelta:F1}"));
         return [.. lines];
     }
 

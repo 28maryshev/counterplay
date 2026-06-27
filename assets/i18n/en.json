@@ -62,9 +62,110 @@
     "style": "Style: {0}",
     "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked."
   },
+  "pair": {
+    "airborne": {
+      "a": "{0} knocks enemies airborne — that triggers your ultimate, hitting the whole knocked-up team at once.",
+      "b": "You knock enemies airborne and {0} instantly ults into all of them — a powerful teamfight combo."
+    },
+    "orianna": {
+      "a": "Put your ball on {0}: when they engage, your ultimate pulls in and detonates every enemy around them.",
+      "b": "You engage first and {0} puts the ball on you, ulting to gather enemies around you — huge AoE damage."
+    },
+    "immortal": {
+      "a": "Your ultimate makes {0} invulnerable — they can dive into the enemy and survive.",
+      "b": "{0}'s ultimate makes you invulnerable or saves you from death — dive in more boldly."
+    },
+    "enchanter": {
+      "a": "{0} deals huge damage but is fragile and immobile. You shield/heal and speed them up — that's when they shine.",
+      "b": "You're a strong but fragile carry. {0} shields, heals and buffs you — stay close and deal damage safely."
+    },
+    "hook": {
+      "a": "You hook an enemy out of position and {0} instantly finishes the caught target with burst.",
+      "b": "{0} hooks and pulls an enemy out — you finish the caught target with your damage. Easy kills in lane."
+    },
+    "burst_pick": {
+      "a": "{0} locks a target with cc (charm/stun/root) — you delete it with burst in a second while it's immobilized.",
+      "b": "You lock an enemy with cc and {0} instantly bursts the held target down. A guaranteed pick on isolated targets."
+    },
+    "isolate": {
+      "a": "Your ultimate dives and isolates a target in darkness — {0} finishes it off while its allies are cut off.",
+      "b": "{0} ults in and isolates a single target — you back them up with damage and finish the victim."
+    },
+    "artillery": {
+      "a": "You and {0} shoot the enemy from long range — a strong poke-and-siege duo for objectives."
+    },
+    "channel": {
+      "a": "While {0} holds enemies in place with cc, you get to channel your whole ultimate onto them.",
+      "b": "You hold enemies with cc while {0} channels a powerful ultimate onto the stationary targets — big damage."
+    },
+    "peel": {
+      "a": "{0} is your team's main damage but vulnerable. You peel enemies off so they can deal damage safely in fights."
+    },
+    "frontline": {
+      "a": "You start fights and lock enemies with cc, protecting {0}, who deals damage from range.",
+      "b": "{0} starts fights and locks enemies with cc — meanwhile you deal damage safely from the backline."
+    },
+    "double_engage": {
+      "a": "You and {0} both engage and lock enemies with cc — together you easily catch isolated targets and win picks."
+    }
+  },
   "combo": {
     "howToPlay": "HOW TO PLAY",
-    "danger": "DANGER"
+    "danger": "DANGER",
+    "airborne": {
+      "name": "Ult combo: knock-up → Yasuo/Yone",
+      "desc": "A knock-up activates Yasuo/Yone's ultimate on the whole grouped team.",
+      "tipAlly": "Engage with a knock-up — Yasuo/Yone ult in right after. Hit them while grouped.",
+      "tipEnemy": "Don't group up or get caught by a knock-up — it's their wombo-combo trigger. Keep spread and cleanse (Mercurial, QSS)."
+    },
+    "orianna": {
+      "name": "Ball lightning (Orianna + engage)",
+      "desc": "Ball on the engager: they dive, Orianna ults to pull in and blow up the whole group.",
+      "tipAlly": "Put the ball on the diving engager and follow up right after their engage.",
+      "tipEnemy": "Watch who has Orianna's ball — the engage comes on them. Spread out before they initiate."
+    },
+    "immortal": {
+      "name": "Immortality (protective ult + dive)",
+      "desc": "An invulnerability/save ult lets the carry dive into the middle without risking death.",
+      "tipAlly": "Dive aggressively — save the protective ult for the carry's damage peak.",
+      "tipEnemy": "Don't waste your focus while their invulnerability is up — wait it out, then kill the carry."
+    },
+    "enchanter": {
+      "name": "Hypercarry buff (enchanter + carry)",
+      "desc": "Attack/move-speed buffs and shields turn an immobile carry into a damage machine.",
+      "tipAlly": "Stick to the carry, buff and peel for them — they're your main damage.",
+      "tipEnemy": "Kill the carry fast or get on their backline: without the enchanter they're helpless. Choke them in lane."
+    },
+    "hook": {
+      "name": "Hook pick",
+      "desc": "A hook rips a target out of position; burst champions finish it before help arrives.",
+      "tipAlly": "Look for hooks on isolated targets — instantly focus the caught one as a team.",
+      "tipEnemy": "Don't walk alone and keep distance from hook champions. Respect river vision."
+    },
+    "aoe": {
+      "name": "Teamfight ults (double AoE)",
+      "desc": "Several strong AoE ults stack and wipe a grouped team at once.",
+      "tipAlly": "Start fights in chokepoints when both ults are up — land them on the enemy group.",
+      "tipEnemy": "Don't stack up or push into chokepoints when their ults are up. Split and enter one at a time."
+    },
+    "burstPick": {
+      "name": "Burst pick (cc → delete)",
+      "desc": "An enemy is caught by cc (charm/stun/root) and instantly deleted by burst before they can react.",
+      "tipAlly": "Hunt isolated targets: one locks them with cc, the rest focus and delete in a second.",
+      "tipEnemy": "Don't walk alone, keep vision and save your dash/QSS for their initiator — they'll unload all burst on whoever's caught."
+    },
+    "artillery": {
+      "name": "Artillery (long range)",
+      "desc": "Several long-range champions push the lane and objectives from afar without trading.",
+      "tipAlly": "Poke the enemy down from range before fights and siege objectives — don't go melee first.",
+      "tipEnemy": "Don't sit in the poke: engage fast or flank, take shields/mobility and force close-range fights."
+    },
+    "global": {
+      "name": "Global pressure",
+      "desc": "Global ults provide help and picks across the map — strong pressure in split-push.",
+      "tipAlly": "Pressure in split and take cross-map picks with globals — stretch the enemy.",
+      "tipEnemy": "Don't overstay in 4v5 skirmishes — their globals even the numbers. Respect when their champs are off the map."
+    }
   },
   "roles": {
     "top": "TOP",
@@ -86,5 +187,45 @@
   },
   "badge": {
     "ban": "BAN"
+  },
+  "cat": {
+    "cc": "cc (Mercs/tenacity)",
+    "autoCrit": "crit/autos (Steelcaps/Frozen Heart)",
+    "shield": "shields (Serpent's Fang)",
+    "heal": "healing (Grievous Wounds)"
+  },
+  "style": {
+    "mixed": "Mixed"
+  },
+  "reason": {
+    "neutral": "Neutral pick — safe until the enemy comp is clear.",
+    "antiPickPoke": "Dives onto their long-range comp (engage/dashes).",
+    "antiDive": "Protects the team from their dive (peel/disengage).",
+    "antiFront": "Out-damages their frontline from range/burst.",
+    "vulnNearAll": "one item shuts down almost the whole team",
+    "vuln3": "one item shuts down three at once",
+    "vuln2": "one item shuts down two at once",
+    "dontStack": "Don't stack {0} — {1}.",
+    "exploit": "Enemy stacked {0} — you punish their forced item.",
+    "countersPool": "Counters your pool (beats {0})",
+    "strongPatch": "Strong this patch — WR {0}%",
+    "oftenPicked": "Often picked — a common opponent",
+    "notablePick": "Notable pick this patch",
+    "jgSetup": "Jungler {0} is aggressive without cc — you provide gank setup.",
+    "adcEngage": "ADC {0} wants engage — you open fights for them.",
+    "adcScale": "ADC {0} scales — your peel/enchant lets them scale up.",
+    "comfortHigh": "You play this champion a lot — a confident comfort pick.",
+    "comfortMid": "A familiar champion from your pool — a comfortable choice.",
+    "lineWinStrong": "Strongly wins the lane against {0} (+{1}%)",
+    "lineWin": "Wins the lane against {0} (+{1}%)",
+    "lineEdge": "Slight edge against {0}",
+    "lineHard": "Tough matchup vs {0} ({1}%)",
+    "lineNeutral": "Even matchup against {0}",
+    "favMatchups": "Favorable matchups against {0}",
+    "fitsTeam": "Fits well with your current team composition.",
+    "baseTop": "One of the strongest this patch — WR {0}%",
+    "baseGood": "Good base WR {0}%",
+    "baseLow": "Low WR {0}% — you need to know the champion",
+    "baseNeutral": "Neutral pick, WR ≈{0}%"
   }
 }

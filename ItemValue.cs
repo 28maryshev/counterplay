@@ -8,13 +8,13 @@ public static class ItemValue
 {
     public enum Cat { Cc, AutoCrit, Shield, Heal }
 
-    public static string CatName(Cat c) => c switch
+    public static string CatName(Cat c) => Loc.T(c switch
     {
-        Cat.Cc       => "контроль (Mercs/тенасити)",
-        Cat.AutoCrit => "крит/авто-атаку (Steelcaps/Frozen Heart)",
-        Cat.Shield   => "щиты (Serpent's Fang)",
-        _            => "хил (Grievous Wounds)",
-    };
+        Cat.Cc       => "cat.cc",
+        Cat.AutoCrit => "cat.autoCrit",
+        Cat.Shield   => "cat.shield",
+        _            => "cat.heal",
+    });
 
     // Профиль уязвимостей набора: [cc, autoCrit, shield, heal].
     private static double[] Profile(IEnumerable<int> ids)

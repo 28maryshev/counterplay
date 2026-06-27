@@ -118,10 +118,10 @@ public static class ChampionTraits
         var max = Math.Max(f, Math.Max(d, p));
         // Второй по величине — чтобы отличить «явный» стиль от «смешанного».
         var second = (f == max ? Math.Max(d, p) : d == max ? Math.Max(f, p) : Math.Max(f, d));
-        if (max < 0.45 || max - second < 0.12) return "Смешанный";
+        if (max < 0.45 || max - second < 0.12) return Loc.T("style.mixed");
 
-        if (f == max) return "Фронт-ту-бэк";
-        return d == max ? "Дайв" : "Пик/пок";
+        if (f == max) return Loc.T("arch.frontToBack");
+        return d == max ? Loc.T("arch.dive") : Loc.T("arch.pickPoke");
     }
 
     // Инструменты (грубые 0..2) — из тегов ChampionTags.

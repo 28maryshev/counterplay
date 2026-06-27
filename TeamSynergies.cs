@@ -66,73 +66,73 @@ public static class TeamSynergies
         bool Has(int id, string tag) => ChampionTags.Has(id, tag);
         bool A(HashSet<int> set, int id) => set.Contains(id);
 
-        // a = рекомендуемый, b = союзник
+        // a = рекомендуемый, b = союзник. Тексты — в i18n (ключи pair.*), {0} = имя союзника.
         // 1. Подброс ↔ ульт Ясуо/Йоне
         if (A(AirborneUlt, champId) && A(Knockup, allyId))
-            return ("airborne", $"{name} подбрасывает врагов в воздух — это включает твой ультимейт, и ты бьёшь им сразу по всей подброшенной команде.");
+            return ("airborne", Loc.T("pair.airborne.a", name));
         if (A(Knockup, champId) && A(AirborneUlt, allyId))
-            return ("airborne", $"Ты подбрасываешь врагов в воздух, а {name} тут же влетает ультом по всем подброшенным — мощное комбо в драке.");
+            return ("airborne", Loc.T("pair.airborne.b", name));
 
         // 2. Шар Орианны
         if (champId == Orianna && (A(Knockup, allyId) || Has(allyId, "engage")))
-            return ("orianna", $"Повесь свой шар на {name}: когда он заходит в драку, твой ультимейт стянет и взорвёт всех врагов вокруг него.");
+            return ("orianna", Loc.T("pair.orianna.a", name));
         if (allyId == Orianna && (A(Knockup, champId) || Has(champId, "engage")))
-            return ("orianna", $"Ты заходишь в драку первым, а {name} вешает на тебя шар и ультом собирает врагов вокруг — огромный урон по площади.");
+            return ("orianna", Loc.T("pair.orianna.b", name));
 
         // 3. Неуязвимость/спасение
         if (A(Immortality, champId) && A(DiveCarry, allyId))
-            return ("immortal", $"Твой ультимейт делает {name} неуязвимым — он сможет нырнуть в самую гущу врагов и не умереть.");
+            return ("immortal", Loc.T("pair.immortal.a", name));
         if (A(Immortality, allyId) && A(DiveCarry, champId))
-            return ("immortal", $"{name} своим ультом сделает тебя неуязвимым или спасёт от смерти — можешь нырять в драку смелее.");
+            return ("immortal", Loc.T("pair.immortal.b", name));
 
         // 4. Энчантер + хрупкий кэрри
         if (A(Enchanters, champId) && A(ImmobileCarry, allyId))
-            return ("enchanter", $"{name} наносит огромный урон, но хрупкий и без рывков. Ты прикрываешь его щитами/лечением и разгоняешь — так он раскрывается на полную.");
+            return ("enchanter", Loc.T("pair.enchanter.a", name));
         if (A(Enchanters, allyId) && A(ImmobileCarry, champId))
-            return ("enchanter", $"Ты сильный, но хрупкий кэрри. {name} прикроет тебя щитами и лечением и усилит — держись рядом и спокойно наноси урон.");
+            return ("enchanter", Loc.T("pair.enchanter.b", name));
 
         // 5. Хук + добивание
         if (A(Hooks, champId) && (Has(allyId, "burst") || Has(allyId, "dive")))
-            return ("hook", $"Ты вытаскиваешь врага крюком из строя, а {name} мгновенно добивает пойманного своим бёрст-уроном.");
+            return ("hook", Loc.T("pair.hook.a", name));
         if (A(Hooks, allyId) && (Has(champId, "burst") || Has(champId, "dive")))
-            return ("hook", $"{name} цепляет врага крюком и вытаскивает его — ты добиваешь пойманного своим уроном. Лёгкие убийства на линии.");
+            return ("hook", Loc.T("pair.hook.b", name));
 
         // 5b. Бёрст-пик: один фиксирует цель контролем, другой удаляет бёрстом
         bool Burst(int id) => Has(id, "burst") || BurstExtra.Contains(id);
         if (A(Lockdown, allyId) && Burst(champId))
-            return ("burst_pick", $"{name} фиксирует цель контролем (чарм/стан/корень) — ты в этот момент удаляешь её бёрстом за секунду, пока она обездвижена.");
+            return ("burst_pick", Loc.T("pair.burst_pick.a", name));
         if (A(Lockdown, champId) && Burst(allyId))
-            return ("burst_pick", $"Ты ловишь врага в контроль, а {name} мгновенно сносит зафиксированную цель бёрст-уроном. Гарантированный пик по одиночке.");
+            return ("burst_pick", Loc.T("pair.burst_pick.b", name));
 
         // 5c. Изоляция Ноктюрна: ныряет на цель, остальные добивают
         if (champId == Nocturne && (A(Artillery, allyId) || Burst(allyId)))
-            return ("isolate", $"Твой ультимейт ныряет и изолирует цель в темноте — {name} добивает её уроном, пока союзники отрезаны.");
+            return ("isolate", Loc.T("pair.isolate.a", name));
         if (allyId == Nocturne && (A(Artillery, champId) || Burst(champId)))
-            return ("isolate", $"{name} ультом ныряет и изолирует одну цель — ты поддерживаешь его уроном и добиваешь жертву.");
+            return ("isolate", Loc.T("pair.isolate.b", name));
 
         // 5d. Артиллерия: оба бьют с большой дистанции
         if (A(Artillery, champId) && A(Artillery, allyId))
-            return ("artillery", $"Вы с {name} простреливаете врага с большой дистанции — сильная дальняя связка для покоя и осады объектов.");
+            return ("artillery", Loc.T("pair.artillery.a", name));
 
         // 6. Канал-ульт (МФ/Картус) под контролем
         if (Has(champId, "channels_ult") && (Has(allyId, "hard_cc") || Has(allyId, "engage")))
-            return ("channel", $"Пока {name} держит врагов под контролем на месте, ты успеваешь выпустить по ним весь свой ультимейт.");
+            return ("channel", Loc.T("pair.channel.a", name));
         if (Has(allyId, "channels_ult") && (Has(champId, "hard_cc") || Has(champId, "engage")))
-            return ("channel", $"Ты задерживаешь врагов контролем, а {name} в это время прожимает мощный ульт по стоящим на месте — большой урон.");
+            return ("channel", Loc.T("pair.channel.b", name));
 
         // 7. Защита гиперкэрри пилом
         if (Has(champId, "peel") && (Has(allyId, "hypercarry") || A(ImmobileCarry, allyId)))
-            return ("peel", $"{name} — главный источник урона команды, но уязвимый. Ты отгоняешь от него врагов, чтобы он спокойно бил в драке.");
+            return ("peel", Loc.T("pair.peel.a", name));
 
         // 8. Инициатор + дальний урон
         if ((Has(champId, "engage") || Has(champId, "hard_cc")) && (Has(allyId, "poke") || Has(allyId, "scale")))
-            return ("frontline", $"Ты начинаешь драки и связываешь врагов контролем, прикрывая {name}, который наносит урон с дистанции.");
+            return ("frontline", Loc.T("pair.frontline.a", name));
         if ((Has(allyId, "engage") || Has(allyId, "hard_cc")) && (Has(champId, "poke") || Has(champId, "scale")))
-            return ("frontline", $"{name} начинает драки и связывает врагов контролем — ты в это время безопасно наносишь урон со спины.");
+            return ("frontline", Loc.T("pair.frontline.b", name));
 
         // 9. Два инициатора
         if ((Has(champId, "engage") || Has(champId, "hard_cc")) && (Has(allyId, "engage") || Has(allyId, "hard_cc")))
-            return ("double_engage", $"Вы с {name} оба начинаете драки и ловите врагов в контроль — вместе легко ловить одиночек и выигрывать пики.");
+            return ("double_engage", Loc.T("pair.double_engage.a", name));
 
         return null;
     }
@@ -150,69 +150,57 @@ public static class TeamSynergies
         var air = In(AirborneUlt);
         if (ku.Count > 0 && air.Count > 0)
             combos.Add(new TeamCombo(
-                "Связка ультов: подброс → Ясуо/Йоне",
+                Loc.T("combo.airborne.name"),
                 [.. ku, .. air],
-                "Подброс в воздух активирует ультимейт Ясуо/Йоне по всей сгруппированной команде.",
-                forAlly
-                    ? "Инициируйте подбросом — Ясуо/Йоне влетает ультом следом. Бейте по сгруппированным."
-                    : "Не группируйтесь и не подставляйтесь под подброс — это их сигнал к вомбо-комбо. Держите рассеивание/очистку (ртуть, QSS)."));
+                Loc.T("combo.airborne.desc"),
+                forAlly ? Loc.T("combo.airborne.tipAlly") : Loc.T("combo.airborne.tipEnemy")));
 
         // 2. Шаровая молния: шар Орианны + инициатор
         if (ids.Contains(Orianna) && ku.Count > 0)
             combos.Add(new TeamCombo(
-                "Шаровая молния (Орианна + инициация)",
+                Loc.T("combo.orianna.name"),
                 [Orianna, .. ku.Take(2)],
-                "Шар на инициаторе: тот ныряет, Орианна ультом стягивает и сносит всю группу.",
-                forAlly
-                    ? "Отдайте шар на ныряющего инициатора и бейте следом за его заходом."
-                    : "Следите, на ком шар Орианны — на нём будет заход. Рассредоточьтесь до их инициации."));
+                Loc.T("combo.orianna.desc"),
+                forAlly ? Loc.T("combo.orianna.tipAlly") : Loc.T("combo.orianna.tipEnemy")));
 
         // 3. Бессмертие: Тарик/Зилеан/Кайл + дайв-кэрри
         var imm  = In(Immortality);
         var dive = In(DiveCarry);
         if (imm.Count > 0 && dive.Count > 0)
             combos.Add(new TeamCombo(
-                "Бессмертие (защитный ульт + дайв)",
+                Loc.T("combo.immortal.name"),
                 [.. imm, .. dive.Take(2)],
-                "Ульт неуязвимости/спасения позволяет кэрри нырять в самую гущу без риска умереть.",
-                forAlly
-                    ? "Ныряйте агрессивно — держите защитный ульт на пик урона кэрри."
-                    : "Не тратьте фокус, пока активна их неуязвимость — переждите её, затем убивайте кэрри."));
+                Loc.T("combo.immortal.desc"),
+                forAlly ? Loc.T("combo.immortal.tipAlly") : Loc.T("combo.immortal.tipEnemy")));
 
         // 4. Разгон гиперкэрри: энчантер + неподвижный кэрри
         var ench  = In(Enchanters);
         var carry = In(ImmobileCarry);
         if (ench.Count > 0 && carry.Count > 0)
             combos.Add(new TeamCombo(
-                "Разгон гиперкэрри (энчантер + кэрри)",
+                Loc.T("combo.enchanter.name"),
                 [.. ench, .. carry.Take(2)],
-                "Бафы скорости атаки/передвижения и щиты превращают неподвижного кэрри в машину урона.",
-                forAlly
-                    ? "Держитесь за кэрри, баффайте и пильте его — он ваш главный источник урона."
-                    : "Убейте кэрри быстро или зайдите ему за спину: без энчантера он беспомощен. Душите его на линии."));
+                Loc.T("combo.enchanter.desc"),
+                forAlly ? Loc.T("combo.enchanter.tipAlly") : Loc.T("combo.enchanter.tipEnemy")));
 
         // 5. Пик через хук
         var hooks = In(Hooks);
         var burst = ids.Where(id => Has(id, "burst") || Has(id, "dive")).ToList();
         if (hooks.Count > 0 && burst.Count > 0)
             combos.Add(new TeamCombo(
-                "Пик через хук",
+                Loc.T("combo.hook.name"),
                 [.. hooks, .. burst.Take(2)],
-                "Зацеп вырывает цель из строя, бёрст-чемпионы добивают её до прихода помощи.",
-                forAlly
-                    ? "Ищите хук по одиночкам — сразу фокусьте пойманного всей командой."
-                    : "Не ходите поодиночке и держите дистанцию от хук-чемпионов. Уважайте вижн в реке."));
+                Loc.T("combo.hook.desc"),
+                forAlly ? Loc.T("combo.hook.tipAlly") : Loc.T("combo.hook.tipEnemy")));
 
         // 6. Тимфайт-ульты (несколько мощных AoE)
         var aoe = In(AoeUlt);
         if (aoe.Count >= 2)
             combos.Add(new TeamCombo(
-                "Тимфайт-ульты (двойное AoE)",
+                Loc.T("combo.aoe.name"),
                 [.. aoe.Take(3)],
-                "Несколько мощных AoE-ультов накладываются и сносят сгруппированную команду разом.",
-                forAlly
-                    ? "Затевайте драки в узких местах, когда оба ульта готовы — пробросьте их по группе врага."
-                    : "Не стойте кучей и не лезьте в чокпоинты при их готовых ультах. Разбивайтесь и заходите по одному."));
+                Loc.T("combo.aoe.desc"),
+                forAlly ? Loc.T("combo.aoe.tipAlly") : Loc.T("combo.aoe.tipEnemy")));
 
         // 7. Бёрст-пик: контроль по одиночке + бёрст-удаление
         var lockd = In(Lockdown);
@@ -220,34 +208,28 @@ public static class TeamSynergies
         var pickInvolved = lockd.Concat(bursters).Distinct().ToList();
         if (lockd.Count > 0 && bursters.Count > 0 && pickInvolved.Count >= 2)
             combos.Add(new TeamCombo(
-                "Бёрст-пик (контроль → удаление)",
+                Loc.T("combo.burstPick.name"),
                 [.. lockd.Take(1), .. bursters.Take(2)],
-                "Враг ловится в контроль (чарм/стан/корень) и мгновенно удаляется бёрст-уроном, не успев среагировать.",
-                forAlly
-                    ? "Ищите одиночек: один фиксирует цель контролем, остальные сразу фокусят и сносят её за секунду."
-                    : "Не ходите поодиночке, держите вижн и берегите рывок/QSS от их инициатора — на пойманного откроют всю обойму бёрста."));
+                Loc.T("combo.burstPick.desc"),
+                forAlly ? Loc.T("combo.burstPick.tipAlly") : Loc.T("combo.burstPick.tipEnemy")));
 
         // 8. Артиллерия: несколько дальнобойных
         var arty = In(Artillery);
         if (arty.Count >= 2)
             combos.Add(new TeamCombo(
-                "Артиллерия (дальний урон)",
+                Loc.T("combo.artillery.name"),
                 [.. arty.Take(3)],
-                "Несколько чемпионов с большой дальностью продавливают линию и объекты издалека, не подставляясь под размен.",
-                forAlly
-                    ? "Выбивайте врага покой с дистанции перед дракой и осаждайте объекты — не лезьте в ближний бой первыми."
-                    : "Не стойте под покой: заходите быстро или обходите фланг, берите щиты/мобильность и навязывайте ближний бой."));
+                Loc.T("combo.artillery.desc"),
+                forAlly ? Loc.T("combo.artillery.tipAlly") : Loc.T("combo.artillery.tipEnemy")));
 
         // 9. Глобальное давление
         var glob = In(Global);
         if (glob.Count >= 2)
             combos.Add(new TeamCombo(
-                "Глобальное давление",
+                Loc.T("combo.global.name"),
                 [.. glob.Take(3)],
-                "Глобальные ульты дают помощь и пики по всей карте — сильное давление в сплит-пуше.",
-                forAlly
-                    ? "Давите в сплите и забирайте кроссмап-пики глобалками — растягивайте врага."
-                    : "Не переоставайтесь в стычках 4в5 — их глобалки выравнивают числа. Уважайте отсутствие их героев на карте."));
+                Loc.T("combo.global.desc"),
+                forAlly ? Loc.T("combo.global.tipAlly") : Loc.T("combo.global.tipEnemy")));
 
         // Убираем дубли иконок: чемпион может попасть в обе роли связки
         // (например, и контроль, и бёрст) — в карточке он должен быть один раз.
