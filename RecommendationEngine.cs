@@ -35,7 +35,8 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_VULN     = 2.0; // штраф за стак одной уязвимости в команде
     private const double W_EXPLOIT  = 1.0; // бонус за наказание вынужденного предмета врага
     private const double W_STRUCT   = 1.2; // структурная синергия джангл↔саппорт
-    private const double W_BOTLANE  = 1.5; // контрпик против вражеского дуо на боте (2v2)
+    private const double W_BOTLANE      = 1.5; // контрпик против вражеского дуо на боте (2v2)
+    private const double W_BOTLANE_BOTH = 1.8; // когда виден весь вражеский бот (адк+сапп)
 
     // Веса рекомендации банов.
     private const double W_BAN_META    = 1.0; // сила чемпиона в патче (WR)
@@ -270,6 +271,10 @@ public sealed class RecommendationEngine : IDisposable
         var enemyDuoId = duoRole == null ? 0 : state.TheirTeam
             .Where(p => p.EffectiveChampionId != 0 && LcuToDbRole(p.Position) == duoRole)
             .Select(p => p.EffectiveChampionId).FirstOrDefault();
+        // Если виден ВЕСЬ вражеский бот (и прямой оппонент, и дуо) — даём боту
+        // чуть больший вес: пик можно подогнать под известный 2v2.
+        var wBotlane = (duoRole != null && enemyDuoId != 0 && directOppId != 0)
+            ? W_BOTLANE_BOTH : W_BOTLANE;
 
         // Динамический вес синергии: без информации о врагах синергия с союзниками
         // важнее, но НЕ настолько, чтобы перебить сильный базовый пик шумной парной
@@ -366,7 +371,7 @@ public sealed class RecommendationEngine : IDisposable
                 var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + W_BOTLANE * botlaneDelta;
+                            + wBotlane * botlaneDelta;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();
