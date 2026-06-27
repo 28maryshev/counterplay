@@ -37,6 +37,9 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_STRUCT   = 1.2; // структурная синергия джангл↔саппорт
     private const double W_BOTLANE      = 1.5; // контрпик против вражеского дуо на боте (2v2)
     private const double W_BOTLANE_BOTH = 1.8; // когда виден весь вражеский бот (адк+сапп)
+    // Порог включения бот-матчапов: сумма игр в botlane_matchup. ~20k записей —
+    // это примерно столько же матчей с собранной бот-статистикой (по ~1 на пару).
+    private const double BOTLANE_MIN_GAMES = 20000;
 
     // Веса рекомендации банов.
     private const double W_BAN_META    = 1.0; // сила чемпиона в патче (WR)
@@ -123,6 +126,7 @@ public sealed class RecommendationEngine : IDisposable
 
     private readonly SqliteConnection _db;
     private readonly string _p1, _p2, _p3; // последние 3 патча (могут совпадать если патчей меньше)
+    private readonly bool _botlaneReady;   // достаточно ли бот-данных, чтобы их учитывать
 
     public string TierBucket  { get; }
     public string PatchDisplay { get; } // "16.12, 16.11, 16.10" для вывода
@@ -136,6 +140,24 @@ public sealed class RecommendationEngine : IDisposable
         _p1 = patches.Length > 0 ? patches[0] : "0.0";
         _p2 = patches.Length > 1 ? patches[1] : _p1;
         _p3 = patches.Length > 2 ? patches[2] : _p2;
+
+        // Бот-матчапы (#4) включаем только когда накоплено достаточно бот-данных.
+        // Считаем по объёму записей botlane_matchup, а НЕ по общему числу матчей:
+        // старые матчи бот-статистику не содержат, их учитывать нельзя.
+        _botlaneReady = BotlaneTotalGames(db) >= BOTLANE_MIN_GAMES;
+    }
+
+    // Сумма игр в botlane_matchup (0, если таблицы нет — старая база).
+    private static double BotlaneTotalGames(SqliteConnection db)
+    {
+        try
+        {
+            var cmd = db.CreateCommand();
+            cmd.CommandText = "SELECT COALESCE(SUM(games),0) FROM botlane_matchup";
+            var r = cmd.ExecuteScalar();
+            return r is null or DBNull ? 0 : Convert.ToDouble(r);
+        }
+        catch { return 0; }
     }
 
     // Порядок фолбэка: если в базе нет данных для нужного бакета, берём ближайший.
@@ -360,7 +382,7 @@ public sealed class RecommendationEngine : IDisposable
                 draftReasons.AddRange(structReasons);
 
                 // Бот 2v2: матчап против вражеского дуо-партнёра (кросс-роль).
-                var (btg, btw)   = enemyDuoId != 0 && duoRole != null
+                var (btg, btw)   = _botlaneReady && enemyDuoId != 0 && duoRole != null
                     ? RawBotlane(champId, myRole, enemyDuoId, duoRole) : (0.0, 0.0);
                 var botlaneDelta = btg > 0 ? Delta(btg, btw, K_PAIR) : 0.0;
                 if (botlaneDelta >= 1.0)
