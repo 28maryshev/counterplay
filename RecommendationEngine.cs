@@ -35,11 +35,13 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_VULN     = 2.0; // штраф за стак одной уязвимости в команде
     private const double W_EXPLOIT  = 1.0; // бонус за наказание вынужденного предмета врага
     private const double W_STRUCT   = 1.2; // структурная синергия джангл↔саппорт
+    private const double W_BOTLANE  = 1.5; // контрпик против вражеского дуо на боте (2v2)
 
     // Веса рекомендации банов.
     private const double W_BAN_META    = 1.0; // сила чемпиона в патче (WR)
     private const double W_BAN_POP     = 1.0; // популярность (часто пикается)
-    private const double W_BAN_COUNTER = 1.5; // насколько контрит твой пул
+    private const double W_BAN_COUNTER = 2.0; // насколько контрит твой пул (усилено)
+    private const double W_BAN_ALLY    = 1.3; // контрит уже показанный пик союзника
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -261,6 +263,14 @@ public sealed class RecommendationEngine : IDisposable
             .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
 
+        // Бот — это 2v2: при адк/саппорте контрим и вражеского дуо-партнёра.
+        // Пример: вражеский Эзреаль (адк) контрит Блицкранга (саппорт) — он сблинкуется
+        // с хука, поэтому Блиц получит штраф против такого бота.
+        var duoRole = myRole == "adc" ? "support" : myRole == "support" ? "adc" : null;
+        var enemyDuoId = duoRole == null ? 0 : state.TheirTeam
+            .Where(p => p.EffectiveChampionId != 0 && LcuToDbRole(p.Position) == duoRole)
+            .Select(p => p.EffectiveChampionId).FirstOrDefault();
+
         // Динамический вес синергии: без информации о врагах синергия с союзниками
         // важнее, но НЕ настолько, чтобы перебить сильный базовый пик шумной парной
         // статистикой (потолок 1.9, не полный W_DIRECT=2.5) — иначе чемпион на
@@ -344,9 +354,19 @@ public sealed class RecommendationEngine : IDisposable
                 var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId);
                 draftReasons.AddRange(structReasons);
 
+                // Бот 2v2: матчап против вражеского дуо-партнёра (кросс-роль).
+                var (btg, btw)   = enemyDuoId != 0 && duoRole != null
+                    ? RawBotlane(champId, myRole, enemyDuoId, duoRole) : (0.0, 0.0);
+                var botlaneDelta = btg > 0 ? Delta(btg, btw, K_PAIR) : 0.0;
+                if (botlaneDelta >= 1.0)
+                    draftReasons.Add(Loc.T("reason.botlaneGood", DataDragon.Name(enemyDuoId)));
+                else if (botlaneDelta <= -2.0)
+                    draftReasons.Add(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId)));
+
                 var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
-                            - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus;
+                            - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
+                            + W_BOTLANE * botlaneDelta;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();
@@ -380,34 +400,72 @@ public sealed class RecommendationEngine : IDisposable
         var myMains = Mastery
             .Where(kv => stats.ContainsKey(kv.Key))
             .OrderByDescending(kv => kv.Value)
-            .Take(3).Select(kv => kv.Key).ToList();
+            .Take(5).Select(kv => kv.Key).ToList();
 
-        return stats.Keys
-            .Where(id => !taken.Contains(id))
-            .Select(x =>
+        var scores  = new Dictionary<int, double>();
+        var reasons = new Dictionary<int, List<string>>();
+        void AddReason(int id, string r)
+        {
+            if (!reasons.TryGetValue(id, out var l)) reasons[id] = l = [];
+            if (!l.Contains(r)) l.Add(r);
+        }
+
+        // 1. Сила в патче + популярность + контр-пики моего пула (кандидаты моей роли).
+        foreach (var x in stats.Keys)
+        {
+            if (taken.Contains(x)) continue;
+            var (g, w) = stats[x];
+            var metaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100 * (g / (g + BASE_CONF));
+            var pop    = maxGames > 0 ? g / maxGames : 0;
+
+            // Насколько x бьёт мой пул: берём САМЫЙ контрящий мейн (не среднее) —
+            // чтобы поймать «против Соны/Сораки стабильно выигрывает Леона».
+            int beatMain = 0; double counterMe = 0;
+            foreach (var m in myMains)
             {
-                var (g, w) = stats[x];
-                // Сила в патче с темпером по выборке (мало игр → ближе к 50%).
-                var metaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100 * (g / (g + BASE_CONF));
-                var pop    = maxGames > 0 ? g / maxGames : 0;             // популярность 0..1
-                // x бьёт мои пики: -Delta(мой мейн vs x) усреднённо по мейнам.
-                var counterMe = myMains.Count > 0
-                    ? myMains.Average(m => { var (mg, mw) = RawMatchup(m, myRole, x); return -Delta(mg, mw, K_PAIR); })
-                    : 0.0;
+                var (mg, mw) = RawMatchup(m, myRole, x);
+                if (mg <= 0) continue;
+                var s = -Delta(mg, mw, K_PAIR);
+                if (s > counterMe) { counterMe = s; beatMain = m; }
+            }
 
-                var score = W_BAN_META * metaWr + W_BAN_POP * (pop * 10) + W_BAN_COUNTER * counterMe;
+            var score = W_BAN_META * metaWr + W_BAN_POP * (pop * 10) + W_BAN_COUNTER * counterMe;
+            if (score <= 0) continue;
+            scores[x] = score;
 
-                var reasons = new List<string>();
-                if (counterMe >= 2.0 && myMains.Count > 0)
-                    reasons.Add(Loc.T("reason.countersPool", DataDragon.Name(myMains[0])));
-                if (metaWr >= 1.5) reasons.Add(Loc.T("reason.strongPatch", $"{50 + metaWr:F1}"));
-                if (pop >= 0.6)    reasons.Add(Loc.T("reason.oftenPicked"));
-                if (reasons.Count == 0) reasons.Add(Loc.T("reason.notablePick"));
+            if (counterMe >= 1.5 && beatMain != 0)
+                AddReason(x, Loc.T("reason.countersPool", DataDragon.Name(beatMain)));
+            if (metaWr >= 1.5) AddReason(x, Loc.T("reason.strongPatch", $"{50 + metaWr:F1}"));
+            if (pop >= 0.6)    AddReason(x, Loc.T("reason.oftenPicked"));
+        }
 
-                return new BanRec(x, score, [.. reasons]);
-            })
-            .OrderByDescending(b => b.Score)
+        // 2. Защита союзников: банить тех, кто контрит уже показанные пики союзников.
+        foreach (var ally in state.MyTeam)
+        {
+            var aid = ally.EffectiveChampionId;
+            if (aid == 0 || ally.IsLocalPlayer) continue;
+            var aRole = LcuToDbRole(ally.Position);
+            foreach (var c in TopCounters(aid, string.IsNullOrEmpty(aRole) ? null : aRole, 4))
+            {
+                if (taken.Contains(c)) continue;
+                var (mg, mw) = RawMatchup(aid, aRole, c);
+                if (mg <= 0) continue;
+                var strength = -Delta(mg, mw, K_PAIR); // насколько c бьёт союзника
+                if (strength < 1.0) continue;
+                scores[c] = scores.GetValueOrDefault(c) + W_BAN_ALLY * strength;
+                AddReason(c, Loc.T("reason.countersAlly", DataDragon.Name(aid)));
+            }
+        }
+
+        return scores
+            .OrderByDescending(kv => kv.Value)
             .Take(top)
+            .Select(kv =>
+            {
+                var rs = reasons.GetValueOrDefault(kv.Key) ?? [];
+                if (rs.Count == 0) rs.Add(Loc.T("reason.notablePick"));
+                return new BanRec(kv.Key, kv.Value, [.. rs]);
+            })
             .ToList();
     }
 
@@ -565,6 +623,30 @@ public sealed class RecommendationEngine : IDisposable
         cmd.Parameters.AddWithValue("@p2", _p2);
         cmd.Parameters.AddWithValue("@p3", _p3);
         return RawAgg(cmd);
+    }
+
+    // Кросс-ролевой матчап на боте: мой чемпион (role) против вражеского дуо-партнёра
+    // (vsRole). Защищено try/catch — в старых базах таблицы может не быть.
+    private (double g, double w) RawBotlane(int champId, string role, int vsId, string vsRole)
+    {
+        try
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = @"
+                SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM botlane_matchup
+                WHERE champion_id=@c AND role=@r AND vs_champion_id=@v AND vs_role=@vr
+                  AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
+            cmd.Parameters.AddWithValue("@c",  champId);
+            cmd.Parameters.AddWithValue("@r",  role);
+            cmd.Parameters.AddWithValue("@v",  vsId);
+            cmd.Parameters.AddWithValue("@vr", vsRole);
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+            return RawAgg(cmd);
+        }
+        catch { return (0, 0); }
     }
 
     // Сырые (games, wins) синергии. Данные крайне редки, поэтому:

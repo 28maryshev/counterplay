@@ -117,7 +117,8 @@ public partial class OverlayWindow : Window
 
     private DispatcherTimer? _followTimer;
     private RECT _lastClientRect;
-    private bool _followHidden; // в трей убрал именно фолловер (клиент свёрнут)
+    private bool _followHidden; // в трей убрал именно фолловер (клиент свёрнут/закрыт)
+    private bool _clientSeen;   // клиент хоть раз был найден в этой сессии
 
     // Находит окно клиента (RCLIENT) даже свёрнутым — без фильтра по размеру.
     private static bool TryFindClientWindow(out IntPtr hwnd)
@@ -151,7 +152,19 @@ public partial class OverlayWindow : Window
 
     private void FollowClientWindow()
     {
-        if (!TryFindClientWindow(out var h)) return; // клиент закрыт — не трогаем
+        if (!TryFindClientWindow(out var h))
+        {
+            // Клиент закрыт. Если он уже был открыт в этой сессии (человек наигрался
+            // и закрыл лигу) — сворачиваем оверлей в трей. До первого появления
+            // клиента (старт приложения) — не трогаем, показываем экран ожидания.
+            if (_clientSeen && !_inTray && !_userHidden)
+            {
+                _followHidden = true;
+                HideToTray();
+            }
+            return;
+        }
+        _clientSeen = true;
 
         if (IsIconic(h))
         {

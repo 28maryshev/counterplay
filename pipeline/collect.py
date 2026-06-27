@@ -119,6 +119,20 @@ def init_db(path: str) -> sqlite3.Connection:
             wins        INTEGER DEFAULT 0,
             PRIMARY KEY (champion_id, role, ally_id, ally_role, tier_bucket, patch)
         );
+
+        -- Кросс-ролевой матчап на боте: адк vs вражеский саппорт и наоборот.
+        -- (champion_id на role) против (vs_champion_id на vs_role).
+        CREATE TABLE IF NOT EXISTS botlane_matchup (
+            champion_id    INTEGER,
+            role           TEXT,
+            vs_champion_id INTEGER,
+            vs_role        TEXT,
+            tier_bucket    TEXT,
+            patch          TEXT,
+            games          INTEGER DEFAULT 0,
+            wins           INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, vs_champion_id, vs_role, tier_bucket, patch)
+        );
     """)
     con.commit()
     return con
@@ -202,6 +216,15 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
                     upsert(con, 'synergy',
                            ['champion_id', 'role', 'ally_id', 'ally_role', 'tier_bucket', 'patch'],
                            [champ, role, ally['championId'], ally_role, tier_bucket, patch], win)
+
+            # botlane matchup — кросс-роль на боте: адк vs вражеский саппорт и наоборот
+            cross_role = 'support' if role == 'adc' else 'adc' if role == 'support' else None
+            if cross_role:
+                cross_opp = teams[side_b].get(cross_role)
+                if cross_opp:
+                    upsert(con, 'botlane_matchup',
+                           ['champion_id', 'role', 'vs_champion_id', 'vs_role', 'tier_bucket', 'patch'],
+                           [champ, role, cross_opp['championId'], cross_role, tier_bucket, patch], win)
 
     mark_processed(con, match['metadata']['matchId'])
 

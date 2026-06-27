@@ -35,6 +35,10 @@
     "minimize": "Minimize",
     "expand": "Expand"
   },
+  "tray": {
+    "show": "Show",
+    "exit": "Exit"
+  },
   "status": {
     "loadingChamps": "Loading champion data…",
     "loadingIcons": "Loading champion icons…",
@@ -208,6 +212,9 @@
     "dontStack": "Don't stack {0} — {1}.",
     "exploit": "Enemy stacked {0} — you punish their forced item.",
     "countersPool": "Counters your pool (beats {0})",
+    "countersAlly": "Counters your ally {0}",
+    "botlaneGood": "Good against the enemy bot ({0})",
+    "botlaneBad": "Struggles against the enemy bot ({0})",
     "strongPatch": "Strong this patch — WR {0}%",
     "oftenPicked": "Often picked — a common opponent",
     "notablePick": "Notable pick this patch",

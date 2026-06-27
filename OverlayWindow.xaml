@@ -365,9 +365,15 @@
           <StackPanel Grid.Column="1" Orientation="Horizontal">
             <ComboBox x:Name="LangBox" Width="118" Height="26" Margin="0,0,8,0"
                       Style="{StaticResource DarkCombo}"
-                      DisplayMemberPath="Native" SelectedValuePath="Code"
+                      SelectedValuePath="Code"
                       SelectionChanged="OnLangChanged"
-                      ToolTip="Язык / Language"/>
+                      ToolTip="Язык / Language">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Native}"/>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
             <Button x:Name="PinBtn" Content="📌" Click="OnPin"
                     Background="Transparent" BorderThickness="0"
                     Foreground="#C89B3C" FontSize="14" Padding="6,0"
