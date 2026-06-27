@@ -19,6 +19,8 @@ class Program
 
         AttachConsole(-1); // -1 = ATTACH_PARENT_PROCESS
 
+        Loc.Init(); // язык интерфейса: сохранённый выбор → язык Windows → English
+
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
@@ -59,10 +61,10 @@ class Program
         await CheckForUpdatesAsync(overlay, ct);
 
         // Data Dragon + иконки грузим один раз при старте
-        overlay.ShowStatus("Загружаю данные чемпионов…");
-        await DataDragon.LoadAsync(ct);
+        overlay.ShowStatus(Loc.T("status.loadingChamps"));
+        await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
 
-        overlay.ShowStatus("Загружаю иконки чемпионов…");
+        overlay.ShowStatus(Loc.T("status.loadingIcons"));
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
 
@@ -72,7 +74,7 @@ class Program
         // Внешний цикл — переподключение при перезапуске клиента
         while (!ct.IsCancellationRequested)
         {
-            overlay.ShowStatus("Жду запуска League of Legends…");
+            overlay.ShowStatus(Loc.T("status.waitingClient"));
             var creds = await LockfileReader.WaitForAsync(lockfilePath, ct);
 
             try
@@ -89,7 +91,7 @@ class Program
             {
                 // Клиент закрылся (WebSocket оборван без рукопожатия), lockfile устарел
                 // или сеть моргнула — НЕ падаем, ждём клиент снова.
-                overlay.ShowStatus("Соединение потеряно, жду перезапуска клиента…");
+                overlay.ShowStatus(Loc.T("status.connLost"));
                 try { await Task.Delay(3000, ct); } catch (OperationCanceledException) { return; }
             }
         }
@@ -102,7 +104,7 @@ class Program
         using var http = new LcuHttpClient(creds);
 
         // Ждём пока LCU реально поднимется (lockfile появляется раньше первых ответов)
-        overlay.ShowStatus("LCU запускается…");
+        overlay.ShowStatus(Loc.T("status.lcuStarting"));
         while (true)
         {
             try
@@ -125,11 +127,11 @@ class Program
         {
             engine = RecommendationEngine.Create(dbPath, tierBucket);
             engine.Mastery = mastery;
-            overlay.ShowReady($"Готов · {engine.TierBucket} · {engine.PatchDisplay}");
+            overlay.ShowReady(Loc.T("status.readyLine", engine.TierBucket, engine.PatchDisplay));
         }
         else
         {
-            overlay.ShowStatus("data.db не найден — запусти pipeline/collect.py");
+            overlay.ShowStatus(Loc.T("status.noDb"));
         }
 
         // Уже в чемп-выборе? — сразу покажем рекомендации
@@ -168,7 +170,7 @@ class Program
                         overlay.UpdateRecommendations(null, null);
                         // Меню/лобби/конец игры — программа простаивает: показываем
                         // сноску о программе и карусель советов вместо «Готов».
-                        overlay.ShowReady($"Готов · фаза: {phase}");
+                        overlay.ShowReady(Loc.T("status.readyPhase", phase));
                         lastHash = "";
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
@@ -184,7 +186,7 @@ class Program
                         // GameStart оставит скрытым). Иначе при входе в игру окно всплывёт.
                         hideCts?.Cancel(); hideCts = null;
                         overlay.UpdateRecommendations(null, null);
-                        overlay.ShowStatus("Жду следующего чемп-выбора…"); // подавится, если в трее
+                        overlay.ShowStatus(Loc.T("status.waitNextDraft")); // подавится, если в трее
                         lastHash = "";
                     }
                     else
@@ -248,7 +250,7 @@ class Program
             var mgr = new UpdateManager(new GithubSource("https://github.com/28maryshev/counterplay", null, false));
             if (!mgr.IsInstalled) return; // запущено из dev-сборки — не обновляемся
 
-            overlay.ShowStatus("Проверка обновлений…");
+            overlay.ShowStatus(Loc.T("status.checkingUpdates"));
             var info = await mgr.CheckForUpdatesAsync();
             if (info == null) return; // актуальная версия
 
@@ -268,11 +270,11 @@ class Program
                     lastBytes = bytes; lastT = now;
                 }
                 var speed = bps > 0 ? $" · {DataDb.FormatSpeed(bps)}" : "";
-                overlay.ShowProgress($"Загружаю обновление… {pct}%{speed}", frac);
+                overlay.ShowProgress(Loc.T("status.downloadingUpdate", pct, speed), frac);
             });
             // Скачивание завершено — Velopack дальше распаковывает/проверяет молча
             // (тот самый «застрявший» хвост). Показываем неопределённую стадию.
-            overlay.ShowProgressBusy("Применяю обновление, перезапуск…");
+            overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
             // Применяем и перезапускаемся в новую версию.
             mgr.ApplyUpdatesAndRestart(info);
         }

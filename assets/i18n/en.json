@@ -1,0 +1,90 @@
+{
+  "tips": [
+    "A lane counter against your direct opponent matters more than a champion's overall win rate.",
+    "Don't stack one damage type: mix physical and magic, or one enemy item shuts down half your team.",
+    "Your team needs a frontline — someone has to start fights and absorb damage.",
+    "Pick comfort: a champion you know is usually stronger than an unfamiliar counter.",
+    "Against poke you need engage and mobility; against dive — peel and cc for your carry.",
+    "Last pick is an advantage: tailor it to the enemy comp already revealed.",
+    "Bans remove either the strongest in the patch or whatever is hardest for you.",
+    "Synergy wins teamfights: lockdown+burst catch a target, engage+peel keep the carry alive."
+  ],
+  "metric": {
+    "base": "Win rate this patch",
+    "direct": "Vs your opponent",
+    "style": "Vs their style",
+    "synergy": "Synergy with allies"
+  },
+  "team": {
+    "myTeam": "YOUR TEAM",
+    "enemies": "ENEMIES",
+    "combos": "TEAM COMBOS",
+    "enemyCombos": "ENEMY COMBOS"
+  },
+  "ready": {
+    "tipLabel": "PICK TIP",
+    "f1head": "Draft assistant.",
+    "f1body": " Computes counters against enemies, synergy with allies and who to ban — from real current-patch stats. Updates on every hover.",
+    "f2head": "✊ ✌ ✋ Composition type.",
+    "f2body": " Front-to-back ✊ beats dive ✌, dive beats pick-poke ✋, and pick-poke beats front-to-back. Pick a comp that counters the enemy.",
+    "f3head": "Tuned to you.",
+    "f3body": " Factors in your mastery — comfort champions first, no blind counter-picks."
+  },
+  "tip": {
+    "pin": "Pin to the right edge of the client",
+    "minimize": "Minimize",
+    "expand": "Expand"
+  },
+  "status": {
+    "loadingChamps": "Loading champion data…",
+    "loadingIcons": "Loading champion icons…",
+    "loadingIconsN": "Loading icons… {0}/{1}",
+    "waitingClient": "Waiting for League of Legends…",
+    "lcuStarting": "LCU is starting…",
+    "connLost": "Connection lost, waiting for the client to restart…",
+    "noDb": "data.db not found — run pipeline/collect.py",
+    "waitNextDraft": "Waiting for the next champ select…",
+    "checkingUpdates": "Checking for updates…",
+    "downloadingUpdate": "Downloading update… {0}%{1}",
+    "applyingUpdate": "Applying update, restarting…",
+    "readyLine": "Ready · {0} · {1}",
+    "readyPhase": "Ready · phase: {0}",
+    "banPhase": "Ban phase…",
+    "waitDraft": "Waiting for champ select…",
+    "waitClient": "Waiting for the client…",
+    "updatingDb": "Updating database…",
+    "downloadingDb": "Downloading database…"
+  },
+  "draft": {
+    "roleByTeam": "Role: {0} — by team composition:",
+    "roleCounter": "Role: {0} — counter + synergy:",
+    "roleBans": "Role: {0} — who to ban:",
+    "style": "Style: {0}",
+    "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked."
+  },
+  "combo": {
+    "howToPlay": "HOW TO PLAY",
+    "danger": "DANGER"
+  },
+  "roles": {
+    "top": "TOP",
+    "jungle": "JUNGLE",
+    "mid": "MID",
+    "adc": "BOT",
+    "support": "SUPPORT",
+    "unknown": "—"
+  },
+  "arch": {
+    "frontToBack": "Front-to-back",
+    "dive": "Dive",
+    "pickPoke": "Pick/poke"
+  },
+  "slot": {
+    "counters": "COUNTERS",
+    "synergy": "SYNERGY",
+    "youPick": "YOU PICK"
+  },
+  "badge": {
+    "ban": "BAN"
+  }
+}

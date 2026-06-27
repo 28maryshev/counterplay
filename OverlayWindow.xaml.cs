@@ -210,8 +210,8 @@ public partial class OverlayWindow : Window
         _tray.DoubleClick += (_, _) => RestoreFromTray(force: true);
 
         var menu = new System.Windows.Forms.ContextMenuStrip();
-        menu.Items.Add("Показать", null, (_, _) => RestoreFromTray(force: true));
-        menu.Items.Add("Выход",    null, (_, _) => System.Windows.Application.Current.Shutdown());
+        menu.Items.Add(Loc.T("tray.show"), null, (_, _) => RestoreFromTray(force: true));
+        menu.Items.Add(Loc.T("tray.exit"), null, (_, _) => System.Windows.Application.Current.Shutdown());
         _tray.ContextMenuStrip = menu;
 
         Closed += (_, _) => { _tray?.Dispose(); _tray = null; };
@@ -288,6 +288,42 @@ public partial class OverlayWindow : Window
 
         // Слежение за окном клиента (свернуть/развернуть/переместить).
         StartWindowFollow();
+
+        // Селектор языка: заполняем и выставляем текущий (без срабатывания обработчика).
+        _langInit = true;
+        LangBox.ItemsSource   = Loc.Languages;
+        LangBox.SelectedValue = Loc.Current;
+        _langInit = false;
+        Loc.LanguageChanged += OnLanguageChanged;
+    }
+
+    private bool _langInit;
+
+    // Ручная смена языка из селектора.
+    private void OnLangChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_langInit) return;
+        if (LangBox.SelectedValue is string code) Loc.SetLanguage(code);
+    }
+
+    // Язык сменился: обновляем UI сразу, имена чемпионов — после дозагрузки Data Dragon.
+    private void OnLanguageChanged()
+    {
+        _tipIdx = -1;                 // карусель советов на новом языке с начала
+        RenderCurrentState();         // мгновенно перерисовываем интерфейс
+        if (ReadyInfo.Visibility == Visibility.Visible) StartTips();
+
+        _ = ReloadNamesAsync();       // имена чемпионов под новую локаль
+    }
+
+    private async Task ReloadNamesAsync()
+    {
+        try
+        {
+            await DataDragon.LoadAsync(Loc.DDragonLocale, CancellationToken.None);
+            await Dispatcher.InvokeAsync(RenderCurrentState);
+        }
+        catch { /* офлайн — имена обновятся при следующей загрузке */ }
     }
 
     private void OnDrag(object sender, MouseButtonEventArgs e)
@@ -323,7 +359,7 @@ public partial class OverlayWindow : Window
             SizeToContent  = SizeToContent.Height; // компактный — высота по контенту
             Width          = CompactW;
             ToggleBtn.Content = "⊞";
-            ToggleBtn.ToolTip = "Развернуть";
+            ToggleBtn.ToolTip = Loc.T("tip.expand");
         }
         else
         {
@@ -334,7 +370,7 @@ public partial class OverlayWindow : Window
             MinWidth       = MinW;
             MinHeight      = MinH;
             ToggleBtn.Content = "⊟";
-            ToggleBtn.ToolTip = "Свернуть";
+            ToggleBtn.ToolTip = Loc.T("tip.minimize");
         }
 
         RenderCurrentState();
@@ -417,19 +453,10 @@ public partial class OverlayWindow : Window
         }
     }
 
-    // ── Карусель советов по пику (поле фиксированного размера, смена раз в 15 с) ──
+    // ── Карусель советов по пику (поле фиксированного размера, смена раз в 40 с) ──
+    // Тексты — из локализации (assets/i18n/{lang}.json, ключ "tips").
 
-    private static readonly string[] _tips =
-    {
-        "Контрпик на линии против прямого оппонента важнее общего винрейта чемпиона.",
-        "Не стакай один тип урона: миксуй физический и магический, иначе один предмет врага гасит пол-команды.",
-        "Команде нужен фронтлайн — кто-то должен начинать драки и принимать урон на себя.",
-        "Пикай в комфорт: знакомый чемпион обычно сильнее непривычного контрпика.",
-        "Против поука нужны заход и мобильность; против дайва — контроль и пил для своего кэрри.",
-        "Последний пик — преимущество: подбирай под уже открытый состав врага.",
-        "Бан убирает либо самых сильных в патче, либо то, против чего тебе тяжелее всего.",
-        "Связки решают тимфайты: контроль+бёрст ловят одиночку, заход+пил держат кэрри живым.",
-    };
+    private static string[] Tips => Loc.TArray("tips");
 
     private int _tipIdx = -1;
     private System.Windows.Threading.DispatcherTimer? _tipTimer;
@@ -450,10 +477,10 @@ public partial class OverlayWindow : Window
             { Interval = TimeSpan.FromSeconds(40) };
             _tipTimer.Tick += (_, _) => NextTip();
         }
-        if (_tipIdx < 0)
+        if (_tipIdx < 0 && Tips.Length > 0)
         {
             // случайный стартовый совет — чтобы не всегда первый
-            _tipIdx = new Random().Next(_tips.Length) - 1;
+            _tipIdx = new Random().Next(Tips.Length) - 1;
             NextTip();
         }
         _tipTimer.Start();
@@ -461,8 +488,10 @@ public partial class OverlayWindow : Window
 
     private void NextTip()
     {
-        _tipIdx = (_tipIdx + 1) % _tips.Length;
-        TipText.Text = _tips[_tipIdx];
+        var tips = Tips;
+        if (tips.Length == 0) return;
+        _tipIdx = (_tipIdx + 1) % tips.Length;
+        TipText.Text = tips[_tipIdx];
         // мягкое проявление при смене
         TipText.BeginAnimation(OpacityProperty,
             new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0,
@@ -552,7 +581,7 @@ public partial class OverlayWindow : Window
         {
             if (_lastBans is null || _lastBans.Count == 0)
             {
-                IdleStatusText.Text = "Фаза банов…";
+                IdleStatusText.Text = Loc.T("status.banPhase");
                 ShowIdle();
                 return;
             }
@@ -577,25 +606,25 @@ public partial class OverlayWindow : Window
 
         if (recs == null || recs.Count == 0)
         {
-            IdleStatusText.Text = "Жду чемп-выбор…";
+            IdleStatusText.Text = Loc.T("status.waitDraft");
             ShowIdle();
             return;
         }
 
         RestoreModeSize();
 
-        var roleLabel    = draft?.MyPosition is { Length: > 0 } pos
-            ? RecommendationEngine.LcuToDbRole(pos) : "—";
+        var dbRole       = draft?.MyPosition is { Length: > 0 } pos
+            ? RecommendationEngine.LcuToDbRole(pos) : "";
+        var role         = RoleNameDb(dbRole);
         var knownEnemies = draft?.TheirTeam.Count(p => p.EffectiveChampionId != 0) ?? 0;
         StatusText.Text  = knownEnemies == 0
-            ? $"Роль: {roleLabel} — по составу команды:"
-            : $"Роль: {roleLabel} — контрпик + синергия:";
+            ? Loc.T("draft.roleByTeam", role)
+            : Loc.T("draft.roleCounter", role);
 
         // Подсказка по порядку пика: пикаешь раньше врагов → риск контрпика.
         if (draft?.ExposedToCounter == true)
         {
-            PickHint.Text = "⚠ Пикаешь раньше врагов — возможен контрпик. Возьми нейтральный пик " +
-                            "или своп с тем, чей оппонент уже залочен.";
+            PickHint.Text = Loc.T("draft.pickHint");
             PickHint.Visibility = Visibility.Visible;
         }
         else
@@ -626,15 +655,14 @@ public partial class OverlayWindow : Window
     private void RenderBansCompact(IReadOnlyList<BanRec> bans, DraftState draft)
     {
         PickHint.Visibility = Visibility.Collapsed;
-        var roleLabel = draft.MyPosition is { Length: > 0 } pos
-            ? RecommendationEngine.LcuToDbRole(pos) : "—";
-        StatusText.Text = $"Роль: {roleLabel} — кого банить:";
+        StatusText.Text = Loc.T("draft.roleBans", RoleNameDb(
+            draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : ""));
 
         RecList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
         {
             Rank       = $"{i + 1}.",
             Name       = DataDragon.Name(b.ChampionId),
-            Score      = "БАН",
+            Score      = Loc.T("badge.ban"),
             ScoreColor = "#E0584F",
             Reason     = b.Reasons.FirstOrDefault() ?? "",
             Icon       = IconCache.Get(b.ChampionId),
@@ -703,9 +731,8 @@ public partial class OverlayWindow : Window
     // Полный вид для фазы банов: тот же раздел (команды + центр), но в центре баны.
     private void RenderBansFull(IReadOnlyList<BanRec> bans, DraftState draft)
     {
-        var roleLabel = draft.MyPosition is { Length: > 0 } pos
-            ? RecommendationEngine.LcuToDbRole(pos) : "—";
-        StatusText.Text     = $"Роль: {roleLabel} — кого банить:";
+        StatusText.Text     = Loc.T("draft.roleBans", RoleNameDb(
+            draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : ""));
         PickHint.Visibility = Visibility.Collapsed;
 
         BanFullList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
@@ -734,8 +761,8 @@ public partial class OverlayWindow : Window
                                       .Select(p => p.EffectiveChampionId).ToList();
         var myStyle    = ChampionTraits.StyleLabel(allyIds);
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
-        MyTeamStyle.Text    = myStyle.Length    > 0 ? $"Стиль: {myStyle}"    : "";
-        EnemyTeamStyle.Text = enemyStyle.Length > 0 ? $"Стиль: {enemyStyle}" : "";
+        MyTeamStyle.Text    = myStyle.Length    > 0 ? Loc.T("draft.style", myStyle)    : "";
+        EnemyTeamStyle.Text = enemyStyle.Length > 0 ? Loc.T("draft.style", enemyStyle) : "";
 
         var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
         var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
@@ -772,7 +799,7 @@ public partial class OverlayWindow : Window
             Icons       = co.ChampionIds.Select(IconCache.Get).Where(x => x != null).Cast<ImageSource>().ToList(),
             Description = co.Description,
             Tip         = co.Tip,
-            TipLabel    = ally ? "КАК ИГРАТЬ" : "ОПАСНОСТЬ",
+            TipLabel    = ally ? Loc.T("combo.howToPlay") : Loc.T("combo.danger"),
             AccentColor = ally ? "#C89B3C" : "#C84040",
             LineColor   = ComboColors[i % ComboColors.Length],
         }).ToList();
@@ -876,13 +903,13 @@ public partial class OverlayWindow : Window
                     var enemyRole = RecommendationEngine.LcuToDbRole(p.Position);
                     var ids = engine.TopCounters(champId, string.IsNullOrEmpty(enemyRole) ? null : enemyRole);
                     sideIcons = ids.Select(id => IconCache.Get(id)).Where(x => x != null).Cast<ImageSource>().ToList();
-                    if (sideIcons.Count > 0) sideLabel = "КОНТРЫ";
+                    if (sideIcons.Count > 0) sideLabel = Loc.T("slot.counters");
                 }
                 else if (!p.IsLocalPlayer)
                 {
                     var ids = engine.TopSynergies(champId, myRole);
                     sideIcons = ids.Select(id => IconCache.Get(id)).Where(x => x != null).Cast<ImageSource>().ToList();
-                    if (sideIcons.Count > 0) sideLabel = "СИНЕРГИЯ";
+                    if (sideIcons.Count > 0) sideLabel = Loc.T("slot.synergy");
                 }
             }
 
@@ -894,7 +921,7 @@ public partial class OverlayWindow : Window
                 Name        = hasChamp
                     ? (ally ? DataDragon.Name(champId).ToUpperInvariant() : $"ENEMY {i + 1}")
                     : "—",
-                Role        = hasChamp ? RoleRu(p.Position) : (isMe ? "ТЫ ВЫБИРАЕШЬ" : ""),
+                Role        = hasChamp ? RoleName(p.Position) : (isMe ? Loc.T("slot.youPick") : ""),
                 Icon        = hasChamp ? IconCache.Get(champId) : null,
                 // В пустом моём слоте показываем иконку роли
                 RoleIcon    = (isMe && !hasChamp) ? RoleIcons.Get(p.Position) : null,
@@ -924,15 +951,22 @@ public partial class OverlayWindow : Window
         Opacity     = 0.3,
     };
 
-    private static string RoleRu(string pos) => pos.ToLowerInvariant() switch
+    // Имя роли по позиции LCU (top/jungle/middle/bottom/utility) — локализовано.
+    private static string RoleName(string pos) => Loc.T(pos.ToLowerInvariant() switch
     {
-        "top"     => "ТОП",
-        "jungle"  => "ДЖУНГЛИ",
-        "middle"  => "МИД",
-        "bottom"  => "БОТ",
-        "utility" => "ПОДДЕРЖКА",
-        _         => pos.ToUpperInvariant(),
-    };
+        "top"     => "roles.top",
+        "jungle"  => "roles.jungle",
+        "middle"  => "roles.mid",
+        "bottom"  => "roles.adc",
+        "utility" => "roles.support",
+        _         => "roles.unknown",
+    });
+
+    // Имя роли по ключу БД (top/jungle/mid/adc/support) — локализовано.
+    private static string RoleNameDb(string dbRole) =>
+        string.IsNullOrEmpty(dbRole) || dbRole == "—"
+            ? Loc.T("roles.unknown")
+            : Loc.T($"roles.{dbRole}");
 
     // Ширина полоски показателя (трек ~226px). Дельта масштабируется так, что
     // сильные значения (≈+17пп синергии) почти заполняют полоску.
@@ -948,9 +982,9 @@ public partial class OverlayWindow : Window
     private static (string Glyph, string Color, string Tip) ArchBadge(int champId) =>
         ChampionTraits.ChampArch(champId) switch
         {
-            ChampionTraits.Arch.FrontToBack => ("✊", "#3D7EC4", "Фронт-ту-бэк"),
-            ChampionTraits.Arch.Dive        => ("✌", "#D85050", "Дайв"),
-            ChampionTraits.Arch.PickPoke    => ("✋", "#4CAE6A", "Пик/пок"),
+            ChampionTraits.Arch.FrontToBack => ("✊", "#3D7EC4", Loc.T("arch.frontToBack")),
+            ChampionTraits.Arch.Dive        => ("✌", "#D85050", Loc.T("arch.dive")),
+            ChampionTraits.Arch.PickPoke    => ("✋", "#4CAE6A", Loc.T("arch.pickPoke")),
             _                               => ("", "#888888", ""),
         };
 }

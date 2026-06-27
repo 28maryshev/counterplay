@@ -11,7 +11,8 @@ public static class DataDragon
 
     public static string Version => _version;
 
-    public static async Task LoadAsync(CancellationToken ct)
+    /// Загружает имена/иконки чемпионов. locale — локаль Data Dragon (ru_RU, en_US…).
+    public static async Task LoadAsync(string locale, CancellationToken ct)
     {
         try
         {
@@ -22,9 +23,9 @@ public static class DataDragon
             using var vDoc = JsonDocument.Parse(vJson);
             _version = vDoc.RootElement[0].GetString() ?? _version;
 
-            // Русская локаль: name = локализованное имя
+            // Локализованные имена чемпионов под выбранный язык интерфейса.
             var cJson = await http.GetStringAsync(
-                $"https://ddragon.leagueoflegends.com/cdn/{_version}/data/ru_RU/champion.json", ct);
+                $"https://ddragon.leagueoflegends.com/cdn/{_version}/data/{locale}/champion.json", ct);
             using var cDoc = JsonDocument.Parse(cJson);
             var data = cDoc.RootElement.GetProperty("data");
 

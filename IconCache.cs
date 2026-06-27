@@ -33,7 +33,7 @@ public static class IconCache
                 _bytes[kvp.Key] = bytes;
                 var n = Interlocked.Increment(ref done);
                 if (n % 20 == 0 || n == total)
-                    progress?.Invoke($"Загружаю иконки… {n}/{total}");
+                    progress?.Invoke(Loc.T("status.loadingIconsN", n, total));
             }
             catch { /* пропускаем отдельные ошибки */ }
             finally { sem.Release(); }

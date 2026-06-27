@@ -57,7 +57,7 @@ public static class DataDb
             // База есть и версия совпадает (или сервер недоступен) — ничего не делаем.
             if (haveDb && (remoteVer is null || remoteVer == localVer)) return;
 
-            var label = haveDb ? "Обновляю базу данных…" : "Скачиваю базу данных…";
+            var label = haveDb ? Loc.T("status.updatingDb") : Loc.T("status.downloadingDb");
             progress?.Invoke(label, 0);
             await DownloadAsync(label, progress, ct);
 

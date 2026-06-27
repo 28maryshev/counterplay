@@ -31,6 +31,11 @@
     <Resource Include="assets\fonts\Geist-Bold.ttf" />
   </ItemGroup>
 
+  <!-- Строки локализации интерфейса (en/ru/es/pt/de/fr/tr/ko) -->
+  <ItemGroup>
+    <EmbeddedResource Include="assets\i18n\*.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="Velopack" Version="1.2.0" />
