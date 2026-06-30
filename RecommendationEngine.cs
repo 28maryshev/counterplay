@@ -119,9 +119,13 @@ public sealed class RecommendationEngine : IDisposable
     // Минимум игр на роли суммарно по всем агрегируемым патчам.
     private const int MIN_GAMES = 30;
 
-    // Минимум игр для боковых подсказок (контры/синергия в панелях команд).
-    // Данные по парам очень разрежены (медиана ~2 игры), поэтому порог низкий.
-    private const int HINT_MIN_GAMES = 5;
+    // Боковые подсказки (контры у врагов / синергия у союзников) ранжируем по
+    // нижней границе Уилсона и показываем только при достаточной выборке. Иначе
+    // всплывал шум: пара на 10–15 играх со случайным перевесом выдавалась за
+    // «контру» (напр. Сион «контрил» Кейл на 16 играх, хотя реально проигрывает).
+    private const int    HINT_MIN_GAMES = 30;   // минимум совместных игр на пару
+    private const double HINT_MIN_EDGE  = 0.50; // показываем, только если LB Уилсона > 50%
+    private const double WILSON_Z       = 1.28; // ~80% односторонняя уверенность
 
     // Количество патчей для агрегации (берём последние N).
     private const int PATCH_WINDOW = 3;
@@ -725,6 +729,33 @@ public sealed class RecommendationEngine : IDisposable
     // Лаплас-дельта в процентных пунктах относительно 50%.
     private static double Delta(double g, double w, double k) => ((w + k / 2.0) / (g + k) - PRIOR) * 100;
 
+    // Нижняя граница доверительного интервала Уилсона для доли побед: штрафует
+    // малые выборки, поэтому редкие пары не всплывают как «контра»/«синергия».
+    private static double WilsonLower(double wins, double games)
+    {
+        if (games <= 0) return 0;
+        double p = wins / games, z = WILSON_Z, z2 = z * z;
+        double centre = p + z2 / (2 * games);
+        double margin = z * Math.Sqrt(p * (1 - p) / games + z2 / (4 * games * games));
+        return (centre - margin) / (1 + z2 / games);
+    }
+
+    // (champion_id, games, wins) → ранг по Уилсону, только уверенно выгодные пары.
+    // Команда уже отфильтрована по HINT_MIN_GAMES; пусто — ничего не показываем.
+    private static List<int> RankByWilson(SqliteCommand cmd, int top)
+    {
+        var scored = new List<(int Id, double Lb)>();
+        using (var rd = cmd.ExecuteReader())
+            while (rd.Read())
+            {
+                double g = Convert.ToDouble(rd.GetValue(1));
+                double w = Convert.ToDouble(rd.GetValue(2));
+                var lb = WilsonLower(w, g);
+                if (lb > HINT_MIN_EDGE) scored.Add((rd.GetInt32(0), lb));
+            }
+        return scored.OrderByDescending(x => x.Lb).Take(top).Select(x => x.Id).ToList();
+    }
+
     /// Топ N чемпионов той же роли, лучше всего контрящих данного врага.
     /// Если роль неизвестна — запрос по всем ролям.
     public IReadOnlyList<int> TopCounters(int enemyId, string? enemyRole = null, int top = 3)
@@ -734,31 +765,22 @@ public sealed class RecommendationEngine : IDisposable
         {
             var cmd = _db.CreateCommand();
             var roleFilter = string.IsNullOrEmpty(enemyRole) ? "" : " AND role = @r";
+            // По всем дивизионам сразу: данные по парам разрежены, фильтр по бакету
+            // добил бы выборку. Ранжируем/фильтруем по Уилсону в RankByWilson.
             cmd.CommandText = $@"
-                SELECT champion_id,
-                       SUM(wins + @k * @prior) * 1.0 / SUM(games + @k) AS wr
+                SELECT champion_id, SUM(games) AS g, SUM(wins) AS w
                 FROM   matchup
-                WHERE  vs_champion_id = @v AND tier_bucket = @t{roleFilter}
-                       AND patch IN (@p1, @p2, @p3)
+                WHERE  vs_champion_id = @v{roleFilter} AND patch IN (@p1, @p2, @p3)
                 GROUP  BY champion_id
-                HAVING SUM(games) >= @hint
-                ORDER  BY wr DESC
-                LIMIT  @top";
-            cmd.Parameters.AddWithValue("@v",     enemyId);
-            cmd.Parameters.AddWithValue("@hint",  HINT_MIN_GAMES);
-            cmd.Parameters.AddWithValue("@t",     TierBucket);
-            cmd.Parameters.AddWithValue("@p1",    _p1);
-            cmd.Parameters.AddWithValue("@p2",    _p2);
-            cmd.Parameters.AddWithValue("@p3",    _p3);
-            cmd.Parameters.AddWithValue("@k",     (double)K);
-            cmd.Parameters.AddWithValue("@prior", PRIOR);
-            cmd.Parameters.AddWithValue("@top",   top);
+                HAVING SUM(games) >= @min";
+            cmd.Parameters.AddWithValue("@v",   enemyId);
+            cmd.Parameters.AddWithValue("@min", HINT_MIN_GAMES);
+            cmd.Parameters.AddWithValue("@p1",  _p1);
+            cmd.Parameters.AddWithValue("@p2",  _p2);
+            cmd.Parameters.AddWithValue("@p3",  _p3);
             if (!string.IsNullOrEmpty(enemyRole))
                 cmd.Parameters.AddWithValue("@r", enemyRole);
-            var result = new List<int>();
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read()) result.Add(rd.GetInt32(0));
-            return result;
+            return RankByWilson(cmd, top);
         }
         catch { return []; }
     }
@@ -771,29 +793,18 @@ public sealed class RecommendationEngine : IDisposable
         {
             var cmd = _db.CreateCommand();
             cmd.CommandText = @"
-                SELECT champion_id,
-                       SUM(wins + @k * @prior) * 1.0 / SUM(games + @k) AS wr
+                SELECT champion_id, SUM(games) AS g, SUM(wins) AS w
                 FROM   synergy
-                WHERE  ally_id = @a AND role = @r AND tier_bucket = @t
-                       AND patch IN (@p1, @p2, @p3)
+                WHERE  ally_id = @a AND role = @r AND patch IN (@p1, @p2, @p3)
                 GROUP  BY champion_id
-                HAVING SUM(games) >= @hint
-                ORDER  BY wr DESC
-                LIMIT  @top";
-            cmd.Parameters.AddWithValue("@a",     allyId);
-            cmd.Parameters.AddWithValue("@hint",  HINT_MIN_GAMES);
-            cmd.Parameters.AddWithValue("@r",     myRole);
-            cmd.Parameters.AddWithValue("@t",     TierBucket);
-            cmd.Parameters.AddWithValue("@p1",    _p1);
-            cmd.Parameters.AddWithValue("@p2",    _p2);
-            cmd.Parameters.AddWithValue("@p3",    _p3);
-            cmd.Parameters.AddWithValue("@k",     (double)K);
-            cmd.Parameters.AddWithValue("@prior", PRIOR);
-            cmd.Parameters.AddWithValue("@top",   top);
-            var result = new List<int>();
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read()) result.Add(rd.GetInt32(0));
-            return result;
+                HAVING SUM(games) >= @min";
+            cmd.Parameters.AddWithValue("@a",   allyId);
+            cmd.Parameters.AddWithValue("@min", HINT_MIN_GAMES);
+            cmd.Parameters.AddWithValue("@r",   myRole);
+            cmd.Parameters.AddWithValue("@p1",  _p1);
+            cmd.Parameters.AddWithValue("@p2",  _p2);
+            cmd.Parameters.AddWithValue("@p3",  _p3);
+            return RankByWilson(cmd, top);
         }
         catch { return []; }
     }
