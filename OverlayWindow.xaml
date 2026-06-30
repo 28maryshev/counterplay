@@ -669,7 +669,8 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Margin="0,3" CornerRadius="4" Padding="10,9"
-                            Background="#1EC89B3C">
+                            Background="{Binding CardBg}"
+                            BorderBrush="{Binding CardBorder}" BorderThickness="1.5">
                       <Grid>
                             <Grid.ColumnDefinitions>
                               <ColumnDefinition Width="Auto"/>  <!-- Ранг + очки      -->
@@ -724,6 +725,10 @@
                             <!-- Имя + WR + описание: фиксированная ширина, отдельный столбец -->
                             <StackPanel Grid.Column="2" VerticalAlignment="Center"
                                         Width="230" Margin="0,0,14,0">
+                              <TextBlock Text="{Binding MineLabel}" Foreground="#36D6E7"
+                                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                                         FontWeight="Bold" Visibility="{Binding MineVisibility}"
+                                         Margin="0,0,0,2"/>
                               <TextBlock Text="{Binding Name}" Foreground="White"
                                          FontFamily="{StaticResource DisplayFont}"
                                          FontSize="21" FontWeight="Bold"

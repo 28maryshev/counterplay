@@ -686,10 +686,10 @@ public partial class OverlayWindow : Window
 
     private void RenderCompact(IReadOnlyList<Recommendation> recs)
     {
-        RecList.ItemsSource = recs.Take(4).Select((r, i) => new RecCard
+        RecList.ItemsSource = recs.Take(4).Select(r => new RecCard
         {
-            Rank       = $"{i + 1}.",
-            Name       = DataDragon.Name(r.ChampionId),
+            Rank       = $"{r.Rank}.",
+            Name       = (r.IsMyPick ? "★ " : "") + DataDragon.Name(r.ChampionId),
             Score      = Signed(r.Score),
             ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
             Reason     = r.Reasons.FirstOrDefault() ?? "",
@@ -709,12 +709,14 @@ public partial class OverlayWindow : Window
         for (int i = 0; i < myCombos.Count; i++)
             comboColorByName[myCombos[i].Name] = ComboColors[i % ComboColors.Length];
 
-        FullRecList.ItemsSource = recs.Take(6).Select((r, i) =>
+        FullRecList.ItemsSource = recs.Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
             return new FullRecCard
             {
-                Rank       = $"{i + 1}.",
+                Rank       = $"{r.Rank}.",
+                IsMyPick   = r.IsMyPick,
+                MineLabel  = Loc.T("rec.yourPick"),
                 Name       = DataDragon.Name(r.ChampionId),
                 Score      = Signed(r.Score),
                 ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
@@ -1036,6 +1038,13 @@ public sealed class FullRecCard
     public string       ArchTip    { get; init; } = "";
     public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
+
+    // Мой уже выбранный чемпион — выделяем карточку и показываем бейдж.
+    public bool         IsMyPick   { get; init; }
+    public string       MineLabel  { get; init; } = "";
+    public Visibility   MineVisibility => IsMyPick ? Visibility.Visible : Visibility.Collapsed;
+    public string       CardBg     => IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
+    public string       CardBorder => IsMyPick ? "#36D6E7" : "#00000000";
 }
 
 public sealed class ChampSlotCard

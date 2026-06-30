@@ -7,7 +7,8 @@
     "Against poke you need engage and mobility; against dive — peel and cc for your carry.",
     "Last pick is an advantage: tailor it to the enemy comp already revealed.",
     "Bans remove either the strongest in the patch or whatever is hardest for you.",
-    "Synergy wins teamfights: lockdown+burst catch a target, engage+peel keep the carry alive."
+    "Synergy wins teamfights: lockdown+burst catch a target, engage+peel keep the carry alive.",
+    "Found a bug or have a suggestion? Tell us via Support on the site — counterplays.com/support."
   ],
   "metric": {
     "base": "Win rate this patch",
@@ -234,5 +235,8 @@
     "baseGood": "Good base WR {0}%",
     "baseLow": "Low WR {0}% — you need to know the champion",
     "baseNeutral": "Neutral pick, WR ≈{0}%"
+  },
+  "rec": {
+    "yourPick": "YOUR PICK"
   }
 }

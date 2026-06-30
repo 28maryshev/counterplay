@@ -13,7 +13,9 @@ public sealed record Recommendation(
     double SynergyDelta,  // %пп средняя синергия с союзниками
     double ComfortDelta,  // бонус за «комфорт»: часто наигранный чемпион игрока
     double StyleDelta,    // вклад «против стиля врага» (трифекта + анти-стиль)
-    string[] Reasons);
+    string[] Reasons,
+    int    Rank   = 0,    // место в полном списке (1 = лучший)
+    bool   IsMyPick = false); // это мой уже выбранный/наведённый чемпион
 
 public sealed class RecommendationEngine : IDisposable
 {
@@ -261,15 +263,19 @@ public sealed class RecommendationEngine : IDisposable
 
         // Исключаем из кандидатов: залоченные пики обеих команд, баны, а также
         // чемпионов, наведённых (ховер) ЧУЖИМИ слотами — их уже не запикать.
-        // Свой ховер не исключаем: это мой кандидат, он должен оставаться в списке.
+        // СВОЙ пик/ховер НЕ исключаем: хочу видеть его в списке (насколько «угадал»).
         var taken = new HashSet<int>();
         foreach (var p in state.MyTeam.Concat(state.TheirTeam))
         {
+            if (p.IsLocalPlayer) continue;            // мой слот — оставляем в подборе
             if (p.ChampionId != 0) taken.Add(p.ChampionId);
-            else if (!p.IsLocalPlayer && p.PickIntentId != 0) taken.Add(p.PickIntentId);
+            else if (p.PickIntentId != 0) taken.Add(p.PickIntentId);
         }
         foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
             if (b != 0) taken.Add(b);
+
+        // Мой уже выбранный (или наведённый) чемпион — чтобы пометить и гарантированно показать.
+        var myPickId = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
 
         // Учитываем ховеры (EffectiveChampionId): рекомендации обновляются ещё
         // на этапе наведения чемпиона союзником/врагом, не дожидаясь лока.
@@ -323,7 +329,7 @@ public sealed class RecommendationEngine : IDisposable
         var jungleAllyId = allyData.FirstOrDefault(a => a.Role == "jungle").Id;
         var adcAllyId    = allyData.FirstOrDefault(a => a.Role == "adc").Id;
 
-        return candidates
+        var ordered = candidates
             .Where(id => !taken.Contains(id))
             .Select(champId =>
             {
@@ -400,7 +406,13 @@ public sealed class RecommendationEngine : IDisposable
                 return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, styleScore, reasons);
             })
             .OrderByDescending(r => r.Score)
-            .Take(6)
+            .ToList();
+
+        // Топ-6: мой уже выбранный чемпион остаётся в подборе наравне со всеми и
+        // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
+        // он выпадает из списка так же, как любой другой кандидат.
+        return ordered.Take(6)
+            .Select((r, i) => r with { Rank = i + 1, IsMyPick = r.ChampionId == myPickId })
             .ToList();
     }
 
