@@ -363,7 +363,7 @@
             </TextBlock>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
-            <ComboBox x:Name="LangBox" Width="118" Height="26" Margin="0,0,8,0"
+            <ComboBox x:Name="LangBox" Width="96" Height="26" Margin="0,0,8,0"
                       Style="{StaticResource DarkCombo}"
                       SelectedValuePath="Code"
                       SelectionChanged="OnLangChanged"
