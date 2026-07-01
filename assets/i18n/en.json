@@ -65,7 +65,8 @@
     "roleCounter": "Role: {0} — counter + synergy:",
     "roleBans": "Role: {0} — who to ban:",
     "style": "Style: {0}",
-    "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked."
+    "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked.",
+    "aram": "ARAM — best pick from the bench:"
   },
   "pair": {
     "airborne": {
@@ -208,6 +209,8 @@
     "neutral": "Neutral pick — safe until the enemy comp is clear.",
     "dmgStack": "Team already stacks {0} damage — one armor/MR item shuts down several.",
     "dmgBalance": "Balances the team's damage ({0}).",
+    "aramFront": "Team lacks a frontline — you bring engage/tankiness.",
+    "aramHeal": "Adds the sustain the team lacks (ARAM value).",
     "antiPickPoke": "Dives onto their long-range comp (engage/dashes).",
     "antiDive": "Protects the team from their dive (peel/disengage).",
     "antiFront": "Out-damages their frontline from range/burst.",

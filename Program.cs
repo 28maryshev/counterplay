@@ -145,7 +145,8 @@ class Program
         {
             using var doc = JsonDocument.Parse(initBody);
             var draft = ChampSelectParser.Parse(doc.RootElement);
-            overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
+            overlay.UpdateRecommendations(
+                draft.IsAram ? engine?.RecommendAram(draft) : engine?.Recommend(draft), draft, engine);
         }
 
         await using var socket = new LcuEventSocket(creds);
@@ -215,7 +216,9 @@ class Program
                         var hash = DraftHash(draft);
                         if (hash == lastHash) break;
                         lastHash = hash;
-                        if (draft.InBanPhase)
+                        if (draft.IsAram)
+                            overlay.UpdateRecommendations(engine?.RecommendAram(draft), draft, engine);
+                        else if (draft.InBanPhase)
                             overlay.UpdateBans(engine?.RecommendBans(draft), draft);
                         else
                             overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
@@ -298,5 +301,6 @@ class Program
         string.Join(",", s.TheirTeam.Select(p => $"{p.EffectiveChampionId}:{p.Position}")) + "|" +
         string.Join(",", s.MyTeamBans) + "|" +
         string.Join(",", s.TheirTeamBans) + "|" +
+        string.Join(",", s.Bench) + "|" +
         (s.InBanPhase ? "ban" : "pick");
 }

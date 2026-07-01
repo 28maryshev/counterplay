@@ -626,23 +626,32 @@ public partial class OverlayWindow : Window
 
         RestoreModeSize();
 
-        var dbRole       = draft?.MyPosition is { Length: > 0 } pos
-            ? RecommendationEngine.LcuToDbRole(pos) : "";
-        var role         = RoleNameDb(dbRole);
-        var knownEnemies = draft?.TheirTeam.Count(p => p.EffectiveChampionId != 0) ?? 0;
-        StatusText.Text  = knownEnemies == 0
-            ? Loc.T("draft.roleByTeam", role)
-            : Loc.T("draft.roleCounter", role);
-
-        // Подсказка по порядку пика: пикаешь раньше врагов → риск контрпика.
-        if (draft?.ExposedToCounter == true)
+        if (draft?.IsAram == true)
         {
-            PickHint.Text = Loc.T("draft.pickHint");
-            PickHint.Visibility = Visibility.Visible;
+            // ARAM: врагов не видно, подбираем лучший пик со скамейки под команду.
+            StatusText.Text = Loc.T("draft.aram");
+            PickHint.Visibility = Visibility.Collapsed;
         }
         else
         {
-            PickHint.Visibility = Visibility.Collapsed;
+            var dbRole       = draft?.MyPosition is { Length: > 0 } pos
+                ? RecommendationEngine.LcuToDbRole(pos) : "";
+            var role         = RoleNameDb(dbRole);
+            var knownEnemies = draft?.TheirTeam.Count(p => p.EffectiveChampionId != 0) ?? 0;
+            StatusText.Text  = knownEnemies == 0
+                ? Loc.T("draft.roleByTeam", role)
+                : Loc.T("draft.roleCounter", role);
+
+            // Подсказка по порядку пика: пикаешь раньше врагов → риск контрпика.
+            if (draft?.ExposedToCounter == true)
+            {
+                PickHint.Text = Loc.T("draft.pickHint");
+                PickHint.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                PickHint.Visibility = Visibility.Collapsed;
+            }
         }
 
         if (_isFullMode)

@@ -12,7 +12,7 @@ static class DraftTest
         var their = new List<DraftPlayer>();
         foreach (var (ch, pos) in enemies) their.Add(new(c++, ch, 0, pos, false));
         var opp = their.FirstOrDefault(p => p.Position == myPos);
-        return new DraftState(my, their, [], [], my[0], myPos, opp, false, false);
+        return new DraftState(my, their, [], [], my[0], myPos, opp, false, false, [], false);
     }
 
     static string Dmg(int id) =>
@@ -38,8 +38,12 @@ static class DraftTest
             var enemies = s.TheirTeam.Where(p => p.EffectiveChampionId != 0)
                                      .Select(p => $"{DataDragon.Name(p.EffectiveChampionId)}[{Dmg(p.EffectiveChampionId)}]");
             Console.WriteLine($"  role={s.MyPosition}  allies: {string.Join(", ", allies)}");
-            Console.WriteLine($"  enemies: {string.Join(", ", enemies)}");
-            foreach (var r in eng.Recommend(s, top))
+            if (s.IsAram)
+                Console.WriteLine($"  bench: {string.Join(", ", s.Bench.Select(b => $"{DataDragon.Name(b)}[{Dmg(b)}]"))}");
+            else
+                Console.WriteLine($"  enemies: {string.Join(", ", enemies)}");
+            var recs = s.IsAram ? eng.RecommendAram(s, top) : eng.Recommend(s, top);
+            foreach (var r in recs)
             {
                 Console.WriteLine(
                     $"  {r.Rank,2}. {DataDragon.Name(r.ChampionId),-13}[{Dmg(r.ChampionId)}] score={r.Score,6:F1} | " +
@@ -85,6 +89,23 @@ static class DraftTest
             Build("bottom",
                 new[] { (84, "middle"), (37, "utility"), (17, "jungle"), (83, "top") },
                 new[] { (54, "top"), (113, "jungle"), (103, "middle"), (222, "bottom"), (89, "utility") }), 14);
+
+        // 6. ARAM: команда почти вся AP, нет фронта/саста; на скамейке — микс.
+        //    Ждём вверху: фронт+AD (Сион/Леона), затем AD/хил (баланс/дыры), 5-й AP — вниз.
+        DraftState BuildAram(int myChamp, (int champ, string pos)[] allies, int[] bench)
+        {
+            var my = new List<DraftPlayer> { new(0, myChamp, 0, "middle", true) };
+            int c = 1;
+            foreach (var (ch, pos) in allies) my.Add(new(c++, ch, 0, pos, false));
+            return new DraftState(my, [], [], [], my[0], "middle", null, false, false, bench.ToList(), true);
+        }
+
+        eng.Mastery = new Dictionary<int, long>(); // сбрасываем наигранность
+        Console.WriteLine("\n########## ARAM ##########");
+        Print("ARAM: team all-AP (no front/heal); bench = Sion/Caitlyn/Soraka/Leona/Ashe",
+            BuildAram(134,  // мой текущий: Syndra (5-й AP)
+                new[] { (103, "middle"), (99, "middle"), (63, "middle"), (45, "middle") },
+                new[] { 14, 51, 16, 89, 22 }), 8);
 
         Console.WriteLine("\n(готово)");
     }

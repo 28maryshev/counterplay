@@ -25,7 +25,9 @@ public sealed record DraftState(
     string MyPosition,
     DraftPlayer? DirectOpponent,   // null, если роли врага скрыты (соло/дуо)
     bool ExposedToCounter,         // я пикаю раньше кого-то из врагов (риск контрпика)
-    bool InBanPhase);              // сейчас идёт фаза банов
+    bool InBanPhase,               // сейчас идёт фаза банов
+    IReadOnlyList<int> Bench,      // ARAM: чемпионы на скамейке (доступны для обмена)
+    bool IsAram);                  // ARAM-режим (есть скамейка/реролл)
 
 public static class ChampSelectParser
 {
@@ -47,8 +49,28 @@ public static class ChampSelectParser
 
         var exposed  = ComputeExposed(session, localCell);
         var inBan    = ComputeInBanPhase(session);
+        var (bench, isAram) = ParseBench(session);
 
-        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan);
+        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan, bench, isAram);
+    }
+
+    // Скамейка ARAM: доступные для обмена чемпионы + флаг режима (benchEnabled).
+    private static (List<int> Bench, bool IsAram) ParseBench(JsonElement s)
+    {
+        var bench = new List<int>();
+        bool enabled = s.TryGetProperty("benchEnabled", out var be) && be.ValueKind == JsonValueKind.True;
+
+        if (s.TryGetProperty("benchChampions", out var bc) && bc.ValueKind == JsonValueKind.Array)
+            foreach (var e in bc.EnumerateArray())
+            {
+                int id = GetInt(e, "championId");
+                if (id > 0) bench.Add(id);
+            }
+        if (bench.Count == 0 && s.TryGetProperty("benchChampionIds", out var bi) && bi.ValueKind == JsonValueKind.Array)
+            foreach (var e in bi.EnumerateArray())
+                if (e.ValueKind == JsonValueKind.Number) bench.Add(e.GetInt32());
+
+        return (bench, enabled);
     }
 
     // Идёт ли сейчас фаза банов: есть активное (in-progress) действие типа "ban".
