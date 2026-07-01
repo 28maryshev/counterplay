@@ -13,11 +13,29 @@ public static class IconCache
     private static readonly ConcurrentDictionary<int, byte[]>  _bytes  = new();
     private static readonly Dictionary<int, ImageSource>        _images = new();
 
-    /// Скачивает все ~170 иконок параллельно. Вызывается один раз при старте.
+    /// Готовит все ~170 иконок. Дисковый кэш по версии патча: первый раз качает из
+    /// сети и сохраняет на диск, дальше читает с диска (быстро, без сети). Вызывается
+    /// один раз при старте.
     public static async Task PreloadAllAsync(Action<string>? progress, CancellationToken ct)
     {
         var urls = DataDragon.GetAllIconUrls();
         if (urls.Count == 0) return;
+
+        // %APPDATA%\Counterplay\icons\{version}\{id}.png
+        var cacheDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Counterplay", "icons", DataDragon.Version);
+        try
+        {
+            Directory.CreateDirectory(cacheDir);
+            // Чистим кэши старых патчей, чтобы не копить мусор.
+            var parent = Directory.GetParent(cacheDir)?.FullName;
+            if (parent is not null)
+                foreach (var d in Directory.GetDirectories(parent))
+                    if (!string.Equals(Path.GetFileName(d), DataDragon.Version, StringComparison.Ordinal))
+                        try { Directory.Delete(d, recursive: true); } catch { }
+        }
+        catch { /* кэш не критичен */ }
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         var sem   = new SemaphoreSlim(16); // 16 параллельных загрузок
@@ -29,7 +47,17 @@ public static class IconCache
             await sem.WaitAsync(ct);
             try
             {
-                var bytes = await http.GetByteArrayAsync(kvp.Value, ct);
+                var path = Path.Combine(cacheDir, $"{kvp.Key}.png");
+                byte[] bytes;
+                if (File.Exists(path))
+                {
+                    bytes = await File.ReadAllBytesAsync(path, ct); // из кэша, без сети
+                }
+                else
+                {
+                    bytes = await http.GetByteArrayAsync(kvp.Value, ct);
+                    try { await File.WriteAllBytesAsync(path, bytes, ct); } catch { /* диск недоступен — просто не кэшируем */ }
+                }
                 _bytes[kvp.Key] = bytes;
                 var n = Interlocked.Increment(ref done);
                 if (n % 20 == 0 || n == total)

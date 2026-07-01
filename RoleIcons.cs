@@ -22,12 +22,28 @@ public static class RoleIcons
 
     public static async Task PreloadAsync(CancellationToken ct)
     {
+        // Дисковый кэш: %APPDATA%\Counterplay\icons\roles\{pos}.png (иконки статичны).
+        var cacheDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Counterplay", "icons", "roles");
+        try { Directory.CreateDirectory(cacheDir); } catch { }
+
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         foreach (var pos in Positions)
         {
             try
             {
-                var bytes = await http.GetByteArrayAsync(Url(pos), ct);
+                var path = Path.Combine(cacheDir, $"{pos}.png");
+                byte[] bytes;
+                if (File.Exists(path))
+                {
+                    bytes = await File.ReadAllBytesAsync(path, ct);
+                }
+                else
+                {
+                    bytes = await http.GetByteArrayAsync(Url(pos), ct);
+                    try { await File.WriteAllBytesAsync(path, bytes, ct); } catch { }
+                }
                 using var ms = new MemoryStream(bytes);
                 var bmp = new BitmapImage();
                 bmp.BeginInit();
