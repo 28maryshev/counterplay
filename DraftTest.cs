@@ -1,0 +1,91 @@
+namespace Counterplay;
+
+/// Диагностический прогон движка на заготовленных сценариях (запуск: --drafttest).
+/// Печатает топ рекомендаций с разбивкой скора и причинами — для настройки весов.
+static class DraftTest
+{
+    static DraftState Build(string myPos, (int champ, string pos)[] allies, (int champ, string pos)[] enemies)
+    {
+        var my = new List<DraftPlayer> { new(0, 0, 0, myPos, true) };
+        int c = 1;
+        foreach (var (ch, pos) in allies) my.Add(new(c++, ch, 0, pos, false));
+        var their = new List<DraftPlayer>();
+        foreach (var (ch, pos) in enemies) their.Add(new(c++, ch, 0, pos, false));
+        var opp = their.FirstOrDefault(p => p.Position == myPos);
+        return new DraftState(my, their, [], [], my[0], myPos, opp, false, false);
+    }
+
+    static string Dmg(int id) =>
+        DataDragon.IsApChampion(id) ? "AP" : DataDragon.IsAdChampion(id) ? "AD" : "mix";
+
+    public static async Task Run(RecommendationEngine? engineOverride = null)
+    {
+        // Дублируем вывод в файл — консоль WPF-процесса ненадёжна при захвате.
+        var outPath = Path.Combine(Path.GetTempPath(), "cp_drafttest.txt");
+        Console.SetOut(new StreamWriter(outPath) { AutoFlush = true });
+
+        Loc.Init();
+        await DataDragon.LoadAsync(Loc.DDragonLocale, CancellationToken.None);
+        var db = RecommendationEngine.FindDb();
+        if (db is null) { Console.WriteLine("DB not found"); return; }
+        using var eng = engineOverride ?? RecommendationEngine.Create(db, "emerald");
+
+        void Print(string title, DraftState s, int top = 8)
+        {
+            Console.WriteLine($"\n===== {title} =====");
+            var allies = s.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
+                                 .Select(p => $"{DataDragon.Name(p.EffectiveChampionId)}[{Dmg(p.EffectiveChampionId)}]");
+            var enemies = s.TheirTeam.Where(p => p.EffectiveChampionId != 0)
+                                     .Select(p => $"{DataDragon.Name(p.EffectiveChampionId)}[{Dmg(p.EffectiveChampionId)}]");
+            Console.WriteLine($"  role={s.MyPosition}  allies: {string.Join(", ", allies)}");
+            Console.WriteLine($"  enemies: {string.Join(", ", enemies)}");
+            foreach (var r in eng.Recommend(s, top))
+            {
+                Console.WriteLine(
+                    $"  {r.Rank,2}. {DataDragon.Name(r.ChampionId),-13}[{Dmg(r.ChampionId)}] score={r.Score,6:F1} | " +
+                    $"base={r.BaseDelta,5:F1} dir={r.DirectDelta,5:F1} oth={r.OtherDelta,5:F1} syn={r.SynergyDelta,5:F1} cmf={r.ComfortDelta,4:F1} sty={r.StyleDelta,5:F1}");
+                foreach (var reason in r.Reasons.Take(2))
+                    Console.WriteLine($"        · {reason}");
+            }
+        }
+
+        // 1. ADC, команда уже 3 AP (Акали/Сона/Тимо) + Йорик AD, у врага танки → ждём AD-адк вверх.
+        Print("ADC: team 3AP+1AD vs tanky enemies",
+            Build("bottom",
+                new[] { (84, "middle"), (37, "utility"), (17, "jungle"), (83, "top") },
+                new[] { (54, "top"), (113, "jungle"), (103, "middle"), (222, "bottom"), (89, "utility") }));
+
+        // 2. ADC, сбалансированная команда (2 AP + 2 AD) → баланс урона не должен доминировать.
+        Print("ADC: balanced team 2AP+2AD",
+            Build("bottom",
+                new[] { (103, "middle"), (83, "top"), (64, "jungle"), (89, "utility") },
+                new[] { (54, "top"), (113, "jungle"), (238, "middle"), (222, "bottom"), (412, "utility") }));
+
+        // 3. MID, сильный прямой оппонент (проверка приоритета контра линии vs база/синергия).
+        Print("MID: direct opponent Zed (assassin)",
+            Build("middle",
+                new[] { (222, "bottom"), (64, "jungle"), (83, "top"), (412, "utility") },
+                new[] { (54, "top"), (64, "jungle"), (238, "middle"), (81, "bottom"), (89, "utility") }));
+
+        // 4. SUPPORT, ADC-скейлер Джинкс — проверка структурной синергии с ботом.
+        Print("SUPPORT: scaling ADC Jinx (peel synergy)",
+            Build("utility",
+                new[] { (222, "bottom"), (64, "jungle"), (238, "middle"), (24, "top") },
+                new[] { (54, "top"), (60, "jungle"), (103, "middle"), (22, "bottom"), (111, "utility") }));
+
+        // 5. Влияние мастерства (наигранности): те же условия, что в сценарии 1, но
+        //    даём высокие очки мастерства на пару ADC — смотрим, как они поднимутся (cmf).
+        eng.Mastery = new Dictionary<int, long>
+        {
+            { 18, 250000 },  // Tristana — очень наигранная (comfort ≈ +6.1)
+            { 21, 90000 },   // Miss Fortune — средне наигранная (≈ +4.2)
+            { 236, 40000 },  // Lucian — немного (≈ +2.7)
+        };
+        Print("ADC: MASTERY Tristana 250k / MF 90k / Lucian 40k (team as sc.1)",
+            Build("bottom",
+                new[] { (84, "middle"), (37, "utility"), (17, "jungle"), (83, "top") },
+                new[] { (54, "top"), (113, "jungle"), (103, "middle"), (222, "bottom"), (89, "utility") }), 14);
+
+        Console.WriteLine("\n(готово)");
+    }
+}

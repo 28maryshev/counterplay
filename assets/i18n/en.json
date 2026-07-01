@@ -197,13 +197,17 @@
     "cc": "cc (Mercs/tenacity)",
     "autoCrit": "crit/autos (Steelcaps/Frozen Heart)",
     "shield": "shields (Serpent's Fang)",
-    "heal": "healing (Grievous Wounds)"
+    "heal": "healing (Grievous Wounds)",
+    "physical": "physical",
+    "magic": "magic"
   },
   "style": {
     "mixed": "Mixed"
   },
   "reason": {
     "neutral": "Neutral pick — safe until the enemy comp is clear.",
+    "dmgStack": "Team already stacks {0} damage — one armor/MR item shuts down several.",
+    "dmgBalance": "Balances the team's damage ({0}).",
     "antiPickPoke": "Dives onto their long-range comp (engage/dashes).",
     "antiDive": "Protects the team from their dive (peel/disengage).",
     "antiFront": "Out-damages their frontline from range/burst.",

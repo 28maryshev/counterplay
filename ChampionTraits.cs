@@ -156,6 +156,12 @@ public static class ChampionTraits
 
     public static bool ApBurst(int id) => DataDragon.IsApChampion(id) && Burst(id) >= 2;
 
+    // «Толстый» фронт: враг с таким составом ощутимее наказывает моно-урон
+    // (одна броня/МР рубит полкоманды), поэтому смешанный урон важнее.
+    public static bool IsTanky(int id) =>
+        ChampionTags.Has(id, "tank") || ChampionTags.Has(id, "juggernaut") ||
+        DataDragon.ClassTags(id).Contains("Tank");
+
     // ── Структурная синергия jg↔sup (п.4) ───────────────────────────────────
     // Сила в ранней игре 0..3.
     public static int EarlyPower(int id)

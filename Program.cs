@@ -19,6 +19,9 @@ class Program
 
         AttachConsole(-1); // -1 = ATTACH_PARENT_PROCESS
 
+        // Диагностический прогон движка рекомендаций (настройка весов), затем выход.
+        if (args.Contains("--drafttest")) { DraftTest.Run().GetAwaiter().GetResult(); return; }
+
         Loc.Init(); // язык интерфейса: сохранённый выбор → язык Windows → English
 
         _ = Telemetry.PingAsync(); // анонимный пинг для статистики активных пользователей

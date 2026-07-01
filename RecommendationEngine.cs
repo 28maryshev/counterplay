@@ -36,7 +36,8 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_STYLE    = 0.6; // анти-стиль: инструменты против компы врага
     private const double W_VULN     = 2.0; // штраф за стак одной уязвимости в команде
     private const double W_EXPLOIT  = 1.0; // бонус за наказание вынужденного предмета врага
-    private const double W_STRUCT   = 1.2; // структурная синергия джангл↔саппорт
+    private const double W_STRUCT   = 1.6; // структурная синергия с ключевым тиммейтом (jg↔линия, адк↔сапп)
+    private const double W_DMGBAL   = 1.2; // баланс типа урона (AD/AP): не стакать один тип
     private const double W_BOTLANE      = 1.5; // контрпик против вражеского дуо на боте (2v2)
     private const double W_BOTLANE_BOTH = 1.8; // когда виден весь вражеский бот (адк+сапп)
     // Порог включения бот-матчапов: сумма игр в botlane_matchup. ~20k записей —
@@ -257,7 +258,7 @@ public sealed class RecommendationEngine : IDisposable
         _         => pos
     };
 
-    public IReadOnlyList<Recommendation> Recommend(DraftState state)
+    public IReadOnlyList<Recommendation> Recommend(DraftState state, int topN = 6)
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
@@ -387,6 +388,14 @@ public sealed class RecommendationEngine : IDisposable
                 if (exploit > 0 && forced is { } fc)
                     draftReasons.Add(Loc.T("reason.exploit", ItemValue.CatName(fc)));
 
+                // Баланс типа урона (AD/AP): штраф за стак одного типа (≥3), бонус за
+                // разбавление. Сильнее против танков; при 4-м одном типе — заметно вниз.
+                var (dmgDelta, dmgStack, dmgAd) = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
+                if (dmgStack)
+                    draftReasons.Add(Loc.T("reason.dmgStack", Loc.T(dmgAd ? "cat.physical" : "cat.magic")));
+                else if (dmgDelta > 0.5)
+                    draftReasons.Add(Loc.T("reason.dmgBalance", Loc.T(dmgAd ? "cat.physical" : "cat.magic")));
+
                 // Структурная синергия джангл↔саппорт (п.4).
                 var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId);
                 draftReasons.AddRange(structReasons);
@@ -403,7 +412,7 @@ public sealed class RecommendationEngine : IDisposable
                 var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + wBotlane * botlaneDelta;
+                            + wBotlane * botlaneDelta + W_DMGBAL * dmgDelta;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();
@@ -415,7 +424,7 @@ public sealed class RecommendationEngine : IDisposable
         // Топ-6: мой уже выбранный чемпион остаётся в подборе наравне со всеми и
         // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
         // он выпадает из списка так же, как любой другой кандидат.
-        return ordered.Take(6)
+        return ordered.Take(topN)
             .Select((r, i) => r with { Rank = i + 1, IsMyPick = r.ChampionId == myPickId })
             .ToList();
     }

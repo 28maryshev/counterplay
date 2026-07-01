@@ -82,6 +82,10 @@ public static class DataDragon
     public static bool IsApChampion(int id) =>
         _champions is not null && _champions.TryGetValue(id, out var info) && info.Magic > info.Attack;
 
+    /// Преимущественно физический урон (attack > magic по Data Dragon info).
+    public static bool IsAdChampion(int id) =>
+        _champions is not null && _champions.TryGetValue(id, out var info) && info.Attack > info.Magic;
+
     /// URL иконки для оверлея.
     public static string IconUrl(int id)
     {

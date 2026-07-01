@@ -51,6 +51,42 @@ public static class ItemValue
         return (total, worst > 0.01 ? worstCat : null, count);
     }
 
+    // Баланс типа урона: штраф за стак одного типа заметен с 3-го чемпиона.
+    private const double STACK_STEP = 2.2;
+    private const double BALANCE_BONUS = 1.0;
+
+    /// Баланс типа урона команды (AD/AP). Команде нужен смешанный урон: стакать один
+    /// тип плохо — враг возьмёт броню/МР («один предмет рубит полкоманды»), особенно
+    /// против танков. Возвращает дельту к скору (+ разбавляет / − усугубляет перекос),
+    /// флаг «это стак» и тип кандидата (Ad=true — физ., false — маг.) для причины.
+    public static (double Delta, bool Stack, bool Ad) DamageBalance(
+        int candidate, IReadOnlyList<int> allyIds, IReadOnlyList<int> enemyIds)
+    {
+        bool candAp = DataDragon.IsApChampion(candidate);
+        bool candAd = DataDragon.IsAdChampion(candidate);
+        if (candAp == candAd) return (0, false, false); // смешанный/неизвестный — нейтрально
+
+        int ad = 0, ap = 0;
+        foreach (var a in allyIds)
+        {
+            if (DataDragon.IsAdChampion(a)) ad++;
+            else if (DataDragon.IsApChampion(a)) ap++;
+        }
+        int same = candAp ? ap : ad;   // столько союзников уже того же типа
+        int other = candAp ? ad : ap;
+        int newSame = same + 1;
+
+        double stackPen = newSame >= 3 ? (newSame - 2) * STACK_STEP : 0;
+        if (stackPen > 0)
+        {
+            int tanks = 0;
+            foreach (var e in enemyIds) if (ChampionTraits.IsTanky(e)) tanks++;
+            stackPen *= tanks >= 2 ? 1.0 : tanks == 1 ? 0.8 : 0.5; // нет танков — мягче
+        }
+        double balBonus = same < other ? BALANCE_BONUS : 0;
+        return (balBonus - stackPen, stackPen > 0.01, candAd);
+    }
+
     /// Категория, которую враг вынужден контрить предметом (если стак ≥2).
     public static Cat? EnemyForced(IReadOnlyList<int> enemyIds)
     {
