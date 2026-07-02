@@ -917,9 +917,11 @@ public partial class OverlayWindow : Window
     {
         var result = new List<string>();
         if (candidateId == 0 || allyIds.Count == 0 || comboColorByName.Count == 0) return result;
-        if (allyIds.Contains(candidateId)) return result;
 
-        var team = allyIds.Append(candidateId).Select(id => (Id: id, Role: "")).ToList();
+        // Кандидат может уже быть в команде (это мой собственный пик) — тогда не
+        // дублируем его, но чёрточки его связок всё равно показываем.
+        var ids = allyIds.Contains(candidateId) ? allyIds : allyIds.Append(candidateId).ToList();
+        var team = ids.Select(id => (Id: id, Role: "")).ToList();
         foreach (var combo in TeamSynergies.Detect(team, forAlly: true))
         {
             if (!combo.ChampionIds.Contains(candidateId)) continue;          // кандидат — участник
