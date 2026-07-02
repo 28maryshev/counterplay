@@ -738,6 +738,10 @@ public partial class OverlayWindow : Window
                 if (!string.IsNullOrEmpty(nm) && archCol != "#888888") nameColor[nm] = archCol;
             }
 
+        // Союзники без меня — для расчёта контр-предметов состава.
+        var allyNoMe = draft?.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
+                                    .Select(p => p.EffectiveChampionId).ToList() ?? [];
+
         FullRecList.ItemsSource = recs.Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
@@ -769,6 +773,8 @@ public partial class OverlayWindow : Window
                 ArchColor  = ac,
                 ArchTip    = at,
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
+                CounterItems = ItemValue.CounterItems(r.ChampionId, allyNoMe)
+                    .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList(),
             };
         }).ToList();
 
@@ -1106,6 +1112,11 @@ public sealed class FullRecCard
     public string       ArchTip    { get; init; } = "";
     public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
+
+    // Иконки предметов, которыми враг контрит состав (см. ItemValue.CounterItems).
+    public List<ImageSource> CounterItems { get; init; } = [];
+    public Visibility CounterItemsVisibility =>
+        CounterItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     // Мой уже выбранный чемпион — выделяем карточку и показываем бейдж.
     public bool         IsMyPick   { get; init; }

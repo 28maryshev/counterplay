@@ -739,6 +739,25 @@
                                          loc:ReasonInlines.Segments="{Binding ReasonSegs}"
                                          FontFamily="{StaticResource UiFont}" FontSize="12"
                                          TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/>
+
+                              <!-- Итемы, которыми враг контрит состав -->
+                              <StackPanel Margin="0,8,0,0" Visibility="{Binding CounterItemsVisibility}">
+                                <TextBlock Text="{loc:T draft.counterItems}" Foreground="#7C97AC"
+                                           FontFamily="{StaticResource UiFont}" FontSize="10"/>
+                                <ItemsControl ItemsSource="{Binding CounterItems}" Margin="0,3,0,0">
+                                  <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                  </ItemsControl.ItemsPanel>
+                                  <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                      <Border CornerRadius="3" Margin="0,0,4,0"
+                                              BorderBrush="#4A3A22" BorderThickness="1">
+                                        <Image Source="{Binding}" Width="22" Height="22"/>
+                                      </Border>
+                                    </DataTemplate>
+                                  </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                              </StackPanel>
                             </StackPanel>
 
                             <!-- Показатели: справа, по центру бокса -->

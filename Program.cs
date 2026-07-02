@@ -72,6 +72,7 @@ class Program
         overlay.ShowStatus(Loc.T("status.loadingIcons"));
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
+        await ItemIcons.PreloadAsync(ct); // иконки контр-предметов
 
         // Гарантируем наличие data.db (скачиваем/обновляем из дата-релиза с прогрессом).
         await DataDb.EnsureAsync((msg, frac) => overlay.ShowProgress(msg, frac), ct);
