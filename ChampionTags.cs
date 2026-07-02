@@ -51,16 +51,16 @@ public static class ChampionTags
         // ── Junglers ──────────────────────────────────────────────────────────
         [79]  = ["engage", "cc", "dive"],              // Gragas
         [59]  = ["engage", "hard_cc", "ult_trap"],     // Jarvan IV
-        [254] = ["dive", "cc"],                        // Vi
+        [254] = ["dive", "hard_cc"],                   // Vi (нокбэк Q, нокап/супресс R)
         [5]   = ["dive", "cc"],                        // Xin Zhao
-        [120] = ["engage", "dive"],                    // Hecarim
-        [154] = ["engage", "cc"],                      // Zac
+        [120] = ["engage", "dive", "hard_cc"],         // Hecarim (R — фир + отбрасывание)
+        [154] = ["engage", "hard_cc"],                 // Zac (нокап E, отбрасывание R)
         [107] = ["dive", "burst"],                     // Rengar
         [141] = ["dive", "burst"],                     // Kayn
         [64]  = ["dive", "cc"],                        // Lee Sin
         [203] = ["cc", "utility"],                     // Kindred
         [56]  = ["engage", "cc"],                      // Nocturne (fear+dive)
-        [113] = ["engage", "cc"],                      // Sejuani
+        [113] = ["engage", "hard_cc"],                 // Sejuani (стан E/R)
 
         // ── Midlaners ─────────────────────────────────────────────────────────
         [61]  = ["ult_orianna", "poke"],               // Orianna
@@ -100,8 +100,17 @@ public static class ChampionTags
         [121] = ["dive", "burst", "stealth", "mobility"],      // Kha'Zix
         [5]   = ["dive", "cc", "hard_cc", "engage"],           // Xin Zhao
         [9]   = ["channels_ult", "cc", "hard_cc"],             // Fiddlesticks
-        [28]  = ["dive", "burst", "stealth", "mobility"],      // Evelynn
+        [28]  = ["dive", "burst", "stealth", "mobility", "hard_cc"], // Evelynn (чарм W)
         [30]  = ["channels_ult", "poke", "burst", "scale"],    // Karthus
+        // Джанглеры с реальным контролем, которых не было в списке (иначе движок
+        // считал их «агрессивными без CC» и слал ложную причину jgSetup).
+        [427] = ["hard_cc", "peel", "shield"],                 // Ivern (корень Q, нокап Дейзи, щиты)
+        [32]  = ["engage", "hard_cc", "tank"],                 // Amumu (стан бинтом + AoE-стан R)
+        [19]  = ["dive", "hard_cc", "sustain"],                // Warwick (супрессия R)
+        [20]  = ["engage", "hard_cc"],                         // Nunu & Willump (корень E, снежок R)
+        [60]  = ["dive", "hard_cc"],                           // Elise (стан-кокон)
+        [421] = ["dive", "hard_cc", "sustain"],                // Rek'Sai (нокап при вылезании)
+        [234] = ["dive", "hard_cc", "sustain"],                // Viego (стан W)
         [33]  = ["engage", "hard_cc", "tank"],                 // Rammus
         [35]  = ["burst", "stealth", "cc"],                    // Shaco
         [72]  = ["engage", "hard_cc", "dive", "tank"],         // Skarner
