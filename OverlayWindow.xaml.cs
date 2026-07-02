@@ -726,6 +726,18 @@ public partial class OverlayWindow : Window
         static string Col(double v, double max, string def) =>
             max > 0.05 && v >= max - 0.05 ? "#E8B84B" : def;
 
+        // Имена чемпионов драфта → цвет их архетипа (подсветка имён в обоснованиях).
+        var nameColor = new Dictionary<string, string>();
+        if (draft != null)
+            foreach (var p in draft.MyTeam.Concat(draft.TheirTeam))
+            {
+                var id = p.EffectiveChampionId;
+                if (id == 0) continue;
+                var (_, archCol, _) = ArchBadge(id);
+                var nm = DataDragon.Name(id);
+                if (!string.IsNullOrEmpty(nm) && archCol != "#888888") nameColor[nm] = archCol;
+            }
+
         FullRecList.ItemsSource = recs.Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
@@ -739,8 +751,8 @@ public partial class OverlayWindow : Window
                 ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
                 WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
                 Icon       = IconCache.Get(r.ChampionId),
-                // Маркеры списка: каждая причина с новой строки с «• ».
-                ReasonText = string.Join("\n", r.Reasons.Select(x => "•  " + x)),
+                // Маркеры «•» + имена чемпионов цветом их архетипа (см. ReasonSegments).
+                ReasonSegs = ReasonSegments(r.Reasons, nameColor),
                 BaseBar    = ToBaseBar(r.BaseDelta),
                 DirectBar  = ToBar(r.DirectDelta),
                 OtherBar   = ToBar(r.StyleDelta),   // строка «Против их стиля»
@@ -763,6 +775,34 @@ public partial class OverlayWindow : Window
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
         if (draft != null) RenderTeams(draft);
+    }
+
+    // Разбивает причины на сегменты: маркер «•», перевод строк между причинами и
+    // имена чемпионов, покрашенные в цвет их архетипа (nameColor).
+    private static List<ReasonSeg> ReasonSegments(string[] reasons, Dictionary<string, string> nameColor)
+    {
+        var segs = new List<ReasonSeg>();
+        System.Text.RegularExpressions.Regex? rx = null;
+        if (nameColor.Count > 0)
+        {
+            var alt = string.Join("|", nameColor.Keys.OrderByDescending(n => n.Length)
+                .Select(System.Text.RegularExpressions.Regex.Escape));
+            rx = new System.Text.RegularExpressions.Regex("(" + alt + ")");
+        }
+        for (int i = 0; i < reasons.Length; i++)
+        {
+            if (i > 0) segs.Add(new ReasonSeg { Break = true });
+            var line = "•  " + reasons[i];
+            if (rx is null) { segs.Add(new ReasonSeg { Text = line }); continue; }
+            foreach (var part in rx.Split(line))
+            {
+                if (part.Length == 0) continue;
+                segs.Add(nameColor.TryGetValue(part, out var c)
+                    ? new ReasonSeg { Text = part, Color = c }
+                    : new ReasonSeg { Text = part });
+            }
+        }
+        return segs;
     }
 
     // Полный вид для фазы банов: тот же раздел (команды + центр), но в центре баны.
@@ -1047,6 +1087,7 @@ public sealed class FullRecCard
     public string       WinRate    { get; init; } = "";
     public ImageSource? Icon       { get; init; }
     public string       ReasonText { get; init; } = "";
+    public IEnumerable<ReasonSeg> ReasonSegs { get; init; } = [];
     public double       BaseBar    { get; init; }
     public double       DirectBar  { get; init; }
     public double       OtherBar   { get; init; }

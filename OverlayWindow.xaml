@@ -735,7 +735,8 @@
                                          TextTrimming="CharacterEllipsis"/>
                               <TextBlock Text="{Binding WinRate}" Foreground="#4A6880"
                                          FontFamily="{StaticResource UiFont}" FontSize="12"/>
-                              <TextBlock Text="{Binding ReasonText}" Foreground="#8AA6BC"
+                              <TextBlock Foreground="#8AA6BC"
+                                         loc:ReasonInlines.Segments="{Binding ReasonSegs}"
                                          FontFamily="{StaticResource UiFont}" FontSize="12"
                                          TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/>
                             </StackPanel>
