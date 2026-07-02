@@ -763,93 +763,119 @@
                             <!-- Показатели: справа, по центру бокса -->
                             <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center">
                               <StackPanel.Resources>
-                                <!-- Золотое свечение сильнейшей метрики (на всю строку: лейбл + число) -->
-                                <DropShadowEffect x:Key="GoldGlow" Color="#F0C64A" BlurRadius="16" ShadowDepth="0" Opacity="1"/>
-                                <Style x:Key="StrongBase" TargetType="Grid">
+                                <!-- Золотой прямоугольник у сильнейшей метрики (лейбл + число + бар) -->
+                                <Style x:Key="MetricBox" TargetType="Border">
+                                  <Setter Property="CornerRadius" Value="4"/>
+                                  <Setter Property="Padding" Value="6,3"/>
+                                  <Setter Property="Margin" Value="0,0,0,5"/>
+                                  <Setter Property="BorderThickness" Value="1"/>
+                                  <Setter Property="BorderBrush" Value="Transparent"/>
+                                </Style>
+                                <Style x:Key="StrongBase" TargetType="Border" BasedOn="{StaticResource MetricBox}">
                                   <Style.Triggers>
                                     <DataTrigger Binding="{Binding BaseStrong}" Value="True">
-                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                      <Setter Property="Background" Value="#33F0C64A"/>
+                                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
                                     </DataTrigger>
                                   </Style.Triggers>
                                 </Style>
-                                <Style x:Key="StrongDirect" TargetType="Grid">
+                                <Style x:Key="StrongDirect" TargetType="Border" BasedOn="{StaticResource MetricBox}">
                                   <Style.Triggers>
                                     <DataTrigger Binding="{Binding DirectStrong}" Value="True">
-                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                      <Setter Property="Background" Value="#33F0C64A"/>
+                                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
                                     </DataTrigger>
                                   </Style.Triggers>
                                 </Style>
-                                <Style x:Key="StrongOther" TargetType="Grid">
+                                <Style x:Key="StrongOther" TargetType="Border" BasedOn="{StaticResource MetricBox}">
                                   <Style.Triggers>
                                     <DataTrigger Binding="{Binding OtherStrong}" Value="True">
-                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                      <Setter Property="Background" Value="#33F0C64A"/>
+                                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
                                     </DataTrigger>
                                   </Style.Triggers>
                                 </Style>
-                                <Style x:Key="StrongSyn" TargetType="Grid">
+                                <Style x:Key="StrongSyn" TargetType="Border" BasedOn="{StaticResource MetricBox}">
                                   <Style.Triggers>
                                     <DataTrigger Binding="{Binding SynStrong}" Value="True">
-                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                      <Setter Property="Background" Value="#33F0C64A"/>
+                                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
                                     </DataTrigger>
                                   </Style.Triggers>
                                 </Style>
                               </StackPanel.Resources>
 
                               <!-- Винрейт в патче -->
-                              <Grid Style="{StaticResource StrongBase}">
-                                <TextBlock Text="{loc:T metric.base}" Foreground="#7C97AC"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding BaseText}" Foreground="{Binding BaseColor}"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                                           HorizontalAlignment="Right"/>
-                              </Grid>
-                              <Grid Height="6" Margin="0,2,0,7">
-                                <Border Background="#1AFFFFFF" CornerRadius="3"/>
-                                <Border HorizontalAlignment="Left" Width="{Binding BaseBar}"
-                                        Background="#4080C0" CornerRadius="3"/>
-                              </Grid>
+                              <Border Style="{StaticResource StrongBase}">
+                                <StackPanel>
+                                  <Grid>
+                                    <TextBlock Text="{loc:T metric.base}" Foreground="#7C97AC"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                                    <TextBlock Text="{Binding BaseText}" Foreground="{Binding BaseColor}"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                               HorizontalAlignment="Right"/>
+                                  </Grid>
+                                  <Grid Height="6" Margin="0,3,0,0">
+                                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                                    <Border HorizontalAlignment="Left" Width="{Binding BaseBar}"
+                                            Background="#4080C0" CornerRadius="3"/>
+                                  </Grid>
+                                </StackPanel>
+                              </Border>
 
                               <!-- Против оппонента -->
-                              <Grid Style="{StaticResource StrongDirect}">
-                                <TextBlock Text="{loc:T metric.direct}" Foreground="#7C97AC"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding DirectText}" Foreground="{Binding DirectColor}"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                                           HorizontalAlignment="Right"/>
-                              </Grid>
-                              <Grid Height="6" Margin="0,2,0,7">
-                                <Border Background="#1AFFFFFF" CornerRadius="3"/>
-                                <Border HorizontalAlignment="Left" Width="{Binding DirectBar}"
-                                        Background="#C84040" CornerRadius="3"/>
-                              </Grid>
+                              <Border Style="{StaticResource StrongDirect}">
+                                <StackPanel>
+                                  <Grid>
+                                    <TextBlock Text="{loc:T metric.direct}" Foreground="#7C97AC"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                                    <TextBlock Text="{Binding DirectText}" Foreground="{Binding DirectColor}"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                               HorizontalAlignment="Right"/>
+                                  </Grid>
+                                  <Grid Height="6" Margin="0,3,0,0">
+                                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                                    <Border HorizontalAlignment="Left" Width="{Binding DirectBar}"
+                                            Background="#C84040" CornerRadius="3"/>
+                                  </Grid>
+                                </StackPanel>
+                              </Border>
 
                               <!-- Против вражеской команды -->
-                              <Grid Style="{StaticResource StrongOther}">
-                                <TextBlock Text="{loc:T metric.style}" Foreground="#7C97AC"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding OtherText}" Foreground="{Binding OtherColor}"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                                           HorizontalAlignment="Right"/>
-                              </Grid>
-                              <Grid Height="6" Margin="0,2,0,7">
-                                <Border Background="#1AFFFFFF" CornerRadius="3"/>
-                                <Border HorizontalAlignment="Left" Width="{Binding OtherBar}"
-                                        Background="#C87030" CornerRadius="3"/>
-                              </Grid>
+                              <Border Style="{StaticResource StrongOther}">
+                                <StackPanel>
+                                  <Grid>
+                                    <TextBlock Text="{loc:T metric.style}" Foreground="#7C97AC"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                                    <TextBlock Text="{Binding OtherText}" Foreground="{Binding OtherColor}"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                               HorizontalAlignment="Right"/>
+                                  </Grid>
+                                  <Grid Height="6" Margin="0,3,0,0">
+                                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                                    <Border HorizontalAlignment="Left" Width="{Binding OtherBar}"
+                                            Background="#C87030" CornerRadius="3"/>
+                                  </Grid>
+                                </StackPanel>
+                              </Border>
 
                               <!-- Синергия с союзниками -->
-                              <Grid Style="{StaticResource StrongSyn}">
-                                <TextBlock Text="{loc:T metric.synergy}" Foreground="#7C97AC"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding SynText}" Foreground="{Binding SynColor}"
-                                           FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                                           HorizontalAlignment="Right"/>
-                              </Grid>
-                              <Grid Height="6" Margin="0,2,0,0">
-                                <Border Background="#1AFFFFFF" CornerRadius="3"/>
-                                <Border HorizontalAlignment="Left" Width="{Binding SynBar}"
-                                        Background="#40A060" CornerRadius="3"/>
-                              </Grid>
+                              <Border Style="{StaticResource StrongSyn}">
+                                <StackPanel>
+                                  <Grid>
+                                    <TextBlock Text="{loc:T metric.synergy}" Foreground="#7C97AC"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                                    <TextBlock Text="{Binding SynText}" Foreground="{Binding SynColor}"
+                                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                               HorizontalAlignment="Right"/>
+                                  </Grid>
+                                  <Grid Height="6" Margin="0,3,0,0">
+                                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                                    <Border HorizontalAlignment="Left" Width="{Binding SynBar}"
+                                            Background="#40A060" CornerRadius="3"/>
+                                  </Grid>
+                                </StackPanel>
+                              </Border>
                             </StackPanel>
                       </Grid>
                     </Border>
