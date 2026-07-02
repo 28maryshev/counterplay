@@ -222,6 +222,7 @@
     "exploit": "Enemy stacked {0} — you punish their forced item.",
     "countersPool": "Counters your pool (beats {0})",
     "countersAlly": "Counters your ally {0}",
+    "countersMyPick": "Counters your pick {0}",
     "botlaneGood": "Good against the enemy bot ({0})",
     "botlaneBad": "Struggles against the enemy bot ({0})",
     "strongPatch": "Strong this patch — WR {0}%",

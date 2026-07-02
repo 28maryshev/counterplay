@@ -107,6 +107,33 @@ static class DraftTest
                 new[] { (103, "middle"), (99, "middle"), (63, "middle"), (45, "middle") },
                 new[] { 14, 51, 16, 89, 22 }), 8);
 
+        // 7. БАНЫ: мой ховер + союзники наведены, но роли НЕ раскрыты (соло/дуо).
+        //    Ждём в списке контр-пики моего Джинкса и наведённых союзников (не только пул).
+        eng.Mastery = new Dictionary<int, long>();
+        void PrintBans(string title, DraftState s, int top = 6)
+        {
+            Console.WriteLine($"\n===== BANS: {title} =====");
+            var mine = s.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
+            var allies = s.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
+                .Select(p => $"{DataDragon.Name(p.EffectiveChampionId)}({(string.IsNullOrEmpty(p.Position) ? "?" : p.Position)})");
+            Console.WriteLine($"  role={s.MyPosition} myPick={(mine == 0 ? "-" : DataDragon.Name(mine))} allies: {string.Join(", ", allies)}");
+            foreach (var b in eng.RecommendBans(s, top))
+            {
+                Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} score={b.Score,6:F1}");
+                foreach (var r in b.Reasons.Take(2)) Console.WriteLine($"        · {r}");
+            }
+        }
+        DraftState BuildBan(string myPos, int myHover, (int champ, string pos)[] allies)
+        {
+            var my = new List<DraftPlayer> { new(0, 0, myHover, myPos, true) };
+            int c = 1;
+            foreach (var (ch, pos) in allies) my.Add(new(c++, ch, 0, pos, false));
+            return new DraftState(my, [], [], [], my[0], myPos, null, false, true, [], false);
+        }
+        Console.WriteLine("\n########## BANS ##########");
+        PrintBans("my hover Jinx + allies hovered (Ahri/LeeSin/Malphite), NO roles",
+            BuildBan("bottom", 222, new[] { (103, ""), (64, ""), (54, "") }));
+
         Console.WriteLine("\n(готово)");
     }
 }

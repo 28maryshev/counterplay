@@ -52,9 +52,10 @@ public sealed class RecommendationEngine : IDisposable
 
     // Веса рекомендации банов.
     private const double W_BAN_META    = 1.0; // сила чемпиона в патче (WR)
-    private const double W_BAN_POP     = 1.0; // популярность (часто пикается)
-    private const double W_BAN_COUNTER = 2.0; // насколько контрит твой пул (усилено)
-    private const double W_BAN_ALLY    = 1.3; // контрит уже показанный пик союзника
+    private const double W_BAN_POP     = 0.4; // популярность (часто пикается) — раньше давила всё
+    private const double W_BAN_COUNTER = 2.0; // насколько контрит твой пул
+    private const double W_BAN_MYPICK  = 3.2; // контрит мой наведённый/взятый пик (макс. приоритет)
+    private const double W_BAN_ALLY    = 2.6; // контрит наведённый/взятый пик союзника (защита команды)
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -525,6 +526,23 @@ public sealed class RecommendationEngine : IDisposable
         return RawAgg(cmd);
     }
 
+    // Матчап без учёта роли (сумма по всем ролям) — для банов, когда роль своя или
+    // союзника ещё не назначена (ranked solo/duo, блайнд): защиту всё равно считаем.
+    private (double g, double w) RawMatchupAny(int champId, int vsId)
+    {
+        var cmd = _db.CreateCommand();
+        cmd.CommandText = @"
+            SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM matchup
+            WHERE champion_id=@c AND vs_champion_id=@v AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
+        cmd.Parameters.AddWithValue("@c",  champId);
+        cmd.Parameters.AddWithValue("@v",  vsId);
+        cmd.Parameters.AddWithValue("@t",  TierBucket);
+        cmd.Parameters.AddWithValue("@p1", _p1);
+        cmd.Parameters.AddWithValue("@p2", _p2);
+        cmd.Parameters.AddWithValue("@p3", _p3);
+        return RawAgg(cmd);
+    }
+
     // ---------- Рекомендация банов ----------
 
     /// Кого банить: сильные/популярные в патче чемпионы твоей роли, которые ещё и
@@ -587,23 +605,31 @@ public sealed class RecommendationEngine : IDisposable
             if (pop >= 0.6)    AddReason(x, Loc.T("reason.oftenPicked"));
         }
 
-        // 2. Защита союзников: банить тех, кто контрит уже показанные пики союзников.
+        // 2. Защита заявленных пиков: банить тех, кто контрит уже наведённых/взятых
+        //    чемпионов. Приоритет — мой пик, затем союзники. Роль часто не назначена
+        //    (ranked solo/duo, блайнд), поэтому матчап при пустой роли берём по всем ролям.
+        var protectees = new List<(int Id, string? Role, double Weight, bool Mine)>();
+        var me = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer);
+        if (me is { EffectiveChampionId: not 0 })
+            protectees.Add((me.EffectiveChampionId, string.IsNullOrEmpty(myRole) ? null : myRole, W_BAN_MYPICK, true));
         foreach (var ally in state.MyTeam)
         {
-            var aid = ally.EffectiveChampionId;
-            if (aid == 0 || ally.IsLocalPlayer) continue;
-            var aRole = LcuToDbRole(ally.Position);
-            foreach (var c in TopCounters(aid, string.IsNullOrEmpty(aRole) ? null : aRole, 4))
+            if (ally.IsLocalPlayer || ally.EffectiveChampionId == 0) continue;
+            var ar = LcuToDbRole(ally.Position);
+            protectees.Add((ally.EffectiveChampionId, string.IsNullOrEmpty(ar) ? null : ar, W_BAN_ALLY, false));
+        }
+
+        foreach (var (pid, prole, weight, mine) in protectees)
+            foreach (var c in TopCounters(pid, prole, 6))
             {
                 if (taken.Contains(c)) continue;
-                var (mg, mw) = RawMatchup(aid, aRole, c);
+                var (mg, mw) = prole != null ? RawMatchup(pid, prole, c) : RawMatchupAny(pid, c);
                 if (mg <= 0) continue;
-                var strength = -Delta(mg, mw, K_PAIR); // насколько c бьёт союзника
-                if (strength < 1.0) continue;
-                scores[c] = scores.GetValueOrDefault(c) + W_BAN_ALLY * strength;
-                AddReason(c, Loc.T("reason.countersAlly", DataDragon.Name(aid)));
+                var strength = -Delta(mg, mw, K_PAIR); // насколько c бьёт нашего чемпиона
+                if (strength < 0.5) continue;
+                scores[c] = scores.GetValueOrDefault(c) + weight * strength;
+                AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(pid)));
             }
-        }
 
         return scores
             .OrderByDescending(kv => kv.Value)
