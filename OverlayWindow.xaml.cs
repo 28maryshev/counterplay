@@ -718,6 +718,14 @@ public partial class OverlayWindow : Window
         for (int i = 0; i < myCombos.Count; i++)
             comboColorByName[myCombos[i].Name] = ComboColors[i % ComboColors.Length];
 
+        // Сильнейшая метрика среди показанных пиков → золотом (если > 0).
+        double maxBase = recs.Count > 0 ? recs.Max(r => r.BaseDelta)    : 0;
+        double maxDir  = recs.Count > 0 ? recs.Max(r => r.DirectDelta)  : 0;
+        double maxSty  = recs.Count > 0 ? recs.Max(r => r.StyleDelta)   : 0;
+        double maxSyn  = recs.Count > 0 ? recs.Max(r => r.SynergyDelta) : 0;
+        static string Col(double v, double max, string def) =>
+            max > 0.05 && v >= max - 0.05 ? "#E8B84B" : def;
+
         FullRecList.ItemsSource = recs.Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
@@ -731,7 +739,8 @@ public partial class OverlayWindow : Window
                 ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
                 WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
                 Icon       = IconCache.Get(r.ChampionId),
-                ReasonText = string.Join("\n", r.Reasons),
+                // Маркеры списка: каждая причина с новой строки с «• ».
+                ReasonText = string.Join("\n", r.Reasons.Select(x => "•  " + x)),
                 BaseBar    = ToBaseBar(r.BaseDelta),
                 DirectBar  = ToBar(r.DirectDelta),
                 OtherBar   = ToBar(r.StyleDelta),   // строка «Против их стиля»
@@ -740,6 +749,10 @@ public partial class OverlayWindow : Window
                 DirectText = Signed(r.DirectDelta),
                 OtherText  = Signed(r.StyleDelta),
                 SynText    = Signed(r.SynergyDelta),
+                BaseColor   = Col(r.BaseDelta,    maxBase, "#5C9BDC"),
+                DirectColor = Col(r.DirectDelta,  maxDir,  "#E06464"),
+                OtherColor  = Col(r.StyleDelta,   maxSty,  "#E0944C"),
+                SynColor    = Col(r.SynergyDelta, maxSyn,  "#5BC487"),
                 ArchGlyph  = ag,
                 ArchColor  = ac,
                 ArchTip    = at,
@@ -1042,6 +1055,11 @@ public sealed class FullRecCard
     public string       DirectText { get; init; } = "";
     public string       OtherText  { get; init; } = "";
     public string       SynText    { get; init; } = "";
+    // Цвет значения метрики: золотой у сильнейшего среди пула, иначе базовый.
+    public string       BaseColor   { get; init; } = "#5C9BDC";
+    public string       DirectColor { get; init; } = "#E06464";
+    public string       OtherColor  { get; init; } = "#E0944C";
+    public string       SynColor    { get; init; } = "#5BC487";
     public string       ArchGlyph  { get; init; } = "";
     public string       ArchColor  { get; init; } = "#888888";
     public string       ArchTip    { get; init; } = "";

@@ -130,8 +130,9 @@ public sealed class RecommendationEngine : IDisposable
     // нижней границе Уилсона и показываем только при достаточной выборке. Иначе
     // всплывал шум: пара на 10–15 играх со случайным перевесом выдавалась за
     // «контру» (напр. Сион «контрил» Кейл на 16 играх, хотя реально проигрывает).
-    private const int    HINT_MIN_GAMES = 30;   // минимум совместных игр на пару
-    private const double HINT_MIN_EDGE  = 0.50; // показываем, только если LB Уилсона > 50%
+    private const int    HINT_MIN_GAMES = 30;   // минимум совместных игр на пару (контры)
+    private const int    HINT_MIN_SYN   = 12;   // ниже порог для синергии — чтобы заполнять 3
+    private const double HINT_MIN_EDGE  = 0.50; // контру показываем, только если LB Уилсона > 50%
     private const double WILSON_Z       = 1.28; // ~80% односторонняя уверенность
 
     // Количество патчей для агрегации (берём последние N).
@@ -381,26 +382,12 @@ public sealed class RecommendationEngine : IDisposable
                 var (draftBonus, styleScore, draftReasons) =
                     DraftFit(champId, enemyDom, uncertainty);
 
-                // Item value (п.1): штраф за стак уязвимости + бонус за наказание врага.
-                var (vulnPen, vulnCat, vulnCnt) = ItemValue.VulnPenalty(champId, vulnAllyIds);
-                var (exploit, forced)  = ItemValue.ExploitBonus(champId, allEnemyIds);
-                if (vulnPen >= 0.9 && vulnCat is { } vc)
-                {
-                    var tail = vulnCnt >= 4 ? Loc.T("reason.vulnNearAll")
-                             : vulnCnt == 3 ? Loc.T("reason.vuln3")
-                             :                Loc.T("reason.vuln2");
-                    draftReasons.Add(Loc.T("reason.dontStack", ItemValue.CatName(vc), tail));
-                }
-                if (exploit > 0 && forced is { } fc)
-                    draftReasons.Add(Loc.T("reason.exploit", ItemValue.CatName(fc)));
-
-                // Баланс типа урона (AD/AP): штраф за стак одного типа (≥3), бонус за
-                // разбавление. Сильнее против танков; при 4-м одном типе — заметно вниз.
-                var (dmgDelta, dmgStack, dmgAd) = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
-                if (dmgStack)
-                    draftReasons.Add(Loc.T("reason.dmgStack", Loc.T(dmgAd ? "cat.physical" : "cat.magic")));
-                else if (dmgDelta > 0.5)
-                    draftReasons.Add(Loc.T("reason.dmgBalance", Loc.T(dmgAd ? "cat.physical" : "cat.magic")));
+                // Item value (п.1) + баланс типа урона (AD/AP): влияют на СКОР (штраф за
+                // стак уязвимости/типа урона, бонус за наказание врага), но в тексте
+                // причин НЕ выводятся — уязвимости показываем строкой итем-иконок внизу.
+                var (vulnPen, _, _)   = ItemValue.VulnPenalty(champId, vulnAllyIds);
+                var (exploit, _)      = ItemValue.ExploitBonus(champId, allEnemyIds);
+                var (dmgDelta, _, _)  = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
 
                 // Структурная синергия джангл↔саппорт (п.4).
                 var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId);
@@ -471,7 +458,7 @@ public sealed class RecommendationEngine : IDisposable
                 ? Delta(synGames, syn.Sum(x => x.w), K_PAIR) * (synGames / (synGames + CONF_GAMES)) : 0.0;
 
             // Баланс типа урона (в ARAM смешанный урон особенно важен). Врагов нет.
-            var (dmgDelta, dmgStack, dmgAd) = ItemValue.DamageBalance(champId, allyIds, []);
+            var (dmgDelta, _, _) = ItemValue.DamageBalance(champId, allyIds, []); // влияет на скор, без текста
 
             double gap = 0;
             var reasons = new List<string>();
@@ -480,11 +467,6 @@ public sealed class RecommendationEngine : IDisposable
             if (!hasHeal && ChampionTraits.HealReliant(champId))
             { gap += 1.5; reasons.Add(Loc.T("reason.aramHeal")); }
             if (ChampionTraits.LongRange(champId)) gap += 0.8;
-
-            if (dmgStack)
-                reasons.Add(Loc.T("reason.dmgStack", Loc.T(dmgAd ? "cat.physical" : "cat.magic")));
-            else if (dmgDelta > 0.5)
-                reasons.Add(Loc.T("reason.dmgBalance", Loc.T(dmgAd ? "cat.physical" : "cat.magic")));
 
             var comfort = ComfortDelta(champId);
             if      (comfort >= 5.0) reasons.Add(Loc.T("reason.comfortHigh"));
@@ -863,9 +845,9 @@ public sealed class RecommendationEngine : IDisposable
         return (centre - margin) / (1 + z2 / games);
     }
 
-    // (champion_id, games, wins) → ранг по Уилсону, только уверенно выгодные пары.
-    // Команда уже отфильтрована по HINT_MIN_GAMES; пусто — ничего не показываем.
-    private static List<int> RankByWilson(SqliteCommand cmd, int top)
+    // (champion_id, games, wins) → ранг по нижней границе Уилсона. minEdge отсекает
+    // «неуверенные» пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
+    private static List<int> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE)
     {
         var scored = new List<(int Id, double Lb)>();
         using (var rd = cmd.ExecuteReader())
@@ -874,7 +856,7 @@ public sealed class RecommendationEngine : IDisposable
                 double g = Convert.ToDouble(rd.GetValue(1));
                 double w = Convert.ToDouble(rd.GetValue(2));
                 var lb = WilsonLower(w, g);
-                if (lb > HINT_MIN_EDGE) scored.Add((rd.GetInt32(0), lb));
+                if (lb > minEdge) scored.Add((rd.GetInt32(0), lb));
             }
         return scored.OrderByDescending(x => x.Lb).Take(top).Select(x => x.Id).ToList();
     }
@@ -915,6 +897,8 @@ public sealed class RecommendationEngine : IDisposable
         try
         {
             var cmd = _db.CreateCommand();
+            // Синергия по всем дивизионам (данные разрежены), порог игр ниже и без
+            // фильтра edge — чтобы стабильно заполнять 3 лучших партнёра по LB.
             cmd.CommandText = @"
                 SELECT champion_id, SUM(games) AS g, SUM(wins) AS w
                 FROM   synergy
@@ -922,12 +906,12 @@ public sealed class RecommendationEngine : IDisposable
                 GROUP  BY champion_id
                 HAVING SUM(games) >= @min";
             cmd.Parameters.AddWithValue("@a",   allyId);
-            cmd.Parameters.AddWithValue("@min", HINT_MIN_GAMES);
+            cmd.Parameters.AddWithValue("@min", HINT_MIN_SYN);
             cmd.Parameters.AddWithValue("@r",   myRole);
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
-            return RankByWilson(cmd, top);
+            return RankByWilson(cmd, top, minEdge: -1.0);
         }
         catch { return []; }
     }

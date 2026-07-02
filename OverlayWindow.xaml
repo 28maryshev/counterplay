@@ -747,7 +747,7 @@
                               <Grid>
                                 <TextBlock Text="{loc:T metric.base}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding BaseText}" Foreground="#5C9BDC"
+                                <TextBlock Text="{Binding BaseText}" Foreground="{Binding BaseColor}"
                                            FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                                            HorizontalAlignment="Right"/>
                               </Grid>
@@ -761,7 +761,7 @@
                               <Grid>
                                 <TextBlock Text="{loc:T metric.direct}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding DirectText}" Foreground="#E06464"
+                                <TextBlock Text="{Binding DirectText}" Foreground="{Binding DirectColor}"
                                            FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                                            HorizontalAlignment="Right"/>
                               </Grid>
@@ -775,7 +775,7 @@
                               <Grid>
                                 <TextBlock Text="{loc:T metric.style}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding OtherText}" Foreground="#E0944C"
+                                <TextBlock Text="{Binding OtherText}" Foreground="{Binding OtherColor}"
                                            FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                                            HorizontalAlignment="Right"/>
                               </Grid>
@@ -789,7 +789,7 @@
                               <Grid>
                                 <TextBlock Text="{loc:T metric.synergy}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
-                                <TextBlock Text="{Binding SynText}" Foreground="#5BC487"
+                                <TextBlock Text="{Binding SynText}" Foreground="{Binding SynColor}"
                                            FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                                            HorizontalAlignment="Right"/>
                               </Grid>
