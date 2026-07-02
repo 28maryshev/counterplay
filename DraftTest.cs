@@ -130,6 +130,13 @@ static class DraftTest
             foreach (var (ch, pos) in allies) my.Add(new(c++, ch, 0, pos, false));
             return new DraftState(my, [], [], [], my[0], myPos, null, false, true, [], false);
         }
+        // 8. Вомбо-состав: команда с AoE-ультами (Малфайт/Кеннен/Свейн/Сона) — ждём
+        //    вверх AoE-ульт АДК (МФ/Твич/Сивир) с причиной womboAoe.
+        Print("BOT: AoE-ult wombo team (Malphite/Kennen/Swain/Sona)",
+            Build("bottom",
+                new[] { (54, "jungle"), (85, "top"), (50, "middle"), (37, "utility") },
+                new[] { (24, "top"), (64, "jungle"), (103, "middle"), (222, "bottom"), (412, "utility") }), 12);
+
         Console.WriteLine("\n########## BANS ##########");
         PrintBans("my hover Jinx + allies hovered (Ahri/LeeSin/Malphite), NO roles",
             BuildBan("bottom", 222, new[] { (103, ""), (64, ""), (54, "") }));

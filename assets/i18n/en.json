@@ -231,6 +231,7 @@
     "jgSetup": "Jungler {0} is aggressive without cc — you provide gank setup.",
     "adcEngage": "ADC {0} wants engage — you open fights for them.",
     "adcScale": "ADC {0} scales — your peel/enchant lets them scale up.",
+    "womboAoe": "Your AoE ult stacks with the team's teamfight wombo — one grouped fight can wipe them.",
     "comfortHigh": "You play this champion a lot — a confident comfort pick.",
     "comfortMid": "A familiar champion from your pool — a comfortable choice.",
     "lineWinStrong": "Strongly wins the lane against {0} (+{1}%)",

@@ -29,8 +29,8 @@ public static class TeamSynergies
     // Дайв-кэрри — окупают неуязвимость, ныряя в тиму.
     private static readonly HashSet<int> DiveCarry = [11, 23, 24, 114, 59, 157, 777, 164, 2, 39, 266, 234];
     // Мощные AoE-ульты для тимфайта (Сона, МФ, Амуму, Малфайт, Картус, Фидл,
-    // Орианна, Нико, Кеннен, Серафина, Твич, Сивир, Ясуо, Йоне).
-    private static readonly HashSet<int> AoeUlt = [37, 21, 32, 54, 30, 9, 61, 518, 85, 147, 29, 15, 157, 777];
+    // Орианна, Нико, Кеннен, Серафина, Твич, Сивир, Ясуо, Йоне, Свейн).
+    private static readonly HashSet<int> AoeUlt = [37, 21, 32, 54, 30, 9, 61, 518, 85, 147, 29, 15, 157, 777, 50];
     // Орианна — её шар + инициация = «шаровая молния».
     private const int Orianna = 61;
     // Хуки — гарантированный пик при подхвате.
@@ -136,6 +136,15 @@ public static class TeamSynergies
 
         return null;
     }
+
+    /// Есть ли у чемпиона мощный AoE/канал-ульт по площади (для оценки вомбо-состава).
+    public static bool HasAoeUlt(int id) =>
+        AoeUlt.Contains(id) || ChampionTags.Has(id, "channels_ult");
+
+    /// Умеет ли чемпион собрать/зафиксировать группу врагов (нокап/жёсткий контроль/
+    /// инициация) — то, подо что «раскрываются» AoE-ульты команды.
+    public static bool IsGrouper(int id) =>
+        Knockup.Contains(id) || ChampionTags.Has(id, "hard_cc") || ChampionTags.Has(id, "engage");
 
     public static List<TeamCombo> Detect(IReadOnlyList<(int Id, string Role)> team, bool forAlly)
     {

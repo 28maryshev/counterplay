@@ -391,7 +391,7 @@ public sealed class RecommendationEngine : IDisposable
                 var (dmgDelta, _, _)  = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
 
                 // Структурная синергия джангл↔саппорт (п.4).
-                var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId);
+                var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId, vulnAllyIds);
                 draftReasons.AddRange(structReasons);
 
                 // Бот 2v2: матчап против вражеского дуо-партнёра (кросс-роль).
@@ -667,10 +667,23 @@ public sealed class RecommendationEngine : IDisposable
     // Структурные правила синергии джангл↔саппорт (п.4): не из статистики, а из
     // логики команды («агро-джанглеру нужен сетап», «оллин-АДК нужен инициатор»).
     private static (double Bonus, List<string> Reasons) StructuralBonus(
-        int champId, string myRole, int jungleAllyId, int adcAllyId)
+        int champId, string myRole, int jungleAllyId, int adcAllyId, IReadOnlyList<int> allyIds)
     {
         double b = 0;
         var reasons = new List<string>();
+
+        // Тимфайт-вомбо: у кандидата свой мощный AoE/канал-ульт, а у команды уже есть
+        // ядро таких же ультов И кто-то умеет собрать/зафиксировать пачку → его ульт
+        // добивает всю сгруппированную команду. Классика «стакай ульты на пачку».
+        if (TeamSynergies.HasAoeUlt(champId))
+        {
+            int aoeAllies = allyIds.Count(TeamSynergies.HasAoeUlt);
+            if (aoeAllies >= 2 && allyIds.Any(TeamSynergies.IsGrouper))
+            {
+                b += Math.Min(aoeAllies, 3) * 0.7; // +1.4 … +2.1 (×W_STRUCT)
+                reasons.Add(Loc.T("reason.womboAoe"));
+            }
+        }
 
         // Союзный джанглер агрессивен, но без своего жёсткого контроля → ему нужен
         // лейнер с CC-сетапом и приоритетом; слабый ранний рушит его план.

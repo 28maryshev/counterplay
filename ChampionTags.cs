@@ -28,6 +28,7 @@ public static class ChampionTags
         [63]  = ["poke", "burst"],                     // Brand
         [25]  = ["shield", "cc", "poke"],              // Morgana
         [201] = ["peel", "engage", "passive_auto"],    // Braum
+        [37]  = ["peel", "heal", "shield", "hard_cc"], // Sona (AoE-стан R, баффы/хил)
         [902] = ["utility", "cc"],                     // Renata Glasc
         [888] = ["engage", "poke"],                    // Rengar (sup rare)
 
@@ -71,6 +72,7 @@ public static class ChampionTags
         [103] = ["poke", "cc"],                        // Ahri
         [84]  = ["dive", "burst"],                     // Akali
         [105] = ["dive", "burst"],                     // Fizz
+        [85]  = ["engage", "hard_cc", "dive"],         // Kennen (AoE-стан R/W-проки)
 
         // ── Топы ──────────────────────────────────────────────────────────────
         [122] = ["dive", "juggernaut", "hard_cc"],     // Darius
