@@ -91,31 +91,34 @@ public static class ItemValue
     private const int MercTreads = 3111, Morello = 3165, Thornmail = 3075,
                       RanduinOmen = 3143, FrozenHeart = 3110, SpiritVisage = 3065, KaenicRookern = 2504;
 
-    /// Предметы, которыми враг будет контрить ЭТОТ пик (+ перевес типа урона команды).
-    /// Показываем строкой иконок под описанием. Ключевое: набор про конкретного
-    /// чемпиона, а не общий по команде (иначе марксмену лепились «ртутки» за чужой CC).
+    /// Предметы, которыми враг накажет команду, ЕСЛИ взять этот пик. Показываем строкой
+    /// иконок под описанием. Смысл — предупреждение о СТАКЕ: одним предметом враг рубит
+    /// полкоманды. Поэтому предмет показывается только пику, который ДОБАВЛЯЕТ к перекосу
+    /// (ещё один AD в АД-команду), а не тому, кто её разбавляет.
     public static IReadOnlyList<int> CounterItems(int candidate, IReadOnlyList<int> allyIds)
     {
-        var items = new List<int>();
-
-        // 1) Перевес типа урона всей команды → резист даже пику того же типа
-        //    (много АД в составе → враг берёт броню на всех, включая этого АД-пика).
-        int ad = 0, ap = 0;
+        int ad = 0, ap = 0, cc = 0, heal = 0;
         foreach (var t in allyIds.Append(candidate))
         {
             if (DataDragon.IsAdChampion(t)) ad++;
             else if (DataDragon.IsApChampion(t)) ap++;
+            if (ChampionTraits.HardCc(t) >= 1)   cc++;
+            if (ChampionTraits.HealReliant(t))   heal++;
         }
-        if (ad - ap >= 2) { items.Add(Thornmail); items.Add(FrozenHeart); }        // броня
-        else if (ap - ad >= 2) { items.Add(SpiritVisage); items.Add(KaenicRookern); } // МР
+        bool candAd = DataDragon.IsAdChampion(candidate);
+        bool candAp = DataDragon.IsApChampion(candidate);
+        var items = new List<int>();
 
-        // 2) Контр-предметы под конкретного чемпиона.
-        if (ChampionTraits.AutoReliant(candidate)) { items.Add(RanduinOmen); items.Add(FrozenHeart); } // авто/крит → броня + скорость атаки
-        if (ChampionTraits.HardCc(candidate) >= 1) items.Add(MercTreads);          // его контроль → ртуть/тенасити
-        if (ChampionTraits.HealReliant(candidate))
-            items.Add(DataDragon.IsApChampion(candidate) ? Morello : Thornmail);    // хил → гривус
-        if (DataDragon.IsApChampion(candidate) && ChampionTraits.Burst(candidate) >= 2)
-            items.Add(SpiritVisage);                                               // AP-бёрст → МР
+        // Перекос типа урона: предупреждаем ТОЛЬКО пик того же типа, что стак, и только
+        // когда команда почти вся одного типа (враг возьмёт броню/МР на всех).
+        if (candAd && ad >= 3 && ad - ap >= 2) { items.Add(Thornmail); items.Add(RanduinOmen); items.Add(FrozenHeart); } // броня + скорость атаки
+        else if (candAp && ap >= 3 && ap - ad >= 2) { items.Add(SpiritVisage); items.Add(KaenicRookern); }               // МР
+
+        // Стак контроля: пик добавляет CC и его в команде уже ≥2 → враг возьмёт тенасити.
+        if (ChampionTraits.HardCc(candidate) >= 1 && cc >= 2) items.Add(MercTreads);
+
+        // Стак хила: пик хилит и хила в команде уже ≥2 → враг возьмёт гривус.
+        if (ChampionTraits.HealReliant(candidate) && heal >= 2) items.Add(candAp ? Morello : Thornmail);
 
         return items.Distinct().Take(5).ToList();
     }
