@@ -57,6 +57,12 @@ public partial class OverlayWindow : Window
     private static extern bool IsIconic(IntPtr h); // окно свёрнуто в панель задач
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow(); // активное окно — для z-порядка
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
+    private const uint SWP_NOMOVE = 0x2, SWP_NOSIZE = 0x1, SWP_NOACTIVATE = 0x10;
 
     private struct RECT { public int Left, Top, Right, Bottom; }
 
@@ -187,6 +193,10 @@ public partial class OverlayWindow : Window
             return;
         }
 
+        // Z-порядок: когда активно окно клиента — уводим оверлей на второй план, чтобы
+        // на маленьких экранах он не перекрывал весь клиент. Клик по оверлею вернёт его.
+        if (!_inTray) UpdateZOrder(h);
+
         // Клиент передвинули/изменили размер → переклеиваемся к его краю.
         if (!_inTray && !_userMoved && GetWindowRect(h, out var r))
         {
@@ -197,6 +207,20 @@ public partial class OverlayWindow : Window
                 AnchorToClient();
             }
         }
+    }
+
+    // Клиент лиги в фокусе → оверлей уходит ПОД окно клиента (на маленьких экранах он
+    // иначе перекрывает весь клиент). Клик по оверлею возвращает его поверх. Прочие
+    // окна в фокусе — оверлей остаётся поверх, как и раньше.
+    private void UpdateZOrder(IntPtr clientHwnd)
+    {
+        if (GetForegroundWindow() == clientHwnd)
+        {
+            if (Topmost) Topmost = false;           // снимаем «всегда сверху»…
+            SetWindowPos(Hwnd, clientHwnd, 0, 0, 0, 0, // …и опускаем ровно под окно клиента
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        else if (!Topmost) Topmost = true;          // оверлей/иное окно активно → снова поверх
     }
 
     // ── Системный трей (скрытие на время игры) ────────────────────────────
