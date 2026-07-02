@@ -38,6 +38,13 @@ public partial class OverlayWindow : Window
     private bool _inTray;
     // true = свёрнуто пользователем (крестик) — автоматический возврат не разворачивает.
     private bool _userHidden;
+    // true = идёт игра / вход в игру: оверлей специально скрыт, авто-показ подавлен.
+    // Управляется из геймфлоу (Program). В меню/лобби/чемп-селекте — false.
+    private bool _gameActive;
+
+    /// Геймфлоу сообщает, идёт ли игра (или вход в неё). В это время авто-возврат
+    /// оверлея из трея по слежению за окном подавлен — иначе окно всплыло бы поверх игры.
+    public void SetGameActive(bool active) => _gameActive = active;
 
     // Win32 для resize без оконного хрома
     [DllImport("user32.dll")]
@@ -190,6 +197,17 @@ public partial class OverlayWindow : Window
             _followHidden = false;
             RestoreFromTray();   // не развернёт, если свёрнуто вручную крестиком
             AnchorIfNotMoved();  // приклеит сбоку, если оверлей не двигали руками
+            return;
+        }
+
+        // Фолбэк надёжности: клиент открыт и активен, а оверлей завис в трее (например,
+        // после игры проскочило событие геймфлоу, или трей-показ обогнала гонка) —
+        // возвращаем окно. Не трогаем, если идёт игра (спец. скрытие) или пользователь
+        // свернул вручную крестиком.
+        if (_inTray && !_userHidden && !_gameActive)
+        {
+            RestoreFromTray();
+            AnchorIfNotMoved();
             return;
         }
 

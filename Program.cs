@@ -167,12 +167,14 @@ class Program
                     {
                         // Игра идёт — оверлей скрыт в трее (не разворачиваем ни при каких
                         // событиях, иначе прозрачное topmost-окно блокирует вход в игру).
+                        overlay.SetGameActive(true);
                         overlay.HideToTray();
                         lastHash = "";
                     }
                     else if (phase != "ChampSelect")
                     {
                         // Меню/лобби/конец игры — возвращаем оверлей из трея.
+                        overlay.SetGameActive(false);
                         overlay.RestoreFromTray();
                         overlay.UpdateRecommendations(null, null);
                         // Меню/лобби/конец игры — программа простаивает: показываем
@@ -209,9 +211,20 @@ class Program
                             var token = hideCts.Token;
                             _ = Task.Run(async () =>
                             {
-                                try { await Task.Delay(TimeSpan.FromMilliseconds(delay), token); overlay.HideToTray(); }
+                                try
+                                {
+                                    await Task.Delay(TimeSpan.FromMilliseconds(delay), token);
+                                    overlay.SetGameActive(true); // вход в игру — подавляем авто-показ
+                                    overlay.HideToTray();
+                                }
                                 catch (OperationCanceledException) { }
                             }, token);
+                        }
+                        else if (timerPhase != "FINALIZATION")
+                        {
+                            // Активный драфт (не финализация) — авто-показ оверлея разрешён,
+                            // чтобы окно надёжно всплыло на новом чемп-селекте после игры.
+                            overlay.SetGameActive(false);
                         }
 
                         var hash = DraftHash(draft);
