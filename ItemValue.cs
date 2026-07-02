@@ -91,27 +91,31 @@ public static class ItemValue
     private const int MercTreads = 3111, Morello = 3165, Thornmail = 3075,
                       RanduinOmen = 3143, FrozenHeart = 3110, SpiritVisage = 3065, KaenicRookern = 2504;
 
-    /// Предметы, которыми враг будет контрить состав (союзники + кандидат) — показываем
-    /// строкой иконок под описанием. Логика по трейтам команды.
+    /// Предметы, которыми враг будет контрить ЭТОТ пик (+ перевес типа урона команды).
+    /// Показываем строкой иконок под описанием. Ключевое: набор про конкретного
+    /// чемпиона, а не общий по команде (иначе марксмену лепились «ртутки» за чужой CC).
     public static IReadOnlyList<int> CounterItems(int candidate, IReadOnlyList<int> allyIds)
     {
-        var team = allyIds.Append(candidate).ToList();
+        var items = new List<int>();
+
+        // 1) Перевес типа урона всей команды → резист даже пику того же типа
+        //    (много АД в составе → враг берёт броню на всех, включая этого АД-пика).
         int ad = 0, ap = 0;
-        foreach (var t in team)
+        foreach (var t in allyIds.Append(candidate))
         {
             if (DataDragon.IsAdChampion(t)) ad++;
             else if (DataDragon.IsApChampion(t)) ap++;
         }
-        var p = Profile(team); // [cc, autoCrit, shield, heal]
-        var items = new List<int>();
-
-        // Перевес типа урона → соответствующие резисты (даже АД-пику против АД-стака).
         if (ad - ap >= 2) { items.Add(Thornmail); items.Add(FrozenHeart); }        // броня
         else if (ap - ad >= 2) { items.Add(SpiritVisage); items.Add(KaenicRookern); } // МР
 
-        if (p[0] >= 2) items.Add(MercTreads);                       // контроль → ртутные боты
-        if (p[1] >= 2) { items.Add(RanduinOmen); items.Add(FrozenHeart); } // крит/скорость атаки
-        if (p[3] >= 1) items.Add(ap >= ad ? Morello : Thornmail);   // хил → гривус (AP: Морелло)
+        // 2) Контр-предметы под конкретного чемпиона.
+        if (ChampionTraits.AutoReliant(candidate)) { items.Add(RanduinOmen); items.Add(FrozenHeart); } // авто/крит → броня + скорость атаки
+        if (ChampionTraits.HardCc(candidate) >= 1) items.Add(MercTreads);          // его контроль → ртуть/тенасити
+        if (ChampionTraits.HealReliant(candidate))
+            items.Add(DataDragon.IsApChampion(candidate) ? Morello : Thornmail);    // хил → гривус
+        if (DataDragon.IsApChampion(candidate) && ChampionTraits.Burst(candidate) >= 2)
+            items.Add(SpiritVisage);                                               // AP-бёрст → МР
 
         return items.Distinct().Take(5).ToList();
     }

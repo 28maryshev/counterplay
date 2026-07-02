@@ -762,9 +762,41 @@
 
                             <!-- Показатели: справа, по центру бокса -->
                             <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center">
+                              <StackPanel.Resources>
+                                <!-- Золотое свечение сильнейшей метрики (на всю строку: лейбл + число) -->
+                                <DropShadowEffect x:Key="GoldGlow" Color="#F0C64A" BlurRadius="16" ShadowDepth="0" Opacity="1"/>
+                                <Style x:Key="StrongBase" TargetType="Grid">
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding BaseStrong}" Value="True">
+                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                                <Style x:Key="StrongDirect" TargetType="Grid">
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DirectStrong}" Value="True">
+                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                                <Style x:Key="StrongOther" TargetType="Grid">
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding OtherStrong}" Value="True">
+                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                                <Style x:Key="StrongSyn" TargetType="Grid">
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SynStrong}" Value="True">
+                                      <Setter Property="Effect" Value="{StaticResource GoldGlow}"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </StackPanel.Resources>
 
                               <!-- Винрейт в патче -->
-                              <Grid>
+                              <Grid Style="{StaticResource StrongBase}">
                                 <TextBlock Text="{loc:T metric.base}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
                                 <TextBlock Text="{Binding BaseText}" Foreground="{Binding BaseColor}"
@@ -778,7 +810,7 @@
                               </Grid>
 
                               <!-- Против оппонента -->
-                              <Grid>
+                              <Grid Style="{StaticResource StrongDirect}">
                                 <TextBlock Text="{loc:T metric.direct}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
                                 <TextBlock Text="{Binding DirectText}" Foreground="{Binding DirectColor}"
@@ -792,7 +824,7 @@
                               </Grid>
 
                               <!-- Против вражеской команды -->
-                              <Grid>
+                              <Grid Style="{StaticResource StrongOther}">
                                 <TextBlock Text="{loc:T metric.style}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
                                 <TextBlock Text="{Binding OtherText}" Foreground="{Binding OtherColor}"
@@ -806,7 +838,7 @@
                               </Grid>
 
                               <!-- Синергия с союзниками -->
-                              <Grid>
+                              <Grid Style="{StaticResource StrongSyn}">
                                 <TextBlock Text="{loc:T metric.synergy}" Foreground="#7C97AC"
                                            FontFamily="{StaticResource UiFont}" FontSize="11"/>
                                 <TextBlock Text="{Binding SynText}" Foreground="{Binding SynColor}"

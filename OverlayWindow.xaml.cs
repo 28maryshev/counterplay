@@ -718,13 +718,12 @@ public partial class OverlayWindow : Window
         for (int i = 0; i < myCombos.Count; i++)
             comboColorByName[myCombos[i].Name] = ComboColors[i % ComboColors.Length];
 
-        // Сильнейшая метрика среди показанных пиков → золотом (если > 0).
+        // Сильнейшая метрика среди показанных пиков → золотое свечение всей строки (если > 0).
         double maxBase = recs.Count > 0 ? recs.Max(r => r.BaseDelta)    : 0;
         double maxDir  = recs.Count > 0 ? recs.Max(r => r.DirectDelta)  : 0;
         double maxSty  = recs.Count > 0 ? recs.Max(r => r.StyleDelta)   : 0;
         double maxSyn  = recs.Count > 0 ? recs.Max(r => r.SynergyDelta) : 0;
-        static string Col(double v, double max, string def) =>
-            max > 0.05 && v >= max - 0.05 ? "#E8B84B" : def;
+        static bool IsMax(double v, double max) => max > 0.05 && v >= max - 0.05;
 
         // Имена чемпионов драфта → цвет их архетипа (подсветка имён в обоснованиях).
         var nameColor = new Dictionary<string, string>();
@@ -765,10 +764,10 @@ public partial class OverlayWindow : Window
                 DirectText = Signed(r.DirectDelta),
                 OtherText  = Signed(r.StyleDelta),
                 SynText    = Signed(r.SynergyDelta),
-                BaseColor   = Col(r.BaseDelta,    maxBase, "#5C9BDC"),
-                DirectColor = Col(r.DirectDelta,  maxDir,  "#E06464"),
-                OtherColor  = Col(r.StyleDelta,   maxSty,  "#E0944C"),
-                SynColor    = Col(r.SynergyDelta, maxSyn,  "#5BC487"),
+                BaseStrong   = IsMax(r.BaseDelta,    maxBase),
+                DirectStrong = IsMax(r.DirectDelta,  maxDir),
+                OtherStrong  = IsMax(r.StyleDelta,   maxSty),
+                SynStrong    = IsMax(r.SynergyDelta, maxSyn),
                 ArchGlyph  = ag,
                 ArchColor  = ac,
                 ArchTip    = at,
@@ -1102,11 +1101,16 @@ public sealed class FullRecCard
     public string       DirectText { get; init; } = "";
     public string       OtherText  { get; init; } = "";
     public string       SynText    { get; init; } = "";
-    // Цвет значения метрики: золотой у сильнейшего среди пула, иначе базовый.
+    // Базовый цвет значения метрики (свой у каждой строки).
     public string       BaseColor   { get; init; } = "#5C9BDC";
     public string       DirectColor { get; init; } = "#E06464";
     public string       OtherColor  { get; init; } = "#E0944C";
     public string       SynColor    { get; init; } = "#5BC487";
+    // Сильнейшая среди пула метрика → золотое свечение всей строки (лейбл + число).
+    public bool         BaseStrong   { get; init; }
+    public bool         DirectStrong { get; init; }
+    public bool         OtherStrong  { get; init; }
+    public bool         SynStrong    { get; init; }
     public string       ArchGlyph  { get; init; } = "";
     public string       ArchColor  { get; init; } = "#888888";
     public string       ArchTip    { get; init; } = "";
