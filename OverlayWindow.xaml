@@ -911,7 +911,7 @@
                           <TextBlock Text="{Binding Reason}" Foreground="#9AB2C6"
                                      FontFamily="{StaticResource UiFont}" FontSize="12" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="3" Text="БАН" Foreground="#E0584F"
+                        <TextBlock Grid.Column="3" Text="{loc:T draft.banBadge}" Foreground="#E0584F"
                                    FontFamily="{StaticResource DisplayFont}" FontSize="16" FontWeight="Bold"
                                    VerticalAlignment="Center"/>
                       </Grid>

@@ -67,7 +67,8 @@
     "style": "Style: {0}",
     "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked.",
     "aram": "ARAM — best pick from the bench:",
-    "counterItems": "Items that counter you & the team:"
+    "counterItems": "Items that counter you & the team:",
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
