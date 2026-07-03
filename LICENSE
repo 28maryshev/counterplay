@@ -1,0 +1,56 @@
+Counterplay — Proprietary Software License
+Copyright (c) 2026 Counterplay (https://github.com/28maryshev). All rights reserved.
+
+1. DEFINITIONS
+   "Software" means the Counterplay application together with its source code,
+   assets, data, documentation, and any accompanying files contained in this
+   repository or distributed as official Counterplay releases.
+   "Author" means the copyright holder identified above.
+
+2. OWNERSHIP
+   The Software is the exclusive property of the Author and is protected by
+   copyright and other intellectual-property laws. This license does not
+   transfer any title or ownership in the Software to you.
+
+3. GRANT OF USE
+   The Author grants you a personal, non-exclusive, non-transferable, revocable
+   license to download and run the official released builds of the Software for
+   your own personal, non-commercial use.
+
+4. RESTRICTIONS
+   Except as expressly permitted above, you may NOT, in whole or in part:
+   a) copy, reproduce, redistribute, publish, host, sublicense, sell, rent,
+      lease, or otherwise make the Software available to any third party;
+   b) modify, adapt, translate, or create derivative works based on the Software;
+   c) reverse engineer, decompile, or disassemble the Software, except to the
+      extent this restriction is expressly prohibited by applicable law;
+   d) remove, alter, or obscure any copyright, trademark, branding, or this
+      license from the Software;
+   e) use the Software or any part of it — including its name, logo, branding,
+      data, or design — to build, promote, or distribute a competing or
+      derivative product or service.
+
+5. TRADEMARKS
+   "Counterplay", the Counterplay logo, and associated branding are trademarks
+   of the Author. This license grants you no right to use them.
+
+6. RIOT GAMES
+   Counterplay isn't endorsed by Riot Games and doesn't reflect the views or
+   opinions of Riot Games or anyone officially involved in producing or managing
+   Riot Games properties. League of Legends and Riot Games are trademarks or
+   registered trademarks of Riot Games, Inc.
+
+7. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+   WITH THE SOFTWARE OR THE USE OF THE SOFTWARE.
+
+8. TERMINATION
+   This license terminates automatically if you breach any of its terms. Upon
+   termination you must cease all use of the Software and delete all copies in
+   your possession.
+
+All rights not expressly granted herein are reserved by the Author.
