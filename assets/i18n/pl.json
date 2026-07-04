@@ -1,0 +1,253 @@
+{
+  "tips": [
+    "Kontra na linii przeciw bezpośredniemu przeciwnikowi liczy się bardziej niż ogólny winrate postaci.",
+    "Nie kumuluj jednego typu obrażeń: mieszaj fizyczne i magiczne, bo jeden przedmiot wroga wyłączy pół drużyny.",
+    "Drużyna potrzebuje frontline — ktoś musi zaczynać walki i przyjmować obrażenia.",
+    "Wybieraj komfort: znana postać jest zwykle silniejsza niż nieznana kontra.",
+    "Przeciw poke'owi potrzebujesz inicjacji i mobilności; przeciw dive'owi — peela i cc dla carry.",
+    "Ostatni pick to przewaga: dopasuj go do już ujawnionej kompozycji wroga.",
+    "Bany usuwają najsilniejszych w patchu albo tych najtrudniejszych dla ciebie.",
+    "Synergia wygrywa walki: ogłuszenie+burst łapią cel, inicjacja+peel utrzymują carry przy życiu.",
+    "Znalazłeś błąd lub masz pomysł? Napisz przez Wsparcie na stronie — counterplays.com/support."
+  ],
+  "metric": {
+    "base": "Winrate w tym patchu",
+    "direct": "Przeciw przeciwnikowi",
+    "style": "Przeciw ich stylowi",
+    "synergy": "Synergia z sojusznikami"
+  },
+  "team": {
+    "myTeam": "TWOJA DRUŻYNA",
+    "enemies": "WROGOWIE",
+    "combos": "COMBOSY DRUŻYNY",
+    "enemyCombos": "COMBOSY WROGA"
+  },
+  "ready": {
+    "tipLabel": "PORADA DO PICKA",
+    "f1head": "Asystent draftu.",
+    "f1body": " Liczy kontry przeciw wrogom, synergię z sojusznikami i kogo zbanować — z realnych statystyk bieżącego patcha. Aktualizuje przy każdym najechaniu.",
+    "f2head": "✊ ✌ ✋ Typ kompozycji.",
+    "f2body": " Front-to-back ✊ bije dive ✌, dive bije pick-poke ✋, a pick-poke bije front-to-back. Wybierz kompozycję kontrującą wroga.",
+    "f3head": "Dopasowane do ciebie.",
+    "f3body": " Uwzględnia twoje mastery — najpierw komfortowe postacie, żadnych ślepych kontr-picków."
+  },
+  "tip": {
+    "pin": "Przypnij do prawej krawędzi klienta",
+    "minimize": "Zminimalizuj",
+    "expand": "Rozwiń"
+  },
+  "tray": {
+    "show": "Pokaż",
+    "exit": "Wyjdź"
+  },
+  "status": {
+    "loadingChamps": "Ładowanie danych postaci…",
+    "loadingIcons": "Ładowanie ikon postaci…",
+    "loadingIconsN": "Ładowanie ikon… {0}/{1}",
+    "waitingClient": "Oczekiwanie na League of Legends…",
+    "lcuStarting": "LCU się uruchamia…",
+    "connLost": "Utracono połączenie, oczekiwanie na restart klienta…",
+    "noDb": "nie znaleziono data.db — uruchom pipeline/collect.py",
+    "waitNextDraft": "Oczekiwanie na następny wybór postaci…",
+    "checkingUpdates": "Sprawdzanie aktualizacji…",
+    "downloadingUpdate": "Pobieranie aktualizacji… {0}%{1}",
+    "applyingUpdate": "Stosowanie aktualizacji, restart…",
+    "readyLine": "Gotowe · {0} · {1}",
+    "readyPhase": "Gotowe · faza: {0}",
+    "banPhase": "Faza banów…",
+    "waitDraft": "Oczekiwanie na wybór postaci…",
+    "waitClient": "Oczekiwanie na klienta…",
+    "updatingDb": "Aktualizacja bazy danych…",
+    "downloadingDb": "Pobieranie bazy danych…"
+  },
+  "draft": {
+    "roleByTeam": "Rola: {0} — wg kompozycji drużyny:",
+    "roleCounter": "Rola: {0} — kontra + synergia:",
+    "roleBans": "Rola: {0} — kogo zbanować:",
+    "style": "Styl: {0}",
+    "pickHint": "⚠ Wybierasz przed wrogami — możliwa kontra. Weź neutralny pick lub zamień się z kimś, czyj przeciwnik jest już zablokowany.",
+    "aram": "ARAM — najlepszy wybór z ławki:",
+    "counterItems": "Przedmioty kontrujące ciebie i drużynę:",
+    "banBadge": "BAN"
+  },
+  "pair": {
+    "airborne": {
+      "a": "{0} podrzuca wrogów w powietrze — to aktywuje twoją ultimate, trafiając całą podrzuconą drużynę naraz.",
+      "b": "Podrzucasz wrogów, a {0} natychmiast ultuje w nich wszystkich — potężne combo do teamfightu."
+    },
+    "orianna": {
+      "a": "Załóż kulę na {0}: gdy zainicjuje, twoja ultimate przyciąga i detonuje każdego wroga wokół niego.",
+      "b": "Ty inicjujesz pierwszy, a {0} zakłada kulę na ciebie, ultując by zebrać wrogów wokół — ogromne obrażenia obszarowe."
+    },
+    "immortal": {
+      "a": "Twoja ultimate czyni {0} niewrażliwym — może wskoczyć w środek wroga i przeżyć.",
+      "b": "Ultimate {0} czyni cię niewrażliwym lub ratuje od śmierci — wskakuj śmielej."
+    },
+    "enchanter": {
+      "a": "{0} zadaje ogromne obrażenia, ale jest kruchy i mało mobilny. Ty go tarczysz/leczysz i przyspieszasz — wtedy błyszczy.",
+      "b": "Jesteś silną, ale kruchą carry. {0} tarczy, leczy i wzmacnia cię — trzymaj się blisko i zadawaj obrażenia bezpiecznie."
+    },
+    "hook": {
+      "a": "Zahaczasz wroga poza pozycją, a {0} natychmiast dobija złapany cel burstem.",
+      "b": "{0} zahacza i wyciąga wroga — ty dobijasz złapany cel swoimi obrażeniami. Łatwe zabójstwa na linii."
+    },
+    "burst_pick": {
+      "a": "{0} blokuje cel cc (urok/ogłuszenie/unieruchomienie) — ty usuwasz go burstem w sekundę, gdy jest unieruchomiony.",
+      "b": "Blokujesz wroga cc, a {0} natychmiast rozrywa unieruchomiony cel burstem. Gwarantowany pick na izolowanych."
+    },
+    "isolate": {
+      "a": "Twoja ultimate wskakuje i izoluje cel w mroku — {0} go dobija, gdy sojusznicy są odcięci.",
+      "b": "{0} ultuje i izoluje pojedynczy cel — ty wspierasz obrażeniami i dobijasz ofiarę."
+    },
+    "artillery": {
+      "a": "Ty i {0} strzelacie do wroga z dużej odległości — silny duet do poke'u i oblegania obiektów."
+    },
+    "channel": {
+      "a": "Gdy {0} trzyma wrogów w miejscu cc, ty zdążasz wpompować w nich całą swoją ultimate.",
+      "b": "Ty trzymasz wrogów cc, a {0} kanałuje potężną ultimate w unieruchomione cele — wielkie obrażenia."
+    },
+    "peel": {
+      "a": "{0} to główne obrażenia drużyny, ale wrażliwy. Ty odpychasz wrogów, by mógł bezpiecznie zadawać obrażenia."
+    },
+    "frontline": {
+      "a": "Ty zaczynasz walki i blokujesz wrogów cc, chroniąc {0}, który zadaje obrażenia z dystansu.",
+      "b": "{0} zaczyna walki i blokuje wrogów cc — a ty bezpiecznie zadajesz obrażenia z tyłu."
+    },
+    "double_engage": {
+      "a": "Ty i {0} oboje inicjujecie i blokujecie wrogów cc — razem łatwo łapiecie izolowanych i wygrywacie picki."
+    }
+  },
+  "combo": {
+    "howToPlay": "JAK GRAĆ",
+    "danger": "ZAGROŻENIE",
+    "airborne": {
+      "name": "Combo ult: podrzut → Yasuo/Yone",
+      "desc": "Podrzut aktywuje ultimate Yasuo/Yone na całej zgrupowanej drużynie.",
+      "tipAlly": "Inicjuj podrzutem — Yasuo/Yone ultują zaraz po. Bij, gdy są zgrupowani.",
+      "tipEnemy": "Nie grupuj się i nie daj się złapać podrzutowi — to wyzwalacz ich wombo. Trzymaj rozproszenie i czyść cc (Mercurial, QSS)."
+    },
+    "orianna": {
+      "name": "Kulista błyskawica (Orianna + inicjacja)",
+      "desc": "Kula na inicjatorze: wskakuje, Orianna ultuje by przyciągnąć i wysadzić całą grupę.",
+      "tipAlly": "Załóż kulę na wskakującego inicjatora i podążaj zaraz po jego inicjacji.",
+      "tipEnemy": "Patrz, kto ma kulę Orianny — na nim przyjdzie inicjacja. Rozprosz się, zanim zaczną."
+    },
+    "immortal": {
+      "name": "Nieśmiertelność (ult ochronny + dive)",
+      "desc": "Ult niewrażliwości/ratunku pozwala carry wskoczyć w środek bez ryzyka śmierci.",
+      "tipAlly": "Wskakuj agresywnie — zachowaj ult ochronny na szczyt obrażeń carry.",
+      "tipEnemy": "Nie marnuj focusa, gdy ich niewrażliwość jest aktywna — przeczekaj, potem zabij carry."
+    },
+    "enchanter": {
+      "name": "Buff hypercarry (enchanter + carry)",
+      "desc": "Buffy ataku/ruchu i tarcze zamieniają mało mobilną carry w maszynę do obrażeń.",
+      "tipAlly": "Trzymaj się carry, buffuj i peeluj — to twoje główne obrażenia.",
+      "tipEnemy": "Zabij carry szybko albo wejdź na ich backline: bez enchantera jest bezradna. Zdus ją na linii."
+    },
+    "hook": {
+      "name": "Pick przez hooka",
+      "desc": "Hook wyrywa cel z pozycji; postacie burst dobijają go, zanim nadejdzie pomoc.",
+      "tipAlly": "Szukaj hooków na izolowanych celach — całą drużyną natychmiast focusuj złapanego.",
+      "tipEnemy": "Nie chodź sam i trzymaj dystans od postaci z hookiem. Szanuj wizję na rzece."
+    },
+    "aoe": {
+      "name": "Ulty do teamfightu (podwójne AoE)",
+      "desc": "Kilka silnych ultów obszarowych nakłada się i wymiata zgrupowaną drużynę naraz.",
+      "tipAlly": "Zaczynaj walki w chokepointach, gdy oba ulty są gotowe — kładź je na grupie wroga.",
+      "tipEnemy": "Nie zbijaj się i nie pchaj w chokepointy, gdy ich ulty są gotowe. Dziel się i wchodź pojedynczo."
+    },
+    "burstPick": {
+      "name": "Burst pick (cc → usuń)",
+      "desc": "Wróg złapany cc (urok/ogłuszenie/unieruchomienie) i natychmiast usunięty burstem, zanim zareaguje.",
+      "tipAlly": "Poluj na izolowanych: jeden blokuje cc, reszta focusuje i usuwa w sekundę.",
+      "tipEnemy": "Nie chodź sam, trzymaj wizję i zachowaj dash/QSS na ich inicjatora — wyładują cały burst na złapanym."
+    },
+    "artillery": {
+      "name": "Artyleria (duży zasięg)",
+      "desc": "Kilka postaci o dużym zasięgu pcha linię i obiekty z daleka, bez wymiany.",
+      "tipAlly": "Pokuj wroga z dystansu przed walkami i oblegaj obiekty — nie wchodź w zwarcie pierwszy.",
+      "tipEnemy": "Nie siedź pod poke'iem: inicjuj szybko albo flankuj, bierz tarcze/mobilność i wymuszaj walkę z bliska."
+    },
+    "global": {
+      "name": "Globalna presja",
+      "desc": "Globalne ulty dają pomoc i picki na całej mapie — silna presja w split-pushu.",
+      "tipAlly": "Naciskaj w splicie i bierz picki przez mapę globalkami — rozciągaj wroga.",
+      "tipEnemy": "Nie przeciągaj potyczek 4v5 — ich globalki wyrównują liczby. Uważaj, gdy ich postacie są poza mapą."
+    }
+  },
+  "roles": {
+    "top": "TOP",
+    "jungle": "LAS",
+    "mid": "MID",
+    "adc": "BOT",
+    "support": "SUPPORT",
+    "unknown": "—"
+  },
+  "arch": {
+    "frontToBack": "Front-to-back",
+    "dive": "Dive",
+    "pickPoke": "Pick/poke"
+  },
+  "slot": {
+    "counters": "KONTRY",
+    "synergy": "SYNERGIA",
+    "youPick": "TY WYBIERASZ"
+  },
+  "badge": {
+    "ban": "BAN"
+  },
+  "cat": {
+    "cc": "cc (Mercs/tenacity)",
+    "autoCrit": "krit/auto (Steelcaps/Frozen Heart)",
+    "shield": "tarcze (Serpent's Fang)",
+    "heal": "leczenie (Grievous Wounds)",
+    "physical": "fizyczne",
+    "magic": "magiczne"
+  },
+  "style": {
+    "mixed": "Mieszany"
+  },
+  "reason": {
+    "neutral": "Neutralny pick — bezpieczny, dopóki komp wroga nie jest jasny.",
+    "dmgStack": "Drużyna już kumuluje obrażenia {0} — jeden przedmiot pancerza/MR wyłącza kilku.",
+    "dmgBalance": "Równoważy obrażenia drużyny ({0}).",
+    "aramFront": "Drużynie brakuje frontline — ty dajesz inicjację/wytrzymałość.",
+    "aramHeal": "Dodaje sustain, którego brakuje drużynie (wartość w ARAM).",
+    "antiPickPoke": "Wskakuje na ich komp z dystansu (inicjacja/dashe).",
+    "antiDive": "Chroni drużynę przed ich dive'em (peel/disengage).",
+    "antiFront": "Przebija ich frontline z dystansu/burstem.",
+    "vulnNearAll": "jeden przedmiot wyłącza niemal całą drużynę",
+    "vuln3": "jeden przedmiot wyłącza trzech naraz",
+    "vuln2": "jeden przedmiot wyłącza dwóch naraz",
+    "dontStack": "Nie kumuluj {0} — {1}.",
+    "exploit": "Wróg nakumulował {0} — ty karzesz jego wymuszony przedmiot.",
+    "countersPool": "Kontruje twoją pulę (bije {0})",
+    "countersAlly": "Kontruje twojego sojusznika {0}",
+    "countersMyPick": "Kontruje twój pick {0}",
+    "botlaneGood": "Dobry przeciw botowi wroga ({0})",
+    "botlaneBad": "Ma trudno przeciw botowi wroga ({0})",
+    "strongPatch": "Silny w tym patchu — WR {0}%",
+    "oftenPicked": "Często wybierany — częsty przeciwnik",
+    "notablePick": "Znaczący pick w tym patchu",
+    "jgSetup": "Jungler {0} jest agresywny bez cc — ty przygotowujesz ganki.",
+    "adcEngage": "ADC {0} chce inicjacji — ty otwierasz dla niego walki.",
+    "adcScale": "ADC {0} skaluje się — twój peel/enchant pozwala mu się rozwinąć.",
+    "womboAoe": "Twój ult AoE łączy się z wombo drużyny — jedna zgrupowana walka może ich wymieść.",
+    "comfortHigh": "Dużo grasz tą postacią — pewny komfortowy pick.",
+    "comfortMid": "Znana postać z twojej puli — wygodny wybór.",
+    "lineWinStrong": "Zdecydowanie wygrywa linię przeciw {0} (+{1}%)",
+    "lineWin": "Wygrywa linię przeciw {0} (+{1}%)",
+    "lineEdge": "Niewielka przewaga przeciw {0}",
+    "lineHard": "Trudny matchup przeciw {0} ({1}%)",
+    "lineNeutral": "Wyrównany matchup przeciw {0}",
+    "favMatchups": "Korzystne matchupy przeciw {0}",
+    "fitsTeam": "Dobrze pasuje do twojej obecnej kompozycji.",
+    "baseTop": "Jeden z najsilniejszych w tym patchu — WR {0}%",
+    "baseGood": "Dobry bazowy WR {0}%",
+    "baseLow": "Niski WR {0}% — musisz znać postać",
+    "baseNeutral": "Neutralny pick, WR ≈{0}%"
+  },
+  "rec": {
+    "yourPick": "TWÓJ PICK"
+  }
+}

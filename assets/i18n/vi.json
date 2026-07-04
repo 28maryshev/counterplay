@@ -1,0 +1,253 @@
+{
+  "tips": [
+    "Khắc chế trên đường trước đối thủ trực tiếp quan trọng hơn tỉ lệ thắng chung của một tướng.",
+    "Đừng dồn một loại sát thương: hãy pha trộn vật lý và phép, nếu không một món đồ của địch sẽ vô hiệu nửa đội.",
+    "Đội cần tuyến đầu — phải có người mở giao tranh và hứng sát thương.",
+    "Chọn tướng quen tay: tướng bạn thạo thường mạnh hơn một khắc chế lạ lẫm.",
+    "Chống poke cần mở giao tranh và cơ động; chống lao vào — bảo kê và khống chế cho xạ thủ.",
+    "Chọn cuối là lợi thế: điều chỉnh theo đội hình địch đã lộ.",
+    "Cấm tướng loại đi kẻ mạnh nhất bản cập nhật hoặc kẻ khó chịu nhất với bạn.",
+    "Phối hợp thắng giao tranh: khống chế+bùng nổ bắt mục tiêu, mở giao tranh+bảo kê giữ xạ thủ sống.",
+    "Thấy lỗi hay có ý tưởng? Nhắn qua Hỗ trợ trên trang — counterplays.com/support."
+  ],
+  "metric": {
+    "base": "Tỉ lệ thắng bản này",
+    "direct": "So với đối thủ",
+    "style": "So với lối chơi địch",
+    "synergy": "Phối hợp với đồng đội"
+  },
+  "team": {
+    "myTeam": "ĐỘI CỦA BẠN",
+    "enemies": "ĐỊCH",
+    "combos": "COMBO ĐỘI",
+    "enemyCombos": "COMBO ĐỊCH"
+  },
+  "ready": {
+    "tipLabel": "MẸO CHỌN TƯỚNG",
+    "f1head": "Trợ lý cấm chọn.",
+    "f1body": " Tính khắc chế đối với địch, phối hợp với đồng đội và nên cấm ai — từ số liệu thật của bản hiện tại. Cập nhật mỗi khi di chuột.",
+    "f2head": "✊ ✌ ✋ Loại đội hình.",
+    "f2body": " Front-to-back ✊ khắc dive ✌, dive khắc pick-poke ✋, và pick-poke khắc front-to-back. Chọn đội hình khắc chế địch.",
+    "f3head": "Riêng cho bạn.",
+    "f3body": " Tính đến độ thành thạo — ưu tiên tướng quen tay, không khắc chế mù."
+  },
+  "tip": {
+    "pin": "Ghim vào mép phải của client",
+    "minimize": "Thu nhỏ",
+    "expand": "Mở rộng"
+  },
+  "tray": {
+    "show": "Hiện",
+    "exit": "Thoát"
+  },
+  "status": {
+    "loadingChamps": "Đang tải dữ liệu tướng…",
+    "loadingIcons": "Đang tải biểu tượng tướng…",
+    "loadingIconsN": "Đang tải biểu tượng… {0}/{1}",
+    "waitingClient": "Đang chờ League of Legends…",
+    "lcuStarting": "LCU đang khởi động…",
+    "connLost": "Mất kết nối, đang chờ client khởi động lại…",
+    "noDb": "không tìm thấy data.db — chạy pipeline/collect.py",
+    "waitNextDraft": "Đang chờ lượt chọn tướng tiếp theo…",
+    "checkingUpdates": "Đang kiểm tra cập nhật…",
+    "downloadingUpdate": "Đang tải cập nhật… {0}%{1}",
+    "applyingUpdate": "Đang áp dụng cập nhật, khởi động lại…",
+    "readyLine": "Sẵn sàng · {0} · {1}",
+    "readyPhase": "Sẵn sàng · giai đoạn: {0}",
+    "banPhase": "Giai đoạn cấm…",
+    "waitDraft": "Đang chờ chọn tướng…",
+    "waitClient": "Đang chờ client…",
+    "updatingDb": "Đang cập nhật cơ sở dữ liệu…",
+    "downloadingDb": "Đang tải cơ sở dữ liệu…"
+  },
+  "draft": {
+    "roleByTeam": "Vị trí: {0} — theo đội hình:",
+    "roleCounter": "Vị trí: {0} — khắc chế + phối hợp:",
+    "roleBans": "Vị trí: {0} — nên cấm ai:",
+    "style": "Lối chơi: {0}",
+    "pickHint": "⚠ Bạn chọn trước địch — có thể bị khắc chế. Chọn tướng an toàn hoặc đổi với người đã có đối thủ khóa cứng.",
+    "aram": "ARAM — lựa chọn tốt nhất từ ghế chờ:",
+    "counterItems": "Đồ khắc chế bạn và đội:",
+    "banBadge": "CẤM"
+  },
+  "pair": {
+    "airborne": {
+      "a": "{0} hất tung địch lên không — điều đó kích hoạt chiêu cuối của bạn, trúng cả đội bị hất cùng lúc.",
+      "b": "Bạn hất tung địch và {0} lập tức tung chiêu cuối vào tất cả — combo giao tranh mạnh."
+    },
+    "orianna": {
+      "a": "Đặt quả cầu lên {0}: khi họ lao vào, chiêu cuối của bạn hút và nổ mọi kẻ địch quanh họ.",
+      "b": "Bạn lao vào trước và {0} đặt cầu lên bạn, tung chiêu cuối gom địch quanh bạn — sát thương diện rộng khổng lồ."
+    },
+    "immortal": {
+      "a": "Chiêu cuối của bạn khiến {0} bất tử — họ có thể lao vào địch và sống sót.",
+      "b": "Chiêu cuối của {0} khiến bạn bất tử hoặc cứu bạn khỏi chết — cứ lao vào bạo dạn hơn."
+    },
+    "enchanter": {
+      "a": "{0} gây sát thương lớn nhưng mỏng manh và ít cơ động. Bạn khiên/hồi máu và tăng tốc cho họ — lúc đó họ tỏa sáng.",
+      "b": "Bạn là xạ thủ mạnh nhưng mỏng manh. {0} khiên, hồi và buff cho bạn — bám sát và đánh an toàn."
+    },
+    "hook": {
+      "a": "Bạn móc một kẻ địch ra khỏi vị trí và {0} lập tức kết liễu mục tiêu bị bắt bằng bùng nổ.",
+      "b": "{0} móc và kéo một kẻ địch ra — bạn kết liễu mục tiêu bị bắt bằng sát thương của mình. Hạ gục dễ ở đường."
+    },
+    "burst_pick": {
+      "a": "{0} khóa mục tiêu bằng khống chế (mê hoặc/choáng/trói) — bạn xóa sổ nó bằng bùng nổ trong một giây khi nó bất động.",
+      "b": "Bạn khóa địch bằng khống chế và {0} lập tức bùng nổ hạ mục tiêu bị giữ. Bắt lẻ chắc ăn với kẻ đơn độc."
+    },
+    "isolate": {
+      "a": "Chiêu cuối của bạn lao vào và cô lập mục tiêu trong bóng tối — {0} kết liễu nó khi đồng minh bị cắt đứt.",
+      "b": "{0} tung chiêu cuối và cô lập một mục tiêu — bạn tiếp sức bằng sát thương và kết liễu nạn nhân."
+    },
+    "artillery": {
+      "a": "Bạn và {0} bắn địch từ tầm xa — bộ đôi poke và công trình mục tiêu mạnh."
+    },
+    "channel": {
+      "a": "Trong khi {0} giữ chân địch bằng khống chế, bạn kịp trút toàn bộ chiêu cuối lên chúng.",
+      "b": "Bạn giữ địch bằng khống chế còn {0} niệm một chiêu cuối mạnh lên mục tiêu đứng yên — sát thương lớn."
+    },
+    "peel": {
+      "a": "{0} là nguồn sát thương chính của đội nhưng dễ tổn thương. Bạn gạt địch ra để họ đánh an toàn trong giao tranh."
+    },
+    "frontline": {
+      "a": "Bạn mở giao tranh và khóa địch bằng khống chế, bảo vệ {0} đang đánh từ xa.",
+      "b": "{0} mở giao tranh và khóa địch bằng khống chế — còn bạn đánh an toàn từ tuyến sau."
+    },
+    "double_engage": {
+      "a": "Bạn và {0} đều mở giao tranh và khóa địch bằng khống chế — cùng nhau dễ bắt kẻ đơn độc và thắng pha bắt lẻ."
+    }
+  },
+  "combo": {
+    "howToPlay": "CÁCH CHƠI",
+    "danger": "NGUY HIỂM",
+    "airborne": {
+      "name": "Combo chiêu cuối: hất tung → Yasuo/Yone",
+      "desc": "Một pha hất tung kích hoạt chiêu cuối Yasuo/Yone lên cả đội đang tụ lại.",
+      "tipAlly": "Mở giao tranh bằng pha hất tung — Yasuo/Yone tung chiêu cuối ngay sau. Đánh khi chúng đang tụ.",
+      "tipEnemy": "Đừng tụ lại và đừng dính pha hất tung — đó là ngòi nổ wombo của họ. Giãn ra và giải khống chế (Mercurial, QSS)."
+    },
+    "orianna": {
+      "name": "Sét cầu (Orianna + mở giao tranh)",
+      "desc": "Cầu trên người mở giao tranh: họ lao vào, Orianna tung chiêu cuối hút và nổ cả nhóm.",
+      "tipAlly": "Đặt cầu lên người mở giao tranh lao vào và theo sát ngay sau pha lao.",
+      "tipEnemy": "Xem ai mang cầu Orianna — pha lao sẽ đến từ họ. Giãn ra trước khi họ khai chiến."
+    },
+    "immortal": {
+      "name": "Bất tử (chiêu cuối bảo vệ + lao vào)",
+      "desc": "Chiêu cuối bất tử/cứu mạng cho phép xạ thủ lao vào giữa mà không sợ chết.",
+      "tipAlly": "Lao vào mạnh dạn — để dành chiêu cuối bảo vệ cho đỉnh sát thương của xạ thủ.",
+      "tipEnemy": "Đừng phí focus khi họ đang bất tử — chờ hết hiệu lực rồi giết xạ thủ."
+    },
+    "enchanter": {
+      "name": "Buff siêu xạ thủ (enchanter + xạ thủ)",
+      "desc": "Buff tốc đánh/di chuyển và khiên biến một xạ thủ ít cơ động thành cỗ máy sát thương.",
+      "tipAlly": "Bám xạ thủ, buff và bảo kê — họ là nguồn sát thương chính của bạn.",
+      "tipEnemy": "Giết xạ thủ thật nhanh hoặc áp sát tuyến sau: thiếu enchanter họ bất lực. Bóp nghẹt ở đường."
+    },
+    "hook": {
+      "name": "Bắt lẻ bằng móc",
+      "desc": "Một pha móc kéo mục tiêu khỏi vị trí; tướng bùng nổ kết liễu trước khi viện binh đến.",
+      "tipAlly": "Tìm pha móc vào mục tiêu đơn độc — cả đội lập tức focus kẻ bị bắt.",
+      "tipEnemy": "Đừng đi một mình và giữ khoảng cách với tướng có móc. Coi trọng mắt ở sông."
+    },
+    "aoe": {
+      "name": "Chiêu cuối giao tranh (AoE kép)",
+      "desc": "Nhiều chiêu cuối diện rộng mạnh chồng lên nhau và quét sạch đội đang tụ cùng lúc.",
+      "tipAlly": "Mở giao tranh ở điểm nghẽn khi cả hai chiêu cuối sẵn sàng — thả vào nhóm địch.",
+      "tipEnemy": "Đừng tụ lại hay đẩy vào điểm nghẽn khi chiêu cuối của họ sẵn sàng. Tách ra và vào từng người."
+    },
+    "burstPick": {
+      "name": "Bắt lẻ bùng nổ (khống chế → xóa sổ)",
+      "desc": "Địch bị dính khống chế (mê hoặc/choáng/trói) và bị bùng nổ xóa sổ ngay trước khi phản ứng.",
+      "tipAlly": "Săn kẻ đơn độc: một người khóa bằng khống chế, số còn lại focus và xóa sổ trong một giây.",
+      "tipEnemy": "Đừng đi một mình, giữ mắt và để dành lướt/QSS cho người mở giao tranh của họ — họ sẽ trút hết bùng nổ vào kẻ bị bắt."
+    },
+    "artillery": {
+      "name": "Pháo binh (tầm xa)",
+      "desc": "Nhiều tướng tầm xa đẩy đường và công trình mục tiêu từ xa mà không đổi đòn.",
+      "tipAlly": "Poke địch từ xa trước giao tranh và công trình mục tiêu — đừng vào cận chiến trước.",
+      "tipEnemy": "Đừng đứng chịu poke: lao vào nhanh hoặc đánh sườn, mua khiên/cơ động và ép cận chiến."
+    },
+    "global": {
+      "name": "Áp lực toàn cầu",
+      "desc": "Chiêu cuối toàn cầu hỗ trợ và bắt lẻ khắp bản đồ — áp lực mạnh khi đẩy lẻ.",
+      "tipAlly": "Tạo áp lực khi đẩy lẻ và bắt lẻ xuyên bản đồ bằng chiêu toàn cầu — kéo giãn địch.",
+      "tipEnemy": "Đừng nán lại trong giao tranh 4v5 — chiêu toàn cầu của họ cân bằng quân số. Chú ý khi tướng của họ ngoài bản đồ."
+    }
+  },
+  "roles": {
+    "top": "ĐƯỜNG TRÊN",
+    "jungle": "RỪNG",
+    "mid": "ĐƯỜNG GIỮA",
+    "adc": "ĐƯỜNG DƯỚI",
+    "support": "HỖ TRỢ",
+    "unknown": "—"
+  },
+  "arch": {
+    "frontToBack": "Front-to-back",
+    "dive": "Dive",
+    "pickPoke": "Pick/poke"
+  },
+  "slot": {
+    "counters": "KHẮC CHẾ",
+    "synergy": "PHỐI HỢP",
+    "youPick": "BẠN CHỌN"
+  },
+  "badge": {
+    "ban": "CẤM"
+  },
+  "cat": {
+    "cc": "khống chế (Mercs/kháng hiệu ứng)",
+    "autoCrit": "chí mạng/đánh thường (Steelcaps/Frozen Heart)",
+    "shield": "lá chắn (Serpent's Fang)",
+    "heal": "hồi máu (Grievous Wounds)",
+    "physical": "vật lý",
+    "magic": "phép"
+  },
+  "style": {
+    "mixed": "Hỗn hợp"
+  },
+  "reason": {
+    "neutral": "Lựa chọn trung lập — an toàn cho đến khi rõ đội hình địch.",
+    "dmgStack": "Đội đã dồn sát thương {0} — một món giáp/kháng phép vô hiệu nhiều người.",
+    "dmgBalance": "Cân bằng sát thương của đội ({0}).",
+    "aramFront": "Đội thiếu tuyến đầu — bạn mang lại mở giao tranh/độ trâu.",
+    "aramHeal": "Bổ sung hồi phục mà đội đang thiếu (giá trị trong ARAM).",
+    "antiPickPoke": "Lao vào đội hình tầm xa của họ (mở giao tranh/lướt).",
+    "antiDive": "Bảo vệ đội khỏi pha lao của họ (bảo kê/thoát giao tranh).",
+    "antiFront": "Áp đảo tuyến đầu của họ từ xa/bùng nổ.",
+    "vulnNearAll": "một món đồ vô hiệu gần như cả đội",
+    "vuln3": "một món đồ vô hiệu ba người cùng lúc",
+    "vuln2": "một món đồ vô hiệu hai người cùng lúc",
+    "dontStack": "Đừng dồn {0} — {1}.",
+    "exploit": "Địch đã dồn {0} — bạn trừng phạt món đồ bắt buộc của họ.",
+    "countersPool": "Khắc chế pool của bạn (thắng {0})",
+    "countersAlly": "Khắc chế đồng đội {0}",
+    "countersMyPick": "Khắc chế lựa chọn của bạn {0}",
+    "botlaneGood": "Tốt trước bot địch ({0})",
+    "botlaneBad": "Vất vả trước bot địch ({0})",
+    "strongPatch": "Mạnh bản này — WR {0}%",
+    "oftenPicked": "Hay được chọn — đối thủ phổ biến",
+    "notablePick": "Lựa chọn đáng chú ý bản này",
+    "jgSetup": "Đi rừng {0} hổ báo nhưng thiếu khống chế — bạn tạo bàn đạp gank.",
+    "adcEngage": "Xạ thủ {0} cần mở giao tranh — bạn mở trận cho họ.",
+    "adcScale": "Xạ thủ {0} về cuối mạnh — bảo kê/enchant của bạn giúp họ phát triển.",
+    "womboAoe": "Chiêu cuối AoE của bạn chồng với wombo của đội — một pha giao tranh tụ lại có thể quét sạch họ.",
+    "comfortHigh": "Bạn chơi tướng này nhiều — lựa chọn quen tay tự tin.",
+    "comfortMid": "Tướng quen thuộc trong pool của bạn — lựa chọn thoải mái.",
+    "lineWinStrong": "Thắng đường áp đảo trước {0} (+{1}%)",
+    "lineWin": "Thắng đường trước {0} (+{1}%)",
+    "lineEdge": "Nhỉnh hơn đôi chút trước {0}",
+    "lineHard": "Đối đầu khó trước {0} ({1}%)",
+    "lineNeutral": "Đối đầu cân bằng trước {0}",
+    "favMatchups": "Đối đầu có lợi trước {0}",
+    "fitsTeam": "Hợp tốt với đội hình hiện tại của bạn.",
+    "baseTop": "Một trong những tướng mạnh nhất bản này — WR {0}%",
+    "baseGood": "WR cơ bản tốt {0}%",
+    "baseLow": "WR thấp {0}% — bạn cần thạo tướng này",
+    "baseNeutral": "Lựa chọn trung lập, WR ≈{0}%"
+  },
+  "rec": {
+    "yourPick": "LỰA CHỌN CỦA BẠN"
+  }
+}
