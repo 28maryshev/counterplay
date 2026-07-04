@@ -12,17 +12,25 @@ public static class Loc
     public sealed record Lang(string Code, string Native, string DDragon);
 
     // Поддерживаемые языки. Code — ключ файла i18n; DDragon — локаль имён чемпионов.
+    // Порядок = порядок в селекторе. Русский — в середине, не первым.
+    // Для uk у Data Dragon нет локали → имена чемпионов берём английские (en_US).
     public static readonly IReadOnlyList<Lang> Languages =
     [
-        new("ru", "Русский",   "ru_RU"),
-        new("en", "English",   "en_US"),
-        new("es", "Español",   "es_ES"),
-        new("pt", "Português", "pt_BR"),
-        new("de", "Deutsch",   "de_DE"),
-        new("fr", "Français",  "fr_FR"),
-        new("tr", "Türkçe",    "tr_TR"),
-        new("ko", "한국어",     "ko_KR"),
-        new("zh", "中文",       "zh_CN")
+        new("en", "English",    "en_US"),
+        new("es", "Español",    "es_ES"),
+        new("pt", "Português",  "pt_BR"),
+        new("de", "Deutsch",    "de_DE"),
+        new("fr", "Français",   "fr_FR"),
+        new("it", "Italiano",   "it_IT"),
+        new("pl", "Polski",     "pl_PL"),
+        new("ru", "Русский",    "ru_RU"),
+        new("uk", "Українська", "en_US"),
+        new("tr", "Türkçe",     "tr_TR"),
+        new("vi", "Tiếng Việt", "vi_VN"),
+        new("th", "ไทย",        "th_TH"),
+        new("ja", "日本語",      "ja_JP"),
+        new("ko", "한국어",      "ko_KR"),
+        new("zh", "中文",        "zh_CN")
     ];
 
     private static JsonDocument? _doc;          // текущий язык
@@ -32,7 +40,8 @@ public static class Loc
     public static event Action? LanguageChanged;
 
     public static Lang CurrentLang =>
-        Languages.FirstOrDefault(l => l.Code == Current) ?? Languages[1];
+        Languages.FirstOrDefault(l => l.Code == Current)
+        ?? Languages.First(l => l.Code == "en");
     public static string DDragonLocale => CurrentLang.DDragon;
 
     private static string SettingsPath => Path.Combine(
