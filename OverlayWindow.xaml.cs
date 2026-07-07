@@ -497,6 +497,9 @@ public partial class OverlayWindow : Window
                 RankText.Text = "—";
                 RankLpText.Text = "";
                 RankProgressFill.Width = 0;
+                // Пустое состояние: подсказываем, что статистика появится после игр.
+                SessionHint.Text = Loc.T("session.needGames");
+                SessionHint.Visibility = Visibility.Visible;
                 Last5Panel.Children.Clear();
                 SeasonWlText.Text = "";
                 WinrateBig.Text = "—";
@@ -508,10 +511,17 @@ public partial class OverlayWindow : Window
             var emblem = RankEmblemSource(d.Tier);
             RankEmblem.Source = emblem;
             RankEmblem.Visibility = emblem != null ? Visibility.Visible : Visibility.Collapsed;
-            RankText.Text = string.IsNullOrEmpty(d.Division) ? d.Tier : $"{d.Tier} {d.Division}";
+            var tierLoc = LocalizedTier(d.Tier);
+            RankText.Text = string.IsNullOrEmpty(d.Division) ? tierLoc : $"{tierLoc} {d.Division}";
             RankText.Foreground = TierBrush(d.Tier);
             RankLpText.Text = $"{d.Lp} LP";
             RankProgressFill.Width = 258.0 * Math.Clamp(d.ProgressPct, 0, 100) / 100.0;
+
+            // Свежая установка: программа ещё не видела ни одной игры (нет LP-дельт
+            // в журнале) — объясняем, что статистика появится после сыгранных игр.
+            var noTrackedGames = d.Last5.Count == 0 || d.Last5.Any(g => g.LpDelta is null);
+            SessionHint.Text = Loc.T("session.needGames");
+            SessionHint.Visibility = noTrackedGames ? Visibility.Visible : Visibility.Collapsed;
 
             // Последние 5 игр — 5 равных колонок во всю ширину бара
             Last5Panel.Children.Clear();
@@ -525,8 +535,8 @@ public partial class OverlayWindow : Window
                 Last5Panel.Children.Add(cell);
             }
 
-            // W/L (мелко) + винрейт (крупно, цвет по правилам)
-            SeasonWlText.Text = $"W:{d.Wins} - L:{d.Losses}";
+            // W/L (мелко, локализовано) + винрейт (крупно, цвет по правилам)
+            SeasonWlText.Text = Loc.T("session.wl", d.Wins, d.Losses);
             WinrateBig.Text = $"{d.Winrate:0}%";
             WinrateBig.Foreground = WinrateBrush(d.Winrate);
 
@@ -543,6 +553,14 @@ public partial class OverlayWindow : Window
         else if (wr >= 45) c = Color.FromRgb(0xF0, 0xC9, 0xC4); // светло-красный, ближе к белому
         else              c = Color.FromRgb(0xE2, 0x4C, 0x4C); // красный
         return new SolidColorBrush(c);
+    }
+
+    // Локализованное название ранга (ranks.* в i18n; нет перевода — как есть).
+    private static string LocalizedTier(string tier)
+    {
+        var key = "ranks." + tier.ToLowerInvariant();
+        var t = Loc.T(key);
+        return t == key ? tier : t;
     }
 
     // Цвет названия ранга по тиру.
@@ -1288,24 +1306,27 @@ public partial class OverlayWindow : Window
             LineColor   = ComboColors[i % ComboColors.Length],
         }).ToList();
 
-    // Цветные «черточки» под иконкой рекомендации: если кандидат входит в одну
-    // из связок, уже сложившихся у союзников, — дашик цвета этой связки.
+    // Цветные «черточки» под иконкой рекомендации: кандидат входит в связку с
+    // союзниками — уже сложившуюся (цвет её линии) или ту, которую он СОЗДАСТ
+    // своим пиком (следующий свободный цвет). Раньше дашик появлялся только у
+    // готовых связок — т.е. лишь после того, как чемпиона реально взяли.
     private static List<string> SynDashesFor(
         int candidateId, List<int> allyIds, Dictionary<string, string> comboColorByName)
     {
         var result = new List<string>();
-        if (candidateId == 0 || allyIds.Count == 0 || comboColorByName.Count == 0) return result;
+        if (candidateId == 0 || allyIds.Count == 0) return result;
 
         // Кандидат может уже быть в команде (это мой собственный пик) — тогда не
         // дублируем его, но чёрточки его связок всё равно показываем.
         var ids = allyIds.Contains(candidateId) ? allyIds : allyIds.Append(candidateId).ToList();
         var team = ids.Select(id => (Id: id, Role: "")).ToList();
+        int nextColor = comboColorByName.Count; // будущая связка получит следующий цвет
         foreach (var combo in TeamSynergies.Detect(team, forAlly: true))
         {
             if (!combo.ChampionIds.Contains(candidateId)) continue;          // кандидат — участник
-            if (comboColorByName.TryGetValue(combo.Name, out var color)      // и связка уже есть у союзников
-                && !result.Contains(color))
-                result.Add(color);
+            if (!comboColorByName.TryGetValue(combo.Name, out var color))    // связки ещё нет —
+                color = ComboColors[nextColor++ % ComboColors.Length];       // пик её создаст
+            if (!result.Contains(color)) result.Add(color);
         }
         return result;
     }

@@ -12,5 +12,34 @@
   ],
   "rec": {
     "yourPick": "YOUR PICK"
+  },
+  "session": {
+    "needGames": "Juega algunas partidas con Counterplay abierto: los LP por partida y la gráfica de winrate se irán llenando.",
+    "wl": "V:{0} - D:{1}"
+  },
+  "ranks": {
+    "iron": "Hierro",
+    "bronze": "Bronce",
+    "silver": "Plata",
+    "gold": "Oro",
+    "platinum": "Platino",
+    "emerald": "Esmeralda",
+    "diamond": "Diamante",
+    "master": "Maestro",
+    "grandmaster": "Gran Maestro",
+    "challenger": "Retador"
+  },
+  "phase": {
+    "none": "Menú",
+    "lobby": "Sala",
+    "matchmaking": "Buscando partida",
+    "readycheck": "Confirmación",
+    "champselect": "Selección de campeones",
+    "gamestart": "La partida empieza",
+    "inprogress": "En partida",
+    "waitingforstats": "Esperando estadísticas",
+    "preendofgame": "Fin de partida",
+    "endofgame": "Post-partida",
+    "reconnect": "Reconexión"
   }
 }

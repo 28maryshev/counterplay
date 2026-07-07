@@ -249,5 +249,34 @@
   },
   "rec": {
     "yourPick": "ТВІЙ ПІК"
+  },
+  "session": {
+    "needGames": "Зіграй кілька ігор із запущеною програмою — LP за гру та графік вінрейту заповняться.",
+    "wl": "В:{0} - П:{1}"
+  },
+  "ranks": {
+    "iron": "Залізо",
+    "bronze": "Бронза",
+    "silver": "Срібло",
+    "gold": "Золото",
+    "platinum": "Платина",
+    "emerald": "Смарагд",
+    "diamond": "Діамант",
+    "master": "Майстер",
+    "grandmaster": "Грандмайстер",
+    "challenger": "Претендент"
+  },
+  "phase": {
+    "none": "Меню",
+    "lobby": "Лобі",
+    "matchmaking": "Пошук гри",
+    "readycheck": "Підтвердження",
+    "champselect": "Вибір чемпіонів",
+    "gamestart": "Гра починається",
+    "inprogress": "У грі",
+    "waitingforstats": "Очікування статистики",
+    "preendofgame": "Завершення гри",
+    "endofgame": "Після гри",
+    "reconnect": "Перепідключення"
   }
 }

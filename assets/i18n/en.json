@@ -294,5 +294,34 @@
   },
   "rec": {
     "yourPick": "YOUR PICK"
+  },
+  "session": {
+    "needGames": "Play a few games with Counterplay running — per-game LP and the winrate chart will fill in.",
+    "wl": "W:{0} - L:{1}"
+  },
+  "ranks": {
+    "iron": "Iron",
+    "bronze": "Bronze",
+    "silver": "Silver",
+    "gold": "Gold",
+    "platinum": "Platinum",
+    "emerald": "Emerald",
+    "diamond": "Diamond",
+    "master": "Master",
+    "grandmaster": "Grandmaster",
+    "challenger": "Challenger"
+  },
+  "phase": {
+    "none": "Menu",
+    "lobby": "Lobby",
+    "matchmaking": "Finding match",
+    "readycheck": "Ready check",
+    "champselect": "Champ select",
+    "gamestart": "Game starting",
+    "inprogress": "In game",
+    "waitingforstats": "Waiting for stats",
+    "preendofgame": "Match ending",
+    "endofgame": "Post-game",
+    "reconnect": "Reconnect"
   }
 }

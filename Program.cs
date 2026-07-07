@@ -194,7 +194,7 @@ class Program
                         overlay.UpdateRecommendations(null, null);
                         // Меню/лобби/конец игры — программа простаивает: показываем
                         // сноску о программе и карусель советов вместо «Готов».
-                        overlay.ShowReady(Loc.T("status.readyPhase", phase));
+                        overlay.ShowReady(Loc.T("status.readyPhase", PhaseDisplay(phase)));
                         // После игры (EndOfGame) ранг/LP обновились — перечитываем трекер.
                         await RefreshSessionAsync();
                         lastHash = "";
@@ -318,6 +318,14 @@ class Program
             mgr.ApplyUpdatesAndRestart(info);
         }
         catch { /* офлайн / нет релизов — работаем на текущей версии */ }
+    }
+
+    // Локализованное имя фазы геймфлоу (phase.* в i18n; неизвестная — как есть).
+    static string PhaseDisplay(string phase)
+    {
+        var key = "phase." + phase.ToLowerInvariant();
+        var t = Loc.T(key);
+        return t == key ? phase : t;
     }
 
     static string PhaseOf(JsonElement data) =>

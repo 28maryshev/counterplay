@@ -12,5 +12,34 @@
   ],
   "rec": {
     "yourPick": "YOUR PICK"
+  },
+  "session": {
+    "needGames": "Spiele ein paar Spiele mit laufendem Counterplay – LP pro Spiel und der Winrate-Graph füllen sich.",
+    "wl": "S:{0} - N:{1}"
+  },
+  "ranks": {
+    "iron": "Eisen",
+    "bronze": "Bronze",
+    "silver": "Silber",
+    "gold": "Gold",
+    "platinum": "Platin",
+    "emerald": "Smaragd",
+    "diamond": "Diamant",
+    "master": "Meister",
+    "grandmaster": "Großmeister",
+    "challenger": "Herausforderer"
+  },
+  "phase": {
+    "none": "Menü",
+    "lobby": "Lobby",
+    "matchmaking": "Spielersuche",
+    "readycheck": "Bereitschaft",
+    "champselect": "Championauswahl",
+    "gamestart": "Spielstart",
+    "inprogress": "Im Spiel",
+    "waitingforstats": "Warten auf Statistiken",
+    "preendofgame": "Spielende",
+    "endofgame": "Nachspielphase",
+    "reconnect": "Wiederverbinden"
   }
 }

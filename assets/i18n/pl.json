@@ -249,5 +249,34 @@
   },
   "rec": {
     "yourPick": "TWÓJ PICK"
+  },
+  "session": {
+    "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",
+    "wl": "W:{0} - P:{1}"
+  },
+  "ranks": {
+    "iron": "Żelazo",
+    "bronze": "Brąz",
+    "silver": "Srebro",
+    "gold": "Złoto",
+    "platinum": "Platyna",
+    "emerald": "Szmaragd",
+    "diamond": "Diament",
+    "master": "Mistrz",
+    "grandmaster": "Arcymistrz",
+    "challenger": "Pretendent"
+  },
+  "phase": {
+    "none": "Menu",
+    "lobby": "Poczekalnia",
+    "matchmaking": "Szukanie gry",
+    "readycheck": "Potwierdzenie",
+    "champselect": "Wybór bohaterów",
+    "gamestart": "Start gry",
+    "inprogress": "W grze",
+    "waitingforstats": "Oczekiwanie na statystyki",
+    "preendofgame": "Koniec gry",
+    "endofgame": "Po grze",
+    "reconnect": "Ponowne połączenie"
   }
 }

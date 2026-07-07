@@ -12,5 +12,34 @@
   ],
   "rec": {
     "yourPick": "YOUR PICK"
+  },
+  "session": {
+    "needGames": "Counterplay를 켠 채로 몇 판 플레이하세요 — 판당 LP와 승률 그래프가 채워집니다.",
+    "wl": "{0}승 {1}패"
+  },
+  "ranks": {
+    "iron": "아이언",
+    "bronze": "브론즈",
+    "silver": "실버",
+    "gold": "골드",
+    "platinum": "플래티넘",
+    "emerald": "에메랄드",
+    "diamond": "다이아몬드",
+    "master": "마스터",
+    "grandmaster": "그랜드마스터",
+    "challenger": "챌린저"
+  },
+  "phase": {
+    "none": "메뉴",
+    "lobby": "로비",
+    "matchmaking": "매칭 중",
+    "readycheck": "수락 대기",
+    "champselect": "챔피언 선택",
+    "gamestart": "게임 시작",
+    "inprogress": "게임 중",
+    "waitingforstats": "전적 집계 중",
+    "preendofgame": "게임 종료 중",
+    "endofgame": "게임 종료",
+    "reconnect": "재접속"
   }
 }

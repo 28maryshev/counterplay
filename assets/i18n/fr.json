@@ -12,5 +12,34 @@
   ],
   "rec": {
     "yourPick": "YOUR PICK"
+  },
+  "session": {
+    "needGames": "Joue quelques parties avec Counterplay lancé — les PL par partie et la courbe de winrate se rempliront.",
+    "wl": "V:{0} - D:{1}"
+  },
+  "ranks": {
+    "iron": "Fer",
+    "bronze": "Bronze",
+    "silver": "Argent",
+    "gold": "Or",
+    "platinum": "Platine",
+    "emerald": "Émeraude",
+    "diamond": "Diamant",
+    "master": "Maître",
+    "grandmaster": "Grand Maître",
+    "challenger": "Challenger"
+  },
+  "phase": {
+    "none": "Menu",
+    "lobby": "Salon",
+    "matchmaking": "Recherche de partie",
+    "readycheck": "Validation",
+    "champselect": "Sélection des champions",
+    "gamestart": "Début de partie",
+    "inprogress": "En jeu",
+    "waitingforstats": "Attente des stats",
+    "preendofgame": "Fin de partie",
+    "endofgame": "Après-partie",
+    "reconnect": "Reconnexion"
   }
 }

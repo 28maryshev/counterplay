@@ -249,5 +249,34 @@
   },
   "rec": {
     "yourPick": "あなたのピック"
+  },
+  "session": {
+    "needGames": "Counterplay を起動したまま数試合プレイすると、試合ごとの LP と勝率グラフが埋まっていきます。",
+    "wl": "{0}勝 {1}敗"
+  },
+  "ranks": {
+    "iron": "アイアン",
+    "bronze": "ブロンズ",
+    "silver": "シルバー",
+    "gold": "ゴールド",
+    "platinum": "プラチナ",
+    "emerald": "エメラルド",
+    "diamond": "ダイヤモンド",
+    "master": "マスター",
+    "grandmaster": "グランドマスター",
+    "challenger": "チャレンジャー"
+  },
+  "phase": {
+    "none": "メニュー",
+    "lobby": "ロビー",
+    "matchmaking": "マッチング中",
+    "readycheck": "承認待ち",
+    "champselect": "チャンピオン選択",
+    "gamestart": "ゲーム開始",
+    "inprogress": "ゲーム中",
+    "waitingforstats": "リザルト待ち",
+    "preendofgame": "試合終了処理",
+    "endofgame": "試合後",
+    "reconnect": "再接続"
   }
 }

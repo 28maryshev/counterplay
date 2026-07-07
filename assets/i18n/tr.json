@@ -12,5 +12,34 @@
   ],
   "rec": {
     "yourPick": "YOUR PICK"
+  },
+  "session": {
+    "needGames": "Counterplay açıkken birkaç maç oyna — maç başına LP ve galibiyet grafiği dolacaktır.",
+    "wl": "G:{0} - M:{1}"
+  },
+  "ranks": {
+    "iron": "Demir",
+    "bronze": "Bronz",
+    "silver": "Gümüş",
+    "gold": "Altın",
+    "platinum": "Platin",
+    "emerald": "Zümrüt",
+    "diamond": "Elmas",
+    "master": "Usta",
+    "grandmaster": "Büyük Usta",
+    "challenger": "Şampiyon"
+  },
+  "phase": {
+    "none": "Menü",
+    "lobby": "Lobi",
+    "matchmaking": "Maç aranıyor",
+    "readycheck": "Kabul ekranı",
+    "champselect": "Şampiyon seçimi",
+    "gamestart": "Oyun başlıyor",
+    "inprogress": "Oyunda",
+    "waitingforstats": "İstatistik bekleniyor",
+    "preendofgame": "Maç bitiyor",
+    "endofgame": "Maç sonu",
+    "reconnect": "Yeniden bağlanma"
   }
 }

@@ -249,5 +249,34 @@
   },
   "rec": {
     "yourPick": "พิคของคุณ"
+  },
+  "session": {
+    "needGames": "เล่นสักสองสามเกมโดยเปิด Counterplay ไว้ — LP ต่อเกมและกราฟอัตราชนะจะค่อย ๆ แสดงขึ้น",
+    "wl": "ชนะ {0} - แพ้ {1}"
+  },
+  "ranks": {
+    "iron": "ไอรอน",
+    "bronze": "บรอนซ์",
+    "silver": "ซิลเวอร์",
+    "gold": "โกลด์",
+    "platinum": "แพลทินัม",
+    "emerald": "เอมเมอรัลด์",
+    "diamond": "ไดมอนด์",
+    "master": "มาสเตอร์",
+    "grandmaster": "แกรนด์มาสเตอร์",
+    "challenger": "ชาเลนเจอร์"
+  },
+  "phase": {
+    "none": "เมนู",
+    "lobby": "ล็อบบี้",
+    "matchmaking": "กำลังหาแมตช์",
+    "readycheck": "ยืนยันเข้าเกม",
+    "champselect": "เลือกแชมเปี้ยน",
+    "gamestart": "เกมกำลังเริ่ม",
+    "inprogress": "อยู่ในเกม",
+    "waitingforstats": "รอสถิติ",
+    "preendofgame": "จบเกม",
+    "endofgame": "หลังเกม",
+    "reconnect": "เชื่อมต่อใหม่"
   }
 }

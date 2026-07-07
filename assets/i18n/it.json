@@ -249,5 +249,34 @@
   },
   "rec": {
     "yourPick": "LA TUA SCELTA"
+  },
+  "session": {
+    "needGames": "Gioca qualche partita con Counterplay aperto: i PL per partita e il grafico del winrate si riempiranno.",
+    "wl": "V:{0} - S:{1}"
+  },
+  "ranks": {
+    "iron": "Ferro",
+    "bronze": "Bronzo",
+    "silver": "Argento",
+    "gold": "Oro",
+    "platinum": "Platino",
+    "emerald": "Smeraldo",
+    "diamond": "Diamante",
+    "master": "Maestro",
+    "grandmaster": "Gran Maestro",
+    "challenger": "Sfidante"
+  },
+  "phase": {
+    "none": "Menu",
+    "lobby": "Lobby",
+    "matchmaking": "Ricerca partita",
+    "readycheck": "Conferma",
+    "champselect": "Selezione campioni",
+    "gamestart": "Inizio partita",
+    "inprogress": "In partita",
+    "waitingforstats": "In attesa delle statistiche",
+    "preendofgame": "Fine partita",
+    "endofgame": "Post-partita",
+    "reconnect": "Riconnessione"
   }
 }

@@ -249,5 +249,34 @@
   },
   "rec": {
     "yourPick": "LỰA CHỌN CỦA BẠN"
+  },
+  "session": {
+    "needGames": "Chơi vài trận khi Counterplay đang chạy — LP mỗi trận và biểu đồ tỉ lệ thắng sẽ được cập nhật.",
+    "wl": "T:{0} - B:{1}"
+  },
+  "ranks": {
+    "iron": "Sắt",
+    "bronze": "Đồng",
+    "silver": "Bạc",
+    "gold": "Vàng",
+    "platinum": "Bạch Kim",
+    "emerald": "Lục Bảo",
+    "diamond": "Kim Cương",
+    "master": "Cao Thủ",
+    "grandmaster": "Đại Cao Thủ",
+    "challenger": "Thách Đấu"
+  },
+  "phase": {
+    "none": "Menu",
+    "lobby": "Sảnh",
+    "matchmaking": "Đang tìm trận",
+    "readycheck": "Xác nhận",
+    "champselect": "Chọn tướng",
+    "gamestart": "Trận bắt đầu",
+    "inprogress": "Trong trận",
+    "waitingforstats": "Chờ thống kê",
+    "preendofgame": "Kết thúc trận",
+    "endofgame": "Sau trận",
+    "reconnect": "Kết nối lại"
   }
 }

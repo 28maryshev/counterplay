@@ -294,5 +294,34 @@
   },
   "rec": {
     "yourPick": "ТВОЙ ПИК"
+  },
+  "session": {
+    "needGames": "Сыграй несколько игр с запущенной программой — LP за игру и график винрейта наполнятся.",
+    "wl": "В:{0} - П:{1}"
+  },
+  "ranks": {
+    "iron": "Железо",
+    "bronze": "Бронза",
+    "silver": "Серебро",
+    "gold": "Золото",
+    "platinum": "Платина",
+    "emerald": "Изумруд",
+    "diamond": "Алмаз",
+    "master": "Мастер",
+    "grandmaster": "Грандмастер",
+    "challenger": "Претендент"
+  },
+  "phase": {
+    "none": "Меню",
+    "lobby": "Лобби",
+    "matchmaking": "Поиск игры",
+    "readycheck": "Подтверждение",
+    "champselect": "Выбор чемпионов",
+    "gamestart": "Игра начинается",
+    "inprogress": "В игре",
+    "waitingforstats": "Ожидание статистики",
+    "preendofgame": "Завершение игры",
+    "endofgame": "После игры",
+    "reconnect": "Переподключение"
   }
 }
