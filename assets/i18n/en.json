@@ -53,6 +53,7 @@
     "downloadingUpdate": "Downloading update… {0}%{1}",
     "applyingUpdate": "Applying update, restarting…",
     "readyLine": "Ready · {0} · {1}",
+    "readyIdle": "Ready",
     "readyPhase": "Ready · phase: {0}",
     "banPhase": "Ban phase…",
     "waitDraft": "Waiting for champ select…",
@@ -173,6 +174,48 @@
       "desc": "Global ults provide help and picks across the map — strong pressure in split-push.",
       "tipAlly": "Pressure in split and take cross-map picks with globals — stretch the enemy.",
       "tipEnemy": "Don't overstay in 4v5 skirmishes — their globals even the numbers. Respect when their champs are off the map."
+    },
+    "lovers": {
+      "name": "The Lovers (Xayah + Rakan)",
+      "desc": "Xayah and Rakan empower each other: extended engage range, shared recalls and layered CC.",
+      "tipAlly": "Play bot as one unit — Rakan engages further with Xayah nearby, and she covers his exit with feathers.",
+      "tipEnemy": "Don't trade into both at once: Rakan's engage range is longer than usual. Punish whoever is alone."
+    },
+    "kalista": {
+      "name": "Fate's Call (Kalista + engage)",
+      "desc": "Kalista's ult throws an engage ally into the enemy team — an unstoppable knock-up initiation from safety.",
+      "tipAlly": "Save the ult for the engage partner: launch them into clumped enemies or use it to reset a failed dive.",
+      "tipEnemy": "Spread out and track Kalista's ult — the thrown ally lands with a knock-up. Don't group in her sight."
+    },
+    "isolate": {
+      "name": "Isolation (Nocturne dive)",
+      "desc": "Nocturne's ult blinds the map and dives a target; lockdown or burst confirms the kill before help arrives.",
+      "tipAlly": "Ult the target your team can lock down or burst — the pick happens before their team can react.",
+      "tipEnemy": "After level 6, don't walk alone: his ult isolates stragglers. Group up and hold vision of him."
+    },
+    "arrow": {
+      "name": "Arrow → dive (Ashe setup)",
+      "desc": "Ashe's global arrow stuns from across the map — a diver follows up on the frozen target instantly.",
+      "tipAlly": "Fire arrows at picks and objectives — your diver converts every hit into a kill.",
+      "tipEnemy": "Dodge or body-block the arrow: one hit means their whole follow-up lands on you. Keep a cleanse ready."
+    },
+    "trap": {
+      "name": "Trap setup (Caitlyn + CC)",
+      "desc": "Caitlyn's traps under allied hooks and stuns lock a target in place for free headshots.",
+      "tipAlly": "Lay traps where your support lands CC — every hook or stun becomes a guaranteed trap and headshot.",
+      "tipEnemy": "Don't get hooked near her traps — the chain lockdown is lethal. Clear traps around objectives."
+    },
+    "splitpush": {
+      "name": "Split-push (1-3-1)",
+      "desc": "A strong side-laner pushes while a global ult covers them — the enemy can't answer both sides.",
+      "tipAlly": "Push side lanes and force them to answer — the global ult punishes any collapse or cross-map fight.",
+      "tipEnemy": "Don't chase the splitter 3-deep — force 5v4 fights elsewhere before their global arrives."
+    },
+    "diveball": {
+      "name": "Full dive team",
+      "desc": "Three or more divers jump the backline at once — no peel can stop every threat.",
+      "tipAlly": "Commit the dive together onto their carries — split entries waste your numbers advantage.",
+      "tipEnemy": "Stack peel and disengage, group tightly and keep your carries behind the frontline at all times."
     }
   },
   "roles": {

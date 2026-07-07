@@ -16,8 +16,10 @@ public sealed record TeamCombo(
 public static class TeamSynergies
 {
     // Подбросы в воздух (активируют ульт Ясуо/Йоне, собирают группу под AoE).
+    // + Джанна/Ракан/Ли Син/Синь Жао/Поппи/Браум/Атрокс/Талия/Каин/Йоне.
     private static readonly HashSet<int> Knockup =
-        [54, 62, 79, 12, 111, 14, 150, 526, 59, 131, 154, 106, 31, 516, 254, 20];
+        [54, 62, 79, 12, 111, 14, 150, 526, 59, 131, 154, 106, 31, 516, 254, 20,
+         40, 497, 64, 5, 78, 201, 266, 163, 141, 777];
     // Ясуо / Йоне — ульт по подброшенным.
     private static readonly HashSet<int> AirborneUlt = [157, 777];
     // Энчантеры — баффы скорости атаки/передвижения, щиты, хилл.
@@ -28,15 +30,23 @@ public static class TeamSynergies
     private static readonly HashSet<int> Immortality = [44, 26, 10];
     // Дайв-кэрри — окупают неуязвимость, ныряя в тиму.
     private static readonly HashSet<int> DiveCarry = [11, 23, 24, 114, 59, 157, 777, 164, 2, 39, 266, 234];
-    // Мощные AoE-ульты для тимфайта (Сона, МФ, Амуму, Малфайт, Картус, Фидл,
-    // Орианна, Нико, Кеннен, Серафина, Твич, Сивир, Ясуо, Йоне, Свейн).
-    private static readonly HashSet<int> AoeUlt = [37, 21, 32, 54, 30, 9, 61, 518, 85, 147, 29, 15, 157, 777, 50];
+    // Мощные AoE-ульты для тимфайта. + Рамбл/Энни/Бранд/Зиггс/Лиссандра/Галио/
+    // Гнар/Диана/Аурелион — все с решающим AoE-ультом по сгруппированным.
+    private static readonly HashSet<int> AoeUlt =
+        [37, 21, 32, 54, 30, 9, 61, 518, 85, 147, 29, 15, 157, 777, 50,
+         68, 1, 63, 115, 127, 3, 150, 131, 136];
     // Орианна — её шар + инициация = «шаровая молния».
     private const int Orianna = 61;
     // Хуки — гарантированный пик при подхвате.
     private static readonly HashSet<int> Hooks = [412, 53, 111, 555];
-    // Глобальные ульты — давление по всей карте.
-    private static readonly HashSet<int> Global = [98, 4, 80, 3, 22, 30];
+    // Глобальные ульты — давление по всей карте. + Ноктюрн/Гангпланк.
+    private static readonly HashSet<int> Global = [98, 4, 80, 3, 22, 30, 56, 41];
+    // Сплит-пушеры — сильная боковая линия под глобальное давление (1-3-1).
+    private static readonly HashSet<int> Splitters = [114, 24, 23, 164, 83, 41, 39, 92];
+    // Дайверы без тега dive (ассасины): Зед/Ката/Экко/Ренгар/Ноктюрн/Гекарим/Кияна/Нафири.
+    private static readonly HashSet<int> DiveExtra = [238, 55, 245, 107, 56, 120, 246, 950];
+    // Особые пары/якоря новых связок.
+    private const int Kalista = 429, Xayah = 498, Rakan = 497, Ashe = 22, Caitlyn = 51;
 
     // Надёжный контроль по ОДИНОЧНОЙ цели (чарм/стан/корень/подавление/зацеп) —
     // под него гарантированно заходит бёрст и удаляет цель.
@@ -45,8 +55,9 @@ public static class TeamSynergies
     // Бёрст-чемпионы, не помеченные тегом "burst" (известные ассасины/маги).
     private static readonly HashSet<int> BurstExtra = [238, 7, 55, 245, 910, 103];
     // Артиллерия — большая дальность урона (покой/осада издалека).
+    // + Джейс/Эзреаль/Ког'Мав/Мэл — дальний прострел/поук.
     private static readonly HashSet<int> Artillery =
-        [101, 161, 115, 99, 202, 110, 30, 76, 51, 235, 910, 142];
+        [101, 161, 115, 99, 202, 110, 30, 76, 51, 235, 910, 142, 126, 81, 96, 800];
     // Ноктюрн — ульт ныряет и изолирует цель.
     private const int Nocturne = 56;
 
@@ -172,6 +183,54 @@ public static class TeamSynergies
                 Loc.T("combo.orianna.desc"),
                 forAlly ? Loc.T("combo.orianna.tipAlly") : Loc.T("combo.orianna.tipEnemy")));
 
+        // 2b. Влюблённые: Шая + Ракан — способности пары усиливают друг друга.
+        if (ids.Contains(Xayah) && ids.Contains(Rakan))
+            combos.Add(new TeamCombo(
+                Loc.T("combo.lovers.name"),
+                [Xayah, Rakan],
+                Loc.T("combo.lovers.desc"),
+                forAlly ? Loc.T("combo.lovers.tipAlly") : Loc.T("combo.lovers.tipEnemy")));
+
+        // 2c. «Зов судьбы»: Калиста забрасывает энгейдж-союзника в тыл врага.
+        var kalistaMates = ids.Where(id => id != Kalista && (Has(id, "engage") || Hooks.Contains(id))).ToList();
+        if (ids.Contains(Kalista) && kalistaMates.Count > 0)
+            combos.Add(new TeamCombo(
+                Loc.T("combo.kalista.name"),
+                [Kalista, .. kalistaMates.Take(1)],
+                Loc.T("combo.kalista.desc"),
+                forAlly ? Loc.T("combo.kalista.tipAlly") : Loc.T("combo.kalista.tipEnemy")));
+
+        // 2d. Изоляция Ноктюрна: ульт гасит карту и ныряет на цель, контроль/бёрст
+        // добивает (статистика: Ноктюрн+Ари +8.7пп чистой синергии).
+        var nocMates = ids.Where(id => id != Nocturne && (Lockdown.Contains(id) || Has(id, "burst"))).ToList();
+        if (ids.Contains(Nocturne) && nocMates.Count > 0)
+            combos.Add(new TeamCombo(
+                Loc.T("combo.isolate.name"),
+                [Nocturne, .. nocMates.Take(2)],
+                Loc.T("combo.isolate.desc"),
+                forAlly ? Loc.T("combo.isolate.tipAlly") : Loc.T("combo.isolate.tipEnemy")));
+
+        // 2e. Стрела через карту: ульт Эш находит цель — нырок влетает следом
+        // (статистика: Эш+Диана +8.1пп).
+        var arrowDivers = ids.Where(id => id != Ashe && (DiveCarry.Contains(id) || Has(id, "dive"))).ToList();
+        if (ids.Contains(Ashe) && arrowDivers.Count > 0)
+            combos.Add(new TeamCombo(
+                Loc.T("combo.arrow.name"),
+                [Ashe, .. arrowDivers.Take(2)],
+                Loc.T("combo.arrow.desc"),
+                forAlly ? Loc.T("combo.arrow.tipAlly") : Loc.T("combo.arrow.tipEnemy")));
+
+        // 2f. Ловушки под контроль: капканы Кейтлин под хук/сетап союзника
+        // (статистика: Кейтлин+Бард +6.8пп).
+        var trapSetters = ids.Where(id => id != Caitlyn &&
+            (Hooks.Contains(id) || Has(id, "engage") || id is 432 or 25 or 143)).ToList();
+        if (ids.Contains(Caitlyn) && trapSetters.Count > 0)
+            combos.Add(new TeamCombo(
+                Loc.T("combo.trap.name"),
+                [Caitlyn, .. trapSetters.Take(1)],
+                Loc.T("combo.trap.desc"),
+                forAlly ? Loc.T("combo.trap.tipAlly") : Loc.T("combo.trap.tipEnemy")));
+
         // 3. Бессмертие: Тарик/Зилеан/Кайл + дайв-кэрри
         var imm  = In(Immortality);
         var dive = In(DiveCarry);
@@ -239,6 +298,24 @@ public static class TeamSynergies
                 [.. glob.Take(3)],
                 Loc.T("combo.global.desc"),
                 forAlly ? Loc.T("combo.global.tipAlly") : Loc.T("combo.global.tipEnemy")));
+
+        // 10. Сплит-пуш (1-3-1): глобальный ульт покрывает сильную боковую линию.
+        var splitters = In(Splitters).Where(id => !glob.Contains(id)).ToList();
+        if (glob.Count > 0 && splitters.Count > 0)
+            combos.Add(new TeamCombo(
+                Loc.T("combo.splitpush.name"),
+                [.. glob.Take(1), .. splitters.Take(2)],
+                Loc.T("combo.splitpush.desc"),
+                forAlly ? Loc.T("combo.splitpush.tipAlly") : Loc.T("combo.splitpush.tipEnemy")));
+
+        // 11. Тотальный дайв: три и более нырка — бэклайн врага не переживает заход.
+        var divers = ids.Where(id => Has(id, "dive") || DiveCarry.Contains(id) || DiveExtra.Contains(id)).ToList();
+        if (divers.Count >= 3)
+            combos.Add(new TeamCombo(
+                Loc.T("combo.diveball.name"),
+                [.. divers.Take(3)],
+                Loc.T("combo.diveball.desc"),
+                forAlly ? Loc.T("combo.diveball.tipAlly") : Loc.T("combo.diveball.tipEnemy")));
 
         // Убираем дубли иконок: чемпион может попасть в обе роли связки
         // (например, и контроль, и бёрст) — в карточке он должен быть один раз.
