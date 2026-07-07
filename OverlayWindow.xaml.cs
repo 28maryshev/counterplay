@@ -941,7 +941,8 @@ public partial class OverlayWindow : Window
         if (sender is not FrameworkElement el || el.Tag is not int cellId || cellId < 0) return;
         e.Handled = true;
 
-        var menu = new ContextMenu();
+        var menu = new ContextMenu { Style = (Style)FindResource("RoleMenuStyle") };
+        var itemStyle = (Style)FindResource("RoleMenuItemStyle");
         var current = _enemyRoleOverrides.GetValueOrDefault(cellId, "");
         foreach (var lcuRole in RoleCycle) // "" = авто
         {
@@ -950,12 +951,14 @@ public partial class OverlayWindow : Window
                 Header      = lcuRole.Length == 0 ? Loc.T("slot.roleAuto") : RoleName(lcuRole),
                 IsChecked   = current == lcuRole,
                 IsCheckable = false,
+                Style       = itemStyle,
             };
             var chosen = lcuRole;
             item.Click += (_, _) => SetEnemyRole(cellId, chosen);
             menu.Items.Add(item);
         }
         menu.PlacementTarget = el;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
         menu.IsOpen = true;
     }
 
