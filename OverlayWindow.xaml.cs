@@ -31,8 +31,14 @@ public partial class OverlayWindow : Window
 
     private IReadOnlyList<Recommendation>? _lastRecs;
     private IReadOnlyList<BanRec>?         _lastBans;
-    private DraftState?                    _lastDraft;
+    private DraftState?                    _lastDraft;    // с применёнными ручными ролями
+    private DraftState?                    _lastRawDraft; // как пришёл из LCU
     private RecommendationEngine?          _engine;
+
+    // Ручное назначение ролей врагам (cellId → LCU-позиция): игрок знает, куда
+    // пойдёт флекс-пик (Ирелия мид и т.п.) — клик по роли в карточке врага.
+    private readonly Dictionary<int, string> _enemyRoleOverrides = new();
+    private static readonly string[] RoleCycle = ["", "top", "jungle", "middle", "bottom", "utility"];
 
     // Привязка к окну клиента LoL: ставим один раз при появлении, дальше
     // окно свободно перетаскивается. Как только пользователь сдвинул вручную —
@@ -850,10 +856,16 @@ public partial class OverlayWindow : Window
     {
         Dispatcher.InvokeAsync(() =>
         {
+            if (engine != null) _engine = engine;
+            if (draft is null) _enemyRoleOverrides.Clear(); // конец драфта — сброс меток
+            _lastRawDraft = draft;
+            var eff = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
+            _lastDraft = eff;
+            // Ручные роли меняют оппонента/кросс-пары — пересчитываем подбор.
+            if (recs != null && eff != null && _engine != null && _enemyRoleOverrides.Count > 0)
+                recs = eff.IsAram ? _engine.RecommendAram(eff) : _engine.Recommend(eff);
             _lastRecs  = recs;
             _lastBans  = null;
-            _lastDraft = draft;
-            if (engine != null) _engine = engine;
             RenderCurrentState();
         });
     }
@@ -863,9 +875,44 @@ public partial class OverlayWindow : Window
         {
             _lastBans  = bans;
             _lastRecs  = null;
-            _lastDraft = draft;
+            _lastRawDraft = draft;
+            _lastDraft = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
             RenderCurrentState();
         });
+
+    // ── Ручные роли врагов ───────────────────────────────────────────────
+
+    // Применяет метки к драфту: подменяет Position у врагов и пересчитывает
+    // прямого оппонента (враг с моей позицией — приоритет ручной метки).
+    private DraftState ApplyEnemyRoleOverrides(DraftState d)
+    {
+        if (_enemyRoleOverrides.Count == 0) return d;
+        var their = d.TheirTeam.Select(p =>
+            _enemyRoleOverrides.TryGetValue(p.CellId, out var pos) && pos.Length > 0
+                ? p with { Position = pos } : p).ToList();
+        var direct = !string.IsNullOrEmpty(d.MyPosition)
+            ? their.FirstOrDefault(p => p.EffectiveChampionId != 0 && p.Position == d.MyPosition)
+            : null;
+        return d with { TheirTeam = their, DirectOpponent = direct ?? d.DirectOpponent };
+    }
+
+    // Клик по роли в карточке врага: цикл авто → ТОП → ЛЕС → МИД → БОТ → САПП → авто.
+    private void EnemyRole_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement el || el.Tag is not int cellId || cellId < 0) return;
+        var cur  = _enemyRoleOverrides.GetValueOrDefault(cellId, "");
+        var next = RoleCycle[(Array.IndexOf(RoleCycle, cur) + 1) % RoleCycle.Length];
+        if (next.Length == 0) _enemyRoleOverrides.Remove(cellId);
+        else                  _enemyRoleOverrides[cellId] = next;
+        e.Handled = true;
+
+        if (_lastRawDraft is null) return;
+        var eff = ApplyEnemyRoleOverrides(_lastRawDraft);
+        _lastDraft = eff;
+        if (_engine != null && _lastRecs != null)
+            _lastRecs = eff.IsAram ? _engine.RecommendAram(eff) : _engine.Recommend(eff);
+        RenderCurrentState();
+    }
 
     // ── Рендер ────────────────────────────────────────────────────────────
 
@@ -1120,7 +1167,7 @@ public partial class OverlayWindow : Window
     {
         var myRole = RecommendationEngine.LcuToDbRole(draft.MyPosition);
         MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole);
-        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole);
+        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole, _enemyRoleOverrides);
 
         var allyIds  = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
                                    .Select(p => p.EffectiveChampionId).ToList();
@@ -1251,7 +1298,8 @@ public partial class OverlayWindow : Window
 
     private static List<ChampSlotCard> BuildSlots(
         IReadOnlyList<DraftPlayer> players, bool ally,
-        RecommendationEngine? engine, string myRole)
+        RecommendationEngine? engine, string myRole,
+        IReadOnlyDictionary<int, string>? roleOverrides = null)
     {
         return Enumerable.Range(0, 5).Select(i =>
         {
@@ -1290,7 +1338,15 @@ public partial class OverlayWindow : Window
                 Name        = hasChamp
                     ? (ally ? DataDragon.Name(champId).ToUpperInvariant() : $"ENEMY {i + 1}")
                     : "—",
-                Role        = hasChamp ? RoleName(p.Position) : (isMe ? Loc.T("slot.youPick") : ""),
+                // У врага с чемпионом роль кликабельна («▾»): игрок может задать её
+                // вручную, если знает, куда пойдёт флекс-пик.
+                Role        = hasChamp
+                    ? (ally ? RoleName(p.Position) : RoleName(p.Position) + " ▾")
+                    : (isMe ? Loc.T("slot.youPick") : ""),
+                RoleCellId  = (!ally && hasChamp) ? p.CellId : -1,
+                RoleColor   = (!ally && roleOverrides != null && roleOverrides.ContainsKey(p.CellId))
+                    ? "#F5D77A" : "#8AA0B2",
+                RoleTip     = (!ally && hasChamp) ? Loc.T("slot.roleTip") : null,
                 Icon        = hasChamp ? IconCache.Get(champId) : null,
                 // В пустом моём слоте показываем иконку роли
                 RoleIcon    = (isMe && !hasChamp) ? RoleIcons.Get(p.Position) : null,
@@ -1421,6 +1477,10 @@ public sealed class ChampSlotCard
 {
     public string            Name        { get; init; } = "";
     public string            Role        { get; init; } = "";
+    // Кликабельная роль врага (ручное назначение): cellId слота, -1 = не кликается.
+    public int               RoleCellId  { get; init; } = -1;
+    public string            RoleColor   { get; init; } = "#8AA0B2";
+    public string?           RoleTip     { get; init; }   // null — без тултипа (союзники)
     public ImageSource?      Icon        { get; init; }
     public double            Opacity     { get; init; } = 1.0;
     public string            BorderColor { get; init; } = "#C89B3C";

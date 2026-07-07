@@ -234,7 +234,8 @@
   "slot": {
     "counters": "COUNTERS",
     "synergy": "SYNERGY",
-    "youPick": "YOU PICK"
+    "youPick": "YOU PICK",
+    "roleTip": "Enemy role: click to cycle TOP → JUNGLE → MID → BOT → SUPPORT → auto. Set it manually when you know where a flex pick is going — recommendations adjust instantly."
   },
   "badge": {
     "ban": "BAN"

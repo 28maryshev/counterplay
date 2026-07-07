@@ -811,6 +811,10 @@ public sealed class RecommendationEngine : IDisposable
         {
             var id = p.EffectiveChampionId;
             if (id == 0) continue;
+            // Роль слота известна (позиция из LCU или ручная метка игрока) и это
+            // не моя роль — такой враг точно не мой оппонент по линии.
+            var known = LcuToDbRole(p.Position);
+            if (!string.IsNullOrEmpty(known) && known != myRole) continue;
             var share = RoleShare(id, myRole);
             if (share > bestShare) { bestShare = share; best = id; }
         }

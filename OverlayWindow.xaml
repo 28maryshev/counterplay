@@ -652,9 +652,23 @@
                         </Border>
                       </Grid>
                       <StackPanel Grid.Column="1" Margin="34,4,0,3">
-                        <TextBlock Text="{Binding Role}" Foreground="#8AA0B2"
+                        <!-- Роль: у врага кликабельна (ручное назначение флекс-пикам) -->
+                        <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
                                    FontFamily="{StaticResource DisplayFont}"
-                                   FontSize="12" FontWeight="Bold"/>
+                                   FontSize="12" FontWeight="Bold" HorizontalAlignment="Left"
+                                   Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
+                                   MouseLeftButtonDown="EnemyRole_Click">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                              <Setter Property="Cursor" Value="Hand"/>
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding RoleCellId}" Value="-1">
+                                  <Setter Property="Cursor" Value="Arrow"/>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
                         <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
                                    FontFamily="{StaticResource DisplayFont}"
                                    FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
@@ -1023,9 +1037,23 @@
                         </Border>
                       </Grid>
                       <StackPanel Grid.Column="1" Margin="34,4,0,3">
-                        <TextBlock Text="{Binding Role}" Foreground="#8AA0B2"
+                        <!-- Роль: у врага кликабельна (ручное назначение флекс-пикам) -->
+                        <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
                                    FontFamily="{StaticResource DisplayFont}"
-                                   FontSize="12" FontWeight="Bold"/>
+                                   FontSize="12" FontWeight="Bold" HorizontalAlignment="Left"
+                                   Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
+                                   MouseLeftButtonDown="EnemyRole_Click">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                              <Setter Property="Cursor" Value="Hand"/>
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding RoleCellId}" Value="-1">
+                                  <Setter Property="Cursor" Value="Arrow"/>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
                         <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
                                    FontFamily="{StaticResource DisplayFont}"
                                    FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
