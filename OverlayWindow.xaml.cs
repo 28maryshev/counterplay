@@ -861,8 +861,9 @@ public partial class OverlayWindow : Window
             _lastRawDraft = draft;
             var eff = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
             _lastDraft = eff;
-            // Ручные роли меняют оппонента/кросс-пары — пересчитываем подбор.
-            if (recs != null && eff != null && _engine != null && _enemyRoleOverrides.Count > 0)
+            // Авто-раскладка ролей врагов + ручные метки меняют оппонента и
+            // кросс-пары — пересчитываем подбор по эффективному драфту.
+            if (recs != null && eff != null && _engine != null && !ReferenceEquals(eff, draft))
                 recs = eff.IsAram ? _engine.RecommendAram(eff) : _engine.Recommend(eff);
             _lastRecs  = recs;
             _lastBans  = null;
@@ -880,33 +881,99 @@ public partial class OverlayWindow : Window
             RenderCurrentState();
         });
 
-    // ── Ручные роли врагов ───────────────────────────────────────────────
+    // ── Роли врагов: авто-раскладка + ручные метки ────────────────────────
 
-    // Применяет метки к драфту: подменяет Position у врагов и пересчитывает
-    // прямого оппонента (враг с моей позицией — приоритет ручной метки).
+    // Раскладывает роли по вражеской команде: ручные метки фиксированы, остальным
+    // чемпионам роли назначаются жадно по доле их игр на роли (каждая роль — один
+    // раз). Итог: у Ирелии «топ», но стоит вручную поставить Чо'Гата на топ — она
+    // автоматически съезжает на свою следующую лучшую свободную роль (мид).
     private DraftState ApplyEnemyRoleOverrides(DraftState d)
     {
-        if (_enemyRoleOverrides.Count == 0) return d;
-        var their = d.TheirTeam.Select(p =>
-            _enemyRoleOverrides.TryGetValue(p.CellId, out var pos) && pos.Length > 0
-                ? p with { Position = pos } : p).ToList();
+        if (d.IsAram) return d; // в ARAM ролей нет
+        var their = d.TheirTeam.ToArray();
+        var usedRoles = new HashSet<string>();
+
+        // 1. Ручные метки — фиксированы.
+        for (int i = 0; i < their.Length; i++)
+            if (_enemyRoleOverrides.TryGetValue(their[i].CellId, out var pos) && pos.Length > 0)
+            {
+                their[i] = their[i] with { Position = pos };
+                usedRoles.Add(pos);
+            }
+
+        // 2. Остальные с чемпионами — жадное назначение по доле роли.
+        if (_engine != null)
+        {
+            var freeIdx = Enumerable.Range(0, their.Length)
+                .Where(i => !_enemyRoleOverrides.ContainsKey(their[i].CellId)
+                            && their[i].EffectiveChampionId != 0)
+                .ToList();
+            var pairs = new List<(int Idx, string Role, double Share)>();
+            foreach (var i in freeIdx)
+                foreach (var lcuRole in RoleCycle.Skip(1)) // без пустой "авто"
+                {
+                    if (usedRoles.Contains(lcuRole)) continue;
+                    var share = _engine.RoleShare(their[i].EffectiveChampionId,
+                                                  RecommendationEngine.LcuToDbRole(lcuRole));
+                    pairs.Add((i, lcuRole, share));
+                }
+            var assigned = new HashSet<int>();
+            foreach (var (idx, role, share) in pairs.OrderByDescending(x => x.Share))
+            {
+                if (share <= 0 || assigned.Contains(idx) || usedRoles.Contains(role)) continue;
+                their[idx] = their[idx] with { Position = role };
+                assigned.Add(idx);
+                usedRoles.Add(role);
+            }
+        }
+
+        // 3. Прямой оппонент — враг, вставший на мою позицию.
+        var list = their.ToList();
         var direct = !string.IsNullOrEmpty(d.MyPosition)
-            ? their.FirstOrDefault(p => p.EffectiveChampionId != 0 && p.Position == d.MyPosition)
+            ? list.FirstOrDefault(p => p.EffectiveChampionId != 0 && p.Position == d.MyPosition)
             : null;
-        return d with { TheirTeam = their, DirectOpponent = direct ?? d.DirectOpponent };
+        return d with { TheirTeam = list, DirectOpponent = direct ?? d.DirectOpponent };
     }
 
-    // Клик по роли в карточке врага: цикл авто → ТОП → ЛЕС → МИД → БОТ → САПП → авто.
+    // Клик по роли в карточке врага — выпадающий список: Авто / ТОП / ЛЕС / МИД / БОТ / САПП.
     private void EnemyRole_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement el || el.Tag is not int cellId || cellId < 0) return;
-        var cur  = _enemyRoleOverrides.GetValueOrDefault(cellId, "");
-        var next = RoleCycle[(Array.IndexOf(RoleCycle, cur) + 1) % RoleCycle.Length];
-        if (next.Length == 0) _enemyRoleOverrides.Remove(cellId);
-        else                  _enemyRoleOverrides[cellId] = next;
         e.Handled = true;
 
-        if (_lastRawDraft is null) return;
+        var menu = new ContextMenu();
+        var current = _enemyRoleOverrides.GetValueOrDefault(cellId, "");
+        foreach (var lcuRole in RoleCycle) // "" = авто
+        {
+            var item = new MenuItem
+            {
+                Header      = lcuRole.Length == 0 ? Loc.T("slot.roleAuto") : RoleName(lcuRole),
+                IsChecked   = current == lcuRole,
+                IsCheckable = false,
+            };
+            var chosen = lcuRole;
+            item.Click += (_, _) => SetEnemyRole(cellId, chosen);
+            menu.Items.Add(item);
+        }
+        menu.PlacementTarget = el;
+        menu.IsOpen = true;
+    }
+
+    // Назначает роль врагу вручную. Если роль уже занята другой ручной меткой —
+    // та снимается (вернётся в авто и переедет на следующую лучшую роль).
+    private void SetEnemyRole(int cellId, string lcuRole)
+    {
+        if (lcuRole.Length == 0) _enemyRoleOverrides.Remove(cellId);
+        else
+        {
+            foreach (var other in _enemyRoleOverrides
+                         .Where(kv => kv.Key != cellId && kv.Value == lcuRole)
+                         .Select(kv => kv.Key).ToList())
+                _enemyRoleOverrides.Remove(other);
+            _enemyRoleOverrides[cellId] = lcuRole;
+        }
+
+        if (_lastRawDraft is null) { RenderCurrentState(); return; }
         var eff = ApplyEnemyRoleOverrides(_lastRawDraft);
         _lastDraft = eff;
         if (_engine != null && _lastRecs != null)

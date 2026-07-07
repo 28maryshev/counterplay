@@ -823,8 +823,9 @@ public sealed class RecommendationEngine : IDisposable
 
     private readonly Dictionary<int, Dictionary<string, double>> _roleShareCache = new();
 
-    // Доля игр чемпиона на каждой роли (по base_wr, взвешенно по патчам), с кэшем.
-    private double RoleShare(int champId, string role)
+    /// Доля игр чемпиона на роли (по base_wr, взвешенно по патчам), с кэшем.
+    /// Публична: оверлей использует её для авто-раскладки ролей вражеской команды.
+    public double RoleShare(int champId, string role)
     {
         if (!_roleShareCache.TryGetValue(champId, out var shares))
         {

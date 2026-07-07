@@ -235,7 +235,8 @@
     "counters": "COUNTERS",
     "synergy": "SYNERGY",
     "youPick": "YOU PICK",
-    "roleTip": "Enemy role: click to cycle TOP → JUNGLE → MID → BOT → SUPPORT → auto. Set it manually when you know where a flex pick is going — recommendations adjust instantly."
+    "roleAuto": "Auto (by stats)",
+    "roleTip": "Enemy role — assigned automatically by how often the champion plays each role (one role per enemy). Click to pick it manually from the list: if the role is taken, the other enemy shifts to their next-best role. Recommendations adjust instantly."
   },
   "badge": {
     "ban": "BAN"
