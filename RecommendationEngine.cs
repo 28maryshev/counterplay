@@ -25,9 +25,28 @@ public sealed class RecommendationEngine : IDisposable
     private const double PRIOR  = 0.5;
     private const double CONF_GAMES = 60.0;  // темпер синергии по объёму выборки
     private const double BASE_CONF  = 250.0; // темпер базового WR по объёму выборки
+    private const double MATCHUP_CONF = 50.0; // темпер парных матчапов: мало игр в паре → дельте нет доверия
+
+    // Взвешивание патчей по свежести: текущий патч — полный вес, предыдущие затухают.
+    // Все агрегаты считают SUM(games*вес): мета следует за актуальным патчем, не
+    // теряя объёма старых данных (эффективная выборка ≈76% от плоской суммы).
+    private const string PW = "CASE patch WHEN @p1 THEN 1.0 WHEN @p2 THEN 0.7 ELSE 0.45 END";
+
+    // Вес прямой контры зависит от роли (по исследованиям влияния контрпиков):
+    // топ изолирован — контра решает больше всего; джангл — сильное влияние;
+    // мид — короткие трейды/роумы смягчают матчап; бот — это 2v2, личная контра
+    // АДК значит меньше (добирается фактором botlane); саппорт — среднее.
+    private static double DirectWeight(string role) => role switch
+    {
+        "top"     => 2.5,
+        "jungle"  => 2.2,
+        "mid"     => 2.0,
+        "support" => 2.0,
+        "adc"     => 1.8,
+        _         => 2.2,
+    };
 
     private const double W_BASE    = 1.0;
-    private const double W_DIRECT  = 2.5;
     private const double W_OTHER   = 0.8;
     private const double W_SYNERGY = 1.2;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
@@ -46,6 +65,10 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_ARAM_BASE = 1.0; // сила чемпиона (WR без роли)
     private const double W_BOTLANE      = 1.5; // контрпик против вражеского дуо на боте (2v2)
     private const double W_BOTLANE_BOTH = 1.8; // когда виден весь вражеский бот (адк+сапп)
+    // Кросс-лейн (джангл↔линии): по исследованиям взаимодействие джанглера с чужими
+    // линиями значимо (ганки/контроль карты). Вес ниже прямой контры — влияние мягче.
+    // Данные пишет обновлённый collect.py; пока пар нет в базе, фактор молчит (0).
+    private const double W_CROSS = 0.7;
     // Порог включения бот-матчапов: сумма игр в botlane_matchup. ~20k записей —
     // это примерно столько же матчей с собранной бот-статистикой (по ~1 на пару).
     private const double BOTLANE_MIN_GAMES = 20000;
@@ -124,8 +147,9 @@ public sealed class RecommendationEngine : IDisposable
         return (bonus, styleScore, reasons);
     }
 
-    // Минимум игр на роли суммарно по всем агрегируемым патчам.
-    private const int MIN_GAMES = 30;
+    // Минимум игр на роли суммарно по всем агрегируемым патчам. 150 отсекает
+    // «мем-роли» (Нидали-саппорт с 139 играми = ~0.1% пикрейта) из кандидатов.
+    private const int MIN_GAMES = 150;
 
     // Боковые подсказки (контры у врагов / синергия у союзников) ранжируем по
     // нижней границе Уилсона и показываем только при достаточной выборке. Иначе
@@ -270,6 +294,7 @@ public sealed class RecommendationEngine : IDisposable
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
+        var wDirect = DirectWeight(myRole); // вес прямой контры зависит от роли
 
         var candidates = GetCandidates(myRole);
         Console.WriteLine($"  [диаг] role={myRole}  tier={TierBucket}  патчи={PatchDisplay}  кандидатов={candidates.Count}");
@@ -317,9 +342,36 @@ public sealed class RecommendationEngine : IDisposable
         var wBotlane = (duoRole != null && enemyDuoId != 0 && directOppId != 0)
             ? W_BOTLANE_BOTH : W_BOTLANE;
 
+        // Кросс-лейн пары (джангл↔линии): для джанглера — известные враги-нелесники,
+        // для топ/мид — вражеский джанглер. Бот уже покрыт фактором botlane выше.
+        // Роль врага при скрытых позициях (Solo/Duo) выводим по частой роли.
+        var crossPairs = new List<(int Id, string Role)>();
+        if (myRole == "jungle")
+        {
+            foreach (var p in state.TheirTeam)
+            {
+                var id = p.EffectiveChampionId;
+                if (id == 0 || id == directOppId) continue;
+                var r = LcuToDbRole(p.Position);
+                if (string.IsNullOrEmpty(r)) r = InferPrimaryRole(id);
+                if (r is "top" or "mid" or "adc" or "support") crossPairs.Add((id, r));
+            }
+        }
+        else if (myRole is "top" or "mid")
+        {
+            foreach (var p in state.TheirTeam)
+            {
+                var id = p.EffectiveChampionId;
+                if (id == 0 || id == directOppId) continue;
+                var r = LcuToDbRole(p.Position);
+                if (string.IsNullOrEmpty(r)) r = InferPrimaryRole(id);
+                if (r == "jungle") { crossPairs.Add((id, r)); break; }
+            }
+        }
+
         // Динамический вес синергии: без информации о врагах синергия с союзниками
         // важнее, но НЕ настолько, чтобы перебить сильный базовый пик шумной парной
-        // статистикой (потолок 1.9, не полный W_DIRECT=2.5) — иначе чемпион на
+        // статистикой (потолок 1.9, меньше веса прямой контры) — иначе чемпион на
         // десятке совместных игр всплывает в топ при пустой вражеской команде.
         const double W_SYN_MAX = 1.9;
         var knownEnemies = state.TheirTeam.Count(p => p.EffectiveChampionId != 0);
@@ -349,11 +401,19 @@ public sealed class RecommendationEngine : IDisposable
                 // Базовый WR + темпер по выборке: мало игр → WR ближе к 50%
                 // (иначе «68% на 100 играх» раздувает оценку и обоснование).
                 var (bg, bw)  = RawBase(champId, myRole);
-                var baseDelta = Delta(bg, bw, K) * (bg / (bg + BASE_CONF));
+                var rawBase   = Delta(bg, bw, K);   // сила чемпиона без темпера — база для чистых дельт
+                var baseDelta = rawBase * (bg / (bg + BASE_CONF));
+
+                // ЧИСТАЯ контра: матчап-WR минус собственный базовый WR — иначе сила
+                // чемпиона считалась бы дважды (в базе ×1.0 и внутри контры ×W_DIRECT),
+                // и мета-чемпионы возглавляли бы список «как контрпики». Плюс темпер
+                // по объёму пары: 4 игры 4 победы больше не дают фантомных +8пп.
+                double PureVs(double g, double w) =>
+                    g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0.0;
 
                 // Прямой оппонент — отдельный матчап
                 var (dg, dw)    = directOppId != 0 ? RawMatchup(champId, myRole, directOppId) : (0, 0);
-                var directDelta = directOppId != 0 ? Delta(dg, dw, K_PAIR) : 0.0;
+                var directDelta = PureVs(dg, dw);
 
                 // Прочие враги: дельта по каждому (для reasons) + ПУЛ (для скора).
                 // Пул складывает игры/победы по всем врагам и сглаживает один раз —
@@ -361,21 +421,22 @@ public sealed class RecommendationEngine : IDisposable
                 var otherRaw = otherEnemyIds
                     .Select(e => { var (g, w) = RawMatchup(champId, myRole, e); return (Id: e, G: g, W: w); })
                     .ToList();
-                var otherByEnemy = otherRaw.Select(x => (x.Id, Delta: Delta(x.G, x.W, K_PAIR))).ToList();
-                var otherDelta = otherRaw.Count > 0
-                    ? Delta(otherRaw.Sum(x => x.G), otherRaw.Sum(x => x.W), K_PAIR) : 0.0;
+                var otherByEnemy = otherRaw.Select(x => (x.Id, Delta: PureVs(x.G, x.W))).ToList();
+                var otherDelta = PureVs(otherRaw.Sum(x => x.G), otherRaw.Sum(x => x.W));
 
                 // Синергия с союзниками: то же — дельта по каждому + ПУЛ для скора.
+                // Тоже ЧИСТАЯ (минус собственная база): «пара играет лучше, чем этот
+                // чемпион в среднем», а не «сильный чемпион хорош с кем угодно».
                 var synRaw = allyData
                     .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id); return (a.Id, a.Role, G: g, W: w); })
                     .ToList();
-                var synByAlly = synRaw.Select(x => (x.Id, x.Role, Delta: Delta(x.G, x.W, K_PAIR))).ToList();
+                var synByAlly = synRaw.Select(x => (x.Id, x.Role, Delta: PureVs(x.G, x.W))).ToList();
                 var synGames = synRaw.Sum(x => x.G);
                 // Темпер по выборке: мало совместных игр → синергии меньше доверия,
-                // чтобы «чемпионы на 8 играх» не доминировали при ×2.5 без врагов.
+                // чтобы «чемпионы на 8 играх» не доминировали при высоком весе без врагов.
                 var synConf  = synGames / (synGames + CONF_GAMES);
-                var synDelta = synRaw.Count > 0
-                    ? Delta(synGames, synRaw.Sum(x => x.W), K_PAIR) * synConf : 0.0;
+                var synDelta = synRaw.Count > 0 && synGames > 0
+                    ? (Delta(synGames, synRaw.Sum(x => x.W), K_PAIR) - rawBase) * synConf : 0.0;
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
@@ -397,16 +458,25 @@ public sealed class RecommendationEngine : IDisposable
                 // Бот 2v2: матчап против вражеского дуо-партнёра (кросс-роль).
                 var (btg, btw)   = _botlaneReady && enemyDuoId != 0 && duoRole != null
                     ? RawBotlane(champId, myRole, enemyDuoId, duoRole) : (0.0, 0.0);
-                var botlaneDelta = btg > 0 ? Delta(btg, btw, K_PAIR) : 0.0;
-                if (botlaneDelta >= 1.0)
+                var botlaneDelta = PureVs(btg, btw);
+
+                // Кросс-лейн (джангл↔линии): пул по всем парам, чистая дельта + темпер.
+                double cxg = 0, cxw = 0;
+                foreach (var (eid, erole) in crossPairs)
+                {
+                    var (g, w) = RawBotlane(champId, myRole, eid, erole);
+                    cxg += g; cxw += w;
+                }
+                var crossDelta = PureVs(cxg, cxw);
+                if (botlaneDelta >= 0.8)
                     draftReasons.Add(Loc.T("reason.botlaneGood", DataDragon.Name(enemyDuoId)));
-                else if (botlaneDelta <= -2.0)
+                else if (botlaneDelta <= -1.2)
                     draftReasons.Add(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId)));
 
-                var score   = W_BASE * baseDelta + W_DIRECT * directDelta + W_OTHER * otherDelta
+                var score   = W_BASE * baseDelta + wDirect * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + wBotlane * botlaneDelta + W_DMGBAL * dmgDelta;
+                            + wBotlane * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta;
                 var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                            otherDelta, otherByEnemy, baseDelta, comfortDelta)
                                 .Concat(draftReasons).ToArray();
@@ -451,12 +521,14 @@ public sealed class RecommendationEngine : IDisposable
         var scored = cands.Select(champId =>
         {
             var (bg, bw)  = RawBaseAny(champId);
-            var baseDelta = Delta(bg, bw, K) * (bg / (bg + BASE_CONF));
+            var rawBase   = Delta(bg, bw, K);
+            var baseDelta = rawBase * (bg / (bg + BASE_CONF));
 
+            // Чистая синергия (минус собственная база) — как в основном подборе.
             var syn = allyIds.Select(a => RawSynergyAny(champId, a)).ToList();
             var synGames = syn.Sum(x => x.g);
-            var synDelta = syn.Count > 0
-                ? Delta(synGames, syn.Sum(x => x.w), K_PAIR) * (synGames / (synGames + CONF_GAMES)) : 0.0;
+            var synDelta = syn.Count > 0 && synGames > 0
+                ? (Delta(synGames, syn.Sum(x => x.w), K_PAIR) - rawBase) * (synGames / (synGames + CONF_GAMES)) : 0.0;
 
             // Баланс типа урона (в ARAM смешанный урон особенно важен). Врагов нет.
             var (dmgDelta, _, _) = ItemValue.DamageBalance(champId, allyIds, []); // влияет на скор, без текста
@@ -494,8 +566,8 @@ public sealed class RecommendationEngine : IDisposable
     private (double g, double w) RawBaseAny(int champId)
     {
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
-            SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM base_wr
+        cmd.CommandText = $@"
+            SELECT COALESCE(SUM(games*{PW}),0), COALESCE(SUM(wins*{PW}),0) FROM base_wr
             WHERE champion_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
         cmd.Parameters.AddWithValue("@c",  champId);
         cmd.Parameters.AddWithValue("@t",  TierBucket);
@@ -509,12 +581,12 @@ public sealed class RecommendationEngine : IDisposable
     private (double g, double w) RawSynergyAny(int champId, int allyId)
     {
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText = $@"
             SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM (
-                SELECT games, wins FROM synergy
+                SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
                   WHERE champion_id=@c AND ally_id=@a AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
                 UNION ALL
-                SELECT games, wins FROM synergy
+                SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
                   WHERE champion_id=@a AND ally_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
             )";
         cmd.Parameters.AddWithValue("@c",  champId);
@@ -531,8 +603,8 @@ public sealed class RecommendationEngine : IDisposable
     private (double g, double w) RawMatchupAny(int champId, int vsId)
     {
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
-            SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM matchup
+        cmd.CommandText = $@"
+            SELECT COALESCE(SUM(games*{PW}),0), COALESCE(SUM(wins*{PW}),0) FROM matchup
             WHERE champion_id=@c AND vs_champion_id=@v AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
         cmd.Parameters.AddWithValue("@c",  champId);
         cmd.Parameters.AddWithValue("@v",  vsId);
@@ -591,7 +663,10 @@ public sealed class RecommendationEngine : IDisposable
             {
                 var (mg, mw) = RawMatchup(m, myRole, x);
                 if (mg <= 0) continue;
-                var s = -Delta(mg, mw, K_PAIR);
+                // Чистая контра моего мейна: его WR в паре ниже его же среднего,
+                // с темпером по объёму пары (редкие пары — не доказательство).
+                var (mbg, mbw) = RawBase(m, myRole);
+                var s = (Delta(mbg, mbw, K) - Delta(mg, mw, K_PAIR)) * (mg / (mg + MATCHUP_CONF));
                 if (s > counterMe) { counterMe = s; beatMain = m; }
             }
 
@@ -625,7 +700,10 @@ public sealed class RecommendationEngine : IDisposable
                 if (taken.Contains(c)) continue;
                 var (mg, mw) = prole != null ? RawMatchup(pid, prole, c) : RawMatchupAny(pid, c);
                 if (mg <= 0) continue;
-                var strength = -Delta(mg, mw, K_PAIR); // насколько c бьёт нашего чемпиона
+                // Насколько c бьёт нашего чемпиона: чистая дельта против его же
+                // среднего WR, с темпером по объёму пары.
+                var (pbg, pbw) = prole != null ? RawBase(pid, prole) : RawBaseAny(pid);
+                var strength = (Delta(pbg, pbw, K) - Delta(mg, mw, K_PAIR)) * (mg / (mg + MATCHUP_CONF));
                 if (strength < 0.5) continue;
                 scores[c] = scores.GetValueOrDefault(c) + weight * strength;
                 AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(pid)));
@@ -648,10 +726,10 @@ public sealed class RecommendationEngine : IDisposable
     {
         var result = new Dictionary<int, (double, double)>();
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
-            SELECT champion_id, SUM(games), SUM(wins) FROM base_wr
+        cmd.CommandText = $@"
+            SELECT champion_id, SUM(games*{PW}), SUM(wins*{PW}) FROM base_wr
             WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
-            GROUP BY champion_id HAVING SUM(games) >= @min";
+            GROUP BY champion_id HAVING SUM(games*{PW}) >= @min";
         cmd.Parameters.AddWithValue("@r",   role);
         cmd.Parameters.AddWithValue("@t",   TierBucket);
         cmd.Parameters.AddWithValue("@p1",  _p1);
@@ -740,10 +818,10 @@ public sealed class RecommendationEngine : IDisposable
         try
         {
             var cmd = _db.CreateCommand();
-            cmd.CommandText = @"
+            cmd.CommandText = $@"
                 SELECT role FROM base_wr
                 WHERE champion_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
-                GROUP BY role ORDER BY SUM(games) DESC LIMIT 1";
+                GROUP BY role ORDER BY SUM(games*{PW}) DESC LIMIT 1";
             cmd.Parameters.AddWithValue("@c",  champId);
             cmd.Parameters.AddWithValue("@t",  TierBucket);
             cmd.Parameters.AddWithValue("@p1", _p1);
@@ -761,12 +839,12 @@ public sealed class RecommendationEngine : IDisposable
     private List<int> GetCandidates(string role)
     {
         var cmd = _db.CreateCommand();
-        // Суммируем игры по всем 3 патчам — кандидат проходит если набрал MIN_GAMES суммарно.
-        cmd.CommandText = @"
+        // Взвешенная сумма игр по 3 патчам — кандидат проходит, если набрал MIN_GAMES.
+        cmd.CommandText = $@"
             SELECT champion_id FROM base_wr
             WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
             GROUP BY champion_id
-            HAVING SUM(games) >= @min";
+            HAVING SUM(games*{PW}) >= @min";
         cmd.Parameters.AddWithValue("@r",   role);
         cmd.Parameters.AddWithValue("@t",   TierBucket);
         cmd.Parameters.AddWithValue("@p1",  _p1);
@@ -782,8 +860,8 @@ public sealed class RecommendationEngine : IDisposable
     private (double g, double w) RawBase(int champId, string role)
     {
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
-            SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM base_wr
+        cmd.CommandText = $@"
+            SELECT COALESCE(SUM(games*{PW}),0), COALESCE(SUM(wins*{PW}),0) FROM base_wr
             WHERE champion_id=@c AND role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
         cmd.Parameters.AddWithValue("@c",  champId);
         cmd.Parameters.AddWithValue("@r",  role);
@@ -798,8 +876,8 @@ public sealed class RecommendationEngine : IDisposable
     private (double g, double w) RawMatchup(int champId, string role, int vsId)
     {
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
-            SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM matchup
+        cmd.CommandText = $@"
+            SELECT COALESCE(SUM(games*{PW}),0), COALESCE(SUM(wins*{PW}),0) FROM matchup
             WHERE champion_id=@c AND role=@r AND vs_champion_id=@v
               AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
         cmd.Parameters.AddWithValue("@c",  champId);
@@ -819,8 +897,8 @@ public sealed class RecommendationEngine : IDisposable
         try
         {
             var cmd = _db.CreateCommand();
-            cmd.CommandText = @"
-                SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM botlane_matchup
+            cmd.CommandText = $@"
+                SELECT COALESCE(SUM(games*{PW}),0), COALESCE(SUM(wins*{PW}),0) FROM botlane_matchup
                 WHERE champion_id=@c AND role=@r AND vs_champion_id=@v AND vs_role=@vr
                   AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
             cmd.Parameters.AddWithValue("@c",  champId);
@@ -843,13 +921,13 @@ public sealed class RecommendationEngine : IDisposable
     private (double g, double w) RawSynergy(int champId, string role, int allyId)
     {
         var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText = $@"
             SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM (
-                SELECT games, wins FROM synergy
+                SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
                   WHERE champion_id=@c AND role=@r AND ally_id=@a
                     AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
                 UNION ALL
-                SELECT games, wins FROM synergy
+                SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
                   WHERE champion_id=@a AND ally_id=@c AND ally_role=@r
                     AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
             )";
@@ -912,11 +990,11 @@ public sealed class RecommendationEngine : IDisposable
             // По всем дивизионам сразу: данные по парам разрежены, фильтр по бакету
             // добил бы выборку. Ранжируем/фильтруем по Уилсону в RankByWilson.
             cmd.CommandText = $@"
-                SELECT champion_id, SUM(games) AS g, SUM(wins) AS w
+                SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
                 FROM   matchup
                 WHERE  vs_champion_id = @v{roleFilter} AND patch IN (@p1, @p2, @p3)
                 GROUP  BY champion_id
-                HAVING SUM(games) >= @min";
+                HAVING SUM(games*{PW}) >= @min";
             cmd.Parameters.AddWithValue("@v",   enemyId);
             cmd.Parameters.AddWithValue("@min", HINT_MIN_GAMES);
             cmd.Parameters.AddWithValue("@p1",  _p1);
@@ -938,12 +1016,12 @@ public sealed class RecommendationEngine : IDisposable
             var cmd = _db.CreateCommand();
             // Синергия по всем дивизионам (данные разрежены), порог игр ниже и без
             // фильтра edge — чтобы стабильно заполнять 3 лучших партнёра по LB.
-            cmd.CommandText = @"
-                SELECT champion_id, SUM(games) AS g, SUM(wins) AS w
+            cmd.CommandText = $@"
+                SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
                 FROM   synergy
                 WHERE  ally_id = @a AND role = @r AND patch IN (@p1, @p2, @p3)
                 GROUP  BY champion_id
-                HAVING SUM(games) >= @min";
+                HAVING SUM(games*{PW}) >= @min";
             cmd.Parameters.AddWithValue("@a",   allyId);
             cmd.Parameters.AddWithValue("@min", HINT_MIN_SYN);
             cmd.Parameters.AddWithValue("@r",   myRole);
@@ -984,21 +1062,22 @@ public sealed class RecommendationEngine : IDisposable
         }
         var explained = seenKinds.Count;
 
-        // 2. Матчап с прямым оппонентом
+        // 2. Матчап с прямым оппонентом. Пороги под ЧИСТУЮ дельту (матчап минус
+        // собственная база): типичная сильная контра теперь +2..+5пп, не +5..+10.
         if (directOppId != 0)
         {
             var oppName = DataDragon.Name(directOppId);
-            if      (directDelta >=  3.0) lines.Add(Loc.T("reason.lineWinStrong", oppName, $"{directDelta:F1}"));
-            else if (directDelta >=  1.5) lines.Add(Loc.T("reason.lineWin", oppName, $"{directDelta:F1}"));
-            else if (directDelta >=  0.5) lines.Add(Loc.T("reason.lineEdge", oppName));
-            else if (directDelta <= -2.0) lines.Add(Loc.T("reason.lineHard", oppName, $"{directDelta:F1}"));
+            if      (directDelta >=  2.0) lines.Add(Loc.T("reason.lineWinStrong", oppName, $"{directDelta:F1}"));
+            else if (directDelta >=  1.0) lines.Add(Loc.T("reason.lineWin", oppName, $"{directDelta:F1}"));
+            else if (directDelta >=  0.3) lines.Add(Loc.T("reason.lineEdge", oppName));
+            else if (directDelta <= -1.5) lines.Add(Loc.T("reason.lineHard", oppName, $"{directDelta:F1}"));
             else                          lines.Add(Loc.T("reason.lineNeutral", oppName));
         }
 
-        // 3. Выгодные матчапы против конкретных врагов
+        // 3. Выгодные матчапы против конкретных врагов (чистые дельты — порог ниже)
         if (otherByEnemy.Count > 0)
         {
-            var good = otherByEnemy.Where(x => x.Delta >= 1.5)
+            var good = otherByEnemy.Where(x => x.Delta >= 1.0)
                                    .OrderByDescending(x => x.Delta).Take(2).ToList();
             if (good.Count > 0)
             {
