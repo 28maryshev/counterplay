@@ -133,7 +133,7 @@ class Program
         {
             engine = RecommendationEngine.Create(dbPath, tierBucket);
             engine.Mastery = mastery;
-            overlay.ShowReady(Loc.T("status.readyLine", engine.TierBucket, engine.PatchDisplay));
+            overlay.ShowReady(Loc.T("status.readyIdle"));
         }
         else
         {
@@ -149,6 +149,14 @@ class Program
             overlay.UpdateRecommendations(
                 draft.IsAram ? engine?.RecommendAram(draft) : engine?.Recommend(draft), draft, engine);
         }
+
+        // Трекер сессии для экрана ожидания (ранг/LP/последние игры/винрейт).
+        async Task RefreshSessionAsync()
+        {
+            try { overlay.ShowSession(await SessionTracker.RefreshAsync(http, ct)); }
+            catch { /* LCU временно недоступен — пропускаем обновление */ }
+        }
+        await RefreshSessionAsync();
 
         await using var socket = new LcuEventSocket(creds);
         await socket.ConnectAsync(ct);
@@ -180,6 +188,8 @@ class Program
                         // Меню/лобби/конец игры — программа простаивает: показываем
                         // сноску о программе и карусель советов вместо «Готов».
                         overlay.ShowReady(Loc.T("status.readyPhase", phase));
+                        // После игры (EndOfGame) ранг/LP обновились — перечитываем трекер.
+                        await RefreshSessionAsync();
                         lastHash = "";
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется

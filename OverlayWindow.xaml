@@ -459,31 +459,66 @@
             </Grid>
           </StackPanel>
 
-          <!-- ── Готов: сноска о программе + карусель советов по пику ── -->
+          <!-- ── Готов: трекер сессии (ранг/LP/последние игры/винрейт) + советы ── -->
           <StackPanel x:Name="ReadyInfo" Visibility="Collapsed" MaxWidth="282">
-            <!-- Логотип -->
-            <Image Source="{StaticResource BrandMark}" Width="72" Height="72"
-                   Margin="0,0,0,14" HorizontalAlignment="Center"
-                   RenderOptions.BitmapScalingMode="HighQuality"/>
-            <!-- Маленькая строка состояния (бакет · патч) -->
-            <TextBlock x:Name="ReadyStatusText" Text="Готов"
-                       FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                       Foreground="#C89B3C" Opacity="0.85" TextAlignment="Center"
-                       Margin="0,0,0,11"/>
 
-            <!-- Что это / зачем / как улучшит игру -->
-            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="#C9D2DC"
-                       TextWrapping="Wrap" LineHeight="17">
-              <Run Foreground="#E8B84B" FontWeight="Bold" Text="{loc:T ready.f1head}"/><Run xml:space="preserve" Text="{loc:T ready.f1body}"/>
-            </TextBlock>
-            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="#C9D2DC"
-                       TextWrapping="Wrap" LineHeight="17" Margin="0,8,0,0">
-              <Run Foreground="#E8B84B" FontWeight="Bold" Text="{loc:T ready.f2head}"/><Run xml:space="preserve" Text="{loc:T ready.f2body}"/>
-            </TextBlock>
-            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="#C9D2DC"
-                       TextWrapping="Wrap" LineHeight="17" Margin="0,8,0,0">
-              <Run Foreground="#E8B84B" FontWeight="Bold" Text="{loc:T ready.f3head}"/><Run xml:space="preserve" Text="{loc:T ready.f3body}"/>
-            </TextBlock>
+            <!-- Эмблема ранга над названием -->
+            <Image x:Name="RankEmblem" Height="74" HorizontalAlignment="Left"
+                   Margin="-6,0,0,-4" Stretch="Uniform" Visibility="Collapsed"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
+            <!-- Ранг · LP · полоса прогресса до след. ранга -->
+            <Grid Margin="0,2,0,4" Width="258" HorizontalAlignment="Left">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="RankText" Grid.Column="0" Text="—"
+                         FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"
+                         Foreground="#E6EDF3" VerticalAlignment="Bottom"/>
+              <TextBlock x:Name="RankLpText" Grid.Column="1" Text=""
+                         FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                         Foreground="#9FB3C8" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+            </Grid>
+            <!-- Полоса LP -->
+            <Border Width="258" Height="7" CornerRadius="4" HorizontalAlignment="Left"
+                    Background="#22FFFFFF">
+              <Border x:Name="RankProgressFill" Width="0" Height="7" CornerRadius="4"
+                      HorizontalAlignment="Left">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#2E7DD1" Offset="0"/>
+                    <GradientStop Color="#36D6E7" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+              </Border>
+            </Border>
+
+            <!-- Последние 5 игр: иконки во всю ширину бара + LP за игру -->
+            <Grid x:Name="Last5Panel" Width="258" HorizontalAlignment="Left" Margin="0,15,0,0"/>
+
+            <!-- Винрейт слева (W–L мелко, % крупно с цветом) + график справа -->
+            <Grid Margin="0,16,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock x:Name="SeasonWlText" FontFamily="{StaticResource UiFont}"
+                           FontSize="12" FontWeight="Bold" Foreground="#9FB3C8"/>
+                <TextBlock x:Name="WinrateBig" Text="—"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="40" FontWeight="Bold"
+                           Foreground="#E6EDF3" Margin="0,-4,0,0"/>
+              </StackPanel>
+              <Canvas x:Name="WrChart" Grid.Column="1" Height="66" Margin="10,2,0,0"
+                      ClipToBounds="True"/>
+            </Grid>
+
+            <!-- Фаза, в которой находится окно — крупно, снизу -->
+            <TextBlock x:Name="ReadyStatusText" Text="Готов"
+                       FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
+                       Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" Margin="0,18,0,0"/>
 
             <!-- Карусель советов: поле фиксированного размера, смена раз в 40 с -->
             <Border Margin="0,15,0,0" Width="282" Height="118" CornerRadius="7"

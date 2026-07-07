@@ -31,6 +31,11 @@
     <Resource Include="assets\fonts\Geist-Bold.ttf" />
   </ItemGroup>
 
+  <!-- Эмблемы рангов (Community Dragon, CDN Riot) — для трекера сессии -->
+  <ItemGroup>
+    <Resource Include="assets\ranks\*.png" />
+  </ItemGroup>
+
   <!-- Строки локализации интерфейса (en/ru/es/pt/de/fr/tr/ko) -->
   <ItemGroup>
     <EmbeddedResource Include="assets\i18n\*.json" />

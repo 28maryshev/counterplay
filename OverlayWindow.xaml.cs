@@ -6,6 +6,12 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using Brush = System.Windows.Media.Brush;
+using Color = System.Windows.Media.Color;
+using Image = System.Windows.Controls.Image;
+using FontFamily = System.Windows.Media.FontFamily;
+using Point = System.Windows.Point;
+using Size = System.Windows.Size;
 
 namespace Counterplay;
 
@@ -459,6 +465,243 @@ public partial class OverlayWindow : Window
             StartTips();
             ShowIdle();
         });
+
+    // ── Трекер сессии на экране ожидания ─────────────────────────────────────
+    private SessionTracker.SessionData? _session;
+    private bool _wrChartHooked;
+
+    private static readonly Brush WinBrush  = new SolidColorBrush(Color.FromRgb(0x57, 0xC9, 0x8A));
+    private static readonly Brush LossBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0x5B, 0x5B));
+    private static readonly Brush MuteBrush = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
+
+    // Заполняет панель ранга/последних игр/винрейта. Вызывать из Program после RefreshAsync.
+    public void ShowSession(SessionTracker.SessionData? d) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            _session = d;
+            if (!_wrChartHooked)
+            {
+                WrChart.SizeChanged += (_, _) => DrawWrChart();
+                _wrChartHooked = true;
+            }
+
+            if (d is null || !d.HasRank)
+            {
+                RankEmblem.Visibility = Visibility.Collapsed;
+                RankText.Text = "—";
+                RankLpText.Text = "";
+                RankProgressFill.Width = 0;
+                Last5Panel.Children.Clear();
+                SeasonWlText.Text = "";
+                WinrateBig.Text = "—";
+                WinrateBig.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
+                WrChart.Children.Clear();
+                return;
+            }
+
+            var emblem = RankEmblemSource(d.Tier);
+            RankEmblem.Source = emblem;
+            RankEmblem.Visibility = emblem != null ? Visibility.Visible : Visibility.Collapsed;
+            RankText.Text = string.IsNullOrEmpty(d.Division) ? d.Tier : $"{d.Tier} {d.Division}";
+            RankText.Foreground = TierBrush(d.Tier);
+            RankLpText.Text = $"{d.Lp} LP";
+            RankProgressFill.Width = 258.0 * Math.Clamp(d.ProgressPct, 0, 100) / 100.0;
+
+            // Последние 5 игр — 5 равных колонок во всю ширину бара
+            Last5Panel.Children.Clear();
+            Last5Panel.ColumnDefinitions.Clear();
+            for (int i = 0; i < 5; i++)
+                Last5Panel.ColumnDefinitions.Add(new ColumnDefinition());
+            for (int i = 0; i < d.Last5.Count && i < 5; i++)
+            {
+                var cell = BuildGameCell(d.Last5[i]);
+                Grid.SetColumn(cell, i);
+                Last5Panel.Children.Add(cell);
+            }
+
+            // W/L (мелко) + винрейт (крупно, цвет по правилам)
+            SeasonWlText.Text = $"W:{d.Wins} - L:{d.Losses}";
+            WinrateBig.Text = $"{d.Winrate:0}%";
+            WinrateBig.Foreground = WinrateBrush(d.Winrate);
+
+            DrawWrChart();
+        });
+
+    // Цвет цифры винрейта по заданным порогам.
+    private static Brush WinrateBrush(double wr)
+    {
+        Color c;
+        if (wr > 65)      c = Color.FromRgb(0xF0, 0x8A, 0x3C); // оранжевый
+        else if (wr > 55) c = Color.FromRgb(0xE2, 0x4C, 0x4C); // красный
+        else if (wr >= 50) c = Color.FromRgb(0xE6, 0xED, 0xF3); // нейтральный (белый)
+        else if (wr >= 45) c = Color.FromRgb(0xF0, 0xC9, 0xC4); // светло-красный, ближе к белому
+        else              c = Color.FromRgb(0xE2, 0x4C, 0x4C); // красный
+        return new SolidColorBrush(c);
+    }
+
+    // Цвет названия ранга по тиру.
+    private static Brush TierBrush(string tier) => (tier?.ToUpperInvariant() ?? "") switch
+    {
+        "IRON"        => new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x8A)),
+        "BRONZE"      => new SolidColorBrush(Color.FromRgb(0xB0, 0x7A, 0x53)),
+        "SILVER"      => new SolidColorBrush(Color.FromRgb(0xB6, 0xC2, 0xCC)),
+        "GOLD"        => new SolidColorBrush(Color.FromRgb(0xE8, 0xC1, 0x5A)),
+        "PLATINUM"    => new SolidColorBrush(Color.FromRgb(0x4F, 0xC7, 0xC7)),
+        "EMERALD"     => new SolidColorBrush(Color.FromRgb(0x4F, 0xC7, 0x8A)),
+        "DIAMOND"     => new SolidColorBrush(Color.FromRgb(0x6E, 0x9B, 0xE7)),
+        "MASTER"      => new SolidColorBrush(Color.FromRgb(0xC0, 0x6E, 0xE0)),
+        "GRANDMASTER" => new SolidColorBrush(Color.FromRgb(0xE0, 0x5B, 0x5B)),
+        "CHALLENGER"  => new SolidColorBrush(Color.FromRgb(0x54, 0xC7, 0xF0)),
+        _             => new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3)),
+    };
+
+    // Эмблема ранга из встроенных ресурсов (assets/ranks/{tier}.png).
+    private static readonly Dictionary<string, ImageSource> _emblemCache = new();
+    private static ImageSource? RankEmblemSource(string tier)
+    {
+        var key = (tier ?? "").ToLowerInvariant();
+        if (string.IsNullOrEmpty(key)) return null;
+        if (_emblemCache.TryGetValue(key, out var cached)) return cached;
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri($"pack://application:,,,/assets/ranks/{key}.png");
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            _emblemCache[key] = bmp;
+            return bmp;
+        }
+        catch { return null; }
+    }
+
+    // Ячейка одной игры: иконка чемпиона (рамка по W/L) + LP за игру под ней.
+    private FrameworkElement BuildGameCell(SessionTracker.RecentGame g)
+    {
+        var col = new StackPanel
+        {
+            Margin = new Thickness(2, 0, 2, 0),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+        };
+        var border = new Border
+        {
+            Width = 47, Height = 47, CornerRadius = new CornerRadius(9),
+            BorderThickness = new Thickness(2),
+            BorderBrush = g.Win ? WinBrush : LossBrush,
+            ClipToBounds = true
+        };
+        var img = IconCache.Get(g.ChampionId);
+        if (img != null)
+            border.Child = new Image { Source = img, Stretch = Stretch.UniformToFill };
+        col.Children.Add(border);
+
+        var lp = new TextBlock
+        {
+            FontFamily = (FontFamily)FindResource("UiFont"),
+            FontSize = 11, FontWeight = FontWeights.Bold,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            Margin = new Thickness(0, 3, 0, 0)
+        };
+        if (g.LpDelta is int lpd)
+        {
+            lp.Text = lpd >= 0 ? $"+{lpd}" : lpd.ToString();
+            lp.Foreground = lpd >= 0 ? WinBrush : LossBrush;
+        }
+        else { lp.Text = "·"; lp.Foreground = MuteBrush; }
+        col.Children.Add(lp);
+        return col;
+    }
+
+    // Линейный график динамики винрейта (синий) по датам.
+    private void DrawWrChart()
+    {
+        WrChart.Children.Clear();
+        var d = _session;
+        if (d is null) return;
+        var pts = d.WinrateHistory;
+        double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
+        double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
+        if (pts.Count == 0) return;
+
+        // Диапазон Y — вокруг данных, чтобы динамика была видна.
+        double min = pts.Min(p => p.Winrate), max = pts.Max(p => p.Winrate);
+        if (max - min < 6) { double m = (min + max) / 2; min = m - 3; max = m + 3; }
+        min = Math.Max(0, min - 1); max = Math.Min(100, max + 1);
+        if (max <= min) max = min + 1;
+
+        const double axisW = 22;            // место под вертикальную шкалу винрейта
+        double padY = 4, bottomPad = 12;    // низ — под подписи дат
+        double plotL = axisW, plotR = w;
+        double chartH = h - padY - bottomPad;
+        double baseY = padY + chartH;
+        double Y(double wr) => padY + (1 - (wr - min) / (max - min)) * chartH;
+        double X(int i) => pts.Count == 1 ? (plotL + plotR) / 2
+            : plotL + (double)i / (pts.Count - 1) * (plotR - plotL - 2) + 1;
+
+        var lineBrush = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
+        var gridBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+
+        // Вертикальная ось + горизонтальная сетка со шкалой винрейта (низ/середина/верх)
+        WrChart.Children.Add(new System.Windows.Shapes.Line
+        { X1 = plotL, X2 = plotL, Y1 = padY, Y2 = baseY, Stroke = gridBrush, StrokeThickness = 1 });
+        foreach (var wr in new[] { max, (min + max) / 2, min })
+        {
+            double yy = Y(wr);
+            WrChart.Children.Add(new System.Windows.Shapes.Line
+            { X1 = plotL, X2 = plotR, Y1 = yy, Y2 = yy, Stroke = gridBrush, StrokeThickness = 1 });
+            var lab = new TextBlock
+            {
+                Text = $"{wr:0}", FontFamily = (FontFamily)FindResource("UiFont"),
+                FontSize = 8, Foreground = MuteBrush, Opacity = 0.75
+            };
+            lab.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(lab, Math.Max(0, axisW - 4 - lab.DesiredSize.Width));
+            Canvas.SetTop(lab, Math.Min(baseY - lab.DesiredSize.Height, Math.Max(-1, yy - lab.DesiredSize.Height / 2)));
+            WrChart.Children.Add(lab);
+        }
+
+        if (pts.Count >= 2)
+        {
+            // Заливка области под линией — полупрозрачный синий
+            var area = new System.Windows.Shapes.Polygon
+            { Fill = new SolidColorBrush(Color.FromArgb(0x3A, 0x36, 0xD6, 0xE7)) };
+            area.Points.Add(new Point(X(0), baseY));
+            for (int i = 0; i < pts.Count; i++) area.Points.Add(new Point(X(i), Y(pts[i].Winrate)));
+            area.Points.Add(new Point(X(pts.Count - 1), baseY));
+            WrChart.Children.Add(area);
+
+            // Линия поверх заливки
+            var poly = new System.Windows.Shapes.Polyline
+            { Stroke = lineBrush, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round };
+            for (int i = 0; i < pts.Count; i++) poly.Points.Add(new Point(X(i), Y(pts[i].Winrate)));
+            WrChart.Children.Add(poly);
+        }
+
+        // Точка последнего значения
+        int last = pts.Count - 1;
+        var dot = new System.Windows.Shapes.Ellipse { Width = 6, Height = 6, Fill = lineBrush };
+        Canvas.SetLeft(dot, X(last) - 3);
+        Canvas.SetTop(dot, Y(pts[last].Winrate) - 3);
+        WrChart.Children.Add(dot);
+
+        // Подписи крайних дат под областью графика
+        AddDateLabel(pts[0].Date, plotL, h, right: false);
+        if (pts.Count > 1) AddDateLabel(pts[last].Date, plotR, h, right: true);
+    }
+
+    private void AddDateLabel(DateTime date, double x, double h, bool right = false)
+    {
+        var tb = new TextBlock
+        {
+            Text = date.ToString("d.MM"),
+            FontFamily = (FontFamily)FindResource("UiFont"),
+            FontSize = 9, Foreground = MuteBrush, Opacity = 0.7
+        };
+        tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(tb, right ? Math.Max(0, x - tb.DesiredSize.Width) : x);
+        Canvas.SetTop(tb, h - 11);
+        WrChart.Children.Add(tb);
+    }
 
     // Прогресс загрузки со строкой состояния и полосой (обновление/база).
     public void ShowProgress(string text, double fraction) =>
