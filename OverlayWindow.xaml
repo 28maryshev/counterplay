@@ -652,23 +652,37 @@
                         </Border>
                       </Grid>
                       <StackPanel Grid.Column="1" Margin="34,4,0,3">
-                        <!-- Роль: у врага кликабельна (ручное назначение флекс-пикам) -->
-                        <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
-                                   FontFamily="{StaticResource DisplayFont}"
-                                   FontSize="12" FontWeight="Bold" HorizontalAlignment="Left"
-                                   Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
-                                   MouseLeftButtonDown="EnemyRole_Click">
-                          <TextBlock.Style>
-                            <Style TargetType="TextBlock">
+                        <!-- Роль: у врага — кнопка-чип с выпадающим списком ролей -->
+                        <Border HorizontalAlignment="Left"
+                                Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
+                                MouseLeftButtonDown="EnemyRole_Click">
+                          <Border.Style>
+                            <Style TargetType="Border">
+                              <Setter Property="CornerRadius" Value="4"/>
+                              <Setter Property="BorderBrush" Value="#557089"/>
+                              <Setter Property="BorderThickness" Value="1"/>
+                              <Setter Property="Background" Value="#1AFFFFFF"/>
+                              <Setter Property="Padding" Value="7,1,7,2"/>
                               <Setter Property="Cursor" Value="Hand"/>
                               <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                  <Setter Property="Background" Value="#33FFFFFF"/>
+                                  <Setter Property="BorderBrush" Value="#F5D77A"/>
+                                </Trigger>
+                                <!-- Союзник (RoleCellId=-1): обычный текст без рамки/клика -->
                                 <DataTrigger Binding="{Binding RoleCellId}" Value="-1">
+                                  <Setter Property="BorderThickness" Value="0"/>
+                                  <Setter Property="Background" Value="Transparent"/>
+                                  <Setter Property="Padding" Value="0"/>
                                   <Setter Property="Cursor" Value="Arrow"/>
                                 </DataTrigger>
                               </Style.Triggers>
                             </Style>
-                          </TextBlock.Style>
-                        </TextBlock>
+                          </Border.Style>
+                          <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
+                                     FontFamily="{StaticResource DisplayFont}"
+                                     FontSize="12" FontWeight="Bold"/>
+                        </Border>
                         <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
                                    FontFamily="{StaticResource DisplayFont}"
                                    FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
@@ -1037,23 +1051,37 @@
                         </Border>
                       </Grid>
                       <StackPanel Grid.Column="1" Margin="34,4,0,3">
-                        <!-- Роль: у врага кликабельна (ручное назначение флекс-пикам) -->
-                        <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
-                                   FontFamily="{StaticResource DisplayFont}"
-                                   FontSize="12" FontWeight="Bold" HorizontalAlignment="Left"
-                                   Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
-                                   MouseLeftButtonDown="EnemyRole_Click">
-                          <TextBlock.Style>
-                            <Style TargetType="TextBlock">
+                        <!-- Роль: у врага — кнопка-чип с выпадающим списком ролей -->
+                        <Border HorizontalAlignment="Left"
+                                Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
+                                MouseLeftButtonDown="EnemyRole_Click">
+                          <Border.Style>
+                            <Style TargetType="Border">
+                              <Setter Property="CornerRadius" Value="4"/>
+                              <Setter Property="BorderBrush" Value="#557089"/>
+                              <Setter Property="BorderThickness" Value="1"/>
+                              <Setter Property="Background" Value="#1AFFFFFF"/>
+                              <Setter Property="Padding" Value="7,1,7,2"/>
                               <Setter Property="Cursor" Value="Hand"/>
                               <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                  <Setter Property="Background" Value="#33FFFFFF"/>
+                                  <Setter Property="BorderBrush" Value="#F5D77A"/>
+                                </Trigger>
+                                <!-- Союзник (RoleCellId=-1): обычный текст без рамки/клика -->
                                 <DataTrigger Binding="{Binding RoleCellId}" Value="-1">
+                                  <Setter Property="BorderThickness" Value="0"/>
+                                  <Setter Property="Background" Value="Transparent"/>
+                                  <Setter Property="Padding" Value="0"/>
                                   <Setter Property="Cursor" Value="Arrow"/>
                                 </DataTrigger>
                               </Style.Triggers>
                             </Style>
-                          </TextBlock.Style>
-                        </TextBlock>
+                          </Border.Style>
+                          <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
+                                     FontFamily="{StaticResource DisplayFont}"
+                                     FontSize="12" FontWeight="Bold"/>
+                        </Border>
                         <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
                                    FontFamily="{StaticResource DisplayFont}"
                                    FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
