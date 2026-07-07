@@ -380,6 +380,11 @@ public partial class OverlayWindow : Window
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
         if (ReadyInfo.Visibility == Visibility.Visible) StartTips();
 
+        // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера
+        // (ранг/W-L/подсказка) — перелокализуем из сохранённого сырья.
+        ApplyReadyText();
+        ShowSession(_session);
+
         _ = ReloadNamesAsync();       // имена чемпионов под новую локаль
     }
 
@@ -459,18 +464,54 @@ public partial class OverlayWindow : Window
             ShowIdle();
         });
 
+    // Состояние строки «Готов»: сырая фаза LCU и/или произвольный текст — храним
+    // сырьё, чтобы при смене языка перелокализовать на лету.
+    private string? _readyPhaseRaw;  // фаза геймфлоу; null — просто «Готов»
+    private string? _readyCustom;    // произвольная строка (тестовый режим)
+
     // Готов и простаивает: вместо «Готов» — сноска о программе + карусель советов.
-    public void ShowReady(string status) =>
+    // status == null → локализованное «Готов» (перерисуется при смене языка).
+    public void ShowReady(string? status = null) =>
         Dispatcher.InvokeAsync(() =>
         {
-            ReadyStatusText.Text = status;
-            DlBar.Visibility = Visibility.Collapsed;
-            PulseAnim(false);
-            LoadingInfo.Visibility = Visibility.Collapsed;
-            ReadyInfo.Visibility   = Visibility.Visible;
-            StartTips();
-            ShowIdle();
+            _readyCustom = status;
+            _readyPhaseRaw = null;
+            ShowReadyCore();
         });
+
+    // Готов с фазой геймфлоу (сырое имя из LCU — локализуется при рендере).
+    public void ShowReadyPhase(string rawPhase) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            _readyCustom = null;
+            _readyPhaseRaw = rawPhase;
+            ShowReadyCore();
+        });
+
+    private void ShowReadyCore()
+    {
+        ApplyReadyText();
+        DlBar.Visibility = Visibility.Collapsed;
+        PulseAnim(false);
+        LoadingInfo.Visibility = Visibility.Collapsed;
+        ReadyInfo.Visibility   = Visibility.Visible;
+        StartTips();
+        ShowIdle();
+    }
+
+    private void ApplyReadyText() =>
+        ReadyStatusText.Text = _readyCustom
+            ?? (_readyPhaseRaw is null
+                ? Loc.T("status.readyIdle")
+                : Loc.T("status.readyPhase", PhaseDisplay(_readyPhaseRaw)));
+
+    // Локализованное имя фазы геймфлоу (phase.* в i18n; неизвестная — как есть).
+    private static string PhaseDisplay(string phase)
+    {
+        var key = "phase." + phase.ToLowerInvariant();
+        var t = Loc.T(key);
+        return t == key ? phase : t;
+    }
 
     // ── Трекер сессии на экране ожидания ─────────────────────────────────────
     private SessionTracker.SessionData? _session;
