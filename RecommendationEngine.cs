@@ -150,6 +150,10 @@ public sealed class RecommendationEngine : IDisposable
     // Минимум игр на роли суммарно по всем агрегируемым патчам. 150 отсекает
     // «мем-роли» (Нидали-саппорт с 139 играми = ~0.1% пикрейта) из кандидатов.
     private const int MIN_GAMES = 150;
+    // Плюс минимальная ДОЛЯ игр роли: 0.5% отсекает редкие офф-мета пики
+    // (Амуму/Фиддл-саппорт с 0.3%), даже когда абсолютных игр набралось; порог
+    // сам масштабируется с размером базы.
+    private const double MIN_ROLE_SHARE = 0.005;
 
     // Боковые подсказки (контры у врагов / синергия у союзников) ранжируем по
     // нижней границе Уилсона и показываем только при достаточной выборке. Иначе
@@ -795,17 +799,60 @@ public sealed class RecommendationEngine : IDisposable
         return (b, reasons);
     }
 
-    // Прямой оппонент, когда роли врагов скрыты: ищем врага, чья ЧАСТАЯ роль
-    // совпадает с моей. Если на мою роль никто не подходит — оппонента нет.
+    // Прямой оппонент, когда роли врагов скрыты: враг с НАИБОЛЬШЕЙ долей игр на
+    // моей роли (порог 15% — роль явно играбельна для него). Раньше требовалось
+    // строгое совпадение с самой частой ролью — у флекс-пиков (Вел'Коз мид/сапп,
+    // Пантеон топ/сапп) она другая, и «Vs opponent» молчал нулём.
     private int InferDirectOpponent(DraftState state, string myRole)
     {
+        int best = 0;
+        double bestShare = 0.15;
         foreach (var p in state.TheirTeam)
         {
             var id = p.EffectiveChampionId;
             if (id == 0) continue;
-            if (InferPrimaryRole(id) == myRole) return id;
+            var share = RoleShare(id, myRole);
+            if (share > bestShare) { bestShare = share; best = id; }
         }
-        return 0;
+        return best;
+    }
+
+    private readonly Dictionary<int, Dictionary<string, double>> _roleShareCache = new();
+
+    // Доля игр чемпиона на каждой роли (по base_wr, взвешенно по патчам), с кэшем.
+    private double RoleShare(int champId, string role)
+    {
+        if (!_roleShareCache.TryGetValue(champId, out var shares))
+        {
+            shares = new Dictionary<string, double>();
+            try
+            {
+                var cmd = _db.CreateCommand();
+                cmd.CommandText = $@"
+                    SELECT role, SUM(games*{PW}) FROM base_wr
+                    WHERE champion_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                    GROUP BY role";
+                cmd.Parameters.AddWithValue("@c",  champId);
+                cmd.Parameters.AddWithValue("@t",  TierBucket);
+                cmd.Parameters.AddWithValue("@p1", _p1);
+                cmd.Parameters.AddWithValue("@p2", _p2);
+                cmd.Parameters.AddWithValue("@p3", _p3);
+                double total = 0;
+                var raw = new Dictionary<string, double>();
+                using var rd = cmd.ExecuteReader();
+                while (rd.Read())
+                {
+                    var g = rd.GetDouble(1);
+                    raw[rd.GetString(0)] = g;
+                    total += g;
+                }
+                if (total > 0)
+                    foreach (var (r, g) in raw) shares[r] = g / total;
+            }
+            catch { /* нет данных — пустые доли */ }
+            _roleShareCache[champId] = shares;
+        }
+        return shares.GetValueOrDefault(role, 0.0);
     }
 
     private readonly Dictionary<int, string> _roleCache = new();
@@ -839,18 +886,23 @@ public sealed class RecommendationEngine : IDisposable
     private List<int> GetCandidates(string role)
     {
         var cmd = _db.CreateCommand();
-        // Взвешенная сумма игр по 3 патчам — кандидат проходит, если набрал MIN_GAMES.
+        // Взвешенная сумма игр по 3 патчам: кандидат проходит по абсолютному порогу
+        // И по доле игр роли (отсекает редкие офф-мета пики вроде Амуму-саппорта).
         cmd.CommandText = $@"
             SELECT champion_id FROM base_wr
             WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
             GROUP BY champion_id
-            HAVING SUM(games*{PW}) >= @min";
+            HAVING SUM(games*{PW}) >= @min
+               AND SUM(games*{PW}) >= @share * (
+                   SELECT SUM(games*{PW}) FROM base_wr
+                   WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3))";
         cmd.Parameters.AddWithValue("@r",   role);
         cmd.Parameters.AddWithValue("@t",   TierBucket);
         cmd.Parameters.AddWithValue("@p1",  _p1);
         cmd.Parameters.AddWithValue("@p2",  _p2);
         cmd.Parameters.AddWithValue("@p3",  _p3);
         cmd.Parameters.AddWithValue("@min", MIN_GAMES);
+        cmd.Parameters.AddWithValue("@share", MIN_ROLE_SHARE);
         var list = new List<int>();
         using var rd = cmd.ExecuteReader();
         while (rd.Read()) list.Add(rd.GetInt32(0));
