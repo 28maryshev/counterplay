@@ -33,9 +33,16 @@ class Program
         var overlay = new OverlayWindow();
         overlay.Show();
 
+        // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.
+        var testMode = args.Contains("test") || args.Contains("--test");
+
         var lcuTask = Task.Run(async () =>
         {
-            try   { await RunLcuAsync(overlay, args, cts.Token); }
+            try
+            {
+                if (testMode) await TestMode.RunAsync(overlay, cts.Token);
+                else          await RunLcuAsync(overlay, args, cts.Token);
+            }
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
