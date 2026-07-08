@@ -698,29 +698,50 @@ public sealed class RecommendationEngine : IDisposable
             protectees.Add((ally.EffectiveChampionId, string.IsNullOrEmpty(ar) ? null : ar, W_BAN_ALLY, false));
         }
 
+        // Самый жёсткий контрпик каждого защищаемого — ему гарантируется место
+        // в топе банов (см. ниже): игрок навёл чемпиона в фазе банов — значит
+        // хочет увидеть, от кого его защищать.
+        var bestByProtectee = new Dictionary<int, (int Champ, double Strength)>();
+
         foreach (var (pid, prole, weight, mine) in protectees)
-            foreach (var c in TopCounters(pid, prole, 6))
+            foreach (var c in TopCounters(pid, prole, 8, minGames: 20, minEdge: 0.48))
             {
                 if (taken.Contains(c)) continue;
                 var (mg, mw) = prole != null ? RawMatchup(pid, prole, c) : RawMatchupAny(pid, c);
                 if (mg <= 0) continue;
                 // Насколько c бьёт нашего чемпиона: чистая дельта против его же
-                // среднего WR, с темпером по объёму пары.
+                // среднего WR, с темпером по объёму пары. Порог мягкий: чистые
+                // темперированные дельты малы, а защиту показать важно.
                 var (pbg, pbw) = prole != null ? RawBase(pid, prole) : RawBaseAny(pid);
                 var strength = (Delta(pbg, pbw, K) - Delta(mg, mw, K_PAIR)) * (mg / (mg + MATCHUP_CONF));
-                if (strength < 0.5) continue;
+                if (strength < 0.15) continue;
                 scores[c] = scores.GetValueOrDefault(c) + weight * strength;
                 AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(pid)));
+                if (!bestByProtectee.TryGetValue(pid, out var cur) || strength > cur.Strength)
+                    bestByProtectee[pid] = (c, strength);
             }
 
-        return scores
-            .OrderByDescending(kv => kv.Value)
-            .Take(top)
-            .Select(kv =>
+        // Резервируем места: по одному самому жёсткому контрпику на защищаемого
+        // (сначала мой пик, затем союзники), максимум top-1 — минимум один слот
+        // остаётся мете. Остаток добирается по общему скору.
+        var chosen = new List<int>();
+        foreach (var (pid, _, _, _) in protectees) // порядок: я → союзники
+            if (bestByProtectee.TryGetValue(pid, out var bc)
+                && !chosen.Contains(bc.Champ) && chosen.Count < top - 1)
+                chosen.Add(bc.Champ);
+        foreach (var k in scores.Keys.Where(k => !chosen.Contains(k)).OrderByDescending(k => scores[k]))
+        {
+            if (chosen.Count >= top) break;
+            chosen.Add(k);
+        }
+
+        return chosen
+            .OrderByDescending(k => scores.GetValueOrDefault(k))
+            .Select(k =>
             {
-                var rs = reasons.GetValueOrDefault(kv.Key) ?? [];
+                var rs = reasons.GetValueOrDefault(k) ?? [];
                 if (rs.Count == 0) rs.Add(Loc.T("reason.notablePick"));
-                return new BanRec(kv.Key, kv.Value, [.. rs]);
+                return new BanRec(k, scores.GetValueOrDefault(k), [.. rs]);
             })
             .ToList();
     }
@@ -1036,8 +1057,10 @@ public sealed class RecommendationEngine : IDisposable
     }
 
     /// Топ N чемпионов той же роли, лучше всего контрящих данного врага.
-    /// Если роль неизвестна — запрос по всем ролям.
-    public IReadOnlyList<int> TopCounters(int enemyId, string? enemyRole = null, int top = 3)
+    /// Если роль неизвестна — запрос по всем ролям. minGames/minEdge можно
+    /// ослабить (защитные баны: данные по паре разрежены, а показать надо).
+    public IReadOnlyList<int> TopCounters(int enemyId, string? enemyRole = null, int top = 3,
+                                          int? minGames = null, double? minEdge = null)
     {
         if (enemyId == 0) return [];
         try
@@ -1053,13 +1076,13 @@ public sealed class RecommendationEngine : IDisposable
                 GROUP  BY champion_id
                 HAVING SUM(games*{PW}) >= @min";
             cmd.Parameters.AddWithValue("@v",   enemyId);
-            cmd.Parameters.AddWithValue("@min", HINT_MIN_GAMES);
+            cmd.Parameters.AddWithValue("@min", minGames ?? HINT_MIN_GAMES);
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
             if (!string.IsNullOrEmpty(enemyRole))
                 cmd.Parameters.AddWithValue("@r", enemyRole);
-            return RankByWilson(cmd, top);
+            return RankByWilson(cmd, top, minEdge ?? HINT_MIN_EDGE);
         }
         catch { return []; }
     }
