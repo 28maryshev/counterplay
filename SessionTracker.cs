@@ -47,14 +47,24 @@ public static class SessionTracker
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                      "Counterplay", "session.json");
 
+    // Один Refresh за раз: в конце матча LCU шлёт несколько gameflow-событий
+    // подряд, и параллельные вызовы гонялись на файле журнала — чтение ловило
+    // полузаписанный JSON, парс падал и журнал затирался пустым Store.
+    private static readonly SemaphoreSlim Gate = new(1, 1);
+
     private static Store Load()
     {
-        try
+        // Основной файл, затем резервная копия — журнал не теряется из-за
+        // одного битого чтения.
+        foreach (var path in new[] { StorePath, StorePath + ".bak" })
         {
-            if (File.Exists(StorePath))
-                return JsonSerializer.Deserialize<Store>(File.ReadAllText(StorePath)) ?? new Store();
+            try
+            {
+                if (File.Exists(path))
+                    return JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
+            }
+            catch { /* пробуем следующий */ }
         }
-        catch { /* битый файл — начинаем заново */ }
         return new Store();
     }
 
@@ -63,7 +73,13 @@ public static class SessionTracker
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
-            File.WriteAllText(StorePath, JsonSerializer.Serialize(s));
+            // Атомарная запись: во временный файл + подмена. Прошлую версию
+            // сохраняем как .bak — страховка от битых чтений и падений.
+            var tmp = StorePath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(s));
+            if (File.Exists(StorePath))
+                File.Copy(StorePath, StorePath + ".bak", overwrite: true);
+            File.Move(tmp, StorePath, overwrite: true);
         }
         catch { /* не критично */ }
     }
@@ -92,6 +108,14 @@ public static class SessionTracker
 
     /// Обновляет журнал из LCU и возвращает данные для экрана ожидания.
     public static async Task<SessionData?> RefreshAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        // Сериализуем вызовы: конец матча порождает шквал gameflow-событий.
+        await Gate.WaitAsync(ct);
+        try { return await RefreshCoreAsync(http, ct); }
+        finally { Gate.Release(); }
+    }
+
+    private static async Task<SessionData?> RefreshCoreAsync(LcuHttpClient http, CancellationToken ct)
     {
         // 1) Ранг из ranked-stats
         var (rs, rbody) = await http.GetAsync("/lol-ranked/v1/current-ranked-stats", ct);
