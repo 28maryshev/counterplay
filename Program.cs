@@ -170,6 +170,10 @@ class Program
 
         var lastHash = "";
         CancellationTokenSource? hideCts = null; // запланированное скрытие в трей
+        // История ховеров своей команды за текущий драфт (cellId → чемпионы):
+        // союзники в фазе банов перебирают несколько чемпионов — баны считаются
+        // по всему показанному пулу, а не только по текущему наведению.
+        var hoverHistory = new Dictionary<int, HashSet<int>>();
 
         await foreach (var ev in socket.ReadEventsAsync(ct))
         {
@@ -198,6 +202,7 @@ class Program
                         // После игры (EndOfGame) ранг/LP обновились — перечитываем трекер.
                         await RefreshSessionAsync();
                         lastHash = "";
+                        hoverHistory.Clear();
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
                     // обработчиком champ-select и флагом _inTray. Иначе разворачивали бы
@@ -214,6 +219,7 @@ class Program
                         overlay.UpdateRecommendations(null, null);
                         overlay.ShowStatus(Loc.T("status.waitNextDraft")); // подавится, если в трее
                         lastHash = "";
+                        hoverHistory.Clear();
                     }
                     else
                     {
@@ -247,10 +253,21 @@ class Program
                         var hash = DraftHash(draft);
                         if (hash == lastHash) break;
                         lastHash = hash;
+
+                        // Копим показанных командой чемпионов (пул на этот драфт).
+                        foreach (var p in draft.MyTeam)
+                        {
+                            var idc = p.EffectiveChampionId;
+                            if (idc == 0) continue;
+                            if (!hoverHistory.TryGetValue(p.CellId, out var setc))
+                                hoverHistory[p.CellId] = setc = [];
+                            setc.Add(idc);
+                        }
+
                         if (draft.IsAram)
                             overlay.UpdateRecommendations(engine?.RecommendAram(draft), draft, engine);
                         else if (draft.InBanPhase)
-                            overlay.UpdateBans(engine?.RecommendBans(draft), draft);
+                            overlay.UpdateBans(engine?.RecommendBans(draft, hoverHistory), draft);
                         else
                             overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
                     }

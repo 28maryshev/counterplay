@@ -110,14 +110,15 @@ static class DraftTest
         // 7. БАНЫ: мой ховер + союзники наведены, но роли НЕ раскрыты (соло/дуо).
         //    Ждём в списке контр-пики моего Джинкса и наведённых союзников (не только пул).
         eng.Mastery = new Dictionary<int, long>();
-        void PrintBans(string title, DraftState s, int top = 6)
+        void PrintBans(string title, DraftState s, int top = 6,
+                       Dictionary<int, HashSet<int>>? hovers = null)
         {
             Console.WriteLine($"\n===== BANS: {title} =====");
             var mine = s.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
             var allies = s.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
                 .Select(p => $"{DataDragon.Name(p.EffectiveChampionId)}({(string.IsNullOrEmpty(p.Position) ? "?" : p.Position)})");
             Console.WriteLine($"  role={s.MyPosition} myPick={(mine == 0 ? "-" : DataDragon.Name(mine))} allies: {string.Join(", ", allies)}");
-            foreach (var b in eng.RecommendBans(s, top))
+            foreach (var b in eng.RecommendBans(s, hovers, top))
             {
                 Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} score={b.Score,6:F1}");
                 foreach (var r in b.Reasons.Take(2)) Console.WriteLine($"        · {r}");
@@ -140,6 +141,16 @@ static class DraftTest
         Console.WriteLine("\n########## BANS ##########");
         PrintBans("my hover Jinx + allies hovered (Ahri/LeeSin/Malphite), NO roles",
             BuildBan("bottom", 222, new[] { (103, ""), (64, ""), (54, "") }));
+
+        // 9. Баны с ИСТОРИЕЙ ховеров: команда перебрала несколько чемпионов —
+        //    ждём бонус «широты» для бана, контрящего 2+ показанных.
+        PrintBans("hover history: mid showed Ahri+Lux+Xerath, top showed Riven+Fiora",
+            BuildBan("bottom", 222, new[] { (103, ""), (92, "") }),
+            hovers: new Dictionary<int, HashSet<int>>
+            {
+                [1] = [103, 99, 101],  // мид показал Ахри, Люкс, Ксерата
+                [2] = [92, 114],       // топ показал Ривен и Фиору
+            });
 
         Console.WriteLine("\n(готово)");
     }

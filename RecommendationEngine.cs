@@ -79,6 +79,8 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_BAN_COUNTER = 2.0; // насколько контрит твой пул
     private const double W_BAN_MYPICK  = 3.2; // контрит мой наведённый/взятый пик (макс. приоритет)
     private const double W_BAN_ALLY    = 2.6; // контрит наведённый/взятый пик союзника (защита команды)
+    private const double W_BAN_HOVER   = 1.8; // контрит чемпиона из ИСТОРИИ ховеров (показанный пул)
+    private const double W_BAN_BREADTH = 1.5; // бонус за ширину: кандидат контрит 2+ наших чемпионов
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -623,7 +625,10 @@ public sealed class RecommendationEngine : IDisposable
 
     /// Кого банить: сильные/популярные в патче чемпионы твоей роли, которые ещё и
     /// плохи лично для тебя (контрят твой пул). Возвращает топ-N.
-    public IReadOnlyList<BanRec> RecommendBans(DraftState state, int top = 5)
+    /// hoverHistory: cellId → чемпионы, показанные игроком за драфт (пул команды).
+    /// Бан, контрящий сразу нескольких из показанных, получает бонус за широту.
+    public IReadOnlyList<BanRec> RecommendBans(
+        DraftState state, IReadOnlyDictionary<int, HashSet<int>>? hoverHistory = null, int top = 5)
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
@@ -698,10 +703,28 @@ public sealed class RecommendationEngine : IDisposable
             protectees.Add((ally.EffectiveChampionId, string.IsNullOrEmpty(ar) ? null : ar, W_BAN_ALLY, false));
         }
 
+        // История ховеров: игроки в фазе банов перебирают чемпионов — защищаем
+        // весь показанный пул (меньшим весом: наведение сейчас важнее прошлого).
+        if (hoverHistory != null)
+        {
+            var seen = protectees.Select(p => p.Id).ToHashSet();
+            foreach (var player in state.MyTeam)
+                if (hoverHistory.TryGetValue(player.CellId, out var shown))
+                {
+                    var hr = LcuToDbRole(player.Position);
+                    foreach (var hid in shown)
+                        if (hid != 0 && seen.Add(hid))
+                            protectees.Add((hid, string.IsNullOrEmpty(hr) ? null : hr,
+                                            player.IsLocalPlayer ? W_BAN_MYPICK * 0.75 : W_BAN_HOVER,
+                                            player.IsLocalPlayer));
+                }
+        }
+
         // Самый жёсткий контрпик каждого защищаемого — ему гарантируется место
         // в топе банов (см. ниже): игрок навёл чемпиона в фазе банов — значит
         // хочет увидеть, от кого его защищать.
         var bestByProtectee = new Dictionary<int, (int Champ, double Strength)>();
+        var victimsOf = new Dictionary<int, HashSet<int>>(); // бан-кандидат → кого из наших он контрит
 
         foreach (var (pid, prole, weight, mine) in protectees)
             foreach (var c in TopCounters(pid, prole, 8, minGames: 20, minEdge: 0.48))
@@ -719,6 +742,20 @@ public sealed class RecommendationEngine : IDisposable
                 AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(pid)));
                 if (!bestByProtectee.TryGetValue(pid, out var cur) || strength > cur.Strength)
                     bestByProtectee[pid] = (c, strength);
+                if (strength >= 0.3)
+                {
+                    if (!victimsOf.TryGetValue(c, out var vs)) victimsOf[c] = vs = [];
+                    vs.Add(pid);
+                }
+            }
+
+        // Бонус за ширину: кандидат, контрящий 2+ РАЗНЫХ наших чемпионов,
+        // отсекает сразу несколько вариантов пула — именно его стоит банить.
+        foreach (var (c, vs) in victimsOf)
+            if (vs.Count >= 2)
+            {
+                scores[c] = scores.GetValueOrDefault(c) + W_BAN_BREADTH * vs.Count;
+                AddReason(c, Loc.T("reason.countersMany", vs.Count));
             }
 
         // Резервируем места: по одному самому жёсткому контрпику на защищаемого

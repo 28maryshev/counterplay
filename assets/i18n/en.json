@@ -290,7 +290,8 @@
     "baseTop": "One of the strongest this patch — WR {0}%",
     "baseGood": "Good base WR {0}%",
     "baseLow": "Low WR {0}% — you need to know the champion",
-    "baseNeutral": "Neutral pick, WR ≈{0}%"
+    "baseNeutral": "Neutral pick, WR ≈{0}%",
+    "countersMany": "Counters {0} champions your team showed"
   },
   "rec": {
     "yourPick": "YOUR PICK"
