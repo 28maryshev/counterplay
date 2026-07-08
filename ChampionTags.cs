@@ -21,7 +21,7 @@ public static class ChampionTags
         [16]  = ["peel", "heal"],                      // Soraka (alias)
         [350] = ["peel", "heal"],                      // Yuumi
         [267] = ["peel", "cc", "nami_e"],              // Nami
-        [43]  = ["peel", "poke", "shield"],            // Karma
+        [43]  = ["peel", "poke", "range_poke", "shield"], // Karma (поук-энчантер → пик/пок)
         [235] = ["poke", "peel"],                      // Senna
         [161] = ["poke", "burst"],                     // Vel'Koz
         [143] = ["poke", "cc", "zone"],                // Zyra
@@ -29,13 +29,13 @@ public static class ChampionTags
         [25]  = ["shield", "cc", "poke"],              // Morgana
         [201] = ["peel", "engage", "passive_auto"],    // Braum
         [37]  = ["peel", "heal", "shield", "hard_cc"], // Sona (AoE-стан R, баффы/хил)
-        [902] = ["utility", "cc"],                     // Renata Glasc
+        [902] = ["peel", "shield", "utility", "cc"],   // Renata Glasc (защита кэрри → фронт-ту-бэк)
         [888] = ["engage", "poke"],                    // Rengar (sup rare)
 
         // ── ADC ───────────────────────────────────────────────────────────────
         [498] = ["xayah_pair", "scale"],               // Xayah
         [51]  = ["trap", "range_poke"],                // Caitlyn
-        [119] = ["aggressive", "kill_lane"],           // Draven
+        [119] = ["aggressive", "kill_lane", "hypercarry"], // Draven (АДК в строю → фронт-ту-бэк)
         [236] = ["aggressive", "lucian"],              // Lucian
         [360] = ["aggressive", "dash"],                // Samira
         [222] = ["scale", "hypercarry"],               // Jinx
@@ -68,7 +68,7 @@ public static class ChampionTags
         [157] = ["ult_airborne", "dash"],              // Yasuo
         [777] = ["ult_airborne", "dash"],              // Yone
         [54]  = ["engage", "hard_cc", "ult_malphite"], // Malphite
-        [134] = ["burst", "cc"],                       // Syndra
+        [134] = ["poke", "zone_control", "burst", "cc"], // Syndra (пик-маг, не дайв)
         [103] = ["poke", "cc"],                        // Ahri
         [84]  = ["dive", "burst"],                     // Akali
         [105] = ["dive", "burst"],                     // Fizz
@@ -91,8 +91,8 @@ public static class ChampionTags
         [14]  = ["engage", "hard_cc", "tank"],         // Sion
         [98]  = ["engage", "hard_cc", "peel", "tank"], // Shen
         [27]  = ["cc", "tank"],                        // Singed
-        [23]  = ["dive", "hypercarry", "scale"],       // Tryndamere
-        [48]  = ["dive", "cc", "sustain"],             // Trundle
+        [23]  = ["dive", "scale", "kill_lane"],        // Tryndamere (сплит-дайв, не гиперкэрри)
+        [48]  = ["juggernaut", "sustain", "cc"],       // Trundle (джаггернаут фронта, не дайв)
         [106] = ["dive", "engage", "hard_cc", "tank"], // Volibear
         [62]  = ["engage", "hard_cc", "dive", "burst"],// Wukong
         [83]  = ["zone_control", "scale"],             // Yorick
@@ -127,7 +127,7 @@ public static class ChampionTags
         [34]  = ["cc", "hard_cc", "zone_control"],             // Anivia
         [38]  = ["dive", "burst", "mobility", "cc"],           // Kassadin
         [45]  = ["burst", "cc", "hard_cc", "scale"],           // Veigar
-        [50]  = ["poke", "cc", "sustain", "zone_control"],     // Swain
+        [50]  = ["tank", "sustain", "cc", "zone_control"],     // Swain (дрейн-танк тимфайта)
         [68]  = ["zone_control", "burst", "cc"],               // Rumble
         [74]  = ["poke", "zone_control", "cc"],                // Heimerdinger
         [91]  = ["dive", "burst", "stealth", "mobility"],      // Talon
@@ -136,14 +136,14 @@ public static class ChampionTags
         [115] = ["poke", "burst", "zone_control"],             // Ziggs
         [127] = ["burst", "cc", "hard_cc", "engage"],          // Lissandra
         [131] = ["dive", "burst", "cc", "hard_cc", "engage"],  // Diana
-        [136] = ["burst", "cc", "hard_cc", "scale"],           // Aurelion Sol
+        [136] = ["poke", "zone_control", "channels_ult", "hard_cc", "scale"], // Aurelion Sol (зон-маг)
         [142] = ["burst", "poke", "cc", "hard_cc"],            // Zoe
         [163] = ["poke", "zone_control", "cc", "hard_cc"],     // Taliyah
         [166] = ["poke", "mobility", "cc"],                    // Akshan
         [246] = ["burst", "dive", "mobility", "cc", "hard_cc"],// Qiyana
         [268] = ["poke", "zone_control", "hard_cc", "scale"],  // Azir
         [517] = ["dive", "burst", "mobility", "cc"],           // Sylas
-        [518] = ["burst", "cc", "hard_cc", "engage"],          // Neeko
+        [518] = ["poke", "zone_control", "burst", "cc", "hard_cc", "engage"], // Neeko (пик-маг)
         [893] = ["burst", "mobility", "cc", "dive"],           // Aurora
         // ── Дополнительные ADC ───────────────────────────────────────────────
         [67]  = ["scale", "hypercarry", "needs_peel", "dive"], // Vayne
@@ -159,6 +159,17 @@ public static class ChampionTags
         [80]  = ["engage", "hard_cc", "dive", "burst"],        // Pantheon
         [223] = ["peel", "tank", "hard_cc", "sustain"],        // Tahm Kench
         [350] = ["peel", "heal", "shield", "cc"],              // Yuumi
+
+        // Ревизия архетипов: раньше сидели на класс-фолбэке Data Dragon и
+        // попадали не в свой стиль (Гангпланк «Fighter» → фронт-ту-бэк и т.п.).
+        [41]  = ["poke", "zone_control", "scale"],             // Gangplank — поук бочками/Q
+        [104] = ["burst", "aggressive", "mobility"],           // Graves — дайв-стрелок
+        [2]   = ["dive", "aggressive", "sustain"],             // Olaf — бежит в бэклайн
+        [102] = ["dive", "scale"],                             // Shyvana — ульт в тыл
+        [24]  = ["dive", "scale"],                             // Jax — дайв-дуэлянт
+        [58]  = ["dive", "aggressive", "burst"],               // Renekton — агро-дайв
+        [76]  = ["poke", "range_poke", "mobility"],            // Nidalee — копейный поук
+        [893] = ["poke", "zone_control", "mobility", "burst"], // Aurora — кайт-поук
     };
 
     public static IReadOnlyCollection<string> Get(int champId) =>
