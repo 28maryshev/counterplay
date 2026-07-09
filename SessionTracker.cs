@@ -285,15 +285,35 @@ public static class SessionTracker
         // 5) LP-дельты ранкед-очередей: разница абсолютного LP с прошлого снимка
         //    вешается на самую свежую добавленную игру этой очереди.
         //    Только при СВЕЖЕМ ответе LCU — по кэшу дельты не считаем.
+        //    ВАЖНО: LP в клиенте обновляется РАНЬШЕ истории матчей. Если LP уже
+        //    сменился, а игры в истории ещё нет — LastAbsLp не трогаем, иначе
+        //    дельта «съедается» и догнанная игра получает +0.
         foreach (var key in fetched is null ? [] : new[] { "solo", "flex" })
         {
             var r = ranked[key];
             if (!r.HasRank) continue;
             var q = GetQueue(store, key);
             var abs = AbsLp(r.Tier, r.Div, r.Lp);
-            if (q.LastAbsLp != int.MinValue && appended.TryGetValue(key, out var game))
-                game.Lp = abs - q.LastAbsLp;
-            q.LastAbsLp = abs;
+            if (q.LastAbsLp == int.MinValue) { q.LastAbsLp = abs; continue; }
+
+            var delta = abs - q.LastAbsLp;
+            if (appended.TryGetValue(key, out var game))
+            {
+                game.Lp = delta;
+                q.LastAbsLp = abs;
+            }
+            else if (delta != 0)
+            {
+                // Обратный порядок: игра уже догнана историей (без дельты или с
+                // нулевой), а LP доехал только сейчас — вешаем дельту на неё.
+                var lastGame = q.Games.Count > 0 ? q.Games[^1] : null;
+                if (lastGame is not null && lastGame.Lp is null or 0 && now - lastGame.Ts < 900)
+                {
+                    lastGame.Lp = delta;
+                    q.LastAbsLp = abs;
+                }
+                // Иначе ждём: дельту получит игра, когда появится в истории.
+            }
         }
 
         // 6) Винрейт на момент игры: ранкед — сезонный, нормал/ARAM — по журналу.
