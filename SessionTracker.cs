@@ -423,6 +423,10 @@ public static class SessionTracker
                 bool win = p.TryGetProperty("stats", out var st) && st.TryGetProperty("win", out var w) && w.ValueKind == JsonValueKind.True;
                 long created = g.TryGetProperty("gameCreation", out var cr) && cr.ValueKind == JsonValueKind.Number
                     ? cr.GetInt64() / 1000 : 0;
+                // Ремейки (< 5 минут) не считаем — они не влияют на статистику.
+                long duration = g.TryGetProperty("gameDuration", out var du) && du.ValueKind == JsonValueKind.Number
+                    ? du.GetInt64() : long.MaxValue;
+                if (duration < 300) continue;
                 result.Add(new HistEntry(gameId, queue, champ, win, created));
             }
             // Новейшие первыми (как отдаёт LCU) — гарантируем сортировкой.

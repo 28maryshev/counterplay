@@ -165,6 +165,19 @@ class Program
         }
         await RefreshSessionAsync();
 
+        // Периодическое обновление трекера: история матчей LCU появляется с
+        // задержкой после конца игры — событие EndOfGame может прийти раньше её.
+        // Раз в минуту тихо догоняем (2 лёгких GET к локальному LCU).
+        _ = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try { await Task.Delay(TimeSpan.FromSeconds(60), ct); }
+                catch (OperationCanceledException) { return; }
+                await RefreshSessionAsync();
+            }
+        }, ct);
+
         await using var socket = new LcuEventSocket(creds);
         await socket.ConnectAsync(ct);
 
