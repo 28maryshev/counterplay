@@ -81,8 +81,10 @@ def main():
     syn = {k: [round(v[0], 2), round(v[1], 2)] for k, v in syn.items()}
     print('synergy:', len(syn))
 
+    from datetime import date
     with io.open(f'{args.out}/stats.json', 'w', encoding='utf-8') as f:
         json.dump({'tier': args.tier, 'patches': patches,
+                   'updated': date.today().isoformat(),  # dateModified/lastmod для SEO
                    'base': base, 'matchup': mu, 'synergy': syn}, f, separators=(',', ':'))
     print('stats.json записан')
 
