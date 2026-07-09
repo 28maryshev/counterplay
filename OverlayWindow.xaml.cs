@@ -550,11 +550,14 @@ public partial class OverlayWindow : Window
         QueueText.Text = Loc.T("session.queue." + _selectedQueue) + " ▾";
 
         // По бокам ника — половинки ранговой эмблемы выбранной очереди (крылья).
+        // Чем выше ранг — тем больше размах крыльев.
         var halves = v?.HasRank == true ? WingHalves(v.Tier) : null;
         WingLeft.Source  = halves?.Left;
         WingRight.Source = halves?.Right;
         WingLeft.Visibility  = halves != null ? Visibility.Visible : Visibility.Collapsed;
         WingRight.Visibility = halves != null ? Visibility.Visible : Visibility.Collapsed;
+        if (halves != null && v != null)
+            WingLeft.Height = WingRight.Height = WingHeight(v.Tier);
 
         if (v is null)
         {
@@ -705,6 +708,22 @@ public partial class OverlayWindow : Window
         }
         catch { return null; }
     }
+
+    // Размах крыльев растёт с рангом: Железо — скромные, Претендент — максимальные.
+    private static double WingHeight(string tier) => tier.ToUpperInvariant() switch
+    {
+        "IRON"        => 16,
+        "BRONZE"      => 17.5,
+        "SILVER"      => 19,
+        "GOLD"        => 20.5,
+        "PLATINUM"    => 22,
+        "EMERALD"     => 23.5,
+        "DIAMOND"     => 25,
+        "MASTER"      => 27,
+        "GRANDMASTER" => 28.5,
+        "CHALLENGER"  => 30,
+        _             => 20,
+    };
 
     // Половинки эмблемы ранга (левая/правая) — «крылья» вокруг ника, с кэшем.
     private static readonly Dictionary<string, (ImageSource Left, ImageSource Right)> _wingCache = new();
