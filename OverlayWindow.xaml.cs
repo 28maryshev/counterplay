@@ -356,26 +356,38 @@ public partial class OverlayWindow : Window
         // Слежение за окном клиента (свернуть/развернуть/переместить).
         StartWindowFollow();
 
-        // Селектор языка: заполняем и выставляем текущий (без срабатывания обработчика).
-        _langInit = true;
-        LangBox.ItemsSource   = Loc.Languages;
-        LangBox.SelectedValue = Loc.Current;
-        _langInit = false;
+        // Чип языка: показываем текущий, меню — по клику.
+        LangText.Text = Loc.CurrentLang.Native + " ▾";
         Loc.LanguageChanged += OnLanguageChanged;
     }
 
-    private bool _langInit;
-
-    // Ручная смена языка из селектора.
-    private void OnLangChanged(object sender, SelectionChangedEventArgs e)
+    // Клик по чипу языка — выпадающий список в стиле выбора очереди.
+    private void LangChip_Click(object sender, MouseButtonEventArgs e)
     {
-        if (_langInit) return;
-        if (LangBox.SelectedValue is string code) Loc.SetLanguage(code);
+        e.Handled = true;
+        var menu = new ContextMenu { Style = (Style)FindResource("RoleMenuStyle") };
+        var itemStyle = (Style)FindResource("RoleMenuItemStyle");
+        foreach (var lang in Loc.Languages)
+        {
+            var item = new MenuItem
+            {
+                Header    = lang.Native,
+                IsChecked = lang.Code == Loc.Current,
+                Style     = itemStyle,
+            };
+            var code = lang.Code;
+            item.Click += (_, _) => Loc.SetLanguage(code);
+            menu.Items.Add(item);
+        }
+        menu.PlacementTarget = LangChip;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
     }
 
     // Язык сменился: обновляем UI сразу, имена чемпионов — после дозагрузки Data Dragon.
     private void OnLanguageChanged()
     {
+        LangText.Text = Loc.CurrentLang.Native + " ▾";
         _tipIdx = -1;                 // карусель советов на новом языке с начала
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
         if (ReadyInfo.Visibility == Visibility.Visible) StartTips();
@@ -795,10 +807,21 @@ public partial class OverlayWindow : Window
         WrChart.Children.Clear();
         var v = _sessionView;
         if (v is null) return;
-        var pts = v.WinrateHistory;
+        IReadOnlyList<SessionTracker.WrPoint> pts = v.WinrateHistory;
         double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
         double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
         if (pts.Count == 0) return;
+
+        // Журнал сезонный (сотни игр) — для рисования прореживаем до ~120 точек
+        // равномерной выборкой, первая и последняя игры сохраняются всегда.
+        const int maxDots = 120;
+        if (pts.Count > maxDots)
+        {
+            var sampled = new List<SessionTracker.WrPoint>(maxDots);
+            for (int i = 0; i < maxDots; i++)
+                sampled.Add(pts[(int)Math.Round((double)i / (maxDots - 1) * (pts.Count - 1))]);
+            pts = sampled;
+        }
 
         // Диапазон Y — вокруг данных, чтобы динамика была видна.
         double min = pts.Min(p => p.Winrate), max = pts.Max(p => p.Winrate);

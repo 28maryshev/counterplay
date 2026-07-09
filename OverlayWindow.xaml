@@ -157,87 +157,6 @@
     </DrawingImage>
 
     <!-- Карточка командной связки (комбо) — общая для союзников и врагов -->
-    <!-- ── Тёмный ComboBox (селектор языка) ─────────────────────────── -->
-    <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
-      <Setter Property="Foreground" Value="#C9D2DC"/>
-      <Setter Property="Padding" Value="9,5"/>
-      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ComboBoxItem">
-            <Border x:Name="bd" Background="Transparent" CornerRadius="3"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsHighlighted" Value="True">
-                <Setter TargetName="bd" Property="Background" Value="#1E2A3A"/>
-                <Setter Property="Foreground" Value="#FFFFFF"/>
-              </Trigger>
-              <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Foreground" Value="#36D6E7"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
-    <ControlTemplate x:Key="DarkComboToggle" TargetType="ToggleButton">
-      <Border x:Name="bd" Background="#142033" BorderBrush="#2A3A4F" BorderThickness="1"
-              CornerRadius="5">
-        <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
-              Data="M0,0 L4,4 L8,0 Z" Fill="#9AA4B2"/>
-      </Border>
-      <ControlTemplate.Triggers>
-        <Trigger Property="IsMouseOver" Value="True">
-          <Setter TargetName="bd" Property="BorderBrush" Value="#36D6E7"/>
-        </Trigger>
-        <Trigger Property="IsChecked" Value="True">
-          <Setter TargetName="bd" Property="BorderBrush" Value="#36D6E7"/>
-        </Trigger>
-      </ControlTemplate.Triggers>
-    </ControlTemplate>
-
-    <Style x:Key="DarkCombo" TargetType="ComboBox">
-      <Setter Property="Foreground" Value="#E8E6DF"/>
-      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="SnapsToDevicePixels" Value="True"/>
-      <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboItem}"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ComboBox">
-            <Grid>
-              <ToggleButton Template="{StaticResource DarkComboToggle}" Focusable="False"
-                            ClickMode="Press"
-                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
-              <ContentPresenter IsHitTestVisible="False"
-                                Content="{TemplateBinding SelectionBoxItem}"
-                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                Margin="10,0,24,0"
-                                VerticalAlignment="Center" HorizontalAlignment="Left"/>
-              <Popup Placement="Bottom" Focusable="False" AllowsTransparency="True"
-                     PopupAnimation="Slide"
-                     IsOpen="{TemplateBinding IsDropDownOpen}">
-                <Border Background="#0F1622" BorderBrush="#2A3A4F" BorderThickness="1"
-                        CornerRadius="5" Margin="0,3,0,0"
-                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
-                  <Border.Effect>
-                    <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Opacity="0.6"/>
-                  </Border.Effect>
-                  <ScrollViewer MaxHeight="280">
-                    <ItemsPresenter/>
-                  </ScrollViewer>
-                </Border>
-              </Popup>
-            </Grid>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
     <DataTemplate x:Key="ComboTemplate">
       <Border Background="#22FFFFFF" CornerRadius="4" Margin="0,5,0,0">
         <Grid>
@@ -409,17 +328,16 @@
             </TextBlock>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
-            <ComboBox x:Name="LangBox" Width="96" Height="26" Margin="0,0,8,0"
-                      Style="{StaticResource DarkCombo}"
-                      SelectedValuePath="Code"
-                      SelectionChanged="OnLangChanged"
-                      ToolTip="Язык / Language">
-              <ComboBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding Native}"/>
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
+            <!-- Язык: чип с выпадающим списком — как выбор очереди в трекере -->
+            <Border x:Name="LangChip" VerticalAlignment="Center" Margin="0,0,8,0"
+                    CornerRadius="4" BorderBrush="#557089" BorderThickness="1"
+                    Background="#1AFFFFFF" Padding="9,2,9,3" Cursor="Hand"
+                    MouseLeftButtonDown="LangChip_Click"
+                    ToolTip="Язык / Language">
+              <TextBlock x:Name="LangText" Text=""
+                         FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                         Foreground="#C9D2DC"/>
+            </Border>
             <Button x:Name="PinBtn" Content="📌" Click="OnPin"
                     Background="Transparent" BorderThickness="0"
                     Foreground="#C89B3C" FontSize="14" Padding="6,0"

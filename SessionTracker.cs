@@ -251,7 +251,9 @@ public static class SessionTracker
                 var q = GetQueue(store, h.Queue);
                 var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win };
                 q.Games.Add(log);
-                if (q.Games.Count > 400) q.Games.RemoveRange(0, q.Games.Count - 400);
+                // Журнал держим на весь сезон: 3000 игр на очередь хватает даже
+                // самым активным; страховка от бесконечного роста файла.
+                if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
                 appended[h.Queue] = log;
                 store.LastGameId = Math.Max(store.LastGameId, h.GameId);
             }
