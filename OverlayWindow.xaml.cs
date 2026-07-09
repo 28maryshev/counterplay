@@ -712,16 +712,16 @@ public partial class OverlayWindow : Window
     // Размах крыльев растёт с рангом: Железо — скромные, Претендент — максимальные.
     private static double WingHeight(string tier) => tier.ToUpperInvariant() switch
     {
-        "IRON"        => 16,
-        "BRONZE"      => 17.5,
-        "SILVER"      => 19,
-        "GOLD"        => 20.5,
-        "PLATINUM"    => 22,
-        "EMERALD"     => 23.5,
-        "DIAMOND"     => 25,
-        "MASTER"      => 27,
-        "GRANDMASTER" => 28.5,
-        "CHALLENGER"  => 30,
+        "IRON"        => 14,
+        "BRONZE"      => 16,
+        "SILVER"      => 18,
+        "GOLD"        => 20,
+        "PLATINUM"    => 22.5,
+        "EMERALD"     => 25,
+        "DIAMOND"     => 27.5,
+        "MASTER"      => 30,
+        "GRANDMASTER" => 32,
+        "CHALLENGER"  => 34,
         _             => 20,
     };
 
@@ -759,11 +759,17 @@ public partial class OverlayWindow : Window
             Width = 47, Height = 47, CornerRadius = new CornerRadius(9),
             BorderThickness = new Thickness(2),
             BorderBrush = g.Win ? WinBrush : LossBrush,
-            ClipToBounds = true
         };
         var img = IconCache.Get(g.ChampionId);
         if (img != null)
-            border.Child = new Image { Source = img, Stretch = Stretch.UniformToFill };
+            // Рисунок скругляем собственным клипом — иначе его квадратные углы
+            // вылезают за скруглённую рамку и она выглядит разорванной.
+            border.Child = new Image
+            {
+                Source = img, Stretch = Stretch.UniformToFill,
+                Width = 43, Height = 43,
+                Clip = new RectangleGeometry(new Rect(0, 0, 43, 43), 7, 7),
+            };
         col.Children.Add(border);
 
         var lp = new TextBlock
