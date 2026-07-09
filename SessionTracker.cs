@@ -53,11 +53,25 @@ public static class SessionTracker
         public List<GameLog> Games { get; set; } = [];
     }
 
+    private sealed class RankedCache
+    {
+        public bool HasRank { get; set; }
+        public string Tier { get; set; } = "";
+        public string Div { get; set; } = "";
+        public int Lp { get; set; }
+        public int Wins { get; set; }
+        public int Losses { get; set; }
+    }
+
     private sealed class Store
     {
         public string SelectedQueue { get; set; } = "solo";
+        public string? Nick { get; set; }
         public long LastGameId { get; set; }
         public Dictionary<string, QueueLog> Queues { get; set; } = new();
+        // Последний успешный снимок рангов: LCU после рестарта/обновления может
+        // не ответить — панель всё равно рендерится из кэша, а не пустой.
+        public Dictionary<string, RankedCache> Ranked { get; set; } = new();
 
         // Наследие одноочередного формата — мигрирует в Queues["solo"] при загрузке.
         public List<LegacyGame>? Games { get; set; }
@@ -185,7 +199,7 @@ public static class SessionTracker
     // ── Обновление ──────────────────────────────────────────────────────────
 
     private sealed record Ranked(bool HasRank, string Tier, string Div, int Lp, int Wins, int Losses);
-    private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win);
+    private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win, long CreatedSec);
 
     private static string? _nick; // кэш на процесс
 
@@ -198,17 +212,29 @@ public static class SessionTracker
 
     private static async Task<SessionData?> RefreshCoreAsync(LcuHttpClient http, CancellationToken ct)
     {
-        // 1) Ник (Riot ID), один раз на процесс.
-        _nick ??= await FetchNickAsync(http, ct);
+        var store = Load();
 
-        // 2) Ранги обеих ранкед-очередей.
-        var ranked = await FetchRankedAsync(http, ct);
-        if (ranked is null) return null;
+        // 1) Ник (Riot ID): из LCU, иначе из кэша журнала.
+        _nick ??= await FetchNickAsync(http, ct) ?? store.Nick;
+        if (!string.IsNullOrEmpty(_nick)) store.Nick = _nick;
+
+        // 2) Ранги обеих ранкед-очередей. Если LCU не ответил (рестарт после
+        // обновления и т.п.) — берём последний снимок из журнала: панель никогда
+        // не пустеет, пока на диске есть данные.
+        var fetched = await FetchRankedAsync(http, ct);
+        var ranked = fetched ?? new Dictionary<string, Ranked>
+        {
+            ["solo"] = FromCache(store.Ranked.GetValueOrDefault("solo")),
+            ["flex"] = FromCache(store.Ranked.GetValueOrDefault("flex")),
+        };
+        if (fetched != null)
+            foreach (var (k, r) in fetched)
+                store.Ranked[k] = new RankedCache
+                { HasRank = r.HasRank, Tier = r.Tier, Div = r.Div, Lp = r.Lp, Wins = r.Wins, Losses = r.Losses };
 
         // 3) Последние игры из истории (все очереди).
         var history = await FetchHistoryAsync(http, ct);
 
-        var store = Load();
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         // 4) Новые игры (по gameId) — раскладываем по журналам очередей.
@@ -231,9 +257,33 @@ public static class SessionTracker
             }
         }
 
+        // 4b) Пустые журналы добиваем ПРОШЛЫМИ играми из истории лаунчера:
+        //     первый запуск или очередь, в которую раньше не играли с программой.
+        //     LP прошлых игр LCU не отдаёт — дельты начнутся с новых игр.
+        foreach (var key in QueueKeys)
+        {
+            var q = GetQueue(store, key);
+            if (q.Games.Count > 0) continue;
+            var past = history.Where(h => h.Queue == key && h.GameId <= store.LastGameId)
+                              .OrderBy(h => h.GameId).ToList();
+            int wins = 0;
+            for (int i = 0; i < past.Count; i++)
+            {
+                if (past[i].Win) wins++;
+                q.Games.Add(new GameLog
+                {
+                    Ts = past[i].CreatedSec > 0 ? past[i].CreatedSec : now,
+                    ChampionId = past[i].ChampionId,
+                    Win = past[i].Win,
+                    Wr = 100.0 * wins / (i + 1),
+                });
+            }
+        }
+
         // 5) LP-дельты ранкед-очередей: разница абсолютного LP с прошлого снимка
         //    вешается на самую свежую добавленную игру этой очереди.
-        foreach (var key in new[] { "solo", "flex" })
+        //    Только при СВЕЖЕМ ответе LCU — по кэшу дельты не считаем.
+        foreach (var key in fetched is null ? [] : new[] { "solo", "flex" })
         {
             var r = ranked[key];
             if (!r.HasRank) continue;
@@ -299,6 +349,10 @@ public static class SessionTracker
         return new SessionData(_nick ?? "", views);
     }
 
+    private static Ranked FromCache(RankedCache? c) =>
+        c is null ? new Ranked(false, "", "", 0, 0, 0)
+                  : new Ranked(c.HasRank, c.Tier, c.Div, c.Lp, c.Wins, c.Losses);
+
     // Ник игрока (Riot ID gameName, иначе displayName).
     private static async Task<string?> FetchNickAsync(LcuHttpClient http, CancellationToken ct)
     {
@@ -352,7 +406,7 @@ public static class SessionTracker
         try
         {
             var (s, body) = await http.GetAsync(
-                "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=10", ct);
+                "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20", ct);
             if (s != 200) return result;
             using var doc = JsonDocument.Parse(body);
             if (!doc.RootElement.TryGetProperty("games", out var wrap)) return result;
@@ -367,7 +421,9 @@ public static class SessionTracker
                 var p = parts[0];
                 int champ = p.TryGetProperty("championId", out var cid) && cid.ValueKind == JsonValueKind.Number ? cid.GetInt32() : 0;
                 bool win = p.TryGetProperty("stats", out var st) && st.TryGetProperty("win", out var w) && w.ValueKind == JsonValueKind.True;
-                result.Add(new HistEntry(gameId, queue, champ, win));
+                long created = g.TryGetProperty("gameCreation", out var cr) && cr.ValueKind == JsonValueKind.Number
+                    ? cr.GetInt64() / 1000 : 0;
+                result.Add(new HistEntry(gameId, queue, champ, win, created));
             }
             // Новейшие первыми (как отдаёт LCU) — гарантируем сортировкой.
             result.Sort((a, b) => b.GameId.CompareTo(a.GameId));
