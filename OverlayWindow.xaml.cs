@@ -515,6 +515,8 @@ public partial class OverlayWindow : Window
 
     // ── Трекер сессии на экране ожидания ─────────────────────────────────────
     private SessionTracker.SessionData? _session;
+    private SessionTracker.QueueView?   _sessionView; // выбранная очередь
+    private string _selectedQueue = "";
     private bool _wrChartHooked;
 
     private static readonly Brush WinBrush  = new SolidColorBrush(Color.FromRgb(0x57, 0xC9, 0x8A));
@@ -531,58 +533,122 @@ public partial class OverlayWindow : Window
                 WrChart.SizeChanged += (_, _) => DrawWrChart();
                 _wrChartHooked = true;
             }
+            RenderSessionView();
+        });
 
-            if (d is null || !d.HasRank)
-            {
-                RankEmblem.Visibility = Visibility.Collapsed;
-                RankText.Text = "—";
-                RankLpText.Text = "";
-                RankProgressFill.Width = 0;
-                // Пустое состояние: подсказываем, что статистика появится после игр.
-                SessionHint.Text = Loc.T("session.needGames");
-                SessionHint.Visibility = Visibility.Visible;
-                Last5Panel.Children.Clear();
-                SeasonWlText.Text = "";
-                WinrateBig.Text = "—";
-                WinrateBig.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
-                WrChart.Children.Clear();
-                return;
-            }
+    // Рендер панели для выбранной очереди (Solo/Flex/Normal/ARAM).
+    private void RenderSessionView()
+    {
+        if (_selectedQueue.Length == 0)
+            _selectedQueue = SessionTracker.GetSelectedQueue();
 
-            var emblem = RankEmblemSource(d.Tier);
+        var d = _session;
+        var v = d?.Queues.GetValueOrDefault(_selectedQueue);
+        _sessionView = v;
+
+        NickText.Text  = d?.Nick ?? "";
+        QueueText.Text = Loc.T("session.queue." + _selectedQueue) + " ▾";
+
+        // Крылья по бокам ника — в цвет ранга выбранной очереди (без ранга — серые).
+        var wingBrush = v?.HasRank == true
+            ? TierBrush(v.Tier)
+            : new SolidColorBrush(Color.FromRgb(0x55, 0x70, 0x89));
+        WingLeft.Fill  = wingBrush;
+        WingRight.Fill = wingBrush;
+
+        if (v is null)
+        {
+            RankEmblem.Visibility = Visibility.Collapsed;
+            RankText.Text = "—";
+            RankText.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
+            RankLpText.Text = "";
+            RankProgressFill.Width = 0;
+            SessionHint.Text = Loc.T("session.needGames");
+            SessionHint.Visibility = Visibility.Visible;
+            Last5Panel.Children.Clear();
+            SeasonWlText.Text = "";
+            WinrateBig.Text = "—";
+            WinrateBig.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
+            WrChart.Children.Clear();
+            return;
+        }
+
+        // Ранг есть только у Solo/Flex; для Normal/ARAM — имя очереди вместо тира.
+        if (v.HasRank)
+        {
+            var emblem = RankEmblemSource(v.Tier);
             RankEmblem.Source = emblem;
             RankEmblem.Visibility = emblem != null ? Visibility.Visible : Visibility.Collapsed;
-            var tierLoc = LocalizedTier(d.Tier);
-            RankText.Text = string.IsNullOrEmpty(d.Division) ? tierLoc : $"{tierLoc} {d.Division}";
-            RankText.Foreground = TierBrush(d.Tier);
-            RankLpText.Text = $"{d.Lp} LP";
-            RankProgressFill.Width = 258.0 * Math.Clamp(d.ProgressPct, 0, 100) / 100.0;
+            var tierLoc = LocalizedTier(v.Tier);
+            RankText.Text = string.IsNullOrEmpty(v.Division) ? tierLoc : $"{tierLoc} {v.Division}";
+            RankText.Foreground = TierBrush(v.Tier);
+            RankLpText.Text = $"{v.Lp} LP";
+            RankProgressFill.Width = 258.0 * Math.Clamp(v.ProgressPct, 0, 100) / 100.0;
+        }
+        else
+        {
+            RankEmblem.Visibility = Visibility.Collapsed;
+            RankText.Text = Loc.T("session.queue." + _selectedQueue);
+            RankText.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
+            RankLpText.Text = "";
+            RankProgressFill.Width = 0;
+        }
 
-            // Свежая установка: программа ещё не видела ни одной игры (нет LP-дельт
-            // в журнале) — объясняем, что статистика появится после сыгранных игр.
-            var noTrackedGames = d.Last5.Count == 0 || d.Last5.Any(g => g.LpDelta is null);
-            SessionHint.Text = Loc.T("session.needGames");
-            SessionHint.Visibility = noTrackedGames ? Visibility.Visible : Visibility.Collapsed;
+        // Свежая установка/очередь: журнал этой очереди пуст — статистика
+        // появится после сыгранных при запущенной программе игр.
+        SessionHint.Text = Loc.T("session.needGames");
+        SessionHint.Visibility = v.WinrateHistory.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-            // Последние 5 игр — 5 равных колонок во всю ширину бара
-            Last5Panel.Children.Clear();
-            Last5Panel.ColumnDefinitions.Clear();
-            for (int i = 0; i < 5; i++)
-                Last5Panel.ColumnDefinitions.Add(new ColumnDefinition());
-            for (int i = 0; i < d.Last5.Count && i < 5; i++)
+        // Последние 5 игр — 5 равных колонок во всю ширину бара
+        Last5Panel.Children.Clear();
+        Last5Panel.ColumnDefinitions.Clear();
+        for (int i = 0; i < 5; i++)
+            Last5Panel.ColumnDefinitions.Add(new ColumnDefinition());
+        for (int i = 0; i < v.Last5.Count && i < 5; i++)
+        {
+            var cell = BuildGameCell(v.Last5[i]);
+            Grid.SetColumn(cell, i);
+            Last5Panel.Children.Add(cell);
+        }
+
+        // W/L (мелко, локализовано) + винрейт (крупно, цвет по правилам)
+        var played = v.Wins + v.Losses;
+        SeasonWlText.Text = Loc.T("session.wl", v.Wins, v.Losses);
+        WinrateBig.Text = played > 0 ? $"{v.Winrate:0}%" : "—";
+        WinrateBig.Foreground = played > 0
+            ? WinrateBrush(v.Winrate)
+            : new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
+
+        DrawWrChart();
+    }
+
+    // Клик по чипу очереди — выпадающий список Solo/Flex/Normal/ARAM.
+    private void QueueChip_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        var menu = new ContextMenu { Style = (Style)FindResource("RoleMenuStyle") };
+        var itemStyle = (Style)FindResource("RoleMenuItemStyle");
+        foreach (var key in SessionTracker.QueueKeys)
+        {
+            var item = new MenuItem
             {
-                var cell = BuildGameCell(d.Last5[i]);
-                Grid.SetColumn(cell, i);
-                Last5Panel.Children.Add(cell);
-            }
-
-            // W/L (мелко, локализовано) + винрейт (крупно, цвет по правилам)
-            SeasonWlText.Text = Loc.T("session.wl", d.Wins, d.Losses);
-            WinrateBig.Text = $"{d.Winrate:0}%";
-            WinrateBig.Foreground = WinrateBrush(d.Winrate);
-
-            DrawWrChart();
-        });
+                Header    = Loc.T("session.queue." + key),
+                IsChecked = key == _selectedQueue,
+                Style     = itemStyle,
+            };
+            var chosen = key;
+            item.Click += (_, _) =>
+            {
+                _selectedQueue = chosen;
+                _ = Task.Run(() => SessionTracker.SetSelectedQueue(chosen)); // персист вне UI-потока
+                RenderSessionView();
+            };
+            menu.Items.Add(item);
+        }
+        menu.PlacementTarget = QueueChip;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
 
     // Цвет цифры винрейта по заданным порогам.
     private static Brush WinrateBrush(double wr)
@@ -681,9 +747,9 @@ public partial class OverlayWindow : Window
     private void DrawWrChart()
     {
         WrChart.Children.Clear();
-        var d = _session;
-        if (d is null) return;
-        var pts = d.WinrateHistory;
+        var v = _sessionView;
+        if (v is null) return;
+        var pts = v.WinrateHistory;
         double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
         double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
         if (pts.Count == 0) return;

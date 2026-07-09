@@ -4,9 +4,10 @@ using System.Text.Json;
 namespace Counterplay;
 
 /// <summary>
-/// Трекер сессии для экрана ожидания: ранг/LP/прогресс из LCU, последние игры,
-/// винрейт и его динамика. LP за игру и историю винрейта LCU напрямую не отдаёт —
-/// поэтому трекер сам фиксирует снимки и хранит журнал игр между запусками
+/// Трекер сессии для экрана ожидания: ник, ранги, последние игры и винрейт —
+/// РАЗДЕЛЬНО по четырём очередям (Solo/Duo, Flex, Normal, ARAM): кто-то играет
+/// только нормалы или только ARAM. LP за игру и историю винрейта LCU не отдаёт —
+/// трекер ведёт собственный журнал игр между запусками
 /// (%APPDATA%\Counterplay\session.json). Ключ Riot не нужен — только LCU.
 /// </summary>
 public static class SessionTracker
@@ -14,15 +15,27 @@ public static class SessionTracker
     public sealed record RecentGame(int ChampionId, bool Win, int? LpDelta);
     public sealed record WrPoint(DateTime Date, double Winrate);
 
-    public sealed record SessionData(
-        bool HasRank,
-        string Tier, string Division, int Lp,
-        int ProgressPct,              // прогресс LP до след. ранга, 0..100
-        int Wins, int Losses,         // за сезон (очередь Solo/Duo)
-        double Winrate,               // %
+    /// Статистика одной очереди для панели трекера.
+    public sealed record QueueView(
+        bool HasRank, string Tier, string Division, int Lp, int ProgressPct,
+        int Wins, int Losses, double Winrate,
         IReadOnlyList<RecentGame> Last5,
-        int SessionWins, int SessionLosses, int SessionNetLp,
         IReadOnlyList<WrPoint> WinrateHistory);
+
+    public sealed record SessionData(string Nick, IReadOnlyDictionary<string, QueueView> Queues);
+
+    /// Ключи очередей в порядке выпадающего списка.
+    public static readonly string[] QueueKeys = ["solo", "flex", "normal", "aram"];
+
+    // queueId LCU → наш ключ очереди (400 драфт / 430 блайнд / 490 квикплей = normal).
+    private static string? QueueOf(int queueId) => queueId switch
+    {
+        420                => "solo",
+        440                => "flex",
+        400 or 430 or 490  => "normal",
+        450                => "aram",
+        _                  => null,
+    };
 
     // ── Журнал игр (персистентный) ─────────────────────────────────────────
     private sealed class GameLog
@@ -30,26 +43,42 @@ public static class SessionTracker
         public long Ts { get; set; }            // unix seconds
         public int ChampionId { get; set; }
         public bool Win { get; set; }
-        public int LpDelta { get; set; }
-        public double Winrate { get; set; }     // сезонный WR на момент игры
+        public int? Lp { get; set; }            // LP-дельта (только ранкед-очереди)
+        public double Wr { get; set; }          // винрейт очереди на момент игры
+    }
+
+    private sealed class QueueLog
+    {
+        public int LastAbsLp { get; set; } = int.MinValue;
+        public List<GameLog> Games { get; set; } = [];
     }
 
     private sealed class Store
     {
-        public long SessionStart { get; set; }
+        public string SelectedQueue { get; set; } = "solo";
+        public long LastGameId { get; set; }
+        public Dictionary<string, QueueLog> Queues { get; set; } = new();
+
+        // Наследие одноочередного формата — мигрирует в Queues["solo"] при загрузке.
+        public List<LegacyGame>? Games { get; set; }
         public int LastAbsLp { get; set; } = int.MinValue;
-        public int LastGames { get; set; } = -1;   // wins+losses прошлого снимка
-        public int LastWins { get; set; } = -1;    // wins прошлого снимка (для W/L текущей игры)
-        public List<GameLog> Games { get; set; } = [];
+    }
+
+    private sealed class LegacyGame
+    {
+        public long Ts { get; set; }
+        public int ChampionId { get; set; }
+        public bool Win { get; set; }
+        public int LpDelta { get; set; }
+        public double Winrate { get; set; }
     }
 
     private static string StorePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                      "Counterplay", "session.json");
 
-    // Один Refresh за раз: в конце матча LCU шлёт несколько gameflow-событий
-    // подряд, и параллельные вызовы гонялись на файле журнала — чтение ловило
-    // полузаписанный JSON, парс падал и журнал затирался пустым Store.
+    // Один Refresh за раз: конец матча порождает шквал gameflow-событий, и
+    // параллельные вызовы гонялись на файле журнала (затирали его пустым).
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     private static Store Load()
@@ -60,12 +89,34 @@ public static class SessionTracker
         {
             try
             {
-                if (File.Exists(path))
-                    return JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
+                if (!File.Exists(path)) continue;
+                var s = JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
+                Migrate(s);
+                return s;
             }
             catch { /* пробуем следующий */ }
         }
         return new Store();
+    }
+
+    // Старый формат (один журнал без очередей) переезжает в solo.
+    private static void Migrate(Store s)
+    {
+        if (s.Games is not { Count: > 0 }) { s.Games = null; return; }
+        var q = GetQueue(s, "solo");
+        if (q.Games.Count == 0)
+        {
+            q.Games.AddRange(s.Games.Select(g => new GameLog
+            { Ts = g.Ts, ChampionId = g.ChampionId, Win = g.Win, Lp = g.LpDelta, Wr = g.Winrate }));
+            q.LastAbsLp = s.LastAbsLp;
+        }
+        s.Games = null;
+    }
+
+    private static QueueLog GetQueue(Store s, string key)
+    {
+        if (!s.Queues.TryGetValue(key, out var q)) s.Queues[key] = q = new QueueLog();
+        return q;
     }
 
     private static void Save(Store s)
@@ -73,8 +124,7 @@ public static class SessionTracker
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
-            // Атомарная запись: во временный файл + подмена. Прошлую версию
-            // сохраняем как .bak — страховка от битых чтений и падений.
+            // Атомарная запись: tmp + подмена; прошлая версия остаётся как .bak.
             var tmp = StorePath + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(s));
             if (File.Exists(StorePath))
@@ -84,7 +134,25 @@ public static class SessionTracker
         catch { /* не критично */ }
     }
 
-    // Абсолютное значение ранга в «LP от Iron IV» — чтобы считать дельту через промо/демоушены.
+    // ── Выбранная очередь (переключатель в панели) ──────────────────────────
+
+    public static string GetSelectedQueue()
+    {
+        Gate.Wait();
+        try { var q = Load().SelectedQueue; return QueueKeys.Contains(q) ? q : "solo"; }
+        finally { Gate.Release(); }
+    }
+
+    public static void SetSelectedQueue(string queue)
+    {
+        if (!QueueKeys.Contains(queue)) return;
+        Gate.Wait();
+        try { var s = Load(); s.SelectedQueue = queue; Save(s); }
+        finally { Gate.Release(); }
+    }
+
+    // ── Абсолютный LP (сквозь промо/демоушены) ──────────────────────────────
+
     private static readonly Dictionary<string, int> TierBase = new()
     {
         ["IRON"] = 0, ["BRONZE"] = 400, ["SILVER"] = 800, ["GOLD"] = 1200,
@@ -100,108 +168,9 @@ public static class SessionTracker
     {
         var t = TierBase.GetValueOrDefault(tier.ToUpperInvariant(), 2000);
         var d = DivIndex.GetValueOrDefault(div.ToUpperInvariant(), 0);
-        // Мастер+ без делений — LP идёт поверх базы напрямую.
         return t >= 2800 ? t + lp : t + d * 100 + lp;
     }
 
-    private static readonly long SessionGapSeconds = 3 * 3600; // >3ч без игр — новая сессия
-
-    /// Обновляет журнал из LCU и возвращает данные для экрана ожидания.
-    public static async Task<SessionData?> RefreshAsync(LcuHttpClient http, CancellationToken ct)
-    {
-        // Сериализуем вызовы: конец матча порождает шквал gameflow-событий.
-        await Gate.WaitAsync(ct);
-        try { return await RefreshCoreAsync(http, ct); }
-        finally { Gate.Release(); }
-    }
-
-    private static async Task<SessionData?> RefreshCoreAsync(LcuHttpClient http, CancellationToken ct)
-    {
-        // 1) Ранг из ranked-stats
-        var (rs, rbody) = await http.GetAsync("/lol-ranked/v1/current-ranked-stats", ct);
-        if (rs != 200) return null;
-
-        string tier = "", div = "";
-        int lp = 0, wins = 0, losses = 0;
-        try
-        {
-            using var doc = JsonDocument.Parse(rbody);
-            if (doc.RootElement.TryGetProperty("queueMap", out var qm) &&
-                qm.TryGetProperty("RANKED_SOLO_5x5", out var solo))
-            {
-                tier   = solo.TryGetProperty("tier", out var t) ? t.GetString() ?? "" : "";
-                div    = solo.TryGetProperty("division", out var d) ? d.GetString() ?? "" : "";
-                lp     = solo.TryGetProperty("leaguePoints", out var l) && l.ValueKind == JsonValueKind.Number ? l.GetInt32() : 0;
-                wins   = solo.TryGetProperty("wins", out var w) && w.ValueKind == JsonValueKind.Number ? w.GetInt32() : 0;
-                losses = solo.TryGetProperty("losses", out var ls) && ls.ValueKind == JsonValueKind.Number ? ls.GetInt32() : 0;
-            }
-        }
-        catch { return null; }
-
-        bool hasRank = !string.IsNullOrEmpty(tier);
-        int games = wins + losses;
-        double winrate = games > 0 ? 100.0 * wins / games : 0;
-        int absLp = hasRank ? AbsLp(tier, div, lp) : 0;
-        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-        var store = Load();
-
-        // 2) Новая игра? (счётчик игр вырос) — фиксируем LP-дельту и чемпиона из истории.
-        if (hasRank && store.LastGames >= 0 && games > store.LastGames && store.LastAbsLp != int.MinValue)
-        {
-            int championId = await LastMatchChampionAsync(http, ct);
-            // Победа — по росту счётчика побед (надёжно); LP-дельта — по абсолютному рангу.
-            bool win = store.LastWins >= 0 ? wins > store.LastWins : absLp >= store.LastAbsLp;
-            int lpDelta = absLp - store.LastAbsLp;
-            store.Games.Add(new GameLog { Ts = now, ChampionId = championId, Win = win, LpDelta = lpDelta, Winrate = winrate });
-            if (store.Games.Count > 400) store.Games.RemoveRange(0, store.Games.Count - 400);
-        }
-
-        // старт сессии на первом запуске
-        if (store.SessionStart == 0) store.SessionStart = now;
-        // разрыв сессии: если давно не играл — начать новую от текущего момента
-        if (LastGameTs(store) != 0 && now - LastGameTs(store) > SessionGapSeconds)
-            store.SessionStart = now;
-
-        store.LastAbsLp = absLp;
-        store.LastGames = games;
-        store.LastWins = wins;
-        Save(store);
-
-        // 3) Последние 5 игр: из журнала (с LP-дельтой), иначе из истории матчей (без LP).
-        List<RecentGame> last5;
-        if (store.Games.Count > 0)
-        {
-            last5 = store.Games.AsEnumerable().Reverse().Take(5)
-                .Select(g => new RecentGame(g.ChampionId, g.Win, g.LpDelta)).ToList();
-        }
-        else
-        {
-            last5 = await RecentFromHistoryAsync(http, ct);
-        }
-
-        // 4) Сессия: игры и net LP с момента начала сессии
-        var sessionGames = store.Games.Where(g => g.Ts >= store.SessionStart).ToList();
-        int sWins = sessionGames.Count(g => g.Win);
-        int sLosses = sessionGames.Count - sWins;
-        int sNet = sessionGames.Sum(g => g.LpDelta);
-
-        // 5) Динамика винрейта по датам (сезонный WR на момент каждой игры)
-        var history = store.Games
-            .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Winrate))
-            .ToList();
-        if (history.Count == 0 && games > 0)
-            history.Add(new WrPoint(DateTime.Now, winrate));
-
-        int progress = ProgressPct(tier, lp);
-
-        return new SessionData(hasRank, Cap(tier), div, lp, progress, wins, losses, winrate,
-            last5, sWins, sLosses, sNet, history);
-    }
-
-    private static long LastGameTs(Store s) => s.Games.Count > 0 ? s.Games[^1].Ts : 0;
-
-    // Прогресс к след. рангу: обычные дивизии — LP/100; мастер+ — условно по 200 LP.
     private static int ProgressPct(string tier, int lp)
     {
         var t = tier.ToUpperInvariant();
@@ -213,34 +182,195 @@ public static class SessionTracker
     private static string Cap(string s) =>
         string.IsNullOrEmpty(s) ? s : char.ToUpper(s[0]) + s[1..].ToLowerInvariant();
 
-    // championId последнего матча из истории.
-    private static async Task<int> LastMatchChampionAsync(LcuHttpClient http, CancellationToken ct)
+    // ── Обновление ──────────────────────────────────────────────────────────
+
+    private sealed record Ranked(bool HasRank, string Tier, string Div, int Lp, int Wins, int Losses);
+    private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win);
+
+    private static string? _nick; // кэш на процесс
+
+    public static async Task<SessionData?> RefreshAsync(LcuHttpClient http, CancellationToken ct)
     {
-        var games = await RecentFromHistoryAsync(http, ct);
-        return games.Count > 0 ? games[0].ChampionId : 0;
+        await Gate.WaitAsync(ct);
+        try { return await RefreshCoreAsync(http, ct); }
+        finally { Gate.Release(); }
     }
 
-    // Последние игры из истории матчей LCU (championId + win), без LP-дельты.
-    private static async Task<List<RecentGame>> RecentFromHistoryAsync(LcuHttpClient http, CancellationToken ct)
+    private static async Task<SessionData?> RefreshCoreAsync(LcuHttpClient http, CancellationToken ct)
     {
-        var result = new List<RecentGame>();
+        // 1) Ник (Riot ID), один раз на процесс.
+        _nick ??= await FetchNickAsync(http, ct);
+
+        // 2) Ранги обеих ранкед-очередей.
+        var ranked = await FetchRankedAsync(http, ct);
+        if (ranked is null) return null;
+
+        // 3) Последние игры из истории (все очереди).
+        var history = await FetchHistoryAsync(http, ct);
+
+        var store = Load();
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // 4) Новые игры (по gameId) — раскладываем по журналам очередей.
+        //    Первый запуск: журнал не наполняем задним числом, только ставим отметку.
+        var appended = new Dictionary<string, GameLog>(); // очередь → последняя добавленная игра
+        if (store.LastGameId == 0)
+        {
+            store.LastGameId = history.Count > 0 ? history.Max(h => h.GameId) : 0;
+        }
+        else
+        {
+            foreach (var h in history.Where(h => h.GameId > store.LastGameId).OrderBy(h => h.GameId))
+            {
+                var q = GetQueue(store, h.Queue);
+                var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win };
+                q.Games.Add(log);
+                if (q.Games.Count > 400) q.Games.RemoveRange(0, q.Games.Count - 400);
+                appended[h.Queue] = log;
+                store.LastGameId = Math.Max(store.LastGameId, h.GameId);
+            }
+        }
+
+        // 5) LP-дельты ранкед-очередей: разница абсолютного LP с прошлого снимка
+        //    вешается на самую свежую добавленную игру этой очереди.
+        foreach (var key in new[] { "solo", "flex" })
+        {
+            var r = ranked[key];
+            if (!r.HasRank) continue;
+            var q = GetQueue(store, key);
+            var abs = AbsLp(r.Tier, r.Div, r.Lp);
+            if (q.LastAbsLp != int.MinValue && appended.TryGetValue(key, out var game))
+                game.Lp = abs - q.LastAbsLp;
+            q.LastAbsLp = abs;
+        }
+
+        // 6) Винрейт на момент игры: ранкед — сезонный, нормал/ARAM — по журналу.
+        foreach (var (key, game) in appended)
+        {
+            var q = GetQueue(store, key);
+            if (key is "solo" or "flex")
+            {
+                var r = ranked[key];
+                var g = r.Wins + r.Losses;
+                game.Wr = g > 0 ? 100.0 * r.Wins / g : 0;
+            }
+            else
+            {
+                game.Wr = 100.0 * q.Games.Count(x => x.Win) / q.Games.Count;
+            }
+        }
+
+        Save(store);
+
+        // 7) Представления по очередям.
+        var views = new Dictionary<string, QueueView>();
+        foreach (var key in QueueKeys)
+        {
+            var q = GetQueue(store, key);
+            var last5 = q.Games.AsEnumerable().Reverse().Take(5)
+                .Select(g => new RecentGame(g.ChampionId, g.Win, g.Lp)).ToList();
+            if (last5.Count == 0) // свежая установка — показать хотя бы иконки из истории
+                last5 = history.Where(h => h.Queue == key).Take(5)
+                    .Select(h => new RecentGame(h.ChampionId, h.Win, null)).ToList();
+            var points = q.Games
+                .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
+                .ToList();
+
+            if (key is "solo" or "flex")
+            {
+                var r = ranked[key];
+                var g = r.Wins + r.Losses;
+                views[key] = new QueueView(
+                    r.HasRank, Cap(r.Tier), r.Div, r.Lp,
+                    r.HasRank ? ProgressPct(r.Tier, r.Lp) : 0,
+                    r.Wins, r.Losses, g > 0 ? 100.0 * r.Wins / g : 0,
+                    last5, points);
+            }
+            else
+            {
+                int w = q.Games.Count(x => x.Win), l = q.Games.Count - w;
+                views[key] = new QueueView(
+                    false, "", "", 0, 0, w, l,
+                    q.Games.Count > 0 ? 100.0 * w / q.Games.Count : 0,
+                    last5, points);
+            }
+        }
+
+        return new SessionData(_nick ?? "", views);
+    }
+
+    // Ник игрока (Riot ID gameName, иначе displayName).
+    private static async Task<string?> FetchNickAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        try
+        {
+            var (s, body) = await http.GetAsync("/lol-summoner/v1/current-summoner", ct);
+            if (s != 200) return null;
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            var game = root.TryGetProperty("gameName", out var gn) ? gn.GetString() : null;
+            if (!string.IsNullOrEmpty(game)) return game;
+            return root.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+        }
+        catch { return null; }
+    }
+
+    private static async Task<Dictionary<string, Ranked>?> FetchRankedAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        var (rs, body) = await http.GetAsync("/lol-ranked/v1/current-ranked-stats", ct);
+        if (rs != 200) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var result = new Dictionary<string, Ranked>
+            {
+                ["solo"] = ParseQueue(doc.RootElement, "RANKED_SOLO_5x5"),
+                ["flex"] = ParseQueue(doc.RootElement, "RANKED_FLEX_SR"),
+            };
+            return result;
+        }
+        catch { return null; }
+
+        static Ranked ParseQueue(JsonElement root, string key)
+        {
+            if (!root.TryGetProperty("queueMap", out var qm) || !qm.TryGetProperty(key, out var q))
+                return new Ranked(false, "", "", 0, 0, 0);
+            var tier = q.TryGetProperty("tier", out var t) ? t.GetString() ?? "" : "";
+            var div  = q.TryGetProperty("division", out var d) ? d.GetString() ?? "" : "";
+            int Get(string name) =>
+                q.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
+            // У LCU дивизион "NA" у безранговых/мастера+.
+            if (div == "NA") div = "";
+            return new Ranked(!string.IsNullOrEmpty(tier), tier, div, Get("leaguePoints"), Get("wins"), Get("losses"));
+        }
+    }
+
+    // Последние игры из истории LCU: gameId, очередь, чемпион, победа.
+    private static async Task<List<HistEntry>> FetchHistoryAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        var result = new List<HistEntry>();
         try
         {
             var (s, body) = await http.GetAsync(
-                "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=5", ct);
+                "/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=10", ct);
             if (s != 200) return result;
             using var doc = JsonDocument.Parse(body);
             if (!doc.RootElement.TryGetProperty("games", out var wrap)) return result;
             if (!wrap.TryGetProperty("games", out var arr) || arr.ValueKind != JsonValueKind.Array) return result;
             foreach (var g in arr.EnumerateArray())
             {
-                if (!g.TryGetProperty("participants", out var parts) || parts.ValueKind != JsonValueKind.Array) continue;
+                var queue = QueueOf(g.TryGetProperty("queueId", out var qid) && qid.ValueKind == JsonValueKind.Number ? qid.GetInt32() : 0);
+                if (queue is null) continue;
+                long gameId = g.TryGetProperty("gameId", out var gid) && gid.ValueKind == JsonValueKind.Number ? gid.GetInt64() : 0;
+                if (gameId == 0) continue;
+                if (!g.TryGetProperty("participants", out var parts) || parts.ValueKind != JsonValueKind.Array || parts.GetArrayLength() == 0) continue;
                 var p = parts[0];
                 int champ = p.TryGetProperty("championId", out var cid) && cid.ValueKind == JsonValueKind.Number ? cid.GetInt32() : 0;
                 bool win = p.TryGetProperty("stats", out var st) && st.TryGetProperty("win", out var w) && w.ValueKind == JsonValueKind.True;
-                result.Add(new RecentGame(champ, win, null));
-                if (result.Count >= 5) break;
+                result.Add(new HistEntry(gameId, queue, champ, win));
             }
+            // Новейшие первыми (как отдаёт LCU) — гарантируем сортировкой.
+            result.Sort((a, b) => b.GameId.CompareTo(a.GameId));
         }
         catch { /* история недоступна */ }
         return result;

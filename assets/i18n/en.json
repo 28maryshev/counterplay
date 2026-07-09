@@ -298,7 +298,13 @@
   },
   "session": {
     "needGames": "Play a few games with Counterplay running — per-game LP and the winrate chart will fill in.",
-    "wl": "W:{0} - L:{1}"
+    "wl": "W:{0} - L:{1}",
+    "queue": {
+      "solo": "Solo/Duo",
+      "flex": "Flex",
+      "normal": "Normal",
+      "aram": "ARAM"
+    }
   },
   "ranks": {
     "iron": "Iron",

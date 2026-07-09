@@ -508,10 +508,48 @@
           <!-- ── Готов: трекер сессии (ранг/LP/последние игры/винрейт) + советы ── -->
           <StackPanel x:Name="ReadyInfo" Visibility="Collapsed" MaxWidth="282">
 
-            <!-- Эмблема ранга над названием -->
-            <Image x:Name="RankEmblem" Height="74" HorizontalAlignment="Left"
-                   Margin="-6,0,0,-4" Stretch="Uniform" Visibility="Collapsed"
-                   RenderOptions.BitmapScalingMode="HighQuality"/>
+            <!-- Эмблема ранга + ник с «крыльями» (в цвет ранга) и выбор очереди -->
+            <Grid>
+              <Grid.Resources>
+                <!-- Крыло из трёх перьев — как на ранговых эмблемах -->
+                <Geometry x:Key="WingGeometry">M18,0 C9,1 3,5 0,11 C3.5,9.5 6.5,9 9.5,9.3 C6.5,10.6 4,12.2 2,14.5 C5.5,13.6 8.5,13.2 11,13.8 C9,15 7.5,16.2 6.5,17.5 C11,16.8 14.5,14.6 16.4,10.8 C17.6,8 18,4.2 18,0 Z</Geometry>
+              </Grid.Resources>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Image x:Name="RankEmblem" Grid.Column="0" Height="74" HorizontalAlignment="Left"
+                     Margin="-6,0,0,-4" Stretch="Uniform" Visibility="Collapsed"
+                     RenderOptions.BitmapScalingMode="HighQuality"/>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                          Margin="0,2,2,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                  <Path x:Name="WingLeft" Data="{StaticResource WingGeometry}"
+                        Width="15" Height="13" Stretch="Uniform" Fill="#557089"
+                        VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.9"/>
+                  <TextBlock x:Name="NickText" Text=""
+                             FontFamily="{StaticResource DisplayFont}" FontSize="14" FontWeight="Bold"
+                             Foreground="#E6EDF3" TextTrimming="CharacterEllipsis" MaxWidth="140"
+                             VerticalAlignment="Center"/>
+                  <Path x:Name="WingRight" Data="{StaticResource WingGeometry}"
+                        Width="15" Height="13" Stretch="Uniform" Fill="#557089"
+                        VerticalAlignment="Center" Margin="6,0,0,0" Opacity="0.9"
+                        RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform><ScaleTransform ScaleX="-1"/></Path.RenderTransform>
+                  </Path>
+                </StackPanel>
+                <!-- Очередь: кнопка-чип с выпадающим списком (стата по очередям) -->
+                <Border x:Name="QueueChip" HorizontalAlignment="Right" Margin="0,6,0,0"
+                        CornerRadius="4" BorderBrush="#557089" BorderThickness="1"
+                        Background="#1AFFFFFF" Padding="9,2,9,3" Cursor="Hand"
+                        MouseLeftButtonDown="QueueChip_Click">
+                  <TextBlock x:Name="QueueText" Text=""
+                             FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                             Foreground="#C9D2DC"/>
+                </Border>
+              </StackPanel>
+            </Grid>
 
             <!-- Ранг · LP · полоса прогресса до след. ранга -->
             <Grid Margin="0,2,0,4" Width="258" HorizontalAlignment="Left">
