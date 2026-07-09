@@ -76,6 +76,13 @@ public static class ChampSelectParser
     // Идёт ли сейчас фаза банов: есть активное (in-progress) действие типа "ban".
     private static bool ComputeInBanPhase(JsonElement session)
     {
+        // Фаза планирования (все объявляют намерения ДО таймера банов): пикнуть
+        // ещё нельзя, а баны — следующий шаг. Советы по банам актуальны уже здесь,
+        // по показанным чемпионам команды.
+        if (session.TryGetProperty("timer", out var timer) &&
+            GetStr(timer, "phase") == "PLANNING")
+            return true;
+
         if (!session.TryGetProperty("actions", out var actions) || actions.ValueKind != JsonValueKind.Array)
             return false;
         foreach (var group in actions.EnumerateArray())
