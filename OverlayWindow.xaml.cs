@@ -549,12 +549,12 @@ public partial class OverlayWindow : Window
         NickText.Text  = d?.Nick ?? "";
         QueueText.Text = Loc.T("session.queue." + _selectedQueue) + " ▾";
 
-        // Крылья по бокам ника — в цвет ранга выбранной очереди (без ранга — серые).
-        var wingBrush = v?.HasRank == true
-            ? TierBrush(v.Tier)
-            : new SolidColorBrush(Color.FromRgb(0x55, 0x70, 0x89));
-        WingLeft.Fill  = wingBrush;
-        WingRight.Fill = wingBrush;
+        // По бокам ника — половинки ранговой эмблемы выбранной очереди (крылья).
+        var halves = v?.HasRank == true ? WingHalves(v.Tier) : null;
+        WingLeft.Source  = halves?.Left;
+        WingRight.Source = halves?.Right;
+        WingLeft.Visibility  = halves != null ? Visibility.Visible : Visibility.Collapsed;
+        WingRight.Visibility = halves != null ? Visibility.Visible : Visibility.Collapsed;
 
         if (v is null)
         {
@@ -702,6 +702,27 @@ public partial class OverlayWindow : Window
             bmp.EndInit();
             _emblemCache[key] = bmp;
             return bmp;
+        }
+        catch { return null; }
+    }
+
+    // Половинки эмблемы ранга (левая/правая) — «крылья» вокруг ника, с кэшем.
+    private static readonly Dictionary<string, (ImageSource Left, ImageSource Right)> _wingCache = new();
+    private static (ImageSource Left, ImageSource Right)? WingHalves(string tier)
+    {
+        var key = (tier ?? "").ToLowerInvariant();
+        if (key.Length == 0) return null;
+        if (_wingCache.TryGetValue(key, out var cached)) return cached;
+        if (RankEmblemSource(tier!) is not BitmapSource bmp) return null;
+        try
+        {
+            int half = bmp.PixelWidth / 2;
+            var left  = new CroppedBitmap(bmp, new Int32Rect(0, 0, half, bmp.PixelHeight));
+            var right = new CroppedBitmap(bmp, new Int32Rect(half, 0, bmp.PixelWidth - half, bmp.PixelHeight));
+            left.Freeze(); right.Freeze();
+            var pair = ((ImageSource)left, (ImageSource)right);
+            _wingCache[key] = pair;
+            return pair;
         }
         catch { return null; }
     }
