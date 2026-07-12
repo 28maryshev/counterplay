@@ -388,9 +388,7 @@ public partial class OverlayWindow : Window
     private void OnLanguageChanged()
     {
         LangText.Text = Loc.CurrentLang.Native + " ▾";
-        _tipIdx = -1;                 // карусель советов на новом языке с начала
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
-        if (ReadyInfo.Visibility == Visibility.Visible) StartTips();
 
         // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера
         // (ранг/W-L/подсказка) — перелокализуем из сохранённого сырья.
@@ -507,7 +505,6 @@ public partial class OverlayWindow : Window
         PulseAnim(false);
         LoadingInfo.Visibility = Visibility.Collapsed;
         ReadyInfo.Visibility   = Visibility.Visible;
-        StartTips();
         ShowIdle();
     }
 
@@ -529,6 +526,7 @@ public partial class OverlayWindow : Window
     private SessionTracker.SessionData? _session;
     private SessionTracker.QueueView?   _sessionView; // выбранная очередь
     private string _selectedQueue = "";
+    private bool _queueUserSet;   // выбрал руками в этой сессии — авто не перебивает
     private bool _wrChartHooked;
 
     private static readonly Brush WinBrush  = new SolidColorBrush(Color.FromRgb(0x57, 0xC9, 0x8A));
@@ -540,6 +538,9 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             _session = d;
+            // Автоопределённая очередь (где больше игр) — пока пользователь
+            // не выбрал вручную в этой сессии.
+            if (!_queueUserSet && d is not null) _selectedQueue = d.SelectedQueue;
             if (!_wrChartHooked)
             {
                 WrChart.SizeChanged += (_, _) => DrawWrChart();
@@ -655,6 +656,7 @@ public partial class OverlayWindow : Window
             item.Click += (_, _) =>
             {
                 _selectedQueue = chosen;
+                _queueUserSet  = true;
                 _ = Task.Run(() => SessionTracker.SetSelectedQueue(chosen)); // персист вне UI-потока
                 RenderSessionView();
             };
@@ -952,48 +954,11 @@ public partial class OverlayWindow : Window
     }
 
     // ── Карусель советов по пику (поле фиксированного размера, смена раз в 40 с) ──
-    // Тексты — из локализации (assets/i18n/{lang}.json, ключ "tips").
-
-    private static string[] Tips => Loc.TArray("tips");
-
-    private int _tipIdx = -1;
-    private System.Windows.Threading.DispatcherTimer? _tipTimer;
-
-    // Переключение на стадию загрузки/ожидания — прячем готовность и стопаем карусель.
+    // Переключение на стадию загрузки/ожидания — прячем готовность.
     private void SetLoadingMode()
     {
         LoadingInfo.Visibility = Visibility.Visible;
         ReadyInfo.Visibility   = Visibility.Collapsed;
-        _tipTimer?.Stop();
-    }
-
-    private void StartTips()
-    {
-        if (_tipTimer == null)
-        {
-            _tipTimer = new System.Windows.Threading.DispatcherTimer
-            { Interval = TimeSpan.FromSeconds(40) };
-            _tipTimer.Tick += (_, _) => NextTip();
-        }
-        if (_tipIdx < 0 && Tips.Length > 0)
-        {
-            // случайный стартовый совет — чтобы не всегда первый
-            _tipIdx = new Random().Next(Tips.Length) - 1;
-            NextTip();
-        }
-        _tipTimer.Start();
-    }
-
-    private void NextTip()
-    {
-        var tips = Tips;
-        if (tips.Length == 0) return;
-        _tipIdx = (_tipIdx + 1) % tips.Length;
-        TipText.Text = tips[_tipIdx];
-        // мягкое проявление при смене
-        TipText.BeginAnimation(OpacityProperty,
-            new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0,
-                new Duration(TimeSpan.FromMilliseconds(350))));
     }
 
     // Экран ожидания: маленькое окно, спиннер и крупная подпись стадии.

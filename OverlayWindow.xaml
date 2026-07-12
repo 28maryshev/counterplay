@@ -522,16 +522,21 @@
                        Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
                        TextWrapping="Wrap" Margin="0,18,0,0"/>
 
-            <!-- Карусель советов: поле фиксированного размера, смена раз в 40 с -->
-            <Border Margin="0,15,0,0" Width="282" Height="118" CornerRadius="7"
+            <!-- Плашка беты: светящаяся надпись + просьба писать в поддержку -->
+            <Border Margin="0,15,0,0" Width="282" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
-                    Padding="13,10">
+                    Padding="13,12">
               <StackPanel>
-                <TextBlock Text="{loc:T ready.tipLabel}" FontFamily="{StaticResource UiFont}"
-                           FontSize="10" FontWeight="Bold" Foreground="#C89B3C"
-                           Opacity="0.8" Margin="0,0,0,6"/>
-                <TextBlock x:Name="TipText" FontFamily="{StaticResource UiFont}" FontSize="12"
-                           Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"/>
+                <TextBlock Text="BETA" HorizontalAlignment="Center"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
+                           Foreground="#FFE066" Margin="0,0,0,7">
+                  <TextBlock.Effect>
+                    <DropShadowEffect Color="#FFD75A" ShadowDepth="0" BlurRadius="16" Opacity="0.95"/>
+                  </TextBlock.Effect>
+                </TextBlock>
+                <TextBlock Text="{loc:T ready.beta}" FontFamily="{StaticResource UiFont}" FontSize="12"
+                           Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"
+                           TextAlignment="Center"/>
               </StackPanel>
             </Border>
           </StackPanel>

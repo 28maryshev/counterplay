@@ -22,7 +22,7 @@ public static class SessionTracker
         IReadOnlyList<RecentGame> Last5,
         IReadOnlyList<WrPoint> WinrateHistory);
 
-    public sealed record SessionData(string Nick, IReadOnlyDictionary<string, QueueView> Queues);
+    public sealed record SessionData(string Nick, string SelectedQueue, IReadOnlyDictionary<string, QueueView> Queues);
 
     /// Ключи очередей в порядке выпадающего списка.
     public static readonly string[] QueueKeys = ["solo", "flex", "normal", "aram"];
@@ -66,6 +66,8 @@ public static class SessionTracker
     private sealed class Store
     {
         public string SelectedQueue { get; set; } = "solo";
+        // true после ручного выбора очереди — автоопределение больше не трогает.
+        public bool QueueChosen { get; set; }
         public string? Nick { get; set; }
         public long LastGameId { get; set; }
         public Dictionary<string, QueueLog> Queues { get; set; } = new();
@@ -116,6 +118,10 @@ public static class SessionTracker
     // Старый формат (один журнал без очередей) переезжает в solo.
     private static void Migrate(Store s)
     {
+        // Файлы без флага QueueChosen: не-solo мог появиться только ручным
+        // выбором — считаем его осознанным и не перебиваем автоопределением.
+        if (!s.QueueChosen && s.SelectedQueue != "solo") s.QueueChosen = true;
+
         if (s.Games is not { Count: > 0 }) { s.Games = null; return; }
         var q = GetQueue(s, "solo");
         if (q.Games.Count == 0)
@@ -161,7 +167,7 @@ public static class SessionTracker
     {
         if (!QueueKeys.Contains(queue)) return;
         Gate.Wait();
-        try { var s = Load(); s.SelectedQueue = queue; Save(s); }
+        try { var s = Load(); s.SelectedQueue = queue; s.QueueChosen = true; Save(s); }
         finally { Gate.Release(); }
     }
 
@@ -234,6 +240,17 @@ public static class SessionTracker
 
         // 3) Последние игры из истории (все очереди).
         var history = await FetchHistoryAsync(http, ct);
+
+        // 3b) Очередь по умолчанию: пока пользователь не выбрал сам — та, где
+        //     больше всего игр за последнее время (история лаунчера, ~20 игр).
+        //     Кто играет только нормалы/ARAM — сразу видит свою статистику.
+        if (!store.QueueChosen && history.Count > 0)
+        {
+            store.SelectedQueue = history.GroupBy(h => h.Queue)
+                .OrderByDescending(g => g.Count())
+                .ThenByDescending(g => g.Max(h => h.GameId)) // ничья → где игра свежее
+                .First().Key;
+        }
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -368,7 +385,8 @@ public static class SessionTracker
             }
         }
 
-        return new SessionData(_nick ?? "", views);
+        var selected = QueueKeys.Contains(store.SelectedQueue) ? store.SelectedQueue : "solo";
+        return new SessionData(_nick ?? "", selected, views);
     }
 
     private static Ranked FromCache(RankedCache? c) =>

@@ -23,6 +23,7 @@
     "enemyCombos": "敌方组合"
   },
   "ready": {
+    "beta": "Counterplay 每天都在改进。发现问题或有建议？请通过网站支持联系我们：counterplays.com/support",
     "tipLabel": "选人提示",
     "f1head": "BP 助手。",
     "f1body": " 根据当前版本真实数据，计算对敌方的克制、与队友的契合以及该 Ban 谁。每次悬停即时更新。",

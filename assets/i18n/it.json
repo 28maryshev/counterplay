@@ -23,6 +23,7 @@
     "enemyCombos": "COMBO NEMICHE"
   },
   "ready": {
+    "beta": "Counterplay migliora ogni giorno. Un bug o un'idea? Scrivici dal Supporto — counterplays.com/support",
     "tipLabel": "CONSIGLIO PICK",
     "f1head": "Assistente al draft.",
     "f1body": " Calcola counter contro i nemici, sinergia con gli alleati e chi bannare — da statistiche reali della patch attuale. Aggiorna a ogni hover.",
