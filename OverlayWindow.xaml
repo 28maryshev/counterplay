@@ -522,6 +522,20 @@
                        Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
                        TextWrapping="Wrap" Margin="0,18,0,0"/>
 
+            <!-- Карусель советов (временно скрыта на время беты — вернём позже):
+            <Border Margin="0,15,0,0" Width="282" Height="118" CornerRadius="7"
+                    Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
+                    Padding="13,10">
+              <StackPanel>
+                <TextBlock Text="{loc:T ready.tipLabel}" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold" Foreground="#C89B3C"
+                           Opacity="0.8" Margin="0,0,0,6"/>
+                <TextBlock x:Name="TipText" FontFamily="{StaticResource UiFont}" FontSize="12"
+                           Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"/>
+              </StackPanel>
+            </Border>
+            -->
+
             <!-- Плашка беты: светящаяся надпись + просьба писать в поддержку -->
             <Border Margin="0,15,0,0" Width="282" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"

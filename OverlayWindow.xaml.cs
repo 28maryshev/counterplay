@@ -959,7 +959,49 @@ public partial class OverlayWindow : Window
     {
         LoadingInfo.Visibility = Visibility.Visible;
         ReadyInfo.Visibility   = Visibility.Collapsed;
+        // _tipTimer?.Stop(); // карусель советов (см. блок ниже)
     }
+
+    /* ── Карусель советов: временно скрыта — на её месте BETA-плашка. ─────────
+       Вернуть: раскомментировать этот блок и Border с TipText в XAML,
+       StartTips() в ShowReadyCore, _tipTimer?.Stop() в SetLoadingMode,
+       а в OnLanguageChanged — сброс _tipIdx = -1 и StartTips() при видимом ReadyInfo.
+
+    // Тексты — из локализации (assets/i18n/{lang}.json, ключ "tips").
+    private static string[] Tips => Loc.TArray("tips");
+
+    private int _tipIdx = -1;
+    private System.Windows.Threading.DispatcherTimer? _tipTimer;
+
+    private void StartTips()
+    {
+        if (_tipTimer == null)
+        {
+            _tipTimer = new System.Windows.Threading.DispatcherTimer
+            { Interval = TimeSpan.FromSeconds(40) };
+            _tipTimer.Tick += (_, _) => NextTip();
+        }
+        if (_tipIdx < 0 && Tips.Length > 0)
+        {
+            // случайный стартовый совет — чтобы не всегда первый
+            _tipIdx = new Random().Next(Tips.Length) - 1;
+            NextTip();
+        }
+        _tipTimer.Start();
+    }
+
+    private void NextTip()
+    {
+        var tips = Tips;
+        if (tips.Length == 0) return;
+        _tipIdx = (_tipIdx + 1) % tips.Length;
+        TipText.Text = tips[_tipIdx];
+        // мягкое проявление при смене
+        TipText.BeginAnimation(OpacityProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0,
+                new Duration(TimeSpan.FromMilliseconds(350))));
+    }
+    ────────────────────────────────────────────────────────────────────────── */
 
     // Экран ожидания: маленькое окно, спиннер и крупная подпись стадии.
     private void ShowIdle()
