@@ -46,7 +46,8 @@ const P = {
     ['CH_META_RADAR (#meta-radar)', process.env.CH_META_RADAR, ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS']],
     ['CH_DRAFT_DUELS (#draft-duels)', process.env.CH_DRAFT_DUELS, ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS', 'READ_MESSAGE_HISTORY']],
     ['CH_SUBMIT_FINDS (#submit-finds)', process.env.CH_SUBMIT_FINDS, ['VIEW_CHANNEL', 'SEND_MESSAGES_IN_THREADS', 'READ_MESSAGE_HISTORY']],
-    ['CH_HALL_OF_FAME (#hall-of-fame)', process.env.CH_HALL_OF_FAME, ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS']]
+    ['CH_HALL_OF_FAME (#hall-of-fame)', process.env.CH_HALL_OF_FAME, ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS']],
+    ['CH_ANNOUNCEMENTS (#announcements)', process.env.CH_ANNOUNCEMENTS, ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS']]
   ];
   for (const [label, id, needs] of targets) {
     const ch = channels.find((c) => c.id === (id || '').trim());

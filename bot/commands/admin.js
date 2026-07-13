@@ -16,6 +16,7 @@ module.exports = {
     .addSubcommand((s) => s.setName('duel-now').setDescription('Post a Draft Duel immediately'))
     .addSubcommand((s) => s.setName('reveal-now').setDescription('Reveal the current duel immediately'))
     .addSubcommand((s) => s.setName('board-now').setDescription('Post the weekly leaderboard'))
+    .addSubcommand((s) => s.setName('announce-now').setDescription('Re-announce the latest app release'))
     .addSubcommand((s) => s.setName('data-sync').setDescription('Check/download the latest database snapshot')),
 
   async execute(interaction, ctx) {
@@ -71,7 +72,8 @@ module.exports = {
       'radar-now': { mod: require('../cron/metaRadar'), needs: 'metaRadar' },
       'duel-now': { mod: require('../cron/duelPost'), needs: 'draftDuels' },
       'reveal-now': { mod: require('../cron/duelReveal'), needs: 'draftDuels' },
-      'board-now': { mod: require('../cron/weeklyBoard'), needs: 'draftDuels' }
+      'board-now': { mod: require('../cron/weeklyBoard'), needs: 'draftDuels' },
+      'announce-now': { mod: require('../cron/releaseWatch'), needs: 'announcements', opts: { force: true } }
     };
     const job = jobs[sub];
     if (!job) return;
@@ -84,7 +86,7 @@ module.exports = {
     }
     await interaction.deferReply({ ephemeral: true });
     try {
-      await job.mod.run(ctx);
+      await job.mod.run(ctx, job.opts);
       await interaction.editReply('Done — check the channel (a warning in logs if there was nothing to post).');
     } catch (e) {
       ctx.logger.error(`/admin ${sub}:`, e);

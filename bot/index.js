@@ -65,7 +65,8 @@ async function main() {
     cron.schedule('0 22 * * *', job('duelReveal', 'draftDuels', require('./cron/duelReveal').run), tz);
     cron.schedule('0 20 * * 0', job('weeklyBoard', 'draftDuels', require('./cron/weeklyBoard').run), tz);
     cron.schedule('15 * * * *', job('dataSync', null, () => dataSync.sync()), tz);
-    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync hourly');
+    cron.schedule('30 * * * *', job('releaseWatch', 'announcements', require('./cron/releaseWatch').run), tz);
+    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync+releases hourly');
   });
 
   await client.login(config.token);

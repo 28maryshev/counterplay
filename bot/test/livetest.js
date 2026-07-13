@@ -11,7 +11,8 @@ const jobs = {
   radar: () => require('../cron/metaRadar').run,
   duel: () => require('../cron/duelPost').run,
   reveal: () => require('../cron/duelReveal').run,
-  board: () => require('../cron/weeklyBoard').run
+  board: () => require('../cron/weeklyBoard').run,
+  release: () => (ctx) => require('../cron/releaseWatch').run(ctx, { force: true })
 };
 
 (async () => {

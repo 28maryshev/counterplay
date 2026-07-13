@@ -15,7 +15,8 @@ function build() {
       metaRadar: process.env.CH_META_RADAR || '',
       draftDuels: process.env.CH_DRAFT_DUELS || '',
       submitFinds: process.env.CH_SUBMIT_FINDS || '',
-      hallOfFame: process.env.CH_HALL_OF_FAME || ''
+      hallOfFame: process.env.CH_HALL_OF_FAME || '',
+      announcements: process.env.CH_ANNOUNCEMENTS || ''
     },
     dataDbUrl:
       process.env.DATA_DB_URL ||
