@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    container_name: counterplay-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data   # снапшот data.db + bot.db (переживают пересборку)
+      - ./logs:/app/logs
+    # Сервер маленький (2 GB RAM) — ограничим аппетит на всякий случай.
+    mem_limit: 300m
