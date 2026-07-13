@@ -7,10 +7,13 @@ collect.py — автономный сбор матч-статистики и а
 переключением печатает общее число матчей в базе. Ctrl+C — мягкая остановка
 с сохранением и подсказкой команды публикации базы на сервер.
 
-Запуск:
-    python collect.py --key RGAPI-xxxx
-    python collect.py --key RGAPI-xxxx --tier emerald,gold,master --region euw1,na1,kr
-    python collect.py --key RGAPI-xxxx --tier all --region all --db pipeline\\data.db
+Запуск одной командой (ключ спросит сам):
+    python pipeline\\collect.py
+
+Порядок сбора по умолчанию: бакеты сверху вниз (master → emerald → gold →
+silver), внутри бакета регионы по приоритету (euw1 → na1 → kr → остальные).
+Флаги --key/--tier/--region остаются для ручного управления:
+    python collect.py --key RGAPI-xxxx --tier master --region euw1,na1,kr
 
 Матчи и игроки дедуплицируются глобально — повторный запуск только дополняет базу.
 Dev-ключ: 100 req / 2 мин — скрипт сам следит за лимитом.
@@ -56,6 +59,12 @@ TIER_BUCKETS: dict[str, list[tuple[str, str]]] = {
                         for d in ('I', 'II', 'III', 'IV')],
     'master':  [('MASTER', 'I')],
 }
+
+# Порядок сбора по умолчанию: бакеты от высшего эло к низшему…
+BUCKET_PRIORITY = ['master', 'emerald', 'gold', 'silver']
+# …а внутри бакета — сначала три больших сервера, затем все остальные.
+REGION_PRIORITY = ['euw1', 'na1', 'kr'] + \
+    [r for r in PLATFORM_TO_REGIONAL if r not in ('euw1', 'na1', 'kr')]
 
 # teamPosition из MATCH-V5 → наш ключ роли
 POSITION_MAP = {
@@ -422,22 +431,24 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     session_total = 0
     interrupted = False
     try:
-        for region in regions:
-            regional = PLATFORM_TO_REGIONAL[region]
-            for bucket in buckets:
-                print(f'\n==== Регион {region} -> {regional} | бакет {bucket} | '
+        # Бакет — внешний цикл: сначала весь master по всем регионам (в порядке
+        # приоритета), затем emerald и так далее вниз.
+        for bucket in buckets:
+            for region in regions:
+                regional = PLATFORM_TO_REGIONAL[region]
+                print(f'\n==== Бакет {bucket} | регион {region} -> {regional} | '
                       f'в базе: {db_total(con)} ====', flush=True)
                 got = collect_bucket(watcher, con, region, regional, bucket,
                                      start_time, cap, session_total)
                 session_total += got
-                print(f'---- Бакет {bucket}/{region}: +{got} | '
+                print(f'---- {bucket}/{region}: +{got} | '
                       f'в базе всего: {db_total(con)} | за сессию: {session_total} ----',
                       flush=True)
                 if cap and session_total >= cap:
                     raise StopIteration
-            print(f'\n#### Все бакеты региона {region} пройдены. '
+            print(f'\n#### Бакет {bucket} пройден по всем регионам. '
                   f'В базе: {db_total(con)} ####', flush=True)
-        print('\nВсе регионы и бакеты пройдены за этот проход.')
+        print('\nВсе бакеты и регионы пройдены за этот проход.')
     except KeyboardInterrupt:
         interrupted = True
         print('\nОстановка по Ctrl+C — сохраняю собранное…', flush=True)
@@ -468,20 +479,33 @@ def _parse_list(value: str, valid, name: str) -> list:
 
 # ---------- CLI ----------
 
+def _ask_key() -> str:
+    """Интерактивный запрос API-ключа (когда --key не передан)."""
+    while True:
+        try:
+            key = input('Riot API key (RGAPI-…): ').strip().strip('"\'')
+        except (EOFError, KeyboardInterrupt):
+            sys.exit('\nКлюч не введён — выходим.')
+        if key.startswith('RGAPI-') and len(key) > 10:
+            return key
+        print('Не похоже на ключ (должен начинаться с RGAPI-). Ещё раз.')
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description='Counterplay — автономный сбор матч-статистики')
-    p.add_argument('--key', required=True,
-                   help='Riot API key (RGAPI-…)')
-    p.add_argument('--tier', default='emerald,gold,master',
-                   help='Бакеты через запятую или all (по умолчанию: emerald,gold,master). '
-                        f'Доступно: {", ".join(TIER_BUCKETS)}')
-    p.add_argument('--region', default='euw1',
-                   help='Платформы через запятую или all (по умолчанию: euw1). '
+    p.add_argument('--key', default=None,
+                   help='Riot API key (RGAPI-…). Не указан — спросим при старте.')
+    p.add_argument('--tier', default='all',
+                   help='Бакеты через запятую или all (по умолчанию: all, порядок '
+                        f'{" > ".join(BUCKET_PRIORITY)}). Доступно: {", ".join(TIER_BUCKETS)}')
+    p.add_argument('--region', default='all',
+                   help='Платформы через запятую или all (по умолчанию: all, приоритет '
+                        'euw1 > na1 > kr > остальные). '
                         f'Доступно: {", ".join(PLATFORM_TO_REGIONAL)}')
     p.add_argument('--games', type=int, default=0,
                    help='Лимит новых матчей за сессию (0 = без лимита, по умолчанию)')
-    p.add_argument('--db', default='data.db',
-                   help='Путь к SQLite-базе (по умолчанию: data.db)')
+    p.add_argument('--db', default=str(Path(__file__).with_name('data.db')),
+                   help='Путь к SQLite-базе (по умолчанию: data.db рядом со скриптом)')
     p.add_argument('--days', type=int, default=30,
                    help='Брать матчи только за последние N дней (по умолчанию: 30)')
     p.add_argument('--delay', type=float, default=RATE_DELAY,
@@ -494,7 +518,9 @@ if __name__ == '__main__':
               'ожидаются 429 и простои на Retry-After.')
     RATE_DELAY = args.delay  # глобал, который читает api_call
 
-    buckets = _parse_list(args.tier,   list(TIER_BUCKETS),        '--tier')
-    regions = _parse_list(args.region, list(PLATFORM_TO_REGIONAL), '--region')
+    # 'all' разворачивается в приоритетном порядке; ручной список — как задан.
+    buckets = _parse_list(args.tier,   BUCKET_PRIORITY, '--tier')
+    regions = _parse_list(args.region, REGION_PRIORITY, '--region')
 
-    run_continuous(args.key, args.db, regions, buckets, args.days, args.games)
+    key = args.key or _ask_key()
+    run_continuous(key, args.db, regions, buckets, args.days, args.games)
