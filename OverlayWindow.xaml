@@ -1191,10 +1191,12 @@
                           <DropShadowEffect Color="#36D6E7" ShadowDepth="0" BlurRadius="20" Opacity="1"/>
                         </Border.Effect>
                       </Border>
-                      <Border x:Name="ApplyRunesBtn" Padding="8,6" CornerRadius="7" Cursor="Hand"
+                      <Border x:Name="ApplyRunesBtn" Padding="6,6" CornerRadius="7" Cursor="Hand"
+                              HorizontalAlignment="Stretch"
                               Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
                               MouseLeftButtonDown="ApplyRunes_Click">
                         <TextBlock x:Name="ApplyRunesText" Text="" TextAlignment="Center"
+                                   TextWrapping="Wrap" MaxWidth="96"
                                    FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                                    Foreground="#E6EDF3"/>
                       </Border>
