@@ -1041,7 +1041,8 @@
                 <!-- Кнопка варианта рун: кейстоун крупно, остальные руны страницы
                      мелкими иконками (основное дерево сверху, вторичное снизу). -->
                 <DataTemplate x:Key="RuneOptionTemplate">
-                  <Border Margin="0,0,6,10" Padding="7,7" CornerRadius="7" Cursor="Hand"
+                  <Border Margin="0,0,6,6" Padding="7,6" CornerRadius="7" Cursor="Hand"
+                          VerticalAlignment="Stretch"
                           Background="{Binding Background}"
                           BorderBrush="{Binding BorderBrush}" BorderThickness="1.5"
                           MouseLeftButtonDown="RuneOption_Click" Tag="{Binding Index}">
@@ -1109,7 +1110,7 @@
                       </ToolTip>
                     </Border.ToolTip>
 
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                       <Image Source="{Binding KeystoneIcon}" Width="28" Height="28" VerticalAlignment="Center"
                              RenderOptions.BitmapScalingMode="HighQuality"/>
                       <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
@@ -1172,11 +1173,12 @@
 
                   <!-- РУНЫ: сетка 2x2. Три варианта расставляются в коде, кнопка
                        «Применить» занимает свободную ячейку справа от нижнего.
-                       Верх выравниваем с первой сборкой: блоки одной высоты. -->
-                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Top">
+                       Строки — «звёздочки»: блок рун растягивается на ту же высоту,
+                       что и колонка сборок, и края обоих блоков совпадают. -->
+                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Stretch">
                     <Grid.RowDefinitions>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="*"/>
+                      <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto"/>
@@ -1209,12 +1211,20 @@
                   <!-- СБОРКИ: три варианта по 6 слотов. Первые слоты — CORE
                        (золотая рамка), дальше ситуативные докупки (тусклые). -->
                   <ItemsControl Grid.Column="1" x:Name="BuildList" Margin="10,0,0,0"
-                                VerticalAlignment="Top">
+                                VerticalAlignment="Stretch">
+                    <!-- Три строки поровну делят высоту — верх и низ блока сборок
+                         совпадают с блоком рун. -->
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <UniformGrid Rows="3"/>
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <!-- Клик по строке выбирает сборку: она подсвечивается
                              золотом, и видно, какую именно отправишь в клиент. -->
-                        <Border Margin="0,0,0,3" Padding="4,3" CornerRadius="6" Cursor="Hand"
+                        <Border Margin="0,0,0,3" Padding="4,2" CornerRadius="6" Cursor="Hand"
+                                VerticalAlignment="Stretch"
                                 Background="{Binding RowBg}"
                                 BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
