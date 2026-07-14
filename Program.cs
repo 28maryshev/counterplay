@@ -45,7 +45,13 @@ class Program
 
         var app     = new System.Windows.Application();
         var overlay = new OverlayWindow();
-        overlay.Show();
+
+        // Автозапуск с Windows: стартуем свёрнутыми в трей. Показывать окно
+        // «LCU is starting…» при входе в систему — навязчиво; оверлей появится
+        // сам, когда запустится клиент.
+        if (args.Contains("--autostart")) overlay.StartInTray();
+        else                              overlay.Show();
+
         if (autostartNotice) overlay.ShowAutostartNotice();
 
         // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.

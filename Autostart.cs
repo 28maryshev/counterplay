@@ -66,8 +66,10 @@ public static class Autostart
             if (enabled)
             {
                 var stub = StubPath;
-                if (stub is null) return false;         // не установка — включать нечего
-                key.SetValue(ValueName, $"\"{stub}\""); // кавычки: в пути бывают пробелы
+                if (stub is null) return false;                    // не установка — включать нечего
+                // --autostart: приложение стартует свёрнутым в трей (иначе при входе
+                // в Windows выскакивало бы окно «LCU is starting…»).
+                key.SetValue(ValueName, $"\"{stub}\" --autostart"); // кавычки: в пути бывают пробелы
             }
             else
             {

@@ -303,6 +303,19 @@ public partial class OverlayWindow : Window
         Closed += (_, _) => { _tray?.Dispose(); _tray = null; };
     }
 
+    /// Старт сразу в трее (автозапуск с Windows): окно не показываем вовсе —
+    /// иначе при входе в систему выскакивает «LCU is starting…». Оверлей сам
+    /// поднимется, когда появится клиент (RestoreFromTray из фолловера/геймфлоу).
+    /// HWND создаём явно: позиционирование и слежение за окном клиента опираются
+    /// на него, а без Show() он бы не появился.
+    public void StartInTray()
+    {
+        new System.Windows.Interop.WindowInteropHelper(this).EnsureHandle();
+        EnsureTray();
+        _inTray = true;
+        _tray!.Visible = true;
+    }
+
     /// Свернуть оверлей в трей. userInitiated=true (крестик) — не разворачивать
     /// автоматически (только по клику в трее). Вызывается из фонового потока тоже.
     public void HideToTray(bool userInitiated = false) => Dispatcher.InvokeAsync(() =>
