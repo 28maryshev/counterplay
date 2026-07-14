@@ -431,6 +431,23 @@ class Program
         return ("", 0);
     }
 
+    /// <summary>
+    /// Источник обновлений — СТАТИЧЕСКИЙ фид, а не GitHub API.
+    ///
+    /// Почему не GithubSource: он ходит в api.github.com, а тот без токена даёт
+    /// 60 запросов в час НА IP-АДРЕС. За общим IP (общежитие, интернет-кафе,
+    /// мобильный оператор с NAT) эти 60 делят сотни чужих людей — и обновления
+    /// у пользователя просто перестают приходить, молча. Мы дважды напоролись на
+    /// это сами.
+    ///
+    /// Прямые ссылки на файлы релизов (CDN GitHub) лимитом НЕ ограничены.
+    /// Тег `latest` — катящийся: release.ps1 перезаливает в него фид и пакеты,
+    /// поэтому адрес всегда один и тот же.
+    /// </summary>
+    static Velopack.Sources.IUpdateSource UpdateSource =>
+        new Velopack.Sources.SimpleWebSource(
+            "https://github.com/28maryshev/counterplay/releases/download/latest/");
+
     // Фоновая проверка обновлений раз в 4 часа. С автозапуском программа висит в
     // трее сутками — без этого она узнала бы о новой версии только при следующем
     // запуске Windows. Обновление НЕ перезапускает приложение на ходу (человек
@@ -445,7 +462,7 @@ class Program
                 catch (OperationCanceledException) { return; }
                 try
                 {
-                    var mgr = new UpdateManager(new GithubSource("https://github.com/28maryshev/counterplay", null, false));
+                    var mgr = new UpdateManager(UpdateSource);
                     if (!mgr.IsInstalled) return;
                     var info = await mgr.CheckForUpdatesAsync();
                     if (info == null) continue;
@@ -464,7 +481,7 @@ class Program
     {
         try
         {
-            var mgr = new UpdateManager(new GithubSource("https://github.com/28maryshev/counterplay", null, false));
+            var mgr = new UpdateManager(UpdateSource);
             if (!mgr.IsInstalled) return; // запущено из dev-сборки — не обновляемся
 
             overlay.ShowStatus(Loc.T("status.checkingUpdates"));

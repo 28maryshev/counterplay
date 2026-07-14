@@ -60,4 +60,36 @@ Write-Host "Note: database is published separately via build\publish-data.ps1 (d
 if ($Upload) {
   if (-not $Token) { throw "Need -Token or GITHUB_TOKEN environment variable" }
   vpk upload github --repoUrl $repo --publish --releaseName "Counterplay v$Version" --tag "v$Version" --token $Token
+
+  # 5. Rolling 'latest' tag = the update feed the app actually reads.
+  #
+  # The app does NOT use the GitHub API: unauthenticated api.github.com allows
+  # only 60 requests/hour PER IP, so users behind a shared IP (dorms, cafes,
+  # carrier NAT) silently stop receiving updates. Direct release-file URLs are
+  # served by GitHub's CDN and are not rate limited — but they need a stable
+  # address, hence this rolling tag.
+  $env:GH_TOKEN = $Token
+  gh release view latest 1>$null 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    gh release create latest --title "Latest (update feed)" `
+      --notes "Rolling feed the app reads for updates. Do not delete."
+  }
+
+  # Take the feed vpk just PUBLISHED (it lists only this version), not the local
+  # one in .\Releases — that one accumulates every version ever built and would
+  # point at packages absent from the rolling tag.
+  $tmp = Join-Path $PWD "build\_feed"
+  New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+  foreach ($f in @("releases.win.json", "RELEASES")) {
+    gh release download "v$Version" --pattern $f --dir $tmp --clobber 2>$null
+  }
+
+  $feed = @(Get-ChildItem $tmp -File)
+  $feed += @(Get-ChildItem "Releases" -File | Where-Object { $_.Name -like "Counterplay-$Version-*.nupkg" })
+  if ($feed.Count -lt 2) { throw "feed files for v$Version not found" }
+
+  gh release upload latest @($feed.FullName) --clobber
+  if ($LASTEXITCODE -ne 0) { throw "failed to update the 'latest' feed" }
+  Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+  Write-Host "Update feed refreshed (tag 'latest'): $($feed.Name -join ', ')" -ForegroundColor Green
 }
