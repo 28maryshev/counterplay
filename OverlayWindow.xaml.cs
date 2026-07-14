@@ -469,25 +469,42 @@ public partial class OverlayWindow : Window
     /// Предмет билда для кнопки экспорта.
     public sealed record BuildItemVm(ImageSource? Icon, string Name);
 
-    /// Подсветка кнопки «Применить руны»: вспышка при каждом выборе варианта —
-    /// подсказывает, что выбор изменился и его надо применить.
-    private void PulseApplyButton()
+    /// <summary>
+    /// Свечение вокруг кнопки «Применить руны»: яркая вспышка при выборе варианта,
+    /// затем непрерывная пульсация — кнопка «зовёт», пока руны не применены.
+    /// Каждый новый выбор перезапускает анимацию с нуля.
+    /// </summary>
+    private void PulseApplyButton(bool on = true)
     {
-        if (ApplyRunesBtn.Effect is not System.Windows.Media.Effects.DropShadowEffect glow) return;
+        if (ApplyRunesBtn.Effect is not DropShadowEffect glow) return;
 
-        var blur = new DoubleAnimationUsingKeyFrames();
-        blur.KeyFrames.Add(new EasingDoubleKeyFrame(0,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        blur.KeyFrames.Add(new EasingDoubleKeyFrame(22, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180))));
-        blur.KeyFrames.Add(new EasingDoubleKeyFrame(10, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(900))));
+        if (!on)
+        {
+            // Применили — свечение гасим (действие больше не требуется).
+            glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
+            glow.BeginAnimation(DropShadowEffect.OpacityProperty, null);
+            glow.BlurRadius = 0;
+            glow.Opacity = 0;
+            return;
+        }
 
-        var op = new DoubleAnimationUsingKeyFrames();
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.0,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(1.0,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180))));
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.55, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(900))));
+        // Вспышка → пульсация: первый цикл ярче, дальше ровное «дыхание».
+        var blur = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        blur.KeyFrames.Add(new EasingDoubleKeyFrame(4,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        blur.KeyFrames.Add(new EasingDoubleKeyFrame(24, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
+                                                    new SineEase { EasingMode = EasingMode.EaseInOut }));
+        blur.KeyFrames.Add(new EasingDoubleKeyFrame(6,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
+                                                    new SineEase { EasingMode = EasingMode.EaseInOut }));
 
-        // Каждый вызов перезапускает анимацию с нуля — подсветка «обновляется».
-        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, blur);
-        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, op);
+        var op = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.35, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(1.0,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
+                                                  new SineEase { EasingMode = EasingMode.EaseInOut }));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.4,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
+                                                  new SineEase { EasingMode = EasingMode.EaseInOut }));
+
+        glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blur);
+        glow.BeginAnimation(DropShadowEffect.OpacityProperty, op);
     }
 
     private void RenderRuneOptions(int? opponentId)
@@ -578,6 +595,7 @@ public partial class OverlayWindow : Window
         var ok = await ApplyRunesHandler(page, _runeChampName);
         RunesStatus.Text = Loc.T(ok ? "runes.applied" : "runes.failed");
         RunesStatus.Foreground = ok ? WinBrush : LossBrush;
+        if (ok) PulseApplyButton(on: false);   // применено — кнопка больше не «зовёт»
     }
 
     private async void ExportBuild_Click(object sender, MouseButtonEventArgs e)
