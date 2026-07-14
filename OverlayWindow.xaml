@@ -1171,8 +1171,9 @@
                   </Grid.ColumnDefinitions>
 
                   <!-- РУНЫ: сетка 2x2. Три варианта расставляются в коде, кнопка
-                       «Применить» занимает свободную ячейку справа от нижнего. -->
-                  <Grid Grid.Column="0" x:Name="RuneGrid">
+                       «Применить» занимает свободную ячейку справа от нижнего.
+                       По высоте центрируем относительно колонки со сборками. -->
+                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Center">
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto"/>
                       <RowDefinition Height="Auto"/>
@@ -1211,7 +1212,7 @@
                       <DataTemplate>
                         <!-- Клик по строке выбирает сборку: она подсвечивается
                              золотом, и видно, какую именно отправишь в клиент. -->
-                        <Border Margin="0,0,0,8" Padding="4,3" CornerRadius="6" Cursor="Hand"
+                        <Border Margin="0,0,0,5" Padding="4,3" CornerRadius="6" Cursor="Hand"
                                 Background="{Binding RowBg}"
                                 BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
