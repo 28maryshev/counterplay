@@ -10,10 +10,29 @@ public static class LcuFinder
 {
     private static readonly string[] ProcNames = ["LeagueClientUx", "LeagueClient"];
 
+    /// Запущен ли клиент LoL прямо сейчас.
+    public static bool IsClientRunning()
+    {
+        foreach (var name in ProcNames)
+        {
+            var procs = Process.GetProcessesByName(name);
+            try { if (procs.Length > 0) return true; }
+            finally { foreach (var p in procs) p.Dispose(); }
+        }
+        return false;
+    }
+
     /// Находит путь к lockfile: сначала по запущенному процессу клиента
     /// (его папка = каталог установки), затем по типичным путям. null — не найден.
+    ///
+    /// ВАЖНО: без запущенного клиента lockfile не годится — Riot не всегда удаляет
+    /// его при выходе, и старый файл содержит протухшие порт/пароль. Раньше при
+    /// автозапуске (клиента ещё нет) читался именно такой файл, и программа
+    /// вечно стучалась на мёртвый порт, показывая «LCU is starting…».
     public static string? FindLockfilePath()
     {
+        if (!IsClientRunning()) return null;
+
         // 1. По процессу клиента — работает при любой папке установки.
         foreach (var name in ProcNames)
         {

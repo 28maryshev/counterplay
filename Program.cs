@@ -177,8 +177,11 @@ class Program
     {
         using var http = new LcuHttpClient(creds);
 
-        // Ждём пока LCU реально поднимется (lockfile появляется раньше первых ответов)
+        // Ждём пока LCU реально поднимется (lockfile появляется раньше первых ответов).
+        // Ждём НЕ вечно: если клиент закрылся или lockfile протух (порт/пароль от
+        // прошлой сессии), выходим — внешний цикл перечитает свежие креды.
         overlay.ShowStatus(Loc.T("status.lcuStarting"));
+        var waitStart = DateTime.UtcNow;
         while (true)
         {
             try
@@ -188,6 +191,8 @@ class Program
             }
             catch (HttpRequestException)
             {
+                if (!LcuFinder.IsClientRunning() || DateTime.UtcNow - waitStart > TimeSpan.FromSeconds(30))
+                    return; // клиента нет или креды мертвы — начинаем заново
                 await Task.Delay(2000, ct);
             }
         }
