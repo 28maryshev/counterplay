@@ -283,13 +283,49 @@ def patch_of(game_version: str) -> str:
     return f'{parts[0]}.{parts[1]}' if len(parts) >= 2 else game_version
 
 
-# Расходники и тринкеты — в билд не входят (их продают/меняют).
-CONSUMABLES = {
-    2003, 2031, 2033, 2055, 2138, 2139, 2140,          # зелья, контроль-вард, эликсиры
-    3340, 3363, 3364, 3330,                            # тринкеты
-    2010, 2019, 2051, 2052,                            # прочие расходники
-    3865, 3866, 3867, 3869, 3870, 3871, 3876, 3877,    # квестовые/саппорт-предметы (эволюционируют)
-}
+# Завершённые предметы (легендарки + ботинки). Заполняется из Data Dragon при
+# старте: в инвентаре в конце матча полно КОМПОНЕНТОВ (рубин, кольчуга, плащ) —
+# если считать их частью билда, ключи развалятся на мусорные комбинации.
+COMPLETED_ITEMS: set[int] = set()
+
+
+def load_completed_items() -> set[int]:
+    """Из item.json Data Dragon: предметы, которые ни во что не собираются
+    (вершина дерева), покупаемые и дорогие — плюс улучшенные ботинки."""
+    try:
+        v = requests.get('https://ddragon.leagueoflegends.com/api/versions.json', timeout=20).json()[0]
+        data = requests.get(
+            f'https://ddragon.leagueoflegends.com/cdn/{v}/data/en_US/item.json', timeout=30
+        ).json()['data']
+    except Exception as e:
+        print(f'[!] Data Dragon недоступен ({e}) — предметы собираться не будут', flush=True)
+        return set()
+
+    done = set()
+    for sid, it in data.items():
+        gold = it.get('gold') or {}
+        if not gold.get('purchasable'):
+            continue
+        maps = it.get('maps') or {}
+        if not maps.get('11', True):
+            continue                       # не Ущелье призывателей
+        total = gold.get('total', 0)
+        tags  = it.get('tags') or []
+
+        # Ботинки — часть билда, даже если улучшаются дальше (со времён т3-ботинок
+        # у ботинок 2-го уровня есть into, и общее правило «есть into = компонент»
+        # их ошибочно выбрасывало). Базовые Boots (300 g) отсекаем порогом.
+        if 'Boots' in tags and total >= 900:
+            done.add(int(sid))
+            continue
+
+        if it.get('into'):
+            continue                       # компонент (собирается во что-то)
+        if total >= 1500:
+            done.add(int(sid))             # легендарка
+
+    print(f'Data Dragon {v}: завершённых предметов — {len(done)}')
+    return done
 
 
 def parse_perks(p: dict):
@@ -320,9 +356,10 @@ def parse_perks(p: dict):
 
 
 def parse_items(p: dict) -> list[int]:
-    """Итоговые предметы без расходников и тринкетов, по возрастанию id."""
+    """Только ЗАВЕРШЁННЫЕ предметы из инвентаря, по возрастанию id.
+    Компоненты, расходники и тринкеты отбрасываются (см. COMPLETED_ITEMS)."""
     ids = [p.get(f'item{i}') for i in range(7)]
-    return sorted({i for i in ids if i and i not in CONSUMABLES})
+    return sorted({i for i in ids if i and i in COMPLETED_ITEMS})
 
 
 def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
@@ -583,6 +620,9 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
 def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
                    days: int, cap: int):
     import datetime
+    global COMPLETED_ITEMS
+    COMPLETED_ITEMS = load_completed_items()  # без него предметы не собираем
+
     watcher = LolWatcher(api_key)
     con     = init_db(db_path)
     start_time = int((datetime.datetime.now(datetime.timezone.utc)
@@ -647,6 +687,9 @@ def _parse_list(value: str, valid, name: str) -> list:
 def verify_parse(api_key: str):
     """Самопроверка на ОДНОМ настоящем матче: печатает, что удалось разобрать
     (руны, предметы, спеллы). Стоит 3 запроса к API. Запуск: --verify."""
+    global COMPLETED_ITEMS
+    COMPLETED_ITEMS = load_completed_items()
+
     watcher = LolWatcher(api_key)
     league = api_call(watcher.league.challenger_by_queue, 'euw1', 'RANKED_SOLO_5x5')
     entry = (league or {}).get('entries', [{}])[0]
