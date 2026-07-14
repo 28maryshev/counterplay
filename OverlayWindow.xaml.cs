@@ -47,6 +47,7 @@ public partial class OverlayWindow : Window
 
     // Сворачивание в системный трей на время игры.
     private System.Windows.Forms.NotifyIcon? _tray;
+    private System.Windows.Forms.ToolStripMenuItem? _autostartItem; // галочка «запускать с Windows»
     private bool _inTray;
     // true = свёрнуто пользователем (крестик) — автоматический возврат не разворачивает.
     private bool _userHidden;
@@ -278,6 +279,24 @@ public partial class OverlayWindow : Window
 
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add(Loc.T("tray.show"), null, (_, _) => RestoreFromTray(force: true));
+
+        // Автозапуск с Windows — переключатель (только в установленной версии).
+        if (Autostart.Supported)
+        {
+            _autostartItem = new System.Windows.Forms.ToolStripMenuItem(Loc.T("tray.autostart"))
+            {
+                CheckOnClick = true,
+                Checked      = Autostart.IsEnabled,
+            };
+            _autostartItem.Click += (_, _) =>
+            {
+                var on = Autostart.Set(_autostartItem.Checked);
+                Settings.Set("autostart", on);
+                _autostartItem.Checked = on; // фактическое состояние (реестр мог не поддаться)
+            };
+            menu.Items.Add(_autostartItem);
+        }
+
         menu.Items.Add(Loc.T("tray.exit"), null, (_, _) => System.Windows.Application.Current.Shutdown());
         _tray.ContextMenuStrip = menu;
 
@@ -360,6 +379,29 @@ public partial class OverlayWindow : Window
         LangText.Text = Loc.CurrentLang.Native + " ▾";
         Loc.LanguageChanged += OnLanguageChanged;
     }
+
+    // ── Автозапуск: разовое уведомление после включения ──────────────────────
+
+    /// Показать плашку «программа теперь запускается с Windows» (один раз).
+    public void ShowAutostartNotice() => Dispatcher.InvokeAsync(() =>
+    {
+        AutostartNoticeText.Text = Loc.T("autostart.notice");
+        AutostartOffBtn.Content  = Loc.T("autostart.disable");
+        AutostartOkBtn.Content   = Loc.T("autostart.ok");
+        AutostartNotice.Visibility = Visibility.Visible;
+    });
+
+    private void AutostartOff_Click(object sender, RoutedEventArgs e)
+    {
+        Autostart.Set(false);
+        Settings.Set("autostart", false);
+        AutostartNotice.Visibility = Visibility.Collapsed;
+        // Синхронизируем галочку в трее (без пересоздания иконки).
+        if (_autostartItem != null) _autostartItem.Checked = false;
+    }
+
+    private void AutostartOk_Click(object sender, RoutedEventArgs e) =>
+        AutostartNotice.Visibility = Visibility.Collapsed;
 
     // Клик по чипу языка — выпадающий список в стиле выбора очереди.
     private void LangChip_Click(object sender, MouseButtonEventArgs e)

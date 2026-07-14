@@ -1,4 +1,12 @@
 {
+  "autostart": {
+    "notice": "Counterplay artık Windows ile başlıyor ve sistem tepsisinde sessizce bekliyor — pencere yalnızca şampiyon seçiminde açılır. Tepsi menüsünden kapatabilirsin.",
+    "disable": "Kapat",
+    "ok": "Anladım"
+  },
+  "tray": {
+    "autostart": "Windows ile başlat"
+  },
   "ready": {
     "beta": "Counterplay her gün gelişiyor. Hata mı buldun, fikrin mi var? Destek üzerinden yaz — counterplays.com/support"
   },

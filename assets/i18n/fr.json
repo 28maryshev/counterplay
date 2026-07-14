@@ -1,4 +1,12 @@
 {
+  "autostart": {
+    "notice": "Counterplay démarre désormais avec Windows et attend dans la zone de notification — la fenêtre n'apparaît qu'à la sélection. Désactivable à tout moment dans le menu.",
+    "disable": "Désactiver",
+    "ok": "Compris"
+  },
+  "tray": {
+    "autostart": "Démarrer avec Windows"
+  },
   "ready": {
     "beta": "Counterplay s'améliore chaque jour. Un bug ou une idée ? Écrivez-nous via le Support — counterplays.com/support"
   },

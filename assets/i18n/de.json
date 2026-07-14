@@ -1,4 +1,12 @@
 {
+  "autostart": {
+    "notice": "Counterplay startet jetzt mit Windows und wartet still im Infobereich — das Fenster erscheint nur bei der Champion-Auswahl. Du kannst das jederzeit im Tray-Menü deaktivieren.",
+    "disable": "Deaktivieren",
+    "ok": "Verstanden"
+  },
+  "tray": {
+    "autostart": "Mit Windows starten"
+  },
   "ready": {
     "beta": "Counterplay wird jeden Tag besser. Fehler gefunden oder eine Idee? Schreib uns über den Support — counterplays.com/support"
   },

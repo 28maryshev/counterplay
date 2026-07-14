@@ -37,7 +37,13 @@
     "minimize": "Minimize",
     "expand": "Expand"
   },
+  "autostart": {
+    "notice": "Counterplay now starts with Windows and waits quietly in the tray — it only pops up during champ select. You can turn this off any time in the tray menu.",
+    "disable": "Turn off",
+    "ok": "Got it"
+  },
   "tray": {
+    "autostart": "Start with Windows",
     "show": "Show",
     "exit": "Exit"
   },

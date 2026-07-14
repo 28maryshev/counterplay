@@ -37,7 +37,13 @@
     "minimize": "Riduci a icona",
     "expand": "Espandi"
   },
+  "autostart": {
+    "notice": "Counterplay ora si avvia con Windows e attende nella barra delle applicazioni — la finestra compare solo durante il draft. Puoi disattivarlo dal menu della tray.",
+    "disable": "Disattiva",
+    "ok": "Ho capito"
+  },
   "tray": {
+    "autostart": "Avvia con Windows",
     "show": "Mostra",
     "exit": "Esci"
   },

@@ -37,7 +37,13 @@
     "minimize": "最小化",
     "expand": "展开"
   },
+  "autostart": {
+    "notice": "Counterplay 现在会随 Windows 启动，并静静地待在托盘中——只有在选人阶段才会弹出。可随时在托盘菜单中关闭。",
+    "disable": "关闭",
+    "ok": "知道了"
+  },
   "tray": {
+    "autostart": "开机自启动",
     "show": "显示",
     "exit": "退出"
   },

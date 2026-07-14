@@ -37,7 +37,13 @@
     "minimize": "Thu nhỏ",
     "expand": "Mở rộng"
   },
+  "autostart": {
+    "notice": "Counterplay giờ khởi động cùng Windows và chờ lặng lẽ trong khay hệ thống — cửa sổ chỉ hiện khi chọn tướng. Bạn có thể tắt bất cứ lúc nào trong menu khay.",
+    "disable": "Tắt",
+    "ok": "Đã hiểu"
+  },
   "tray": {
+    "autostart": "Khởi động cùng Windows",
     "show": "Hiện",
     "exit": "Thoát"
   },

@@ -1,4 +1,12 @@
 {
+  "autostart": {
+    "notice": "O Counterplay agora inicia com o Windows e espera na bandeja — a janela só aparece na seleção de campeões. Pode desativar a qualquer momento no menu da bandeja.",
+    "disable": "Desativar",
+    "ok": "Entendi"
+  },
+  "tray": {
+    "autostart": "Iniciar com o Windows"
+  },
   "ready": {
     "beta": "O Counterplay melhora todo dia. Achou um bug ou tem uma ideia? Fale conosco pelo Suporte — counterplays.com/support"
   },

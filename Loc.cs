@@ -127,25 +127,9 @@ public static class Loc
         return Languages.Any(l => l.Code == two) ? two : null;
     }
 
-    private static string? ReadSaved()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return null;
-            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            return doc.RootElement.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String
-                ? l.GetString() : null;
-        }
-        catch { return null; }
-    }
+    // Язык живёт в общем сторе настроек (Settings) — иначе запись языка затирала
+    // бы соседние настройки (автозапуск и т.п.).
+    private static string? ReadSaved() => Settings.GetString("language");
 
-    private static void Save(string code)
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath, $"{{\"language\":\"{code}\"}}");
-        }
-        catch { /* настройки не критичны */ }
-    }
+    private static void Save(string code) => Settings.Set("language", code);
 }

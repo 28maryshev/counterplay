@@ -37,7 +37,13 @@
     "minimize": "Zminimalizuj",
     "expand": "Rozwiń"
   },
+  "autostart": {
+    "notice": "Counterplay uruchamia się teraz z Windows i czeka w zasobniku — okno pojawia się tylko podczas wyboru bohaterów. Możesz to wyłączyć w menu zasobnika.",
+    "disable": "Wyłącz",
+    "ok": "Rozumiem"
+  },
   "tray": {
+    "autostart": "Uruchamiaj z Windows",
     "show": "Pokaż",
     "exit": "Wyjdź"
   },

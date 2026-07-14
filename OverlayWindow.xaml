@@ -536,6 +536,27 @@
             </Border>
             -->
 
+            <!-- Разовое уведомление об автозапуске (после обновления, один раз) -->
+            <Border x:Name="AutostartNotice" Visibility="Collapsed"
+                    Margin="0,14,0,0" Width="282" CornerRadius="7"
+                    Background="#14FFFFFF" BorderBrush="#3336D6E7" BorderThickness="1"
+                    Padding="12,10">
+              <StackPanel>
+                <TextBlock x:Name="AutostartNoticeText"
+                           FontFamily="{StaticResource UiFont}" FontSize="11"
+                           Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="15"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                  <Button x:Name="AutostartOffBtn" Click="AutostartOff_Click"
+                          Background="Transparent" BorderThickness="1" BorderBrush="#557089"
+                          Foreground="#C9D2DC" FontSize="11" Padding="9,3" Cursor="Hand"/>
+                  <Button x:Name="AutostartOkBtn" Click="AutostartOk_Click" Margin="7,0,0,0"
+                          Background="#2236D6E7" BorderThickness="0"
+                          Foreground="#E6EDF3" FontSize="11" FontWeight="Bold"
+                          Padding="11,3" Cursor="Hand"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
             <!-- Плашка беты: светящаяся надпись + просьба писать в поддержку -->
             <Border Margin="0,15,0,0" Width="282" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"

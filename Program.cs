@@ -22,7 +22,21 @@ class Program
         // Диагностический прогон движка рекомендаций (настройка весов), затем выход.
         if (args.Contains("--drafttest")) { DraftTest.Run().GetAwaiter().GetResult(); return; }
 
+        // Диагностика автозапуска (поддержка, отладка): показать состояние и выйти.
+        if (args.Contains("--autostart-info"))
+        {
+            Console.WriteLine($"supported: {Autostart.Supported}");
+            Console.WriteLine($"stub:      {Autostart.StubPath ?? "(none)"}");
+            Console.WriteLine($"enabled:   {Autostart.IsEnabled}");
+            Console.WriteLine($"setting:   {Settings.GetBool("autostart")?.ToString() ?? "(unset)"}");
+            return;
+        }
+
         Loc.Init(); // язык интерфейса: сохранённый выбор → язык Windows → English
+
+        // Автозапуск с Windows: включаем при первом старте новой версии и один раз
+        // сообщаем об этом в панели (молча прописываться в автозагрузку — дурной тон).
+        var autostartNotice = Autostart.ApplyOnStartup();
 
         _ = Telemetry.PingAsync(); // анонимный пинг для статистики активных пользователей
 
@@ -32,6 +46,7 @@ class Program
         var app     = new System.Windows.Application();
         var overlay = new OverlayWindow();
         overlay.Show();
+        if (autostartNotice) overlay.ShowAutostartNotice();
 
         // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.
         var testMode = args.Contains("test") || args.Contains("--test");

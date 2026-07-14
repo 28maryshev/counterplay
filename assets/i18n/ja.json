@@ -37,7 +37,13 @@
     "minimize": "最小化",
     "expand": "拡大"
   },
+  "autostart": {
+    "notice": "Counterplay は Windows と一緒に起動し、トレイで静かに待機します。ウィンドウはチャンプ選択時のみ表示されます。トレイメニューでいつでも無効にできます。",
+    "disable": "オフにする",
+    "ok": "了解"
+  },
   "tray": {
+    "autostart": "Windows と一緒に起動",
     "show": "表示",
     "exit": "終了"
   },
