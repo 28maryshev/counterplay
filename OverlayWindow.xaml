@@ -1183,7 +1183,8 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Свечение по периметру — отдельное кольцо позади кнопки -->
-                    <Grid Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="2,0,6,6">
+                    <Grid Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+                          HorizontalAlignment="Left" Margin="2,0,6,6">
                       <Border x:Name="ApplyGlowRing" CornerRadius="8" Margin="-2"
                               Background="Transparent" BorderBrush="#5CE4F2" BorderThickness="2.5"
                               IsHitTestVisible="False" Opacity="0">
@@ -1192,11 +1193,11 @@
                         </Border.Effect>
                       </Border>
                       <Border x:Name="ApplyRunesBtn" Padding="6,6" CornerRadius="7" Cursor="Hand"
-                              HorizontalAlignment="Stretch"
+                              HorizontalAlignment="Left" Width="104"
                               Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
                               MouseLeftButtonDown="ApplyRunes_Click">
                         <TextBlock x:Name="ApplyRunesText" Text="" TextAlignment="Center"
-                                   TextWrapping="Wrap" MaxWidth="96"
+                                   TextWrapping="Wrap"
                                    FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                                    Foreground="#E6EDF3"/>
                       </Border>
@@ -1208,7 +1209,13 @@
                   <ItemsControl Grid.Column="1" x:Name="BuildList" Margin="10,0,0,0">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <Grid Margin="0,0,0,5">
+                        <!-- Клик по строке выбирает сборку: она подсвечивается
+                             золотом, и видно, какую именно отправишь в клиент. -->
+                        <Border Margin="0,0,0,8" Padding="4,3" CornerRadius="6" Cursor="Hand"
+                                Background="{Binding RowBg}"
+                                BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
+                                MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
+                        <Grid>
                           <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -1233,7 +1240,7 @@
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
 
-                          <Border Grid.Column="1" Margin="6,0,0,0" Padding="9,5" CornerRadius="6"
+                          <Border Grid.Column="1" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
                                   Cursor="Hand" VerticalAlignment="Center"
                                   Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
@@ -1243,6 +1250,7 @@
                                        Foreground="#F0D48A"/>
                           </Border>
                         </Grid>
+                        </Border>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>

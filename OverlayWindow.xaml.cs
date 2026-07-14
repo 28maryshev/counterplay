@@ -442,6 +442,7 @@ public partial class OverlayWindow : Window
 
             _runeChoices = RunesClient.Choices(stats, opponentId);
             _runeSelected = 0;
+            _buildSelected = -1;   // новый чемпион — прошлый выбор сборки не в счёт
             RenderRuneOptions(opponentId);
 
             ApplyRunesText.Text = Loc.T("runes.apply");
@@ -457,12 +458,21 @@ public partial class OverlayWindow : Window
     /// Слот предмета: CORE выделен золотой рамкой, ситуативные — тусклой.
     public sealed record SlotVm(ImageSource? Icon, string Tip, Brush Stroke, Thickness Thickness, double Dim);
 
-    /// Строка сборки: 6 слотов + своя кнопка экспорта.
+    /// Строка сборки: 6 слотов + своя кнопка экспорта. Выбранная подсвечена золотом.
     public sealed record BuildRowVm(
-        int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip);
+        int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip,
+        Brush RowBg, Brush RowStroke);
 
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
     private static readonly Brush AltStroke  = new SolidColorBrush(Color.FromArgb(0x55, 0x55, 0x70, 0x89));
+
+    // Подсветка выбранной сборки — золото (в тон кнопке экспорта).
+    private static readonly Brush RowOn     = new SolidColorBrush(Color.FromArgb(0x22, 0xC8, 0x9B, 0x3C));
+    private static readonly Brush RowOff    = new SolidColorBrush(Colors.Transparent);
+    private static readonly Brush RowOnEdge = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
+    private static readonly Brush RowOffEdge = new SolidColorBrush(Colors.Transparent);
+
+    private int _buildSelected = -1;   // -1 = ничего не выбрано
 
     private void RenderBuilds(ChampStats stats)
     {
@@ -496,15 +506,28 @@ public partial class OverlayWindow : Window
             while (slots.Count < 6)
                 slots.Add(new SlotVm(null, "", AltStroke, new Thickness(1), 1.0));
 
+            var selected = i == _buildSelected;
             rows.Add(new BuildRowVm(
                 Index: i,
                 Slots: slots,
                 ExportText: Loc.T("runes.export"),
-                Tip: Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games))));
+                Tip: Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
+                RowBg: selected ? RowOn : RowOff,
+                RowStroke: selected ? RowOnEdge : RowOffEdge));
         }
 
         BuildList.ItemsSource = rows;
         BuildList.Visibility = Visibility.Visible;
+    }
+
+    /// Клик по строке сборки — выбор (подсветка золотом), без экспорта.
+    private void BuildRow_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
+        if (_runeStats is null) return;
+        _buildSelected = idx;
+        RenderBuilds(_runeStats);
+        e.Handled = true;
     }
 
     /// <summary>
@@ -665,6 +688,10 @@ public partial class OverlayWindow : Window
         if (ExportBuildHandler is null || _runeStats is null) return;
         if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
         if (idx < 0 || idx >= _runeStats.Builds.Count) return;
+
+        // Экспортируемая сборка становится выбранной — видно, что именно уехало.
+        _buildSelected = idx;
+        RenderBuilds(_runeStats);
 
         RunesStatus.Text = Loc.T("runes.exporting");
         RunesStatus.Foreground = MuteBrush;
