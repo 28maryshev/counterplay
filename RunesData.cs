@@ -242,14 +242,31 @@ public static class RunesClient
             deltas = v.Deltas;
         }
 
-        return s.Keystones
+        var scored = s.Keystones
             .Select(k => k with
             {
                 VsDelta = deltas.GetValueOrDefault(k.Keystone),
                 VsGames = vsGames,
             })
             .OrderByDescending(k => k.Winrate + k.VsDelta)
-            .Take(3)
             .ToList();
+
+        if (scored.Count <= 3) return scored;
+
+        // Не только винрейт: самый ХОДОВОЙ кейстоун обязан быть в тройке. Иначе
+        // можно показать три экзотики с высоким винрейтом на малой выборке и не
+        // показать то, что реально играют 60% людей.
+        var picked = new List<RuneChoice> { scored[0] };
+        var meta = scored.OrderByDescending(k => k.PickRate).First();
+        if (meta.Keystone != picked[0].Keystone) picked.Add(meta);
+
+        foreach (var k in scored)
+        {
+            if (picked.Count >= 3) break;
+            if (picked.Any(p => p.Keystone == k.Keystone)) continue;
+            picked.Add(k);
+        }
+
+        return picked.OrderByDescending(k => k.Winrate + k.VsDelta).ToList();
     }
 }

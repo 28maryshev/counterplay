@@ -1041,7 +1041,7 @@
                 <!-- Кнопка варианта рун: кейстоун крупно, остальные руны страницы
                      мелкими иконками (основное дерево сверху, вторичное снизу). -->
                 <DataTemplate x:Key="RuneOptionTemplate">
-                  <Border Margin="0,0,6,6" Padding="7,5" CornerRadius="7" Cursor="Hand"
+                  <Border Margin="0,0,6,10" Padding="7,7" CornerRadius="7" Cursor="Hand"
                           Background="{Binding Background}"
                           BorderBrush="{Binding BorderBrush}" BorderThickness="1.5"
                           MouseLeftButtonDown="RuneOption_Click" Tag="{Binding Index}">
@@ -1172,8 +1172,8 @@
 
                   <!-- РУНЫ: сетка 2x2. Три варианта расставляются в коде, кнопка
                        «Применить» занимает свободную ячейку справа от нижнего.
-                       По высоте центрируем относительно колонки со сборками. -->
-                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Center">
+                       Верх выравниваем с первой сборкой: блоки одной высоты. -->
+                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Top">
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto"/>
                       <RowDefinition Height="Auto"/>
@@ -1212,7 +1212,7 @@
                       <DataTemplate>
                         <!-- Клик по строке выбирает сборку: она подсвечивается
                              золотом, и видно, какую именно отправишь в клиент. -->
-                        <Border Margin="0,0,0,5" Padding="4,3" CornerRadius="6" Cursor="Hand"
+                        <Border Margin="0,0,0,3" Padding="4,3" CornerRadius="6" Cursor="Hand"
                                 Background="{Binding RowBg}"
                                 BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">

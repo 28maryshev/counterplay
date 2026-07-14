@@ -157,22 +157,52 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     # слотов самыми ходовыми предметами чемпиона, которых в ней ещё нет: в панели
     # и в игровом магазине должен быть полный список, а не три иконки.
     popular = [i['id'] for i in items]   # уже отсортированы по числу игр
-    builds = []
+
+    # Кандидаты: сглаженный винрейт уже учитывает объём (мало игр → ближе к 50%),
+    # поэтому сортировка по нему — это и есть баланс «сила + популярность».
+    cands = []
     for b, g, w in q(con, f"""SELECT items, SUM(games) g, SUM(wins) w FROM item_build
                               WHERE champion_id=? AND role=? AND patch IN ({ph})
                               GROUP BY items HAVING g >= ?
-                              ORDER BY g DESC LIMIT 8""",
+                              ORDER BY g DESC LIMIT 40""",
                      [champ, role, *ps, MIN_BUILD]):
-        ids = [int(x) for x in b.split(',')]
-        core = list(ids)                                   # то, что реально играли вместе
-        for extra in popular:                              # добивка до шести
+        cands.append((set(int(x) for x in b.split(',')), g, w))
+    cands.sort(key=lambda c: wr(c[1], c[2]), reverse=True)
+
+    # ВАРИАНТЫ ДОЛЖНЫ ОТЛИЧАТЬСЯ. Наборы группируются точным составом, поэтому
+    # три лучших по винрейту легко окажутся почти одинаковыми — показывать такое
+    # бессмысленно.
+    #
+    # Порог — по симметрической разности множеств. Замена ОДНОГО предмета даёт
+    # разность 2 (один ушёл, один пришёл), поэтому 2 мало: нужно 4, то есть
+    # минимум две замены. Проверено на синтетике: с порогом 2 в тройку попадали
+    # сборки, отличавшиеся одним предметом.
+    MIN_DIFF = 4
+    chosen = []
+    for core, g, w in cands:
+        if len(chosen) >= 3:
+            break
+        if all(len(core ^ prev) >= MIN_DIFF for prev, _, _ in chosen):
+            chosen.append((core, g, w))
+
+    # Если непохожих не набралось (узкий чемпион) — добираем самыми ходовыми.
+    for c in cands:
+        if len(chosen) >= 3:
+            break
+        if c[0] not in [x[0] for x in chosen]:
+            chosen.append(c)
+
+    builds = []
+    for core, g, w in chosen:
+        ids = sorted(core)
+        for extra in popular:                              # добивка до шести слотов
             if len(ids) >= 6:
                 break
             if extra not in ids:
                 ids.append(extra)
         builds.append({
             'items': ids,
-            'core': core,        # какие из них — реально сыгранный набор
+            'core': sorted(core),   # что реально играли вместе (у него и винрейт)
             'games': g,
             'wr': round(wr(g, w), 1),
         })
