@@ -412,8 +412,10 @@ public partial class OverlayWindow : Window
     public sealed record RuneOptionVm(
         int Index, string Label, string WinrateText, string GamesText, string Tip,
         BitmapImage? KeystoneIcon, Brush WinrateBrush, Brush Background, Brush BorderBrush,
-        // Остальные руны страницы мелкими иконками — видно, что именно выбираешь.
-        IReadOnlyList<RuneVm> MiniIcons,
+        // Мелкие иконки на кнопке: первая строка — основное дерево (без кейстоуна),
+        // вторая — вторичное. Видно, чем варианты отличаются, без наведения.
+        IReadOnlyList<RuneVm> PrimaryMini,
+        IReadOnlyList<RuneVm> SecondaryMini,
         // Полное дерево в подсказке.
         string TreeTitle, string SubTreeTitle,
         IReadOnlyList<RuneVm> PrimaryRunes,
@@ -475,9 +477,10 @@ public partial class OverlayWindow : Window
             var secondary = c.Page.Secondary.Select(Vm).ToList();
             var shards    = c.Page.Shards.Select(Vm).ToList();
 
-            // На кнопке — мелкие иконки всего, кроме кейстоуна: сразу видно,
-            // чем варианты отличаются, без наведения.
-            var mini = c.Page.Perks.Skip(1).Concat(c.Page.Secondary).Select(Vm).ToList();
+            // На кнопке — две строки иконок: сверху остаток основного дерева,
+            // снизу вторичное. Так видно структуру страницы, а кнопка остаётся узкой.
+            var primaryMini   = c.Page.Perks.Skip(1).Select(Vm).ToList();
+            var secondaryMini = secondary;
 
             vms.Add(new RuneOptionVm(
                 Index: i,
@@ -493,7 +496,8 @@ public partial class OverlayWindow : Window
                 BorderBrush: new SolidColorBrush(selected
                     ? Color.FromRgb(0x36, 0xD6, 0xE7)
                     : Color.FromRgb(0x2A, 0x3A, 0x4F)),
-                MiniIcons: mini,
+                PrimaryMini: primaryMini,
+                SecondaryMini: secondaryMini,
                 TreeTitle: $"{RuneIcons.NameOf(c.Keystone)} · {RuneIcons.StyleName(c.Page.Primary)}",
                 SubTreeTitle: RuneIcons.StyleName(c.Page.Sub),
                 PrimaryRunes: primary,
