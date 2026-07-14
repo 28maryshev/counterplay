@@ -42,6 +42,10 @@ public static class Autostart
     /// Поддерживается ли автозапуск в этой сборке (установлена через инсталлятор).
     public static bool Supported => StubPath != null;
 
+    /// Значение, которое ДОЛЖНО быть в реестре (стаб + флаг тихого старта).
+    private static string? DesiredValue =>
+        StubPath is { } stub ? $"\"{stub}\" --autostart" : null;
+
     public static bool IsEnabled
     {
         get
@@ -50,6 +54,21 @@ public static class Autostart
             {
                 using var key = Registry.CurrentUser.OpenSubKey(RunKey);
                 return key?.GetValue(ValueName) is string s && s.Length > 0;
+            }
+            catch { return false; }
+        }
+    }
+
+    /// Ключ есть, но записан по-старому (без --autostart или со сменившимся путём).
+    private static bool NeedsRefresh
+    {
+        get
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RunKey);
+                var current = key?.GetValue(ValueName) as string;
+                return current is { Length: > 0 } && current != DesiredValue;
             }
             catch { return false; }
         }
@@ -65,11 +84,10 @@ public static class Autostart
 
             if (enabled)
             {
-                var stub = StubPath;
-                if (stub is null) return false;                    // не установка — включать нечего
                 // --autostart: приложение стартует свёрнутым в трей (иначе при входе
                 // в Windows выскакивало бы окно «LCU is starting…»).
-                key.SetValue(ValueName, $"\"{stub}\" --autostart"); // кавычки: в пути бывают пробелы
+                if (DesiredValue is null) return false; // не установка — включать нечего
+                key.SetValue(ValueName, DesiredValue);
             }
             else
             {
@@ -100,7 +118,9 @@ public static class Autostart
             return true; // первый раз — уведомляем
         }
 
-        if (wanted.Value != IsEnabled) Set(wanted.Value);
+        // Ключ мог остаться от прошлой версии (без --autostart) или указывать на
+        // старый путь — тогда перезаписываем. И лечим, если его удалил чистильщик.
+        if (wanted.Value != IsEnabled || (wanted.Value && NeedsRefresh)) Set(wanted.Value);
         return false;
     }
 }

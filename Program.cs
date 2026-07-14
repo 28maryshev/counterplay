@@ -32,6 +32,22 @@ class Program
             return;
         }
 
+        // Один экземпляр на пользователя. С автозапуском программа уже висит в
+        // трее — второй запуск (клик по ярлыку) плодил бы второй оверлей и мешал
+        // обновлению (Velopack держит блокировку папки). Вместо этого будим тот,
+        // что уже работает, и выходим.
+        using var single = new Mutex(initiallyOwned: true, "Counterplay.SingleInstance", out var isFirst);
+        if (!isFirst)
+        {
+            try
+            {
+                using var show = EventWaitHandle.OpenExisting(ShowSignal);
+                show.Set(); // существующий экземпляр развернётся из трея
+            }
+            catch { /* сигнал не дошёл — просто выходим */ }
+            return;
+        }
+
         Loc.Init(); // язык интерфейса: сохранённый выбор → язык Windows → English
 
         // Автозапуск с Windows: включаем при первом старте новой версии и один раз
@@ -53,6 +69,9 @@ class Program
         else                              overlay.Show();
 
         if (autostartNotice) overlay.ShowAutostartNotice();
+
+        // Повторный запуск (клик по ярлыку, пока мы в трее) — разворачиваем окно.
+        StartShowSignalListener(overlay, cts.Token);
 
         // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.
         var testMode = args.Contains("test") || args.Contains("--test");
@@ -83,15 +102,36 @@ class Program
         lcuTask.GetAwaiter().GetResult();
     }
 
+    // Имя события «покажи окно» — им второй экземпляр будит первый.
+    const string ShowSignal = "Counterplay.ShowWindow";
+
+    // Слушаем сигнал от повторных запусков и разворачиваем оверлей из трея.
+    static void StartShowSignalListener(OverlayWindow overlay, CancellationToken ct)
+    {
+        var handle = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSignal);
+        var thread = new Thread(() =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                if (handle.WaitOne(500)) overlay.RestoreFromTray(force: true);
+            }
+        })
+        { IsBackground = true };
+        thread.Start();
+    }
+
     // ── LCU-цикл: Data Dragon один раз, потом перебирает сессии LCU ─────────
 
     static async Task RunLcuAsync(OverlayWindow overlay, string[] args, CancellationToken ct)
     {
-        // Путь к lockfile: из аргумента, иначе null → автопоиск клиента на любом ПК.
-        var lockfilePath = args.Length > 0 ? args[0] : null;
+        // Путь к lockfile: первый НЕ-флаговый аргумент, иначе null → автопоиск
+        // клиента. Флаги (--autostart и т.п.) пропускаем: иначе автозапуск
+        // подсовывал бы «--autostart» вместо пути к lockfile.
+        var lockfilePath = args.FirstOrDefault(a => !a.StartsWith('-'));
 
         // Проверка обновлений при каждом запуске (только для установленной версии).
         await CheckForUpdatesAsync(overlay, ct);
+        StartUpdateWatcher(ct); // и дальше — раз в 4 часа (программа живёт в трее сутками)
 
         // Data Dragon + иконки грузим один раз при старте
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
@@ -329,6 +369,33 @@ class Program
             return (ph, left);
         }
         return ("", 0);
+    }
+
+    // Фоновая проверка обновлений раз в 4 часа. С автозапуском программа висит в
+    // трее сутками — без этого она узнала бы о новой версии только при следующем
+    // запуске Windows. Обновление НЕ перезапускает приложение на ходу (человек
+    // может быть в драфте): скачиваем и применяем при выходе.
+    static void StartUpdateWatcher(CancellationToken ct)
+    {
+        _ = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try { await Task.Delay(TimeSpan.FromHours(4), ct); }
+                catch (OperationCanceledException) { return; }
+                try
+                {
+                    var mgr = new UpdateManager(new GithubSource("https://github.com/28maryshev/counterplay", null, false));
+                    if (!mgr.IsInstalled) return;
+                    var info = await mgr.CheckForUpdatesAsync();
+                    if (info == null) continue;
+                    await mgr.DownloadUpdatesAsync(info);
+                    // Применить при выходе, без перезапуска на ходу.
+                    mgr.WaitExitThenApplyUpdates(info, silent: true, restart: false);
+                }
+                catch { /* офлайн / лимит GitHub — попробуем через 4 часа */ }
+            }
+        }, ct);
     }
 
     // Проверка/применение обновлений из GitHub Releases при каждом запуске.
