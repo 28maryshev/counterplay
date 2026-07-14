@@ -1,4 +1,19 @@
 {
+  "runes": {
+    "title": "Runes for {0}",
+    "titleVs": "Runes for {0} vs {1}",
+    "apply": "Apply runes",
+    "exportBuild": "Export build",
+    "applying": "Applying...",
+    "applied": "Runes applied in the client",
+    "exporting": "Exporting...",
+    "exported": "Build sent — see the Sets tab in the shop",
+    "failed": "Failed — is the client open?",
+    "tipBase": "Win rate {0}% over {1} games",
+    "tipVs": "Vs this opponent: {0} pp ({1} games)",
+    "tipPick": "Picked in {0}% of games",
+    "buildBlock": "Core build"
+  },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
     "Don't stack one damage type: mix physical and magic, or one enemy item shuts down half your team.",

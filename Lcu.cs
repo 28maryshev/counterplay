@@ -154,5 +154,27 @@ public sealed class LcuHttpClient : IDisposable
         return ((int)resp.StatusCode, body);
     }
 
+    // Запись в клиент (импорт рун, наборы предметов). Так же без бросков на 4xx/5xx.
+
+    public async Task<(int Status, string Body)> PostAsync(string path, string json, CancellationToken ct)
+    {
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var resp = await _http.PostAsync(path, content, ct);
+        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+    }
+
+    public async Task<(int Status, string Body)> PutAsync(string path, string json, CancellationToken ct)
+    {
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var resp = await _http.PutAsync(path, content, ct);
+        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+    }
+
+    public async Task<(int Status, string Body)> DeleteAsync(string path, CancellationToken ct)
+    {
+        using var resp = await _http.DeleteAsync(path, ct);
+        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+    }
+
     public void Dispose() => _http.Dispose();
 }

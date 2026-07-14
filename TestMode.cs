@@ -31,6 +31,17 @@ static class TestMode
         await ItemIcons.PreloadAsync(ct);
         await DataDb.EnsureAsync((msg, frac) => overlay.ShowProgress(msg, frac), ct);
 
+        // Руны: реальных данных в базе ещё нет — в тестовом режиме панель
+        // наполняется правдоподобными моками, чтобы обкатать вид и кнопки.
+        RunesClient.UseMock = true;
+        await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+        await RunesClient.LoadManifestAsync(ct);
+
+        // Импорт в клиент из теста не делаем (клиента может не быть) —
+        // кнопки отвечают «как будто получилось», чтобы проверить сценарий.
+        overlay.ApplyRunesHandler  = async (_, _) => { await Task.Delay(400, ct); return true; };
+        overlay.ExportBuildHandler = async (_, _, _) => { await Task.Delay(400, ct); return true; };
+
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)
         {
@@ -223,13 +234,23 @@ sealed class TestPanel : Window
         for (int i = 0; i < 5; i++)
             their.Add(new DraftPlayer(5 + i, ChampOf(_enemy[i]), 0, "", false)); // роли скрыты, как в Solo/Duo
 
+        // Прямой оппонент: враг в строке моей роли (в бою роли врагов вычисляются
+        // эвристикой/вручную; тут — по позиции в списке, этого хватает для стенда).
+        var opp = their[meIdx].EffectiveChampionId > 0 ? their[meIdx] : null;
+
         var draft = new DraftState(
             my, their, [], [], my[meIdx], LcuRoles[meIdx],
-            null, false, _banPhase.IsChecked == true, [], false);
+            opp, false, _banPhase.IsChecked == true, [], false);
 
         if (_banPhase.IsChecked == true)
+        {
             _overlay.UpdateBans(_engine.RecommendBans(draft), draft);
+            _overlay.HideRunes();
+        }
         else
+        {
             _overlay.UpdateRecommendations(_engine.Recommend(draft), draft, _engine);
+            _ = Program.UpdateRunesAsync(_overlay, draft, CancellationToken.None);
+        }
     }
 }

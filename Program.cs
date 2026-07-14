@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -102,6 +102,38 @@ class Program
         lcuTask.GetAwaiter().GetResult();
     }
 
+    // ── Руны и билд ────────────────────────────────────────────────────────
+    // Панель показываем, когда мой чемпион уже определён (залочен или наведён)
+    // и по связке чемпион+роль есть данные на сервере. Запрос идёт один раз за
+    // драфт, а не на каждый ховер, поэтому сеть не мешает.
+    private static int _runesShownFor;   // чтобы не дёргать сервер на каждое событие
+
+    public static async Task UpdateRunesAsync(OverlayWindow overlay, DraftState? draft, CancellationToken ct)
+    {
+        var champ = draft?.Me?.EffectiveChampionId ?? 0;
+        if (draft is null || champ == 0 || draft.IsAram)
+        {
+            _runesShownFor = 0;
+            overlay.HideRunes();
+            return;
+        }
+
+        var role = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+        if (string.IsNullOrEmpty(role) || !RunesClient.Has(champ, role))
+        {
+            overlay.HideRunes();
+            return;
+        }
+
+        var opponent = draft.DirectOpponent?.EffectiveChampionId;
+        var key = champ * 100 + (opponent ?? 0) % 100;
+        if (key == _runesShownFor) return;   // уже показано для этой пары
+        _runesShownFor = key;
+
+        var stats = await RunesClient.GetAsync(champ, role, ct);
+        overlay.ShowRunes(stats, champ, DataDragon.Name(champ), opponent);
+    }
+
     // Имя события «покажи окно» — им второй экземпляр будит первый.
     const string ShowSignal = "Counterplay.ShowWindow";
 
@@ -141,6 +173,11 @@ class Program
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
         await ItemIcons.PreloadAsync(ct); // иконки контр-предметов
+
+        // Руны: справочник (имена/иконки) + манифест сервера. Если данных на
+        // сервере ещё нет — панель просто не появится, фича включится сама.
+        await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+        await RunesClient.LoadManifestAsync(ct);
 
         // Гарантируем наличие data.db (скачиваем/обновляем из дата-релиза с прогрессом).
         await DataDb.EnsureAsync((msg, frac) => overlay.ShowProgress(msg, frac), ct);
@@ -199,6 +236,11 @@ class Program
 
         var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct);
         var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
+
+        // Импорт рун и билда прямо в клиент — по кнопкам в панели.
+        overlay.ApplyRunesHandler  = (page, name) => RunesImporter.ApplyRunesAsync(http, page, name, ct);
+        overlay.ExportBuildHandler = (items, id, name) =>
+            RunesImporter.ExportItemSetAsync(http, items, id, name, ct);
 
         RecommendationEngine? engine = null;
         var dbPath = RecommendationEngine.FindDb();
@@ -348,7 +390,18 @@ class Program
                         else if (draft.InBanPhase)
                             overlay.UpdateBans(engine?.RecommendBans(draft, hoverHistory), draft);
                         else
-                            overlay.UpdateRecommendations(engine?.Recommend(draft), draft, engine);
+                        {
+                            var recs = engine?.Recommend(draft);
+                            overlay.UpdateRecommendations(recs, draft, engine);
+
+                            // Руны: панель для МОЕГО чемпиона (залоченного или наведённого).
+                            // Плюс предзагрузка топ-кандидатов — чтобы к моменту пика
+                            // данные уже лежали в памяти и панель появилась мгновенно.
+                            if (recs is { Count: > 0 })
+                                RunesClient.Prefetch(recs.Select(r => r.ChampionId),
+                                                     RecommendationEngine.LcuToDbRole(draft.MyPosition), ct);
+                            _ = UpdateRunesAsync(overlay, draft, ct);
+                        }
                     }
                     break;
             }

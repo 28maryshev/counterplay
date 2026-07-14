@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -392,6 +392,135 @@ public partial class OverlayWindow : Window
         LangText.Text = Loc.CurrentLang.Native + " ▾";
         Loc.LanguageChanged += OnLanguageChanged;
     }
+
+    // ── Руны и билд ──────────────────────────────────────────────────────────
+
+    private ChampStats? _runeStats;
+    private IReadOnlyList<RuneChoice> _runeChoices = [];
+    private int _runeSelected;
+    private int _runeChampId;
+    private string _runeChampName = "";
+
+    /// Функция импорта в клиент. Ставится из Program (в тестовом режиме — null).
+    public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
+    public Func<IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
+
+    /// Элемент кнопки варианта рун (привязка в XAML).
+    public sealed record RuneOptionVm(
+        int Index, string Label, string WinrateText, string GamesText, string Tip,
+        BitmapImage? KeystoneIcon, Brush WinrateBrush, Brush Background, Brush BorderBrush);
+
+    /// Показать панель рун/билда. stats=null — панели нет (данных мало/нет сети).
+    public void ShowRunes(ChampStats? stats, int championId, string championName, int? opponentId) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            _runeStats = stats;
+            _runeChampId = championId;
+            _runeChampName = championName;
+            _lastOpponentId = opponentId;
+
+            if (stats is null || stats.Keystones.Count == 0)
+            {
+                RunesBar.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            _runeChoices = RunesClient.Choices(stats, opponentId);
+            _runeSelected = 0;
+            RenderRuneOptions(opponentId);
+
+            ApplyRunesText.Text  = Loc.T("runes.apply");
+            ExportBuildText.Text = Loc.T("runes.exportBuild");
+            ExportBuildBtn.Visibility = stats.Build is null ? Visibility.Collapsed : Visibility.Visible;
+            RunesStatus.Visibility = Visibility.Collapsed;
+            RunesBar.Visibility = Visibility.Visible;
+        });
+
+    private void RenderRuneOptions(int? opponentId)
+    {
+        var opp = opponentId is { } o ? DataDragon.Name(o) : null;
+        RunesTitle.Text = opp != null
+            ? Loc.T("runes.titleVs", _runeChampName, opp)
+            : Loc.T("runes.title", _runeChampName);
+
+        var vms = new List<RuneOptionVm>();
+        for (int i = 0; i < _runeChoices.Count; i++)
+        {
+            var c = _runeChoices[i];
+            var total = c.Winrate + c.VsDelta;
+            var selected = i == _runeSelected;
+
+            // Подсказка: честно показываем размер выборки и вклад матчапа —
+            // чтобы было видно, где цифра надёжна, а где это лишь намёк.
+            var tip = new StringBuilder();
+            tip.AppendLine($"{RuneIcons.NameOf(c.Keystone)} · {RuneIcons.StyleName(c.Page.Primary)} → {RuneIcons.StyleName(c.Page.Sub)}");
+            tip.AppendLine(Loc.T("runes.tipBase", c.Winrate.ToString("0.0"), c.Games.ToString("N0")));
+            if (c.VsGames > 0 && Math.Abs(c.VsDelta) >= 0.1)
+                tip.AppendLine(Loc.T("runes.tipVs", (c.VsDelta >= 0 ? "+" : "") + c.VsDelta.ToString("0.0"), c.VsGames.ToString("N0")));
+            tip.Append(Loc.T("runes.tipPick", c.PickRate.ToString("0")));
+
+            vms.Add(new RuneOptionVm(
+                Index: i,
+                Label: RuneIcons.NameOf(c.Keystone),
+                WinrateText: total.ToString("0.0") + "%",
+                GamesText: FormatGames(c.Games),
+                Tip: tip.ToString(),
+                KeystoneIcon: RuneIcons.Icon(c.Keystone),
+                WinrateBrush: WinrateBrush(total),
+                Background: new SolidColorBrush(selected
+                    ? Color.FromArgb(0x28, 0x36, 0xD6, 0xE7)
+                    : Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+                BorderBrush: new SolidColorBrush(selected
+                    ? Color.FromRgb(0x36, 0xD6, 0xE7)
+                    : Color.FromRgb(0x2A, 0x3A, 0x4F))));
+        }
+        RuneOptions.ItemsSource = vms;
+    }
+
+    private static string FormatGames(int g) =>
+        g >= 1000 ? $"{g / 1000.0:0.#}k" : g.ToString();
+
+    private void RuneOption_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
+        if (idx < 0 || idx >= _runeChoices.Count) return;
+        _runeSelected = idx;
+        RenderRuneOptions(_lastOpponentId);
+        e.Handled = true;
+    }
+
+    private int? _lastOpponentId;
+
+    private async void ApplyRunes_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (ApplyRunesHandler is null || _runeChoices.Count == 0) return;
+        var page = _runeChoices[_runeSelected].Page;
+
+        RunesStatus.Text = Loc.T("runes.applying");
+        RunesStatus.Foreground = MuteBrush;
+        RunesStatus.Visibility = Visibility.Visible;
+
+        var ok = await ApplyRunesHandler(page, _runeChampName);
+        RunesStatus.Text = Loc.T(ok ? "runes.applied" : "runes.failed");
+        RunesStatus.Foreground = ok ? WinBrush : LossBrush;
+    }
+
+    private async void ExportBuild_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (ExportBuildHandler is null || _runeStats?.Build is null) return;
+
+        RunesStatus.Text = Loc.T("runes.exporting");
+        RunesStatus.Foreground = MuteBrush;
+        RunesStatus.Visibility = Visibility.Visible;
+
+        var ok = await ExportBuildHandler(_runeStats.Build.Items, _runeChampId, _runeChampName);
+        RunesStatus.Text = Loc.T(ok ? "runes.exported" : "runes.failed");
+        RunesStatus.Foreground = ok ? WinBrush : LossBrush;
+    }
+
+    public void HideRunes() => Dispatcher.InvokeAsync(() => RunesBar.Visibility = Visibility.Collapsed);
 
     // ── Автозапуск: разовое уведомление после включения ──────────────────────
 
