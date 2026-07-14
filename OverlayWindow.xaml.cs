@@ -815,9 +815,19 @@ public partial class OverlayWindow : Window
     private static readonly Brush MuteBrush = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
 
     // Заполняет панель ранга/последних игр/винрейта. Вызывать из Program после RefreshAsync.
+    private string _lastNick = "";
+
     public void ShowSession(SessionTracker.SessionData? d) =>
         Dispatcher.InvokeAsync(() =>
         {
+            // Сменился аккаунт — ручной выбор очереди с прошлого не переносим:
+            // у нового аккаунта своя настройка (и своя статистика).
+            if (d is not null && d.Nick != _lastNick)
+            {
+                _lastNick = d.Nick;
+                _queueUserSet = false;
+            }
+
             _session = d;
             // Автоопределённая очередь (где больше игр) — пока пользователь
             // не выбрал вручную в этой сессии.

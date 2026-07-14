@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 
 namespace Counterplay;
@@ -26,6 +26,10 @@ public static class SessionTracker
 
     /// Ключи очередей в порядке выпадающего списка.
     public static readonly string[] QueueKeys = ["solo", "flex", "normal", "aram"];
+
+    /// Больше этого за одну игру LP не меняется (даже с промо/демоушеном).
+    /// Всё, что выше — признак смены аккаунта или сброса сезона, а не результата.
+    private const int MaxLpPerGame = 100;
 
     // queueId LCU → наш ключ очереди (400 драфт / 430 блайнд / 490 квикплей = normal).
     private static string? QueueOf(int queueId) => queueId switch
@@ -63,19 +67,37 @@ public static class SessionTracker
         public int Losses { get; set; }
     }
 
-    private sealed class Store
+    /// <summary>
+    /// Данные ОДНОГО аккаунта. Раньше всё лежало в общей куче, и при смене
+    /// аккаунта: ник не обновлялся, а LP-дельта считалась между рангами разных
+    /// аккаунтов (эмеральд → золото давало «−492 LP» за первую же игру).
+    /// </summary>
+    private sealed class Account
     {
-        public string SelectedQueue { get; set; } = "solo";
-        // true после ручного выбора очереди — автоопределение больше не трогает.
-        public bool QueueChosen { get; set; }
         public string? Nick { get; set; }
+        public string SelectedQueue { get; set; } = "solo";
+        public bool QueueChosen { get; set; }
         public long LastGameId { get; set; }
         public Dictionary<string, QueueLog> Queues { get; set; } = new();
         // Последний успешный снимок рангов: LCU после рестарта/обновления может
         // не ответить — панель всё равно рендерится из кэша, а не пустой.
         public Dictionary<string, RankedCache> Ranked { get; set; } = new();
+    }
 
-        // Наследие одноочередного формата — мигрирует в Queues["solo"] при загрузке.
+    private sealed class Store
+    {
+        // Ключ — puuid (стабилен и не меняется при переименовании).
+        public Dictionary<string, Account> Accounts { get; set; } = new();
+        // Кем играли в прошлый раз — чтобы панель не пустела до ответа LCU.
+        public string? LastAccount { get; set; }
+
+        // ── Наследие одноаккаунтного формата (мигрирует при первом запуске) ──
+        public string? SelectedQueue { get; set; }
+        public bool QueueChosen { get; set; }
+        public string? Nick { get; set; }
+        public long LastGameId { get; set; }
+        public Dictionary<string, QueueLog>? Queues { get; set; }
+        public Dictionary<string, RankedCache>? Ranked { get; set; }
         public List<LegacyGame>? Games { get; set; }
         public int LastAbsLp { get; set; } = int.MinValue;
     }
@@ -106,36 +128,72 @@ public static class SessionTracker
             try
             {
                 if (!File.Exists(path)) continue;
-                var s = JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
-                Migrate(s);
-                return s;
+                return JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
             }
             catch { /* пробуем следующий */ }
         }
         return new Store();
     }
 
-    // Старый формат (один журнал без очередей) переезжает в solo.
-    private static void Migrate(Store s)
+    /// <summary>
+    /// Аккаунт по ключу; создаёт при первом появлении. Заодно разово переносит
+    /// данные старого (одноаккаунтного) формата — но ТОЛЬКО если ник совпадает:
+    /// иначе история эмеральд-аккаунта прилипла бы к свежему золотому.
+    /// </summary>
+    private static Account GetAccount(Store s, string key, string? nick)
     {
-        // Файлы без флага QueueChosen: не-solo мог появиться только ручным
-        // выбором — считаем его осознанным и не перебиваем автоопределением.
-        if (!s.QueueChosen && s.SelectedQueue != "solo") s.QueueChosen = true;
+        if (s.Accounts.TryGetValue(key, out var acc)) return acc;
 
-        if (s.Games is not { Count: > 0 }) { s.Games = null; return; }
-        var q = GetQueue(s, "solo");
-        if (q.Games.Count == 0)
+        acc = new Account { Nick = nick };
+
+        var hasLegacy = s.Queues is { Count: > 0 } || s.Games is { Count: > 0 };
+
+        // Наследие принадлежит тому, чей ник в нём записан. Если ник совпал —
+        // переносим, даже если аккаунтов уже несколько (человек мог сначала
+        // зайти на смурф, а потом вернуться на основной — история его ждёт).
+        // Если ника в наследии нет вовсе (совсем старый файл) — отдаём первому.
+        var namedOwner = !string.IsNullOrEmpty(s.Nick) && !string.IsNullOrEmpty(nick) &&
+                         string.Equals(s.Nick, nick, StringComparison.OrdinalIgnoreCase);
+        var anonymousLegacy = string.IsNullOrEmpty(s.Nick) && s.Accounts.Count == 0;
+
+        if (hasLegacy && (namedOwner || anonymousLegacy))
         {
-            q.Games.AddRange(s.Games.Select(g => new GameLog
-            { Ts = g.Ts, ChampionId = g.ChampionId, Win = g.Win, Lp = g.LpDelta, Wr = g.Winrate }));
-            q.LastAbsLp = s.LastAbsLp;
+            acc.Queues       = s.Queues ?? new();
+            acc.Ranked       = s.Ranked ?? new();
+            acc.LastGameId   = s.LastGameId;
+            acc.SelectedQueue = s.SelectedQueue ?? "solo";
+            acc.QueueChosen  = s.QueueChosen || (s.SelectedQueue is not null and not "solo");
+
+            // Совсем старый формат: один журнал без очередей → solo.
+            if (s.Games is { Count: > 0 })
+            {
+                var q = GetQueue(acc, "solo");
+                if (q.Games.Count == 0)
+                {
+                    q.Games.AddRange(s.Games.Select(g => new GameLog
+                    { Ts = g.Ts, ChampionId = g.ChampionId, Win = g.Win, Lp = g.LpDelta, Wr = g.Winrate }));
+                    q.LastAbsLp = s.LastAbsLp;
+                }
+            }
+            // Наследие перенесено — чистим, чтобы не прилипло ко второму аккаунту.
+            s.Queues = null; s.Ranked = null; s.Games = null;
+            s.Nick = null; s.LastGameId = 0; s.LastAbsLp = int.MinValue;
         }
-        s.Games = null;
+
+        // Лечим записи, испорченные до раздельного учёта аккаунтов: дельта в
+        // сотни LP — это разница рангов двух аккаунтов, а не результат игры.
+        foreach (var q in acc.Queues.Values)
+            foreach (var g in q.Games)
+                if (g.Lp is { } lp && Math.Abs(lp) > MaxLpPerGame)
+                    g.Lp = null;
+
+        s.Accounts[key] = acc;
+        return acc;
     }
 
-    private static QueueLog GetQueue(Store s, string key)
+    private static QueueLog GetQueue(Account a, string key)
     {
-        if (!s.Queues.TryGetValue(key, out var q)) s.Queues[key] = q = new QueueLog();
+        if (!a.Queues.TryGetValue(key, out var q)) a.Queues[key] = q = new QueueLog();
         return q;
     }
 
@@ -155,11 +213,22 @@ public static class SessionTracker
     }
 
     // ── Выбранная очередь (переключатель в панели) ──────────────────────────
+    // Настройка своя у каждого аккаунта: на смурфе можно смотреть нормалы, на
+    // основном — соло/дуо.
+
+    private static string? _account;   // puuid текущего аккаунта (ставится при refresh)
 
     public static string GetSelectedQueue()
     {
         Gate.Wait();
-        try { var q = Load().SelectedQueue; return QueueKeys.Contains(q) ? q : "solo"; }
+        try
+        {
+            var s = Load();
+            var key = _account ?? s.LastAccount;
+            var q = key != null && s.Accounts.TryGetValue(key, out var a)
+                ? a.SelectedQueue : "solo";
+            return QueueKeys.Contains(q) ? q : "solo";
+        }
         finally { Gate.Release(); }
     }
 
@@ -167,7 +236,16 @@ public static class SessionTracker
     {
         if (!QueueKeys.Contains(queue)) return;
         Gate.Wait();
-        try { var s = Load(); s.SelectedQueue = queue; s.QueueChosen = true; Save(s); }
+        try
+        {
+            var s = Load();
+            var key = _account ?? s.LastAccount;
+            if (key is null) return;
+            var a = GetAccount(s, key, null);
+            a.SelectedQueue = queue;
+            a.QueueChosen = true;
+            Save(s);
+        }
         finally { Gate.Release(); }
     }
 
@@ -207,8 +285,6 @@ public static class SessionTracker
     private sealed record Ranked(bool HasRank, string Tier, string Div, int Lp, int Wins, int Losses);
     private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win, long CreatedSec);
 
-    private static string? _nick; // кэш на процесс
-
     public static async Task<SessionData?> RefreshAsync(LcuHttpClient http, CancellationToken ct)
     {
         await Gate.WaitAsync(ct);
@@ -220,22 +296,32 @@ public static class SessionTracker
     {
         var store = Load();
 
-        // 1) Ник (Riot ID): из LCU, иначе из кэша журнала.
-        _nick ??= await FetchNickAsync(http, ct) ?? store.Nick;
-        if (!string.IsNullOrEmpty(_nick)) store.Nick = _nick;
+        // 1) КТО играет. Спрашиваем каждый раз (запрос локальный, дешёвый): при
+        //    смене аккаунта в клиенте панель должна переключиться сама.
+        //    Ключ — puuid: он стабилен и переживает смену ника.
+        var who = await FetchSummonerAsync(http, ct);
+        var accountKey = who?.Puuid ?? store.LastAccount;
+        if (accountKey is null) return null;   // клиент ещё не отдал игрока
+
+        _account = accountKey;
+        store.LastAccount = accountKey;
+
+        var acc = GetAccount(store, accountKey, who?.Nick);
+        if (!string.IsNullOrEmpty(who?.Nick)) acc.Nick = who.Nick;
+        var nick = acc.Nick ?? "";
 
         // 2) Ранги обеих ранкед-очередей. Если LCU не ответил (рестарт после
-        // обновления и т.п.) — берём последний снимок из журнала: панель никогда
+        // обновления и т.п.) — берём последний снимок аккаунта: панель никогда
         // не пустеет, пока на диске есть данные.
         var fetched = await FetchRankedAsync(http, ct);
         var ranked = fetched ?? new Dictionary<string, Ranked>
         {
-            ["solo"] = FromCache(store.Ranked.GetValueOrDefault("solo")),
-            ["flex"] = FromCache(store.Ranked.GetValueOrDefault("flex")),
+            ["solo"] = FromCache(acc.Ranked.GetValueOrDefault("solo")),
+            ["flex"] = FromCache(acc.Ranked.GetValueOrDefault("flex")),
         };
         if (fetched != null)
             foreach (var (k, r) in fetched)
-                store.Ranked[k] = new RankedCache
+                acc.Ranked[k] = new RankedCache
                 { HasRank = r.HasRank, Tier = r.Tier, Div = r.Div, Lp = r.Lp, Wins = r.Wins, Losses = r.Losses };
 
         // 3) Последние игры из истории (все очереди).
@@ -244,9 +330,9 @@ public static class SessionTracker
         // 3b) Очередь по умолчанию: пока пользователь не выбрал сам — та, где
         //     больше всего игр за последнее время (история лаунчера, ~20 игр).
         //     Кто играет только нормалы/ARAM — сразу видит свою статистику.
-        if (!store.QueueChosen && history.Count > 0)
+        if (!acc.QueueChosen && history.Count > 0)
         {
-            store.SelectedQueue = history.GroupBy(h => h.Queue)
+            acc.SelectedQueue = history.GroupBy(h => h.Queue)
                 .OrderByDescending(g => g.Count())
                 .ThenByDescending(g => g.Max(h => h.GameId)) // ничья → где игра свежее
                 .First().Key;
@@ -257,22 +343,22 @@ public static class SessionTracker
         // 4) Новые игры (по gameId) — раскладываем по журналам очередей.
         //    Первый запуск: журнал не наполняем задним числом, только ставим отметку.
         var appended = new Dictionary<string, GameLog>(); // очередь → последняя добавленная игра
-        if (store.LastGameId == 0)
+        if (acc.LastGameId == 0)
         {
-            store.LastGameId = history.Count > 0 ? history.Max(h => h.GameId) : 0;
+            acc.LastGameId = history.Count > 0 ? history.Max(h => h.GameId) : 0;
         }
         else
         {
-            foreach (var h in history.Where(h => h.GameId > store.LastGameId).OrderBy(h => h.GameId))
+            foreach (var h in history.Where(h => h.GameId > acc.LastGameId).OrderBy(h => h.GameId))
             {
-                var q = GetQueue(store, h.Queue);
+                var q = GetQueue(acc, h.Queue);
                 var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win };
                 q.Games.Add(log);
                 // Журнал держим на весь сезон: 3000 игр на очередь хватает даже
                 // самым активным; страховка от бесконечного роста файла.
                 if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
                 appended[h.Queue] = log;
-                store.LastGameId = Math.Max(store.LastGameId, h.GameId);
+                acc.LastGameId = Math.Max(acc.LastGameId, h.GameId);
             }
         }
 
@@ -281,9 +367,9 @@ public static class SessionTracker
         //     LP прошлых игр LCU не отдаёт — дельты начнутся с новых игр.
         foreach (var key in QueueKeys)
         {
-            var q = GetQueue(store, key);
+            var q = GetQueue(acc, key);
             if (q.Games.Count > 0) continue;
-            var past = history.Where(h => h.Queue == key && h.GameId <= store.LastGameId)
+            var past = history.Where(h => h.Queue == key && h.GameId <= acc.LastGameId)
                               .OrderBy(h => h.GameId).ToList();
             int wins = 0;
             for (int i = 0; i < past.Count; i++)
@@ -309,11 +395,22 @@ public static class SessionTracker
         {
             var r = ranked[key];
             if (!r.HasRank) continue;
-            var q = GetQueue(store, key);
+            var q = GetQueue(acc, key);
             var abs = AbsLp(r.Tier, r.Div, r.Lp);
             if (q.LastAbsLp == int.MinValue) { q.LastAbsLp = abs; continue; }
 
             var delta = abs - q.LastAbsLp;
+
+            // Абсурдная дельта = не игра, а смена контекста: другой аккаунт,
+            // сброс ранга в новом сезоне, ручная правка Riot. За одну игру
+            // столько LP не теряют. Отметку двигаем, но в журнал не пишем —
+            // иначе в серии появляется «−492».
+            if (Math.Abs(delta) > MaxLpPerGame)
+            {
+                q.LastAbsLp = abs;
+                continue;
+            }
+
             if (appended.TryGetValue(key, out var game))
             {
                 game.Lp = delta;
@@ -336,7 +433,7 @@ public static class SessionTracker
         // 6) Винрейт на момент игры: ранкед — сезонный, нормал/ARAM — по журналу.
         foreach (var (key, game) in appended)
         {
-            var q = GetQueue(store, key);
+            var q = GetQueue(acc, key);
             if (key is "solo" or "flex")
             {
                 var r = ranked[key];
@@ -355,7 +452,7 @@ public static class SessionTracker
         var views = new Dictionary<string, QueueView>();
         foreach (var key in QueueKeys)
         {
-            var q = GetQueue(store, key);
+            var q = GetQueue(acc, key);
             var last5 = q.Games.AsEnumerable().Reverse().Take(5)
                 .Select(g => new RecentGame(g.ChampionId, g.Win, g.Lp)).ToList();
             if (last5.Count == 0) // свежая установка — показать хотя бы иконки из истории
@@ -385,16 +482,19 @@ public static class SessionTracker
             }
         }
 
-        var selected = QueueKeys.Contains(store.SelectedQueue) ? store.SelectedQueue : "solo";
-        return new SessionData(_nick ?? "", selected, views);
+        var selected = QueueKeys.Contains(acc.SelectedQueue) ? acc.SelectedQueue : "solo";
+        return new SessionData(nick, selected, views);
     }
 
     private static Ranked FromCache(RankedCache? c) =>
         c is null ? new Ranked(false, "", "", 0, 0, 0)
                   : new Ranked(c.HasRank, c.Tier, c.Div, c.Lp, c.Wins, c.Losses);
 
-    // Ник игрока (Riot ID gameName, иначе displayName).
-    private static async Task<string?> FetchNickAsync(LcuHttpClient http, CancellationToken ct)
+    private sealed record Summoner(string Puuid, string Nick);
+
+    // Кто сейчас в клиенте: puuid (ключ аккаунта) + ник (Riot ID gameName).
+    // Спрашиваем на каждом обновлении — иначе смена аккаунта осталась бы незамеченной.
+    private static async Task<Summoner?> FetchSummonerAsync(LcuHttpClient http, CancellationToken ct)
     {
         try
         {
@@ -402,9 +502,15 @@ public static class SessionTracker
             if (s != 200) return null;
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
-            var game = root.TryGetProperty("gameName", out var gn) ? gn.GetString() : null;
-            if (!string.IsNullOrEmpty(game)) return game;
-            return root.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+
+            var puuid = root.TryGetProperty("puuid", out var p) ? p.GetString() : null;
+            if (string.IsNullOrEmpty(puuid)) return null;
+
+            var nick = root.TryGetProperty("gameName", out var gn) ? gn.GetString() : null;
+            if (string.IsNullOrEmpty(nick))
+                nick = root.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+
+            return new Summoner(puuid, nick ?? "");
         }
         catch { return null; }
     }
