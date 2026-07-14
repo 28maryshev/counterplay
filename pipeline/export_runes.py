@@ -151,14 +151,31 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
                                   ORDER BY g DESC LIMIT 20""",
                          [champ, role, *ps, MIN_ITEM])
     ]
-    builds = [
-        {'items': [int(x) for x in b.split(',')], 'games': g, 'wr': round(wr(g, w), 1)}
-        for b, g, w in q(con, f"""SELECT items, SUM(games) g, SUM(wins) w FROM item_build
-                                  WHERE champion_id=? AND role=? AND patch IN ({ph})
-                                  GROUP BY items HAVING g >= ?
-                                  ORDER BY g DESC LIMIT 8""",
-                         [champ, role, *ps, MIN_BUILD])
-    ]
+    # Сборки. Группировка идёт по ТОЧНОМУ набору предметов, а полные шестислотовые
+    # сборки редки и разнообразны — самыми частыми наборами оказываются короткие
+    # (люди заканчивают игру, не дособрав). Поэтому каждую сборку добиваем до 6
+    # слотов самыми ходовыми предметами чемпиона, которых в ней ещё нет: в панели
+    # и в игровом магазине должен быть полный список, а не три иконки.
+    popular = [i['id'] for i in items]   # уже отсортированы по числу игр
+    builds = []
+    for b, g, w in q(con, f"""SELECT items, SUM(games) g, SUM(wins) w FROM item_build
+                              WHERE champion_id=? AND role=? AND patch IN ({ph})
+                              GROUP BY items HAVING g >= ?
+                              ORDER BY g DESC LIMIT 8""",
+                     [champ, role, *ps, MIN_BUILD]):
+        ids = [int(x) for x in b.split(',')]
+        core = list(ids)                                   # то, что реально играли вместе
+        for extra in popular:                              # добивка до шести
+            if len(ids) >= 6:
+                break
+            if extra not in ids:
+                ids.append(extra)
+        builds.append({
+            'items': ids,
+            'core': core,        # какие из них — реально сыгранный набор
+            'games': g,
+            'wr': round(wr(g, w), 1),
+        })
 
     spells = [
         {'spells': [int(x) for x in s.split(',')], 'games': g, 'wr': round(wr(g, w), 1)}

@@ -17,9 +17,12 @@ public sealed record RuneChoice(
     int Keystone, int Games, double Winrate, double PickRate,
     RunePage Page, double VsDelta, int VsGames);
 
-/// <summary>Билд: предметы + спеллы.</summary>
+/// <summary>
+/// Сборка: 6 слотов. Core — предметы, которые реально играли ВМЕСТЕ (у них и
+/// винрейт); остальные — ходовые докупки, которыми набор добит до шести.
+/// </summary>
 public sealed record BuildData(
-    IReadOnlyList<int> Items, int Games, double Winrate,
+    IReadOnlyList<int> Items, IReadOnlyList<int> Core, int Games, double Winrate,
     IReadOnlyList<int> Spells);
 
 /// <summary>Данные по связке чемпион+роль (то, что отдаёт сервер).</summary>
@@ -135,7 +138,7 @@ public static class RunesClient
             // Завоеватель (Точность) + Доминирование
             Make(8010, 8000, 8100, [8010, 9111, 9104, 8014], [8139, 8135], 52.4, 46, 4820),
             // Электрокинетик (Доминирование) + Точность
-            Make(8112, 8100, 8000, [8112, 8143, 8138, 8135], [9111, 8014], 51.1, 31, 3240),
+            Make(8112, 8100, 8000, [8112, 8143, 8136, 8135], [9111, 8014], 51.1, 31, 3240),
             // Первый удар (Вдохновение) + Колдовство
             Make(8369, 8300, 8200, [8369, 8306, 8321, 8347], [8226, 8210], 50.2, 14, 1470),
         };
@@ -150,12 +153,12 @@ public static class RunesClient
                 [8369] = Math.Round(rnd.NextDouble() * 4 - 2, 1),
             });
 
-        // Три варианта сборки — как будет с настоящими данными.
+        // Три варианта сборки по 6 слотов: core (реально сыгранный набор) + докупки.
         var builds = new List<BuildData>
         {
-            new([3006, 3031, 6673], 1830, W(53.7), [4, 12]),
-            new([3047, 6672, 3153], 940,  W(52.1), [4, 12]),
-            new([3006, 6675, 3036], 610,  W(51.4), [4, 12]),
+            new([3006, 3031, 6673, 3072, 3036, 3026], [3006, 3031, 6673], 1830, W(53.7), [4, 12]),
+            new([3047, 6672, 3153, 3031, 3026, 6333], [3047, 6672, 3153], 940,  W(52.1), [4, 12]),
+            new([3006, 6675, 3036, 3095, 3072, 6676], [3006, 6675, 3036], 610,  W(51.4), [4, 12]),
         };
         return new ChampStats(champ, role, "16.13", 9530, list, vs, builds);
     }
@@ -206,6 +209,9 @@ public static class RunesClient
         var builds = r.GetProperty("builds").EnumerateArray().Take(3)
             .Select(b => new BuildData(
                 b.GetProperty("items").EnumerateArray().Select(x => x.GetInt32()).ToList(),
+                b.TryGetProperty("core", out var c)
+                    ? c.EnumerateArray().Select(x => x.GetInt32()).ToList()
+                    : [],
                 b.GetProperty("games").GetInt32(),
                 b.GetProperty("wr").GetDouble(),
                 spells))

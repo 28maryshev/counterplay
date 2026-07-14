@@ -11,7 +11,18 @@ namespace Counterplay;
 /// </summary>
 public static class RuneIcons
 {
-    private sealed record RuneInfo(int Id, string Name, string IconPath);
+    private sealed record RuneInfo(int Id, string Name, string IconPath, string Desc);
+
+    // Короткое описание руны из Data Dragon приходит с HTML-разметкой
+    // (<lol-uikit-tooltipped-keyword>, <br>) — чистим до человеческого текста.
+    private static string StripHtml(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        s = System.Text.RegularExpressions.Regex.Replace(s, "<br\\s*/?>", " ");
+        s = System.Text.RegularExpressions.Regex.Replace(s, "<[^>]+>", "");
+        s = System.Net.WebUtility.HtmlDecode(s);
+        return System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+    }
 
     private static readonly Dictionary<int, RuneInfo> Runes = new();
     private static readonly Dictionary<int, string> StyleNames = new();
@@ -47,7 +58,8 @@ public static class RuneIcons
                         Runes[id] = new RuneInfo(
                             id,
                             rune.GetProperty("name").GetString() ?? "",
-                            rune.GetProperty("icon").GetString() ?? "");
+                            rune.GetProperty("icon").GetString() ?? "",
+                            StripHtml(rune.TryGetProperty("shortDesc", out var d) ? d.GetString() ?? "" : ""));
                     }
             }
         }
@@ -55,6 +67,14 @@ public static class RuneIcons
     }
 
     public static string NameOf(int runeId) => Runes.GetValueOrDefault(runeId)?.Name ?? $"#{runeId}";
+
+    /// Короткое описание руны своими словами (из Data Dragon, на языке интерфейса).
+    public static string DescOf(int runeId) => Runes.GetValueOrDefault(runeId)?.Desc ?? "";
+
+    /// Знаем ли мы такую руну. Riot убирает руны между сезонами (напр. Eyeball
+    /// Collection) — старые id из статистики не должны светиться как «#8138».
+    public static bool Known(int runeId) => Runes.ContainsKey(runeId);
+
     public static string StyleName(int styleId) => StyleNames.GetValueOrDefault(styleId, "");
 
     /// Иконка руны (с диска, иначе качаем и кэшируем).

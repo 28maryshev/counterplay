@@ -408,8 +408,8 @@ public partial class OverlayWindow : Window
     /// (core-предметы, ситуативные, championId, имя) → успех.
     public Func<IReadOnlyList<int>, IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
 
-    /// Руна в подсказке/на кнопке: иконка + название.
-    public sealed record RuneVm(BitmapImage? Icon, string Name);
+    /// Руна в подсказке/на кнопке: иконка, название и короткое описание.
+    public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc);
 
     /// Элемент кнопки варианта рун (привязка в XAML).
     public sealed record RuneOptionVm(
@@ -472,20 +472,15 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        // CORE — предметы, общие для всех вариантов сборки: их берут почти всегда.
-        // Остальное в строке — ситуативные докупки, они и отличают варианты.
-        var core = stats.Builds
-            .Select(b => (IEnumerable<int>)b.Items)
-            .Aggregate((a, b) => a.Intersect(b))
-            .ToHashSet();
-
         var rows = new List<BuildRowVm>();
         for (int i = 0; i < stats.Builds.Count; i++)
         {
             var b = stats.Builds[i];
             var slots = new List<SlotVm>();
 
-            // Сначала CORE, потом ситуативные — так порядок покупки читается слева направо.
+            // CORE — набор, который реально играли вместе (у него и винрейт).
+            // Остальные слоты — ходовые докупки, которыми сборка добита до шести.
+            var core = b.Core.Count > 0 ? b.Core.ToHashSet() : b.Items.Take(3).ToHashSet();
             var ordered = b.Items.Where(core.Contains).Concat(b.Items.Where(x => !core.Contains(x)));
             foreach (var id in ordered.Take(6))
             {
@@ -577,16 +572,22 @@ public partial class OverlayWindow : Window
                 tip.AppendLine(Loc.T("runes.tipVs", (c.VsDelta >= 0 ? "+" : "") + c.VsDelta.ToString("0.0"), c.VsGames.ToString("N0")));
             tip.Append(Loc.T("runes.tipPick", c.PickRate.ToString("0")));
 
-            RuneVm Vm(int id) => new(RuneIcons.Icon(id), RuneIcons.NameOf(id));
+            RuneVm Vm(int id) => new(RuneIcons.Icon(id), RuneIcons.NameOf(id), RuneIcons.DescOf(id));
+
+            // Неизвестные руны не показываем: Riot убирает их между сезонами
+            // (например, Eyeball Collection), и в старой статистике они ещё есть —
+            // рисовать «#8138» вместо названия нельзя.
+            List<RuneVm> Vms(IEnumerable<int> ids) =>
+                ids.Where(RuneIcons.Known).Select(Vm).ToList();
 
             // Основное дерево: 4 руны (первая — кейстоун), вторичное: 2, плюс осколки.
-            var primary   = c.Page.Perks.Select(Vm).ToList();
-            var secondary = c.Page.Secondary.Select(Vm).ToList();
-            var shards    = c.Page.Shards.Select(Vm).ToList();
+            var primary   = Vms(c.Page.Perks);
+            var secondary = Vms(c.Page.Secondary);
+            var shards    = Vms(c.Page.Shards);
 
             // На кнопке — две строки иконок: сверху остаток основного дерева,
             // снизу вторичное. Так видно структуру страницы, а кнопка остаётся узкой.
-            var primaryMini   = c.Page.Perks.Skip(1).Select(Vm).ToList();
+            var primaryMini   = Vms(c.Page.Perks.Skip(1));
             var secondaryMini = secondary;
 
             vms.Add(new RuneOptionVm(
