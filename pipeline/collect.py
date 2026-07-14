@@ -163,6 +163,89 @@ def init_db(path: str) -> sqlite3.Connection:
             win_team    INTEGER,   -- teamId победителя (100/200)
             slots       TEXT
         );
+
+        -- ── Руны ────────────────────────────────────────────────────────────
+        -- Кейстоун (главная руна) — самая плотная выборка, по ней и выбираем.
+        CREATE TABLE IF NOT EXISTS keystone_wr (
+            champion_id INTEGER,
+            role        TEXT,
+            keystone    INTEGER,
+            tier_bucket TEXT,
+            patch       TEXT,
+            games       INTEGER DEFAULT 0,
+            wins        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, keystone, tier_bucket, patch)
+        );
+
+        -- Полная страница рун: перки (4 основных + 2 вторичных) и 3 осколка.
+        -- Ключ длинный, выборки реже — берём самую популярную/лучшую в рамках
+        -- выбранного кейстоуна.
+        CREATE TABLE IF NOT EXISTS rune_page (
+            champion_id   INTEGER,
+            role          TEXT,
+            keystone      INTEGER,
+            primary_style INTEGER,
+            sub_style     INTEGER,
+            perks         TEXT,     -- "8112,8126,8138,8135|8304,8347" (осн.|вторич.)
+            shards        TEXT,     -- "5008,5008,5001"
+            tier_bucket   TEXT,
+            patch         TEXT,
+            games         INTEGER DEFAULT 0,
+            wins          INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, keystone, primary_style, sub_style, perks, shards, tier_bucket, patch)
+        );
+
+        -- Кейстоун ПРОТИВ конкретного оппонента на линии. Выборка тонкая —
+        -- в движке смешивается с базовой (темпер по объёму), а не заменяет её.
+        CREATE TABLE IF NOT EXISTS keystone_matchup (
+            champion_id    INTEGER,
+            role           TEXT,
+            vs_champion_id INTEGER,
+            keystone       INTEGER,
+            tier_bucket    TEXT,
+            patch          TEXT,
+            games          INTEGER DEFAULT 0,
+            wins           INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, vs_champion_id, keystone, tier_bucket, patch)
+        );
+
+        -- ── Предметы ────────────────────────────────────────────────────────
+        -- Винрейт отдельного предмета (плотно) — для «какой предмет собирать».
+        CREATE TABLE IF NOT EXISTS item_wr (
+            champion_id INTEGER,
+            role        TEXT,
+            item_id     INTEGER,
+            tier_bucket TEXT,
+            patch       TEXT,
+            games       INTEGER DEFAULT 0,
+            wins        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, item_id, tier_bucket, patch)
+        );
+
+        -- Итоговый набор предметов (без расходников/тринкета), отсортированный.
+        -- Порядка покупки в MATCH-V5 нет — он только в Timeline API.
+        CREATE TABLE IF NOT EXISTS item_build (
+            champion_id INTEGER,
+            role        TEXT,
+            items       TEXT,      -- "3078,3053,3742" (id по возрастанию)
+            tier_bucket TEXT,
+            patch       TEXT,
+            games       INTEGER DEFAULT 0,
+            wins        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, items, tier_bucket, patch)
+        );
+
+        -- Заклинания призывателя (пара, отсортированная).
+        CREATE TABLE IF NOT EXISTS spell_wr (
+            champion_id INTEGER,
+            role        TEXT,
+            spells      TEXT,      -- "4,14"
+            tier_bucket TEXT,
+            patch       TEXT,
+            games       INTEGER DEFAULT 0,
+            wins        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, spells, tier_bucket, patch)
+        );
     """)
     con.commit()
     return con
@@ -198,6 +281,48 @@ def patch_of(game_version: str) -> str:
     """'14.10.428.5571' → '14.10'"""
     parts = game_version.split('.')
     return f'{parts[0]}.{parts[1]}' if len(parts) >= 2 else game_version
+
+
+# Расходники и тринкеты — в билд не входят (их продают/меняют).
+CONSUMABLES = {
+    2003, 2031, 2033, 2055, 2138, 2139, 2140,          # зелья, контроль-вард, эликсиры
+    3340, 3363, 3364, 3330,                            # тринкеты
+    2010, 2019, 2051, 2052,                            # прочие расходники
+    3865, 3866, 3867, 3869, 3870, 3871, 3876, 3877,    # квестовые/саппорт-предметы (эволюционируют)
+}
+
+
+def parse_perks(p: dict):
+    """Из participant.perks → (keystone, primary_style, sub_style, perks, shards).
+    None, если структура неожиданная (старые/битые матчи)."""
+    perks = p.get('perks') or {}
+    styles = perks.get('styles') or []
+    if len(styles) < 2:
+        return None
+
+    primary = next((s for s in styles if s.get('description') == 'primaryStyle'), styles[0])
+    sub     = next((s for s in styles if s.get('description') == 'subStyle'),     styles[1])
+
+    prim_sel = [sel.get('perk') for sel in (primary.get('selections') or [])]
+    sub_sel  = [sel.get('perk') for sel in (sub.get('selections') or [])]
+    if len(prim_sel) < 4 or len(sub_sel) < 2 or not all(prim_sel[:4]) or not all(sub_sel[:2]):
+        return None
+
+    stat = perks.get('statPerks') or {}
+    shards = [stat.get('offense'), stat.get('flex'), stat.get('defense')]
+    if not all(shards):
+        return None
+
+    keystone = prim_sel[0]
+    perks_str  = ','.join(str(x) for x in prim_sel[:4]) + '|' + ','.join(str(x) for x in sub_sel[:2])
+    shards_str = ','.join(str(x) for x in shards)
+    return keystone, primary.get('style'), sub.get('style'), perks_str, shards_str
+
+
+def parse_items(p: dict) -> list[int]:
+    """Итоговые предметы без расходников и тринкетов, по возрастанию id."""
+    ids = [p.get(f'item{i}') for i in range(7)]
+    return sorted({i for i in ids if i and i not in CONSUMABLES})
 
 
 def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
@@ -257,6 +382,46 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
                     upsert(con, 'botlane_matchup',
                            ['champion_id', 'role', 'vs_champion_id', 'vs_role', 'tier_bucket', 'patch'],
                            [champ, role, cross_opp['championId'], cross_role, tier_bucket, patch], win)
+
+            # ── Руны ────────────────────────────────────────────────────────
+            runes = parse_perks(p)
+            if runes:
+                keystone, prim_style, sub_style, perks_str, shards_str = runes
+
+                upsert(con, 'keystone_wr',
+                       ['champion_id', 'role', 'keystone', 'tier_bucket', 'patch'],
+                       [champ, role, keystone, tier_bucket, patch], win)
+
+                upsert(con, 'rune_page',
+                       ['champion_id', 'role', 'keystone', 'primary_style', 'sub_style',
+                        'perks', 'shards', 'tier_bucket', 'patch'],
+                       [champ, role, keystone, prim_style, sub_style,
+                        perks_str, shards_str, tier_bucket, patch], win)
+
+                # Кейстоун против прямого оппонента — поправка на матчап.
+                if opp:
+                    upsert(con, 'keystone_matchup',
+                           ['champion_id', 'role', 'vs_champion_id', 'keystone', 'tier_bucket', 'patch'],
+                           [champ, role, opp['championId'], keystone, tier_bucket, patch], win)
+
+            # ── Предметы ────────────────────────────────────────────────────
+            items = parse_items(p)
+            if items:
+                for item_id in items:
+                    upsert(con, 'item_wr',
+                           ['champion_id', 'role', 'item_id', 'tier_bucket', 'patch'],
+                           [champ, role, item_id, tier_bucket, patch], win)
+                upsert(con, 'item_build',
+                       ['champion_id', 'role', 'items', 'tier_bucket', 'patch'],
+                       [champ, role, ','.join(str(i) for i in items), tier_bucket, patch], win)
+
+            # ── Заклинания призывателя ──────────────────────────────────────
+            s1, s2 = p.get('summoner1Id'), p.get('summoner2Id')
+            if s1 and s2:
+                spells = ','.join(str(x) for x in sorted((s1, s2)))
+                upsert(con, 'spell_wr',
+                       ['champion_id', 'role', 'spells', 'tier_bucket', 'patch'],
+                       [champ, role, spells, tier_bucket, patch], win)
 
     # Полный драфт — сырьё для калибровки весов (calibrate.py).
     win_team = next((p['teamId'] for p in participants if p.get('win')), None)
@@ -479,6 +644,47 @@ def _parse_list(value: str, valid, name: str) -> list:
 
 # ---------- CLI ----------
 
+def verify_parse(api_key: str):
+    """Самопроверка на ОДНОМ настоящем матче: печатает, что удалось разобрать
+    (руны, предметы, спеллы). Стоит 3 запроса к API. Запуск: --verify."""
+    watcher = LolWatcher(api_key)
+    league = api_call(watcher.league.challenger_by_queue, 'euw1', 'RANKED_SOLO_5x5')
+    entry = (league or {}).get('entries', [{}])[0]
+    puuid = entry.get('puuid')
+    if not puuid:
+        sys.exit('не удалось получить puuid игрока для проверки')
+
+    ids = api_call(watcher.match.matchlist_by_puuid, 'europe', puuid, queue=QUEUE_RANKED, count=1)
+    if not ids:
+        sys.exit('нет матчей для проверки')
+    match = api_call(watcher.match.by_id, 'europe', ids[0])
+    if not match:
+        sys.exit('матч не загрузился')
+
+    info = match['info']
+    print(f"\nМатч {ids[0]} · патч {patch_of(info.get('gameVersion', '0.0'))}\n")
+    ok = 0
+    for p in info['participants'][:3]:  # хватит трёх игроков
+        pos = POSITION_MAP.get(p.get('teamPosition', ''), '?')
+        print(f"чемпион {p['championId']} ({pos}), победа: {p['win']}")
+
+        runes = parse_perks(p)
+        if runes:
+            ks, ps, ss, perks, shards = runes
+            print(f"  руны:     кейстоун={ks} дерево={ps}/{ss}")
+            print(f"            перки={perks}  осколки={shards}")
+            ok += 1
+        else:
+            print("  руны:     НЕ РАЗОБРАНЫ ← ошибка парсинга")
+
+        items = parse_items(p)
+        print(f"  предметы: {items}")
+        print(f"  спеллы:   {p.get('summoner1Id')},{p.get('summoner2Id')}\n")
+
+    print('ИТОГ: руны разобраны у', ok, 'из 3 игроков',
+          '— парсинг рабочий' if ok == 3 else '— ЕСТЬ ПРОБЛЕМА')
+
+
 def _ask_key() -> str:
     """Интерактивный запрос API-ключа (когда --key не передан)."""
     while True:
@@ -511,6 +717,8 @@ if __name__ == '__main__':
     p.add_argument('--delay', type=float, default=RATE_DELAY,
                    help=f'Пауза между запросами, с (по умолчанию: {RATE_DELAY}). '
                         'Минимум ~1.2 при dev-ключе, ниже — пойдут 429.')
+    p.add_argument('--verify', action='store_true',
+                   help='Самопроверка парсинга рун/предметов на одном настоящем матче и выход.')
     args = p.parse_args()
 
     if args.delay < 1.2:
@@ -523,4 +731,9 @@ if __name__ == '__main__':
     regions = _parse_list(args.region, REGION_PRIORITY, '--region')
 
     key = args.key or _ask_key()
+
+    if args.verify:
+        verify_parse(key)
+        sys.exit(0)
+
     run_continuous(key, args.db, regions, buckets, args.days, args.games)
