@@ -405,10 +405,20 @@ public partial class OverlayWindow : Window
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
     public Func<IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
 
+    /// Руна в подсказке/на кнопке: иконка + название.
+    public sealed record RuneVm(BitmapImage? Icon, string Name);
+
     /// Элемент кнопки варианта рун (привязка в XAML).
     public sealed record RuneOptionVm(
         int Index, string Label, string WinrateText, string GamesText, string Tip,
-        BitmapImage? KeystoneIcon, Brush WinrateBrush, Brush Background, Brush BorderBrush);
+        BitmapImage? KeystoneIcon, Brush WinrateBrush, Brush Background, Brush BorderBrush,
+        // Остальные руны страницы мелкими иконками — видно, что именно выбираешь.
+        IReadOnlyList<RuneVm> MiniIcons,
+        // Полное дерево в подсказке.
+        string TreeTitle, string SubTreeTitle,
+        IReadOnlyList<RuneVm> PrimaryRunes,
+        IReadOnlyList<RuneVm> SecondaryRunes,
+        IReadOnlyList<RuneVm> ShardRunes);
 
     /// Показать панель рун/билда. stats=null — панели нет (данных мало/нет сети).
     public void ShowRunes(ChampStats? stats, int championId, string championName, int? opponentId) =>
@@ -453,11 +463,21 @@ public partial class OverlayWindow : Window
             // Подсказка: честно показываем размер выборки и вклад матчапа —
             // чтобы было видно, где цифра надёжна, а где это лишь намёк.
             var tip = new StringBuilder();
-            tip.AppendLine($"{RuneIcons.NameOf(c.Keystone)} · {RuneIcons.StyleName(c.Page.Primary)} → {RuneIcons.StyleName(c.Page.Sub)}");
             tip.AppendLine(Loc.T("runes.tipBase", c.Winrate.ToString("0.0"), c.Games.ToString("N0")));
             if (c.VsGames > 0 && Math.Abs(c.VsDelta) >= 0.1)
                 tip.AppendLine(Loc.T("runes.tipVs", (c.VsDelta >= 0 ? "+" : "") + c.VsDelta.ToString("0.0"), c.VsGames.ToString("N0")));
             tip.Append(Loc.T("runes.tipPick", c.PickRate.ToString("0")));
+
+            RuneVm Vm(int id) => new(RuneIcons.Icon(id), RuneIcons.NameOf(id));
+
+            // Основное дерево: 4 руны (первая — кейстоун), вторичное: 2, плюс осколки.
+            var primary   = c.Page.Perks.Select(Vm).ToList();
+            var secondary = c.Page.Secondary.Select(Vm).ToList();
+            var shards    = c.Page.Shards.Select(Vm).ToList();
+
+            // На кнопке — мелкие иконки всего, кроме кейстоуна: сразу видно,
+            // чем варианты отличаются, без наведения.
+            var mini = c.Page.Perks.Skip(1).Concat(c.Page.Secondary).Select(Vm).ToList();
 
             vms.Add(new RuneOptionVm(
                 Index: i,
@@ -472,7 +492,13 @@ public partial class OverlayWindow : Window
                     : Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
                 BorderBrush: new SolidColorBrush(selected
                     ? Color.FromRgb(0x36, 0xD6, 0xE7)
-                    : Color.FromRgb(0x2A, 0x3A, 0x4F))));
+                    : Color.FromRgb(0x2A, 0x3A, 0x4F)),
+                MiniIcons: mini,
+                TreeTitle: $"{RuneIcons.NameOf(c.Keystone)} · {RuneIcons.StyleName(c.Page.Primary)}",
+                SubTreeTitle: RuneIcons.StyleName(c.Page.Sub),
+                PrimaryRunes: primary,
+                SecondaryRunes: secondary,
+                ShardRunes: shards));
         }
         RuneOptions.ItemsSource = vms;
     }
