@@ -1189,12 +1189,12 @@
                        кольцом-контуром позади кнопки. Если вешать тень на саму
                        кнопку, она просвечивает сквозь полупрозрачный фон внутрь. -->
                   <Grid Grid.Column="0" VerticalAlignment="Bottom">
-                    <Border x:Name="ApplyGlowRing" CornerRadius="7" Margin="-1"
+                    <Border x:Name="ApplyGlowRing" CornerRadius="8" Margin="-2"
                             Background="Transparent"
-                            BorderBrush="#36D6E7" BorderThickness="2"
+                            BorderBrush="#5CE4F2" BorderThickness="2.5"
                             IsHitTestVisible="False" Opacity="0">
                       <Border.Effect>
-                        <DropShadowEffect Color="#36D6E7" ShadowDepth="0" BlurRadius="12" Opacity="1"/>
+                        <DropShadowEffect Color="#36D6E7" ShadowDepth="0" BlurRadius="20" Opacity="1"/>
                       </Border.Effect>
                     </Border>
 

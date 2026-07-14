@@ -486,24 +486,28 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        // Пульсирует само кольцо-контур: вспышка → ровное «дыхание».
-        var op = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.25, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(1.0,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
+        // ОДНА вспышка при выборе (не мигает постоянно): резко разгорается и
+        // оседает на ровном свечении — кнопка остаётся подсвеченной, но не
+        // отвлекает морганием.
+        var op = new DoubleAnimationUsingKeyFrames();
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.0,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(1.0,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140)),
+                                                  new SineEase { EasingMode = EasingMode.EaseOut }));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.75, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(900)),
                                                   new SineEase { EasingMode = EasingMode.EaseInOut }));
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.3,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
-                                                  new SineEase { EasingMode = EasingMode.EaseInOut }));
+        op.FillBehavior = FillBehavior.HoldEnd;
         ApplyGlowRing.BeginAnimation(OpacityProperty, op);
 
-        // Заодно «дышит» и радиус ореола вокруг контура.
+        // Ореол: широкая вспышка → устойчивое сильное свечение.
         if (ApplyGlowRing.Effect is DropShadowEffect glow)
         {
-            var blur = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-            blur.KeyFrames.Add(new EasingDoubleKeyFrame(6,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            blur.KeyFrames.Add(new EasingDoubleKeyFrame(20, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
+            var blur = new DoubleAnimationUsingKeyFrames();
+            blur.KeyFrames.Add(new EasingDoubleKeyFrame(8,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            blur.KeyFrames.Add(new EasingDoubleKeyFrame(34, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140)),
+                                                        new SineEase { EasingMode = EasingMode.EaseOut }));
+            blur.KeyFrames.Add(new EasingDoubleKeyFrame(20, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(900)),
                                                         new SineEase { EasingMode = EasingMode.EaseInOut }));
-            blur.KeyFrames.Add(new EasingDoubleKeyFrame(8,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
-                                                        new SineEase { EasingMode = EasingMode.EaseInOut }));
+            blur.FillBehavior = FillBehavior.HoldEnd;
             glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blur);
         }
     }
