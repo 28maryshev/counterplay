@@ -55,10 +55,14 @@ public static class RunesImporter
         catch { return false; }
     }
 
-    /// <summary>Экспортировать набор предметов (виден в магазине в игре).</summary>
+    /// <summary>
+    /// Экспортировать набор предметов (виден в магазине в игре).
+    /// Два блока: выбранная сборка и ситуативные варианты — чтобы в магазине был
+    /// полный список того, что берут на этом чемпионе, а не шесть предметов.
+    /// </summary>
     public static async Task<bool> ExportItemSetAsync(
-        LcuHttpClient http, IReadOnlyList<int> items, int championId, string championName,
-        CancellationToken ct)
+        LcuHttpClient http, IReadOnlyList<int> items, IReadOnlyList<int> situational,
+        int championId, string championName, CancellationToken ct)
     {
         try
         {
@@ -102,8 +106,15 @@ public static class RunesImporter
                         showIfSummonerSpell = "",
                         hideIfSummonerSpell = "",
                         items = items.Select(i => new { id = i.ToString(), count = 1 }).ToArray(),
-                    }
-                }
+                    },
+                    new
+                    {
+                        type = Loc.T("runes.altBlock"),
+                        showIfSummonerSpell = "",
+                        hideIfSummonerSpell = "",
+                        items = situational.Select(i => new { id = i.ToString(), count = 1 }).ToArray(),
+                    },
+                }.Where(b => b.items.Length > 0).ToArray()
             };
 
             var sets = new List<object>();

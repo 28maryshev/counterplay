@@ -27,7 +27,7 @@ public sealed record ChampStats(
     int ChampionId, string Role, string Patch, int Games,
     IReadOnlyList<RuneChoice> Keystones,
     IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> Vs,
-    BuildData? Build);
+    IReadOnlyList<BuildData> Builds);   // до 3 вариантов сборки, у каждого свой экспорт
 
 /// <summary>
 /// Клиент статистики рун/билдов. Данные лежат на сервере готовыми JSON
@@ -150,8 +150,14 @@ public static class RunesClient
                 [8369] = Math.Round(rnd.NextDouble() * 4 - 2, 1),
             });
 
-        var build = new BuildData([3006, 3031, 6673], 1830, 53.7, [4, 12]);
-        return new ChampStats(champ, role, "16.13", 9530, list, vs, build);
+        // Три варианта сборки — как будет с настоящими данными.
+        var builds = new List<BuildData>
+        {
+            new([3006, 3031, 6673], 1830, W(53.7), [4, 12]),
+            new([3047, 6672, 3153], 940,  W(52.1), [4, 12]),
+            new([3006, 6675, 3036], 610,  W(51.4), [4, 12]),
+        };
+        return new ChampStats(champ, role, "16.13", 9530, list, vs, builds);
     }
 
     /// Разбор JSON сервера (формат — pipeline/export_runes.py).
@@ -191,27 +197,26 @@ public static class RunesClient
                 vs[int.Parse(pair.Name)] = (pair.Value.GetProperty("games").GetInt32(), deltas);
             }
 
-        BuildData? build = null;
-        var builds = r.GetProperty("builds");
-        if (builds.GetArrayLength() > 0)
-        {
-            var b = builds[0];
-            var spells = r.GetProperty("spells");
-            build = new BuildData(
+        // До 3 вариантов сборки — у каждого своя кнопка экспорта в панели.
+        var spellsEl = r.GetProperty("spells");
+        var spells = spellsEl.GetArrayLength() > 0
+            ? spellsEl[0].GetProperty("spells").EnumerateArray().Select(x => x.GetInt32()).ToList()
+            : new List<int>();
+
+        var builds = r.GetProperty("builds").EnumerateArray().Take(3)
+            .Select(b => new BuildData(
                 b.GetProperty("items").EnumerateArray().Select(x => x.GetInt32()).ToList(),
                 b.GetProperty("games").GetInt32(),
                 b.GetProperty("wr").GetDouble(),
-                spells.GetArrayLength() > 0
-                    ? spells[0].GetProperty("spells").EnumerateArray().Select(x => x.GetInt32()).ToList()
-                    : []);
-        }
+                spells))
+            .ToList();
 
         return new ChampStats(
             r.GetProperty("champion").GetInt32(),
             r.GetProperty("role").GetString()!,
             r.GetProperty("patches")[0].GetString()!,
             r.GetProperty("games").GetInt32(),
-            keystones, vs, build);
+            keystones, vs, builds);
     }
 
     /// <summary>

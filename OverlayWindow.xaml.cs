@@ -405,7 +405,8 @@ public partial class OverlayWindow : Window
 
     /// Функция импорта в клиент. Ставится из Program (в тестовом режиме — null).
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
-    public Func<IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
+    /// (core-предметы, ситуативные, championId, имя) → успех.
+    public Func<IReadOnlyList<int>, IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
 
     /// Руна в подсказке/на кнопке: иконка + название.
     public sealed record RuneVm(BitmapImage? Icon, string Name);
@@ -443,31 +444,73 @@ public partial class OverlayWindow : Window
             _runeSelected = 0;
             RenderRuneOptions(opponentId);
 
-            ApplyRunesText.Text  = Loc.T("runes.apply");
-            ExportBuildText.Text = Loc.T("runes.exportBuild");
-
-            // Предметы, которые уедут в клиент — показываем иконками над кнопкой.
-            if (stats.Build is { Items.Count: > 0 } b)
-            {
-                BuildItems.ItemsSource = b.Items
-                    .Select(i => new BuildItemVm(ItemIcons.GetOrLoad(i), ItemIcons.NameOf(i)))
-                    .ToList();
-                ExportBuildBtn.Visibility = Visibility.Visible;
-                BuildItems.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                ExportBuildBtn.Visibility = Visibility.Collapsed;
-                BuildItems.Visibility = Visibility.Collapsed;
-            }
+            ApplyRunesText.Text = Loc.T("runes.apply");
+            RenderBuilds(stats);
 
             RunesStatus.Visibility = Visibility.Collapsed;
             RunesBar.Visibility = Visibility.Visible;
             PulseApplyButton();   // сразу подсвечиваем: вариант выбран по умолчанию
         });
 
-    /// Предмет билда для кнопки экспорта.
-    public sealed record BuildItemVm(ImageSource? Icon, string Name);
+    // ── Сборки ───────────────────────────────────────────────────────────────
+
+    /// Слот предмета: CORE выделен золотой рамкой, ситуативные — тусклой.
+    public sealed record SlotVm(ImageSource? Icon, string Tip, Brush Stroke, Thickness Thickness, double Dim);
+
+    /// Строка сборки: 6 слотов + своя кнопка экспорта.
+    public sealed record BuildRowVm(
+        int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip);
+
+    private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
+    private static readonly Brush AltStroke  = new SolidColorBrush(Color.FromArgb(0x55, 0x55, 0x70, 0x89));
+
+    private void RenderBuilds(ChampStats stats)
+    {
+        if (stats.Builds.Count == 0)
+        {
+            BuildList.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        // CORE — предметы, общие для всех вариантов сборки: их берут почти всегда.
+        // Остальное в строке — ситуативные докупки, они и отличают варианты.
+        var core = stats.Builds
+            .Select(b => (IEnumerable<int>)b.Items)
+            .Aggregate((a, b) => a.Intersect(b))
+            .ToHashSet();
+
+        var rows = new List<BuildRowVm>();
+        for (int i = 0; i < stats.Builds.Count; i++)
+        {
+            var b = stats.Builds[i];
+            var slots = new List<SlotVm>();
+
+            // Сначала CORE, потом ситуативные — так порядок покупки читается слева направо.
+            var ordered = b.Items.Where(core.Contains).Concat(b.Items.Where(x => !core.Contains(x)));
+            foreach (var id in ordered.Take(6))
+            {
+                var isCore = core.Contains(id);
+                slots.Add(new SlotVm(
+                    ItemIcons.GetOrLoad(id),
+                    ItemIcons.NameOf(id) + (isCore ? $" · {Loc.T("runes.core")}" : ""),
+                    isCore ? CoreStroke : AltStroke,
+                    new Thickness(isCore ? 1.5 : 1),
+                    isCore ? 1.0 : 0.85));
+            }
+            // Добиваем до 6 слотов пустыми рамками — сетка ровная.
+            while (slots.Count < 6)
+                slots.Add(new SlotVm(null, "", AltStroke, new Thickness(1), 1.0));
+
+            rows.Add(new BuildRowVm(
+                Index: i,
+                Slots: slots,
+                ExportText: Loc.T("runes.export"),
+                Tip: Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games))));
+        }
+
+        BuildList.ItemsSource = rows;
+        BuildList.Visibility = Visibility.Visible;
+    }
 
     /// <summary>
     /// Свечение вокруг кнопки «Применить руны»: яркая вспышка при выборе варианта,
@@ -568,7 +611,19 @@ public partial class OverlayWindow : Window
                 SecondaryRunes: secondary,
                 ShardRunes: shards));
         }
-        RuneOptions.ItemsSource = vms;
+        // Раскладываем по сетке 2×2: два варианта сверху, третий снизу слева.
+        // Кнопка «Применить» уже стоит в свободной ячейке (1,1) — см. XAML.
+        foreach (var child in RuneGrid.Children.OfType<ContentPresenter>().ToList())
+            RuneGrid.Children.Remove(child);
+
+        var template = (DataTemplate)RunesBar.FindResource("RuneOptionTemplate");
+        for (int i = 0; i < vms.Count && i < 3; i++)
+        {
+            var cp = new ContentPresenter { Content = vms[i], ContentTemplate = template };
+            Grid.SetRow(cp, i / 2);
+            Grid.SetColumn(cp, i % 2);
+            RuneGrid.Children.Add(cp);
+        }
     }
 
     private static string FormatGames(int g) =>
@@ -606,13 +661,25 @@ public partial class OverlayWindow : Window
     private async void ExportBuild_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (ExportBuildHandler is null || _runeStats?.Build is null) return;
+        if (ExportBuildHandler is null || _runeStats is null) return;
+        if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
+        if (idx < 0 || idx >= _runeStats.Builds.Count) return;
 
         RunesStatus.Text = Loc.T("runes.exporting");
         RunesStatus.Foreground = MuteBrush;
         RunesStatus.Visibility = Visibility.Visible;
 
-        var ok = await ExportBuildHandler(_runeStats.Build.Items, _runeChampId, _runeChampName);
+        // В набор кладём не только выбранную сборку, но и всё, что часто берут
+        // на этом чемпионе: в магазине должен быть полный список вариантов, а не
+        // шесть жёстко зашитых предметов.
+        var chosen = _runeStats.Builds[idx].Items;
+        var situational = _runeStats.Builds
+            .SelectMany(b => b.Items)
+            .Distinct()
+            .Where(i => !chosen.Contains(i))
+            .ToList();
+
+        var ok = await ExportBuildHandler(chosen, situational, _runeChampId, _runeChampName);
         RunesStatus.Text = Loc.T(ok ? "runes.exported" : "runes.failed");
         RunesStatus.Foreground = ok ? WinBrush : LossBrush;
     }

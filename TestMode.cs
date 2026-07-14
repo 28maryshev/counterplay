@@ -41,7 +41,7 @@ static class TestMode
         // Импорт в клиент из теста не делаем (клиента может не быть) —
         // кнопки отвечают «как будто получилось», чтобы проверить сценарий.
         overlay.ApplyRunesHandler  = async (_, _) => { await Task.Delay(400, ct); return true; };
-        overlay.ExportBuildHandler = async (_, _, _) => { await Task.Delay(400, ct); return true; };
+        overlay.ExportBuildHandler = async (_, _, _, _) => { await Task.Delay(400, ct); return true; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)

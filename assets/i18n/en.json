@@ -12,7 +12,11 @@
     "tipBase": "Win rate {0}% over {1} games",
     "tipVs": "Vs this opponent: {0} pp ({1} games)",
     "tipPick": "Picked in {0}% of games",
-    "buildBlock": "Core build"
+    "buildBlock": "Core build",
+    "export": "Export",
+    "core": "core",
+    "altBlock": "Situational",
+    "buildTip": "Win rate {0}% over {1} games — send to the client"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

@@ -1,4 +1,4 @@
-<Window x:Class="Counterplay.OverlayWindow"
+﻿<Window x:Class="Counterplay.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:Counterplay"
@@ -1032,10 +1032,118 @@
 
             <!-- ══ РУНЫ И БИЛД ═══════════════════════════════════════════
                  В ЦЕНТРЕ, под списком: боковые колонки (связки команд) остаются
-                 видны. Появляется, когда мой чемпион определён и данные есть. -->
+                 видны. Слева руны (2 сверху, 1 снизу + «Применить» правее неё),
+                 справа три сборки — у каждой 6 слотов и своя кнопка экспорта. -->
             <Border Grid.Row="1" x:Name="RunesBar" Visibility="Collapsed"
                     Margin="0,6,0,8" Padding="9,7" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
+              <Border.Resources>
+                <!-- Кнопка варианта рун: кейстоун крупно, остальные руны страницы
+                     мелкими иконками (основное дерево сверху, вторичное снизу). -->
+                <DataTemplate x:Key="RuneOptionTemplate">
+                  <Border Margin="0,0,6,6" Padding="7,5" CornerRadius="7" Cursor="Hand"
+                          Background="{Binding Background}"
+                          BorderBrush="{Binding BorderBrush}" BorderThickness="1.5"
+                          MouseLeftButtonDown="RuneOption_Click" Tag="{Binding Index}">
+                    <Border.ToolTip>
+                      <ToolTip Background="#101823" BorderBrush="#557089" BorderThickness="1" Padding="10,8">
+                        <StackPanel MaxWidth="290">
+                          <TextBlock Text="{Binding TreeTitle}" TextWrapping="Wrap"
+                                     FontFamily="{StaticResource DisplayFont}" FontSize="12" FontWeight="Bold"
+                                     Foreground="#F5D77A" Margin="0,0,0,6"/>
+                          <ItemsControl ItemsSource="{Binding PrimaryRunes}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                                  <Image Source="{Binding Icon}" Width="22" Height="22"
+                                         RenderOptions.BitmapScalingMode="HighQuality"/>
+                                  <TextBlock Text="{Binding Name}" Margin="7,0,0,0" VerticalAlignment="Center"
+                                             FontFamily="{StaticResource UiFont}" FontSize="11"
+                                             Foreground="#D7DEE6"/>
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <TextBlock Text="{Binding SubTreeTitle}" Margin="0,6,0,4"
+                                     FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                                     Foreground="#8AA0B2"/>
+                          <ItemsControl ItemsSource="{Binding SecondaryRunes}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                                  <Image Source="{Binding Icon}" Width="20" Height="20"
+                                         RenderOptions.BitmapScalingMode="HighQuality"/>
+                                  <TextBlock Text="{Binding Name}" Margin="7,0,0,0" VerticalAlignment="Center"
+                                             FontFamily="{StaticResource UiFont}" FontSize="11"
+                                             Foreground="#D7DEE6"/>
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <ItemsControl ItemsSource="{Binding ShardRunes}" Margin="0,6,0,0">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <Image Source="{Binding Icon}" Width="18" Height="18" Margin="0,0,4,0"
+                                       ToolTip="{Binding Name}"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                     FontFamily="{StaticResource UiFont}" FontSize="10" LineHeight="15"
+                                     Foreground="#8AA0B2"/>
+                        </StackPanel>
+                      </ToolTip>
+                    </Border.ToolTip>
+
+                    <StackPanel Orientation="Horizontal">
+                      <Image Source="{Binding KeystoneIcon}" Width="28" Height="28" VerticalAlignment="Center"
+                             RenderOptions.BitmapScalingMode="HighQuality"/>
+                      <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Label}" MaxWidth="86" TextTrimming="CharacterEllipsis"
+                                   FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                                   Foreground="#E6EDF3"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
+                          <TextBlock Text="{Binding WinrateText}" VerticalAlignment="Center"
+                                     FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                                     Foreground="{Binding WinrateBrush}"/>
+                          <TextBlock Text="{Binding GamesText}" Margin="4,0,0,0" VerticalAlignment="Center"
+                                     FontFamily="{StaticResource UiFont}" FontSize="9" Foreground="#6A8296"/>
+                        </StackPanel>
+                      </StackPanel>
+                      <StackPanel Margin="7,0,0,0" VerticalAlignment="Center">
+                        <ItemsControl ItemsSource="{Binding PrimaryMini}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Image Source="{Binding Icon}" Width="15" Height="15" Margin="0,0,2,0"
+                                     ToolTip="{Binding Name}" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding SecondaryMini}" Margin="0,3,0,0">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Image Source="{Binding Icon}" Width="15" Height="15" Margin="0,0,2,0"
+                                     Opacity="0.85" ToolTip="{Binding Name}"
+                                     RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </Border.Resources>
+
               <StackPanel>
                 <Grid Margin="2,0,2,6">
                   <TextBlock x:Name="RunesTitle" Text="" HorizontalAlignment="Left"
@@ -1046,194 +1154,86 @@
                              Foreground="#57C98A" Visibility="Collapsed"/>
                 </Grid>
 
-                <!-- Варианты рун: кейстоун крупно + остальные руны страницы мелко.
-                     Переносятся по строкам, если не влезают. -->
-                <ItemsControl x:Name="RuneOptions">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <WrapPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Margin="0,0,6,6" Padding="7,5" CornerRadius="7" Cursor="Hand"
-                              Background="{Binding Background}"
-                              BorderBrush="{Binding BorderBrush}" BorderThickness="1.5"
-                              MouseLeftButtonDown="RuneOption_Click" Tag="{Binding Index}">
-                        <!-- Подсказка: всё дерево рун целиком -->
-                        <Border.ToolTip>
-                          <ToolTip Background="#101823" BorderBrush="#557089" BorderThickness="1"
-                                   Padding="10,8">
-                            <StackPanel MaxWidth="290">
-                              <TextBlock Text="{Binding TreeTitle}" TextWrapping="Wrap"
-                                         FontFamily="{StaticResource DisplayFont}" FontSize="12" FontWeight="Bold"
-                                         Foreground="#F5D77A" Margin="0,0,0,6"/>
-                              <!-- Основное дерево: 4 руны с иконками и названиями -->
-                              <ItemsControl ItemsSource="{Binding PrimaryRunes}">
-                                <ItemsControl.ItemTemplate>
-                                  <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                      <Image Source="{Binding Icon}" Width="22" Height="22"
-                                             RenderOptions.BitmapScalingMode="HighQuality"/>
-                                      <TextBlock Text="{Binding Name}" Margin="7,0,0,0" VerticalAlignment="Center"
-                                                 FontFamily="{StaticResource UiFont}" FontSize="11"
-                                                 Foreground="#D7DEE6"/>
-                                    </StackPanel>
-                                  </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                              </ItemsControl>
-                              <!-- Вторичное дерево -->
-                              <TextBlock Text="{Binding SubTreeTitle}" Margin="0,6,0,4"
-                                         FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
-                                         Foreground="#8AA0B2"/>
-                              <ItemsControl ItemsSource="{Binding SecondaryRunes}">
-                                <ItemsControl.ItemTemplate>
-                                  <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                      <Image Source="{Binding Icon}" Width="20" Height="20"
-                                             RenderOptions.BitmapScalingMode="HighQuality"/>
-                                      <TextBlock Text="{Binding Name}" Margin="7,0,0,0" VerticalAlignment="Center"
-                                                 FontFamily="{StaticResource UiFont}" FontSize="11"
-                                                 Foreground="#D7DEE6"/>
-                                    </StackPanel>
-                                  </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                              </ItemsControl>
-                              <!-- Осколки -->
-                              <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <ItemsControl ItemsSource="{Binding ShardRunes}">
-                                  <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                                  </ItemsControl.ItemsPanel>
-                                  <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                      <Image Source="{Binding Icon}" Width="18" Height="18" Margin="0,0,4,0"
-                                             ToolTip="{Binding Name}"
-                                             RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    </DataTemplate>
-                                  </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                              </StackPanel>
-                              <!-- Цифры: выборка честно видна -->
-                              <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" Margin="0,8,0,0"
-                                         FontFamily="{StaticResource UiFont}" FontSize="10" LineHeight="15"
-                                         Foreground="#8AA0B2"/>
-                            </StackPanel>
-                          </ToolTip>
-                        </Border.ToolTip>
-
-                        <StackPanel Orientation="Horizontal">
-                          <!-- Кейстоун крупно -->
-                          <Image Source="{Binding KeystoneIcon}" Width="28" Height="28"
-                                 VerticalAlignment="Center"
-                                 RenderOptions.BitmapScalingMode="HighQuality"/>
-
-                          <!-- Название + винрейт -->
-                          <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Label}" MaxWidth="86" TextTrimming="CharacterEllipsis"
-                                       FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
-                                       Foreground="#E6EDF3"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
-                              <TextBlock Text="{Binding WinrateText}" VerticalAlignment="Center"
-                                         FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
-                                         Foreground="{Binding WinrateBrush}"/>
-                              <TextBlock Text="{Binding GamesText}" Margin="4,0,0,0" VerticalAlignment="Center"
-                                         FontFamily="{StaticResource UiFont}" FontSize="9"
-                                         Foreground="#6A8296"/>
-                            </StackPanel>
-                          </StackPanel>
-
-                          <!-- Руны страницы: первая строка — основное дерево,
-                               вторая — вторичное. Видно, что именно выбираешь. -->
-                          <StackPanel Margin="7,0,0,0" VerticalAlignment="Center">
-                            <ItemsControl ItemsSource="{Binding PrimaryMini}">
-                              <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                              </ItemsControl.ItemsPanel>
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                  <Image Source="{Binding Icon}" Width="15" Height="15" Margin="0,0,2,0"
-                                         ToolTip="{Binding Name}"
-                                         RenderOptions.BitmapScalingMode="HighQuality"/>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <ItemsControl ItemsSource="{Binding SecondaryMini}" Margin="0,3,0,0">
-                              <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                              </ItemsControl.ItemsPanel>
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                  <Image Source="{Binding Icon}" Width="15" Height="15" Margin="0,0,2,0"
-                                         Opacity="0.85" ToolTip="{Binding Name}"
-                                         RenderOptions.BitmapScalingMode="HighQuality"/>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                          </StackPanel>
-                        </StackPanel>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- Действия: применить руны — слева, экспорт билда — справа -->
-                <Grid Margin="0,2,0,0">
+                <Grid>
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>   <!-- руны   -->
+                    <ColumnDefinition Width="*"/>      <!-- сборки -->
                   </Grid.ColumnDefinitions>
 
-                  <!-- Применить руны: свечение идёт по ПЕРИМЕТРУ — отдельным
-                       кольцом-контуром позади кнопки. Если вешать тень на саму
-                       кнопку, она просвечивает сквозь полупрозрачный фон внутрь. -->
-                  <Grid Grid.Column="0" VerticalAlignment="Bottom">
-                    <Border x:Name="ApplyGlowRing" CornerRadius="8" Margin="-2"
-                            Background="Transparent"
-                            BorderBrush="#5CE4F2" BorderThickness="2.5"
-                            IsHitTestVisible="False" Opacity="0">
-                      <Border.Effect>
-                        <DropShadowEffect Color="#36D6E7" ShadowDepth="0" BlurRadius="20" Opacity="1"/>
-                      </Border.Effect>
-                    </Border>
+                  <!-- РУНЫ: сетка 2x2. Три варианта расставляются в коде, кнопка
+                       «Применить» занимает свободную ячейку справа от нижнего. -->
+                  <Grid Grid.Column="0" x:Name="RuneGrid">
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                    <Border x:Name="ApplyRunesBtn"
-                            Padding="12,6" CornerRadius="7" Cursor="Hand"
-                            Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
-                            MouseLeftButtonDown="ApplyRunes_Click">
-                      <TextBlock x:Name="ApplyRunesText" Text=""
-                                 FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                                 Foreground="#E6EDF3"/>
-                    </Border>
+                    <!-- Свечение по периметру — отдельное кольцо позади кнопки -->
+                    <Grid Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="2,0,6,6">
+                      <Border x:Name="ApplyGlowRing" CornerRadius="8" Margin="-2"
+                              Background="Transparent" BorderBrush="#5CE4F2" BorderThickness="2.5"
+                              IsHitTestVisible="False" Opacity="0">
+                        <Border.Effect>
+                          <DropShadowEffect Color="#36D6E7" ShadowDepth="0" BlurRadius="20" Opacity="1"/>
+                        </Border.Effect>
+                      </Border>
+                      <Border x:Name="ApplyRunesBtn" Padding="12,7" CornerRadius="7" Cursor="Hand"
+                              Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
+                              MouseLeftButtonDown="ApplyRunes_Click">
+                        <TextBlock x:Name="ApplyRunesText" Text=""
+                                   FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                   Foreground="#E6EDF3"/>
+                      </Border>
+                    </Grid>
                   </Grid>
 
-                  <!-- Экспорт билда + иконки предметов, которые уедут в клиент -->
-                  <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                    <ItemsControl x:Name="BuildItems" HorizontalAlignment="Right" Margin="0,0,0,5">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <Border Margin="3,0,0,0" CornerRadius="4" BorderThickness="1"
-                                  BorderBrush="#55C89B3C" ToolTip="{Binding Name}">
-                            <Image Source="{Binding Icon}" Width="26" Height="26"
-                                   RenderOptions.BitmapScalingMode="HighQuality"/>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                  <!-- СБОРКИ: три варианта по 6 слотов. Первые слоты — CORE
+                       (золотая рамка), дальше ситуативные докупки (тусклые). -->
+                  <ItemsControl Grid.Column="1" x:Name="BuildList" Margin="10,0,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,0,0,5">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                          </Grid.ColumnDefinitions>
 
-                    <Border x:Name="ExportBuildBtn" HorizontalAlignment="Right"
-                            Padding="12,6" CornerRadius="7" Cursor="Hand"
-                            Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
-                            MouseLeftButtonDown="ExportBuild_Click">
-                      <TextBlock x:Name="ExportBuildText" Text=""
-                                 FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                                 Foreground="#F0D48A"/>
-                    </Border>
-                  </StackPanel>
+                          <ItemsControl Grid.Column="0" ItemsSource="{Binding Slots}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <Border Width="26" Height="26" Margin="0,0,3,0" CornerRadius="4"
+                                        BorderThickness="{Binding Thickness}"
+                                        BorderBrush="{Binding Stroke}"
+                                        Background="#12FFFFFF" ToolTip="{Binding Tip}">
+                                  <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                                         Opacity="{Binding Dim}"
+                                         RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+
+                          <Border Grid.Column="1" Margin="6,0,0,0" Padding="9,5" CornerRadius="6"
+                                  Cursor="Hand" VerticalAlignment="Center"
+                                  Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
+                                  MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
+                                  ToolTip="{Binding Tip}">
+                            <TextBlock Text="{Binding ExportText}"
+                                       FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                                       Foreground="#F0D48A"/>
+                          </Border>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                 </Grid>
               </StackPanel>
             </Border>
