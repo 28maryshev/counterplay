@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -443,10 +445,50 @@ public partial class OverlayWindow : Window
 
             ApplyRunesText.Text  = Loc.T("runes.apply");
             ExportBuildText.Text = Loc.T("runes.exportBuild");
-            ExportBuildBtn.Visibility = stats.Build is null ? Visibility.Collapsed : Visibility.Visible;
+
+            // Предметы, которые уедут в клиент — показываем иконками над кнопкой.
+            if (stats.Build is { Items.Count: > 0 } b)
+            {
+                BuildItems.ItemsSource = b.Items
+                    .Select(i => new BuildItemVm(ItemIcons.GetOrLoad(i), ItemIcons.NameOf(i)))
+                    .ToList();
+                ExportBuildBtn.Visibility = Visibility.Visible;
+                BuildItems.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ExportBuildBtn.Visibility = Visibility.Collapsed;
+                BuildItems.Visibility = Visibility.Collapsed;
+            }
+
             RunesStatus.Visibility = Visibility.Collapsed;
             RunesBar.Visibility = Visibility.Visible;
+            PulseApplyButton();   // сразу подсвечиваем: вариант выбран по умолчанию
         });
+
+    /// Предмет билда для кнопки экспорта.
+    public sealed record BuildItemVm(ImageSource? Icon, string Name);
+
+    /// Подсветка кнопки «Применить руны»: вспышка при каждом выборе варианта —
+    /// подсказывает, что выбор изменился и его надо применить.
+    private void PulseApplyButton()
+    {
+        if (ApplyRunesBtn.Effect is not System.Windows.Media.Effects.DropShadowEffect glow) return;
+
+        var blur = new DoubleAnimationUsingKeyFrames();
+        blur.KeyFrames.Add(new EasingDoubleKeyFrame(0,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        blur.KeyFrames.Add(new EasingDoubleKeyFrame(22, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180))));
+        blur.KeyFrames.Add(new EasingDoubleKeyFrame(10, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(900))));
+
+        var op = new DoubleAnimationUsingKeyFrames();
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.0,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(1.0,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180))));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.55, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(900))));
+
+        // Каждый вызов перезапускает анимацию с нуля — подсветка «обновляется».
+        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, blur);
+        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, op);
+    }
 
     private void RenderRuneOptions(int? opponentId)
     {
@@ -516,6 +558,8 @@ public partial class OverlayWindow : Window
         if (idx < 0 || idx >= _runeChoices.Count) return;
         _runeSelected = idx;
         RenderRuneOptions(_lastOpponentId);
+        PulseApplyButton();      // выбор сменился — подсветка вспыхивает заново
+        RunesStatus.Visibility = Visibility.Collapsed;  // прошлый «применено» уже неактуален
         e.Handled = true;
     }
 

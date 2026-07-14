@@ -1177,23 +1177,55 @@
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Действия -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,1,0,0">
-                  <Border x:Name="ApplyRunesBtn" Padding="11,6" CornerRadius="7" Cursor="Hand"
-                          Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1"
+                <!-- Действия: применить руны — слева, экспорт билда — справа -->
+                <Grid Margin="0,2,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+
+                  <!-- Применить руны: подсвечивается при выборе варианта -->
+                  <Border Grid.Column="0" x:Name="ApplyRunesBtn" VerticalAlignment="Bottom"
+                          Padding="12,6" CornerRadius="7" Cursor="Hand"
+                          Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
                           MouseLeftButtonDown="ApplyRunes_Click">
+                    <Border.Effect>
+                      <DropShadowEffect x:Name="ApplyGlow" Color="#36D6E7" ShadowDepth="0"
+                                        BlurRadius="0" Opacity="0"/>
+                    </Border.Effect>
                     <TextBlock x:Name="ApplyRunesText" Text=""
                                FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                                Foreground="#E6EDF3"/>
                   </Border>
-                  <Border x:Name="ExportBuildBtn" Margin="7,0,0,0" Padding="11,6" CornerRadius="7" Cursor="Hand"
-                          Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1"
-                          MouseLeftButtonDown="ExportBuild_Click">
-                    <TextBlock x:Name="ExportBuildText" Text=""
-                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                               Foreground="#F0D48A"/>
-                  </Border>
-                </StackPanel>
+
+                  <!-- Экспорт билда + иконки предметов, которые уедут в клиент -->
+                  <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                    <ItemsControl x:Name="BuildItems" HorizontalAlignment="Right" Margin="0,0,0,5">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Margin="3,0,0,0" CornerRadius="4" BorderThickness="1"
+                                  BorderBrush="#55C89B3C" ToolTip="{Binding Name}">
+                            <Image Source="{Binding Icon}" Width="26" Height="26"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border x:Name="ExportBuildBtn" HorizontalAlignment="Right"
+                            Padding="12,6" CornerRadius="7" Cursor="Hand"
+                            Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
+                            MouseLeftButtonDown="ExportBuild_Click">
+                      <TextBlock x:Name="ExportBuildText" Text=""
+                                 FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                 Foreground="#F0D48A"/>
+                    </Border>
+                  </StackPanel>
+                </Grid>
               </StackPanel>
             </Border>
             </Grid>

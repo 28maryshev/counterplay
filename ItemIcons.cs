@@ -52,4 +52,70 @@ public static class ItemIcons
     }
 
     public static ImageSource? Get(int id) => _icons.TryGetValue(id, out var img) ? img : null;
+
+    // Названия предметов (для подсказок над кнопкой экспорта). Грузим один раз.
+    private static Dictionary<int, string>? _names;
+
+    public static async Task LoadNamesAsync(string locale, CancellationToken ct)
+    {
+        if (_names is not null) return;
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            var json = await http.GetStringAsync(
+                $"https://ddragon.leagueoflegends.com/cdn/{DataDragon.Version}/data/{locale}/item.json", ct);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var map = new Dictionary<int, string>();
+            foreach (var it in doc.RootElement.GetProperty("data").EnumerateObject())
+                if (int.TryParse(it.Name, out var id) &&
+                    it.Value.TryGetProperty("name", out var n))
+                    map[id] = n.GetString() ?? "";
+            _names = map;
+        }
+        catch { _names = new Dictionary<int, string>(); }
+    }
+
+    public static string NameOf(int id) => _names?.GetValueOrDefault(id) ?? $"#{id}";
+
+    /// <summary>
+    /// Иконка любого предмета — грузим по требованию (билд из статистики может
+    /// содержать что угодно, заранее весь список не выкачаешь). Кэш на диске.
+    /// </summary>
+    public static ImageSource? GetOrLoad(int id)
+    {
+        if (_icons.TryGetValue(id, out var cached)) return cached;
+        try
+        {
+            var cacheDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "items");
+            Directory.CreateDirectory(cacheDir);
+            var path = Path.Combine(cacheDir, $"{id}.png");
+
+            byte[] bytes;
+            if (File.Exists(path))
+            {
+                bytes = File.ReadAllBytes(path);
+            }
+            else
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                bytes = http.GetByteArrayAsync(
+                    $"https://ddragon.leagueoflegends.com/cdn/{DataDragon.Version}/img/item/{id}.png")
+                    .GetAwaiter().GetResult();
+                try { File.WriteAllBytes(path, bytes); } catch { }
+            }
+
+            using var ms = new MemoryStream(bytes);
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.StreamSource = ms;
+            bmp.DecodePixelWidth = 48;
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            _icons[id] = bmp;
+            return bmp;
+        }
+        catch { return null; }
+    }
 }

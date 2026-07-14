@@ -174,9 +174,11 @@ class Program
         await RoleIcons.PreloadAsync(ct);
         await ItemIcons.PreloadAsync(ct); // иконки контр-предметов
 
-        // Руны: справочник (имена/иконки) + манифест сервера. Если данных на
-        // сервере ещё нет — панель просто не появится, фича включится сама.
+        // Руны: справочник (имена/иконки) + названия предметов + манифест сервера.
+        // Если данных на сервере ещё нет — панель просто не появится, фича
+        // включится сама, когда наберётся выборка.
         await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+        await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
         await RunesClient.LoadManifestAsync(ct);
 
         // Гарантируем наличие data.db (скачиваем/обновляем из дата-релиза с прогрессом).

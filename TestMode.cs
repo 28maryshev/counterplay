@@ -35,6 +35,7 @@ static class TestMode
         // наполняется правдоподобными моками, чтобы обкатать вид и кнопки.
         RunesClient.UseMock = true;
         await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+        await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
         await RunesClient.LoadManifestAsync(ct);
 
         // Импорт в клиент из теста не делаем (клиента может не быть) —
