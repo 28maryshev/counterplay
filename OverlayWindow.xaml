@@ -1185,19 +1185,28 @@
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
 
-                  <!-- Применить руны: подсвечивается при выборе варианта -->
-                  <Border Grid.Column="0" x:Name="ApplyRunesBtn" VerticalAlignment="Bottom"
-                          Padding="12,6" CornerRadius="7" Cursor="Hand"
-                          Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
-                          MouseLeftButtonDown="ApplyRunes_Click">
-                    <Border.Effect>
-                      <DropShadowEffect x:Name="ApplyGlow" Color="#36D6E7" ShadowDepth="0"
-                                        BlurRadius="0" Opacity="0"/>
-                    </Border.Effect>
-                    <TextBlock x:Name="ApplyRunesText" Text=""
-                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                               Foreground="#E6EDF3"/>
-                  </Border>
+                  <!-- Применить руны: свечение идёт по ПЕРИМЕТРУ — отдельным
+                       кольцом-контуром позади кнопки. Если вешать тень на саму
+                       кнопку, она просвечивает сквозь полупрозрачный фон внутрь. -->
+                  <Grid Grid.Column="0" VerticalAlignment="Bottom">
+                    <Border x:Name="ApplyGlowRing" CornerRadius="7" Margin="-1"
+                            Background="Transparent"
+                            BorderBrush="#36D6E7" BorderThickness="2"
+                            IsHitTestVisible="False" Opacity="0">
+                      <Border.Effect>
+                        <DropShadowEffect Color="#36D6E7" ShadowDepth="0" BlurRadius="12" Opacity="1"/>
+                      </Border.Effect>
+                    </Border>
+
+                    <Border x:Name="ApplyRunesBtn"
+                            Padding="12,6" CornerRadius="7" Cursor="Hand"
+                            Background="#2236D6E7" BorderBrush="#5536D6E7" BorderThickness="1.5"
+                            MouseLeftButtonDown="ApplyRunes_Click">
+                      <TextBlock x:Name="ApplyRunesText" Text=""
+                                 FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                                 Foreground="#E6EDF3"/>
+                    </Border>
+                  </Grid>
 
                   <!-- Экспорт билда + иконки предметов, которые уедут в клиент -->
                   <StackPanel Grid.Column="2" HorizontalAlignment="Right">

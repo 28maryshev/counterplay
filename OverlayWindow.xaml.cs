@@ -476,35 +476,36 @@ public partial class OverlayWindow : Window
     /// </summary>
     private void PulseApplyButton(bool on = true)
     {
-        if (ApplyRunesBtn.Effect is not DropShadowEffect glow) return;
-
         if (!on)
         {
             // Применили — свечение гасим (действие больше не требуется).
-            glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
-            glow.BeginAnimation(DropShadowEffect.OpacityProperty, null);
-            glow.BlurRadius = 0;
-            glow.Opacity = 0;
+            ApplyGlowRing.BeginAnimation(OpacityProperty, null);
+            ApplyGlowRing.Opacity = 0;
+            if (ApplyGlowRing.Effect is DropShadowEffect g)
+                g.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
             return;
         }
 
-        // Вспышка → пульсация: первый цикл ярче, дальше ровное «дыхание».
-        var blur = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-        blur.KeyFrames.Add(new EasingDoubleKeyFrame(4,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        blur.KeyFrames.Add(new EasingDoubleKeyFrame(24, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
-                                                    new SineEase { EasingMode = EasingMode.EaseInOut }));
-        blur.KeyFrames.Add(new EasingDoubleKeyFrame(6,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
-                                                    new SineEase { EasingMode = EasingMode.EaseInOut }));
-
+        // Пульсирует само кольцо-контур: вспышка → ровное «дыхание».
         var op = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.35, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.25, KeyTime.FromTimeSpan(TimeSpan.Zero)));
         op.KeyFrames.Add(new EasingDoubleKeyFrame(1.0,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
                                                   new SineEase { EasingMode = EasingMode.EaseInOut }));
-        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.4,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
+        op.KeyFrames.Add(new EasingDoubleKeyFrame(0.3,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
                                                   new SineEase { EasingMode = EasingMode.EaseInOut }));
+        ApplyGlowRing.BeginAnimation(OpacityProperty, op);
 
-        glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blur);
-        glow.BeginAnimation(DropShadowEffect.OpacityProperty, op);
+        // Заодно «дышит» и радиус ореола вокруг контура.
+        if (ApplyGlowRing.Effect is DropShadowEffect glow)
+        {
+            var blur = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            blur.KeyFrames.Add(new EasingDoubleKeyFrame(6,  KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            blur.KeyFrames.Add(new EasingDoubleKeyFrame(20, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600)),
+                                                        new SineEase { EasingMode = EasingMode.EaseInOut }));
+            blur.KeyFrames.Add(new EasingDoubleKeyFrame(8,  KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1400)),
+                                                        new SineEase { EasingMode = EasingMode.EaseInOut }));
+            glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blur);
+        }
     }
 
     private void RenderRuneOptions(int? opponentId)
