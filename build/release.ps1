@@ -30,9 +30,15 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
           ForEach-Object { $_.Matches[0].Groups[1].Value }
   if ($tags) {
     $latest  = $tags | Sort-Object { [version]$_ } | Select-Object -Last 1
-    $v       = [version]$latest
-    $Version = "$($v.Major).$($v.Minor).$($v.Build + 1)"
-    Write-Host "Auto version: $Version (latest tag v$latest)" -ForegroundColor Cyan
+    if ($FeedOnly) {
+      # Фид наполняем для УЖЕ выпущенной версии — не для следующей.
+      $Version = $latest
+      Write-Host "Feed for the latest published release: v$Version" -ForegroundColor Cyan
+    } else {
+      $v       = [version]$latest
+      $Version = "$($v.Major).$($v.Minor).$($v.Build + 1)"
+      Write-Host "Auto version: $Version (latest tag v$latest)" -ForegroundColor Cyan
+    }
   } else {
     $Version = "1.0.0"
     Write-Host "No tags found - using $Version" -ForegroundColor Cyan
@@ -62,7 +68,6 @@ if (-not $FeedOnly) {
   Write-Host "Note: database is published separately via build\publish-data.ps1 (data release)." -ForegroundColor Yellow
 }
 else {
-  if (-not $Version) { throw "-FeedOnly requires an explicit -Version" }
   Write-Host "Feed-only: refreshing the 'latest' feed for v$Version (no rebuild)" -ForegroundColor Cyan
 }
 
