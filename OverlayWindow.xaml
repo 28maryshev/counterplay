@@ -888,11 +888,28 @@
               <ItemsControl x:Name="FullRecList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <!-- Клик по карточке наводит чемпиона в клиенте (hover) -->
+                    <!-- Клик по карточке наводит чемпиона в клиенте (hover).
+                         При наведении курсора — тонкая золотая рамка: подсказка,
+                         что чемпиона можно выбрать прямо здесь. BorderBrush задан
+                         в стиле (не инлайном), иначе локальное значение перебило
+                         бы триггер наведения. -->
                     <Border Margin="0,3" CornerRadius="4" Padding="10,9" Cursor="Hand"
-                            Background="{Binding CardBg}"
-                            BorderBrush="{Binding CardBorder}" BorderThickness="1.5"
+                            Background="{Binding CardBg}" BorderThickness="1.5"
                             MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="BorderBrush" Value="{Binding CardBorder}"/>
+                          <Style.Triggers>
+                            <MultiDataTrigger>
+                              <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                <Condition Binding="{Binding IsSelected}" Value="False"/>
+                              </MultiDataTrigger.Conditions>
+                              <Setter Property="BorderBrush" Value="#A0C89B3C"/>
+                            </MultiDataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
                       <Grid>
                             <Grid.ColumnDefinitions>
                               <ColumnDefinition Width="Auto"/>  <!-- Ранг + очки      -->
