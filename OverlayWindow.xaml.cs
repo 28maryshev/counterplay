@@ -2237,6 +2237,9 @@ public partial class OverlayWindow : Window
                 ArchColor   = archColor,
                 ArchTip     = archTip,
                 IsPicking   = isPicking,
+                // Союзник пикает — строка синеет, враг — краснеет.
+                PickBgColor     = ally ? "#3836D6E7" : "#38FF5A4D",
+                PickAccentColor = ally ? "#36D6E7"   : "#FF5A4D",
                 IsFirstPick = p.CellId == firstPickCell,
                 FirstPickLabel = Loc.T("slot.firstPick"),
             };
@@ -2387,8 +2390,10 @@ public sealed class ChampSlotCard
     public Visibility   RoleIconVisibility =>
         RoleIcon != null ? Visibility.Visible : Visibility.Collapsed;
 
-    // Ход этого игрока пикать прямо сейчас → слот слабо мигает.
+    // Ход этого игрока пикать прямо сейчас → строка подсвечивается цветом команды.
     public bool         IsPicking       { get; init; }
+    public string       PickBgColor     { get; init; } = "#00000000"; // фон подсветки
+    public string       PickAccentColor { get; init; } = "#00000000"; // полоска слева
     // Бейдж «1st pick» у игрока, пикающего первым в очереди драфта.
     public bool         IsFirstPick     { get; init; }
     public string       FirstPickLabel  { get; init; } = "";
