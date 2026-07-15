@@ -405,8 +405,8 @@ public partial class OverlayWindow : Window
 
     /// Функция импорта в клиент. Ставится из Program (в тестовом режиме — null).
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
-    /// (core-предметы, ситуативные, championId, имя) → успех.
-    public Func<IReadOnlyList<int>, IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
+    /// (core, полный билд, ситуативные, championId, имя) → успех.
+    public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
 
     /// Руна в подсказке/на кнопке: иконка, название и короткое описание.
     public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc);
@@ -701,17 +701,18 @@ public partial class OverlayWindow : Window
         RunesStatus.Foreground = MuteBrush;
         RunesStatus.Visibility = Visibility.Visible;
 
-        // В набор кладём не только выбранную сборку, но и всё, что часто берут
-        // на этом чемпионе: в магазине должен быть полный список вариантов, а не
-        // шесть жёстко зашитых предметов.
-        var chosen = _runeStats.Builds[idx].Items;
+        // Три части набора: core (ключевые предметы этой сборки), полный билд из
+        // 6 слотов и ситуативные — всё, что ещё часто берут на чемпионе.
+        var b = _runeStats.Builds[idx];
+        var core = b.Core.Count > 0 ? b.Core : b.Items.Take(2).ToList();
+        var full = b.Items;
         var situational = _runeStats.Builds
-            .SelectMany(b => b.Items)
+            .SelectMany(x => x.Items)
             .Distinct()
-            .Where(i => !chosen.Contains(i))
+            .Where(i => !full.Contains(i))
             .ToList();
 
-        var ok = await ExportBuildHandler(chosen, situational, _runeChampId, _runeChampName);
+        var ok = await ExportBuildHandler(core, full, situational, _runeChampId, _runeChampName);
         RunesStatus.Text = Loc.T(ok ? "runes.exported" : "runes.failed");
         RunesStatus.Foreground = ok ? WinBrush : LossBrush;
     }

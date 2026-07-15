@@ -243,8 +243,8 @@ class Program
 
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
         overlay.ApplyRunesHandler  = (page, name) => RunesImporter.ApplyRunesAsync(http, page, name, ct);
-        overlay.ExportBuildHandler = (items, alt, id, name) =>
-            RunesImporter.ExportItemSetAsync(http, items, alt, id, name, ct);
+        overlay.ExportBuildHandler = (core, full, alt, id, name) =>
+            RunesImporter.ExportItemSetAsync(http, core, full, alt, id, name, ct);
 
         RecommendationEngine? engine = null;
         var dbPath = RecommendationEngine.FindDb();

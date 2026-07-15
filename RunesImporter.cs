@@ -51,7 +51,7 @@ public static class RunesImporter
                     var current = p.TryGetProperty("current", out var c) && c.ValueKind == JsonValueKind.True;
                     if (!deletable) continue;
 
-                    if (name.StartsWith(PageMark, StringComparison.Ordinal))
+                    if (name.Contains(PageMark, StringComparison.Ordinal))
                         await http.DeleteAsync($"/lol-perks/v1/pages/{id}", ct);
                     else
                         freeable.Add((id, current));
@@ -72,7 +72,7 @@ public static class RunesImporter
             var selected = page.Perks.Concat(page.Secondary).Concat(page.Shards).ToArray();
             var payload = JsonSerializer.Serialize(new
             {
-                name = $"{PageMark}: {championName}",
+                name = $"{championName} - {Loc.T("runes.runeTitle")} - {PageMark}",
                 primaryStyleId = page.Primary,
                 subStyleId = page.Sub,
                 selectedPerkIds = selected,
@@ -94,13 +94,14 @@ public static class RunesImporter
     }
 
     /// <summary>
-    /// Экспортировать набор предметов (виден в магазине в игре).
-    /// Два блока: выбранная сборка и ситуативные варианты — чтобы в магазине был
-    /// полный список того, что берут на этом чемпионе, а не шесть предметов.
+    /// Экспортировать набор предметов (виден в магазине в игре). Три блока:
+    /// 1) первые кор-предметы С КОМПОНЕНТАМИ — что покупать по шагам;
+    /// 2) полный билд из 6 слотов;
+    /// 3) ситуативные — что ещё часто берут на чемпионе.
     /// </summary>
     public static async Task<bool> ExportItemSetAsync(
-        LcuHttpClient http, IReadOnlyList<int> items, IReadOnlyList<int> situational,
-        int championId, string championName, CancellationToken ct)
+        LcuHttpClient http, IReadOnlyList<int> core, IReadOnlyList<int> full,
+        IReadOnlyList<int> situational, int championId, string championName, CancellationToken ct)
     {
         try
         {
@@ -119,16 +120,35 @@ public static class RunesImporter
                     foreach (var set in arr.EnumerateArray())
                     {
                         var title = set.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
-                        if (!title.StartsWith(PageMark, StringComparison.Ordinal))
+                        if (!title.Contains(PageMark, StringComparison.Ordinal))
                             existing.Add(set.Clone());   // свои старые наборы заменяем
                     }
             }
+
+            static object[] Items(IEnumerable<int> ids) =>
+                ids.Select(i => (object)new { id = i.ToString(), count = 1 }).ToArray();
+
+            // Блок 1: первые два кор-предмета с компонентами по порядку сборки.
+            var start = core.Take(2).SelectMany(ItemIcons.WithComponents).Distinct().ToList();
+
+            object Block(string type, object[] its) => new
+            {
+                type,
+                showIfSummonerSpell = "",
+                hideIfSummonerSpell = "",
+                items = its,
+            };
+
+            var blocks = new List<object>();
+            if (start.Count > 0)      blocks.Add(Block(Loc.T("runes.coreBlock"), Items(start)));
+            if (full.Count > 0)       blocks.Add(Block(Loc.T("runes.fullBlock"), Items(full)));
+            if (situational.Count > 0) blocks.Add(Block(Loc.T("runes.altBlock"), Items(situational)));
 
             var mySet = new
             {
                 associatedChampions = new[] { championId },
                 associatedMaps = new[] { 11 },
-                title = $"{PageMark}: {championName}",
+                title = $"{championName} - {Loc.T("runes.itemTitle")} - {PageMark}",
                 type = "custom",
                 map = "any",
                 mode = "any",
@@ -136,23 +156,7 @@ public static class RunesImporter
                 startedFrom = "blank",
                 preferredItemSlots = Array.Empty<object>(),
                 uid = Guid.NewGuid().ToString(),
-                blocks = new[]
-                {
-                    new
-                    {
-                        type = Loc.T("runes.buildBlock"),
-                        showIfSummonerSpell = "",
-                        hideIfSummonerSpell = "",
-                        items = items.Select(i => new { id = i.ToString(), count = 1 }).ToArray(),
-                    },
-                    new
-                    {
-                        type = Loc.T("runes.altBlock"),
-                        showIfSummonerSpell = "",
-                        hideIfSummonerSpell = "",
-                        items = situational.Select(i => new { id = i.ToString(), count = 1 }).ToArray(),
-                    },
-                }.Where(b => b.items.Length > 0).ToArray()
+                blocks = blocks.ToArray(),
             };
 
             var sets = new List<object>();

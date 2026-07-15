@@ -16,7 +16,11 @@
     "export": "Export",
     "core": "core",
     "altBlock": "Situational",
-    "buildTip": "Win rate {0}% over {1} games — send to the client"
+    "buildTip": "Win rate {0}% over {1} games — send to the client",
+    "runeTitle": "Key runes",
+    "itemTitle": "Build",
+    "coreBlock": "Core items",
+    "fullBlock": "Full build"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

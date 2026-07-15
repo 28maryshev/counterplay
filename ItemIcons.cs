@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -53,8 +54,9 @@ public static class ItemIcons
 
     public static ImageSource? Get(int id) => _icons.TryGetValue(id, out var img) ? img : null;
 
-    // Названия предметов (для подсказок над кнопкой экспорта). Грузим один раз.
+    // Названия предметов + карта компонентов (из чего собирается). Грузим один раз.
     private static Dictionary<int, string>? _names;
+    private static Dictionary<int, int[]> _from = new();   // id → прямые компоненты
 
     public static async Task LoadNamesAsync(string locale, CancellationToken ct)
     {
@@ -66,16 +68,42 @@ public static class ItemIcons
                 $"https://ddragon.leagueoflegends.com/cdn/{DataDragon.Version}/data/{locale}/item.json", ct);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             var map = new Dictionary<int, string>();
+            var from = new Dictionary<int, int[]>();
             foreach (var it in doc.RootElement.GetProperty("data").EnumerateObject())
-                if (int.TryParse(it.Name, out var id) &&
-                    it.Value.TryGetProperty("name", out var n))
-                    map[id] = n.GetString() ?? "";
+            {
+                if (!int.TryParse(it.Name, out var id)) continue;
+                if (it.Value.TryGetProperty("name", out var n)) map[id] = n.GetString() ?? "";
+                if (it.Value.TryGetProperty("from", out var f) && f.ValueKind == JsonValueKind.Array)
+                    from[id] = f.EnumerateArray()
+                                .Select(x => int.TryParse(x.GetString(), out var c) ? c : 0)
+                                .Where(c => c > 0).ToArray();
+            }
             _names = map;
+            _from = from;
         }
         catch { _names = new Dictionary<int, string>(); }
     }
 
     public static string NameOf(int id) => _names?.GetValueOrDefault(id) ?? $"#{id}";
+
+    /// <summary>
+    /// Предмет со всеми компонентами по порядку сборки: базовые → готовый.
+    /// Для «поэтапной» покупки в наборе (Слеза → … → Манамьюн).
+    /// </summary>
+    public static IReadOnlyList<int> WithComponents(int id)
+    {
+        var acc = new List<int>();
+        var seen = new HashSet<int>();
+        void Add(int x)
+        {
+            if (!seen.Add(x)) return;
+            if (_from.TryGetValue(x, out var parts))
+                foreach (var c in parts) Add(c);
+            acc.Add(x);   // компоненты идут перед готовым предметом
+        }
+        Add(id);
+        return acc;
+    }
 
     /// <summary>
     /// Иконка любого предмета — грузим по требованию (билд из статистики может
