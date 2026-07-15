@@ -1176,6 +1176,16 @@
                 <TextBlock x:Name="PickText" VerticalAlignment="Center"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                            Foreground="#EAFBEF"/>
+                <!-- Бренд как в шапке: лого + Counter(синий)Play(красный) — чтобы
+                     каждый пик через программу запоминался фирменными цветами -->
+                <Border Width="1" Height="16" Background="#4DFFFFFF" Margin="12,0,12,0"/>
+                <Image Source="{StaticResource BrandMark}" Width="18" Height="18"
+                       VerticalAlignment="Center" Margin="0,0,6,0"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" FontWeight="Bold"
+                           VerticalAlignment="Center">
+                  <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/>
+                </TextBlock>
               </StackPanel>
             </Border>
 
