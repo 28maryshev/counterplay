@@ -44,3 +44,4 @@ pipeline/diag.py
 pipeline/games_check.py
 pipeline/check_db.py
 pipeline/multicheck.py
+pipeline/dist/
