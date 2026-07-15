@@ -15,7 +15,11 @@ param(
   # Only refresh the rolling 'latest' feed for an ALREADY published version —
   # no rebuild, no new release. Use when the feed step failed on its own.
   #   .\build\release.ps1 -Version 1.0.71 -Upload -FeedOnly
-  [switch]$FeedOnly
+  [switch]$FeedOnly,
+  # Release notes for the GitHub release (the Discord bot posts them as the
+  # update description). Empty = auto-generate from commits since the last tag.
+  #   .\build\release.ps1 -Upload -Notes "Rune & build panel, faster updates"
+  [string]$Notes = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -76,6 +80,31 @@ if ($Upload) {
   if (-not $Token) { throw "Need -Token or GITHUB_TOKEN environment variable" }
   if (-not $FeedOnly) {
     vpk upload github --repoUrl $repo --publish --releaseName "Counterplay v$Version" --tag "v$Version" --token $Token
+
+    # Release notes = update description shown in Discord. If -Notes not given,
+    # build a short changelog from commit subjects since the PREVIOUS release
+    # tag. vpk just created v$Version on GitHub, so fetch tags first; the tag
+    # right below this one marks where the previous release was cut.
+    $env:GH_TOKEN = $Token
+    if (-not $Notes) {
+      git fetch --tags --force --quiet 2>$null
+      $verTags = git tag --list "v*" |
+                 Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } |
+                 Sort-Object { [version]($_.TrimStart('v')) }
+      $idx  = [array]::IndexOf([array]$verTags, "v$Version")
+      $prev = if ($idx -gt 0) { $verTags[$idx - 1] }
+              else { $verTags | Where-Object { $_ -ne "v$Version" } | Select-Object -Last 1 }
+
+      $range = if ($prev) { "$prev..HEAD" } else { "HEAD" }
+      $lines = git log $range --no-merges --pretty=format:'%s' 2>$null |
+               Where-Object { $_ -and $_ -notmatch '^(Co-Authored-By|Merge )' } |
+               ForEach-Object { "- $_" }
+      $Notes = if ($lines) { ($lines -join "`n") } else { "Maintenance and fixes." }
+      Write-Host "Changelog since $prev ($($lines.Count) commits)" -ForegroundColor Cyan
+    }
+    $Notes | gh release edit "v$Version" --notes-file - 2>$null
+    if ($LASTEXITCODE -ne 0) { Write-Host "warn: could not set release notes" -ForegroundColor Yellow }
+    else { Write-Host "Release notes set for v$Version" -ForegroundColor Green }
   }
 
   # 5. Rolling 'latest' tag = the update feed the app actually reads.

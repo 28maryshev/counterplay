@@ -48,11 +48,11 @@ async function run(ctx, { force = false } = {}) {
   const notes = (latest.body || '')
     .replace(/\r/g, '')
     .trim()
-    .slice(0, 800);
+    .slice(0, 1500);
   const e = embed(COLORS.gold)
     .setTitle(`📦 Counterplay ${version} is out!`)
     .setDescription(
-      (notes ? `${notes}\n\n` : '') +
+      (notes ? `**What's new**\n${notes}\n\n` : '') +
         `The desktop app updates itself automatically on launch.\n` +
         `New here? [Download Counterplay](${ctx.config.siteUrl}/download)`
     )
