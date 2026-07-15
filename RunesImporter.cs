@@ -110,8 +110,9 @@ public static class RunesImporter
     /// <summary>
     /// Экспортировать набор предметов (виден в магазине в игре). Блоки:
     /// 1) стартовые предметы (по роли);
-    /// 2) CORE-сборка — выбранный билд с компонентами по порядку (включая ботинки);
-    /// 3) ситуативные — что ещё часто берут на чемпионе.
+    /// 2) промежуточные — компоненты готового билда;
+    /// 3) CORE — готовые предметы сборки;
+    /// 4) ситуативные — что ещё часто берут на чемпионе.
     /// </summary>
     public static async Task<bool> ExportItemSetAsync(
         LcuHttpClient http, IReadOnlyList<int> core, IReadOnlyList<int> full,
@@ -151,23 +152,25 @@ public static class RunesImporter
                 items = Items(ids),
             };
 
-            // CORE — выбранная сборка с компонентами по порядку покупки (базовые →
-            // готовый), включая ботинки. Дедуп: общие компоненты не повторяются.
-            var coreSeq = new List<int>();
-            var seen = new HashSet<int>();
+            // Промежуточные предметы — все компоненты готового билда (базовые →
+            // продвинутые), кроме самих финальных предметов. Отдельным блоком.
+            var fullSet = new HashSet<int>(full);
+            var compSeq = new List<int>();
+            var compSeen = new HashSet<int>();
             foreach (var item in full)
                 foreach (var part in ItemIcons.WithComponents(item))
-                    if (seen.Add(part)) coreSeq.Add(part);
+                    if (!fullSet.Contains(part) && compSeen.Add(part))
+                        compSeq.Add(part);
 
-            // Ситуативные — только готовые предметы, без промежуточных компонентов
-            // (это выбор «что докупить», а не пошаговая сборка).
+            // CORE и ситуативные — только готовые предметы, без компонентов.
             var alt = situational.Distinct().ToList();
 
             var blocks = new List<object>
             {
                 Block(Loc.T("runes.startBlock"), StartItems(role)),
             };
-            if (coreSeq.Count > 0) blocks.Add(Block(Loc.T("runes.coreBlock"), coreSeq));
+            if (compSeq.Count > 0) blocks.Add(Block(Loc.T("runes.compBlock"), compSeq));
+            if (full.Count > 0)    blocks.Add(Block(Loc.T("runes.coreBlock"), full));
             if (alt.Count > 0)     blocks.Add(Block(Loc.T("runes.altBlock"), alt));
 
             var mySet = new

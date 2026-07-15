@@ -22,7 +22,8 @@
     "coreBlock": "Core items",
     "fullBlock": "Full build",
     "startBlock": "Starting items",
-    "exportedToSets": "Build added to ITEM SETS in the shop"
+    "exportedToSets": "Build added to ITEM SETS in the shop",
+    "compBlock": "Components"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
