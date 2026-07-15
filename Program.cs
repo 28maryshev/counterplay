@@ -106,28 +106,30 @@ class Program
     // Панель показываем, когда мой чемпион уже определён (залочен или наведён)
     // и по связке чемпион+роль есть данные на сервере. Запрос идёт один раз за
     // драфт, а не на каждый ховер, поэтому сеть не мешает.
-    private static int _runesShownFor;   // чтобы не дёргать сервер на каждое событие
+    private static string _runesShownFor = "";   // связка, для которой уже показали руны
 
     public static async Task UpdateRunesAsync(OverlayWindow overlay, DraftState? draft, CancellationToken ct)
     {
         var champ = draft?.Me?.EffectiveChampionId ?? 0;
         if (draft is null || champ == 0 || draft.IsAram)
         {
-            _runesShownFor = 0;
+            _runesShownFor = "";
             overlay.HideRunes();
             return;
         }
 
-        var role = RecommendationEngine.LcuToDbRole(draft.MyPosition);
-        if (string.IsNullOrEmpty(role) || !RunesClient.Has(champ, role))
+        // Роль: из драфта, иначе основная роль чемпиона (custom games/блайнд не
+        // раскрывают позицию — но руны показать всё равно нужно).
+        var role = RunesClient.ResolveRole(champ, RecommendationEngine.LcuToDbRole(draft.MyPosition));
+        if (role is null || !RunesClient.Has(champ, role))
         {
             overlay.HideRunes();
             return;
         }
 
         var opponent = draft.DirectOpponent?.EffectiveChampionId;
-        var key = champ * 100 + (opponent ?? 0) % 100;
-        if (key == _runesShownFor) return;   // уже показано для этой пары
+        var key = $"{champ}:{role}:{opponent ?? 0}";
+        if (key == _runesShownFor) return;   // уже показано для этой связки
         _runesShownFor = key;
 
         var stats = await RunesClient.GetAsync(champ, role, ct);

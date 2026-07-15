@@ -254,6 +254,7 @@ def main():
         'SELECT DISTINCT champion_id FROM base_wr ORDER BY champion_id')]
 
     manifest_entries = []
+    role_games = {}   # champ → {role: games} — для выбора основной роли
     written = 0
     for champ in champs:
         for role in ROLES:
@@ -263,13 +264,19 @@ def main():
             (out / f'{champ}-{role}.json').write_text(
                 json.dumps(data, separators=(',', ':')), encoding='utf-8')
             manifest_entries.append(f'{champ}-{role}')
+            role_games.setdefault(champ, {})[role] = data['games']
             written += 1
+
+    # Основная роль каждого чемпиона (где больше игр). Нужна там, где клиент не
+    # раскрывает позицию: custom games, блайнд — руны всё равно показываем.
+    main_role = {str(c): max(rg, key=rg.get) for c, rg in role_games.items()}
 
     manifest = {
         'version': 1,
         'patch': patch,
         'patches': ps,
         'available': manifest_entries,   # чего тут нет — того нет и в интерфейсе
+        'mainRole': main_role,           # champ → роль с наибольшей выборкой
         'thresholds': {'minGames': MIN_GAMES, 'minVsGames': MIN_VS_GAMES},
     }
     (Path(args.out) / 'v1' / 'manifest.json').write_text(

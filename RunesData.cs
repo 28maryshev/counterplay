@@ -53,6 +53,7 @@ public static class RunesClient
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     private static HashSet<string>? _available;   // "157-mid" — что есть на сервере
+    private static Dictionary<int, string> _mainRole = new();  // champ → основная роль
     private static string? _patch;
 
     /// Тестовый режим (dotnet run test): реальных рун в базе ещё нет, поэтому
@@ -72,6 +73,10 @@ public static class RunesClient
             _patch = root.GetProperty("patch").GetString();
             _available = root.GetProperty("available").EnumerateArray()
                              .Select(x => x.GetString()!).ToHashSet();
+            _mainRole = new();
+            if (root.TryGetProperty("mainRole", out var mr))
+                foreach (var p in mr.EnumerateObject())
+                    _mainRole[int.Parse(p.Name)] = p.Value.GetString()!;
         }
         catch { _available = null; }
     }
@@ -79,6 +84,18 @@ public static class RunesClient
     /// Есть ли данные по связке (иначе панель не показываем).
     public static bool Has(int champ, string role) =>
         UseMock || _available?.Contains($"{champ}-{role}") == true;
+
+    /// <summary>
+    /// Роль для показа рун. Если клиент раскрыл позицию (ranked/normal draft) —
+    /// берём её. Если нет (custom games, блайнд) — основную роль чемпиона из
+    /// данных: руны почти не зависят от того, куда встал соперник.
+    /// </summary>
+    public static string? ResolveRole(int champ, string lcuRole)
+    {
+        if (UseMock) return string.IsNullOrEmpty(lcuRole) ? "mid" : lcuRole;
+        if (!string.IsNullOrEmpty(lcuRole) && Has(champ, lcuRole)) return lcuRole;
+        return _mainRole.GetValueOrDefault(champ);   // null → данных по чемпиону нет
+    }
 
     /// Данные по связке. null — нет данных/сети.
     public static async Task<ChampStats?> GetAsync(int champ, string role, CancellationToken ct)
