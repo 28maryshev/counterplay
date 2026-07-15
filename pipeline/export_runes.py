@@ -177,35 +177,39 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     # разность 2 (один ушёл, один пришёл), поэтому 2 мало: нужно 4, то есть
     # минимум две замены. Проверено на синтетике: с порогом 2 в тройку попадали
     # сборки, отличавшиеся одним предметом.
-    MIN_DIFF = 4
-    chosen = []
-    for core, g, w in cands:
-        if len(chosen) >= 3:
-            break
-        if all(len(core ^ prev) >= MIN_DIFF for prev, _, _ in chosen):
-            chosen.append((core, g, w))
-
-    # Если непохожих не набралось (узкий чемпион) — добираем самыми ходовыми.
-    for c in cands:
-        if len(chosen) >= 3:
-            break
-        if c[0] not in [x[0] for x in chosen]:
-            chosen.append(c)
-
-    builds = []
-    for core, g, w in chosen:
+    def fill_to_six(core: set) -> list[int]:
         ids = sorted(core)
-        for extra in popular:                              # добивка до шести слотов
+        for extra in popular:
             if len(ids) >= 6:
                 break
             if extra not in ids:
                 ids.append(extra)
+        return ids
+
+    MIN_DIFF = 4
+    builds = []
+    seen_full = []          # уже показанные наборы из 6 слотов
+    for core, g, w in cands:
+        if len(builds) >= 3:
+            break
+        # Непохожесть проверяем и по CORE, и по ФИНАЛЬНОМУ набору: два разных core
+        # после добивки ходовыми предметами могут дать одинаковые 6 слотов
+        # (например [A,B] и [A,B,C] дополнятся до одного и того же) — такой дубль
+        # раньше и попадал в тройку.
+        full = set(fill_to_six(core))
+        if any(len(core ^ pc) < MIN_DIFF for pc, _ in seen_full):
+            continue
+        if any(full == pf for _, pf in seen_full):
+            continue
+        seen_full.append((core, full))
         builds.append({
-            'items': ids,
+            'items': fill_to_six(core),
             'core': sorted(core),   # что реально играли вместе (у него и винрейт)
             'games': g,
             'wr': round(wr(g, w), 1),
         })
+    # Лучше показать одну-две честные сборки, чем три с дублем: если непохожих
+    # меньше трёх — так и оставляем.
 
     spells = [
         {'spells': [int(x) for x in s.split(',')], 'games': g, 'wr': round(wr(g, w), 1)}
