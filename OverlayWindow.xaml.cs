@@ -21,7 +21,9 @@ public partial class OverlayWindow : Window
 {
     private bool   _isFullMode = true;
     private const double FullW    = 1320;
-    private const double FullH    = 680;
+    // Высота по умолчанию: чтобы в боковой колонке целиком помещалась первая
+    // карточка TEAM COMBOS (заголовок + описание + how-to-play).
+    private const double FullH    = 760;
     private const double CompactW = 320;
     private const double IdleW    = 340;   // компактное окно режима ожидания
     private const double MinW     = 1240;
