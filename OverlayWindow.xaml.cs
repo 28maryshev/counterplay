@@ -751,6 +751,8 @@ public partial class OverlayWindow : Window
     // ── Выбор чемпиона через интерфейс (hover кликом + кнопка лока) ───────────
     private int _pickHoverId;     // наведённый кликом чемпион (0 = нет)
     private bool _pickBusy;       // идёт запрос к клиенту
+    private DateTime _pickMsgUntil; // до этого времени не затирать текст ошибки
+                                    // (сессия перерисовывается каждый тик таймера)
 
     // Клик по карточке рекомендации: наводим чемпиона в клиенте (обратимо).
     private async void RecCard_Click(object sender, MouseButtonEventArgs e)
@@ -765,7 +767,10 @@ public partial class OverlayWindow : Window
         var code = await HoverHandler(champId);   // навести в клиенте
         // Если клиент не принял ховер — сразу сообщаем на кнопке (с кодом).
         if (code is < 200 or >= 300)
+        {
             PickText.Text = $"{Loc.T("pick.failed")} ({code})";
+            _pickMsgUntil = DateTime.UtcNow.AddSeconds(4);
+        }
     }
 
     // Кнопка «Выбрать»: лочим наведённого чемпиона (необратимо, только в свой ход).
@@ -773,13 +778,27 @@ public partial class OverlayWindow : Window
     {
         e.Handled = true;
         if (LockHandler is null || _pickHoverId <= 0 || _pickBusy) return;
-        if (_lastDraft is null || !_lastDraft.MyPickInProgress) return;
+        if (_lastDraft is null || !_lastDraft.MyPickInProgress)
+        {
+            // Не мой ход — говорим об этом, а не молчим.
+            PickText.Text = Loc.T("pick.failed");
+            _pickMsgUntil = DateTime.UtcNow.AddSeconds(3);
+            return;
+        }
 
         _pickBusy = true;
         PickText.Text = Loc.T("pick.locking");
+        _pickMsgUntil = DateTime.UtcNow.AddSeconds(2);
         var code = await LockHandler(_pickHoverId);
         _pickBusy = false;
-        if (code is < 200 or >= 300) { PickText.Text = $"{Loc.T("pick.failed")} ({code})"; return; }
+        if (code is < 200 or >= 300)
+        {
+            // Ошибка «липнет» на 4 секунды — иначе её мгновенно затрёт
+            // перерисовка от очередного события сессии.
+            PickText.Text = $"{Loc.T("pick.failed")} ({code})";
+            _pickMsgUntil = DateTime.UtcNow.AddSeconds(4);
+            return;
+        }
         // Успех: клиент сам обновит сессию, карточки исчезнут — прячем плашку.
         PickBar.Visibility = Visibility.Collapsed;
     }
@@ -794,7 +813,9 @@ public partial class OverlayWindow : Window
         if (!canPick) { PickBar.Visibility = Visibility.Collapsed; return; }
 
         PickIcon.Source = IconCache.Get(_pickHoverId);
-        PickText.Text = Loc.T("pick.confirm", DataDragon.Name(_pickHoverId));
+        // Пока показывается ошибка/статус — не затираем текст обычной подписью.
+        if (DateTime.UtcNow >= _pickMsgUntil)
+            PickText.Text = Loc.T("pick.confirm", DataDragon.Name(_pickHoverId));
         PickBar.Visibility = Visibility.Visible;
     }
 

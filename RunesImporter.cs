@@ -107,7 +107,7 @@ public static class RunesImporter
 
     /// <summary>
     /// Залочить наведённого чемпиона (необратимо). Только в свой ход.
-    /// Лок — через POST .../complete (канонический способ в LCU).
+    /// Пробуем оба известных способа: PATCH completed=true, затем POST /complete.
     /// </summary>
     public static async Task<int> LockChampionAsync(
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
@@ -116,16 +116,27 @@ public static class RunesImporter
         if (actionId < 0 || championId <= 0) return 0;
         try
         {
-            // Сначала наводим (на случай если ещё не наведён), затем завершаем действие.
+            // Сначала наводим (на случай если ещё не наведён).
             var hover = JsonSerializer.Serialize(new { championId });
             await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", hover, ct);
 
-            var (s, _) = await http.PostAsync(
-                $"/lol-champ-select/v1/session/actions/{actionId}/complete", "{}", ct);
-            return s;
+            // Способ 1: PATCH completed=true (работает в большинстве версий клиента).
+            var done = JsonSerializer.Serialize(new { championId, completed = true });
+            var (s1, b1) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", done, ct);
+            if (s1 is >= 200 and < 300) return s1;
+            Console.WriteLine($"[pick] PATCH completed=true → {s1}: {Trim(b1)}");
+
+            // Способ 2: POST .../complete с championId в теле.
+            var (s2, b2) = await http.PostAsync(
+                $"/lol-champ-select/v1/session/actions/{actionId}/complete", hover, ct);
+            if (s2 is < 200 or >= 300)
+                Console.WriteLine($"[pick] POST /complete → {s2}: {Trim(b2)}");
+            return s2;
         }
-        catch { return 0; }
+        catch (Exception ex) { Console.WriteLine($"[pick] lock exception: {ex.Message}"); return 0; }
     }
+
+    private static string Trim(string s) => s.Length > 200 ? s[..200] : s;
 
     private static async Task<int> CountPagesAsync(LcuHttpClient http, CancellationToken ct)
     {
