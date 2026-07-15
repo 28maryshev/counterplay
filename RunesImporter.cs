@@ -22,23 +22,53 @@ public static class RunesImporter
     {
         try
         {
-            // 1. Свои прошлые страницы убираем — иначе после нескольких драфтов
-            //    у человека будет свалка из наших страниц.
+            // Лимит страниц: LCU не создаст новую, если исчерпан ownedPageCount.
+            // Именно на этом всё и падало в первый раз — у человека все слоты
+            // заняты стандартными страницами Riot, а наших («Counterplay») ещё нет.
+            int owned = 2;
+            var (inv, invBody) = await http.GetAsync("/lol-perks/v1/inventory", ct);
+            if (inv == 200)
+            {
+                using var idoc = JsonDocument.Parse(invBody);
+                if (idoc.RootElement.TryGetProperty("ownedPageCount", out var oc)
+                    && oc.ValueKind == JsonValueKind.Number)
+                    owned = oc.GetInt32();
+            }
+
+            // Разбираем текущие страницы: свои удаляем сразу (чтобы не плодить),
+            // чужие удаляемые запоминаем — понадобятся, если не хватит слота.
+            var freeable = new List<(long Id, bool Current)>();
             var (ls, body) = await http.GetAsync("/lol-perks/v1/pages", ct);
             if (ls == 200)
             {
                 using var doc = JsonDocument.Parse(body);
                 foreach (var p in doc.RootElement.EnumerateArray())
                 {
+                    if (!p.TryGetProperty("id", out var idEl)) continue;
+                    var id = idEl.GetInt64();
                     var name = p.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
                     var deletable = !p.TryGetProperty("isDeletable", out var d) || d.GetBoolean();
-                    if (deletable && name.StartsWith(PageMark, StringComparison.Ordinal)
-                        && p.TryGetProperty("id", out var idEl))
-                        await http.DeleteAsync($"/lol-perks/v1/pages/{idEl.GetInt64()}", ct);
+                    var current = p.TryGetProperty("current", out var c) && c.ValueKind == JsonValueKind.True;
+                    if (!deletable) continue;
+
+                    if (name.StartsWith(PageMark, StringComparison.Ordinal))
+                        await http.DeleteAsync($"/lol-perks/v1/pages/{id}", ct);
+                    else
+                        freeable.Add((id, current));
                 }
             }
 
-            // 2. Порядок важен: 4 основных (первый — кейстоун), 2 вторичных, 3 осколка.
+            // Если слотов всё ещё нет — освобождаем один. Жертвуем активной
+            // страницей (её мы и так сейчас заменим), иначе первой удаляемой.
+            var remaining = await CountPagesAsync(http, ct);
+            if (remaining >= owned && freeable.Count > 0)
+            {
+                var victim = freeable.FirstOrDefault(f => f.Current);
+                if (victim.Id == 0) victim = freeable[0];
+                await http.DeleteAsync($"/lol-perks/v1/pages/{victim.Id}", ct);
+            }
+
+            // Порядок важен: 4 основных (первый — кейстоун), 2 вторичных, 3 осколка.
             var selected = page.Perks.Concat(page.Secondary).Concat(page.Shards).ToArray();
             var payload = JsonSerializer.Serialize(new
             {
@@ -53,6 +83,14 @@ public static class RunesImporter
             return s is >= 200 and < 300;
         }
         catch { return false; }
+    }
+
+    private static async Task<int> CountPagesAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        var (s, body) = await http.GetAsync("/lol-perks/v1/pages", ct);
+        if (s != 200) return 0;
+        try { using var doc = JsonDocument.Parse(body); return doc.RootElement.GetArrayLength(); }
+        catch { return 0; }
     }
 
     /// <summary>
