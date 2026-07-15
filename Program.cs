@@ -248,7 +248,8 @@ class Program
 
         // Id моего текущего действия пика — обновляется на каждом снимке сессии.
         // Кнопки в оверлее (навести/залочить) используют именно его.
-        int myPickActionId = 0;
+        // -1 = действия нет (id 0 — валидный: в кастомках нумерация с нуля).
+        int myPickActionId = -1;
         overlay.HoverHandler = champId => RunesImporter.HoverChampionAsync(http, myPickActionId, champId, ct);
         overlay.LockHandler  = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
 

@@ -93,7 +93,8 @@ public static class RunesImporter
     public static async Task<int> HoverChampionAsync(
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
     {
-        if (actionId <= 0 || championId <= 0) return 0;
+        // id действия начинается с 0 (кастомки!) — «нет действия» это -1.
+        if (actionId < 0 || championId <= 0) return 0;
         try
         {
             // championId без completed — только наведение (пик не завершаем).
@@ -111,7 +112,8 @@ public static class RunesImporter
     public static async Task<int> LockChampionAsync(
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
     {
-        if (actionId <= 0 || championId <= 0) return 0;
+        // id действия начинается с 0 (кастомки!) — «нет действия» это -1.
+        if (actionId < 0 || championId <= 0) return 0;
         try
         {
             // Сначала наводим (на случай если ещё не наведён), затем завершаем действие.

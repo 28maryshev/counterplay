@@ -28,7 +28,7 @@ public sealed record DraftState(
     bool InBanPhase,               // сейчас идёт фаза банов
     IReadOnlyList<int> Bench,      // ARAM: чемпионы на скамейке (доступны для обмена)
     bool IsAram,                   // ARAM-режим (есть скамейка/реролл)
-    int MyPickActionId,            // id действия моего пика (0 = нет; для hover/lock)
+    int MyPickActionId,            // id действия моего пика (-1 = нет; id 0 валиден!)
     bool MyPickInProgress);        // мой ход пикать — можно лочить (иначе только hover)
 
 public static class ChampSelectParser
@@ -60,11 +60,13 @@ public static class ChampSelectParser
 
     // Моё незавершённое действие пика: id (для PATCH hover/lock) и можно ли
     // лочить прямо сейчас (isInProgress == мой ход). До хода можно только hover.
+    // ВАЖНО: id действия в LCU начинается с 0 (в кастомках первый пик = 0),
+    // поэтому «нет действия» — это -1, а не 0.
     private static (int Id, bool InProgress) FindMyPickAction(JsonElement session, int localCell)
     {
         if (localCell < 0 || !session.TryGetProperty("actions", out var actions)
             || actions.ValueKind != JsonValueKind.Array)
-            return (0, false);
+            return (-1, false);
 
         foreach (var group in actions.EnumerateArray())
         {
@@ -74,10 +76,10 @@ public static class ChampSelectParser
                 if (GetStr(a, "type") != "pick") continue;
                 if (GetInt(a, "actorCellId", -1) != localCell) continue;
                 if (IsTrue(a, "completed")) continue;         // уже залочен
-                return (GetInt(a, "id"), IsTrue(a, "isInProgress"));
+                return (GetInt(a, "id", -1), IsTrue(a, "isInProgress"));
             }
         }
-        return (0, false);
+        return (-1, false);
     }
 
     // Скамейка ARAM: доступные для обмена чемпионы + флаг режима (benchEnabled).
