@@ -311,16 +311,24 @@ sealed class TestPanel : Window
         if (_idByName.ContainsKey(name)) _ally[MeCell()].SelectedItem = name;
     }
 
-    // Случайный ещё не занятый чемпион в слот cell (0..4 свои, 5..9 враги).
+    // Случайный ещё не занятый чемпион в слот cell (0..4 свои, 5..9 враги),
+    // ПОДХОДЯЩИЙ ПО РОЛИ слота: строки идут TOP/JGL/MID/BOT/SUP у обеих команд,
+    // берём тех, кто реально играет эту роль (≥20% своих игр на ней по базе).
     private void AutoPick(int cell)
     {
         var cb = cell < 5 ? _ally[cell] : _enemy[cell - 5];
         if (ChampOf(cb) != 0) return;   // уже выбран (например, я успел сам)
 
-        var taken = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
-        var pool  = _names.Where(n => n != "—" && !taken.Contains(_idByName[n])).ToList();
+        var taken  = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
+        var dbRole = RecommendationEngine.LcuToDbRole(LcuRoles[cell % 5]);
+        var pool   = _idByName.Values
+            .Where(id => !taken.Contains(id) && _engine.RoleShare(id, dbRole) >= 0.20)
+            .ToList();
+        if (pool.Count == 0)   // нет данных по ролям — фолбэк на любых свободных
+            pool = _idByName.Values.Where(id => !taken.Contains(id)).ToList();
         if (pool.Count == 0) return;
-        cb.SelectedItem = pool[_rng.Next(pool.Count)];   // SelectionChanged → Recompute
+        // SelectionChanged → Recompute
+        cb.SelectedItem = DataDragon.Name(pool[_rng.Next(pool.Count)]);
     }
 
     private int ChampOf(ComboBox cb)
