@@ -405,8 +405,8 @@ public partial class OverlayWindow : Window
 
     /// Функция импорта в клиент. Ставится из Program (в тестовом режиме — null).
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
-    /// (core, полный билд, ситуативные, championId, имя) → успех.
-    public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, int, string, Task<bool>>? ExportBuildHandler { get; set; }
+    /// (core, полный билд, ситуативные, role, championId, имя) → успех.
+    public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, string, int, string, Task<bool>>? ExportBuildHandler { get; set; }
 
     /// Руна в подсказке/на кнопке: иконка, название и короткое описание.
     public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc);
@@ -425,13 +425,16 @@ public partial class OverlayWindow : Window
         IReadOnlyList<RuneVm> SecondaryRunes,
         IReadOnlyList<RuneVm> ShardRunes);
 
+    private string _runeRole = "";
+
     /// Показать панель рун/билда. stats=null — панели нет (данных мало/нет сети).
-    public void ShowRunes(ChampStats? stats, int championId, string championName, int? opponentId) =>
+    public void ShowRunes(ChampStats? stats, int championId, string championName, string role, int? opponentId) =>
         Dispatcher.InvokeAsync(() =>
         {
             _runeStats = stats;
             _runeChampId = championId;
             _runeChampName = championName;
+            _runeRole = role;
             _lastOpponentId = opponentId;
 
             if (stats is null || stats.Keystones.Count == 0)
@@ -712,8 +715,8 @@ public partial class OverlayWindow : Window
             .Where(i => !full.Contains(i))
             .ToList();
 
-        var ok = await ExportBuildHandler(core, full, situational, _runeChampId, _runeChampName);
-        RunesStatus.Text = Loc.T(ok ? "runes.exported" : "runes.failed");
+        var ok = await ExportBuildHandler(core, full, situational, _runeRole, _runeChampId, _runeChampName);
+        RunesStatus.Text = Loc.T(ok ? "runes.exportedToSets" : "runes.failed");
         RunesStatus.Foreground = ok ? WinBrush : LossBrush;
     }
 

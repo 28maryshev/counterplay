@@ -133,7 +133,7 @@ class Program
         _runesShownFor = key;
 
         var stats = await RunesClient.GetAsync(champ, role, ct);
-        overlay.ShowRunes(stats, champ, DataDragon.Name(champ), opponent);
+        overlay.ShowRunes(stats, champ, DataDragon.Name(champ), role, opponent);
     }
 
     // Имя события «покажи окно» — им второй экземпляр будит первый.
@@ -243,8 +243,8 @@ class Program
 
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
         overlay.ApplyRunesHandler  = (page, name) => RunesImporter.ApplyRunesAsync(http, page, name, ct);
-        overlay.ExportBuildHandler = (core, full, alt, id, name) =>
-            RunesImporter.ExportItemSetAsync(http, core, full, alt, id, name, ct);
+        overlay.ExportBuildHandler = (core, full, alt, role, id, name) =>
+            RunesImporter.ExportItemSetAsync(http, core, full, alt, role, id, name, ct);
 
         RecommendationEngine? engine = null;
         var dbPath = RecommendationEngine.FindDb();

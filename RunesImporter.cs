@@ -93,15 +93,29 @@ public static class RunesImporter
         catch { return 0; }
     }
 
+    // Стартовые предметы по роли. MATCH-V5 отдаёт только финальный инвентарь —
+    // стартовые к концу игры проданы/выпиты, в статистике их нет. Это разумный
+    // дефолт по роли (настоящие цифры — только из Timeline API).
+    private static int[] StartItems(string role) => role switch
+    {
+        "adc"     => [1055, 2003],        // Меч Дорана + зелье
+        "mid"     => [1056, 2003],        // Кольцо Дорана + зелье
+        "top"     => [1054, 2003],        // Щит Дорана + зелье
+        "support" => [3865, 2003],        // Мир-Атлас + зелье
+        "jungle"  => [1101, 2003],        // талисман джангла + зелье
+        _         => [2003],
+    };
+
     /// <summary>
-    /// Экспортировать набор предметов (виден в магазине в игре). Три блока:
-    /// 1) первые кор-предметы С КОМПОНЕНТАМИ — что покупать по шагам;
-    /// 2) полный билд из 6 слотов;
+    /// Экспортировать набор предметов (виден в магазине в игре). Блоки:
+    /// 1) стартовые предметы (по роли);
+    /// 2) CORE-сборка — выбранный билд с компонентами по порядку (включая ботинки);
     /// 3) ситуативные — что ещё часто берут на чемпионе.
     /// </summary>
     public static async Task<bool> ExportItemSetAsync(
         LcuHttpClient http, IReadOnlyList<int> core, IReadOnlyList<int> full,
-        IReadOnlyList<int> situational, int championId, string championName, CancellationToken ct)
+        IReadOnlyList<int> situational, string role, int championId, string championName,
+        CancellationToken ct)
     {
         try
         {
@@ -128,21 +142,35 @@ public static class RunesImporter
             static object[] Items(IEnumerable<int> ids) =>
                 ids.Select(i => (object)new { id = i.ToString(), count = 1 }).ToArray();
 
-            // Блок 1: первые два кор-предмета с компонентами по порядку сборки.
-            var start = core.Take(2).SelectMany(ItemIcons.WithComponents).Distinct().ToList();
-
-            object Block(string type, object[] its) => new
+            object Block(string type, IEnumerable<int> ids) => new
             {
                 type,
                 showIfSummonerSpell = "",
                 hideIfSummonerSpell = "",
-                items = its,
+                items = Items(ids),
             };
 
-            var blocks = new List<object>();
-            if (start.Count > 0)      blocks.Add(Block(Loc.T("runes.coreBlock"), Items(start)));
-            if (full.Count > 0)       blocks.Add(Block(Loc.T("runes.fullBlock"), Items(full)));
-            if (situational.Count > 0) blocks.Add(Block(Loc.T("runes.altBlock"), Items(situational)));
+            // CORE — выбранная сборка с компонентами по порядку покупки (базовые →
+            // готовый), включая ботинки. Дедуп: общие компоненты не повторяются.
+            var coreSeq = new List<int>();
+            var seen = new HashSet<int>();
+            foreach (var item in full)
+                foreach (var part in ItemIcons.WithComponents(item))
+                    if (seen.Add(part)) coreSeq.Add(part);
+
+            // Ситуативные — тоже с компонентами, чтобы можно было докупать по частям.
+            var altSeq = new List<int>();
+            var altSeen = new HashSet<int>();
+            foreach (var item in situational)
+                foreach (var part in ItemIcons.WithComponents(item))
+                    if (altSeen.Add(part)) altSeq.Add(part);
+
+            var blocks = new List<object>
+            {
+                Block(Loc.T("runes.startBlock"), StartItems(role)),
+            };
+            if (coreSeq.Count > 0) blocks.Add(Block(Loc.T("runes.coreBlock"), coreSeq));
+            if (altSeq.Count > 0)  blocks.Add(Block(Loc.T("runes.altBlock"), altSeq));
 
             var mySet = new
             {
