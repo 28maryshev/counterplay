@@ -52,5 +52,25 @@
     "preendofgame": "Spielende",
     "endofgame": "Nachspielphase",
     "reconnect": "Wiederverbinden"
+  },
+  "runes": {
+    "title": "Runen für {0}",
+    "titleVs": "Runen für {0} gegen {1}",
+    "apply": "Runen anwenden",
+    "applying": "Wird angewendet...",
+    "applied": "Runen im Client übernommen",
+    "exporting": "Wird exportiert...",
+    "exportedToSets": "Build zu ITEM SETS im Shop hinzugefügt",
+    "failed": "Fehlgeschlagen — ist der Client offen?",
+    "tipBase": "Siegrate {0}% über {1} Spiele",
+    "tipVs": "Gegen diesen Gegner: {0} PP ({1} Spiele)",
+    "tipPick": "In {0}% der Spiele gewählt",
+    "buildTip": "Siegrate {0}% über {1} Spiele — an den Client senden",
+    "export": "Export",
+    "core": "Kern",
+    "coreBlock": "Kernitems",
+    "altBlock": "Situativ",
+    "startBlock": "Startitems",
+    "compBlock": "Komponenten"
   }
 }

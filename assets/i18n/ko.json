@@ -52,5 +52,25 @@
     "preendofgame": "게임 종료 중",
     "endofgame": "게임 종료",
     "reconnect": "재접속"
+  },
+  "runes": {
+    "title": "{0} 룬",
+    "titleVs": "{0} vs {1} 룬",
+    "apply": "룬 적용",
+    "applying": "적용 중...",
+    "applied": "클라이언트에 룬 적용됨",
+    "exporting": "내보내는 중...",
+    "exportedToSets": "빌드를 상점의 아이템 세트에 추가함",
+    "failed": "실패 — 클라이언트가 열려 있나요?",
+    "tipBase": "승률 {0}%, {1} 게임",
+    "tipVs": "이 상대 상대로: {0}%p ({1} 게임)",
+    "tipPick": "{0}% 게임에서 선택",
+    "buildTip": "승률 {0}%, {1} 게임 — 클라이언트로 전송",
+    "export": "내보내기",
+    "core": "코어",
+    "coreBlock": "코어 아이템",
+    "altBlock": "상황",
+    "startBlock": "시작 아이템",
+    "compBlock": "구성 요소"
   }
 }

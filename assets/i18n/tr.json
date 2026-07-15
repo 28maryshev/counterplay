@@ -52,5 +52,25 @@
     "preendofgame": "Maç bitiyor",
     "endofgame": "Maç sonu",
     "reconnect": "Yeniden bağlanma"
+  },
+  "runes": {
+    "title": "{0} için rünler",
+    "titleVs": "{0} için rünler, {1} karşısında",
+    "apply": "Rünleri uygula",
+    "applying": "Uygulanıyor...",
+    "applied": "Rünler istemciye uygulandı",
+    "exporting": "Dışa aktarılıyor...",
+    "exportedToSets": "Dizilim, mağazadaki EŞYA SETLERİ'ne eklendi",
+    "failed": "Başarısız — istemci açık mı?",
+    "tipBase": "Kazanma oranı %{0}, {1} maçta",
+    "tipVs": "Bu rakibe karşı: {0} puan ({1} maç)",
+    "tipPick": "Maçların %{0} kısmında seçildi",
+    "buildTip": "Kazanma oranı %{0}, {1} maçta — istemciye gönder",
+    "export": "Dışa aktar",
+    "core": "çekirdek",
+    "coreBlock": "Çekirdek eşyalar",
+    "altBlock": "Duruma bağlı",
+    "startBlock": "Başlangıç eşyaları",
+    "compBlock": "Bileşenler"
   }
 }

@@ -285,5 +285,25 @@
     "preendofgame": "試合終了処理",
     "endofgame": "試合後",
     "reconnect": "再接続"
+  },
+  "runes": {
+    "title": "{0} のルーン",
+    "titleVs": "{0} vs {1} のルーン",
+    "apply": "ルーンを適用",
+    "applying": "適用中...",
+    "applied": "ルーンをクライアントに適用しました",
+    "exporting": "エクスポート中...",
+    "exportedToSets": "ビルドをショップのアイテムセットに追加しました",
+    "failed": "失敗 — クライアントは開いていますか？",
+    "tipBase": "勝率 {0}%（{1} 試合）",
+    "tipVs": "この相手に対して：{0} pt（{1} 試合）",
+    "tipPick": "{0}% の試合で選択",
+    "buildTip": "勝率 {0}%（{1} 試合）— クライアントに送信",
+    "export": "エクスポート",
+    "core": "コア",
+    "coreBlock": "コアアイテム",
+    "altBlock": "状況対応",
+    "startBlock": "開始アイテム",
+    "compBlock": "コンポーネント"
   }
 }

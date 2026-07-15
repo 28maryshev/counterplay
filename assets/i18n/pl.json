@@ -285,5 +285,25 @@
     "preendofgame": "Koniec gry",
     "endofgame": "Po grze",
     "reconnect": "Ponowne połączenie"
+  },
+  "runes": {
+    "title": "Runy dla {0}",
+    "titleVs": "Runy dla {0} vs {1}",
+    "apply": "Zastosuj runy",
+    "applying": "Stosowanie...",
+    "applied": "Runy zastosowane w kliencie",
+    "exporting": "Eksportowanie...",
+    "exportedToSets": "Build dodany do ZESTAWÓW PRZEDMIOTÓW w sklepie",
+    "failed": "Błąd — czy klient jest otwarty?",
+    "tipBase": "Wygrane {0}% w {1} grach",
+    "tipVs": "Przeciw temu przeciwnikowi: {0} pp ({1} gier)",
+    "tipPick": "Wybierany w {0}% gier",
+    "buildTip": "Wygrane {0}% w {1} grach — wyślij do klienta",
+    "export": "Eksport",
+    "core": "rdzeń",
+    "coreBlock": "Przedmioty rdzenia",
+    "altBlock": "Sytuacyjne",
+    "startBlock": "Przedmioty startowe",
+    "compBlock": "Składniki"
   }
 }

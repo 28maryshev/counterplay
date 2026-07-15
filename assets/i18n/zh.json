@@ -275,5 +275,25 @@
     "preendofgame": "对局结束中",
     "endofgame": "赛后",
     "reconnect": "重新连接"
+  },
+  "runes": {
+    "title": "{0} 的符文",
+    "titleVs": "{0} 对阵 {1} 的符文",
+    "apply": "应用符文",
+    "applying": "正在应用...",
+    "applied": "符文已应用到客户端",
+    "exporting": "正在导出...",
+    "exportedToSets": "出装已添加到商店的装备套装",
+    "failed": "失败 — 客户端是否已打开？",
+    "tipBase": "胜率 {0}%，共 {1} 场",
+    "tipVs": "对阵该对手：{0} 个百分点（{1} 场）",
+    "tipPick": "{0}% 的对局中选择",
+    "buildTip": "胜率 {0}%，共 {1} 场 — 发送到客户端",
+    "export": "导出",
+    "core": "核心",
+    "coreBlock": "核心装备",
+    "altBlock": "情境装备",
+    "startBlock": "起始装备",
+    "compBlock": "组件"
   }
 }

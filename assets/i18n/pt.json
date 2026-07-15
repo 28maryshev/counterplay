@@ -52,5 +52,25 @@
     "preendofgame": "Fim de partida",
     "endofgame": "Pós-jogo",
     "reconnect": "Reconexão"
+  },
+  "runes": {
+    "title": "Runas para {0}",
+    "titleVs": "Runas para {0} vs {1}",
+    "apply": "Aplicar runas",
+    "applying": "Aplicando...",
+    "applied": "Runas aplicadas no cliente",
+    "exporting": "Exportando...",
+    "exportedToSets": "Build adicionada aos CONJUNTOS DE ITENS na loja",
+    "failed": "Falhou — o cliente está aberto?",
+    "tipBase": "Taxa de vitória {0}% em {1} partidas",
+    "tipVs": "Contra este oponente: {0} pp ({1} partidas)",
+    "tipPick": "Escolhido em {0}% das partidas",
+    "buildTip": "Taxa de vitória {0}% em {1} partidas — enviar ao cliente",
+    "export": "Exportar",
+    "core": "núcleo",
+    "coreBlock": "Itens núcleo",
+    "altBlock": "Situacional",
+    "startBlock": "Itens iniciais",
+    "compBlock": "Componentes"
   }
 }

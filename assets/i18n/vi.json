@@ -285,5 +285,25 @@
     "preendofgame": "Kết thúc trận",
     "endofgame": "Sau trận",
     "reconnect": "Kết nối lại"
+  },
+  "runes": {
+    "title": "Ngọc cho {0}",
+    "titleVs": "Ngọc cho {0} đấu với {1}",
+    "apply": "Áp dụng ngọc",
+    "applying": "Đang áp dụng...",
+    "applied": "Đã áp dụng ngọc trong client",
+    "exporting": "Đang xuất...",
+    "exportedToSets": "Đã thêm trang bị vào ITEM SETS trong cửa hàng",
+    "failed": "Thất bại — client có đang mở không?",
+    "tipBase": "Tỉ lệ thắng {0}% qua {1} trận",
+    "tipVs": "Đấu với đối thủ này: {0} pp ({1} trận)",
+    "tipPick": "Được chọn trong {0}% số trận",
+    "buildTip": "Tỉ lệ thắng {0}% qua {1} trận — gửi tới client",
+    "export": "Xuất",
+    "core": "cốt lõi",
+    "coreBlock": "Trang bị cốt lõi",
+    "altBlock": "Tùy tình huống",
+    "startBlock": "Trang bị khởi đầu",
+    "compBlock": "Thành phần"
   }
 }

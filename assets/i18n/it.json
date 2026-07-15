@@ -285,5 +285,25 @@
     "preendofgame": "Fine partita",
     "endofgame": "Post-partita",
     "reconnect": "Riconnessione"
+  },
+  "runes": {
+    "title": "Rune per {0}",
+    "titleVs": "Rune per {0} vs {1}",
+    "apply": "Applica rune",
+    "applying": "Applicazione...",
+    "applied": "Rune applicate nel client",
+    "exporting": "Esportazione...",
+    "exportedToSets": "Build aggiunta a SET DI OGGETTI nel negozio",
+    "failed": "Errore — il client è aperto?",
+    "tipBase": "Percentuale di vittorie {0}% su {1} partite",
+    "tipVs": "Contro questo avversario: {0} pp ({1} partite)",
+    "tipPick": "Scelto nel {0}% delle partite",
+    "buildTip": "Percentuale di vittorie {0}% su {1} partite — invia al client",
+    "export": "Esporta",
+    "core": "base",
+    "coreBlock": "Oggetti base",
+    "altBlock": "Situazionale",
+    "startBlock": "Oggetti iniziali",
+    "compBlock": "Componenti"
   }
 }
