@@ -26,9 +26,12 @@ async function fetchJson(url) {
 async function downloadTo(url, dest) {
   const res = await fetch(url, { redirect: 'follow' });
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(dest, buf);
-  return buf.length;
+  // Стримим на диск, а не держим весь снапшот (~143 МБ) в памяти: буфер разом
+  // выбивал бот за лимит контейнера и ронял его в цикл перезапуска.
+  const { Readable } = require('stream');
+  const { pipeline } = require('stream/promises');
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(dest));
+  return fs.statSync(dest).size;
 }
 
 /** Проверить удалённую версию и при отличии скачать и подменить снапшот.
