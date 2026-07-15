@@ -77,5 +77,8 @@
     "confirm": "Choisir {0}",
     "locking": "Verrouillage...",
     "failed": "Échec — c'est ton tour ?"
+  },
+  "slot": {
+    "firstPick": "1er pick"
   }
 }

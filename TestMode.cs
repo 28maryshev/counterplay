@@ -246,7 +246,8 @@ sealed class TestPanel : Window
         bool myPick = _banPhase.IsChecked != true;
         var draft = new DraftState(
             my, their, [], [], my[meIdx], LcuRoles[meIdx],
-            opp, false, _banPhase.IsChecked == true, [], false, myPick ? 1 : -1, myPick);
+            opp, false, _banPhase.IsChecked == true, [], false, myPick ? 1 : -1, myPick,
+            myPick ? [meIdx] : [], 0);   // в тесте: мигает мой слот, первый пик — верхний
 
         if (_banPhase.IsChecked == true)
         {

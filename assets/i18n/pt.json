@@ -77,5 +77,8 @@
     "confirm": "Escolher {0}",
     "locking": "Bloqueando...",
     "failed": "Falhou — é a sua vez?"
+  },
+  "slot": {
+    "firstPick": "1º pick"
   }
 }

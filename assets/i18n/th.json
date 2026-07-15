@@ -198,7 +198,8 @@
   "slot": {
     "counters": "เคาน์เตอร์",
     "synergy": "ซินเนอร์จี",
-    "youPick": "คุณพิค"
+    "youPick": "คุณพิค",
+    "firstPick": "พิกแรก"
   },
   "badge": {
     "ban": "แบน"

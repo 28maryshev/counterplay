@@ -198,7 +198,8 @@
   "slot": {
     "counters": "КОНТРИ",
     "synergy": "СИНЕРГІЯ",
-    "youPick": "ТИ ПІКАЄШ"
+    "youPick": "ТИ ПІКАЄШ",
+    "firstPick": "1-й пік"
   },
   "badge": {
     "ban": "БАН"

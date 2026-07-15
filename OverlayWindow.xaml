@@ -683,6 +683,31 @@
                             </Style>
                           </Ellipse.Style>
                         </Ellipse>
+                        <!-- Мигающее кольцо: ход этого игрока пикать прямо сейчас.
+                             Дешёвое мигание прозрачностью — без эффектов и блюра. -->
+                        <Ellipse StrokeThickness="3" Opacity="0" IsHitTestVisible="False">
+                          <Ellipse.Stroke><SolidColorBrush Color="{Binding BorderColor}"/></Ellipse.Stroke>
+                          <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPicking}" Value="True">
+                                  <DataTrigger.EnterActions>
+                                    <BeginStoryboard Name="PickPulse">
+                                      <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="0.15" To="0.9" Duration="0:0:0.8"
+                                                         AutoReverse="True" RepeatBehavior="Forever"/>
+                                      </Storyboard>
+                                    </BeginStoryboard>
+                                  </DataTrigger.EnterActions>
+                                  <DataTrigger.ExitActions>
+                                    <RemoveStoryboard BeginStoryboardName="PickPulse"/>
+                                  </DataTrigger.ExitActions>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Ellipse.Style>
+                        </Ellipse>
                         <!-- Иконка роли в пустом моём слоте -->
                         <Image Source="{Binding RoleIcon}" Width="34" Height="34"
                                Stretch="Uniform" Opacity="0.9"
@@ -700,8 +725,9 @@
                         </Border>
                       </Grid>
                       <StackPanel Grid.Column="1" Margin="34,4,0,3">
-                        <!-- Роль: у врага — кнопка-чип с выпадающим списком ролей -->
-                        <Border HorizontalAlignment="Left"
+                        <!-- Роль (+ бейдж «1st pick»): у врага роль — кнопка-чип -->
+                        <StackPanel Orientation="Horizontal">
+                        <Border HorizontalAlignment="Left" VerticalAlignment="Center"
                                 Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
                                 MouseLeftButtonDown="EnemyRole_Click">
                           <Border.Style>
@@ -731,6 +757,15 @@
                                      FontFamily="{StaticResource DisplayFont}"
                                      FontSize="12" FontWeight="Bold"/>
                         </Border>
+                        <!-- Бейдж «1st pick»: кто пикает первым в очереди драфта -->
+                        <Border Visibility="{Binding FirstPickVisibility}" Margin="6,0,0,0"
+                                CornerRadius="4" Background="#2236D6E7"
+                                BorderBrush="#5536D6E7" BorderThickness="1"
+                                Padding="6,0,6,1" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding FirstPickLabel}" Foreground="#7FE3F0"
+                                     FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                        </StackPanel>
                         <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
                                    FontFamily="{StaticResource DisplayFont}"
                                    FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
@@ -786,7 +821,7 @@
                     <!-- Клик по карточке наводит чемпиона в клиенте (hover) -->
                     <Border Margin="0,3" CornerRadius="4" Padding="10,9" Cursor="Hand"
                             Background="{Binding CardBg}"
-                            BorderBrush="{Binding CardBorder}" BorderThickness="{Binding CardThick}"
+                            BorderBrush="{Binding CardBorder}" BorderThickness="1.5"
                             MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}">
                       <Grid>
                             <Grid.ColumnDefinitions>
@@ -1251,16 +1286,19 @@
                                 Background="{Binding RowBg}"
                                 BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
-                        <Grid>
+                        <!-- Правое выравнивание группы; при нехватке ширины сжимается
+                             колонка предметов (обрезка СПРАВА — ситуативные уходят
+                             первыми, кор-предметы в начале ряда остаются видны),
+                             а винрейт и кнопка экспорта не прячутся никогда. -->
+                        <Grid HorizontalAlignment="Right">
                           <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>      <!-- распорка (толкает вправо) -->
                             <ColumnDefinition Width="Auto"/>   <!-- WR + игры  -->
-                            <ColumnDefinition Width="Auto"/>   <!-- слоты      -->
+                            <ColumnDefinition Width="*"/>      <!-- слоты (сжимаемые) -->
                             <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
                           </Grid.ColumnDefinitions>
 
                           <!-- Винрейт и число игр: прижаты к краю первого предмета -->
-                          <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                          <StackPanel Grid.Column="0" VerticalAlignment="Center"
                                       HorizontalAlignment="Right" Margin="0,0,7,0">
                             <TextBlock Text="{Binding WrText}" TextAlignment="Right"
                                        FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
@@ -1270,26 +1308,28 @@
                                        Foreground="#6A8296"/>
                           </StackPanel>
 
-                          <ItemsControl Grid.Column="2" ItemsSource="{Binding Slots}"
-                                        HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <ItemsControl.ItemsPanel>
-                              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                              <DataTemplate>
-                                <Border Width="26" Height="26" Margin="0,0,3,0" CornerRadius="4"
-                                        BorderThickness="{Binding Thickness}"
-                                        BorderBrush="{Binding Stroke}"
-                                        Background="#12FFFFFF" ToolTip="{Binding Tip}">
-                                  <Image Source="{Binding Icon}" Stretch="UniformToFill"
-                                         Opacity="{Binding Dim}"
-                                         RenderOptions.BitmapScalingMode="HighQuality"/>
-                                </Border>
-                              </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                          </ItemsControl>
+                          <Border Grid.Column="1" ClipToBounds="True">
+                            <ItemsControl ItemsSource="{Binding Slots}"
+                                          HorizontalAlignment="Left" VerticalAlignment="Center">
+                              <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                              </ItemsControl.ItemsPanel>
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                  <Border Width="26" Height="26" Margin="0,0,3,0" CornerRadius="4"
+                                          BorderThickness="{Binding Thickness}"
+                                          BorderBrush="{Binding Stroke}"
+                                          Background="#12FFFFFF" ToolTip="{Binding Tip}">
+                                    <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                                           Opacity="{Binding Dim}"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </Border>
 
-                          <Border Grid.Column="3" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
+                          <Border Grid.Column="2" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
                                   Cursor="Hand" VerticalAlignment="Center"
                                   Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
@@ -1357,6 +1397,31 @@
                             </Style>
                           </Ellipse.Style>
                         </Ellipse>
+                        <!-- Мигающее кольцо: ход этого игрока пикать прямо сейчас.
+                             Дешёвое мигание прозрачностью — без эффектов и блюра. -->
+                        <Ellipse StrokeThickness="3" Opacity="0" IsHitTestVisible="False">
+                          <Ellipse.Stroke><SolidColorBrush Color="{Binding BorderColor}"/></Ellipse.Stroke>
+                          <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPicking}" Value="True">
+                                  <DataTrigger.EnterActions>
+                                    <BeginStoryboard Name="PickPulse">
+                                      <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="0.15" To="0.9" Duration="0:0:0.8"
+                                                         AutoReverse="True" RepeatBehavior="Forever"/>
+                                      </Storyboard>
+                                    </BeginStoryboard>
+                                  </DataTrigger.EnterActions>
+                                  <DataTrigger.ExitActions>
+                                    <RemoveStoryboard BeginStoryboardName="PickPulse"/>
+                                  </DataTrigger.ExitActions>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Ellipse.Style>
+                        </Ellipse>
                         <!-- Иконка роли в пустом моём слоте -->
                         <Image Source="{Binding RoleIcon}" Width="34" Height="34"
                                Stretch="Uniform" Opacity="0.9"
@@ -1374,8 +1439,9 @@
                         </Border>
                       </Grid>
                       <StackPanel Grid.Column="1" Margin="34,4,0,3">
-                        <!-- Роль: у врага — кнопка-чип с выпадающим списком ролей -->
-                        <Border HorizontalAlignment="Left"
+                        <!-- Роль (+ бейдж «1st pick»): у врага роль — кнопка-чип -->
+                        <StackPanel Orientation="Horizontal">
+                        <Border HorizontalAlignment="Left" VerticalAlignment="Center"
                                 Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
                                 MouseLeftButtonDown="EnemyRole_Click">
                           <Border.Style>
@@ -1405,6 +1471,15 @@
                                      FontFamily="{StaticResource DisplayFont}"
                                      FontSize="12" FontWeight="Bold"/>
                         </Border>
+                        <!-- Бейдж «1st pick»: кто пикает первым в очереди драфта -->
+                        <Border Visibility="{Binding FirstPickVisibility}" Margin="6,0,0,0"
+                                CornerRadius="4" Background="#2236D6E7"
+                                BorderBrush="#5536D6E7" BorderThickness="1"
+                                Padding="6,0,6,1" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding FirstPickLabel}" Foreground="#7FE3F0"
+                                     FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                        </StackPanel>
                         <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
                                    FontFamily="{StaticResource DisplayFont}"
                                    FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>

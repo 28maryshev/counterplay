@@ -198,7 +198,8 @@
   "slot": {
     "counters": "KHẮC CHẾ",
     "synergy": "PHỐI HỢP",
-    "youPick": "BẠN CHỌN"
+    "youPick": "BẠN CHỌN",
+    "firstPick": "Pick đầu"
   },
   "badge": {
     "ban": "CẤM"

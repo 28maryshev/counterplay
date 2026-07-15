@@ -77,5 +77,8 @@
     "confirm": "{0} wählen",
     "locking": "Wird gewählt...",
     "failed": "Fehlgeschlagen — bist du dran?"
+  },
+  "slot": {
+    "firstPick": "1. Pick"
   }
 }

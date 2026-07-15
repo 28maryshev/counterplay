@@ -2032,8 +2032,10 @@ public partial class OverlayWindow : Window
     private void RenderTeams(DraftState draft)
     {
         var myRole = RecommendationEngine.LcuToDbRole(draft.MyPosition);
-        MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole);
-        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole, _enemyRoleOverrides);
+        MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole,
+                                               null, draft.ActiveCells, draft.FirstPickCell);
+        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
+                                               _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell);
 
         var allyIds  = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
                                    .Select(p => p.EffectiveChampionId).ToList();
@@ -2168,7 +2170,8 @@ public partial class OverlayWindow : Window
     private static List<ChampSlotCard> BuildSlots(
         IReadOnlyList<DraftPlayer> players, bool ally,
         RecommendationEngine? engine, string myRole,
-        IReadOnlyDictionary<int, string>? roleOverrides = null)
+        IReadOnlyDictionary<int, string>? roleOverrides = null,
+        IReadOnlyList<int>? activeCells = null, int firstPickCell = -1)
     {
         return Enumerable.Range(0, 5).Select(i =>
         {
@@ -2179,6 +2182,8 @@ public partial class OverlayWindow : Window
             var isLocked = p.ChampionId > 0;
             var hasChamp = champId > 0;
             var isMe     = p.IsLocalPlayer;
+            // Мигание: ход этого игрока пикать прямо сейчас (и ещё не залочен).
+            var isPicking = !isLocked && activeCells?.Contains(p.CellId) == true;
 
             List<ImageSource> sideIcons = [];
             string sideLabel = "";
@@ -2231,6 +2236,9 @@ public partial class OverlayWindow : Window
                 ArchGlyph   = archGlyph,
                 ArchColor   = archColor,
                 ArchTip     = archTip,
+                IsPicking   = isPicking,
+                IsFirstPick = p.CellId == firstPickCell,
+                FirstPickLabel = Loc.T("slot.firstPick"),
             };
         }).ToList();
     }
@@ -2341,10 +2349,11 @@ public sealed class FullRecCard
     public Visibility   MineVisibility => IsMyPick ? Visibility.Visible : Visibility.Collapsed;
 
     // Наведён кликом через интерфейс — вся рамка светится золотом.
+    // Толщина рамки у ВСЕХ карточек одинаковая (1.5): разная толщина сдвигала
+    // содержимое выбранной карточки на 1px — ряды «плыли» относительно соседних.
     public bool         IsSelected { get; init; }
     public string       CardBg     => IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
     public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
-    public string       CardThick  => IsSelected ? "2.5" : "1.5";
 }
 
 public sealed class ChampSlotCard
@@ -2377,6 +2386,14 @@ public sealed class ChampSlotCard
     public ImageSource? RoleIcon        { get; init; }  // иконка роли в пустом моём слоте
     public Visibility   RoleIconVisibility =>
         RoleIcon != null ? Visibility.Visible : Visibility.Collapsed;
+
+    // Ход этого игрока пикать прямо сейчас → слот слабо мигает.
+    public bool         IsPicking       { get; init; }
+    // Бейдж «1st pick» у игрока, пикающего первым в очереди драфта.
+    public bool         IsFirstPick     { get; init; }
+    public string       FirstPickLabel  { get; init; } = "";
+    public Visibility   FirstPickVisibility =>
+        IsFirstPick ? Visibility.Visible : Visibility.Collapsed;
 }
 
 public sealed class ComboCard

@@ -77,5 +77,8 @@
     "confirm": "Elegir {0}",
     "locking": "Bloqueando...",
     "failed": "Error — ¿es tu turno?"
+  },
+  "slot": {
+    "firstPick": "1er pick"
   }
 }

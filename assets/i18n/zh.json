@@ -196,7 +196,8 @@
   "slot": {
     "counters": "克制",
     "synergy": "契合",
-    "youPick": "你选"
+    "youPick": "你选",
+    "firstPick": "一楼"
   },
   "badge": {
     "ban": "BAN"

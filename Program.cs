@@ -551,5 +551,6 @@ class Program
         string.Join(",", s.TheirTeamBans) + "|" +
         string.Join(",", s.Bench) + "|" +
         (s.InBanPhase ? "ban" : "pick") + "|" +
-        $"{s.MyPickActionId}:{s.MyPickInProgress}";
+        $"{s.MyPickActionId}:{s.MyPickInProgress}|" +
+        string.Join(",", s.ActiveCells) + $":{s.FirstPickCell}";
 }

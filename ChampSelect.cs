@@ -29,7 +29,9 @@ public sealed record DraftState(
     IReadOnlyList<int> Bench,      // ARAM: чемпионы на скамейке (доступны для обмена)
     bool IsAram,                   // ARAM-режим (есть скамейка/реролл)
     int MyPickActionId,            // id действия моего пика (-1 = нет; id 0 валиден!)
-    bool MyPickInProgress);        // мой ход пикать — можно лочить (иначе только hover)
+    bool MyPickInProgress,         // мой ход пикать — можно лочить (иначе только hover)
+    IReadOnlyList<int> ActiveCells,// cellId'ы, чей ход пикать прямо сейчас (мигание)
+    int FirstPickCell);            // cellId первого пика в порядке драфта (-1 = неизвестно)
 
 public static class ChampSelectParser
 {
@@ -53,9 +55,35 @@ public static class ChampSelectParser
         var inBan    = ComputeInBanPhase(session);
         var (bench, isAram) = ParseBench(session);
         var (pickId, pickNow) = FindMyPickAction(session, localCell);
+        var (active, firstCell) = ParsePickTurns(session);
 
         return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan,
-                              bench, isAram, pickId, pickNow);
+                              bench, isAram, pickId, pickNow, active, firstCell);
+    }
+
+    // Чей ход пикать прямо сейчас (in-progress pick) + кто пикает первым по
+    // порядку очереди — для мигания слота и бейджа «1st pick».
+    private static (List<int> Active, int FirstCell) ParsePickTurns(JsonElement session)
+    {
+        var active = new List<int>();
+        int first = -1;
+        if (!session.TryGetProperty("actions", out var actions) || actions.ValueKind != JsonValueKind.Array)
+            return (active, first);
+
+        foreach (var group in actions.EnumerateArray())
+        {
+            if (group.ValueKind != JsonValueKind.Array) continue;
+            foreach (var a in group.EnumerateArray())
+            {
+                if (GetStr(a, "type") != "pick") continue;
+                int cell = GetInt(a, "actorCellId", -1);
+                if (cell < 0) continue;
+                if (first < 0) first = cell;   // первый pick в порядке очереди
+                if (IsTrue(a, "isInProgress") && !IsTrue(a, "completed"))
+                    active.Add(cell);
+            }
+        }
+        return (active, first);
     }
 
     // Моё незавершённое действие пика: id (для PATCH hover/lock) и можно ли

@@ -77,5 +77,8 @@
     "confirm": "{0} 선택",
     "locking": "확정 중...",
     "failed": "실패 — 당신 차례인가요?"
+  },
+  "slot": {
+    "firstPick": "1픽"
   }
 }

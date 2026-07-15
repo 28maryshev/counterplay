@@ -198,7 +198,8 @@
   "slot": {
     "counters": "KONTRY",
     "synergy": "SYNERGIA",
-    "youPick": "TY WYBIERASZ"
+    "youPick": "TY WYBIERASZ",
+    "firstPick": "1. pick"
   },
   "badge": {
     "ban": "BAN"

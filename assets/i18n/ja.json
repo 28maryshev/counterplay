@@ -198,7 +198,8 @@
   "slot": {
     "counters": "カウンター",
     "synergy": "シナジー",
-    "youPick": "あなたのピック"
+    "youPick": "あなたのピック",
+    "firstPick": "1stピック"
   },
   "badge": {
     "ban": "バン"
