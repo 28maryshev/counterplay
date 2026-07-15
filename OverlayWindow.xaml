@@ -1226,23 +1226,25 @@
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
                         <Grid>
                           <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>   <!-- WR + игры  -->
-                            <ColumnDefinition Width="*"/>      <!-- слоты      -->
-                            <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
+                            <ColumnDefinition Width="46"/>     <!-- WR + игры (фикс) -->
+                            <ColumnDefinition Width="Auto"/>   <!-- слоты (слева)    -->
+                            <ColumnDefinition Width="*"/>      <!-- распорка         -->
+                            <ColumnDefinition Width="Auto"/>   <!-- экспорт          -->
                           </Grid.ColumnDefinitions>
 
-                          <!-- Винрейт и число игр этой сборки -->
-                          <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="3,0,8,0">
-                            <TextBlock Text="{Binding WrText}"
+                          <!-- Винрейт и число игр: прижаты вправо, к краю первого предмета -->
+                          <StackPanel Grid.Column="0" VerticalAlignment="Center"
+                                      HorizontalAlignment="Right" Margin="0,0,7,0">
+                            <TextBlock Text="{Binding WrText}" TextAlignment="Right"
                                        FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                                        Foreground="{Binding WrBrush}"/>
-                            <TextBlock Text="{Binding GamesText}"
+                            <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
                                        FontFamily="{StaticResource UiFont}" FontSize="9"
                                        Foreground="#6A8296"/>
                           </StackPanel>
 
                           <ItemsControl Grid.Column="1" ItemsSource="{Binding Slots}"
-                                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        HorizontalAlignment="Left" VerticalAlignment="Center">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
@@ -1260,7 +1262,7 @@
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
 
-                          <Border Grid.Column="2" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
+                          <Border Grid.Column="3" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
                                   Cursor="Hand" VerticalAlignment="Center"
                                   Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
