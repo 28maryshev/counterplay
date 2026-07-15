@@ -2237,9 +2237,11 @@ public partial class OverlayWindow : Window
                 ArchColor   = archColor,
                 ArchTip     = archTip,
                 IsPicking   = isPicking,
-                // Союзник пикает — строка синеет, враг — краснеет.
-                PickBgColor     = ally ? "#3836D6E7" : "#38FF5A4D",
+                // Союзник пикает — синяя волна слева, враг — красная справа.
+                PickGradStrong  = ally ? "#5C36D6E7" : "#5CFF5A4D",
+                PickGradWeak    = ally ? "#1A36D6E7" : "#1AFF5A4D",
                 PickAccentColor = ally ? "#36D6E7"   : "#FF5A4D",
+                PickMirror      = ally ? 1.0 : -1.0,
                 IsFirstPick = p.CellId == firstPickCell,
                 FirstPickLabel = Loc.T("slot.firstPick"),
             };
@@ -2390,13 +2392,18 @@ public sealed class ChampSlotCard
     public Visibility   RoleIconVisibility =>
         RoleIcon != null ? Visibility.Visible : Visibility.Collapsed;
 
-    // Ход этого игрока пикать прямо сейчас → строка подсвечивается цветом команды.
+    // Ход этого игрока пикать прямо сейчас → подсветка строки цветом команды:
+    // вспышка → волна-градиент от края (левый у союзников, правый у врагов).
     public bool         IsPicking       { get; init; }
-    public string       PickBgColor     { get; init; } = "#00000000"; // фон подсветки
-    public string       PickAccentColor { get; init; } = "#00000000"; // полоска слева
-    // Стартовый сдвиг подсветки. Через свойство (Binding), чтобы WPF не заморозил
-    // TranslateTransform в шаблоне — замороженный трансформ нельзя анимировать.
-    public double       PickSlideX      => -16;
+    public Visibility   PickVisibility  => IsPicking ? Visibility.Visible : Visibility.Collapsed;
+    public string       PickGradStrong  { get; init; } = "#00000000"; // край волны (ярко)
+    public string       PickGradWeak    { get; init; } = "#00000000"; // центр (не до нуля)
+    public string       PickAccentColor { get; init; } = "#00000000"; // полоска + вспышка
+    public double       PickMirror      { get; init; } = 1.0;         // -1 = волна справа (враг)
+    // Стартовые значения трансформов. Через свойства (Binding), чтобы WPF не
+    // заморозил трансформы в шаблоне — замороженные анимировать нельзя.
+    public double       PickScaleX      => 0;    // волна начинается с нулевой ширины
+    public double       SweepStartX     => -90;  // блик стартует за левым краем
     // Бейдж «1st pick» у игрока, пикающего первым в очереди драфта.
     public bool         IsFirstPick     { get; init; }
     public string       FirstPickLabel  { get; init; } = "";

@@ -657,56 +657,100 @@
                         <ColumnDefinition Width="76"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <!-- Подсветка «сейчас пикает»: у союзника синеет, у врага
-                           краснеет. Появление: панель наезжает слева с плавным
-                           проявлением (разовая анимация, без циклов — дёшево). -->
-                      <Border Grid.ColumnSpan="2" Margin="-6,-2,-2,-8" CornerRadius="6"
-                              IsHitTestVisible="False" Opacity="0">
-                        <Border.Background>
-                          <SolidColorBrush Color="{Binding PickBgColor}"/>
-                        </Border.Background>
-                        <Border.RenderTransform>
-                          <!-- X через Binding, а не константой: статичный трансформ
-                               в шаблоне WPF замораживает (шарит между элементами),
-                               и анимация падала с «постоянным экземпляром объекта». -->
-                          <TranslateTransform X="{Binding PickSlideX}"/>
-                        </Border.RenderTransform>
-                        <Border.Style>
-                          <Style TargetType="Border">
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding IsPicking}" Value="True">
-                                <DataTrigger.EnterActions>
-                                  <BeginStoryboard Name="PickIn">
-                                    <Storyboard>
-                                      <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                       To="1" Duration="0:0:0.45">
-                                        <DoubleAnimation.EasingFunction>
-                                          <CubicEase EasingMode="EaseOut"/>
-                                        </DoubleAnimation.EasingFunction>
-                                      </DoubleAnimation>
-                                      <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
-                                                       To="0" Duration="0:0:0.45">
-                                        <DoubleAnimation.EasingFunction>
-                                          <CubicEase EasingMode="EaseOut"/>
-                                        </DoubleAnimation.EasingFunction>
-                                      </DoubleAnimation>
-                                    </Storyboard>
-                                  </BeginStoryboard>
-                                </DataTrigger.EnterActions>
-                                <DataTrigger.ExitActions>
-                                  <RemoveStoryboard BeginStoryboardName="PickIn"/>
-                                </DataTrigger.ExitActions>
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </Border.Style>
-                        <!-- Акцентная полоска слева в цвет команды -->
-                        <Border Width="3" HorizontalAlignment="Left" CornerRadius="2"
-                                Margin="1,3,0,3">
-                          <Border.Background>
-                            <SolidColorBrush Color="{Binding PickAccentColor}"/>
-                          </Border.Background>
-                        </Border>
+                      <!-- Подсветка «сейчас пикает». Появление: короткая ВСПЫШКА,
+                           затем ВОЛНА вбок — заливка-градиент растёт от края к
+                           центру (затухание неполное), следом бежит блик. У
+                           союзников волна идёт с левого края, у врагов — с
+                           правого: блок зеркалится через PickMirror (ScaleX -1).
+                           Анимация — по Loaded (контейнеры пересоздаются на
+                           каждом рендере, появление проигрывается надёжно).
+                           ScaleX/X — через Binding: статичный трансформ в шаблоне
+                           WPF замораживает, и анимация бы падала. -->
+                      <Border Grid.ColumnSpan="2" Margin="-4,-3,-4,-8" CornerRadius="6"
+                              IsHitTestVisible="False" ClipToBounds="True"
+                              Visibility="{Binding PickVisibility}">
+                        <Border.Triggers>
+                          <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                            <BeginStoryboard>
+                              <Storyboard>
+                                <!-- 1. Вспышка цветом команды: быстро вспыхнула и угасла -->
+                                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PickFlash"
+                                                               Storyboard.TargetProperty="Opacity">
+                                  <LinearDoubleKeyFrame  KeyTime="0:0:0"    Value="0"/>
+                                  <EasingDoubleKeyFrame  KeyTime="0:0:0.12" Value="0.55"/>
+                                  <EasingDoubleKeyFrame  KeyTime="0:0:0.5"  Value="0">
+                                    <EasingDoubleKeyFrame.EasingFunction>
+                                      <QuadraticEase EasingMode="EaseOut"/>
+                                    </EasingDoubleKeyFrame.EasingFunction>
+                                  </EasingDoubleKeyFrame>
+                                </DoubleAnimationUsingKeyFrames>
+                                <!-- 2. Волна: заливка растёт от края -->
+                                <DoubleAnimation Storyboard.TargetName="PickFill"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" BeginTime="0:0:0.15" Duration="0:0:0.6">
+                                  <DoubleAnimation.EasingFunction>
+                                    <CubicEase EasingMode="EaseOut"/>
+                                  </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <!-- 3. Блик — «гребень волны» -->
+                                <DoubleAnimation Storyboard.TargetName="PickSweep"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                 To="360" BeginTime="0:0:0.2" Duration="0:0:0.9">
+                                  <DoubleAnimation.EasingFunction>
+                                    <QuadraticEase EasingMode="EaseInOut"/>
+                                  </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                              </Storyboard>
+                            </BeginStoryboard>
+                          </EventTrigger>
+                        </Border.Triggers>
+                        <!-- У врагов весь блок зеркалится: волна и градиент справа -->
+                        <Grid RenderTransformOrigin="0.5,0.5">
+                          <Grid.RenderTransform>
+                            <ScaleTransform ScaleX="{Binding PickMirror}"/>
+                          </Grid.RenderTransform>
+                          <!-- Волна-градиент: ярко у края, к центру гаснет не до нуля -->
+                          <Border x:Name="PickFill" CornerRadius="6"
+                                  RenderTransformOrigin="0,0.5">
+                            <Border.Background>
+                              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="{Binding PickGradStrong}" Offset="0"/>
+                                <GradientStop Color="{Binding PickGradWeak}"   Offset="0.55"/>
+                                <GradientStop Color="{Binding PickGradWeak}"   Offset="1"/>
+                              </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.RenderTransform>
+                              <ScaleTransform ScaleX="{Binding PickScaleX}"/>
+                            </Border.RenderTransform>
+                          </Border>
+                          <!-- Вспышка (перекрывает строку, гаснет после старта) -->
+                          <Rectangle x:Name="PickFlash" Opacity="0" RadiusX="6" RadiusY="6">
+                            <Rectangle.Fill>
+                              <SolidColorBrush Color="{Binding PickAccentColor}"/>
+                            </Rectangle.Fill>
+                          </Rectangle>
+                          <!-- Световой блик, пробегающий по строке -->
+                          <Rectangle x:Name="PickSweep" Width="90" HorizontalAlignment="Left"
+                                     Opacity="0.5">
+                            <Rectangle.RenderTransform>
+                              <TranslateTransform X="{Binding SweepStartX}"/>
+                            </Rectangle.RenderTransform>
+                            <Rectangle.Fill>
+                              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#00FFFFFF" Offset="0"/>
+                                <GradientStop Color="#48FFFFFF" Offset="0.5"/>
+                                <GradientStop Color="#00FFFFFF" Offset="1"/>
+                              </LinearGradientBrush>
+                            </Rectangle.Fill>
+                          </Rectangle>
+                          <!-- Акцентная полоска у края-источника волны -->
+                          <Border Width="3" HorizontalAlignment="Left" CornerRadius="2"
+                                  Margin="1,3,0,3">
+                            <Border.Background>
+                              <SolidColorBrush Color="{Binding PickAccentColor}"/>
+                            </Border.Background>
+                          </Border>
+                        </Grid>
                       </Border>
                       <Grid Width="72" Height="72" VerticalAlignment="Top"
                             HorizontalAlignment="Left" Margin="0,2,0,2">
@@ -1397,56 +1441,100 @@
                         <ColumnDefinition Width="76"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                      <!-- Подсветка «сейчас пикает»: у союзника синеет, у врага
-                           краснеет. Появление: панель наезжает слева с плавным
-                           проявлением (разовая анимация, без циклов — дёшево). -->
-                      <Border Grid.ColumnSpan="2" Margin="-6,-2,-2,-8" CornerRadius="6"
-                              IsHitTestVisible="False" Opacity="0">
-                        <Border.Background>
-                          <SolidColorBrush Color="{Binding PickBgColor}"/>
-                        </Border.Background>
-                        <Border.RenderTransform>
-                          <!-- X через Binding, а не константой: статичный трансформ
-                               в шаблоне WPF замораживает (шарит между элементами),
-                               и анимация падала с «постоянным экземпляром объекта». -->
-                          <TranslateTransform X="{Binding PickSlideX}"/>
-                        </Border.RenderTransform>
-                        <Border.Style>
-                          <Style TargetType="Border">
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding IsPicking}" Value="True">
-                                <DataTrigger.EnterActions>
-                                  <BeginStoryboard Name="PickIn">
-                                    <Storyboard>
-                                      <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                       To="1" Duration="0:0:0.45">
-                                        <DoubleAnimation.EasingFunction>
-                                          <CubicEase EasingMode="EaseOut"/>
-                                        </DoubleAnimation.EasingFunction>
-                                      </DoubleAnimation>
-                                      <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
-                                                       To="0" Duration="0:0:0.45">
-                                        <DoubleAnimation.EasingFunction>
-                                          <CubicEase EasingMode="EaseOut"/>
-                                        </DoubleAnimation.EasingFunction>
-                                      </DoubleAnimation>
-                                    </Storyboard>
-                                  </BeginStoryboard>
-                                </DataTrigger.EnterActions>
-                                <DataTrigger.ExitActions>
-                                  <RemoveStoryboard BeginStoryboardName="PickIn"/>
-                                </DataTrigger.ExitActions>
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </Border.Style>
-                        <!-- Акцентная полоска слева в цвет команды -->
-                        <Border Width="3" HorizontalAlignment="Left" CornerRadius="2"
-                                Margin="1,3,0,3">
-                          <Border.Background>
-                            <SolidColorBrush Color="{Binding PickAccentColor}"/>
-                          </Border.Background>
-                        </Border>
+                      <!-- Подсветка «сейчас пикает». Появление: короткая ВСПЫШКА,
+                           затем ВОЛНА вбок — заливка-градиент растёт от края к
+                           центру (затухание неполное), следом бежит блик. У
+                           союзников волна идёт с левого края, у врагов — с
+                           правого: блок зеркалится через PickMirror (ScaleX -1).
+                           Анимация — по Loaded (контейнеры пересоздаются на
+                           каждом рендере, появление проигрывается надёжно).
+                           ScaleX/X — через Binding: статичный трансформ в шаблоне
+                           WPF замораживает, и анимация бы падала. -->
+                      <Border Grid.ColumnSpan="2" Margin="-4,-3,-4,-8" CornerRadius="6"
+                              IsHitTestVisible="False" ClipToBounds="True"
+                              Visibility="{Binding PickVisibility}">
+                        <Border.Triggers>
+                          <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                            <BeginStoryboard>
+                              <Storyboard>
+                                <!-- 1. Вспышка цветом команды: быстро вспыхнула и угасла -->
+                                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PickFlash"
+                                                               Storyboard.TargetProperty="Opacity">
+                                  <LinearDoubleKeyFrame  KeyTime="0:0:0"    Value="0"/>
+                                  <EasingDoubleKeyFrame  KeyTime="0:0:0.12" Value="0.55"/>
+                                  <EasingDoubleKeyFrame  KeyTime="0:0:0.5"  Value="0">
+                                    <EasingDoubleKeyFrame.EasingFunction>
+                                      <QuadraticEase EasingMode="EaseOut"/>
+                                    </EasingDoubleKeyFrame.EasingFunction>
+                                  </EasingDoubleKeyFrame>
+                                </DoubleAnimationUsingKeyFrames>
+                                <!-- 2. Волна: заливка растёт от края -->
+                                <DoubleAnimation Storyboard.TargetName="PickFill"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" BeginTime="0:0:0.15" Duration="0:0:0.6">
+                                  <DoubleAnimation.EasingFunction>
+                                    <CubicEase EasingMode="EaseOut"/>
+                                  </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <!-- 3. Блик — «гребень волны» -->
+                                <DoubleAnimation Storyboard.TargetName="PickSweep"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                 To="360" BeginTime="0:0:0.2" Duration="0:0:0.9">
+                                  <DoubleAnimation.EasingFunction>
+                                    <QuadraticEase EasingMode="EaseInOut"/>
+                                  </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                              </Storyboard>
+                            </BeginStoryboard>
+                          </EventTrigger>
+                        </Border.Triggers>
+                        <!-- У врагов весь блок зеркалится: волна и градиент справа -->
+                        <Grid RenderTransformOrigin="0.5,0.5">
+                          <Grid.RenderTransform>
+                            <ScaleTransform ScaleX="{Binding PickMirror}"/>
+                          </Grid.RenderTransform>
+                          <!-- Волна-градиент: ярко у края, к центру гаснет не до нуля -->
+                          <Border x:Name="PickFill" CornerRadius="6"
+                                  RenderTransformOrigin="0,0.5">
+                            <Border.Background>
+                              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="{Binding PickGradStrong}" Offset="0"/>
+                                <GradientStop Color="{Binding PickGradWeak}"   Offset="0.55"/>
+                                <GradientStop Color="{Binding PickGradWeak}"   Offset="1"/>
+                              </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.RenderTransform>
+                              <ScaleTransform ScaleX="{Binding PickScaleX}"/>
+                            </Border.RenderTransform>
+                          </Border>
+                          <!-- Вспышка (перекрывает строку, гаснет после старта) -->
+                          <Rectangle x:Name="PickFlash" Opacity="0" RadiusX="6" RadiusY="6">
+                            <Rectangle.Fill>
+                              <SolidColorBrush Color="{Binding PickAccentColor}"/>
+                            </Rectangle.Fill>
+                          </Rectangle>
+                          <!-- Световой блик, пробегающий по строке -->
+                          <Rectangle x:Name="PickSweep" Width="90" HorizontalAlignment="Left"
+                                     Opacity="0.5">
+                            <Rectangle.RenderTransform>
+                              <TranslateTransform X="{Binding SweepStartX}"/>
+                            </Rectangle.RenderTransform>
+                            <Rectangle.Fill>
+                              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#00FFFFFF" Offset="0"/>
+                                <GradientStop Color="#48FFFFFF" Offset="0.5"/>
+                                <GradientStop Color="#00FFFFFF" Offset="1"/>
+                              </LinearGradientBrush>
+                            </Rectangle.Fill>
+                          </Rectangle>
+                          <!-- Акцентная полоска у края-источника волны -->
+                          <Border Width="3" HorizontalAlignment="Left" CornerRadius="2"
+                                  Margin="1,3,0,3">
+                            <Border.Background>
+                              <SolidColorBrush Color="{Binding PickAccentColor}"/>
+                            </Border.Background>
+                          </Border>
+                        </Grid>
                       </Border>
                       <Grid Width="72" Height="72" VerticalAlignment="Top"
                             HorizontalAlignment="Left" Margin="0,2,0,2">

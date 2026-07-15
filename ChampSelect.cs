@@ -62,11 +62,12 @@ public static class ChampSelectParser
     }
 
     // Чей ход пикать прямо сейчас (in-progress pick) + кто пикает первым по
-    // порядку очереди — для мигания слота и бейджа «1st pick».
+    // порядку очереди — для подсветки слота и бейджа «1st pick».
     private static (List<int> Active, int FirstCell) ParsePickTurns(JsonElement session)
     {
         var active = new List<int>();
         int first = -1;
+        bool firstSeen = false;
         if (!session.TryGetProperty("actions", out var actions) || actions.ValueKind != JsonValueKind.Array)
             return (active, first);
 
@@ -77,13 +78,16 @@ public static class ChampSelectParser
             {
                 if (GetStr(a, "type") != "pick") continue;
                 int cell = GetInt(a, "actorCellId", -1);
-                if (cell < 0) continue;
-                if (first < 0) first = cell;   // первый pick в порядке очереди
-                if (IsTrue(a, "isInProgress") && !IsTrue(a, "completed"))
+                // Первый пик — строго ПЕРВОЕ действие пика в очереди. Если его
+                // актор скрыт (у врагов в рейтинге cellId бывает -1) — бейдж не
+                // показываем вовсе: раньше «первым» ошибочно становился первый
+                // СОЮЗНИК, чей cellId был виден.
+                if (!firstSeen) { firstSeen = true; first = cell; }
+                if (cell >= 0 && IsTrue(a, "isInProgress") && !IsTrue(a, "completed"))
                     active.Add(cell);
             }
         }
-        return (active, first);
+        return (active, first < 0 ? -1 : first);
     }
 
     // Моё незавершённое действие пика: id (для PATCH hover/lock) и можно ли
