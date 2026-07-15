@@ -1226,14 +1226,14 @@
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
                         <Grid>
                           <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="46"/>     <!-- WR + игры (фикс) -->
-                            <ColumnDefinition Width="Auto"/>   <!-- слоты (слева)    -->
-                            <ColumnDefinition Width="*"/>      <!-- распорка         -->
-                            <ColumnDefinition Width="Auto"/>   <!-- экспорт          -->
+                            <ColumnDefinition Width="*"/>      <!-- распорка (толкает вправо) -->
+                            <ColumnDefinition Width="Auto"/>   <!-- WR + игры  -->
+                            <ColumnDefinition Width="Auto"/>   <!-- слоты      -->
+                            <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
                           </Grid.ColumnDefinitions>
 
-                          <!-- Винрейт и число игр: прижаты вправо, к краю первого предмета -->
-                          <StackPanel Grid.Column="0" VerticalAlignment="Center"
+                          <!-- Винрейт и число игр: прижаты к краю первого предмета -->
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center"
                                       HorizontalAlignment="Right" Margin="0,0,7,0">
                             <TextBlock Text="{Binding WrText}" TextAlignment="Right"
                                        FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
@@ -1243,7 +1243,7 @@
                                        Foreground="#6A8296"/>
                           </StackPanel>
 
-                          <ItemsControl Grid.Column="1" ItemsSource="{Binding Slots}"
+                          <ItemsControl Grid.Column="2" ItemsSource="{Binding Slots}"
                                         HorizontalAlignment="Left" VerticalAlignment="Center">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
