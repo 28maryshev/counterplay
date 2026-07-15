@@ -1171,24 +1171,22 @@
                     <ColumnDefinition Width="*"/>      <!-- сборки -->
                   </Grid.ColumnDefinitions>
 
-                  <!-- РУНЫ: сетка 2x2. Три варианта расставляются в коде, кнопка
-                       «Применить» занимает свободную ячейку справа от нижнего.
-                       Строки — «звёздочки»: блок рун растягивается на ту же высоту,
-                       что и колонка сборок, и края обоих блоков совпадают. -->
-                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Stretch">
+                  <!-- РУНЫ: сетка 2x2, варианты и кнопка расставляются в коде под
+                       число вариантов (1 → рядом, 2 → сверху + кнопка снизу,
+                       3 → 2+1 + кнопка). Центрируем по вертикали относительно сборок. -->
+                  <Grid Grid.Column="0" x:Name="RuneGrid" VerticalAlignment="Center">
                     <Grid.RowDefinitions>
-                      <RowDefinition Height="*"/>
-                      <RowDefinition Height="*"/>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto"/>
                       <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Свечение по периметру — отдельное кольцо позади кнопки -->
-                    <!-- Кнопка центрируется под верхним вариантом рун -->
-                    <Grid Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
-                          HorizontalAlignment="Center" Margin="0,0,6,10">
+                    <!-- Ячейка кнопки «Применить» (позиция задаётся в коде) -->
+                    <Grid x:Name="ApplyCell" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+                          HorizontalAlignment="Center" Margin="0,0,6,6">
                       <Border x:Name="ApplyGlowRing" CornerRadius="8" Margin="-2"
                               Background="Transparent" BorderBrush="#5CE4F2" BorderThickness="2.5"
                               IsHitTestVisible="False" Opacity="0">
@@ -1208,15 +1206,13 @@
                     </Grid>
                   </Grid>
 
-                  <!-- СБОРКИ: три варианта по 6 слотов. Первые слоты — CORE
-                       (золотая рамка), дальше ситуативные докупки (тусклые). -->
+                  <!-- СБОРКИ: 6 слотов у каждой. CORE — золотая рамка, докупки
+                       тусклые. Центрируем по вертикали: одна сборка встаёт по оси Y. -->
                   <ItemsControl Grid.Column="1" x:Name="BuildList" Margin="10,0,0,0"
-                                VerticalAlignment="Stretch">
-                    <!-- Три строки поровну делят высоту — верх и низ блока сборок
-                         совпадают с блоком рун. -->
+                                VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
-                        <UniformGrid Rows="3"/>
+                        <StackPanel/>
                       </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>

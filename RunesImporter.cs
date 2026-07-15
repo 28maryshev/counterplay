@@ -72,7 +72,8 @@ public static class RunesImporter
             var selected = page.Perks.Concat(page.Secondary).Concat(page.Shards).ToArray();
             var payload = JsonSerializer.Serialize(new
             {
-                name = $"{championName} - {Loc.T("runes.runeTitle")} - {PageMark}",
+                // Подпись: персонаж — название кейстоуна — Counterplay.
+                name = $"{championName} - {RuneIcons.NameOf(page.Perks[0])} - {PageMark}",
                 primaryStyleId = page.Primary,
                 subStyleId = page.Sub,
                 selectedPerkIds = selected,
@@ -176,7 +177,7 @@ public static class RunesImporter
             {
                 associatedChampions = new[] { championId },
                 associatedMaps = new[] { 11 },
-                title = $"{championName} - {Loc.T("runes.itemTitle")} - {PageMark}",
+                title = $"{championName} - {PageMark}",
                 type = "custom",
                 map = "any",
                 mode = "any",

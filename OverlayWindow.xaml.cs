@@ -642,19 +642,43 @@ public partial class OverlayWindow : Window
                 SecondaryRunes: secondary,
                 ShardRunes: shards));
         }
-        // Раскладываем по сетке 2×2: два варианта сверху, третий снизу слева.
-        // Кнопка «Применить» уже стоит в свободной ячейке (1,1) — см. XAML.
+        // Адаптивная раскладка по числу вариантов:
+        //   1 → [руна][кнопка] в один ряд, по центру;
+        //   2 → две руны в верхнем ряду, кнопка под левой;
+        //   3 → 2 сверху + 1 снизу, кнопка в свободной ячейке (1,1).
         foreach (var child in RuneGrid.Children.OfType<ContentPresenter>().ToList())
             RuneGrid.Children.Remove(child);
 
         var template = (DataTemplate)RunesBar.FindResource("RuneOptionTemplate");
-        for (int i = 0; i < vms.Count && i < 3; i++)
+        int n = Math.Min(vms.Count, 3);
+
+        (int row, int col) Cell(int i) => n switch
+        {
+            1 => (0, 0),                 // одна руна слева, кнопка справа (см. ниже)
+            2 => (0, i),                 // обе в верхнем ряду
+            _ => (i / 2, i % 2),         // 2 сверху, 1 снизу
+        };
+
+        for (int i = 0; i < n; i++)
         {
             var cp = new ContentPresenter { Content = vms[i], ContentTemplate = template };
-            Grid.SetRow(cp, i / 2);
-            Grid.SetColumn(cp, i % 2);
+            var (row, col) = Cell(i);
+            Grid.SetRow(cp, row);
+            Grid.SetColumn(cp, col);
             RuneGrid.Children.Add(cp);
         }
+
+        // Кнопка «Применить»: 1 → справа от руны (ряд 0, кол 1);
+        //                     2 → под левой руной (ряд 1, кол 0);
+        //                     3 → свободная ячейка (ряд 1, кол 1).
+        var (btnRow, btnCol) = n switch
+        {
+            1 => (0, 1),
+            2 => (1, 0),
+            _ => (1, 1),
+        };
+        Grid.SetRow(ApplyCell, btnRow);
+        Grid.SetColumn(ApplyCell, btnCol);
     }
 
     private static string FormatGames(int g) =>
