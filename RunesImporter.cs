@@ -159,19 +159,16 @@ public static class RunesImporter
                 foreach (var part in ItemIcons.WithComponents(item))
                     if (seen.Add(part)) coreSeq.Add(part);
 
-            // Ситуативные — тоже с компонентами, чтобы можно было докупать по частям.
-            var altSeq = new List<int>();
-            var altSeen = new HashSet<int>();
-            foreach (var item in situational)
-                foreach (var part in ItemIcons.WithComponents(item))
-                    if (altSeen.Add(part)) altSeq.Add(part);
+            // Ситуативные — только готовые предметы, без промежуточных компонентов
+            // (это выбор «что докупить», а не пошаговая сборка).
+            var alt = situational.Distinct().ToList();
 
             var blocks = new List<object>
             {
                 Block(Loc.T("runes.startBlock"), StartItems(role)),
             };
             if (coreSeq.Count > 0) blocks.Add(Block(Loc.T("runes.coreBlock"), coreSeq));
-            if (altSeq.Count > 0)  blocks.Add(Block(Loc.T("runes.altBlock"), altSeq));
+            if (alt.Count > 0)     blocks.Add(Block(Loc.T("runes.altBlock"), alt));
 
             var mySet = new
             {
