@@ -390,9 +390,16 @@ class Program
                         }
 
                         if (draft.IsAram)
+                        {
                             overlay.UpdateRecommendations(engine?.RecommendAram(draft), draft, engine);
+                            overlay.HideRunes();               // руны не в этом режиме
+                        }
                         else if (draft.InBanPhase)
+                        {
                             overlay.UpdateBans(engine?.RecommendBans(draft, hoverHistory), draft);
+                            overlay.HideRunes();               // руны — на этапе пика, не банов
+                            _runesShownFor = "";               // сбросить, чтобы после банов показать заново
+                        }
                         else
                         {
                             var recs = engine?.Recommend(draft);
