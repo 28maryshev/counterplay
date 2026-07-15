@@ -27,7 +27,9 @@ public sealed record DraftState(
     bool ExposedToCounter,         // я пикаю раньше кого-то из врагов (риск контрпика)
     bool InBanPhase,               // сейчас идёт фаза банов
     IReadOnlyList<int> Bench,      // ARAM: чемпионы на скамейке (доступны для обмена)
-    bool IsAram);                  // ARAM-режим (есть скамейка/реролл)
+    bool IsAram,                   // ARAM-режим (есть скамейка/реролл)
+    int MyPickActionId,            // id действия моего пика (0 = нет; для hover/lock)
+    bool MyPickInProgress);        // мой ход пикать — можно лочить (иначе только hover)
 
 public static class ChampSelectParser
 {
@@ -50,8 +52,32 @@ public static class ChampSelectParser
         var exposed  = ComputeExposed(session, localCell);
         var inBan    = ComputeInBanPhase(session);
         var (bench, isAram) = ParseBench(session);
+        var (pickId, pickNow) = FindMyPickAction(session, localCell);
 
-        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan, bench, isAram);
+        return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan,
+                              bench, isAram, pickId, pickNow);
+    }
+
+    // Моё незавершённое действие пика: id (для PATCH hover/lock) и можно ли
+    // лочить прямо сейчас (isInProgress == мой ход). До хода можно только hover.
+    private static (int Id, bool InProgress) FindMyPickAction(JsonElement session, int localCell)
+    {
+        if (localCell < 0 || !session.TryGetProperty("actions", out var actions)
+            || actions.ValueKind != JsonValueKind.Array)
+            return (0, false);
+
+        foreach (var group in actions.EnumerateArray())
+        {
+            if (group.ValueKind != JsonValueKind.Array) continue;
+            foreach (var a in group.EnumerateArray())
+            {
+                if (GetStr(a, "type") != "pick") continue;
+                if (GetInt(a, "actorCellId", -1) != localCell) continue;
+                if (IsTrue(a, "completed")) continue;         // уже залочен
+                return (GetInt(a, "id"), IsTrue(a, "isInProgress"));
+            }
+        }
+        return (0, false);
     }
 
     // Скамейка ARAM: доступные для обмена чемпионы + флаг режима (benchEnabled).

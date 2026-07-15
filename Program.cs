@@ -246,6 +246,12 @@ class Program
         overlay.ExportBuildHandler = (core, full, alt, role, id, name) =>
             RunesImporter.ExportItemSetAsync(http, core, full, alt, role, id, name, ct);
 
+        // Id моего текущего действия пика — обновляется на каждом снимке сессии.
+        // Кнопки в оверлее (навести/залочить) используют именно его.
+        int myPickActionId = 0;
+        overlay.HoverHandler = champId => RunesImporter.HoverChampionAsync(http, myPickActionId, champId, ct);
+        overlay.LockHandler  = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
+
         RecommendationEngine? engine = null;
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is not null)
@@ -265,6 +271,7 @@ class Program
         {
             using var doc = JsonDocument.Parse(initBody);
             var draft = ChampSelectParser.Parse(doc.RootElement);
+            myPickActionId = draft.MyPickActionId;
             overlay.UpdateRecommendations(
                 draft.IsAram ? engine?.RecommendAram(draft) : engine?.Recommend(draft), draft, engine);
         }
@@ -349,6 +356,7 @@ class Program
                     else
                     {
                         var draft = ChampSelectParser.Parse(ev.Data);
+                        myPickActionId = draft.MyPickActionId;
 
                         // За 5 секунд до конца финализации прячем оверлей в трей.
                         var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);

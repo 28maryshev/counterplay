@@ -72,5 +72,10 @@
     "altBlock": "상황",
     "startBlock": "시작 아이템",
     "compBlock": "구성 요소"
+  },
+  "pick": {
+    "confirm": "{0} 선택",
+    "locking": "확정 중...",
+    "failed": "실패 — 당신 차례인가요?"
   }
 }

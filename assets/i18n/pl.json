@@ -305,5 +305,10 @@
     "altBlock": "Sytuacyjne",
     "startBlock": "Przedmioty startowe",
     "compBlock": "Składniki"
+  },
+  "pick": {
+    "confirm": "Wybierz {0}",
+    "locking": "Blokowanie...",
+    "failed": "Nie udało się — twoja kolej?"
   }
 }

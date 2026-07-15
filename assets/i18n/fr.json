@@ -72,5 +72,10 @@
     "altBlock": "Situationnel",
     "startBlock": "Objets de départ",
     "compBlock": "Composants"
+  },
+  "pick": {
+    "confirm": "Choisir {0}",
+    "locking": "Verrouillage...",
+    "failed": "Échec — c'est ton tour ?"
   }
 }

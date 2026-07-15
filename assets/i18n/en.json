@@ -357,5 +357,10 @@
     "preendofgame": "Match ending",
     "endofgame": "Post-game",
     "reconnect": "Reconnect"
+  },
+  "pick": {
+    "confirm": "Pick {0}",
+    "locking": "Locking in...",
+    "failed": "Failed — is it your turn?"
   }
 }

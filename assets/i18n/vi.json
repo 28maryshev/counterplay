@@ -305,5 +305,10 @@
     "altBlock": "Tùy tình huống",
     "startBlock": "Trang bị khởi đầu",
     "compBlock": "Thành phần"
+  },
+  "pick": {
+    "confirm": "Chọn {0}",
+    "locking": "Đang khóa...",
+    "failed": "Thất bại — đến lượt bạn chưa?"
   }
 }

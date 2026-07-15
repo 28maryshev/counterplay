@@ -42,6 +42,8 @@ static class TestMode
         // кнопки отвечают «как будто получилось», чтобы проверить сценарий.
         overlay.ApplyRunesHandler  = async (_, _) => { await Task.Delay(400, ct); return true; };
         overlay.ExportBuildHandler = async (_, _, _, _, _, _) => { await Task.Delay(400, ct); return true; };
+        overlay.HoverHandler = async _ => { await Task.Delay(150, ct); return true; };
+        overlay.LockHandler  = async _ => { await Task.Delay(400, ct); return true; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)
@@ -239,9 +241,12 @@ sealed class TestPanel : Window
         // эвристикой/вручную; тут — по позиции в списке, этого хватает для стенда).
         var opp = their[meIdx].EffectiveChampionId > 0 ? their[meIdx] : null;
 
+        // В тесте считаем, что сейчас мой ход пикать (кроме банфазы) — чтобы
+        // работала кнопка выбора чемпиона через интерфейс. actionId условный.
+        bool myPick = _banPhase.IsChecked != true;
         var draft = new DraftState(
             my, their, [], [], my[meIdx], LcuRoles[meIdx],
-            opp, false, _banPhase.IsChecked == true, [], false);
+            opp, false, _banPhase.IsChecked == true, [], false, myPick ? 1 : 0, myPick);
 
         if (_banPhase.IsChecked == true)
         {

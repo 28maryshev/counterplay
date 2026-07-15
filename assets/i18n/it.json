@@ -305,5 +305,10 @@
     "altBlock": "Situazionale",
     "startBlock": "Oggetti iniziali",
     "compBlock": "Componenti"
+  },
+  "pick": {
+    "confirm": "Scegli {0}",
+    "locking": "Blocco in corso...",
+    "failed": "Non riuscito — è il tuo turno?"
   }
 }

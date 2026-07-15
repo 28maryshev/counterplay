@@ -86,6 +86,38 @@ public static class RunesImporter
         catch { return false; }
     }
 
+    /// <summary>Навести чемпиона (hover) в клиенте — обратимо, ничего не лочит.</summary>
+    public static async Task<bool> HoverChampionAsync(
+        LcuHttpClient http, int actionId, int championId, CancellationToken ct)
+    {
+        if (actionId <= 0 || championId <= 0) return false;
+        try
+        {
+            var payload = JsonSerializer.Serialize(new { championId, completed = false });
+            var (s, _) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", payload, ct);
+            return s is >= 200 and < 300;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Залочить наведённого чемпиона (необратимо). Только в свой ход.</summary>
+    public static async Task<bool> LockChampionAsync(
+        LcuHttpClient http, int actionId, int championId, CancellationToken ct)
+    {
+        if (actionId <= 0 || championId <= 0) return false;
+        try
+        {
+            // Сначала наводим (на случай если ещё не наведён), затем завершаем действие.
+            var hover = JsonSerializer.Serialize(new { championId, completed = false });
+            await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", hover, ct);
+
+            var lockPayload = JsonSerializer.Serialize(new { championId, completed = true });
+            var (s, _) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", lockPayload, ct);
+            return s is >= 200 and < 300;
+        }
+        catch { return false; }
+    }
+
     private static async Task<int> CountPagesAsync(LcuHttpClient http, CancellationToken ct)
     {
         var (s, body) = await http.GetAsync("/lol-perks/v1/pages", ct);

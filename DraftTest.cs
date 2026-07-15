@@ -12,7 +12,7 @@ static class DraftTest
         var their = new List<DraftPlayer>();
         foreach (var (ch, pos) in enemies) their.Add(new(c++, ch, 0, pos, false));
         var opp = their.FirstOrDefault(p => p.Position == myPos);
-        return new DraftState(my, their, [], [], my[0], myPos, opp, false, false, [], false);
+        return new DraftState(my, their, [], [], my[0], myPos, opp, false, false, [], false, 0, false);
     }
 
     static string Dmg(int id) =>
@@ -97,7 +97,7 @@ static class DraftTest
             var my = new List<DraftPlayer> { new(0, myChamp, 0, "middle", true) };
             int c = 1;
             foreach (var (ch, pos) in allies) my.Add(new(c++, ch, 0, pos, false));
-            return new DraftState(my, [], [], [], my[0], "middle", null, false, false, bench.ToList(), true);
+            return new DraftState(my, [], [], [], my[0], "middle", null, false, false, bench.ToList(), true, 0, false);
         }
 
         eng.Mastery = new Dictionary<int, long>(); // сбрасываем наигранность
@@ -129,7 +129,7 @@ static class DraftTest
             var my = new List<DraftPlayer> { new(0, 0, myHover, myPos, true) };
             int c = 1;
             foreach (var (ch, pos) in allies) my.Add(new(c++, ch, 0, pos, false));
-            return new DraftState(my, [], [], [], my[0], myPos, null, false, true, [], false);
+            return new DraftState(my, [], [], [], my[0], myPos, null, false, true, [], false, 0, false);
         }
         // 8. Вомбо-состав: команда с AoE-ультами (Малфайт/Кеннен/Свейн/Сона) — ждём
         //    вверх AoE-ульт АДК (МФ/Твич/Сивир) с причиной womboAoe.

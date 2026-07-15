@@ -305,5 +305,10 @@
     "altBlock": "状況対応",
     "startBlock": "開始アイテム",
     "compBlock": "コンポーネント"
+  },
+  "pick": {
+    "confirm": "{0} を選択",
+    "locking": "確定中...",
+    "failed": "失敗 — あなたの番ですか？"
   }
 }

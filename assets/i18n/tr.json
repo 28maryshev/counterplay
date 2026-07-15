@@ -72,5 +72,10 @@
     "altBlock": "Duruma bağlı",
     "startBlock": "Başlangıç eşyaları",
     "compBlock": "Bileşenler"
+  },
+  "pick": {
+    "confirm": "{0} seç",
+    "locking": "Kilitleniyor...",
+    "failed": "Başarısız — sıra sende mi?"
   }
 }

@@ -295,5 +295,10 @@
     "altBlock": "情境装备",
     "startBlock": "起始装备",
     "compBlock": "组件"
+  },
+  "pick": {
+    "confirm": "选择 {0}",
+    "locking": "锁定中...",
+    "failed": "失败 — 轮到你了吗？"
   }
 }

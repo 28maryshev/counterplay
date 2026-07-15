@@ -176,5 +176,13 @@ public sealed class LcuHttpClient : IDisposable
         return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
     }
 
+    public async Task<(int Status, string Body)> PatchAsync(string path, string json, CancellationToken ct)
+    {
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var req = new HttpRequestMessage(HttpMethod.Patch, path) { Content = content };
+        using var resp = await _http.SendAsync(req, ct);
+        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+    }
+
     public void Dispose() => _http.Dispose();
 }

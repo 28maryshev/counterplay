@@ -777,9 +777,11 @@
               <ItemsControl x:Name="FullRecList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border Margin="0,3" CornerRadius="4" Padding="10,9"
+                    <!-- Клик по карточке наводит чемпиона в клиенте (hover) -->
+                    <Border Margin="0,3" CornerRadius="4" Padding="10,9" Cursor="Hand"
                             Background="{Binding CardBg}"
-                            BorderBrush="{Binding CardBorder}" BorderThickness="1.5">
+                            BorderBrush="{Binding CardBorder}" BorderThickness="1.5"
+                            MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}">
                       <Grid>
                             <Grid.ColumnDefinitions>
                               <ColumnDefinition Width="Auto"/>  <!-- Ранг + очки      -->
@@ -1029,6 +1031,25 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </ScrollViewer>
+
+            <!-- Кнопка выбора чемпиона: наведён кликом по карточке → лочим
+                 в клиенте. Плавает над списком, показывается только в свой ход. -->
+            <Border x:Name="PickBar" Grid.Row="0" VerticalAlignment="Bottom"
+                    Visibility="Collapsed" Margin="0,0,0,4" CornerRadius="7"
+                    Cursor="Hand" MouseLeftButtonDown="PickConfirm_Click"
+                    Background="#1E7A2E" BorderBrush="#3FD16A" BorderThickness="1.5"
+                    Padding="12,9">
+              <Border.Effect>
+                <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="0" Opacity="0.55"/>
+              </Border.Effect>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Image x:Name="PickIcon" Width="22" Height="22" VerticalAlignment="Center"
+                       Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <TextBlock x:Name="PickText" VerticalAlignment="Center"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
+                           Foreground="#EAFBEF"/>
+              </StackPanel>
+            </Border>
 
             <!-- ══ РУНЫ И БИЛД ═══════════════════════════════════════════
                  В ЦЕНТРЕ, под списком: боковые колонки (связки команд) остаются

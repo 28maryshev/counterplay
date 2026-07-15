@@ -407,6 +407,10 @@ public partial class OverlayWindow : Window
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
     /// (core, полный билд, ситуативные, role, championId, имя) → успех.
     public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, string, int, string, Task<bool>>? ExportBuildHandler { get; set; }
+    /// Навести чемпиона в клиенте (hover). championId → успех.
+    public Func<int, Task<bool>>? HoverHandler { get; set; }
+    /// Залочить наведённого чемпиона (необратимо). championId → успех.
+    public Func<int, Task<bool>>? LockHandler { get; set; }
 
     /// Руна в подсказке/на кнопке: иконка, название и короткое описание.
     public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc);
@@ -742,6 +746,52 @@ public partial class OverlayWindow : Window
         var ok = await ExportBuildHandler(core, full, situational, _runeRole, _runeChampId, _runeChampName);
         RunesStatus.Text = Loc.T(ok ? "runes.exportedToSets" : "runes.failed");
         RunesStatus.Foreground = ok ? WinBrush : LossBrush;
+    }
+
+    // ── Выбор чемпиона через интерфейс (hover кликом + кнопка лока) ───────────
+    private int _pickHoverId;     // наведённый кликом чемпион (0 = нет)
+    private bool _pickBusy;       // идёт запрос к клиенту
+
+    // Клик по карточке рекомендации: наводим чемпиона в клиенте (обратимо).
+    private void RecCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
+        if (HoverHandler is null) return;   // не боевой режим/нет actionId
+        e.Handled = true;
+
+        _pickHoverId = champId;
+        UpdatePickBar();               // сразу подсветим кнопку выбранным чемпионом
+        _ = HoverHandler(champId);     // навести в клиенте (ошибку молча игнорируем)
+    }
+
+    // Кнопка «Выбрать»: лочим наведённого чемпиона (необратимо, только в свой ход).
+    private async void PickConfirm_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (LockHandler is null || _pickHoverId <= 0 || _pickBusy) return;
+        if (_lastDraft is null || !_lastDraft.MyPickInProgress) return;
+
+        _pickBusy = true;
+        PickText.Text = Loc.T("pick.locking");
+        var ok = await LockHandler(_pickHoverId);
+        _pickBusy = false;
+        if (!ok) { PickText.Text = Loc.T("pick.failed"); return; }
+        // Успех: клиент сам обновит сессию, карточки исчезнут — прячем плашку.
+        PickBar.Visibility = Visibility.Collapsed;
+    }
+
+    // Показ/скрытие плашки выбора: видна только когда мой ход пикать и есть
+    // наведённый кликом чемпион. Иконку/имя берём из выбранного.
+    private void UpdatePickBar()
+    {
+        var draft = _lastDraft;
+        bool canPick = HoverHandler != null && LockHandler != null
+                       && draft is { MyPickInProgress: true } && _pickHoverId > 0;
+        if (!canPick) { PickBar.Visibility = Visibility.Collapsed; return; }
+
+        PickIcon.Source = IconCache.Get(_pickHoverId);
+        PickText.Text = Loc.T("pick.confirm", DataDragon.Name(_pickHoverId));
+        PickBar.Visibility = Visibility.Visible;
     }
 
     public void HideRunes() => Dispatcher.InvokeAsync(() => RunesBar.Visibility = Visibility.Collapsed);
@@ -1777,6 +1827,7 @@ public partial class OverlayWindow : Window
             var (ag, ac, at) = ArchBadge(r.ChampionId);
             return new FullRecCard
             {
+                ChampionId = r.ChampionId,
                 Rank       = $"{r.Rank}.",
                 IsMyPick   = r.IsMyPick,
                 MineLabel  = Loc.T("rec.yourPick"),
@@ -1810,6 +1861,10 @@ public partial class OverlayWindow : Window
 
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
+        // Сбрасываем наведённого, если его больше нет в списке рекомендаций.
+        if (_pickHoverId > 0 && recs.All(r => r.ChampionId != _pickHoverId))
+            _pickHoverId = 0;
+        UpdatePickBar();
         if (draft != null) RenderTeams(draft);
     }
 
@@ -1858,6 +1913,7 @@ public partial class OverlayWindow : Window
 
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
         BanScroll.Visibility = Visibility.Visible;
+        PickBar.Visibility   = Visibility.Collapsed;  // в банфазе выбирать нечего
         RenderTeams(draft);
     }
 
@@ -2130,6 +2186,7 @@ public sealed class RecCard
 
 public sealed class FullRecCard
 {
+    public int          ChampionId { get; init; }   // для hover/lock в клиенте
     public string       Rank       { get; init; } = "";
     public string       Name       { get; init; } = "";
     public string       Score      { get; init; } = "";

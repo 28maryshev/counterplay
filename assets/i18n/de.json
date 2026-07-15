@@ -72,5 +72,10 @@
     "altBlock": "Situativ",
     "startBlock": "Startitems",
     "compBlock": "Komponenten"
+  },
+  "pick": {
+    "confirm": "{0} wählen",
+    "locking": "Wird gewählt...",
+    "failed": "Fehlgeschlagen — bist du dran?"
   }
 }

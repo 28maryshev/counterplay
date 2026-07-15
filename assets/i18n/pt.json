@@ -72,5 +72,10 @@
     "altBlock": "Situacional",
     "startBlock": "Itens iniciais",
     "compBlock": "Componentes"
+  },
+  "pick": {
+    "confirm": "Escolher {0}",
+    "locking": "Bloqueando...",
+    "failed": "Falhou — é a sua vez?"
   }
 }
