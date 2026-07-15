@@ -41,10 +41,13 @@ static class TestMode
 
         // Импорт в клиент из теста не делаем (клиента может не быть) —
         // кнопки отвечают «как будто получилось», чтобы проверить сценарий.
+        TestPanel? panel = null;
         overlay.ApplyRunesHandler  = async (_, _) => { await Task.Delay(400, ct); return true; };
         overlay.ExportBuildHandler = async (_, _, _, _, _, _) => { await Task.Delay(400, ct); return true; };
         overlay.HoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
-        overlay.LockHandler  = async _ => { await Task.Delay(400, ct); return 200; };
+        // Лок из оверлея ставит чемпиона в мой слот тестовой панели — пик через
+        // интерфейс работает в песочнице как в бою (и снимает паузу авто-драфта).
+        overlay.LockHandler  = async id => { await Task.Delay(300, ct); panel?.LockMy(id); return 200; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)
@@ -58,7 +61,8 @@ static class TestMode
         overlay.Dispatcher.Invoke(() =>
         {
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
-            new TestPanel(overlay, engine).Show();
+            panel = new TestPanel(overlay, engine);
+            panel.Show();
         });
 
         await Task.Delay(Timeout.Infinite, ct); // живём до закрытия окна/Ctrl+C
@@ -271,12 +275,40 @@ sealed class TestPanel : Window
         if (_simTurn < 0 || _simTurn >= SimGroups.Length) { StopSim(); return; }
         if ((DateTime.UtcNow - _turnStart).TotalSeconds < TurnSeconds) return;
 
-        // Время хода вышло — вся группа «лочит» пики (в парных ходах — оба).
-        foreach (var cell in SimGroups[_simTurn]) AutoPick(cell);
+        var group  = SimGroups[_simTurn];
+        int meCell = MeCell();
+
+        // Время хода вышло: боты лочат пики (в парных ходах — оба), а МОЙ слот
+        // сам не пикается — жду ручного выбора (комбобокс панели или кнопка
+        // «Выбрать» в оверлее). Пока я не пикнул, драфт стоит на паузе.
+        foreach (var cell in group)
+            if (cell != meCell) AutoPick(cell);
+
+        if (group.Contains(meCell) && ChampOf(_ally[meCell]) == 0)
+        {
+            _simBtn.Content = "⏸ Ваш пик…";
+            return;                          // пауза до моего пика
+        }
+
         _simTurn++;
         _turnStart = DateTime.UtcNow;
+        _simBtn.Content = "■ Стоп";
         if (_simTurn >= SimGroups.Length) StopSim();
         else Recompute();
+    }
+
+    private int MeCell()
+    {
+        int i = Array.FindIndex(_meRadio, r => r.IsChecked == true);
+        return i < 0 ? 2 : i;
+    }
+
+    // Пик из оверлея (кнопка «Выбрать»): ставим чемпиона в мой слот панели.
+    // SelectionChanged сам вызовет Recompute, а SimTick снимет паузу.
+    public void LockMy(int champId)
+    {
+        var name = DataDragon.Name(champId);
+        if (_idByName.ContainsKey(name)) _ally[MeCell()].SelectedItem = name;
     }
 
     // Случайный ещё не занятый чемпион в слот cell (0..4 свои, 5..9 враги).
