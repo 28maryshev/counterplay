@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using Button = System.Windows.Controls.Button;
@@ -80,6 +81,16 @@ sealed class TestPanel : Window
     private readonly RadioButton[] _meRadio = new RadioButton[5];
     private readonly CheckBox     _banPhase;
     private bool _ready; // подавляет пересчёт во время построения UI
+
+    // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
+    private readonly Button _simBtn;
+    private DispatcherTimer? _simTimer;
+    private int _simTurn = -1;              // индекс хода в SimOrder; -1 = не идёт
+    private DateTime _turnStart;
+    private readonly Random _rng = new();
+    // Порядок пиков как в LoL (1-2-2-2-2-1): свои cellId 0..4, враги 5..9.
+    private static readonly int[] SimOrder = [0, 5, 6, 1, 2, 7, 8, 3, 4, 9];
+    private const int TurnSeconds = 10;
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
     {
@@ -164,6 +175,7 @@ sealed class TestPanel : Window
         };
         reset.Click += (_, _) =>
         {
+            StopSim();
             _ready = false;
             foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
             _ready = true;
@@ -171,6 +183,16 @@ sealed class TestPanel : Window
         };
         DockPanel.SetDock(reset, Dock.Right);
         bottom.Children.Insert(0, reset);
+
+        // Авто-драфт: условные игроки пикают по очереди LoL, 10 секунд на ход.
+        _simBtn = new Button
+        {
+            Content = "▶ Авто-драфт", Width = 110,
+            Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 7, 0)
+        };
+        _simBtn.Click += (_, _) => ToggleSim();
+        DockPanel.SetDock(_simBtn, Dock.Right);
+        bottom.Children.Insert(0, _simBtn);
 
         Grid.SetRow(bottom, 6); Grid.SetColumn(bottom, 0); Grid.SetColumnSpan(bottom, 3);
         root.Children.Add(bottom);
@@ -205,6 +227,63 @@ sealed class TestPanel : Window
         cb.SelectionChanged += (_, _) => Recompute();
         cb.LostKeyboardFocus += (_, _) => Recompute(); // подтверждение набранного текста
         return cb;
+    }
+
+    // ── Авто-драфт ───────────────────────────────────────────────────────────
+
+    private void ToggleSim()
+    {
+        if (_simTurn >= 0) { StopSim(); return; }
+
+        // Старт: чистим слоты и запускаем очередь пиков с первого игрока.
+        _ready = false;
+        foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
+        _banPhase.IsChecked = false;
+        _ready = true;
+
+        _simTurn   = 0;
+        _turnStart = DateTime.UtcNow;
+        _simBtn.Content = "■ Стоп";
+        if (_simTimer is null)
+        {
+            _simTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
+            _simTimer.Tick += SimTick;
+        }
+        _simTimer.Start();
+        Recompute();
+    }
+
+    private void StopSim()
+    {
+        _simTimer?.Stop();
+        if (_simTurn < 0) return;
+        _simTurn = -1;
+        _simBtn.Content = "▶ Авто-драфт";
+        Recompute();
+    }
+
+    private void SimTick(object? sender, EventArgs e)
+    {
+        if (_simTurn < 0 || _simTurn >= SimOrder.Length) { StopSim(); return; }
+        if ((DateTime.UtcNow - _turnStart).TotalSeconds < TurnSeconds) return;
+
+        AutoPick(SimOrder[_simTurn]);   // время хода вышло — игрок «лочит» пик
+        _simTurn++;
+        _turnStart = DateTime.UtcNow;
+        if (_simTurn >= SimOrder.Length) StopSim();
+        else Recompute();
+    }
+
+    // Случайный ещё не занятый чемпион в слот cell (0..4 свои, 5..9 враги).
+    private void AutoPick(int cell)
+    {
+        var cb = cell < 5 ? _ally[cell] : _enemy[cell - 5];
+        if (ChampOf(cb) != 0) return;   // уже выбран (например, я успел сам)
+
+        var taken = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
+        var pool  = _names.Where(n => n != "—" && !taken.Contains(_idByName[n])).ToList();
+        if (pool.Count == 0) return;
+        cb.SelectedItem = pool[_rng.Next(pool.Count)];   // SelectionChanged → Recompute
     }
 
     private int ChampOf(ComboBox cb)
@@ -244,10 +323,28 @@ sealed class TestPanel : Window
         // В тесте считаем, что сейчас мой ход пикать (кроме банфазы) — чтобы
         // работала кнопка выбора чемпиона через интерфейс. actionId условный.
         bool myPick = _banPhase.IsChecked != true;
+
+        // Чей ход: при авто-драфте — по очереди SimOrder, иначе мой слот.
+        List<int> active;
+        int firstPick;
+        bool myTurn;
+        if (_simTurn >= 0 && _simTurn < SimOrder.Length)
+        {
+            active    = [SimOrder[_simTurn]];
+            firstPick = SimOrder[0];
+            myTurn    = SimOrder[_simTurn] == meIdx;
+        }
+        else
+        {
+            active    = myPick ? [meIdx] : [];
+            firstPick = 0;
+            myTurn    = myPick;
+        }
+
         var draft = new DraftState(
             my, their, [], [], my[meIdx], LcuRoles[meIdx],
-            opp, false, _banPhase.IsChecked == true, [], false, myPick ? 1 : -1, myPick,
-            myPick ? [meIdx] : [], 0);   // в тесте: мигает мой слот, первый пик — верхний
+            opp, false, _banPhase.IsChecked == true, [], false,
+            myPick ? 1 : -1, myPick && myTurn, active, firstPick);
 
         if (_banPhase.IsChecked == true)
         {

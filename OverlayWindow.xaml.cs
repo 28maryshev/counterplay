@@ -2394,6 +2394,9 @@ public sealed class ChampSlotCard
     public bool         IsPicking       { get; init; }
     public string       PickBgColor     { get; init; } = "#00000000"; // фон подсветки
     public string       PickAccentColor { get; init; } = "#00000000"; // полоска слева
+    // Стартовый сдвиг подсветки. Через свойство (Binding), чтобы WPF не заморозил
+    // TranslateTransform в шаблоне — замороженный трансформ нельзя анимировать.
+    public double       PickSlideX      => -16;
     // Бейдж «1st pick» у игрока, пикающего первым в очереди драфта.
     public bool         IsFirstPick     { get; init; }
     public string       FirstPickLabel  { get; init; } = "";

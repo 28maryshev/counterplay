@@ -666,7 +666,10 @@
                           <SolidColorBrush Color="{Binding PickBgColor}"/>
                         </Border.Background>
                         <Border.RenderTransform>
-                          <TranslateTransform X="-16"/>
+                          <!-- X через Binding, а не константой: статичный трансформ
+                               в шаблоне WPF замораживает (шарит между элементами),
+                               и анимация падала с «постоянным экземпляром объекта». -->
+                          <TranslateTransform X="{Binding PickSlideX}"/>
                         </Border.RenderTransform>
                         <Border.Style>
                           <Style TargetType="Border">
@@ -1403,7 +1406,10 @@
                           <SolidColorBrush Color="{Binding PickBgColor}"/>
                         </Border.Background>
                         <Border.RenderTransform>
-                          <TranslateTransform X="-16"/>
+                          <!-- X через Binding, а не константой: статичный трансформ
+                               в шаблоне WPF замораживает (шарит между элементами),
+                               и анимация падала с «постоянным экземпляром объекта». -->
+                          <TranslateTransform X="{Binding PickSlideX}"/>
                         </Border.RenderTransform>
                         <Border.Style>
                           <Style TargetType="Border">
