@@ -810,8 +810,18 @@ public partial class OverlayWindow : Window
     {
         try
         {
+            // Имена чемпионов + названия/описания рун + названия предметов — всё
+            // под новую локаль (руны/предметы приходят из Data Dragon переведёнными).
             await DataDragon.LoadAsync(Loc.DDragonLocale, CancellationToken.None);
-            await Dispatcher.InvokeAsync(RenderCurrentState);
+            await RuneIcons.LoadAsync(Loc.DDragonLocale, CancellationToken.None);
+            await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, CancellationToken.None);
+            await Dispatcher.InvokeAsync(() =>
+            {
+                RenderCurrentState();
+                // Панель рун открыта — перерисовать с переведёнными названиями.
+                if (_runeStats is not null && RunesBar.Visibility == Visibility.Visible)
+                    ShowRunes(_runeStats, _runeChampId, _runeChampName, _runeRole, _lastOpponentId);
+            });
         }
         catch { /* офлайн — имена обновятся при следующей загрузке */ }
     }

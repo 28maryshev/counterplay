@@ -32,10 +32,14 @@ public static class RuneIcons
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Counterplay", "runes");
 
-    /// Загрузить справочник рун (один раз при старте).
+    private static string? _loadedLocale;
+
+    /// Загрузить справочник рун. Повторный вызов с другой локалью перезагружает
+    /// названия и описания (смена языка в программе).
     public static async Task LoadAsync(string locale, CancellationToken ct)
     {
-        if (Runes.Count > 0) return;
+        if (_loadedLocale == locale && Runes.Count > 0) return;
+        _loadedLocale = locale;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };

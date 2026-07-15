@@ -58,9 +58,12 @@ public static class ItemIcons
     private static Dictionary<int, string>? _names;
     private static Dictionary<int, int[]> _from = new();   // id → прямые компоненты
 
+    private static string? _namesLocale;
+
     public static async Task LoadNamesAsync(string locale, CancellationToken ct)
     {
-        if (_names is not null) return;
+        if (_namesLocale == locale && _names is not null) return;
+        _namesLocale = locale;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
