@@ -1409,28 +1409,52 @@ public partial class OverlayWindow : Window
         Canvas.SetTop(dot, Y(pts[last].Winrate) - 3);
         WrChart.Children.Add(dot);
 
-        // Подписи дат под графиком: крайние + промежуточные (сколько влезает по
-        // ширине). Даты по индексам точек — так подпись всегда над реальной игрой.
-        AddDateLabel(pts[0].Date, X(0), h, Align.Left);
+        // Подписи дат под графиком. Крайние — всегда; промежуточные ставим не
+        // равномерно, а в точках смены направления линии (локальные пики/впадины).
+        // Диапазон делим на 4 части и в каждой берём самую заметную точку разворота
+        // — если в этой части график вообще менял направление.
+        var occupied = new List<(double L, double R)>();
+        AddDateLabel(pts[0].Date, X(0), h, Align.Left, occupied);
         if (pts.Count > 1)
         {
-            AddDateLabel(pts[last].Date, X(last), h, Align.Right);
+            AddDateLabel(pts[last].Date, X(last), h, Align.Right, occupied);
 
-            // Промежуточные: 1 подпись на ~70px ширины графика, максимум 3.
-            double plotW = plotR - plotL;
-            int inner = Math.Clamp((int)(plotW / 70) - 1, 0, 3);
-            for (int k = 1; k <= inner; k++)
+            // Точки разворота: где знак наклона меняется. Prom — «заметность»
+            // (насколько резкий пик/впадина), по ней выбираем главный разворот.
+            static int Sgn(double d) => d > 0.05 ? 1 : d < -0.05 ? -1 : 0;
+            var turns = new List<(int Idx, double Prom)>();
+            for (int i = 1; i < last; i++)
             {
-                int idx = (int)Math.Round((double)k / (inner + 1) * last);
-                if (idx <= 0 || idx >= last) continue;
-                AddDateLabel(pts[idx].Date, X(idx), h, Align.Center);
+                int s1 = Sgn(pts[i].Winrate - pts[i - 1].Winrate);
+                int s2 = Sgn(pts[i + 1].Winrate - pts[i].Winrate);
+                if (s1 != 0 && s2 != 0 && s1 != s2)
+                    turns.Add((i, Math.Abs(pts[i].Winrate - pts[i - 1].Winrate)
+                                 + Math.Abs(pts[i + 1].Winrate - pts[i].Winrate)));
             }
+
+            // По одной точке-развороту на каждую из 4 частей (где разворот был).
+            var picks = new List<(int Idx, double Prom)>();
+            for (int b = 0; b < 4; b++)
+            {
+                double lo = (double)b / 4 * last, hi = (double)(b + 1) / 4 * last;
+                (int Idx, double Prom) best = (-1, 0);
+                foreach (var t in turns)
+                    if (t.Idx >= lo && t.Idx < hi && t.Prom > best.Prom) best = t;
+                if (best.Idx > 0) picks.Add(best);
+            }
+
+            // Ставим по убыванию заметности; AddDateLabel пропустит наезжающие.
+            foreach (var p in picks.OrderByDescending(p => p.Prom))
+                AddDateLabel(pts[p.Idx].Date, X(p.Idx), h, Align.Center, occupied);
         }
     }
 
     private enum Align { Left, Center, Right }
 
-    private void AddDateLabel(DateTime date, double x, double h, Align align)
+    // Рисует подпись даты, если она не наезжает на уже стоящие (occupied —
+    // занятые по горизонтали интервалы). Крайние подписи ставятся всегда первыми.
+    private void AddDateLabel(DateTime date, double x, double h, Align align,
+                             List<(double L, double R)> occupied)
     {
         var tb = new TextBlock
         {
@@ -1445,9 +1469,14 @@ public partial class OverlayWindow : Window
             Align.Center => x - tb.DesiredSize.Width / 2,
             _            => x,
         };
-        Canvas.SetLeft(tb, Math.Max(0, left));
+        left = Math.Max(0, left);
+        double right = left + tb.DesiredSize.Width;
+        foreach (var (l, r) in occupied)
+            if (left < r + 3 && l < right + 3) return;   // пересекается — пропускаем
+        Canvas.SetLeft(tb, left);
         Canvas.SetTop(tb, h - 11);
         WrChart.Children.Add(tb);
+        occupied.Add((left, right));
     }
 
     // Прогресс загрузки со строкой состояния и полосой (обновление/база).
