@@ -1230,11 +1230,22 @@
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}">
                         <Grid>
                           <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>   <!-- WR + игры  -->
+                            <ColumnDefinition Width="*"/>      <!-- слоты      -->
+                            <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
                           </Grid.ColumnDefinitions>
 
-                          <ItemsControl Grid.Column="0" ItemsSource="{Binding Slots}"
+                          <!-- Винрейт и число игр этой сборки -->
+                          <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="3,0,8,0">
+                            <TextBlock Text="{Binding WrText}"
+                                       FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
+                                       Foreground="{Binding WrBrush}"/>
+                            <TextBlock Text="{Binding GamesText}"
+                                       FontFamily="{StaticResource UiFont}" FontSize="9"
+                                       Foreground="#6A8296"/>
+                          </StackPanel>
+
+                          <ItemsControl Grid.Column="1" ItemsSource="{Binding Slots}"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -1253,7 +1264,7 @@
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
 
-                          <Border Grid.Column="1" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
+                          <Border Grid.Column="2" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
                                   Cursor="Hand" VerticalAlignment="Center"
                                   Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"

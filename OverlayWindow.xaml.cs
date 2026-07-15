@@ -458,9 +458,10 @@ public partial class OverlayWindow : Window
     /// Слот предмета: CORE выделен золотой рамкой, ситуативные — тусклой.
     public sealed record SlotVm(ImageSource? Icon, string Tip, Brush Stroke, Thickness Thickness, double Dim);
 
-    /// Строка сборки: 6 слотов + своя кнопка экспорта. Выбранная подсвечена золотом.
+    /// Строка сборки: винрейт/игры слева, 6 слотов, кнопка экспорта. Выбранная — золотом.
     public sealed record BuildRowVm(
         int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip,
+        string WrText, Brush WrBrush, string GamesText,
         Brush RowBg, Brush RowStroke);
 
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
@@ -512,6 +513,9 @@ public partial class OverlayWindow : Window
                 Slots: slots,
                 ExportText: Loc.T("runes.export"),
                 Tip: Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
+                WrText: b.Winrate.ToString("0.0") + "%",
+                WrBrush: WinrateBrush(b.Winrate),
+                GamesText: FormatGames(b.Games),
                 RowBg: selected ? RowOn : RowOff,
                 RowStroke: selected ? RowOnEdge : RowOffEdge));
         }
