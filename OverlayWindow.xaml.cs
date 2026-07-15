@@ -407,10 +407,10 @@ public partial class OverlayWindow : Window
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
     /// (core, полный билд, ситуативные, role, championId, имя) → успех.
     public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, string, int, string, Task<bool>>? ExportBuildHandler { get; set; }
-    /// Навести чемпиона в клиенте (hover). championId → успех.
-    public Func<int, Task<bool>>? HoverHandler { get; set; }
-    /// Залочить наведённого чемпиона (необратимо). championId → успех.
-    public Func<int, Task<bool>>? LockHandler { get; set; }
+    /// Навести чемпиона в клиенте (hover). championId → HTTP-код (0 — исключение).
+    public Func<int, Task<int>>? HoverHandler { get; set; }
+    /// Залочить наведённого чемпиона (необратимо). championId → HTTP-код.
+    public Func<int, Task<int>>? LockHandler { get; set; }
 
     /// Руна в подсказке/на кнопке: иконка, название и короткое описание.
     public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc);
@@ -753,15 +753,19 @@ public partial class OverlayWindow : Window
     private bool _pickBusy;       // идёт запрос к клиенту
 
     // Клик по карточке рекомендации: наводим чемпиона в клиенте (обратимо).
-    private void RecCard_Click(object sender, MouseButtonEventArgs e)
+    private async void RecCard_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
         if (HoverHandler is null) return;   // не боевой режим/нет actionId
         e.Handled = true;
 
         _pickHoverId = champId;
-        UpdatePickBar();               // сразу подсветим кнопку выбранным чемпионом
-        _ = HoverHandler(champId);     // навести в клиенте (ошибку молча игнорируем)
+        RenderCurrentState();          // перерисуем карточки — рамка выбранного золотится
+        UpdatePickBar();               // и подсветим кнопку выбранным чемпионом
+        var code = await HoverHandler(champId);   // навести в клиенте
+        // Если клиент не принял ховер — сразу сообщаем на кнопке (с кодом).
+        if (code is < 200 or >= 300)
+            PickText.Text = $"{Loc.T("pick.failed")} ({code})";
     }
 
     // Кнопка «Выбрать»: лочим наведённого чемпиона (необратимо, только в свой ход).
@@ -773,9 +777,9 @@ public partial class OverlayWindow : Window
 
         _pickBusy = true;
         PickText.Text = Loc.T("pick.locking");
-        var ok = await LockHandler(_pickHoverId);
+        var code = await LockHandler(_pickHoverId);
         _pickBusy = false;
-        if (!ok) { PickText.Text = Loc.T("pick.failed"); return; }
+        if (code is < 200 or >= 300) { PickText.Text = $"{Loc.T("pick.failed")} ({code})"; return; }
         // Успех: клиент сам обновит сессию, карточки исчезнут — прячем плашку.
         PickBar.Visibility = Visibility.Collapsed;
     }
@@ -1830,6 +1834,7 @@ public partial class OverlayWindow : Window
                 ChampionId = r.ChampionId,
                 Rank       = $"{r.Rank}.",
                 IsMyPick   = r.IsMyPick,
+                IsSelected = r.ChampionId == _pickHoverId,
                 MineLabel  = Loc.T("rec.yourPick"),
                 Name       = DataDragon.Name(r.ChampionId),
                 Score      = Signed(r.Score),
@@ -2228,8 +2233,12 @@ public sealed class FullRecCard
     public bool         IsMyPick   { get; init; }
     public string       MineLabel  { get; init; } = "";
     public Visibility   MineVisibility => IsMyPick ? Visibility.Visible : Visibility.Collapsed;
-    public string       CardBg     => IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
-    public string       CardBorder => IsMyPick ? "#36D6E7" : "#00000000";
+
+    // Наведён кликом через интерфейс — вся рамка светится золотом.
+    public bool         IsSelected { get; init; }
+    public string       CardBg     => IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
+    public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
+    public string       CardThick  => IsSelected ? "2.5" : "1.5";
 }
 
 public sealed class ChampSlotCard

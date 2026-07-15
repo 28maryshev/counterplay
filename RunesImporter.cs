@@ -86,36 +86,43 @@ public static class RunesImporter
         catch { return false; }
     }
 
-    /// <summary>Навести чемпиона (hover) в клиенте — обратимо, ничего не лочит.</summary>
-    public static async Task<bool> HoverChampionAsync(
+    /// <summary>
+    /// Навести чемпиона (hover) в клиенте — обратимо, ничего не лочит.
+    /// Возвращает HTTP-код (0 — исключение) для диагностики.
+    /// </summary>
+    public static async Task<int> HoverChampionAsync(
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
     {
-        if (actionId <= 0 || championId <= 0) return false;
+        if (actionId <= 0 || championId <= 0) return 0;
         try
         {
-            var payload = JsonSerializer.Serialize(new { championId, completed = false });
+            // championId без completed — только наведение (пик не завершаем).
+            var payload = JsonSerializer.Serialize(new { championId });
             var (s, _) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", payload, ct);
-            return s is >= 200 and < 300;
+            return s;
         }
-        catch { return false; }
+        catch { return 0; }
     }
 
-    /// <summary>Залочить наведённого чемпиона (необратимо). Только в свой ход.</summary>
-    public static async Task<bool> LockChampionAsync(
+    /// <summary>
+    /// Залочить наведённого чемпиона (необратимо). Только в свой ход.
+    /// Лок — через POST .../complete (канонический способ в LCU).
+    /// </summary>
+    public static async Task<int> LockChampionAsync(
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
     {
-        if (actionId <= 0 || championId <= 0) return false;
+        if (actionId <= 0 || championId <= 0) return 0;
         try
         {
             // Сначала наводим (на случай если ещё не наведён), затем завершаем действие.
-            var hover = JsonSerializer.Serialize(new { championId, completed = false });
+            var hover = JsonSerializer.Serialize(new { championId });
             await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", hover, ct);
 
-            var lockPayload = JsonSerializer.Serialize(new { championId, completed = true });
-            var (s, _) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", lockPayload, ct);
-            return s is >= 200 and < 300;
+            var (s, _) = await http.PostAsync(
+                $"/lol-champ-select/v1/session/actions/{actionId}/complete", "{}", ct);
+            return s;
         }
-        catch { return false; }
+        catch { return 0; }
     }
 
     private static async Task<int> CountPagesAsync(LcuHttpClient http, CancellationToken ct)

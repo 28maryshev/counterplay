@@ -42,8 +42,8 @@ static class TestMode
         // кнопки отвечают «как будто получилось», чтобы проверить сценарий.
         overlay.ApplyRunesHandler  = async (_, _) => { await Task.Delay(400, ct); return true; };
         overlay.ExportBuildHandler = async (_, _, _, _, _, _) => { await Task.Delay(400, ct); return true; };
-        overlay.HoverHandler = async _ => { await Task.Delay(150, ct); return true; };
-        overlay.LockHandler  = async _ => { await Task.Delay(400, ct); return true; };
+        overlay.HoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
+        overlay.LockHandler  = async _ => { await Task.Delay(400, ct); return 200; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)

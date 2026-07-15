@@ -780,7 +780,7 @@
                     <!-- Клик по карточке наводит чемпиона в клиенте (hover) -->
                     <Border Margin="0,3" CornerRadius="4" Padding="10,9" Cursor="Hand"
                             Background="{Binding CardBg}"
-                            BorderBrush="{Binding CardBorder}" BorderThickness="1.5"
+                            BorderBrush="{Binding CardBorder}" BorderThickness="{Binding CardThick}"
                             MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}">
                       <Grid>
                             <Grid.ColumnDefinitions>
