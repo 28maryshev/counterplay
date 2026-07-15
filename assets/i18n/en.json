@@ -43,7 +43,7 @@
     "enemyCombos": "ENEMY COMBOS"
   },
   "ready": {
-    "beta": "Counterplay improves every day. Found a bug or have an idea? Tell us via Support — counterplays.com/support",
+    "beta": "Counterplay improves every day. Found a bug or have an idea? Tell us via Support",
     "tipLabel": "PICK TIP",
     "f1head": "Draft assistant.",
     "f1body": " Computes counters against enemies, synergy with allies and who to ban — from real current-patch stats. Updates on every hover.",

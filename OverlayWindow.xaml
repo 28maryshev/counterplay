@@ -572,6 +572,12 @@
                 <TextBlock Text="{loc:T ready.beta}" FontFamily="{StaticResource UiFont}" FontSize="12"
                            Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"
                            TextAlignment="Center"/>
+                <TextBlock TextAlignment="Center" Margin="0,4,0,0"
+                           FontFamily="{StaticResource UiFont}" FontSize="12">
+                  <Hyperlink NavigateUri="https://counterplays.com/support"
+                             RequestNavigate="OpenLink" Foreground="#36D6E7"
+                             TextDecorations="Underline" Cursor="Hand">counterplays.com/support</Hyperlink>
+                </TextBlock>
               </StackPanel>
             </Border>
           </StackPanel>

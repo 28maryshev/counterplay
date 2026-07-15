@@ -242,18 +242,21 @@ public partial class OverlayWindow : Window
         }
     }
 
-    // Клиент лиги в фокусе → оверлей уходит ПОД окно клиента (на маленьких экранах он
-    // иначе перекрывает весь клиент). Клик по оверлею возвращает его поверх. Прочие
-    // окна в фокусе — оверлей остаётся поверх, как и раньше.
+    // Оверлей «всегда сверху» только когда активен ОН САМ. Во всех прочих случаях
+    // (в фокусе клиент ИЛИ постороннее приложение) снимаем Topmost и ставим окно
+    // вплотную под клиент в z-порядке — тогда оверлей следует за клиентом: другое
+    // окно перекрыло клиент → оно перекрывает и оверлей (раньше плашка ожидания
+    // висела поверх всего). Клик по оверлею делает его активным и возвращает поверх.
     private void UpdateZOrder(IntPtr clientHwnd)
     {
-        if (GetForegroundWindow() == clientHwnd)
+        if (GetForegroundWindow() == Hwnd)
         {
-            if (Topmost) Topmost = false;           // снимаем «всегда сверху»…
-            SetWindowPos(Hwnd, clientHwnd, 0, 0, 0, 0, // …и опускаем ровно под окно клиента
-                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            if (!Topmost) Topmost = true;           // наш оверлей активен → поверх
+            return;
         }
-        else if (!Topmost) Topmost = true;          // оверлей/иное окно активно → снова поверх
+        if (Topmost) Topmost = false;               // снимаем «всегда сверху»…
+        SetWindowPos(Hwnd, clientHwnd, 0, 0, 0, 0,  // …и опускаем ровно под окно клиента
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
 
     // ── Системный трей (скрытие на время игры) ────────────────────────────
@@ -386,6 +389,9 @@ public partial class OverlayWindow : Window
 
         Left = SystemParameters.PrimaryScreenWidth - FullW - 24;
         Top  = 60;
+
+        // Запоминаем ручной ресайз, чтобы перерисовки его не сбрасывали.
+        SizeChanged += OnWindowSizeChanged;
 
         // Слежение за окном клиента (свернуть/развернуть/переместить).
         StartWindowFollow();
@@ -817,6 +823,18 @@ public partial class OverlayWindow : Window
         if (DateTime.UtcNow >= _pickMsgUntil)
             PickText.Text = Loc.T("pick.confirm", DataDragon.Name(_pickHoverId));
         PickBar.Visibility = Visibility.Visible;
+    }
+
+    // Клик по ссылке в плашке беты — открываем в системном браузере.
+    private void OpenLink(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                e.Uri.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch { /* нет браузера/URL битый — молча игнорируем */ }
+        e.Handled = true;
     }
 
     public void HideRunes() => Dispatcher.InvokeAsync(() => RunesBar.Visibility = Visibility.Collapsed);
@@ -1346,11 +1364,13 @@ public partial class OverlayWindow : Window
         var lineBrush = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
         var gridBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
 
-        // Вертикальная ось + горизонтальная сетка со шкалой винрейта (низ/середина/верх)
+        // Вертикальная ось + горизонтальная сетка со шкалой винрейта.
+        // 5 уровней (верх / ¾ / середина / ¼ / низ) — с промежуточными значениями.
         WrChart.Children.Add(new System.Windows.Shapes.Line
         { X1 = plotL, X2 = plotL, Y1 = padY, Y2 = baseY, Stroke = gridBrush, StrokeThickness = 1 });
-        foreach (var wr in new[] { max, (min + max) / 2, min })
+        foreach (var frac in new[] { 1.0, 0.75, 0.5, 0.25, 0.0 })
         {
+            double wr = min + (max - min) * frac;
             double yy = Y(wr);
             WrChart.Children.Add(new System.Windows.Shapes.Line
             { X1 = plotL, X2 = plotR, Y1 = yy, Y2 = yy, Stroke = gridBrush, StrokeThickness = 1 });
@@ -1389,12 +1409,28 @@ public partial class OverlayWindow : Window
         Canvas.SetTop(dot, Y(pts[last].Winrate) - 3);
         WrChart.Children.Add(dot);
 
-        // Подписи крайних дат под областью графика
-        AddDateLabel(pts[0].Date, plotL, h, right: false);
-        if (pts.Count > 1) AddDateLabel(pts[last].Date, plotR, h, right: true);
+        // Подписи дат под графиком: крайние + промежуточные (сколько влезает по
+        // ширине). Даты по индексам точек — так подпись всегда над реальной игрой.
+        AddDateLabel(pts[0].Date, X(0), h, Align.Left);
+        if (pts.Count > 1)
+        {
+            AddDateLabel(pts[last].Date, X(last), h, Align.Right);
+
+            // Промежуточные: 1 подпись на ~70px ширины графика, максимум 3.
+            double plotW = plotR - plotL;
+            int inner = Math.Clamp((int)(plotW / 70) - 1, 0, 3);
+            for (int k = 1; k <= inner; k++)
+            {
+                int idx = (int)Math.Round((double)k / (inner + 1) * last);
+                if (idx <= 0 || idx >= last) continue;
+                AddDateLabel(pts[idx].Date, X(idx), h, Align.Center);
+            }
+        }
     }
 
-    private void AddDateLabel(DateTime date, double x, double h, bool right = false)
+    private enum Align { Left, Center, Right }
+
+    private void AddDateLabel(DateTime date, double x, double h, Align align)
     {
         var tb = new TextBlock
         {
@@ -1403,7 +1439,13 @@ public partial class OverlayWindow : Window
             FontSize = 9, Foreground = MuteBrush, Opacity = 0.7
         };
         tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(tb, right ? Math.Max(0, x - tb.DesiredSize.Width) : x);
+        double left = align switch
+        {
+            Align.Right  => x - tb.DesiredSize.Width,
+            Align.Center => x - tb.DesiredSize.Width / 2,
+            _            => x,
+        };
+        Canvas.SetLeft(tb, Math.Max(0, left));
         Canvas.SetTop(tb, h - 11);
         WrChart.Children.Add(tb);
     }
@@ -1529,6 +1571,20 @@ public partial class OverlayWindow : Window
         if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
+    }
+
+    // Пользователь вручную растянул окно в активном полном режиме — запоминаем
+    // новый размер. Иначе следующая же перерисовка (пик/бан/смена фазы) вызовет
+    // RestoreModeSize и вернёт старый _savedFullW/_savedFullH, обнулив ресайз.
+    private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_isFullMode
+            && SizeToContent == SizeToContent.Manual         // не idle/компакт (там авто-высота)
+            && IdlePanel.Visibility != Visibility.Visible)   // не экран ожидания
+        {
+            _savedFullW = e.NewSize.Width;
+            _savedFullH = e.NewSize.Height;
+        }
     }
 
     // Возврат к размеру активного режима (полный/компактный) при появлении пиков.

@@ -23,7 +23,7 @@
     "enemyCombos": "敵のコンボ"
   },
   "ready": {
-    "beta": "Counterplay は毎日改善されています。バグや提案はサポートまで — counterplays.com/support",
+    "beta": "Counterplay は毎日改善されています。バグや提案はサポートまで",
     "tipLabel": "ピントのヒント",
     "f1head": "ドラフト支援。",
     "f1body": " 敵へのカウンター、味方とのシナジー、バン対象を、現パッチの実データから算出。ホバーするたびに更新します。",
