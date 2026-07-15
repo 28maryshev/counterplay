@@ -956,12 +956,15 @@ public partial class OverlayWindow : Window
         }
         else
         {
+            var (w, h) = (_savedFullW, _savedFullH);
             _isFullMode = true;
+            _settingSize = true;
             SizeToContent  = SizeToContent.Manual;
-            Width          = _savedFullW;
-            Height         = _savedFullH;
+            Width          = w;
+            Height         = h;
             MinWidth       = MinW;
             MinHeight      = MinH;
+            _settingSize = false;
             ToggleBtn.Content = "⊟";
             ToggleBtn.ToolTip = Loc.T("tip.minimize");
         }
@@ -1602,12 +1605,20 @@ public partial class OverlayWindow : Window
         AnchorIfNotMoved();
     }
 
+    // Идёт программная установка размера (RestoreModeSize/OnToggle): такие
+    // SizeChanged НЕ запоминаем. Иначе клобер: RestoreModeSize ставит Width,
+    // SizeChanged срабатывает с ЕЩЁ СТАРОЙ маленькой высотой (после айдл-экрана)
+    // и затирает _savedFullH — следующая строка Height=_savedFullH читает уже
+    // испорченное значение, и окно навсегда сжимается по высоте.
+    private bool _settingSize;
+
     // Пользователь вручную растянул окно в активном полном режиме — запоминаем
     // новый размер. Иначе следующая же перерисовка (пик/бан/смена фазы) вызовет
     // RestoreModeSize и вернёт старый _savedFullW/_savedFullH, обнулив ресайз.
     private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_isFullMode
+        if (!_settingSize
+            && _isFullMode
             && SizeToContent == SizeToContent.Manual         // не idle/компакт (там авто-высота)
             && IdlePanel.Visibility != Visibility.Visible)   // не экран ожидания
         {
@@ -1624,11 +1635,16 @@ public partial class OverlayWindow : Window
 
         if (_isFullMode)
         {
+            // Локальные копии + флаг: установка Width дергает SizeChanged до
+            // установки Height, и без защиты сохранённая высота затиралась.
+            var (w, h) = (_savedFullW, _savedFullH);
+            _settingSize = true;
             SizeToContent = SizeToContent.Manual;
             MinWidth  = MinW;
             MinHeight = MinH;
-            Width     = _savedFullW;
-            Height    = _savedFullH;
+            Width     = w;
+            Height    = h;
+            _settingSize = false;
         }
         else
         {

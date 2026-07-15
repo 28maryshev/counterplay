@@ -85,11 +85,15 @@ sealed class TestPanel : Window
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
     private readonly Button _simBtn;
     private DispatcherTimer? _simTimer;
-    private int _simTurn = -1;              // индекс хода в SimOrder; -1 = не идёт
+    private int _simTurn = -1;              // индекс группы в SimGroups; -1 = не идёт
     private DateTime _turnStart;
     private readonly Random _rng = new();
-    // Порядок пиков как в LoL (1-2-2-2-2-1): свои cellId 0..4, враги 5..9.
-    private static readonly int[] SimOrder = [0, 5, 6, 1, 2, 7, 8, 3, 4, 9];
+    // Настоящий порядок драфта LoL: первый пик — 1 чемпион, дальше команды
+    // пикают ПО ДВА одновременно, замыкает один. Свои cellId 0..4, враги 5..9.
+    // B1 | R1+R2 | B2+B3 | R3+R4 | B4+B5 | R5 — в парных ходах подсвечиваются
+    // и пикают сразу два игрока (как в реальном champ select).
+    private static readonly int[][] SimGroups =
+        [[0], [5, 6], [1, 2], [7, 8], [3, 4], [9]];
     private const int TurnSeconds = 10;
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
@@ -264,13 +268,14 @@ sealed class TestPanel : Window
 
     private void SimTick(object? sender, EventArgs e)
     {
-        if (_simTurn < 0 || _simTurn >= SimOrder.Length) { StopSim(); return; }
+        if (_simTurn < 0 || _simTurn >= SimGroups.Length) { StopSim(); return; }
         if ((DateTime.UtcNow - _turnStart).TotalSeconds < TurnSeconds) return;
 
-        AutoPick(SimOrder[_simTurn]);   // время хода вышло — игрок «лочит» пик
+        // Время хода вышло — вся группа «лочит» пики (в парных ходах — оба).
+        foreach (var cell in SimGroups[_simTurn]) AutoPick(cell);
         _simTurn++;
         _turnStart = DateTime.UtcNow;
-        if (_simTurn >= SimOrder.Length) StopSim();
+        if (_simTurn >= SimGroups.Length) StopSim();
         else Recompute();
     }
 
@@ -324,15 +329,16 @@ sealed class TestPanel : Window
         // работала кнопка выбора чемпиона через интерфейс. actionId условный.
         bool myPick = _banPhase.IsChecked != true;
 
-        // Чей ход: при авто-драфте — по очереди SimOrder, иначе мой слот.
+        // Чей ход: при авто-драфте — текущая группа SimGroups (в парных ходах
+        // подсвечиваются сразу двое), иначе мой слот.
         List<int> active;
         int firstPick;
         bool myTurn;
-        if (_simTurn >= 0 && _simTurn < SimOrder.Length)
+        if (_simTurn >= 0 && _simTurn < SimGroups.Length)
         {
-            active    = [SimOrder[_simTurn]];
-            firstPick = SimOrder[0];
-            myTurn    = SimOrder[_simTurn] == meIdx;
+            active    = SimGroups[_simTurn].ToList();
+            firstPick = SimGroups[0][0];
+            myTurn    = SimGroups[_simTurn].Contains(meIdx);
         }
         else
         {
