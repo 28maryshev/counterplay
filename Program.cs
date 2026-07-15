@@ -540,11 +540,16 @@ class Program
 
     // В хэш входит EffectiveChampionId (залок ИЛИ ховер) — иначе наведение
     // чемпиона не меняло бы хэш и рекомендации не пересчитывались бы до лока.
+    // MyPickActionId/MyPickInProgress тоже обязаны быть в хэше: свап позицией/
+    // очередью и наступление моего хода не меняют составы, но без перерисовки
+    // оверлей держит устаревший драфт — кнопка лока не появляется или лочит
+    // по старому action id.
     static string DraftHash(DraftState s) =>
         string.Join(",", s.MyTeam.Select(p  => $"{p.EffectiveChampionId}:{p.Position}")) + "|" +
         string.Join(",", s.TheirTeam.Select(p => $"{p.EffectiveChampionId}:{p.Position}")) + "|" +
         string.Join(",", s.MyTeamBans) + "|" +
         string.Join(",", s.TheirTeamBans) + "|" +
         string.Join(",", s.Bench) + "|" +
-        (s.InBanPhase ? "ban" : "pick");
+        (s.InBanPhase ? "ban" : "pick") + "|" +
+        $"{s.MyPickActionId}:{s.MyPickInProgress}";
 }
