@@ -319,7 +319,10 @@
     "failed": "Nie udało się — twój ban?"
   },
   "tier": {
-    "title": "Tier lista · {0}"
+    "title": "Tier lista · {0}",
+    "pick": "wybór",
+    "ban": "ban",
+    "games": "gier"
   },
   "bucket": {
     "silver": "Srebro",

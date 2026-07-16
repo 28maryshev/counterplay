@@ -945,26 +945,43 @@ public sealed class RecommendationEngine : IDisposable
         return role;
     }
 
-    /// <summary>Одна строка тир-листа: чемпион, роль, винрейт, число игр, грейд S..D.</summary>
-    public readonly record struct TierEntry(int ChampionId, string Role, double Winrate, int Games, char Grade);
+    /// <summary>Строка тир-листа: чемпион, роль, винрейт, игры, пик/бан-рейт, грейд.</summary>
+    public readonly record struct TierEntry(
+        int ChampionId, string Role, double Winrate, int Games,
+        double PickRate, double BanRate, char Grade);
 
-    // Тир-лист показываем только на достаточной выборке (иначе грейд по WR шумит).
+    // Тир-лист показываем только на достаточной выборке (иначе метрики шумят).
     private const int TIER_MIN_GAMES = 250;
 
-    // Грейд по винрейту патча. Пороги выведены из распределения WR по бакетам
-    // (медиана ~50%, p20 ~52%, p5 ~54%) — получается «пирамида»: S редок, B — ядро.
-    private static char GradeOf(double wr) =>
-        wr >= 53.0 ? 'S' : wr >= 51.5 ? 'A' : wr >= 49.5 ? 'B' : wr >= 48.0 ? 'C' : 'D';
+    // Грейд не по чистому винрейту, а по META-SCORE — сила (нижняя граница
+    // Уилсона) + ПРИСУТСТВИЕ (пик- и бан-рейт). Иначе наверх лезут низкопикрейтные
+    // однотрики с раздутым WR, а реальные мета-пики (их все пикают/банят при
+    // ~49-51% WR) проваливаются. Веса откалиброваны по нашим данным.
+    private const double W_PICK = 1.2;   // вклад пик-рейта в meta (откалибровано по данным)
+    private const double W_BAN  = 0.4;   // вклад бан-рейта (бан-рейты крупнее пик-рейтов)
+
+    // Грейд — по РАНГУ meta-score внутри роли: доля чемпионов роли выше данного.
+    // Ранговая шкала устойчива к масштабу meta (с банами или без) и всегда даёт
+    // спред S..D. Пороги дают «пирамиду»: S ≈ верх 5%, дальше шире.
+    private static char GradeOfRank(double frac) =>
+        frac < 0.05 ? 'S' : frac < 0.14 ? 'A' : frac < 0.30 ? 'B' : frac < 0.55 ? 'C' : 'D';
 
     /// <summary>
-    /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли с
-    /// грейдом S..D по винрейту. Ранжируем по нижней границе Уилсона (штрафует
-    /// малые выборки), показываем «сырой» WR. Роли — top→jungle→mid→adc→support.
+    /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли по
+    /// meta-score (сила + присутствие), с грейдом S..D. Роли — top→jgl→mid→adc→sup.
     /// </summary>
     public IReadOnlyList<TierEntry> TierList(int perRole = 12)
     {
         var roles = new[] { "top", "jungle", "mid", "adc", "support" };
         var result = new List<TierEntry>();
+
+        // Знаменатель бан-рейта — число матчей: сумма участников base_wr / 10
+        // (по 10 на матч), взвешенно по патчам. Плюс баны по чемпиону (взвешенно).
+        double totalMatches = ScalarD($@"
+            SELECT COALESCE(SUM(games*{PW}),0)/10.0 FROM base_wr
+            WHERE tier_bucket=@t AND patch IN (@p1,@p2,@p3)");
+        var bansByChamp = BansByChampion();
+
         foreach (var role in roles)
         {
             var cmd = _db.CreateCommand();
@@ -985,20 +1002,73 @@ public sealed class RecommendationEngine : IDisposable
             cmd.Parameters.AddWithValue("@share", MIN_ROLE_SHARE);
 
             var rows = new List<(int Id, double G, double W)>();
+            double roleTotal = 0;
             using (var rd = cmd.ExecuteReader())
                 while (rd.Read())
-                    rows.Add((rd.GetInt32(0), rd.GetDouble(1), rd.GetDouble(2)));
-
-            result.AddRange(rows
-                .OrderByDescending(x => WilsonLower(x.W, x.G))     // ранг — по нижней границе
-                .Take(perRole)
-                .Select(x =>
                 {
-                    var wr = 100.0 * x.W / x.G;
-                    return new TierEntry(x.Id, role, wr, (int)Math.Round(x.G), GradeOf(wr));
-                }));
+                    var g = rd.GetDouble(1);
+                    rows.Add((rd.GetInt32(0), g, rd.GetDouble(2)));
+                    roleTotal += g;
+                }
+            if (roleTotal <= 0) continue;
+
+            // Meta-score каждого чемпиона роли: сила + присутствие (пик+бан).
+            var scored = rows.Select(x =>
+            {
+                double wr   = 100.0 * x.W / x.G;
+                double lb   = WilsonLower(x.W, x.G) * 100.0;   // сила (штраф за малую выборку)
+                double pick = 100.0 * x.G / roleTotal;          // пик-рейт роли, %
+                double ban  = totalMatches > 0
+                    ? 100.0 * bansByChamp.GetValueOrDefault(x.Id) / totalMatches : 0.0;
+                double meta = (lb - 50.0) + W_PICK * pick + W_BAN * ban;
+                return (x.Id, wr, Games: (int)Math.Round(x.G), pick, ban, meta);
+            })
+            .OrderByDescending(s => s.meta)
+            .ToList();
+
+            // Грейд — по рангу в роли; показываем top-N (уже отсортированы по meta).
+            for (int i = 0; i < scored.Count && i < perRole; i++)
+            {
+                var s = scored[i];
+                char grade = GradeOfRank((double)i / scored.Count);
+                result.Add(new TierEntry(s.Id, role, s.wr, s.Games, s.pick, s.ban, grade));
+            }
         }
         return result;
+    }
+
+    // Взвешенные баны по чемпиону (для presence). Таблицы может не быть в старой
+    // базе — тогда пусто, бан-рейт = 0 (тир-лист опирается на пик-рейт).
+    private Dictionary<int, double> BansByChampion()
+    {
+        var map = new Dictionary<int, double>();
+        try
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = $@"
+                SELECT champion_id, SUM(bans*{PW}) FROM champion_bans
+                WHERE tier_bucket=@t AND patch IN (@p1,@p2,@p3) GROUP BY champion_id";
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read()) map[rd.GetInt32(0)] = rd.GetDouble(1);
+        }
+        catch { /* нет таблицы — presence только по пик-рейту */ }
+        return map;
+    }
+
+    private double ScalarD(string sql)
+    {
+        var cmd = _db.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.Parameters.AddWithValue("@t",  TierBucket);
+        cmd.Parameters.AddWithValue("@p1", _p1);
+        cmd.Parameters.AddWithValue("@p2", _p2);
+        cmd.Parameters.AddWithValue("@p3", _p3);
+        var v = cmd.ExecuteScalar();
+        return v is null or DBNull ? 0.0 : Convert.ToDouble(v);
     }
 
     /// <summary>Ключ локализации имени бакета (silver/gold/emerald/master).</summary>

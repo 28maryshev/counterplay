@@ -319,7 +319,10 @@
     "failed": "Non riuscito — tocca a te?"
   },
   "tier": {
-    "title": "Tier list · {0}"
+    "title": "Tier list · {0}",
+    "pick": "scelta",
+    "ban": "ban",
+    "games": "partite"
   },
   "bucket": {
     "silver": "Argento",

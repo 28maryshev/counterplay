@@ -319,7 +319,10 @@
     "failed": "Thất bại — đến lượt cấm của bạn chưa?"
   },
   "tier": {
-    "title": "Tier list · {0}"
+    "title": "Tier list · {0}",
+    "pick": "chọn",
+    "ban": "cấm",
+    "games": "trận"
   },
   "bucket": {
     "silver": "Bạc",
