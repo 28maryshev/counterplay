@@ -80,6 +80,74 @@
     <PathGeometry x:Key="HexEmblem"
                   Figures="M20,1 L39,11.5 L39,32.5 L20,43 L1,32.5 L1,11.5 Z"/>
 
+    <!-- Тонкий скролл в стиле интерфейса: едва заметная дорожка, скруглённый
+         ползунок сине-серого цвета с подсветкой при наведении, без стрелок.
+         Шаблон не зависит от ориентации (Track сам разворачивается), поэтому
+         годится и для вертикального (тир-лист), и для горизонтальных (роли). -->
+    <Style TargetType="RepeatButton" x:Key="CpScrollNoArrow">
+      <Setter Property="Opacity" Value="0"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="IsTabStop" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="Thumb" x:Key="CpScrollThumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border x:Name="Th" CornerRadius="3" Margin="2" Background="#3E5064"/>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Th" Property="Background" Value="#5E7488"/>
+              </Trigger>
+              <Trigger Property="IsDragging" Value="True">
+                <Setter TargetName="Th" Property="Background" Value="#C89B3C"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Width" Value="9"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="Transparent">
+              <Border CornerRadius="2" Margin="3" Background="#12FFFFFF"/>
+              <Track x:Name="PART_Track" IsDirectionReversed="True">
+                <Track.Thumb>
+                  <Thumb Style="{StaticResource CpScrollThumb}"/>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Style="{StaticResource CpScrollNoArrow}" Command="ScrollBar.PageDownCommand"/>
+                </Track.IncreaseRepeatButton>
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Style="{StaticResource CpScrollNoArrow}" Command="ScrollBar.PageUpCommand"/>
+                </Track.DecreaseRepeatButton>
+              </Track>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <!-- Горизонтальный скролл: направление не инвертируем. -->
+              <Trigger Property="Orientation" Value="Horizontal">
+                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto"/>
+          <Setter Property="Height" Value="9"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
     <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
          Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
          а не смыканием дуг. Левая половина синяя, правая красная. -->
