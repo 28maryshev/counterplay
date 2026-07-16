@@ -47,7 +47,10 @@ public sealed class RecommendationEngine : IDisposable
     };
 
     private const double W_BASE    = 1.0;
-    private const double W_OTHER   = 0.8;
+    // «Прочие враги» через same-role таблицу: контекст кривой (матчап «как если
+    // бы он был моим лейн-оппонентом»), покрытие ~22% — держим вес низким.
+    // Основной канал для прочих врагов — кросс-ролевые матчапы (W_CROSS).
+    private const double W_OTHER   = 0.6;
     private const double W_SYNERGY = 1.2;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
     private const double W_NEUTRAL  = 1.0; // нейтральный пик при неопределённости
@@ -65,10 +68,12 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_ARAM_BASE = 1.0; // сила чемпиона (WR без роли)
     private const double W_BOTLANE      = 1.5; // контрпик против вражеского дуо на боте (2v2)
     private const double W_BOTLANE_BOTH = 1.8; // когда виден весь вражеский бот (адк+сапп)
-    // Кросс-лейн (джангл↔линии): по исследованиям взаимодействие джанглера с чужими
-    // линиями значимо (ганки/контроль карты). Вес ниже прямой контры — влияние мягче.
-    // Данные пишет обновлённый collect.py; пока пар нет в базе, фактор молчит (0).
-    private const double W_CROSS = 0.7;
+    // Кросс-ролевые матчапы против ПРОЧИХ врагов (не лейн-оппонента и не дуо):
+    // замер по базе — чистый сигнал ~1.8 пп, сильнее большинства синергий
+    // (~1.5 пп), поэтому вес на уровне синергии. collect.py пишет все пары
+    // ролей; пока пары нет в базе — фактор по ней молчит (0) с фолбэком на
+    // same-role таблицу (W_OTHER).
+    private const double W_CROSS = 1.2;
     // Порог включения бот-матчапов: сумма игр в botlane_matchup. ~20k записей —
     // это примерно столько же матчей с собранной бот-статистикой (по ~1 на пару).
     private const double BOTLANE_MIN_GAMES = 20000;
@@ -329,9 +334,6 @@ public sealed class RecommendationEngine : IDisposable
         if (directOppId == 0)
             directOppId = InferDirectOpponent(state, myRole);
 
-        var otherEnemyIds = state.TheirTeam
-            .Where(p => p.EffectiveChampionId != 0 && p.EffectiveChampionId != directOppId)
-            .Select(p => p.EffectiveChampionId).ToList();
         var allyData = state.MyTeam
             .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
@@ -348,38 +350,28 @@ public sealed class RecommendationEngine : IDisposable
         var wBotlane = (duoRole != null && enemyDuoId != 0 && directOppId != 0)
             ? W_BOTLANE_BOTH : W_BOTLANE;
 
-        // Кросс-лейн пары (джангл↔линии): для джанглера — известные враги-нелесники,
-        // для топ/мид — вражеский джанглер. Бот уже покрыт фактором botlane выше.
-        // Роль врага при скрытых позициях (Solo/Duo) выводим по частой роли.
-        var crossPairs = new List<(int Id, string Role)>();
-        if (myRole == "jungle")
+        // ПРОЧИЕ враги (не лейн-оппонент и не дуо-партнёр — те покрыты своими
+        // факторами): каждому определяем роль (позиция, иначе частая роль по
+        // базе). В скоре на каждого сперва пробуем кросс-ролевой матчап (реальная
+        // пара «моя роль против его роли», сигнал ~1.8 пп), а если такой пары в
+        // базе ещё нет — фолбэк на same-role таблицу с меньшим весом.
+        var otherEnemies = new List<(int Id, string Role)>();
+        foreach (var p in state.TheirTeam)
         {
-            foreach (var p in state.TheirTeam)
-            {
-                var id = p.EffectiveChampionId;
-                if (id == 0 || id == directOppId) continue;
-                var r = LcuToDbRole(p.Position);
-                if (string.IsNullOrEmpty(r)) r = InferPrimaryRole(id);
-                if (r is "top" or "mid" or "adc" or "support") crossPairs.Add((id, r));
-            }
-        }
-        else if (myRole is "top" or "mid")
-        {
-            foreach (var p in state.TheirTeam)
-            {
-                var id = p.EffectiveChampionId;
-                if (id == 0 || id == directOppId) continue;
-                var r = LcuToDbRole(p.Position);
-                if (string.IsNullOrEmpty(r)) r = InferPrimaryRole(id);
-                if (r == "jungle") { crossPairs.Add((id, r)); break; }
-            }
+            var id = p.EffectiveChampionId;
+            if (id == 0 || id == directOppId) continue;
+            if (duoRole != null && id == enemyDuoId) continue;   // покрыт botlane-фактором
+            var r = LcuToDbRole(p.Position);
+            if (string.IsNullOrEmpty(r)) r = InferPrimaryRole(id);
+            otherEnemies.Add((id, r));
         }
 
         // Динамический вес синергии: без информации о врагах синергия с союзниками
-        // важнее, но НЕ настолько, чтобы перебить сильный базовый пик шумной парной
-        // статистикой (потолок 1.9, меньше веса прямой контры) — иначе чемпион на
-        // десятке совместных игр всплывает в топ при пустой вражеской команде.
-        const double W_SYN_MAX = 1.9;
+        // важнее, но потолок умеренный (1.5): по замерам сигнал синергии (~1.5 пп)
+        // слабее вражеских матчапов, и раздутый вес делал подбор «глухим» к пикам
+        // врагов в начале драфта (плюс чемпион на десятке совместных игр всплывал
+        // в топ при пустой вражеской команде).
+        const double W_SYN_MAX = 1.5;
         var knownEnemies = state.TheirTeam.Count(p => p.EffectiveChampionId != 0);
         var wSynergy = W_SYNERGY + (W_SYN_MAX - W_SYNERGY) * Math.Max(0.0, 1.0 - knownEnemies / 5.0);
 
@@ -421,14 +413,31 @@ public sealed class RecommendationEngine : IDisposable
                 var (dg, dw)    = directOppId != 0 ? RawMatchup(champId, myRole, directOppId) : (0, 0);
                 var directDelta = PureVs(dg, dw);
 
-                // Прочие враги: дельта по каждому (для reasons) + ПУЛ (для скора).
-                // Пул складывает игры/победы по всем врагам и сглаживает один раз —
-                // редкие пары не обнуляются делением на количество врагов.
-                var otherRaw = otherEnemyIds
-                    .Select(e => { var (g, w) = RawMatchup(champId, myRole, e); return (Id: e, G: g, W: w); })
-                    .ToList();
-                var otherByEnemy = otherRaw.Select(x => (x.Id, Delta: PureVs(x.G, x.W))).ToList();
-                var otherDelta = PureVs(otherRaw.Sum(x => x.G), otherRaw.Sum(x => x.W));
+                // Прочие враги: по каждому сперва кросс-ролевой матчап (реальный
+                // контекст пары, сигнал ~1.8 пп), если его в базе нет — same-role
+                // фолбэк. Каждый пул складывает игры/победы и сглаживается один
+                // раз — редкие пары не обнуляются делением на количество врагов.
+                double oxg = 0, oxw = 0;                      // пул кросс-матчапов
+                double omg = 0, omw = 0;                      // пул same-role фолбэка
+                var otherByEnemy = new List<(int Id, double Delta)>();
+                foreach (var (eid, erole) in otherEnemies)
+                {
+                    var (cg, cw) = erole.Length > 0
+                        ? RawBotlane(champId, myRole, eid, erole) : (0.0, 0.0);
+                    if (cg > 0)
+                    {
+                        oxg += cg; oxw += cw;
+                        otherByEnemy.Add((eid, PureVs(cg, cw)));
+                    }
+                    else
+                    {
+                        var (mg, mw) = RawMatchup(champId, myRole, eid);
+                        omg += mg; omw += mw;
+                        otherByEnemy.Add((eid, PureVs(mg, mw)));
+                    }
+                }
+                var otherDelta = PureVs(omg, omw);
+                var crossDelta = PureVs(oxg, oxw);
 
                 // Синергия с союзниками: то же — дельта по каждому + ПУЛ для скора.
                 // Тоже ЧИСТАЯ (минус собственная база): «пара играет лучше, чем этот
@@ -466,14 +475,6 @@ public sealed class RecommendationEngine : IDisposable
                     ? RawBotlane(champId, myRole, enemyDuoId, duoRole) : (0.0, 0.0);
                 var botlaneDelta = PureVs(btg, btw);
 
-                // Кросс-лейн (джангл↔линии): пул по всем парам, чистая дельта + темпер.
-                double cxg = 0, cxw = 0;
-                foreach (var (eid, erole) in crossPairs)
-                {
-                    var (g, w) = RawBotlane(champId, myRole, eid, erole);
-                    cxg += g; cxw += w;
-                }
-                var crossDelta = PureVs(cxg, cxw);
                 if (botlaneDelta >= 0.8)
                     draftReasons.Add(Loc.T("reason.botlaneGood", DataDragon.Name(enemyDuoId)));
                 else if (botlaneDelta <= -1.2)

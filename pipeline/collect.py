@@ -77,14 +77,13 @@ POSITION_MAP = {
 
 QUEUE_RANKED = 420   # RANKED_SOLO_5x5
 
-# Кросс-ролевые пары для botlane_matchup: бот 2v2 + джангл↔все линии.
-CROSS_ROLES = {
-    'adc':     ('support',),
-    'support': ('adc',),
-    'jungle':  ('top', 'mid', 'adc', 'support'),
-    'top':     ('jungle',),
-    'mid':     ('jungle',),
-}
+# Кросс-ролевые пары для botlane_matchup: ВСЕ сочетания ролей, кроме одинаковых
+# (та же роль — это прямой оппонент, он живёт в таблице matchup). По замерам
+# чистый сигнал кросс-матчапов (~1.8 пп) сильнее большинства синергий — движок
+# использует их для слагаемого «против прочих врагов» вместо кривых same-role
+# лукапов (см. RecommendationEngine, W_CROSS).
+_ALL_ROLES = ('top', 'jungle', 'mid', 'adc', 'support')
+CROSS_ROLES = {r: tuple(x for x in _ALL_ROLES if x != r) for r in _ALL_ROLES}
 
 # Пауза между запросами. Лимит dev-ключа 100 req/2 мин = 50 req/min → теоретич.
 # минимум 1.2 с. 1.25 с (~48 req/min) — у потолка, но с запасом на джиттер/429.
@@ -409,9 +408,9 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
                            ['champion_id', 'role', 'ally_id', 'ally_role', 'tier_bucket', 'patch'],
                            [champ, role, ally['championId'], ally_role, tier_bucket, patch], win)
 
-            # Кросс-ролевые матчапы: бот 2v2 (адк↔саппорт) + джангл↔линии.
-            # Джангл взаимодействует со всеми (ганки/контроль карты), линии — с
-            # вражеским джанглером. Пишем в общую таблицу botlane_matchup.
+            # Кросс-ролевые матчапы: все пары «моя роль ↔ чужая роль» врага.
+            # Бот 2v2 и джангл↔линии — самые сильные, но и остальные пары несут
+            # сигнал (замер: ~1.8 пп). Пишем в общую таблицу botlane_matchup.
             cross_roles = CROSS_ROLES.get(role, ())
             for cross_role in cross_roles:
                 cross_opp = teams[side_b].get(cross_role)
