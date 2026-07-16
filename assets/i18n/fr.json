@@ -71,7 +71,8 @@
     "coreBlock": "Objets de base",
     "altBlock": "Situationnel",
     "startBlock": "Objets de départ",
-    "compBlock": "Composants"
+    "compBlock": "Composants",
+    "appliedSpells": "Runes et sorts d'invocateur appliqués"
   },
   "pick": {
     "confirm": "Choisir {0}",

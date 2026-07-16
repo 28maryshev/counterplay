@@ -305,7 +305,8 @@
     "coreBlock": "Trang bị cốt lõi",
     "altBlock": "Tùy tình huống",
     "startBlock": "Trang bị khởi đầu",
-    "compBlock": "Thành phần"
+    "compBlock": "Thành phần",
+    "appliedSpells": "Đã áp dụng ngọc và phép bổ trợ"
   },
   "pick": {
     "confirm": "Chọn {0}",

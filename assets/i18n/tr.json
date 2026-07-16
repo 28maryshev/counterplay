@@ -71,7 +71,8 @@
     "coreBlock": "Çekirdek eşyalar",
     "altBlock": "Duruma bağlı",
     "startBlock": "Başlangıç eşyaları",
-    "compBlock": "Bileşenler"
+    "compBlock": "Bileşenler",
+    "appliedSpells": "Rünler ve sihirdar büyüleri uygulandı"
   },
   "pick": {
     "confirm": "{0} seç",

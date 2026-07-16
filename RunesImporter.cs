@@ -138,6 +138,42 @@ public static class RunesImporter
 
     private static string Trim(string s) => s.Length > 200 ? s[..200] : s;
 
+    /// <summary>
+    /// Выставить саммонер-спеллы в champ select (вместе с рунами). Порядок
+    /// подстраивается под привычку игрока: если у него Флеш сейчас стоит на
+    /// втором слоте (клавиша F) — Флеш и останется на втором, и наоборот.
+    /// </summary>
+    public static async Task<bool> ApplySpellsAsync(
+        LcuHttpClient http, IReadOnlyList<int> spells, CancellationToken ct)
+    {
+        if (spells.Count < 2 || spells[0] <= 0 || spells[1] <= 0) return false;
+        try
+        {
+            int a = spells[0], b = spells[1];
+            const int Flash = 4;
+
+            // Читаем текущий выбор игрока — из него узнаём привычный слот Флеша.
+            var (s, body) = await http.GetAsync("/lol-champ-select/v1/session/my-selection", ct);
+            if (s == 200 && (a == Flash || b == Flash))
+            {
+                using var doc = JsonDocument.Parse(body);
+                long cur1 = GetLong(doc.RootElement, "spell1Id");
+                long cur2 = GetLong(doc.RootElement, "spell2Id");
+                int other = a == Flash ? b : a;
+                if (cur2 == Flash)      (a, b) = (other, Flash); // Флеш на F — остаётся справа
+                else if (cur1 == Flash) (a, b) = (Flash, other); // Флеш на D — остаётся слева
+            }
+
+            var payload = JsonSerializer.Serialize(new { spell1Id = a, spell2Id = b });
+            var (ps, _) = await http.PatchAsync("/lol-champ-select/v1/session/my-selection", payload, ct);
+            return ps is >= 200 and < 300;
+        }
+        catch { return false; }
+    }
+
+    private static long GetLong(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt64() : 0;
+
     private static async Task<int> CountPagesAsync(LcuHttpClient http, CancellationToken ct)
     {
         var (s, body) = await http.GetAsync("/lol-perks/v1/pages", ct);

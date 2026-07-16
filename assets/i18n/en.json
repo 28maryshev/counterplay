@@ -17,7 +17,8 @@
     "coreBlock": "Core items",
     "startBlock": "Starting items",
     "exportedToSets": "Build added to ITEM SETS in the shop",
-    "compBlock": "Components"
+    "compBlock": "Components",
+    "appliedSpells": "Runes & summoner spells applied"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

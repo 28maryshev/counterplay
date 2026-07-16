@@ -71,7 +71,8 @@
     "coreBlock": "코어 아이템",
     "altBlock": "상황",
     "startBlock": "시작 아이템",
-    "compBlock": "구성 요소"
+    "compBlock": "구성 요소",
+    "appliedSpells": "룬과 소환사 주문이 적용됨"
   },
   "pick": {
     "confirm": "{0} 선택",

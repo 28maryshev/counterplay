@@ -43,6 +43,7 @@ static class TestMode
         // кнопки отвечают «как будто получилось», чтобы проверить сценарий.
         TestPanel? panel = null;
         overlay.ApplyRunesHandler  = async (_, _) => { await Task.Delay(400, ct); return true; };
+        overlay.ApplySpellsHandler = async _ => { await Task.Delay(200, ct); return true; };
         overlay.ExportBuildHandler = async (_, _, _, _, _, _) => { await Task.Delay(400, ct); return true; };
         overlay.HoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
         // Лок из оверлея ставит чемпиона в мой слот тестовой панели — пик через

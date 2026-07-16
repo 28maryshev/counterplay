@@ -305,7 +305,8 @@
     "coreBlock": "コアアイテム",
     "altBlock": "状況対応",
     "startBlock": "開始アイテム",
-    "compBlock": "コンポーネント"
+    "compBlock": "コンポーネント",
+    "appliedSpells": "ルーンとサモナースペルを適用しました"
   },
   "pick": {
     "confirm": "{0} を選択",

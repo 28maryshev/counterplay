@@ -305,7 +305,8 @@
     "coreBlock": "Przedmioty rdzenia",
     "altBlock": "Sytuacyjne",
     "startBlock": "Przedmioty startowe",
-    "compBlock": "Składniki"
+    "compBlock": "Składniki",
+    "appliedSpells": "Runy i czary przywoływacza zastosowane"
   },
   "pick": {
     "confirm": "Wybierz {0}",

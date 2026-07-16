@@ -71,7 +71,8 @@
     "coreBlock": "Itens núcleo",
     "altBlock": "Situacional",
     "startBlock": "Itens iniciais",
-    "compBlock": "Componentes"
+    "compBlock": "Componentes",
+    "appliedSpells": "Runas e feitiços aplicados"
   },
   "pick": {
     "confirm": "Escolher {0}",

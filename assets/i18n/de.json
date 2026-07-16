@@ -71,7 +71,8 @@
     "coreBlock": "Kernitems",
     "altBlock": "Situativ",
     "startBlock": "Startitems",
-    "compBlock": "Komponenten"
+    "compBlock": "Komponenten",
+    "appliedSpells": "Runen & Beschwörerzauber übernommen"
   },
   "pick": {
     "confirm": "{0} wählen",

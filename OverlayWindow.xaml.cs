@@ -415,6 +415,8 @@ public partial class OverlayWindow : Window
     public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
     /// (core, полный билд, ситуативные, role, championId, имя) → успех.
     public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, string, int, string, Task<bool>>? ExportBuildHandler { get; set; }
+    /// Выставить саммонер-спеллы (пара id) — вызывается вместе с рунами.
+    public Func<IReadOnlyList<int>, Task<bool>>? ApplySpellsHandler { get; set; }
     /// Навести чемпиона в клиенте (hover). championId → HTTP-код (0 — исключение).
     public Func<int, Task<int>>? HoverHandler { get; set; }
     /// Залочить наведённого чемпиона (необратимо). championId → HTTP-код.
@@ -720,7 +722,21 @@ public partial class OverlayWindow : Window
         RunesStatus.Visibility = Visibility.Visible;
 
         var ok = await ApplyRunesHandler(page, _runeChampName);
-        RunesStatus.Text = Loc.T(ok ? "runes.applied" : "runes.failed");
+
+        // Вместе с рунами выставляем и саммонер-спеллы (пара из статистики;
+        // привычный слот Флеша сохраняет импортёр). Спеллы берём из выбранной
+        // сборки, иначе — из первой.
+        var spellsOk = false;
+        if (ok && ApplySpellsHandler != null && _runeStats is { Builds.Count: > 0 })
+        {
+            var bIdx = _buildSelected >= 0 && _buildSelected < _runeStats.Builds.Count
+                ? _buildSelected : 0;
+            var spells = _runeStats.Builds[bIdx].Spells;
+            if (spells.Count >= 2) spellsOk = await ApplySpellsHandler(spells);
+        }
+
+        RunesStatus.Text = Loc.T(!ok ? "runes.failed"
+                                 : spellsOk ? "runes.appliedSpells" : "runes.applied");
         RunesStatus.Foreground = ok ? WinBrush : LossBrush;
         if (ok) PulseApplyButton(on: false);   // применено — кнопка больше не «зовёт»
     }

@@ -305,7 +305,8 @@
     "coreBlock": "Oggetti base",
     "altBlock": "Situazionale",
     "startBlock": "Oggetti iniziali",
-    "compBlock": "Componenti"
+    "compBlock": "Componenti",
+    "appliedSpells": "Rune e incantesimi applicati"
   },
   "pick": {
     "confirm": "Scegli {0}",

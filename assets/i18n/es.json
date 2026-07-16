@@ -71,7 +71,8 @@
     "coreBlock": "Objetos núcleo",
     "altBlock": "Situacional",
     "startBlock": "Objetos iniciales",
-    "compBlock": "Componentes"
+    "compBlock": "Componentes",
+    "appliedSpells": "Runas y hechizos aplicados"
   },
   "pick": {
     "confirm": "Elegir {0}",

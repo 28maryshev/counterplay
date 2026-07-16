@@ -295,7 +295,8 @@
     "coreBlock": "核心装备",
     "altBlock": "情境装备",
     "startBlock": "起始装备",
-    "compBlock": "组件"
+    "compBlock": "组件",
+    "appliedSpells": "符文和召唤师技能已应用"
   },
   "pick": {
     "confirm": "选择 {0}",

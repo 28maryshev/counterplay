@@ -305,7 +305,8 @@
     "coreBlock": "ไอเทมหลัก",
     "altBlock": "ตามสถานการณ์",
     "startBlock": "ไอเทมเริ่มต้น",
-    "compBlock": "ส่วนประกอบ"
+    "compBlock": "ส่วนประกอบ",
+    "appliedSpells": "ใช้รูนและเวทคาถาแล้ว"
   },
   "pick": {
     "confirm": "เลือก {0}",
