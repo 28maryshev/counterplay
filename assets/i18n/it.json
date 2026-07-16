@@ -319,6 +319,12 @@
     "failed": "Non riuscito — tocca a te?"
   },
   "tier": {
-    "title": "Tier list della patch — migliori per winrate"
+    "title": "Tier list · {0}"
+  },
+  "bucket": {
+    "silver": "Argento",
+    "gold": "Oro",
+    "emerald": "Smeraldo",
+    "master": "Master+"
   }
 }

@@ -75,6 +75,11 @@
       <GradientStop Color="#88F0685E" Offset="1"/>
     </LinearGradientBrush>
 
+    <!-- Шестигранная эмблема тир-листа: иконка чемпиона в форме гекса, рамка
+         красится по грейду. Геометрия на прямоугольник 40×44 (клип и обводка). -->
+    <PathGeometry x:Key="HexEmblem"
+                  Figures="M20,1 L39,11.5 L39,32.5 L20,43 L1,32.5 L1,11.5 Z"/>
+
     <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
          Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
          а не смыканием дуг. Левая половина синяя, правая красная. -->
@@ -1239,15 +1244,15 @@
                     Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
               <StackPanel>
-                <TextBlock Text="{loc:T tier.title}" Margin="2,0,0,6"
+                <TextBlock x:Name="TierTitle" Text="" Margin="2,0,0,7"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                            Foreground="#C89B3C"/>
                 <ItemsControl x:Name="TierList">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                      <Grid Margin="0,2">
+                      <Grid Margin="0,3">
                         <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="86"/>   <!-- роль -->
+                          <ColumnDefinition Width="80"/>   <!-- роль -->
                           <ColumnDefinition Width="*"/>    <!-- чемпионы -->
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -1257,25 +1262,43 @@
                                      FontFamily="{StaticResource DisplayFont}" FontSize="12" FontWeight="Bold"
                                      VerticalAlignment="Center"/>
                         </StackPanel>
-                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}" HorizontalAlignment="Left">
+                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Cells}" HorizontalAlignment="Left">
                           <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                           </ItemsControl.ItemsPanel>
                           <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                              <StackPanel Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="{Binding Tip}">
-                                <Ellipse Width="34" Height="34" HorizontalAlignment="Center">
-                                  <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
-                                  <Ellipse.Stroke><SolidColorBrush Color="#3A4B5F"/></Ellipse.Stroke>
-                                  <Ellipse.StrokeThickness>1.5</Ellipse.StrokeThickness>
-                                </Ellipse>
-                                <TextBlock Text="{Binding WrText}" HorizontalAlignment="Center" Margin="0,2,0,0"
+                              <StackPanel Margin="0,0,7,0" VerticalAlignment="Top" ToolTip="{Binding Tip}">
+                                <!-- Эмблема-гекс: иконка чемпиона + рамка цвета грейда,
+                                     в углу — буква грейда на плашке того же цвета. -->
+                                <Grid Width="40" Height="44" HorizontalAlignment="Center">
+                                  <Path Data="{StaticResource HexEmblem}" Stretch="None">
+                                    <Path.Fill>
+                                      <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+                                    </Path.Fill>
+                                  </Path>
+                                  <Path Data="{StaticResource HexEmblem}" Stretch="None" StrokeThickness="2.5">
+                                    <Path.Stroke><SolidColorBrush Color="{Binding GradeColor}"/></Path.Stroke>
+                                  </Path>
+                                  <Border CornerRadius="3" Padding="3,0" Height="14" MinWidth="14"
+                                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                          Margin="0,0,-2,-1">
+                                    <Border.Background><SolidColorBrush Color="{Binding GradeColor}"/></Border.Background>
+                                    <TextBlock Text="{Binding Grade}" Foreground="#10141A"
+                                               FontFamily="{StaticResource DisplayFont}" FontSize="10" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                  </Border>
+                                </Grid>
+                                <TextBlock Text="{Binding WrText}" HorizontalAlignment="Center" Margin="0,3,0,0"
                                            FontFamily="{StaticResource DisplayFont}" FontSize="10" FontWeight="Bold"
                                            Foreground="{Binding WrBrush}"/>
                               </StackPanel>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        </ScrollViewer>
                       </Grid>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>

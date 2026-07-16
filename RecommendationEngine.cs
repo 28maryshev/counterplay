@@ -945,16 +945,23 @@ public sealed class RecommendationEngine : IDisposable
         return role;
     }
 
-    /// <summary>Одна строка тир-листа: чемпион, роль, винрейт, число игр.</summary>
-    public readonly record struct TierEntry(int ChampionId, string Role, double Winrate, int Games);
+    /// <summary>Одна строка тир-листа: чемпион, роль, винрейт, число игр, грейд S..D.</summary>
+    public readonly record struct TierEntry(int ChampionId, string Role, double Winrate, int Games, char Grade);
+
+    // Тир-лист показываем только на достаточной выборке (иначе грейд по WR шумит).
+    private const int TIER_MIN_GAMES = 250;
+
+    // Грейд по винрейту патча. Пороги выведены из распределения WR по бакетам
+    // (медиана ~50%, p20 ~52%, p5 ~54%) — получается «пирамида»: S редок, B — ядро.
+    private static char GradeOf(double wr) =>
+        wr >= 53.0 ? 'S' : wr >= 51.5 ? 'A' : wr >= 49.5 ? 'B' : wr >= 48.0 ? 'C' : 'D';
 
     /// <summary>
-    /// Тир-лист патча: топ-N чемпионов по винрейту на каждой роли. Ранжируем по
-    /// нижней границе Уилсона (штрафует малые выборки), но показываем «сырой» WR.
-    /// Проходной порог — как у кандидатов (MIN_GAMES + доля роли), чтобы не лезли
-    /// мем-пики. Роли идут в привычном порядке top→jungle→mid→adc→support.
+    /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли с
+    /// грейдом S..D по винрейту. Ранжируем по нижней границе Уилсона (штрафует
+    /// малые выборки), показываем «сырой» WR. Роли — top→jungle→mid→adc→support.
     /// </summary>
-    public IReadOnlyList<TierEntry> TierList(int perRole = 5)
+    public IReadOnlyList<TierEntry> TierList(int perRole = 12)
     {
         var roles = new[] { "top", "jungle", "mid", "adc", "support" };
         var result = new List<TierEntry>();
@@ -974,7 +981,7 @@ public sealed class RecommendationEngine : IDisposable
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
-            cmd.Parameters.AddWithValue("@min", MIN_GAMES);
+            cmd.Parameters.AddWithValue("@min", TIER_MIN_GAMES);
             cmd.Parameters.AddWithValue("@share", MIN_ROLE_SHARE);
 
             var rows = new List<(int Id, double G, double W)>();
@@ -985,10 +992,17 @@ public sealed class RecommendationEngine : IDisposable
             result.AddRange(rows
                 .OrderByDescending(x => WilsonLower(x.W, x.G))     // ранг — по нижней границе
                 .Take(perRole)
-                .Select(x => new TierEntry(x.Id, role, 100.0 * x.W / x.G, (int)Math.Round(x.G))));
+                .Select(x =>
+                {
+                    var wr = 100.0 * x.W / x.G;
+                    return new TierEntry(x.Id, role, wr, (int)Math.Round(x.G), GradeOf(wr));
+                }));
         }
         return result;
     }
+
+    /// <summary>Ключ локализации имени бакета (silver/gold/emerald/master).</summary>
+    public string TierBucketLocKey => $"bucket.{TierBucket}";
 
     // ---------- Запросы к БД — агрегируют по 3 патчам ----------
 

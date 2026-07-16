@@ -88,6 +88,12 @@
     "failed": "Fehlgeschlagen — bist du dran?"
   },
   "tier": {
-    "title": "Patch-Tierliste — beste nach Winrate"
+    "title": "Tier-Liste · {0}"
+  },
+  "bucket": {
+    "silver": "Silber",
+    "gold": "Gold",
+    "emerald": "Smaragd",
+    "master": "Master+"
   }
 }

@@ -88,6 +88,12 @@
     "failed": "Error — ¿es tu baneo?"
   },
   "tier": {
-    "title": "Tier list del parche — mejores por winrate"
+    "title": "Tier list · {0}"
+  },
+  "bucket": {
+    "silver": "Plata",
+    "gold": "Oro",
+    "emerald": "Esmeralda",
+    "master": "Máster+"
   }
 }

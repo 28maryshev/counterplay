@@ -319,6 +319,12 @@
     "failed": "Thất bại — đến lượt cấm của bạn chưa?"
   },
   "tier": {
-    "title": "Tier list bản — tỷ lệ thắng cao nhất"
+    "title": "Tier list · {0}"
+  },
+  "bucket": {
+    "silver": "Bạc",
+    "gold": "Vàng",
+    "emerald": "Lục Bảo",
+    "master": "Master+"
   }
 }

@@ -319,6 +319,12 @@
     "failed": "失敗 — あなたのBANですか？"
   },
   "tier": {
-    "title": "パッチ Tier リスト — 勝率上位"
+    "title": "Tierリスト · {0}"
+  },
+  "bucket": {
+    "silver": "シルバー",
+    "gold": "ゴールド",
+    "emerald": "エメラルド",
+    "master": "マスター+"
   }
 }

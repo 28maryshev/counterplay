@@ -319,6 +319,12 @@
     "failed": "Nie udało się — twój ban?"
   },
   "tier": {
-    "title": "Tier lista patcha — najlepsi wg winrate"
+    "title": "Tier lista · {0}"
+  },
+  "bucket": {
+    "silver": "Srebro",
+    "gold": "Złoto",
+    "emerald": "Szmaragd",
+    "master": "Master+"
   }
 }

@@ -371,6 +371,12 @@
     "failed": "Failed — is it your ban?"
   },
   "tier": {
-    "title": "Patch tier list — best by win rate"
+    "title": "Tier list · {0}"
+  },
+  "bucket": {
+    "silver": "Silver",
+    "gold": "Gold",
+    "emerald": "Emerald",
+    "master": "Master+"
   }
 }

@@ -88,6 +88,12 @@
     "failed": "Başarısız — sıra sende mi?"
   },
   "tier": {
-    "title": "Yama tier listesi — en iyi kazanma oranı"
+    "title": "Tier listesi · {0}"
+  },
+  "bucket": {
+    "silver": "Gümüş",
+    "gold": "Altın",
+    "emerald": "Zümrüt",
+    "master": "Master+"
   }
 }

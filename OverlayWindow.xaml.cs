@@ -908,12 +908,23 @@ public partial class OverlayWindow : Window
     // ── Тир-лист патча (лучшие по WR на роль) — под банами ────────────────────
     private IReadOnlyList<TierRow>? _tierRows;   // кэш: список статичен в пределах патча
 
+    // Цвет эмблемы по грейду. S — насыщенное «премиум»-золото со свечением,
+    // B — приглушённое hextech-золото (оба «золотые», но различимы: S ярче).
+    private static string GradeColor(char g) => g switch
+    {
+        'S' => "#FFD23C",   // золото (яркое)
+        'A' => "#5CE0E6",   // диамант (бирюза)
+        'B' => "#C89B3C",   // золото (hextech, приглушённое)
+        'C' => "#B7C2CC",   // серебро
+        _   => "#A9713E",   // бронза/коричневый (D)
+    };
+
     private void RenderTierList()
     {
         if (_engine is null) { TierListBar.Visibility = Visibility.Collapsed; return; }
         if (_tierRows is null)
         {
-            var byRole = _engine.TierList(5);
+            var byRole = _engine.TierList(12);
             var rows = new List<TierRow>();
             foreach (var g in byRole.GroupBy(t => t.Role))
             {
@@ -928,11 +939,15 @@ public partial class OverlayWindow : Window
                         Icon    = IconCache.Get(t.ChampionId),
                         WrText  = $"{t.Winrate:F1}%",
                         WrBrush = t.Winrate >= 52 ? "#4CD08A" : t.Winrate >= 50 ? "#C9D2DC" : "#E0806A",
-                        Tip     = $"{DataDragon.Name(t.ChampionId)} · WR {t.Winrate:F1}% · {t.Games} игр",
+                        Grade   = t.Grade.ToString(),
+                        GradeColor = GradeColor(t.Grade),
+                        Tip     = $"{DataDragon.Name(t.ChampionId)} · {t.Grade} · WR {t.Winrate:F1}% · {t.Games} игр",
                     }).ToList(),
                 });
             }
             _tierRows = rows;
+            // Заголовок с именем бакета игрока: «Тир-лист · Изумруд».
+            TierTitle.Text = Loc.T("tier.title", Loc.T(_engine.TierBucketLocKey));
         }
         TierList.ItemsSource = _tierRows;
         TierListBar.Visibility = _tierRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2468,6 +2483,8 @@ public sealed class TierCell
     public ImageSource? Icon       { get; init; }
     public string       WrText     { get; init; } = "";
     public string       WrBrush    { get; init; } = "#8AA0B2";
+    public string       Grade      { get; init; } = "";   // S/A/B/C/D
+    public string       GradeColor { get; init; } = "#C89B3C"; // цвет эмблемы и буквы
     public string       Tip        { get; init; } = "";
 }
 

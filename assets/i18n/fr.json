@@ -88,6 +88,12 @@
     "failed": "Échec — c'est ton ban ?"
   },
   "tier": {
-    "title": "Tier list du patch — meilleurs par winrate"
+    "title": "Tier list · {0}"
+  },
+  "bucket": {
+    "silver": "Argent",
+    "gold": "Or",
+    "emerald": "Émeraude",
+    "master": "Master+"
   }
 }
