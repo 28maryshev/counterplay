@@ -101,7 +101,6 @@ sealed class TestPanel : Window
     private readonly Button _simBtn;
     private DispatcherTimer? _simTimer;
     private int _simTurn = -1;              // индекс группы в _simGroups; -1 = не идёт
-    private DateTime _turnStart;
     private readonly Random _rng = new();
     // Настоящий порядок драфта LoL: первый пик — 1 чемпион, дальше команды
     // пикают ПО ДВА одновременно, замыкает один. Свои cellId 0..4, враги 5..9.
@@ -113,9 +112,10 @@ sealed class TestPanel : Window
     private static readonly int[][] GroupsEnemyFirst =
         [[5], [0, 1], [6, 7], [2, 3], [8, 9], [4]];
     private int[][] _simGroups = GroupsMyFirst;
-    // Время хода плавающее: боты «думают» по-разному, но не дольше 10 секунд.
+    // Каждый бот пикает в СВОЁ время (3..10 с от начала хода) — даже в парном
+    // ходе пики разнесены, и видно, как подбор реагирует на каждый по отдельности.
     private const int MaxTurnSeconds = 10;
-    private int _turnSeconds = MaxTurnSeconds;
+    private readonly Dictionary<int, DateTime> _pickAt = new();   // cell → момент пика бота
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
     {
@@ -308,9 +308,8 @@ sealed class TestPanel : Window
         // Монетка: кто пикает первым — мы или враги (50/50, синяя сторона).
         _simGroups = _rng.Next(2) == 0 ? GroupsMyFirst : GroupsEnemyFirst;
 
-        _simTurn     = 0;
-        _turnStart   = DateTime.UtcNow;
-        _turnSeconds = _rng.Next(3, MaxTurnSeconds + 1);   // плавающее время хода
+        _simTurn = 0;
+        StartTurn();
         _simBtn.Content = "■ Стоп";
         if (_simTimer is null)
         {
@@ -330,32 +329,50 @@ sealed class TestPanel : Window
         Recompute();
     }
 
+    // Раздаёт ботам текущей группы персональные моменты пика (3..10 с).
+    // Мой слот дедлайна не получает — он пикается только вручную.
+    private void StartTurn()
+    {
+        _pickAt.Clear();
+        int meCell = MeCell();
+        foreach (var cell in _simGroups[_simTurn])
+            if (cell != meCell)
+                _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
+    }
+
+    // Чемпион клетки (0..4 свои, 5..9 враги); 0 — ещё не выбран.
+    private int CellChamp(int cell) =>
+        ChampOf(cell < 5 ? _ally[cell] : _enemy[cell - 5]);
+
     private void SimTick(object? sender, EventArgs e)
     {
         if (_simTurn < 0 || _simTurn >= _simGroups.Length) { StopSim(); return; }
-        if ((DateTime.UtcNow - _turnStart).TotalSeconds < _turnSeconds) return;
 
         var group  = _simGroups[_simTurn];
         int meCell = MeCell();
+        var now    = DateTime.UtcNow;
 
-        // Время хода вышло: боты лочат пики (в парных ходах — оба), а МОЙ слот
-        // сам не пикается — жду ручного выбора (комбобокс панели или кнопка
-        // «Выбрать» в оверлее). Пока я не пикнул, драфт стоит на паузе.
+        // Боты пикают каждый в свой момент — даже в парном ходе по отдельности.
         foreach (var cell in group)
-            if (cell != meCell) AutoPick(cell);
+            if (cell != meCell && CellChamp(cell) == 0
+                && _pickAt.TryGetValue(cell, out var t) && now >= t)
+                AutoPick(cell);   // SelectionChanged → Recompute (подбор обновится)
 
-        if (group.Contains(meCell) && ChampOf(_ally[meCell]) == 0)
+        // Ход завершён, когда запикалась вся группа. Мой слот — только вручную:
+        // боты уже отстрелялись, а драфт ждёт меня.
+        bool myPending = group.Contains(meCell) && CellChamp(meCell) == 0;
+        if (myPending && group.All(c => c == meCell || CellChamp(c) != 0))
         {
             _simBtn.Content = "⏸ Ваш пик…";
-            return;                          // пауза до моего пика
+            return;
         }
+        if (group.Any(c => CellChamp(c) == 0)) return;   // кто-то ещё «думает»
 
         _simTurn++;
-        _turnStart   = DateTime.UtcNow;
-        _turnSeconds = _rng.Next(3, MaxTurnSeconds + 1);   // новое плавающее время
         _simBtn.Content = "■ Стоп";
-        if (_simTurn >= _simGroups.Length) StopSim();
-        else Recompute();
+        if (_simTurn >= _simGroups.Length) { StopSim(); return; }
+        StartTurn();
+        Recompute();
     }
 
     private int MeCell()
