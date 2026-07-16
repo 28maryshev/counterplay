@@ -79,8 +79,12 @@ sealed class TestPanel : Window
     // Роли строк (изначально TOP/JGL/MID/BOT/SUP сверху вниз). Кнопка «🔀 Роли»
     // перемешивает их — так порядок пика (по номеру строки) перестаёт совпадать
     // с ролями, как в настоящем драфте, где первым пикает кто угодно.
-    private readonly string[] _rowRoles = [.. LcuRoles];
-    private readonly TextBlock[] _roleLbls = new TextBlock[5];
+    // У врагов СВОЙ независимый порядок: после перемешивания он гарантированно
+    // не совпадает с моим — очередь пика врага-визави отличается от моей.
+    private readonly string[] _rowRoles   = [.. LcuRoles];
+    private readonly string[] _enemyRoles = [.. LcuRoles];
+    private readonly TextBlock[] _roleLbls      = new TextBlock[5];
+    private readonly TextBlock[] _enemyRoleLbls = new TextBlock[5];
 
     private readonly OverlayWindow _overlay;
     private readonly RecommendationEngine _engine;
@@ -96,16 +100,22 @@ sealed class TestPanel : Window
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
     private readonly Button _simBtn;
     private DispatcherTimer? _simTimer;
-    private int _simTurn = -1;              // индекс группы в SimGroups; -1 = не идёт
+    private int _simTurn = -1;              // индекс группы в _simGroups; -1 = не идёт
     private DateTime _turnStart;
     private readonly Random _rng = new();
     // Настоящий порядок драфта LoL: первый пик — 1 чемпион, дальше команды
     // пикают ПО ДВА одновременно, замыкает один. Свои cellId 0..4, враги 5..9.
-    // B1 | R1+R2 | B2+B3 | R3+R4 | B4+B5 | R5 — в парных ходах подсвечиваются
-    // и пикают сразу два игрока (как в реальном champ select).
-    private static readonly int[][] SimGroups =
+    // Кто первый — решает монетка при старте (50/50, как синяя/красная сторона):
+    // мы первые:  B1 | R1+R2 | B2+B3 | R3+R4 | B4+B5 | R5
+    // враг первый: R1 | B1+B2 | R2+R3 | B3+B4 | R4+R5 | B5
+    private static readonly int[][] GroupsMyFirst =
         [[0], [5, 6], [1, 2], [7, 8], [3, 4], [9]];
-    private const int TurnSeconds = 10;
+    private static readonly int[][] GroupsEnemyFirst =
+        [[5], [0, 1], [6, 7], [2, 3], [8, 9], [4]];
+    private int[][] _simGroups = GroupsMyFirst;
+    // Время хода плавающее: боты «думают» по-разному, но не дольше 10 секунд.
+    private const int MaxTurnSeconds = 10;
+    private int _turnSeconds = MaxTurnSeconds;
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
     {
@@ -162,10 +172,12 @@ sealed class TestPanel : Window
             var erow = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
             var eLbl = new TextBlock
             {
-                Text = $"E{i + 1}", Width = 26, VerticalAlignment = VerticalAlignment.Center,
+                Text = RoleNames[i], Width = 34, VerticalAlignment = VerticalAlignment.Center,
                 Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0x40, 0x40)),
-                FontWeight = FontWeights.Bold, FontSize = 11
+                FontWeight = FontWeights.Bold, FontSize = 11,
+                ToolTip = $"E{i + 1} — роль строки в тесте (пики ботов и прямой оппонент)"
             };
+            _enemyRoleLbls[i] = eLbl;
             DockPanel.SetDock(eLbl, Dock.Left);
             erow.Children.Add(eLbl);
             erow.Children.Add(_enemy[i] = MakeCombo());
@@ -256,17 +268,28 @@ sealed class TestPanel : Window
         return cb;
     }
 
-    // Перемешивает роли строк (Фишер-Йетс) и обновляет подписи. Роли врагов
-    // зеркальны по строкам, так что перемешивание влияет на обе команды.
+    // Перемешивает роли строк ОБЕИХ команд (Фишер-Йетс) — независимо, и следит,
+    // чтобы порядок врагов не совпал с моим: очередь пика у ролей всегда разная.
     private void ShuffleRoles()
     {
-        for (int i = _rowRoles.Length - 1; i > 0; i--)
+        static void Shuffle(string[] a, Random rng)
         {
-            int j = _rng.Next(i + 1);
-            (_rowRoles[i], _rowRoles[j]) = (_rowRoles[j], _rowRoles[i]);
+            for (int i = a.Length - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (a[i], a[j]) = (a[j], a[i]);
+            }
         }
+
+        Shuffle(_rowRoles, _rng);
+        do Shuffle(_enemyRoles, _rng);
+        while (_enemyRoles.SequenceEqual(_rowRoles));
+
         for (int i = 0; i < 5; i++)
-            _roleLbls[i].Text = RoleNames[Array.IndexOf(LcuRoles, _rowRoles[i])];
+        {
+            _roleLbls[i].Text      = RoleNames[Array.IndexOf(LcuRoles, _rowRoles[i])];
+            _enemyRoleLbls[i].Text = RoleNames[Array.IndexOf(LcuRoles, _enemyRoles[i])];
+        }
         Recompute();
     }
 
@@ -282,8 +305,12 @@ sealed class TestPanel : Window
         _banPhase.IsChecked = false;
         _ready = true;
 
-        _simTurn   = 0;
-        _turnStart = DateTime.UtcNow;
+        // Монетка: кто пикает первым — мы или враги (50/50, синяя сторона).
+        _simGroups = _rng.Next(2) == 0 ? GroupsMyFirst : GroupsEnemyFirst;
+
+        _simTurn     = 0;
+        _turnStart   = DateTime.UtcNow;
+        _turnSeconds = _rng.Next(3, MaxTurnSeconds + 1);   // плавающее время хода
         _simBtn.Content = "■ Стоп";
         if (_simTimer is null)
         {
@@ -305,10 +332,10 @@ sealed class TestPanel : Window
 
     private void SimTick(object? sender, EventArgs e)
     {
-        if (_simTurn < 0 || _simTurn >= SimGroups.Length) { StopSim(); return; }
-        if ((DateTime.UtcNow - _turnStart).TotalSeconds < TurnSeconds) return;
+        if (_simTurn < 0 || _simTurn >= _simGroups.Length) { StopSim(); return; }
+        if ((DateTime.UtcNow - _turnStart).TotalSeconds < _turnSeconds) return;
 
-        var group  = SimGroups[_simTurn];
+        var group  = _simGroups[_simTurn];
         int meCell = MeCell();
 
         // Время хода вышло: боты лочат пики (в парных ходах — оба), а МОЙ слот
@@ -324,9 +351,10 @@ sealed class TestPanel : Window
         }
 
         _simTurn++;
-        _turnStart = DateTime.UtcNow;
+        _turnStart   = DateTime.UtcNow;
+        _turnSeconds = _rng.Next(3, MaxTurnSeconds + 1);   // новое плавающее время
         _simBtn.Content = "■ Стоп";
-        if (_simTurn >= SimGroups.Length) StopSim();
+        if (_simTurn >= _simGroups.Length) StopSim();
         else Recompute();
     }
 
@@ -353,7 +381,8 @@ sealed class TestPanel : Window
         if (ChampOf(cb) != 0) return;   // уже выбран (например, я успел сам)
 
         var taken  = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
-        var dbRole = RecommendationEngine.LcuToDbRole(_rowRoles[cell % 5]);
+        var dbRole = RecommendationEngine.LcuToDbRole(
+            cell < 5 ? _rowRoles[cell] : _enemyRoles[cell - 5]);
         var pool   = _idByName.Values
             .Where(id => !taken.Contains(id) && _engine.RoleShare(id, dbRole) >= 0.20)
             .ToList();
@@ -394,24 +423,25 @@ sealed class TestPanel : Window
         for (int i = 0; i < 5; i++)
             their.Add(new DraftPlayer(5 + i, ChampOf(_enemy[i]), 0, "", false)); // роли скрыты, как в Solo/Duo
 
-        // Прямой оппонент: враг в строке моей роли (в бою роли врагов вычисляются
-        // эвристикой/вручную; тут — по позиции в списке, этого хватает для стенда).
-        var opp = their[meIdx].EffectiveChampionId > 0 ? their[meIdx] : null;
+        // Прямой оппонент: враг, чья РОЛЬ совпадает с моей (порядки строк у
+        // команд после перемешивания разные, по номеру строки искать нельзя).
+        int oppIdx = Array.IndexOf(_enemyRoles, _rowRoles[meIdx]);
+        var opp = oppIdx >= 0 && their[oppIdx].EffectiveChampionId > 0 ? their[oppIdx] : null;
 
         // В тесте считаем, что сейчас мой ход пикать (кроме банфазы) — чтобы
         // работала кнопка выбора чемпиона через интерфейс. actionId условный.
         bool myPick = _banPhase.IsChecked != true;
 
-        // Чей ход: при авто-драфте — текущая группа SimGroups (в парных ходах
+        // Чей ход: при авто-драфте — текущая группа _simGroups (в парных ходах
         // подсвечиваются сразу двое), иначе мой слот.
         List<int> active;
         int firstPick;
         bool myTurn;
-        if (_simTurn >= 0 && _simTurn < SimGroups.Length)
+        if (_simTurn >= 0 && _simTurn < _simGroups.Length)
         {
-            active    = SimGroups[_simTurn].ToList();
-            firstPick = SimGroups[0][0];
-            myTurn    = SimGroups[_simTurn].Contains(meIdx);
+            active    = _simGroups[_simTurn].ToList();
+            firstPick = _simGroups[0][0];
+            myTurn    = _simGroups[_simTurn].Contains(meIdx);
         }
         else
         {
