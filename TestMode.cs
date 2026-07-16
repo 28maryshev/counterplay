@@ -467,14 +467,16 @@ sealed class TestPanel : Window
             myTurn    = myPick;
         }
 
+        bool banPhase = _banPhase.IsChecked == true;
         var draft = new DraftState(
             my, their, [], [], my[meIdx], _rowRoles[meIdx],
-            opp, false, _banPhase.IsChecked == true, [], false,
-            myPick ? 1 : -1, myPick && myTurn, active, firstPick);
+            opp, false, banPhase, [], false,
+            myPick ? 1 : -1, myPick && myTurn, active, firstPick,
+            banPhase ? 1 : -1, banPhase);   // в тесте банфазы считаем, что мой ход банить
 
-        if (_banPhase.IsChecked == true)
+        if (banPhase)
         {
-            _overlay.UpdateBans(_engine.RecommendBans(draft), draft);
+            _overlay.UpdateBans(_engine.RecommendBans(draft), draft, _engine);
             _overlay.HideRunes();
         }
         else

@@ -945,6 +945,51 @@ public sealed class RecommendationEngine : IDisposable
         return role;
     }
 
+    /// <summary>Одна строка тир-листа: чемпион, роль, винрейт, число игр.</summary>
+    public readonly record struct TierEntry(int ChampionId, string Role, double Winrate, int Games);
+
+    /// <summary>
+    /// Тир-лист патча: топ-N чемпионов по винрейту на каждой роли. Ранжируем по
+    /// нижней границе Уилсона (штрафует малые выборки), но показываем «сырой» WR.
+    /// Проходной порог — как у кандидатов (MIN_GAMES + доля роли), чтобы не лезли
+    /// мем-пики. Роли идут в привычном порядке top→jungle→mid→adc→support.
+    /// </summary>
+    public IReadOnlyList<TierEntry> TierList(int perRole = 5)
+    {
+        var roles = new[] { "top", "jungle", "mid", "adc", "support" };
+        var result = new List<TierEntry>();
+        foreach (var role in roles)
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = $@"
+                SELECT champion_id, SUM(games*{PW}) g, SUM(wins*{PW}) w FROM base_wr
+                WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                GROUP BY champion_id
+                HAVING g >= @min
+                   AND g >= @share * (
+                       SELECT SUM(games*{PW}) FROM base_wr
+                       WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3))";
+            cmd.Parameters.AddWithValue("@r",   role);
+            cmd.Parameters.AddWithValue("@t",   TierBucket);
+            cmd.Parameters.AddWithValue("@p1",  _p1);
+            cmd.Parameters.AddWithValue("@p2",  _p2);
+            cmd.Parameters.AddWithValue("@p3",  _p3);
+            cmd.Parameters.AddWithValue("@min", MIN_GAMES);
+            cmd.Parameters.AddWithValue("@share", MIN_ROLE_SHARE);
+
+            var rows = new List<(int Id, double G, double W)>();
+            using (var rd = cmd.ExecuteReader())
+                while (rd.Read())
+                    rows.Add((rd.GetInt32(0), rd.GetDouble(1), rd.GetDouble(2)));
+
+            result.AddRange(rows
+                .OrderByDescending(x => WilsonLower(x.W, x.G))     // ранг — по нижней границе
+                .Take(perRole)
+                .Select(x => new TierEntry(x.Id, role, 100.0 * x.W / x.G, (int)Math.Round(x.G))));
+        }
+        return result;
+    }
+
     // ---------- Запросы к БД — агрегируют по 3 патчам ----------
 
     private List<int> GetCandidates(string role)

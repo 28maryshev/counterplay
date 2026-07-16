@@ -81,5 +81,13 @@
   },
   "slot": {
     "firstPick": "1. seçim"
+  },
+  "ban": {
+    "confirm": "{0} yasakla",
+    "banning": "Yasaklanıyor...",
+    "failed": "Başarısız — sıra sende mi?"
+  },
+  "tier": {
+    "title": "Yama tier listesi — en iyi kazanma oranı"
   }
 }

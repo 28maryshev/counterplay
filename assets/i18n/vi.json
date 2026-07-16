@@ -312,5 +312,13 @@
     "confirm": "Chọn {0}",
     "locking": "Đang khóa...",
     "failed": "Thất bại — đến lượt bạn chưa?"
+  },
+  "ban": {
+    "confirm": "Cấm {0}",
+    "banning": "Đang cấm...",
+    "failed": "Thất bại — đến lượt cấm của bạn chưa?"
+  },
+  "tier": {
+    "title": "Tier list bản — tỷ lệ thắng cao nhất"
   }
 }

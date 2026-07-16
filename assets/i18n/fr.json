@@ -81,5 +81,13 @@
   },
   "slot": {
     "firstPick": "1er pick"
+  },
+  "ban": {
+    "confirm": "Bannir {0}",
+    "banning": "Bannissement...",
+    "failed": "Échec — c'est ton ban ?"
+  },
+  "tier": {
+    "title": "Tier list du patch — meilleurs par winrate"
   }
 }

@@ -364,5 +364,13 @@
     "confirm": "Pick {0}",
     "locking": "Locking in...",
     "failed": "Failed — is it your turn?"
+  },
+  "ban": {
+    "confirm": "Ban {0}",
+    "banning": "Banning...",
+    "failed": "Failed — is it your ban?"
+  },
+  "tier": {
+    "title": "Patch tier list — best by win rate"
   }
 }

@@ -312,5 +312,13 @@
     "confirm": "Wybierz {0}",
     "locking": "Blokowanie...",
     "failed": "Nie udało się — twoja kolej?"
+  },
+  "ban": {
+    "confirm": "Zbanuj {0}",
+    "banning": "Banowanie...",
+    "failed": "Nie udało się — twój ban?"
+  },
+  "tier": {
+    "title": "Tier lista patcha — najlepsi wg winrate"
   }
 }

@@ -247,12 +247,15 @@ class Program
         overlay.ExportBuildHandler = (core, full, alt, role, id, name) =>
             RunesImporter.ExportItemSetAsync(http, core, full, alt, role, id, name, ct);
 
-        // Id моего текущего действия пика — обновляется на каждом снимке сессии.
-        // Кнопки в оверлее (навести/залочить) используют именно его.
+        // Id моих текущих действий пика/бана — обновляются на каждом снимке сессии.
+        // Кнопки в оверлее (навести/залочить/забанить) используют именно их.
         // -1 = действия нет (id 0 — валидный: в кастомках нумерация с нуля).
         int myPickActionId = -1;
-        overlay.HoverHandler = champId => RunesImporter.HoverChampionAsync(http, myPickActionId, champId, ct);
-        overlay.LockHandler  = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
+        int myBanActionId  = -1;
+        overlay.HoverHandler    = champId => RunesImporter.HoverChampionAsync(http, myPickActionId, champId, ct);
+        overlay.LockHandler     = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
+        overlay.BanHoverHandler = champId => RunesImporter.HoverChampionAsync(http, myBanActionId, champId, ct);
+        overlay.BanLockHandler  = champId => RunesImporter.LockChampionAsync(http, myBanActionId, champId, ct);
 
         RecommendationEngine? engine = null;
         var dbPath = RecommendationEngine.FindDb();
@@ -274,6 +277,7 @@ class Program
             using var doc = JsonDocument.Parse(initBody);
             var draft = ChampSelectParser.Parse(doc.RootElement);
             myPickActionId = draft.MyPickActionId;
+            myBanActionId  = draft.MyBanActionId;
             overlay.UpdateRecommendations(
                 draft.IsAram ? engine?.RecommendAram(draft) : engine?.Recommend(draft), draft, engine);
         }
@@ -359,6 +363,7 @@ class Program
                     {
                         var draft = ChampSelectParser.Parse(ev.Data);
                         myPickActionId = draft.MyPickActionId;
+                        myBanActionId  = draft.MyBanActionId;
 
                         // За 5 секунд до конца финализации прячем оверлей в трей.
                         var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);
@@ -406,7 +411,7 @@ class Program
                         }
                         else if (draft.InBanPhase)
                         {
-                            overlay.UpdateBans(engine?.RecommendBans(draft, hoverHistory), draft);
+                            overlay.UpdateBans(engine?.RecommendBans(draft, hoverHistory), draft, engine);
                             overlay.HideRunes();               // руны — на этапе пика, не банов
                             _runesShownFor = "";               // сбросить, чтобы после банов показать заново
                         }

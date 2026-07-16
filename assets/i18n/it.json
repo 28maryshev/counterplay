@@ -312,5 +312,13 @@
     "confirm": "Scegli {0}",
     "locking": "Blocco in corso...",
     "failed": "Non riuscito — è il tuo turno?"
+  },
+  "ban": {
+    "confirm": "Banna {0}",
+    "banning": "Banno...",
+    "failed": "Non riuscito — tocca a te?"
+  },
+  "tier": {
+    "title": "Tier list della patch — migliori per winrate"
   }
 }

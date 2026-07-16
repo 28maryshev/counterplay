@@ -31,7 +31,9 @@ public sealed record DraftState(
     int MyPickActionId,            // id действия моего пика (-1 = нет; id 0 валиден!)
     bool MyPickInProgress,         // мой ход пикать — можно лочить (иначе только hover)
     IReadOnlyList<int> ActiveCells,// cellId'ы, чей ход пикать прямо сейчас (мигание)
-    int FirstPickCell);            // cellId первого пика в порядке драфта (-1 = неизвестно)
+    int FirstPickCell,             // cellId первого пика в порядке драфта (-1 = неизвестно)
+    int MyBanActionId,             // id действия моего бана (-1 = нет; для бана из оверлея)
+    bool MyBanInProgress);         // мой ход банить прямо сейчас
 
 public static class ChampSelectParser
 {
@@ -54,11 +56,12 @@ public static class ChampSelectParser
         var exposed  = ComputeExposed(session, localCell);
         var inBan    = ComputeInBanPhase(session);
         var (bench, isAram) = ParseBench(session);
-        var (pickId, pickNow) = FindMyPickAction(session, localCell);
+        var (pickId, pickNow) = FindMyAction(session, localCell, "pick");
+        var (banId,  banNow)  = FindMyAction(session, localCell, "ban");
         var (active, firstCell) = ParsePickTurns(session);
 
         return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan,
-                              bench, isAram, pickId, pickNow, active, firstCell);
+                              bench, isAram, pickId, pickNow, active, firstCell, banId, banNow);
     }
 
     // Чей ход пикать прямо сейчас (in-progress pick) + кто пикает первым по
@@ -90,11 +93,11 @@ public static class ChampSelectParser
         return (active, first < 0 ? -1 : first);
     }
 
-    // Моё незавершённое действие пика: id (для PATCH hover/lock) и можно ли
-    // лочить прямо сейчас (isInProgress == мой ход). До хода можно только hover.
+    // Моё незавершённое действие типа type ("pick"/"ban"): id (для PATCH
+    // hover/lock) и можно ли завершить его прямо сейчас (isInProgress == мой ход).
     // ВАЖНО: id действия в LCU начинается с 0 (в кастомках первый пик = 0),
     // поэтому «нет действия» — это -1, а не 0.
-    private static (int Id, bool InProgress) FindMyPickAction(JsonElement session, int localCell)
+    private static (int Id, bool InProgress) FindMyAction(JsonElement session, int localCell, string type)
     {
         if (localCell < 0 || !session.TryGetProperty("actions", out var actions)
             || actions.ValueKind != JsonValueKind.Array)
@@ -105,9 +108,9 @@ public static class ChampSelectParser
             if (group.ValueKind != JsonValueKind.Array) continue;
             foreach (var a in group.EnumerateArray())
             {
-                if (GetStr(a, "type") != "pick") continue;
+                if (GetStr(a, "type") != type) continue;
                 if (GetInt(a, "actorCellId", -1) != localCell) continue;
-                if (IsTrue(a, "completed")) continue;         // уже залочен
+                if (IsTrue(a, "completed")) continue;         // уже завершён
                 return (GetInt(a, "id", -1), IsTrue(a, "isInProgress"));
             }
         }

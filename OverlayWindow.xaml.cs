@@ -843,6 +843,110 @@ public partial class OverlayWindow : Window
         PickBar.Visibility = Visibility.Visible;
     }
 
+    // ── Бан через интерфейс (клик по карточке бана + кнопка «Забанить») ────────
+    /// Навести бан в клиенте (обратимо). championId → HTTP-код.
+    public Func<int, Task<int>>? BanHoverHandler { get; set; }
+    /// Завершить бан (необратимо). championId → HTTP-код.
+    public Func<int, Task<int>>? BanLockHandler  { get; set; }
+    private int _banHoverId;
+    private bool _banBusy;
+    private DateTime _banMsgUntil;
+
+    private async void BanCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
+        if (BanHoverHandler is null) return;
+        e.Handled = true;
+        _banHoverId = champId;
+        RenderCurrentState();          // перерисуем баны — рамка выбранного краснеет
+        UpdateBanBar();
+        var code = await BanHoverHandler(champId);
+        if (code is < 200 or >= 300)
+        {
+            BanText.Text = $"{Loc.T("ban.failed")} ({code})";
+            _banMsgUntil = DateTime.UtcNow.AddSeconds(4);
+        }
+    }
+
+    private async void BanConfirm_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (BanLockHandler is null || _banHoverId <= 0 || _banBusy) return;
+        if (_lastDraft is null || !_lastDraft.MyBanInProgress)
+        {
+            BanText.Text = Loc.T("ban.failed");
+            _banMsgUntil = DateTime.UtcNow.AddSeconds(3);
+            return;
+        }
+        _banBusy = true;
+        BanText.Text = Loc.T("ban.banning");
+        _banMsgUntil = DateTime.UtcNow.AddSeconds(2);
+        var code = await BanLockHandler(_banHoverId);
+        _banBusy = false;
+        if (code is < 200 or >= 300)
+        {
+            BanText.Text = $"{Loc.T("ban.failed")} ({code})";
+            _banMsgUntil = DateTime.UtcNow.AddSeconds(4);
+            return;
+        }
+        BanBar.Visibility = Visibility.Collapsed;
+    }
+
+    private void UpdateBanBar()
+    {
+        var draft = _lastDraft;
+        bool canBan = BanHoverHandler != null && BanLockHandler != null
+                      && draft is { MyBanInProgress: true } && _banHoverId > 0;
+        if (!canBan) { BanBar.Visibility = Visibility.Collapsed; return; }
+
+        BanIcon.Source = IconCache.Get(_banHoverId);
+        if (DateTime.UtcNow >= _banMsgUntil)
+            BanText.Text = Loc.T("ban.confirm", DataDragon.Name(_banHoverId));
+        BanBar.Visibility = Visibility.Visible;
+    }
+
+    // ── Тир-лист патча (лучшие по WR на роль) — под банами ────────────────────
+    private IReadOnlyList<TierRow>? _tierRows;   // кэш: список статичен в пределах патча
+
+    private void RenderTierList()
+    {
+        if (_engine is null) { TierListBar.Visibility = Visibility.Collapsed; return; }
+        if (_tierRows is null)
+        {
+            var byRole = _engine.TierList(5);
+            var rows = new List<TierRow>();
+            foreach (var g in byRole.GroupBy(t => t.Role))
+            {
+                var lcuRole = DbToLcuRole(g.Key);
+                rows.Add(new TierRow
+                {
+                    RoleLabel = RoleNameDb(g.Key),
+                    RoleIcon  = RoleIcons.Get(lcuRole),
+                    Cells = g.Select(t => new TierCell
+                    {
+                        ChampionId = t.ChampionId,
+                        Icon    = IconCache.Get(t.ChampionId),
+                        WrText  = $"{t.Winrate:F1}%",
+                        WrBrush = t.Winrate >= 52 ? "#4CD08A" : t.Winrate >= 50 ? "#C9D2DC" : "#E0806A",
+                        Tip     = $"{DataDragon.Name(t.ChampionId)} · WR {t.Winrate:F1}% · {t.Games} игр",
+                    }).ToList(),
+                });
+            }
+            _tierRows = rows;
+        }
+        TierList.ItemsSource = _tierRows;
+        TierListBar.Visibility = _tierRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // db-роль (mid/adc/support) → lcu-позиция (middle/bottom/utility) для иконок.
+    private static string DbToLcuRole(string db) => db switch
+    {
+        "mid"     => "middle",
+        "adc"     => "bottom",
+        "support" => "utility",
+        _         => db,
+    };
+
     // Клик по ссылке в плашке беты — открываем в системном браузере.
     private void OpenLink(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
     {
@@ -907,6 +1011,7 @@ public partial class OverlayWindow : Window
     private void OnLanguageChanged()
     {
         LangText.Text = Loc.CurrentLang.Native + " ▾";
+        _tierRows = null;             // роли/тултипы тир-листа под новую локаль
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
 
         // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера
@@ -1694,9 +1799,11 @@ public partial class OverlayWindow : Window
         });
     }
 
-    public void UpdateBans(IReadOnlyList<BanRec>? bans, DraftState? draft) =>
+    public void UpdateBans(IReadOnlyList<BanRec>? bans, DraftState? draft,
+                           RecommendationEngine? engine = null) =>
         Dispatcher.InvokeAsync(() =>
         {
+            if (engine != null) _engine = engine;   // нужен тир-листу (банфаза идёт до пиков)
             _lastBans  = bans;
             _lastRecs  = null;
             _lastRawDraft = draft;
@@ -2006,6 +2113,8 @@ public partial class OverlayWindow : Window
 
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
+        BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
+        TierListBar.Visibility = Visibility.Collapsed;  // тир-лист — только под банами
         // Сбрасываем наведённого, если его больше нет в списке рекомендаций.
         if (_pickHoverId > 0 && recs.All(r => r.ChampionId != _pickHoverId))
             _pickHoverId = 0;
@@ -2050,6 +2159,8 @@ public partial class OverlayWindow : Window
 
         BanFullList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
         {
+            ChampionId = b.ChampionId,
+            IsSelected = b.ChampionId == _banHoverId,
             Rank   = $"{i + 1}.",
             Name   = DataDragon.Name(b.ChampionId),
             Reason = b.Reasons.FirstOrDefault() ?? "",
@@ -2058,7 +2169,11 @@ public partial class OverlayWindow : Window
 
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
         BanScroll.Visibility = Visibility.Visible;
-        PickBar.Visibility   = Visibility.Collapsed;  // в банфазе выбирать нечего
+        PickBar.Visibility   = Visibility.Collapsed;  // пик в банфазе не нужен
+        // Наведённого сбрасываем, если его больше нет в списке банов.
+        if (_banHoverId > 0 && bans.All(b => b.ChampionId != _banHoverId)) _banHoverId = 0;
+        UpdateBanBar();
+        RenderTierList();
         RenderTeams(draft);
     }
 
@@ -2334,12 +2449,34 @@ public partial class OverlayWindow : Window
 
 public sealed class RecCard
 {
+    public int          ChampionId { get; init; }   // для бана из оверлея
+    public bool         IsSelected { get; init; }   // наведён кликом (рамка)
+    public string       CardBg     => IsSelected ? "#2AC84040" : "#1EC84040";
+    public string       CardBorder => IsSelected ? "#F0684F" : "#00000000";
     public string       Rank       { get; init; } = "";
     public string       Name       { get; init; } = "";
     public string       Score      { get; init; } = "";
     public string       ScoreColor { get; init; } = "#C89B3C";
     public string       Reason     { get; init; } = "";
     public ImageSource? Icon       { get; init; }
+}
+
+/// <summary>Ячейка тир-листа (лучшие по WR на роль) под банами.</summary>
+public sealed class TierCell
+{
+    public int          ChampionId { get; init; }
+    public ImageSource? Icon       { get; init; }
+    public string       WrText     { get; init; } = "";
+    public string       WrBrush    { get; init; } = "#8AA0B2";
+    public string       Tip        { get; init; } = "";
+}
+
+/// <summary>Строка тир-листа: роль + топ чемпионов этой роли.</summary>
+public sealed class TierRow
+{
+    public string           RoleLabel { get; init; } = "";
+    public ImageSource?     RoleIcon  { get; init; }
+    public List<TierCell>   Cells     { get; init; } = [];
 }
 
 public sealed class FullRecCard

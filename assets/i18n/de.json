@@ -81,5 +81,13 @@
   },
   "slot": {
     "firstPick": "1. Pick"
+  },
+  "ban": {
+    "confirm": "{0} bannen",
+    "banning": "Banne...",
+    "failed": "Fehlgeschlagen — bist du dran?"
+  },
+  "tier": {
+    "title": "Patch-Tierliste — beste nach Winrate"
   }
 }

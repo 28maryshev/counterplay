@@ -312,5 +312,13 @@
     "confirm": "{0} を選択",
     "locking": "確定中...",
     "failed": "失敗 — あなたの番ですか？"
+  },
+  "ban": {
+    "confirm": "{0} をBAN",
+    "banning": "BAN中...",
+    "failed": "失敗 — あなたのBANですか？"
+  },
+  "tier": {
+    "title": "パッチ Tier リスト — 勝率上位"
   }
 }
