@@ -2129,6 +2129,9 @@ public partial class OverlayWindow : Window
         BanScroll.Visibility = Visibility.Collapsed;
         BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
         TierListBar.Visibility = Visibility.Collapsed;  // тир-лист — только под банами
+        // Пики заполняют список (звёздная строка), руны — по контенту (Auto).
+        CenterGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
+        CenterGrid.RowDefinitions[1].Height = GridLength.Auto;
         // Сбрасываем наведённого, если его больше нет в списке рекомендаций.
         if (_pickHoverId > 0 && recs.All(r => r.ChampionId != _pickHoverId))
             _pickHoverId = 0;
@@ -2184,6 +2187,10 @@ public partial class OverlayWindow : Window
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
         BanScroll.Visibility = Visibility.Visible;
         PickBar.Visibility   = Visibility.Collapsed;  // пик в банфазе не нужен
+        // Баны — 100% приоритет: их строка занимает всю нужную высоту (Auto),
+        // тир-лист довольствуется остатком (звёздная строка со скроллом внутри).
+        CenterGrid.RowDefinitions[0].Height = GridLength.Auto;
+        CenterGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
         // Наведённого сбрасываем, если его больше нет в списке банов.
         if (_banHoverId > 0 && bans.All(b => b.ChampionId != _banHoverId)) _banHoverId = 0;
         UpdateBanBar();
@@ -2473,19 +2480,6 @@ public sealed class RecCard
     public string       ScoreColor { get; init; } = "#C89B3C";
     public string       Reason     { get; init; } = "";
     public ImageSource? Icon       { get; init; }
-}
-
-/// <summary>Умножает число на параметр-долю (для MaxHeight = доля от высоты).</summary>
-public sealed class RatioConverter : System.Windows.Data.IValueConverter
-{
-    public object Convert(object value, Type t, object p, System.Globalization.CultureInfo c)
-    {
-        double v = value is double d ? d : 0;
-        double r = double.TryParse(p?.ToString(), System.Globalization.NumberStyles.Float,
-                                   System.Globalization.CultureInfo.InvariantCulture, out var x) ? x : 1;
-        return v * r;
-    }
-    public object ConvertBack(object v, Type t, object p, System.Globalization.CultureInfo c) => v;
 }
 
 /// <summary>Ячейка тир-листа (лучшие по WR на роль) под банами.</summary>

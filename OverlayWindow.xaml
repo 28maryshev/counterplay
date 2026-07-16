@@ -75,9 +75,6 @@
       <GradientStop Color="#88F0685E" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Умножает высоту на долю — тир-лист не выше половины центра (баны важнее). -->
-    <loc:RatioConverter x:Key="Ratio"/>
-
     <!-- Шестигранная эмблема тир-листа: иконка чемпиона в форме гекса, рамка
          красится по грейду. Геометрия на прямоугольник 40×44 (клип и обводка). -->
     <PathGeometry x:Key="HexEmblem"
@@ -1247,9 +1244,7 @@
                  вытесняет; при нехватке места роли прокручиваются. -->
             <Border Grid.Row="1" x:Name="TierListBar" Visibility="Collapsed"
                     Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
-                    Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1"
-                    MaxHeight="{Binding ActualHeight, ElementName=CenterGrid,
-                                Converter={StaticResource Ratio}, ConverterParameter=0.5}">
+                    Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Top" x:Name="TierTitle" Text="" Margin="2,0,0,7"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
