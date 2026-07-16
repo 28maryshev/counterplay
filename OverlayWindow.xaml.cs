@@ -908,15 +908,14 @@ public partial class OverlayWindow : Window
     // ── Тир-лист патча (лучшие по WR на роль) — под банами ────────────────────
     private IReadOnlyList<TierRow>? _tierRows;   // кэш: список статичен в пределах патча
 
-    // Цвет эмблемы по грейду. S — насыщенное «премиум»-золото со свечением,
-    // B — приглушённое hextech-золото (оба «золотые», но различимы: S ярче).
+    // Цвет эмблемы по грейду — как ранги в LoL, все оттенки различимы.
     private static string GradeColor(char g) => g switch
     {
         'S' => "#FFD23C",   // золото (яркое)
         'A' => "#5CE0E6",   // диамант (бирюза)
-        'B' => "#C89B3C",   // золото (hextech, приглушённое)
+        'B' => "#CD7F32",   // бронза
         'C' => "#B7C2CC",   // серебро
-        _   => "#A9713E",   // бронза/коричневый (D)
+        _   => "#6E5140",   // тёмно-коричневый (D) — как ранг Iron
     };
 
     private void RenderTierList()
@@ -2474,6 +2473,19 @@ public sealed class RecCard
     public string       ScoreColor { get; init; } = "#C89B3C";
     public string       Reason     { get; init; } = "";
     public ImageSource? Icon       { get; init; }
+}
+
+/// <summary>Умножает число на параметр-долю (для MaxHeight = доля от высоты).</summary>
+public sealed class RatioConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type t, object p, System.Globalization.CultureInfo c)
+    {
+        double v = value is double d ? d : 0;
+        double r = double.TryParse(p?.ToString(), System.Globalization.NumberStyles.Float,
+                                   System.Globalization.CultureInfo.InvariantCulture, out var x) ? x : 1;
+        return v * r;
+    }
+    public object ConvertBack(object v, Type t, object p, System.Globalization.CultureInfo c) => v;
 }
 
 /// <summary>Ячейка тир-листа (лучшие по WR на роль) под банами.</summary>

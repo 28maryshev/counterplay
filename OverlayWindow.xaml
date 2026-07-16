@@ -75,6 +75,9 @@
       <GradientStop Color="#88F0685E" Offset="1"/>
     </LinearGradientBrush>
 
+    <!-- Умножает высоту на долю — тир-лист не выше половины центра (баны важнее). -->
+    <loc:RatioConverter x:Key="Ratio"/>
+
     <!-- Шестигранная эмблема тир-листа: иконка чемпиона в форме гекса, рамка
          красится по грейду. Геометрия на прямоугольник 40×44 (клип и обводка). -->
     <PathGeometry x:Key="HexEmblem"
@@ -884,7 +887,7 @@
           <Border Grid.Column="1"
                   BorderBrush="#30C89B3C" BorderThickness="1,0"
                   Padding="10,0">
-            <Grid>
+            <Grid x:Name="CenterGrid">
             <Grid.RowDefinitions>
               <RowDefinition Height="*"/>     <!-- список пиков/банов -->
               <RowDefinition Height="Auto"/>  <!-- руны и билд        -->
@@ -1239,14 +1242,19 @@
             </Border>
 
             <!-- ══ ТИР-ЛИСТ ПАТЧА (под банами) ═══════════════════════════
-                 Лучшие по винрейту чемпионы, разложенные по ролям. -->
+                 Лучшие по винрейту чемпионы, разложенные по ролям. Высота
+                 ограничена половиной центра — баны важнее, тир-лист их не
+                 вытесняет; при нехватке места роли прокручиваются. -->
             <Border Grid.Row="1" x:Name="TierListBar" Visibility="Collapsed"
                     Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
-                    Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
-              <StackPanel>
-                <TextBlock x:Name="TierTitle" Text="" Margin="2,0,0,7"
+                    Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1"
+                    MaxHeight="{Binding ActualHeight, ElementName=CenterGrid,
+                                Converter={StaticResource Ratio}, ConverterParameter=0.5}">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" x:Name="TierTitle" Text="" Margin="2,0,0,7"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                            Foreground="#C89B3C"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="TierList">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -1279,7 +1287,7 @@
                                       <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
                                     </Path.Fill>
                                   </Path>
-                                  <Path Data="{StaticResource HexEmblem}" Stretch="None" StrokeThickness="2.5">
+                                  <Path Data="{StaticResource HexEmblem}" Stretch="None" StrokeThickness="1.5">
                                     <Path.Stroke><SolidColorBrush Color="{Binding GradeColor}"/></Path.Stroke>
                                   </Path>
                                   <Border CornerRadius="3" Padding="3,0" Height="14" MinWidth="14"
@@ -1303,7 +1311,8 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-              </StackPanel>
+                </ScrollViewer>
+              </DockPanel>
             </Border>
 
             <!-- ══ РУНЫ И БИЛД ═══════════════════════════════════════════
