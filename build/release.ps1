@@ -96,9 +96,20 @@ if ($Upload) {
               else { $verTags | Where-Object { $_ -ne "v$Version" } | Select-Object -Last 1 }
 
       $range = if ($prev) { "$prev..HEAD" } else { "HEAD" }
-      $lines = git log $range --no-merges --pretty=format:'%s' 2>$null |
-               Where-Object { $_ -and $_ -notmatch '^(Co-Authored-By|Merge )' } |
-               ForEach-Object { "- $_" }
+
+      # In the Discord announcement players only care about the app itself.
+      # Commits that touched ONLY internal files (test sandbox, data pipeline,
+      # Discord bot, build scripts, docs) are left out of the release notes.
+      $internal = '^(pipeline/|bot/|build/|docs/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|TestMode\.cs|DraftTest\.cs)'
+      $lines = @()
+      foreach ($c in (git log $range --no-merges --pretty=format:'%H|%s' 2>$null)) {
+        $h, $s = $c -split '\|', 2
+        if (-not $s -or $s -match '^(Co-Authored-By|Merge )') { continue }
+        $files = git diff-tree --no-commit-id --name-only -r $h 2>$null
+        $userFacing = $files | Where-Object { $_ -notmatch $internal }
+        if ($files -and -not $userFacing) { continue }   # только внутренняя кухня
+        $lines += "- $s"
+      }
       $Notes = if ($lines) { ($lines -join "`n") } else { "Maintenance and fixes." }
       Write-Host "Changelog since $prev ($($lines.Count) commits)" -ForegroundColor Cyan
     }

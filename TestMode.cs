@@ -76,6 +76,12 @@ sealed class TestPanel : Window
     private static readonly string[] LcuRoles  = ["top", "jungle", "middle", "bottom", "utility"];
     private static readonly string[] RoleNames = ["TOP", "JGL", "MID", "BOT", "SUP"];
 
+    // Роли строк (изначально TOP/JGL/MID/BOT/SUP сверху вниз). Кнопка «🔀 Роли»
+    // перемешивает их — так порядок пика (по номеру строки) перестаёт совпадать
+    // с ролями, как в настоящем драфте, где первым пикает кто угодно.
+    private readonly string[] _rowRoles = [.. LcuRoles];
+    private readonly TextBlock[] _roleLbls = new TextBlock[5];
+
     private readonly OverlayWindow _overlay;
     private readonly RecommendationEngine _engine;
     private readonly Dictionary<string, int> _idByName;   // имя чемпиона → id
@@ -144,6 +150,7 @@ sealed class TestPanel : Window
                 Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
                 FontWeight = FontWeights.Bold, FontSize = 11
             };
+            _roleLbls[i] = roleLbl;
             DockPanel.SetDock(roleLbl, Dock.Left);
             row.Children.Add(roleLbl);
             row.Children.Add(_ally[i] = MakeCombo());
@@ -203,6 +210,17 @@ sealed class TestPanel : Window
         DockPanel.SetDock(_simBtn, Dock.Right);
         bottom.Children.Insert(0, _simBtn);
 
+        // Перемешать роли строк: порядок пика перестаёт совпадать с ролями.
+        var shuffle = new Button
+        {
+            Content = "🔀 Роли", Width = 74,
+            Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 7, 0),
+            ToolTip = "Перемешать роли по строкам — очередь пика у ролей будет разной"
+        };
+        shuffle.Click += (_, _) => ShuffleRoles();
+        DockPanel.SetDock(shuffle, Dock.Right);
+        bottom.Children.Insert(0, shuffle);
+
         Grid.SetRow(bottom, 6); Grid.SetColumn(bottom, 0); Grid.SetColumnSpan(bottom, 3);
         root.Children.Add(bottom);
 
@@ -236,6 +254,20 @@ sealed class TestPanel : Window
         cb.SelectionChanged += (_, _) => Recompute();
         cb.LostKeyboardFocus += (_, _) => Recompute(); // подтверждение набранного текста
         return cb;
+    }
+
+    // Перемешивает роли строк (Фишер-Йетс) и обновляет подписи. Роли врагов
+    // зеркальны по строкам, так что перемешивание влияет на обе команды.
+    private void ShuffleRoles()
+    {
+        for (int i = _rowRoles.Length - 1; i > 0; i--)
+        {
+            int j = _rng.Next(i + 1);
+            (_rowRoles[i], _rowRoles[j]) = (_rowRoles[j], _rowRoles[i]);
+        }
+        for (int i = 0; i < 5; i++)
+            _roleLbls[i].Text = RoleNames[Array.IndexOf(LcuRoles, _rowRoles[i])];
+        Recompute();
     }
 
     // ── Авто-драфт ───────────────────────────────────────────────────────────
@@ -321,7 +353,7 @@ sealed class TestPanel : Window
         if (ChampOf(cb) != 0) return;   // уже выбран (например, я успел сам)
 
         var taken  = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
-        var dbRole = RecommendationEngine.LcuToDbRole(LcuRoles[cell % 5]);
+        var dbRole = RecommendationEngine.LcuToDbRole(_rowRoles[cell % 5]);
         var pool   = _idByName.Values
             .Where(id => !taken.Contains(id) && _engine.RoleShare(id, dbRole) >= 0.20)
             .ToList();
@@ -356,7 +388,7 @@ sealed class TestPanel : Window
             var champ = ChampOf(_ally[i]);
             var isMe  = i == meIdx;
             // Мой чемпион — как ховер (PickIntent): подбор продолжает показывать список.
-            my.Add(new DraftPlayer(i, isMe ? 0 : champ, isMe ? champ : 0, LcuRoles[i], isMe));
+            my.Add(new DraftPlayer(i, isMe ? 0 : champ, isMe ? champ : 0, _rowRoles[i], isMe));
         }
         var their = new List<DraftPlayer>();
         for (int i = 0; i < 5; i++)
@@ -389,7 +421,7 @@ sealed class TestPanel : Window
         }
 
         var draft = new DraftState(
-            my, their, [], [], my[meIdx], LcuRoles[meIdx],
+            my, their, [], [], my[meIdx], _rowRoles[meIdx],
             opp, false, _banPhase.IsChecked == true, [], false,
             myPick ? 1 : -1, myPick && myTurn, active, firstPick);
 
