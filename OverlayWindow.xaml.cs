@@ -940,7 +940,10 @@ public partial class OverlayWindow : Window
                         WrBrush = t.Winrate >= 52 ? "#4CD08A" : t.Winrate >= 50 ? "#C9D2DC" : "#E0806A",
                         Grade   = t.Grade.ToString(),
                         GradeColor = GradeColor(t.Grade),
-                        Tip     = $"{DataDragon.Name(t.ChampionId)} · {t.Grade} · WR {t.Winrate:F1}% · {t.Games} игр",
+                        Tip     = $"{DataDragon.Name(t.ChampionId)} · {t.Grade}\n"
+                                + $"WR {t.Winrate:F1}%  ·  {Loc.T("tier.pick")} {t.PickRate:F1}%"
+                                + (t.BanRate > 0 ? $"  ·  {Loc.T("tier.ban")} {t.BanRate:F1}%" : "")
+                                + $"  ·  {t.Games} " + Loc.T("tier.games"),
                     }).ToList(),
                 });
             }

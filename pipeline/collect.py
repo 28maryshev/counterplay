@@ -163,6 +163,16 @@ def init_db(path: str) -> sqlite3.Connection:
             slots       TEXT
         );
 
+        -- Баны чемпионов (для presence в тир-листе: пик+бан-рейт как у op.gg).
+        -- Считаем по матчу, не по роли — банят чемпиона, а не чемпиона-на-роли.
+        CREATE TABLE IF NOT EXISTS champion_bans (
+            champion_id INTEGER,
+            tier_bucket TEXT,
+            patch       TEXT,
+            bans        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, tier_bucket, patch)
+        );
+
         -- ── Руны ────────────────────────────────────────────────────────────
         -- Кейстоун (главная руна) — самая плотная выборка, по ней и выбираем.
         CREATE TABLE IF NOT EXISTS keystone_wr (
@@ -381,6 +391,18 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
     team_ids = list(teams.keys())
     if len(team_ids) != 2:
         return
+
+    # Баны команд → presence в тир-листе. championId = -1, если бан не сделан.
+    for team in info.get('teams', []):
+        for b in team.get('bans', []):
+            bc = b.get('championId', 0)
+            if bc and bc > 0:
+                con.execute(
+                    """INSERT INTO champion_bans (champion_id, tier_bucket, patch, bans)
+                       VALUES (?, ?, ?, 1)
+                       ON CONFLICT (champion_id, tier_bucket, patch)
+                       DO UPDATE SET bans = bans + 1""",
+                    (bc, tier_bucket, patch))
 
     t1, t2 = team_ids[0], team_ids[1]
 

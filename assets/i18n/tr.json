@@ -88,7 +88,10 @@
     "failed": "Başarısız — sıra sende mi?"
   },
   "tier": {
-    "title": "Tier listesi · {0}"
+    "title": "Tier listesi · {0}",
+    "pick": "seçim",
+    "ban": "yasak",
+    "games": "maç"
   },
   "bucket": {
     "silver": "Gümüş",

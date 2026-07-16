@@ -319,7 +319,10 @@
     "failed": "失敗 — あなたのBANですか？"
   },
   "tier": {
-    "title": "Tierリスト · {0}"
+    "title": "Tierリスト · {0}",
+    "pick": "ピック",
+    "ban": "BAN",
+    "games": "試合"
   },
   "bucket": {
     "silver": "シルバー",

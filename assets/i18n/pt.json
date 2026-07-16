@@ -88,7 +88,10 @@
     "failed": "Falhou — é o seu banimento?"
   },
   "tier": {
-    "title": "Tier list · {0}"
+    "title": "Tier list · {0}",
+    "pick": "escolha",
+    "ban": "ban",
+    "games": "jogos"
   },
   "bucket": {
     "silver": "Prata",

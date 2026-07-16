@@ -371,7 +371,10 @@
     "failed": "Failed — is it your ban?"
   },
   "tier": {
-    "title": "Tier list · {0}"
+    "title": "Tier list · {0}",
+    "pick": "pick",
+    "ban": "ban",
+    "games": "games"
   },
   "bucket": {
     "silver": "Silver",

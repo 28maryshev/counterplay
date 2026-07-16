@@ -88,7 +88,10 @@
     "failed": "Error — ¿es tu baneo?"
   },
   "tier": {
-    "title": "Tier list · {0}"
+    "title": "Tier list · {0}",
+    "pick": "selec.",
+    "ban": "baneo",
+    "games": "partidas"
   },
   "bucket": {
     "silver": "Plata",
