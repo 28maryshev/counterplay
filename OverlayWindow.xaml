@@ -1314,24 +1314,21 @@
                     Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
               <Border.Resources>
-                <!-- Эмблема чемпиона: гекс с иконкой + рамка (цвет грейда или
-                     нейтральный у WR-столбца) + WR%. Бейдж грейда скрывается,
-                     когда грейда нет (ShowGrade=false). Общий шаблон для обоих
-                     столбцов. -->
+                <!-- Круглая иконка чемпиона + рамка (цвет грейда или нейтральный
+                     у WR-столбца) + WR%. Бейдж грейда скрывается, когда грейда
+                     нет (ShowGrade=false). Общий шаблон для обоих столбцов. -->
                 <DataTemplate x:Key="TierEmblem">
                   <StackPanel Margin="0,0,0,4" HorizontalAlignment="Center" ToolTip="{Binding Tip}">
-                    <Grid Width="34" Height="38" HorizontalAlignment="Center">
-                      <Path Data="{StaticResource HexEmblem}" Stretch="Uniform">
-                        <Path.Fill>
+                    <Grid Width="36" Height="36" HorizontalAlignment="Center">
+                      <Ellipse StrokeThickness="1.5">
+                        <Ellipse.Fill>
                           <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
-                        </Path.Fill>
-                      </Path>
-                      <Path Data="{StaticResource HexEmblem}" Stretch="Uniform" StrokeThickness="1.5">
-                        <Path.Stroke><SolidColorBrush Color="{Binding FrameColor}"/></Path.Stroke>
-                      </Path>
+                        </Ellipse.Fill>
+                        <Ellipse.Stroke><SolidColorBrush Color="{Binding FrameColor}"/></Ellipse.Stroke>
+                      </Ellipse>
                       <Border CornerRadius="3" Padding="2,0" Height="13" MinWidth="13"
                               HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                              Margin="0,0,-2,-1" Visibility="{Binding GradeVisibility}">
+                              Margin="0,0,-1,0" Visibility="{Binding GradeVisibility}">
                         <Border.Background><SolidColorBrush Color="{Binding GradeColor}"/></Border.Background>
                         <TextBlock Text="{Binding Grade}" Foreground="#10141A"
                                    FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"
@@ -1359,13 +1356,16 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <StackPanel Margin="0,0,10,0" VerticalAlignment="Top">
+                        <!-- Разделитель между ролями — тонкая линия справа. -->
+                        <Border BorderBrush="#22415568" BorderThickness="0,0,1,0"
+                                Padding="0,0,9,0" Margin="0,0,9,0" VerticalAlignment="Top">
+                        <StackPanel>
                           <!-- Заголовок роли над парой столбцов -->
-                          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
-                            <Image Source="{Binding RoleIcon}" Width="16" Height="16" Margin="0,0,5,0"
-                                   Opacity="0.9" RenderOptions.BitmapScalingMode="HighQuality"/>
-                            <TextBlock Text="{Binding RoleLabel}" Foreground="#8AA0B2"
-                                       FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                            <Image Source="{Binding RoleIcon}" Width="22" Height="22" Margin="0,0,6,0"
+                                   Opacity="0.95" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <TextBlock Text="{Binding RoleLabel}" Foreground="#9FB4C6"
+                                       FontFamily="{StaticResource DisplayFont}" FontSize="14" FontWeight="Bold"
                                        VerticalAlignment="Center"/>
                           </StackPanel>
                           <Grid>
@@ -1373,24 +1373,25 @@
                               <ColumnDefinition Width="Auto"/>
                               <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <!-- WR-столбец -->
-                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                              <TextBlock Text="{loc:T tier.byWr}" HorizontalAlignment="Center" Margin="0,0,0,3"
-                                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
-                                         Foreground="#5E7488"/>
-                              <ItemsControl ItemsSource="{Binding WrCells}"
-                                            ItemTemplate="{StaticResource TierEmblem}"/>
-                            </StackPanel>
-                            <!-- Тир-столбец -->
-                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                            <!-- Слева — тир (с грейдами) -->
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
                               <TextBlock Text="{loc:T tier.byTier}" HorizontalAlignment="Center" Margin="0,0,0,3"
                                          FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
                                          Foreground="#B08A38"/>
                               <ItemsControl ItemsSource="{Binding TierCells}"
                                             ItemTemplate="{StaticResource TierEmblem}"/>
                             </StackPanel>
+                            <!-- Справа — по винрейту (без грейдов) -->
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                              <TextBlock Text="{loc:T tier.byWr}" HorizontalAlignment="Center" Margin="0,0,0,3"
+                                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                                         Foreground="#5E7488"/>
+                              <ItemsControl ItemsSource="{Binding WrCells}"
+                                            ItemTemplate="{StaticResource TierEmblem}"/>
+                            </StackPanel>
                           </Grid>
                         </StackPanel>
+                        </Border>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>

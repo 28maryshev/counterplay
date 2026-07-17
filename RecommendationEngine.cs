@@ -1026,8 +1026,10 @@ public sealed class RecommendationEngine : IDisposable
                 double meta = (lb - 50.0) + W_PICK * pick + W_BAN * ban;
                 return (x.Id, wr, Games: (int)Math.Round(x.G), pick, ban, lb, meta);
             })
-            // Ключ ранжирования зависит от режима: чистый винрейт (LB) или meta.
-            .OrderByDescending(s => byWinrate ? s.lb : s.meta)
+            // Ключ ранжирования = то, что показываем: в WR-столбце сортируем по
+            // сырому винрейту (иначе выше по %-у стоит ниже — путаница), в тире
+            // по meta-score. Мелкие выборки уже отсечены порогом TIER_MIN_GAMES.
+            .OrderByDescending(s => byWinrate ? s.wr : s.meta)
             .ToList();
 
             // Грейд — по рангу в роли; показываем top-N (уже отсортированы).
