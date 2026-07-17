@@ -91,6 +91,7 @@ module.exports = {
       ? [
           `state: **${st.state}**`,
           st.matches != null ? `matches in db: **${st.matches.toLocaleString('en-US')}**` : null,
+          st.this_key != null ? `collected on this key: **+${st.this_key.toLocaleString('en-US')}**` : null,
           st.collected != null ? `collected last round: **${st.collected}**` : null,
           st.version ? `published version: \`${st.version}\` (patch ${st.patch})` : null,
           st.error ? `last error: \`${st.error}\`` : null,

@@ -27,6 +27,7 @@ import json
 import os
 import sqlite3
 import sys
+import threading
 import time
 import traceback
 from datetime import datetime, timezone
@@ -78,13 +79,42 @@ def matches_line() -> str:
     return f'В базе: **{n:,}** матчей.'.replace(',', ' ') if n is not None else ''
 
 
-def set_status(**fields):
-    fields['at'] = datetime.now(timezone.utc).isoformat()
-    fields.setdefault('matches', db_matches())
+# Текущее состояние + heartbeat. Раньше статус писался только при смене фазы, а
+# сбор идёт часами — счётчик в /collect status замерзал на числе, которое было
+# на старте (совпадало с засеянным из релиза, потому и выглядело «опубликованным»).
+# Теперь фоновый поток переписывает файл раз в HEARTBEAT секунд со свежим счётчиком.
+HEARTBEAT = 30
+_state: dict = {'state': 'starting'}
+_state_lock = threading.Lock()
+
+
+def _write_status():
+    with _state_lock:
+        data = dict(_state)
+        base = _state.get('base_matches')
+    data['at'] = datetime.now(timezone.utc).isoformat()
+    n = db_matches()                 # всегда живое число из рабочей базы
+    data['matches'] = n
+    # Прирост с момента старта текущего ключа — видно, идёт сбор или встал.
+    if base is not None and n is not None:
+        data['this_key'] = n - base
     try:
-        STATUS_FILE.write_text(json.dumps(fields, ensure_ascii=False), encoding='utf-8')
+        STATUS_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
     except Exception:
         pass
+
+
+def set_status(**fields):
+    with _state_lock:
+        _state.clear()
+        _state.update(fields)
+    _write_status()
+
+
+def _heartbeat_loop():
+    while True:
+        time.sleep(HEARTBEAT)
+        _write_status()
 
 
 def read_key() -> str | None:
@@ -128,6 +158,8 @@ def publish_db(session_total: int):
 
 def main():
     CONTROL.mkdir(parents=True, exist_ok=True)
+    # Демон: статус остаётся свежим всё время сбора, а не только на переходах фаз.
+    threading.Thread(target=_heartbeat_loop, daemon=True).start()
     collect.COMPLETED_ITEMS = collect.load_completed_items()
 
     regions = collect._parse_list(os.environ.get('REGIONS', 'all'),
@@ -140,7 +172,9 @@ def main():
 
     while True:
         key = wait_for_key()
-        set_status(state='collecting', regions=regions, buckets=buckets)
+        # base_matches — точка отсчёта для «+N за текущий ключ» в heartbeat.
+        set_status(state='collecting', regions=regions, buckets=buckets,
+                   base_matches=db_matches())
         print('Ключ получен — старт сбора.', flush=True)
         notify('▶️ Ключ принят, сбор пошёл (регионы параллельно).')
         try:
