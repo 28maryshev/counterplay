@@ -77,7 +77,14 @@ else {
 
 # 4. (optional) publish the app release to GitHub
 if ($Upload) {
-  if (-not $Token) { throw "Need -Token or GITHUB_TOKEN environment variable" }
+  # No explicit token? Fall back to the token from an authenticated gh CLI, so
+  # `.\release` just works after `gh auth login` without exporting a variable.
+  if (-not $Token -and (Get-Command gh -ErrorAction SilentlyContinue)) {
+    $Token = (gh auth token 2>$null | Select-Object -First 1)
+  }
+  if (-not $Token) {
+    throw "No GitHub token: pass -Token, set GITHUB_TOKEN, or run 'gh auth login'"
+  }
   if (-not $FeedOnly) {
     vpk upload github --repoUrl $repo --publish --releaseName "Counterplay v$Version" --tag "v$Version" --token $Token
 
