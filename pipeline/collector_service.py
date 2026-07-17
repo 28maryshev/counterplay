@@ -38,7 +38,7 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
 import collect  # noqa: E402  (наш модуль сбора)
-from collect import KeyExpired  # noqa: E402
+from collect import KeyExpired, DiskLow  # noqa: E402
 import publish_data  # noqa: E402
 
 CONTROL = Path(os.environ.get('CONTROL_DIR', '/control'))
@@ -187,6 +187,10 @@ def publish_db(session_total: int):
 
 def main():
     CONTROL.mkdir(parents=True, exist_ok=True)
+    # Предохранитель по диску. Порог — максимум из MIN_FREE_MB и 1.5× веса базы
+    # (публикация делает полную копию), считается на лету внутри check_disk.
+    collect.MIN_FREE_MB = int(os.environ.get('MIN_FREE_MB', '900'))
+    collect._db_file = DB_PATH
     # Демон: статус остаётся свежим всё время сбора, а не только на переходах фаз.
     threading.Thread(target=_heartbeat_loop, daemon=True).start()
     collect.COMPLETED_ITEMS = collect.load_completed_items()
@@ -212,6 +216,26 @@ def main():
             publish_db(got or 0)
             KEY_FILE.unlink(missing_ok=True)
             set_status(state='idle', collected=got or 0)
+        except DiskLow as e:
+            # Место кончилось: публикуем собранное (на это запаса хватает — порог
+            # ×1.5 от базы именно для этого) и ждём, пока освободят. Ключ НЕ
+            # трогаем: как только место появится, сбор продолжится сам.
+            got = getattr(e, 'collected', 0) or 0
+            publish_db(got)
+            notify(f'🛑 **Сбор остановлен: мало места на диске.**\n'
+                   f'Свободно {e.free_mb} МБ, нужно ≥ {e.need_mb} МБ. '
+                   f'За этот ключ собрано +{got}.\n{matches_line()}\n'
+                   f'Собранное опубликовано. Освободи место — сбор продолжится сам.')
+            set_status(state='disk_full', collected=got)
+            # Ждём места. Ключ на руках, так что как освободится — сразу в бой.
+            while True:
+                time.sleep(60)
+                try:
+                    collect.check_disk()
+                    break           # место появилось
+                except DiskLow:
+                    continue
+            notify(f'✅ Место освободилось — продолжаю сбор.\n{matches_line()}')
         except KeyExpired as e:
             # Штатно: база уже сохранена внутри run_continuous. Публикуем всё,
             # что успели, чистим ключ и ждём новый.
