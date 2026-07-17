@@ -25,6 +25,7 @@ Dev-ключ живёт 24 ч, поэтому истечение ключа — 
 
 import json
 import os
+import sqlite3
 import sys
 import time
 import traceback
@@ -59,8 +60,27 @@ def notify(text: str):
         print(f'[notify] не отправилось: {e}', flush=True)
 
 
+def db_matches() -> int | None:
+    """Матчей в базе. Идёт в уведомления — по нему видно, что сбор реально
+    двигается, а не простаивает. Read-only, чтобы не мешать пишущему сбору."""
+    try:
+        con = sqlite3.connect(f'file:{DB_PATH}?mode=ro', uri=True)
+        try:
+            return con.execute('SELECT COUNT(*) FROM processed_matches').fetchone()[0]
+        finally:
+            con.close()
+    except Exception:
+        return None
+
+
+def matches_line() -> str:
+    n = db_matches()
+    return f'В базе: **{n:,}** матчей.'.replace(',', ' ') if n is not None else ''
+
+
 def set_status(**fields):
     fields['at'] = datetime.now(timezone.utc).isoformat()
+    fields.setdefault('matches', db_matches())
     try:
         STATUS_FILE.write_text(json.dumps(fields, ensure_ascii=False), encoding='utf-8')
     except Exception:
@@ -85,7 +105,7 @@ def wait_for_key() -> str:
         if not asked:
             set_status(state='waiting_key')
             notify('🔑 Нужен свежий Riot API-ключ — пришли его командой '
-                   '`/collect key:RGAPI-…` (ключ живёт 24 ч).')
+                   f'`/collect key:RGAPI-…` (ключ живёт 24 ч).\n{matches_line()}')
             asked = True
         time.sleep(POLL)
 
@@ -129,13 +149,15 @@ def main():
             publish_db(got or 0)
             KEY_FILE.unlink(missing_ok=True)
             set_status(state='idle', collected=got or 0)
-        except KeyExpired:
+        except KeyExpired as e:
             # Штатно: база уже сохранена внутри run_continuous. Публикуем всё,
             # что успели, чистим ключ и ждём новый.
             KEY_FILE.unlink(missing_ok=True)
-            publish_db(0)
-            notify('⌛ Ключ истёк. Пришли новый: `/collect key:RGAPI-…`')
-            set_status(state='key_expired')
+            got = getattr(e, 'collected', 0) or 0
+            publish_db(got)
+            notify(f'⌛ Ключ истёк — за этот ключ собрано **+{got}** матчей.\n'
+                   f'{matches_line()}\nПришли новый: `/collect key:RGAPI-…`')
+            set_status(state='key_expired', collected=got)
         except Exception as e:
             print(traceback.format_exc(), flush=True)
             notify(f'❌ Сбор упал: `{type(e).__name__}: {e}`. Перезапущусь через минуту.')

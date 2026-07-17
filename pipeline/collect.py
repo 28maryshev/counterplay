@@ -522,6 +522,7 @@ class KeyExpired(RuntimeError):
 
     def __init__(self, code: int):
         self.code = code
+        self.collected = 0   # сколько успели собрать до протухания (ставит run_continuous)
         super().__init__(f'[{code}] {self.HINT}')
 
 
@@ -795,6 +796,7 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
         print('  powershell -ExecutionPolicy Bypass -File .\\build\\publish-data.ps1')
 
     if expired:
+        expired.collected = session_total  # сервису — для уведомления «+N за ключ»
         raise expired   # база сохранена — теперь пусть решает вызывающий
     return session_total
 
