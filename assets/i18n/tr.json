@@ -91,7 +91,9 @@
     "title": "Tier listesi · {0}",
     "pick": "seçim",
     "ban": "yasak",
-    "games": "maç"
+    "games": "maç",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Gümüş",

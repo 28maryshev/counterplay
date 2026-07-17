@@ -967,10 +967,13 @@ public sealed class RecommendationEngine : IDisposable
         frac < 0.05 ? 'S' : frac < 0.14 ? 'A' : frac < 0.30 ? 'B' : frac < 0.55 ? 'C' : 'D';
 
     /// <summary>
-    /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли по
-    /// meta-score (сила + присутствие), с грейдом S..D. Роли — top→jgl→mid→adc→sup.
+    /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли,
+    /// грейд S..D по рангу. Два режима ранжирования:
+    ///   byWinrate=false — по meta-score (сила + присутствие пик/бан) — «тир»;
+    ///   byWinrate=true  — по чистому винрейту (нижняя граница Уилсона).
+    /// Роли — top→jgl→mid→adc→sup.
     /// </summary>
-    public IReadOnlyList<TierEntry> TierList(int perRole = 12)
+    public IReadOnlyList<TierEntry> TierList(int perRole = 15, bool byWinrate = false)
     {
         var roles = new[] { "top", "jungle", "mid", "adc", "support" };
         var result = new List<TierEntry>();
@@ -1012,7 +1015,7 @@ public sealed class RecommendationEngine : IDisposable
                 }
             if (roleTotal <= 0) continue;
 
-            // Meta-score каждого чемпиона роли: сила + присутствие (пик+бан).
+            // Метрики каждого чемпиона роли: сила (LB), присутствие, meta-score.
             var scored = rows.Select(x =>
             {
                 double wr   = 100.0 * x.W / x.G;
@@ -1021,12 +1024,13 @@ public sealed class RecommendationEngine : IDisposable
                 double ban  = totalMatches > 0
                     ? 100.0 * bansByChamp.GetValueOrDefault(x.Id) / totalMatches : 0.0;
                 double meta = (lb - 50.0) + W_PICK * pick + W_BAN * ban;
-                return (x.Id, wr, Games: (int)Math.Round(x.G), pick, ban, meta);
+                return (x.Id, wr, Games: (int)Math.Round(x.G), pick, ban, lb, meta);
             })
-            .OrderByDescending(s => s.meta)
+            // Ключ ранжирования зависит от режима: чистый винрейт (LB) или meta.
+            .OrderByDescending(s => byWinrate ? s.lb : s.meta)
             .ToList();
 
-            // Грейд — по рангу в роли; показываем top-N (уже отсортированы по meta).
+            // Грейд — по рангу в роли; показываем top-N (уже отсортированы).
             for (int i = 0; i < scored.Count && i < perRole; i++)
             {
                 var s = scored[i];

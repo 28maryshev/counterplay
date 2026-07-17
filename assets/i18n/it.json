@@ -322,7 +322,9 @@
     "title": "Tier list · {0}",
     "pick": "scelta",
     "ban": "ban",
-    "games": "partite"
+    "games": "partite",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Argento",

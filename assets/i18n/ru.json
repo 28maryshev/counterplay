@@ -374,7 +374,9 @@
     "title": "Тир-лист · {0}",
     "pick": "пик",
     "ban": "бан",
-    "games": "игр"
+    "games": "игр",
+    "byWr": "WR",
+    "byTier": "Тир"
   },
   "bucket": {
     "silver": "Серебро",

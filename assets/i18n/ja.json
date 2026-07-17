@@ -322,7 +322,9 @@
     "title": "Tierリスト · {0}",
     "pick": "ピック",
     "ban": "BAN",
-    "games": "試合"
+    "games": "試合",
+    "byWr": "勝率",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "シルバー",

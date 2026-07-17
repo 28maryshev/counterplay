@@ -322,7 +322,9 @@
     "title": "Tier list · {0}",
     "pick": "chọn",
     "ban": "cấm",
-    "games": "trận"
+    "games": "trận",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Bạc",

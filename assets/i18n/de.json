@@ -91,7 +91,9 @@
     "title": "Tier-Liste · {0}",
     "pick": "Pick",
     "ban": "Bann",
-    "games": "Spiele"
+    "games": "Spiele",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Silber",

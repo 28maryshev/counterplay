@@ -322,7 +322,9 @@
     "title": "Tier lista · {0}",
     "pick": "wybór",
     "ban": "ban",
-    "games": "gier"
+    "games": "gier",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Srebro",

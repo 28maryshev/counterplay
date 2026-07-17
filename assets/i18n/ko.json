@@ -91,7 +91,9 @@
     "title": "티어 리스트 · {0}",
     "pick": "픽",
     "ban": "밴",
-    "games": "게임"
+    "games": "게임",
+    "byWr": "승률",
+    "byTier": "티어"
   },
   "bucket": {
     "silver": "실버",

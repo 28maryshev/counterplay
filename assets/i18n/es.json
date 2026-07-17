@@ -91,7 +91,9 @@
     "title": "Tier list · {0}",
     "pick": "selec.",
     "ban": "baneo",
-    "games": "partidas"
+    "games": "partidas",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Plata",

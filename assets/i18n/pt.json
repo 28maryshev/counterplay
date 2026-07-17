@@ -91,7 +91,9 @@
     "title": "Tier list · {0}",
     "pick": "escolha",
     "ban": "ban",
-    "games": "jogos"
+    "games": "jogos",
+    "byWr": "WR",
+    "byTier": "Tier"
   },
   "bucket": {
     "silver": "Prata",

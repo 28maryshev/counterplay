@@ -906,7 +906,7 @@ public partial class OverlayWindow : Window
     }
 
     // ── Тир-лист патча (лучшие по WR на роль) — под банами ────────────────────
-    private IReadOnlyList<TierRow>? _tierRows;   // кэш: список статичен в пределах патча
+    private IReadOnlyList<TierRoleCol>? _tierCols;   // кэш: статичен в пределах патча
 
     // Цвет эмблемы по грейду — как ранги в LoL, все оттенки различимы.
     private static string GradeColor(char g) => g switch
@@ -918,41 +918,54 @@ public partial class OverlayWindow : Window
         _   => "#6E5140",   // тёмно-коричневый (D) — как ранг Iron
     };
 
+    private static string WrBrush(double wr) =>
+        wr >= 52 ? "#4CD08A" : wr >= 50 ? "#C9D2DC" : "#E0806A";
+
+    private TierCell TierCellOf(RecommendationEngine.TierEntry t, bool showGrade) => new()
+    {
+        ChampionId = t.ChampionId,
+        Icon    = IconCache.Get(t.ChampionId),
+        WrText  = $"{t.Winrate:F1}%",
+        WrBrush = WrBrush(t.Winrate),
+        Grade   = t.Grade.ToString(),
+        GradeColor = GradeColor(t.Grade),
+        ShowGrade  = showGrade,
+        Tip     = $"{DataDragon.Name(t.ChampionId)}"
+                + (showGrade ? $" · {t.Grade}" : "") + "\n"
+                + $"WR {t.Winrate:F1}%  ·  {Loc.T("tier.pick")} {t.PickRate:F1}%"
+                + (t.BanRate > 0 ? $"  ·  {Loc.T("tier.ban")} {t.BanRate:F1}%" : "")
+                + $"  ·  {t.Games} " + Loc.T("tier.games"),
+    };
+
     private void RenderTierList()
     {
         if (_engine is null) { TierListBar.Visibility = Visibility.Collapsed; return; }
-        if (_tierRows is null)
+        if (_tierCols is null)
         {
-            var byRole = _engine.TierList(12);
-            var rows = new List<TierRow>();
-            foreach (var g in byRole.GroupBy(t => t.Role))
+            // Две разбивки: по чистому винрейту (без грейдов) и по meta-тиру.
+            var byWr   = _engine.TierList(15, byWinrate: true).GroupBy(t => t.Role)
+                                 .ToDictionary(g => g.Key, g => g.ToList());
+            var byTier = _engine.TierList(15, byWinrate: false).GroupBy(t => t.Role)
+                                 .ToDictionary(g => g.Key, g => g.ToList());
+
+            var cols = new List<TierRoleCol>();
+            foreach (var role in new[] { "top", "jungle", "mid", "adc", "support" })
             {
-                var lcuRole = DbToLcuRole(g.Key);
-                rows.Add(new TierRow
+                if (!byTier.TryGetValue(role, out var tierList)) continue;
+                cols.Add(new TierRoleCol
                 {
-                    RoleLabel = RoleNameDb(g.Key),
-                    RoleIcon  = RoleIcons.Get(lcuRole),
-                    Cells = g.Select(t => new TierCell
-                    {
-                        ChampionId = t.ChampionId,
-                        Icon    = IconCache.Get(t.ChampionId),
-                        WrText  = $"{t.Winrate:F1}%",
-                        WrBrush = t.Winrate >= 52 ? "#4CD08A" : t.Winrate >= 50 ? "#C9D2DC" : "#E0806A",
-                        Grade   = t.Grade.ToString(),
-                        GradeColor = GradeColor(t.Grade),
-                        Tip     = $"{DataDragon.Name(t.ChampionId)} · {t.Grade}\n"
-                                + $"WR {t.Winrate:F1}%  ·  {Loc.T("tier.pick")} {t.PickRate:F1}%"
-                                + (t.BanRate > 0 ? $"  ·  {Loc.T("tier.ban")} {t.BanRate:F1}%" : "")
-                                + $"  ·  {t.Games} " + Loc.T("tier.games"),
-                    }).ToList(),
+                    RoleLabel = RoleNameDb(role),
+                    RoleIcon  = RoleIcons.Get(DbToLcuRole(role)),
+                    WrCells   = byWr.GetValueOrDefault(role, new()).Select(t => TierCellOf(t, showGrade: false)).ToList(),
+                    TierCells = tierList.Select(t => TierCellOf(t, showGrade: true)).ToList(),
                 });
             }
-            _tierRows = rows;
+            _tierCols = cols;
             // Заголовок с именем бакета игрока: «Тир-лист · Изумруд».
             TierTitle.Text = Loc.T("tier.title", Loc.T(_engine.TierBucketLocKey));
         }
-        TierList.ItemsSource = _tierRows;
-        TierListBar.Visibility = _tierRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TierList.ItemsSource = _tierCols;
+        TierListBar.Visibility = _tierCols.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // db-роль (mid/adc/support) → lcu-позиция (middle/bottom/utility) для иконок.
@@ -1028,7 +1041,7 @@ public partial class OverlayWindow : Window
     private void OnLanguageChanged()
     {
         LangText.Text = Loc.CurrentLang.Native + " ▾";
-        _tierRows = null;             // роли/тултипы тир-листа под новую локаль
+        _tierCols = null;             // роли/тултипы тир-листа под новую локаль
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
 
         // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера
@@ -2495,14 +2508,19 @@ public sealed class TierCell
     public string       Grade      { get; init; } = "";   // S/A/B/C/D
     public string       GradeColor { get; init; } = "#C89B3C"; // цвет эмблемы и буквы
     public string       Tip        { get; init; } = "";
+    // У WR-столбца грейдов нет: скрываем бейдж, рамку красим нейтрально.
+    public bool         ShowGrade  { get; init; } = true;
+    public Visibility   GradeVisibility => ShowGrade ? Visibility.Visible : Visibility.Collapsed;
+    public string       FrameColor => ShowGrade ? GradeColor : "#3A4B5F";
 }
 
-/// <summary>Строка тир-листа: роль + топ чемпионов этой роли.</summary>
-public sealed class TierRow
+/// <summary>Колонка роли в тир-листе: два вертикальных списка — по WR и по тиру.</summary>
+public sealed class TierRoleCol
 {
     public string           RoleLabel { get; init; } = "";
     public ImageSource?     RoleIcon  { get; init; }
-    public List<TierCell>   Cells     { get; init; } = [];
+    public List<TierCell>   WrCells   { get; init; } = [];   // по винрейту, без грейдов
+    public List<TierCell>   TierCells { get; init; } = [];   // по meta-score, с грейдами
 }
 
 public sealed class FullRecCard

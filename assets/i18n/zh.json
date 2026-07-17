@@ -312,7 +312,9 @@
     "title": "梯队榜 · {0}",
     "pick": "选取",
     "ban": "禁用",
-    "games": "场"
+    "games": "场",
+    "byWr": "胜率",
+    "byTier": "梯队"
   },
   "bucket": {
     "silver": "白银",
