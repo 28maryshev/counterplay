@@ -511,6 +511,20 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
 
 # ---------- API-вызов с retry ----------
 
+class KeyExpired(RuntimeError):
+    """Dev-ключ истёк или отозван (401/403). Живёт 24 ч, так что за длинный
+    прогон это норма: CLI печатает подсказку и выходит, сервис-коллектор шлёт
+    уведомление в Discord и ждёт новый ключ, не теряя собранное."""
+
+    HINT = ('API-ключ недействителен или истёк. Сгенерируй новый dev-ключ на '
+            'developer.riotgames.com (он живёт 24 ч и аннулируется при регенерации) '
+            'и запусти снова — собранное уже сохранено.')
+
+    def __init__(self, code: int):
+        self.code = code
+        super().__init__(f'[{code}] {self.HINT}')
+
+
 class RateLimiter:
     """Держит паузу RATE_DELAY между вызовами ОДНОГО хоста роутинга.
 
@@ -566,9 +580,9 @@ def api_call(fn, *args, **kwargs):
                 print(f'  [429] Rate limit — жду {wait}s…', flush=True)
                 time.sleep(wait)
             elif code in (401, 403):
-                sys.exit(f'\n[{code}] API-ключ недействителен или истёк. Сгенерируй новый dev-ключ на '
-                         'developer.riotgames.com (он живёт 24 ч и аннулируется при регенерации) '
-                         'и запусти снова — собранное уже сохранено.')
+                # Не sys.exit: сервис-коллектор ловит это, шлёт уведомление и
+                # ждёт новый ключ. CLI ловит в main() и печатает ту же подсказку.
+                raise KeyExpired(code)
             elif code == 404:
                 return None  # ресурс не найден — пропускаем
             else:
@@ -716,6 +730,7 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
 
     session_total = 0
     interrupted = False
+    expired: KeyExpired | None = None   # ключ протух — пробросим после сохранения
     total_lock = threading.Lock()
     stop = threading.Event()
 
@@ -762,6 +777,12 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
         stop.set()
         interrupted = True
         print('\nОстановка по Ctrl+C — сохраняю собранное…', flush=True)
+    except KeyExpired as e:
+        # Ключ протух посреди прогона — не теряем собранное: гасим потоки,
+        # штатно закрываем базу ниже и пробрасываем уже после сохранения.
+        stop.set()
+        expired = e
+        print(f'\n[{e.code}] Ключ истёк — сохраняю собранное…', flush=True)
 
     # Сбрасываем WAL в основной файл — иначе C# в ReadOnly не увидит данные.
     con.execute('PRAGMA wal_checkpoint(FULL)')
@@ -772,6 +793,10 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     if interrupted or session_total:
         print('Чтобы выложить базу на сервер, выполни:')
         print('  powershell -ExecutionPolicy Bypass -File .\\build\\publish-data.ps1')
+
+    if expired:
+        raise expired   # база сохранена — теперь пусть решает вызывающий
+    return session_total
 
 
 def _parse_list(value: str, valid, name: str) -> list:
@@ -882,4 +907,7 @@ if __name__ == '__main__':
         verify_parse(key)
         sys.exit(0)
 
-    run_continuous(key, args.db, regions, buckets, args.days, args.games)
+    try:
+        run_continuous(key, args.db, regions, buckets, args.days, args.games)
+    except KeyExpired as e:
+        sys.exit(f'\n[{e.code}] {KeyExpired.HINT}')

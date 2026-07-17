@@ -1,0 +1,19 @@
+# Коллектор статистики. Ставится рядом с ботом: они делят том ./control —
+# бот кладёт туда ключ командой /collect, коллектор его подхватывает.
+#
+# Разворачивать вместе с ботом (см. pipeline/README.md).
+services:
+  collector:
+    build: .
+    container_name: counterplay-collector
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data        # data.db переживает пересборку образа
+      - ./control:/control      # обмен с ботом: key + status
+    environment:
+      CONTROL_DIR: /control
+      DB_PATH: /app/data/data.db
+    # Сбор почти всё время спит в ожидании Riot API: реальный RSS ~80-120 МБ.
+    # Лимит держит коллектор в рамках, чтобы он не съел память у соседей.
+    mem_limit: 256m

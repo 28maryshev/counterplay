@@ -1,0 +1,2 @@
+riotwatcher>=3.2
+requests>=2.31

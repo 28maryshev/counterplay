@@ -7,6 +7,11 @@ services:
     volumes:
       - ./data:/app/data   # снапшот data.db + bot.db (переживают пересборку)
       - ./logs:/app/logs
+      # Обмен с коллектором: /collect кладёт сюда ключ, читает status.
+      # Тот же каталог смонтирован в контейнер коллектора (pipeline/docker-compose.yml).
+      - ../counterplay-collector/control:/control
+    environment:
+      CONTROL_DIR: /control
     # Снапшот базы (~143 МБ) + discord.js: 300 МБ было мало, бот падал в цикл
     # перезапуска. 512 МБ — с запасом; на сервере ~330 МБ свободно.
     mem_limit: 512m
