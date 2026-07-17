@@ -7,13 +7,14 @@ namespace Counterplay;
 /// Автозапуск вместе с Windows: ключ в HKCU\...\Run (прав администратора не
 /// требует, пишется в профиль пользователя).
 ///
-/// Ссылаемся на СТАБ Velopack в корне установки (%LOCALAPPDATA%\Counterplay\
-/// Counterplay.exe), а не на current\Counterplay.exe: папка версии меняется при
-/// каждом обновлении, и прямой путь сломался бы на следующем релизе. Стаб всегда
-/// запускает актуальную версию.
+/// Ссылаемся на РЕАЛЬНЫЙ exe (%LOCALAPPDATA%\Counterplay\current\Counterplay.exe),
+/// а НЕ на стаб в корне. Стаб запускает приложение, но НЕ передаёт ему аргументы:
+/// в реестре стоит «…\Counterplay.exe --autostart», а процесс поднимался как
+/// «…\current\Counterplay.exe» без флага — программа не понимала, что это
+/// автозапуск, и разворачивала окно «ожидание клиента» при каждом включении ПК.
 ///
-/// Программа и так стартует свёрнутой в трей и разворачивается только на драфте,
-/// поэтому отдельный «тихий» режим не нужен.
+/// Путь безопасен: у Velopack папка называется именно `current` и не меняется
+/// между версиями — при обновлении подменяется её содержимое, а не имя.
 /// </summary>
 public static class Autostart
 {
@@ -42,9 +43,29 @@ public static class Autostart
     /// Поддерживается ли автозапуск в этой сборке (установлена через инсталлятор).
     public static bool Supported => StubPath != null;
 
-    /// Значение, которое ДОЛЖНО быть в реестре (стаб + флаг тихого старта).
+    /// Реальный exe приложения — его и прописываем в автозагрузку, т.к. стаб
+    /// теряет аргументы. Берём путь запущенного процесса: он и есть
+    /// ...\current\Counterplay.exe, а `current` стабильна между обновлениями.
+    public static string? AppExePath
+    {
+        get
+        {
+            try
+            {
+                var exe = Environment.ProcessPath;
+                return exe is not null && File.Exists(exe) ? exe : null;
+            }
+            catch { return null; }
+        }
+    }
+
+    /// Значение, которое ДОЛЖНО быть в реестре (реальный exe + флаг тихого старта).
+    /// Фолбэк на стаб — если путь процесса недоступен: без флага окно всплывёт,
+    /// но автозапуск хотя бы будет работать.
     private static string? DesiredValue =>
-        StubPath is { } stub ? $"\"{stub}\" --autostart" : null;
+        AppExePath is { } exe ? $"\"{exe}\" --autostart"
+        : StubPath is { } stub ? $"\"{stub}\" --autostart"
+        : null;
 
     public static bool IsEnabled
     {
