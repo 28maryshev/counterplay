@@ -1351,15 +1351,19 @@
                      ниже грейды B, C, D. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                   <ItemsControl x:Name="TierList">
+                    <!-- 5 ролей равными долями на всю ширину: UniformGrid делит
+                         область поровну, роли раздвигаются и заполняют место
+                         справа, а не жмутся слева. -->
                     <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                      <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <!-- Разделитель между ролями — тонкая линия справа. -->
+                        <!-- Разделитель между ролями — тонкая линия справа. Ячейка
+                             тянется на всю долю, содержимое центрируем. -->
                         <Border BorderBrush="#22415568" BorderThickness="0,0,1,0"
-                                Padding="0,0,9,0" Margin="0,0,9,0" VerticalAlignment="Top">
-                        <StackPanel>
+                                VerticalAlignment="Top">
+                        <StackPanel HorizontalAlignment="Center">
                           <!-- Заголовок роли над парой столбцов -->
                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
                             <Image Source="{Binding RoleIcon}" Width="22" Height="22" Margin="0,0,6,0"
