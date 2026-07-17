@@ -25,6 +25,7 @@ Dev-ключ живёт 24 ч, поэтому истечение ключа — 
 
 import json
 import os
+import shutil
 import sqlite3
 import sys
 import threading
@@ -74,6 +75,30 @@ def db_matches() -> int | None:
         return None
 
 
+def db_size_mb() -> float | None:
+    """Вес базы вместе с WAL/SHM — в WAL может лежать заметный кусок несброшенных
+    данных, так что считать только сам .db файл было бы враньём."""
+    try:
+        total = 0
+        for suffix in ('', '-wal', '-shm'):
+            f = Path(str(DB_PATH) + suffix)
+            if f.exists():
+                total += f.stat().st_size
+        return round(total / 1e6, 1)
+    except Exception:
+        return None
+
+
+def disk() -> tuple[float, float] | None:
+    """(свободно, всего) в ГБ на диске, где лежит база. Каталог примонтирован с
+    хоста, поэтому цифры — настоящие серверные, а не контейнерные."""
+    try:
+        u = shutil.disk_usage(Path(DB_PATH).parent)
+        return round(u.free / 1e9, 1), round(u.total / 1e9, 1)
+    except Exception:
+        return None
+
+
 def matches_line() -> str:
     n = db_matches()
     return f'В базе: **{n:,}** матчей.'.replace(',', ' ') if n is not None else ''
@@ -95,6 +120,10 @@ def _write_status():
     data['at'] = datetime.now(timezone.utc).isoformat()
     n = db_matches()                 # всегда живое число из рабочей базы
     data['matches'] = n
+    data['db_mb'] = db_size_mb()
+    d = disk()
+    if d:
+        data['disk_free_gb'], data['disk_total_gb'] = d
     # Прирост с момента старта текущего ключа — видно, идёт сбор или встал.
     if base is not None and n is not None:
         data['this_key'] = n - base

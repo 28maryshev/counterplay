@@ -93,6 +93,12 @@ module.exports = {
           st.matches != null ? `matches in db: **${st.matches.toLocaleString('en-US')}**` : null,
           st.this_key != null ? `collected on this key: **+${st.this_key.toLocaleString('en-US')}**` : null,
           st.collected != null ? `collected last round: **${st.collected}**` : null,
+          st.db_mb != null ? `database size: **${st.db_mb} MB**` : null,
+          // Диск — узкое место сервера (база растёт), поэтому помечаем, когда мало.
+          st.disk_free_gb != null
+            ? `disk free: **${st.disk_free_gb} GB** of ${st.disk_total_gb} GB` +
+              (st.disk_free_gb < 1 ? '  ⚠️ low' : '')
+            : null,
           st.version ? `published version: \`${st.version}\` (patch ${st.patch})` : null,
           st.error ? `last error: \`${st.error}\`` : null,
           `updated: ${String(st.at).slice(0, 19)}`
