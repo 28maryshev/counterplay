@@ -1324,10 +1324,8 @@
                               ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
                               MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
                     <Grid Width="36" Height="36" HorizontalAlignment="Center">
-                      <!-- Подсветка при наведении: кольцо-ореол + чуть увеличенная
-                           рамка — видно, что отсюда можно пикнуть/забанить. -->
-                      <Ellipse x:Name="TierHoverRing" Width="42" Height="42" Opacity="0"
-                               Stroke="#F0C24B" StrokeThickness="2" IsHitTestVisible="False"/>
+                      <!-- Иконка чемпиона. При наведении её обводка краснеет и
+                           толстеет (см. триггер) — видно, что можно пикнуть/забанить. -->
                       <Ellipse x:Name="TierIcon" StrokeThickness="1.5">
                         <Ellipse.Fill>
                           <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
@@ -1347,12 +1345,12 @@
                                FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"
                                Foreground="{Binding WrBrush}"/>
                   </StackPanel>
-                  <!-- Наведение: показать золотой ореол + утолщить рамку. Простой
+                  <!-- Наведение: обводка иконки краснеет и толстеет. Простой
                        переключатель свойств (без анимации) — нагрузки почти ноль. -->
                   <DataTemplate.Triggers>
                     <Trigger SourceName="TierCellRoot" Property="IsMouseOver" Value="True">
-                      <Setter TargetName="TierHoverRing" Property="Opacity" Value="0.85"/>
                       <Setter TargetName="TierIcon" Property="StrokeThickness" Value="2.5"/>
+                      <Setter TargetName="TierIcon" Property="Stroke" Value="#FF4A4A"/>
                     </Trigger>
                   </DataTemplate.Triggers>
                 </DataTemplate>
