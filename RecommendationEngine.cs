@@ -260,18 +260,18 @@ public sealed class RecommendationEngine : IDisposable
     // иначе пустой data.db в рабочей папке перекрывал бы настоящую базу.
     public static string? FindDb()
     {
-        var candidates = new[]
-        {
-            "data.db",
-            Path.Combine("pipeline", "data.db"),
-            Path.Combine(AppContext.BaseDirectory, "data.db"),
-            Path.Combine(AppContext.BaseDirectory, "pipeline", "data.db"),
-            // Постоянное место для установленной версии (скачивается при первом запуске).
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                         "Counterplay", "data.db"),
-            @"C:\Counterplay\pipeline\data.db",
-        };
-        return candidates.FirstOrDefault(p => File.Exists(p) && HasData(p));
+        // Скачанная база в профиле пользователя (её ведёт DataDb.EnsureAsync).
+        var downloaded = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Counterplay", "data.db");
+
+        // По умолчанию — скачанная база (как у всех). Dev-базы рядом с проектом
+        // берём в приоритет ТОЛЬКО в dev-режиме (COUNTERPLAY_DEV_DB=1), иначе они
+        // идут в хвост — чтобы у разработчика не «побеждала» устаревшая локальная.
+        var order = DataDb.DevDbEnabled
+            ? DataDb.DevCandidates.Append(downloaded)
+            : new[] { downloaded }.Concat(DataDb.DevCandidates);
+        return order.FirstOrDefault(p => File.Exists(p) && HasData(p));
     }
 
     // Валиден ли файл БД: ненулевой размер и есть таблица base_wr с данными.

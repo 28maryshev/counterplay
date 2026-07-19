@@ -21,8 +21,10 @@ public static class DataDb
     private const string DataUrl    = "https://github.com/28maryshev/counterplay/releases/download/data/data.db";
     private const string VersionUrl = "https://github.com/28maryshev/counterplay/releases/download/data/data-version.json";
 
-    // Локальные dev-базы (рядом с проектом) — используются как есть, без скачивания.
-    private static readonly string[] DevCandidates =
+    // Локальные dev-базы (рядом с проектом). Используются как есть, БЕЗ скачивания,
+    // ТОЛЬКО в dev-режиме (см. DevDbEnabled). По умолчанию их игнорируем — база
+    // качается из облака, как у всех пользователей.
+    public static readonly string[] DevCandidates =
     [
         "data.db",
         Path.Combine("pipeline", "data.db"),
@@ -30,6 +32,13 @@ public static class DataDb
         Path.Combine(AppContext.BaseDirectory, "pipeline", "data.db"),
         @"C:\Counterplay\pipeline\data.db",
     ];
+
+    /// Использовать локальную dev-базу вместо облачной? По умолчанию НЕТ —
+    /// приложение качает базу из релиза, как у обычных пользователей. Включить
+    /// dev-режим (для отладки пайплайна на своей базе): переменная окружения
+    /// COUNTERPLAY_DEV_DB=1.
+    public static bool DevDbEnabled =>
+        Environment.GetEnvironmentVariable("COUNTERPLAY_DEV_DB") is "1" or "true";
 
     public static string FormatSpeed(double bytesPerSec) =>
         bytesPerSec >= 1_000_000 ? $"{bytesPerSec / 1_048_576.0:0.0} МБ/с"
@@ -41,8 +50,8 @@ public static class DataDb
     /// progress: (текст со статусом+скоростью, доля 0..1).
     public static async Task EnsureAsync(Action<string, double>? progress, CancellationToken ct)
     {
-        // 1. Локальная dev-база рядом с проектом — не трогаем.
-        if (DevCandidates.Any(p => File.Exists(p) && RecommendationEngine.HasData(p)))
+        // 1. Dev-режим (по opt-in): локальная база рядом с проектом — не качаем.
+        if (DevDbEnabled && DevCandidates.Any(p => File.Exists(p) && RecommendationEngine.HasData(p)))
             return;
 
         // 2. Установленная версия — версионная подкачка.
