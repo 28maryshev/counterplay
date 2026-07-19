@@ -894,6 +894,16 @@ public partial class OverlayWindow : Window
         BanBar.Visibility = Visibility.Collapsed;
     }
 
+    // Ещё можно навести этого чемпиона? Забанённые и уже залоченные кем-то —
+    // нельзя. Ховер сбрасываем ИМЕННО по этому признаку, а не по «нет в списке
+    // рекомендаций»: выбор из тир-листа почти никогда не совпадает с топ-6
+    // советов, и такой сброс гасил кнопку бана сразу после клика.
+    private static bool StillAvailable(DraftState d, int champId) =>
+        champId > 0
+        && !d.MyTeamBans.Contains(champId)
+        && !d.TheirTeamBans.Contains(champId)
+        && d.MyTeam.Concat(d.TheirTeam).All(p => p.ChampionId != champId);
+
     private void UpdateBanBar()
     {
         var draft = _lastDraft;
@@ -2177,8 +2187,9 @@ public partial class OverlayWindow : Window
         // Пики заполняют список (звёздная строка), руны — по контенту (Auto).
         CenterGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         CenterGrid.RowDefinitions[1].Height = GridLength.Auto;
-        // Сбрасываем наведённого, если его больше нет в списке рекомендаций.
-        if (_pickHoverId > 0 && recs.All(r => r.ChampionId != _pickHoverId))
+        // Сбрасываем наведённого, только если его уже забанили/взяли — а не
+        // просто «выпал из рекомендаций» (иначе гасили бы свой же выбор).
+        if (_pickHoverId > 0 && draft != null && !StillAvailable(draft, _pickHoverId))
             _pickHoverId = 0;
         UpdatePickBar();
         if (draft != null) RenderTeams(draft);
@@ -2236,8 +2247,9 @@ public partial class OverlayWindow : Window
         // тир-лист довольствуется остатком (звёздная строка со скроллом внутри).
         CenterGrid.RowDefinitions[0].Height = GridLength.Auto;
         CenterGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
-        // Наведённого сбрасываем, если его больше нет в списке банов.
-        if (_banHoverId > 0 && bans.All(b => b.ChampionId != _banHoverId)) _banHoverId = 0;
+        // Сбрасываем наведённого, только если его уже забанили/взяли (выбор из
+        // тир-листа при этом сохраняется — он вне списка рекомендаций).
+        if (_banHoverId > 0 && !StillAvailable(draft, _banHoverId)) _banHoverId = 0;
         UpdateBanBar();
         RenderTierList();
         RenderTeams(draft);

@@ -49,6 +49,10 @@ static class TestMode
         // Лок из оверлея ставит чемпиона в мой слот тестовой панели — пик через
         // интерфейс работает в песочнице как в бою (и снимает паузу авто-драфта).
         overlay.LockHandler  = async id => { await Task.Delay(300, ct); panel?.LockMy(id); return 200; };
+        // Баны: без этих хендлеров кнопка бана в песочнице не появлялась вовсе
+        // (клик по тир-листу/карточке молча выходил, а UpdateBanBar их проверяет).
+        overlay.BanHoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
+        overlay.BanLockHandler  = async _ => { await Task.Delay(300, ct); return 200; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)
