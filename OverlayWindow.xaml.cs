@@ -454,6 +454,8 @@ public partial class OverlayWindow : Window
             if (stats is null || stats.Keystones.Count == 0)
             {
                 RunesBar.Visibility = Visibility.Collapsed;
+                // Рун нет — вернём тир-лист в фазе пиков (из него можно пикать).
+                if (_lastDraft is { InBanPhase: false, IsAram: false }) RenderTierList();
                 return;
             }
 
@@ -467,6 +469,7 @@ public partial class OverlayWindow : Window
 
             RunesStatus.Visibility = Visibility.Collapsed;
             RunesBar.Visibility = Visibility.Visible;
+            TierListBar.Visibility = Visibility.Collapsed;   // руны заняли Row 1 — тир-лист прячем
             PulseApplyButton();   // сразу подсвечиваем: вариант выбран по умолчанию
         });
 
@@ -905,6 +908,30 @@ public partial class OverlayWindow : Window
         BanBar.Visibility = Visibility.Visible;
     }
 
+    // Клик по чемпиону в тир-листе: в банфазе — наводим бан, иначе — пик.
+    // Переиспользуем те же обработчики, что и карточки рекомендаций.
+    private void TierCell_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
+        e.Handled = true;
+        if (_lastDraft?.InBanPhase == true)
+        {
+            if (BanHoverHandler is null) return;
+            _banHoverId = champId;
+            RenderCurrentState();
+            UpdateBanBar();
+            _ = BanHoverHandler(champId);
+        }
+        else
+        {
+            if (HoverHandler is null) return;
+            _pickHoverId = champId;
+            RenderCurrentState();
+            UpdatePickBar();
+            _ = HoverHandler(champId);
+        }
+    }
+
     // ── Тир-лист патча (лучшие по WR на роль) — под банами ────────────────────
     private IReadOnlyList<TierRoleCol>? _tierCols;   // кэш: статичен в пределах патча
 
@@ -964,7 +991,10 @@ public partial class OverlayWindow : Window
             // Заголовок с именем бакета игрока: «Тир-лист · Изумруд».
             TierTitle.Text = Loc.T("tier.title", Loc.T(_engine.TierBucketLocKey));
         }
-        TierList.ItemsSource = _tierCols;
+        // Источник ставим ОДИН раз (список статичен в пределах патча) — иначе
+        // переприсвоение на каждом событии драфта зря пересобирало бы 150 эмблем.
+        if (!ReferenceEquals(TierList.ItemsSource, _tierCols))
+            TierList.ItemsSource = _tierCols;
         TierListBar.Visibility = _tierCols.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -2144,10 +2174,13 @@ public partial class OverlayWindow : Window
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
         BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
-        TierListBar.Visibility = Visibility.Collapsed;  // тир-лист — только под банами
         // Пики заполняют список (звёздная строка), руны — по контенту (Auto).
         CenterGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         CenterGrid.RowDefinitions[1].Height = GridLength.Auto;
+        // Row 1 в фазе пиков: руны, если чемпион уже выбран (панель видима),
+        // иначе тир-лист — из него можно пикнуть, пока не определился.
+        if (RunesBar.Visibility != Visibility.Visible) RenderTierList();
+        else TierListBar.Visibility = Visibility.Collapsed;
         // Сбрасываем наведённого, если его больше нет в списке рекомендаций.
         if (_pickHoverId > 0 && recs.All(r => r.ChampionId != _pickHoverId))
             _pickHoverId = 0;

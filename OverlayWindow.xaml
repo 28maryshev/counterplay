@@ -1318,7 +1318,11 @@
                      у WR-столбца) + WR%. Бейдж грейда скрывается, когда грейда
                      нет (ShowGrade=false). Общий шаблон для обоих столбцов. -->
                 <DataTemplate x:Key="TierEmblem">
-                  <StackPanel Margin="0,0,0,4" HorizontalAlignment="Center" ToolTip="{Binding Tip}">
+                  <!-- Клик: в банфазе наводит бан, в фазе пиков — пик. Background
+                       прозрачный, но задан — иначе клики по пустоте не ловятся. -->
+                  <StackPanel Margin="0,0,0,4" HorizontalAlignment="Center" ToolTip="{Binding Tip}"
+                              Cursor="Hand" Background="Transparent"
+                              MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
                     <Grid Width="36" Height="36" HorizontalAlignment="Center">
                       <Ellipse StrokeThickness="1.5">
                         <Ellipse.Fill>
