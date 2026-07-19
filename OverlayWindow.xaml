@@ -1320,11 +1320,15 @@
                 <DataTemplate x:Key="TierEmblem">
                   <!-- Клик: в банфазе наводит бан, в фазе пиков — пик. Background
                        прозрачный, но задан — иначе клики по пустоте не ловятся. -->
-                  <StackPanel Margin="0,0,0,4" HorizontalAlignment="Center" ToolTip="{Binding Tip}"
-                              Cursor="Hand" Background="Transparent"
+                  <StackPanel x:Name="TierCellRoot" Margin="0,0,0,4" HorizontalAlignment="Center"
+                              ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
                               MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
                     <Grid Width="36" Height="36" HorizontalAlignment="Center">
-                      <Ellipse StrokeThickness="1.5">
+                      <!-- Подсветка при наведении: кольцо-ореол + чуть увеличенная
+                           рамка — видно, что отсюда можно пикнуть/забанить. -->
+                      <Ellipse x:Name="TierHoverRing" Width="42" Height="42" Opacity="0"
+                               Stroke="#F0C24B" StrokeThickness="2" IsHitTestVisible="False"/>
+                      <Ellipse x:Name="TierIcon" StrokeThickness="1.5">
                         <Ellipse.Fill>
                           <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
                         </Ellipse.Fill>
@@ -1343,6 +1347,14 @@
                                FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"
                                Foreground="{Binding WrBrush}"/>
                   </StackPanel>
+                  <!-- Наведение: показать золотой ореол + утолщить рамку. Простой
+                       переключатель свойств (без анимации) — нагрузки почти ноль. -->
+                  <DataTemplate.Triggers>
+                    <Trigger SourceName="TierCellRoot" Property="IsMouseOver" Value="True">
+                      <Setter TargetName="TierHoverRing" Property="Opacity" Value="0.85"/>
+                      <Setter TargetName="TierIcon" Property="StrokeThickness" Value="2.5"/>
+                    </Trigger>
+                  </DataTemplate.Triggers>
                 </DataTemplate>
               </Border.Resources>
 
@@ -1350,8 +1362,8 @@
                 <TextBlock DockPanel.Dock="Top" x:Name="TierTitle" Text="" Margin="2,0,0,7"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                            Foreground="#C89B3C"/>
-                <!-- Роли — колонками. Внутри каждой роли два столбца: слева WR
-                     (без грейдов), справа Тир (с грейдами). Листается вниз —
+                <!-- Роли — колонками. Внутри каждой роли два столбца: слева Тир
+                     (с грейдами), справа WR (без грейдов). Листается вниз —
                      ниже грейды B, C, D. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                   <ItemsControl x:Name="TierList">
