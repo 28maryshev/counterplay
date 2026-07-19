@@ -454,8 +454,7 @@ public partial class OverlayWindow : Window
             if (stats is null || stats.Keystones.Count == 0)
             {
                 RunesBar.Visibility = Visibility.Collapsed;
-                // Рун нет — вернём тир-лист в фазе пиков (из него можно пикать).
-                if (_lastDraft is { InBanPhase: false, IsAram: false }) RenderTierList();
+                TierListBar.Visibility = Visibility.Collapsed;   // тир-лист — только под банами
                 return;
             }
 
@@ -2174,13 +2173,10 @@ public partial class OverlayWindow : Window
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
         BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
+        TierListBar.Visibility = Visibility.Collapsed;  // тир-лист — только под банами
         // Пики заполняют список (звёздная строка), руны — по контенту (Auto).
         CenterGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         CenterGrid.RowDefinitions[1].Height = GridLength.Auto;
-        // Row 1 в фазе пиков: руны, если чемпион уже выбран (панель видима),
-        // иначе тир-лист — из него можно пикнуть, пока не определился.
-        if (RunesBar.Visibility != Visibility.Visible) RenderTierList();
-        else TierListBar.Visibility = Visibility.Collapsed;
         // Сбрасываем наведённого, если его больше нет в списке рекомендаций.
         if (_pickHoverId > 0 && recs.All(r => r.ChampionId != _pickHoverId))
             _pickHoverId = 0;
