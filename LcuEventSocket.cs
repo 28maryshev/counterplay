@@ -26,6 +26,10 @@ public sealed class LcuEventSocket : IAsyncDisposable
         // Тот же самоподписанный серт LCU на localhost.
         _ws.Options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
 
+        // Keepalive-пинги: помогают ОС быстрее заметить мёртвый TCP. Основную
+        // защиту от «полуоткрытого» сокета даёт таймаут приёма в ReadEventsAsync.
+        _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+
         await _ws.ConnectAsync(_creds.WsUri, ct);
 
         // WAMP: [5, topic] = SUBSCRIBE. Подписываемся на все события, фильтруем по uri ниже.
@@ -38,6 +42,12 @@ public sealed class LcuEventSocket : IAsyncDisposable
         return _ws!.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
     }
 
+    // Тишина в сокете дольше этого = мёртвое (полуоткрытое) соединение. LCU
+    // очень «болтлив» (шлёт друзей/присутствие/статусы постоянно, ReceiveAsync
+    // видит ВСЕ события до фильтра по uri), поэтому здоровый клиент столько молчать
+    // не может — ложных срабатываний нет, а зависший сокет ловится и обрывается.
+    private const int RecvTimeoutSec = 90;
+
     public async IAsyncEnumerable<LcuEvent> ReadEventsAsync([EnumeratorCancellation] CancellationToken ct)
     {
         var buffer = new byte[64 * 1024];
@@ -46,15 +56,31 @@ public sealed class LcuEventSocket : IAsyncDisposable
         while (_ws!.State == WebSocketState.Open && !ct.IsCancellationRequested)
         {
             sb.Clear();
-            WebSocketReceiveResult result;
-            do
+            bool endOfMessage = false;
+            while (!endOfMessage)
             {
-                result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                WebSocketReceiveResult result;
+                try
+                {
+                    // Таймаут на каждый приём: linked-токен отменяется либо по ct
+                    // (выход), либо по времени (мёртвый сокет). try без yield —
+                    // корректно для итератора.
+                    using var recvCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    recvCts.CancelAfter(TimeSpan.FromSeconds(RecvTimeoutSec));
+                    result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), recvCts.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // Не наша отмена, а таймаут приёма → сокет мёртв. Бросаем как
+                    // обрыв: внешний цикл в Program переподключится и пере-синкнет
+                    // фазу (вернёт оверлей из трея после игры).
+                    throw new IOException($"LCU socket idle > {RecvTimeoutSec}s — reconnecting");
+                }
                 if (result.MessageType == WebSocketMessageType.Close)
                     yield break;
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+                endOfMessage = result.EndOfMessage;
             }
-            while (!result.EndOfMessage);
 
             if (sb.Length == 0) continue;
 

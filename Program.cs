@@ -270,6 +270,34 @@ class Program
             overlay.ShowStatus(Loc.T("status.noDb"));
         }
 
+        // Синк фазы геймфлоу при (ПЕРЕ)подключении. Подписка на события отдаёт
+        // только БУДУЩИЕ события, а не текущее состояние: если сокет умер во время
+        // игры и ожил после (клиент перезапустил UX / сеть моргнула), событие
+        // «конец игры» прошло мимо — без этого синка _gameActive застрял бы в true
+        // и оверлей навсегда остался бы в трее (ровно симптом «висит в процессах,
+        // но окно не возвращается»). Читаем фазу явно и приводим видимость в норму.
+        try
+        {
+            var (gfCode, gfBody) = await http.GetAsync("/lol-gameflow/v1/session", ct);
+            if (gfCode == 200)
+            {
+                using var gdoc = JsonDocument.Parse(gfBody);
+                var phase = PhaseOf(gdoc.RootElement);
+                if (phase is "GameStart" or "InProgress" or "Reconnect")
+                {
+                    overlay.SetGameActive(true);
+                    overlay.HideToTray();
+                }
+                else if (phase != "ChampSelect")
+                {
+                    overlay.SetGameActive(false);
+                    overlay.RestoreFromTray();
+                    overlay.ShowReadyPhase(phase);
+                }
+            }
+        }
+        catch { /* геймфлоу временно недоступен — не критично */ }
+
         // Уже в чемп-выборе? — сразу покажем рекомендации
         var (initCode, initBody) = await http.GetAsync("/lol-champ-select/v1/session", ct);
         if (initCode == 200)
