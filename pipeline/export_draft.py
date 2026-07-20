@@ -15,6 +15,8 @@ import json
 import sqlite3
 import urllib.request
 
+from freshness import pick_patches
+
 PATCH_WEIGHTS = (1.0, 0.7, 0.45)   # свежий → старый (как PW в движке)
 
 
@@ -30,8 +32,8 @@ def main():
     args = ap.parse_args()
 
     con = sqlite3.connect(args.db)
-    patches = sorted((r[0] for r in con.execute('SELECT DISTINCT patch FROM base_wr')),
-                     key=patch_key, reverse=True)[:3]
+    # Удержание: новейший патч не берём, пока не набрал данных (см. freshness.py).
+    patches = pick_patches(con, 3)
     w_of = {p: PATCH_WEIGHTS[i] for i, p in enumerate(patches)}
     ph = ','.join('?' * len(patches))
     print('патчи:', patches, '| веса:', [w_of[p] for p in patches])

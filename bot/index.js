@@ -21,7 +21,7 @@ const client = new Client({
 });
 
 const commands = new Collection();
-for (const name of ['pool', 'counter', 'matchup', 'admin', 'collect']) {
+for (const name of ['pool', 'counter', 'matchup', 'admin', 'collect', 'patch']) {
   const mod = require(`./commands/${name}`);
   commands.set(mod.data.name, mod);
 }
@@ -66,7 +66,8 @@ async function main() {
     cron.schedule('0 20 * * 0', job('weeklyBoard', 'draftDuels', require('./cron/weeklyBoard').run), tz);
     cron.schedule('15 * * * *', job('dataSync', null, () => dataSync.sync()), tz);
     cron.schedule('30 * * * *', job('releaseWatch', 'announcements', require('./cron/releaseWatch').run), tz);
-    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync+releases hourly');
+    cron.schedule('45 * * * *', job('patchWatch', 'announcements', require('./cron/patchWatch').run), tz);
+    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync+releases+patch hourly');
   });
 
   await client.login(config.token);
