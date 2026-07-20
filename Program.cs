@@ -189,6 +189,7 @@ class Program
         // Внешний цикл — переподключение при перезапуске клиента
         while (!ct.IsCancellationRequested)
         {
+            overlay.SetLcuReady(false); // не подключены — авто-возврат из трея подавлен
             overlay.ShowStatus(Loc.T("status.waitingClient"));
             var creds = await LockfileReader.WaitForAsync(lockfilePath, ct);
 
@@ -237,6 +238,11 @@ class Program
                 await Task.Delay(2000, ct);
             }
         }
+
+        // LCU ответил — соединение живо. Теперь слежению за окном разрешён
+        // авто-возврат оверлея из трея (до этого он подавлен, чтобы на старте не
+        // показывать «ожидание клиента»).
+        overlay.SetLcuReady(true);
 
         var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct);
         var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
@@ -290,8 +296,11 @@ class Program
                 }
                 else if (phase != "ChampSelect")
                 {
+                    // Только снимаем игровой флаг + задаём текст. Сам возврат из
+                    // трея делает слежение за окном (уважая ручное скрытие и
+                    // видимость клиента) — не форсим, иначе окно всплывало бы не к
+                    // месту (в т.ч. на старте с автозапуском).
                     overlay.SetGameActive(false);
-                    overlay.RestoreFromTray();
                     overlay.ShowReadyPhase(phase);
                 }
             }
@@ -335,6 +344,7 @@ class Program
         await socket.ConnectAsync(ct);
 
         var lastHash = "";
+        bool draftUnhidden = false; // сбрасывали ли ручное скрытие на этом драфте
         CancellationTokenSource? hideCts = null; // запланированное скрытие в трей
         // История ховеров своей команды за текущий драфт (cellId → чемпионы):
         // союзники в фазе банов перебирают несколько чемпионов — баны считаются
@@ -368,6 +378,7 @@ class Program
                         // После игры (EndOfGame) ранг/LP обновились — перечитываем трекер.
                         await RefreshSessionAsync();
                         lastHash = "";
+                        draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
@@ -385,6 +396,7 @@ class Program
                         overlay.UpdateRecommendations(null, null);
                         overlay.ShowStatus(Loc.T("status.waitNextDraft")); // подавится, если в трее
                         lastHash = "";
+                        draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
                     }
                     else
@@ -416,6 +428,10 @@ class Program
                             // Активный драфт (не финализация) — авто-показ оверлея разрешён,
                             // чтобы окно надёжно всплыло на новом чемп-селекте после игры.
                             overlay.SetGameActive(false);
+                            // Один раз за драфт снимаем ручное скрытие: закрыл окно
+                            // раньше — на новом чемп-селекте оно всё равно вернётся
+                            // (но закрыть его В ТЕЧЕНИЕ драфта по-прежнему можно).
+                            if (!draftUnhidden) { overlay.AllowAutoShow(); draftUnhidden = true; }
                         }
 
                         var hash = DraftHash(draft);
