@@ -253,9 +253,22 @@ function wSynergy(championId, role, allyId, allyRole) {
   return r && r.g ? r : null;
 }
 
-/** Сколько матчей обработано пайплайном (для /admin status). */
+/** Сколько матчей обработано пайплайном (для /admin status). Тонкая база больше
+ *  не содержит processed_matches (37 МБ ради счётчика) — берём число из db_meta. */
 function countMatches() {
-  return q((db) => db.prepare('SELECT COUNT(*) c FROM processed_matches').get().c);
+  return q((db) => {
+    try {
+      const meta = db.prepare("SELECT value FROM db_meta WHERE key='matches'").get();
+      if (meta) return Number(meta.value) || 0;
+    } catch {
+      /* старая база без db_meta */
+    }
+    try {
+      return db.prepare('SELECT COUNT(*) c FROM processed_matches').get().c;
+    } catch {
+      return 0;
+    }
+  });
 }
 
 module.exports = {
