@@ -30,7 +30,7 @@ static class TestMode
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
         await ItemIcons.PreloadAsync(ct);
-        await DataDb.EnsureAsync((msg, frac) => overlay.ShowProgress(msg, frac), ct);
+        await DataDb.EnsureAsync(null, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
 
         // Руны: реальных данных в базе ещё нет — в тестовом режиме панель
         // наполняется правдоподобными моками, чтобы обкатать вид и кнопки.

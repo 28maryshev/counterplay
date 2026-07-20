@@ -183,8 +183,13 @@ class Program
         await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
         await RunesClient.LoadManifestAsync(ct);
 
-        // Гарантируем наличие data.db (скачиваем/обновляем из дата-релиза с прогрессом).
-        await DataDb.EnsureAsync((msg, frac) => overlay.ShowProgress(msg, frac), ct);
+        // Гарантируем наличие data.db. Качаем базу только СВОЕГО эло (~50 МБ) по
+        // сохранённому с прошлого запуска рангу; на первом запуске ранг ещё
+        // неизвестен → общая тонкая база (все бакеты). Актуальный ранг подхватим
+        // из LCU в сессии (ниже) и, если сменился, подкачаем нужный бакет.
+        var storedBucket = Settings.GetString("dataBucket");
+        await DataDb.EnsureAsync(storedBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
+        DataDb.SelfClean();
 
         // Внешний цикл — переподключение при перезапуске клиента
         while (!ct.IsCancellationRequested)
@@ -245,6 +250,15 @@ class Program
         overlay.SetLcuReady(true);
 
         var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct);
+        // Запоминаем ранг для скачивания нужной базы на следующем запуске. Если
+        // ранг сменился (поднялся), а на диске база ДРУГОГО одиночного бакета —
+        // она не содержит его данных, поэтому подкачаем нужную сразу. Общая
+        // база ("all") содержит все бакеты — до-качка не нужна.
+        Settings.Set("dataBucket", tierBucket);
+        var loaded = DataDb.CurrentBucket;
+        if (loaded is not null && loaded != "all" && loaded != tierBucket)
+            await DataDb.EnsureAsync(tierBucket, (m, f) => overlay.ShowProgress(m, f), ct);
+
         var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
 
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
