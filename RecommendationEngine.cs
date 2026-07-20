@@ -226,11 +226,19 @@ public sealed class RecommendationEngine : IDisposable
             ORDER BY CAST(SUBSTR(patch, 1, INSTR(patch, '.') - 1) AS INTEGER) DESC,
                      CAST(SUBSTR(patch, INSTR(patch, '.') + 1)     AS INTEGER) DESC
             LIMIT @n";
-        patchCmd.Parameters.AddWithValue("@n", PATCH_WINDOW);
+        // +1: берём с запасом, чтобы после возможного удержания новейшего осталось PATCH_WINDOW.
+        patchCmd.Parameters.AddWithValue("@n", PATCH_WINDOW + 1);
         var patches = new List<string>();
         using (var rd = patchCmd.ExecuteReader())
             while (rd.Read()) patches.Add(rd.GetString(0));
 
+        // Удержание патча: новейший патч не берём, пока он не набрал данных — иначе
+        // первые дни нового патча рекомендации шумят. Держим предыдущий (полный)
+        // патч, пока новый не покроет >= HOLD_FRACTION пар. Синхронно с
+        // pipeline/freshness.py и ботом (bot/lib/freshness.js).
+        if (patches.Count >= 2 && !PatchReady(db, patches[0], patches[1]))
+            patches.RemoveAt(0);
+        if (patches.Count > PATCH_WINDOW) patches = patches.Take(PATCH_WINDOW).ToList();
         if (patches.Count == 0) patches.Add("0.0");
 
         // Проверяем бакет по последнему патчу; если нет данных — ищем ближайший.
@@ -253,6 +261,32 @@ public sealed class RecommendationEngine : IDisposable
         }
 
         return new RecommendationEngine(db, effectiveBucket, [.. patches]);
+    }
+
+    // ── Политика удержания патча (синхронно с pipeline/freshness.py, bot/lib/freshness.js) ──
+    private const int HOLD_MIN_GAMES = 150;      // игр на «чемпион+роль», чтобы считать пару набранной
+    private const double HOLD_FRACTION = 0.7;    // доля пар прошлого патча, покрытых новым → «готов»
+    private const string HOLD_BUCKET = "emerald"; // основной бакет для оценки готовности
+
+    // Сколько «чемпион+роль» в основном бакете набрали >= HOLD_MIN_GAMES игр на патче.
+    private static int PatchCoverage(SqliteConnection db, string patch)
+    {
+        var c = db.CreateCommand();
+        c.CommandText = @"SELECT COUNT(*) FROM (
+            SELECT champion_id, role FROM base_wr
+            WHERE patch=@p AND tier_bucket=@b
+            GROUP BY champion_id, role HAVING SUM(games) >= @min)";
+        c.Parameters.AddWithValue("@p", patch);
+        c.Parameters.AddWithValue("@b", HOLD_BUCKET);
+        c.Parameters.AddWithValue("@min", HOLD_MIN_GAMES);
+        return (int)(long)(c.ExecuteScalar() ?? 0L);
+    }
+
+    // Готов ли новейший патч: покрывает ли >= HOLD_FRACTION пар предыдущего патча.
+    private static bool PatchReady(SqliteConnection db, string newest, string prev)
+    {
+        int cn = PatchCoverage(db, newest), cp = PatchCoverage(db, prev);
+        return cp <= 0 || (double)cn / cp >= HOLD_FRACTION;
     }
 
     // Ищет data.db рядом с exe, потом в pipeline/.
