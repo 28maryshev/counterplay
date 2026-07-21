@@ -123,6 +123,8 @@ sealed class TestPanel : Window
     private readonly HashSet<int> _autoPicked = new();  // клетки, занятые авто-драфтом
     private bool _autoSetting;   // идёт программная установка чемпиона авто-драфтом
     private bool _settingRoles;  // идёт программная установка ролей (не рекурсировать)
+    private int  _plannedMyPick; // мой заранее выбранный пик: прячем на старте авто-
+                                 // драфта и показываем на МОЁМ ходу (для записи видео)
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
     {
@@ -201,6 +203,7 @@ sealed class TestPanel : Window
             _ready = false;
             foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
             _autoPicked.Clear();
+            _plannedMyPick = 0;
             _ready = true;
             Recompute();
         };
@@ -336,13 +339,16 @@ sealed class TestPanel : Window
     {
         if (_simTurn >= 0) { StopSim(); return; }
 
-        // Старт: чистим ТОЛЬКО клетки прошлого авто-драфта; ручные пики (в т.ч.
-        // мой заранее выбранный чемпион) сохраняем — авто-драфт возьмёт именно их
-        // и не будет ждать/перезаписывать мой слот.
+        // Старт: чистим клетки прошлого авто-драфта. Мой заранее выбранный пик
+        // ЗАПОМИНАЕМ и ПРЯЧЕМ — он появится сам на моём ходу (для видео «человек
+        // взял этот пик»), а не светится с начала. Прочие ручные пики сохраняем.
         _ready = false;
+        int me = MeCell();
+        _plannedMyPick = CellChamp(me);               // мой план (0 = нет)
         foreach (var cell in _autoPicked.ToList())
             (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;
         _autoPicked.Clear();
+        if (_plannedMyPick > 0) _ally[me].SelectedIndex = 0;   // прячем до моего хода
         _banPhase.IsChecked = false;
         _ready = true;
 
@@ -366,19 +372,34 @@ sealed class TestPanel : Window
         _simTimer?.Stop();
         if (_simTurn < 0) return;
         _simTurn = -1;
+        // Остановили до моего хода — вернём заранее выбранный пик в слот, чтобы он
+        // не потерялся (на следующем запуске снова спрячется и появится на ходу).
+        if (_plannedMyPick > 0 && CellChamp(MeCell()) == 0) RevealMyPick(MeCell());
         _simBtn.Content = "▶ Авто-драфт";
         Recompute();
     }
 
-    // Раздаёт ботам текущей группы персональные моменты пика (3..10 с).
-    // Мой слот дедлайна не получает — он пикается только вручную.
+    // Раздаёт ботам текущей группы персональные моменты пика (3..10 с). Мой слот
+    // получает момент, только если есть заранее выбранный пик (тогда он появится
+    // сам на моём ходу); иначе слот ждёт ручного пика.
     private void StartTurn()
     {
         _pickAt.Clear();
         int meCell = MeCell();
         foreach (var cell in _simGroups[_simTurn])
-            if (cell != meCell)
+            if (cell != meCell || _plannedMyPick > 0)
                 _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
+    }
+
+    // Показывает мой заранее выбранный пик в моём слоте (в момент моего хода).
+    private void RevealMyPick(int meCell)
+    {
+        if (_plannedMyPick <= 0) return;
+        var name = DataDragon.Name(_plannedMyPick);
+        if (!_idByName.ContainsKey(name)) return;
+        _autoSetting = true;
+        _ally[meCell].SelectedItem = name;   // meCell всегда 0..4 (своя сторона)
+        _autoSetting = false;
     }
 
     // Чемпион клетки (0..4 свои, 5..9 враги); 0 — ещё не выбран.
@@ -394,13 +415,16 @@ sealed class TestPanel : Window
         var now    = DateTime.UtcNow;
 
         // Боты пикают каждый в свой момент — даже в парном ходе по отдельности.
+        // Мой слот в свой момент показывает заранее выбранный пик (если он есть).
         foreach (var cell in group)
-            if (cell != meCell && CellChamp(cell) == 0
-                && _pickAt.TryGetValue(cell, out var t) && now >= t)
-                AutoPick(cell);   // SelectionChanged → Recompute (подбор обновится)
+            if (CellChamp(cell) == 0 && _pickAt.TryGetValue(cell, out var t) && now >= t)
+            {
+                if (cell == meCell) RevealMyPick(cell);   // мой план появляется тут
+                else AutoPick(cell);
+            }
 
-        // Ход завершён, когда запикалась вся группа. Мой слот — только вручную:
-        // боты уже отстрелялись, а драфт ждёт меня.
+        // Ход завершён, когда запикалась вся группа. Мой слот без плана — ждёт
+        // ручного пика (боты уже отстрелялись, драфт ждёт меня).
         bool myPending = group.Contains(meCell) && CellChamp(meCell) == 0;
         if (myPending && group.All(c => c == meCell || CellChamp(c) != 0))
         {
