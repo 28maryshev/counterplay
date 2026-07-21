@@ -123,8 +123,10 @@ sealed class TestPanel : Window
     private readonly HashSet<int> _autoPicked = new();  // клетки, занятые авто-драфтом
     private bool _autoSetting;   // идёт программная установка чемпиона авто-драфтом
     private bool _settingRoles;  // идёт программная установка ролей (не рекурсировать)
-    private int  _plannedMyPick; // мой заранее выбранный пик: прячем на старте авто-
-                                 // драфта и показываем на МОЁМ ходу (для записи видео)
+    // Заранее выбранные ВРУЧНУЮ пики (клетка → чемпион): на старте авто-драфта их
+    // прячем и резервируем от ботов, а на ХОДУ каждой клетки показываем — как будто
+    // её владелец (я / союзник / враг) взял этого чемпиона в свою очередь. Для видео.
+    private readonly Dictionary<int, int> _planned = new();
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
     {
@@ -203,7 +205,7 @@ sealed class TestPanel : Window
             _ready = false;
             foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
             _autoPicked.Clear();
-            _plannedMyPick = 0;
+            _planned.Clear();
             _ready = true;
             Recompute();
         };
@@ -343,12 +345,18 @@ sealed class TestPanel : Window
         // ЗАПОМИНАЕМ и ПРЯЧЕМ — он появится сам на моём ходу (для видео «человек
         // взял этот пик»), а не светится с начала. Прочие ручные пики сохраняем.
         _ready = false;
-        int me = MeCell();
-        _plannedMyPick = CellChamp(me);               // мой план (0 = нет)
+        // Захватываем РУЧНЫЕ пики (заполнены пользователем, не ботом) как «план»:
+        // прячем их и покажем каждый на ходу своей клетки. Бот-пики прошлого
+        // раунда — чистим (пересоберутся заново).
+        _planned.Clear();
+        for (int c = 0; c < 10; c++)
+            if (CellChamp(c) > 0 && !_autoPicked.Contains(c))
+                _planned[c] = CellChamp(c);
         foreach (var cell in _autoPicked.ToList())
             (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;
         _autoPicked.Clear();
-        if (_plannedMyPick > 0) _ally[me].SelectedIndex = 0;   // прячем до моего хода
+        foreach (var cell in _planned.Keys.ToList())
+            (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;   // прячем до хода
         _banPhase.IsChecked = false;
         _ready = true;
 
@@ -372,9 +380,10 @@ sealed class TestPanel : Window
         _simTimer?.Stop();
         if (_simTurn < 0) return;
         _simTurn = -1;
-        // Остановили до моего хода — вернём заранее выбранный пик в слот, чтобы он
-        // не потерялся (на следующем запуске снова спрячется и появится на ходу).
-        if (_plannedMyPick > 0 && CellChamp(MeCell()) == 0) RevealMyPick(MeCell());
+        // Остановили до чьего-то хода — вернём непоказанные заранее выбранные пики
+        // в их слоты, чтобы они не потерялись (на след. запуске снова спрячутся).
+        foreach (var (cell, champ) in _planned)
+            if (CellChamp(cell) == 0) RevealPlanned(cell, champ);
         _simBtn.Content = "▶ Авто-драфт";
         Recompute();
     }
@@ -387,18 +396,19 @@ sealed class TestPanel : Window
         _pickAt.Clear();
         int meCell = MeCell();
         foreach (var cell in _simGroups[_simTurn])
-            if (cell != meCell || _plannedMyPick > 0)
+            // Момент пика даём боту ИЛИ клетке с заранее выбранным пиком. Мой
+            // пустой слот без плана — ждёт ручного пика (момента не получает).
+            if (cell != meCell || _planned.ContainsKey(cell))
                 _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
     }
 
-    // Показывает мой заранее выбранный пик в моём слоте (в момент моего хода).
-    private void RevealMyPick(int meCell)
+    // Показывает заранее выбранный пик клетки в момент её хода в драфте.
+    private void RevealPlanned(int cell, int champ)
     {
-        if (_plannedMyPick <= 0) return;
-        var name = DataDragon.Name(_plannedMyPick);
+        var name = DataDragon.Name(champ);
         if (!_idByName.ContainsKey(name)) return;
         _autoSetting = true;
-        _ally[meCell].SelectedItem = name;   // meCell всегда 0..4 (своя сторона)
+        (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedItem = name;
         _autoSetting = false;
     }
 
@@ -419,14 +429,16 @@ sealed class TestPanel : Window
         foreach (var cell in group)
             if (CellChamp(cell) == 0 && _pickAt.TryGetValue(cell, out var t) && now >= t)
             {
-                if (cell == meCell) RevealMyPick(cell);   // мой план появляется тут
-                else AutoPick(cell);
+                if (_planned.TryGetValue(cell, out var champ)) RevealPlanned(cell, champ);
+                else if (cell != meCell) AutoPick(cell);
+                // мой слот без плана — не трогаем, ждём ручного пика
             }
 
-        // Ход завершён, когда запикалась вся группа. Мой слот без плана — ждёт
+        // Ход завершён, когда запикалась вся группа. Мой слот БЕЗ плана — ждёт
         // ручного пика (боты уже отстрелялись, драфт ждёт меня).
-        bool myPending = group.Contains(meCell) && CellChamp(meCell) == 0;
-        if (myPending && group.All(c => c == meCell || CellChamp(c) != 0))
+        bool myManual = group.Contains(meCell) && CellChamp(meCell) == 0
+                        && !_planned.ContainsKey(meCell);
+        if (myManual && group.All(c => c == meCell || CellChamp(c) != 0))
         {
             _simBtn.Content = "⏸ Ваш пик…";
             return;
@@ -463,7 +475,7 @@ sealed class TestPanel : Window
         if (ChampOf(cb) != 0) return;   // уже выбран (например, я успел сам)
 
         var taken  = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
-        if (_plannedMyPick > 0) taken.Add(_plannedMyPick);  // мой пик зарезервирован — ботам нельзя
+        taken.UnionWith(_planned.Values);   // все заранее выбранные пики — ботам недоступны
         var dbRole = RecommendationEngine.LcuToDbRole(
             cell < 5 ? _rowRoles[cell] : _enemyRoles[cell - 5]);
         var pool   = _idByName.Values
