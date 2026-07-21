@@ -176,9 +176,18 @@ def publish_db(session_total: int):
         return
     try:
         set_status(state='publishing')
+        # Снапшот (~1 ГБ) + тонкие побакетные базы строятся во временной папке.
+        # Кладём её на ТОМ (диск), а не в /tmp контейнера (там tmpfs мал).
+        tmp = Path(DB_PATH).parent / 'publtmp'
+        tmp.mkdir(exist_ok=True)
+        os.environ['TMPDIR'] = str(tmp)
         info = publish_data.publish(DB_PATH, GH_TOKEN)
+        buckets = info.get('buckets', {})
+        bsizes = ' · '.join(f'{b} {buckets[b]["size_mb"]}МБ' for b in buckets)
         notify(f'📦 База обновлена в проде: +{session_total} матчей за круг · '
-               f'патч {info["patch"]} · версия `{info["version"]}` · {info["size_mb"]} МБ')
+               f'патч {info["patch"]} · версия `{info["version"]}` · '
+               f'тонкая {info.get("slim_mb", "?")}МБ'
+               + (f'\nПо эло: {bsizes}' if bsizes else ''))
         set_status(state='published', version=info['version'], patch=info['patch'])
     except Exception as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но публикация упала: `{e}`')
