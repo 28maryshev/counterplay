@@ -5,10 +5,19 @@
     "ok": "Anladım"
   },
   "tray": {
-    "autostart": "Windows ile başlat"
+    "autostart": "Windows ile başlat",
+    "show": "Göster",
+    "exit": "Çıkış"
   },
   "ready": {
-    "beta": "Counterplay her gün gelişiyor. Hata mı buldun, fikrin mi var? Destek üzerinden yaz"
+    "beta": "Counterplay her gün gelişiyor. Hata mı buldun, fikrin mi var? Destek üzerinden yaz",
+    "tipLabel": "SEÇİM İPUCU",
+    "f1head": "Draft asistanı.",
+    "f1body": " Düşmanlara karşı kontrları, müttefiklerle sinerjiyi ve kimin banlanacağını gerçek güncel yama istatistiklerinden hesaplar. Her üzerine gelişte güncellenir.",
+    "f2head": "✊ ✌ ✋ Kompozisyon tipi.",
+    "f2body": " Front-to-back ✊, dive'ı ✌ yener; dive, pick-poke'u ✋ yener; pick-poke da front-to-back'i yener. Düşmanı kontrleyen bir kompozisyon seç.",
+    "f3head": "Sana özel ayarlandı.",
+    "f3body": " Ustalığını hesaba katar — önce konfor şampiyonların, kör kontr-pick yok."
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -26,7 +35,13 @@
   },
   "session": {
     "needGames": "Counterplay açıkken birkaç maç oyna — maç başına LP ve galibiyet grafiği dolacaktır.",
-    "wl": "G:{0} - M:{1}"
+    "wl": "G:{0} - M:{1}",
+    "queue": {
+      "solo": "Solo/Duo",
+      "flex": "Flex",
+      "normal": "Normal",
+      "aram": "ARAM"
+    }
   },
   "ranks": {
     "iron": "Demir",
@@ -80,7 +95,12 @@
     "failed": "Başarısız — sıra sende mi?"
   },
   "slot": {
-    "firstPick": "1. seçim"
+    "firstPick": "1. seçim",
+    "counters": "KARŞILAR",
+    "synergy": "SİNERJİ",
+    "youPick": "SEÇİMİN",
+    "roleAuto": "Otomatik (istatistiklere göre)",
+    "roleTip": "Düşman rolü — şampiyonun her rolü ne sıklıkla oynadığına göre otomatik atanır (düşman başına bir rol). Listeden manuel seçmek için tıkla: rol doluysa diğer düşman bir sonraki en iyi role kayar. Öneriler anında güncellenir."
   },
   "ban": {
     "confirm": "{0} yasakla",
@@ -100,5 +120,268 @@
     "gold": "Altın",
     "emerald": "Zümrüt",
     "master": "Master+"
+  },
+  "metric": {
+    "base": "Bu yamadaki kazanma oranı",
+    "direct": "Rakibine karşı",
+    "style": "Onların tarzına karşı",
+    "synergy": "Müttefiklerle sinerji"
+  },
+  "team": {
+    "myTeam": "TAKIMIN",
+    "enemies": "DÜŞMANLAR",
+    "combos": "TAKIM KOMBOLARI",
+    "enemyCombos": "DÜŞMAN KOMBOLARI"
+  },
+  "tip": {
+    "pin": "İstemcinin sağ kenarına sabitle",
+    "minimize": "Küçült",
+    "expand": "Genişlet"
+  },
+  "status": {
+    "loadingChamps": "Şampiyon verileri yükleniyor…",
+    "loadingIcons": "Şampiyon ikonları yükleniyor…",
+    "loadingIconsN": "İkonlar yükleniyor… {0}/{1}",
+    "waitingClient": "League of Legends bekleniyor…",
+    "lcuStarting": "LCU başlatılıyor…",
+    "connLost": "Bağlantı koptu, istemcinin yeniden başlaması bekleniyor…",
+    "noDb": "data.db bulunamadı — pipeline/collect.py çalıştır",
+    "waitNextDraft": "Sonraki şampiyon seçimi bekleniyor…",
+    "checkingUpdates": "Güncellemeler kontrol ediliyor…",
+    "downloadingUpdate": "Güncelleme indiriliyor… %{0}{1}",
+    "applyingUpdate": "Güncelleme uygulanıyor, yeniden başlatılıyor…",
+    "readyLine": "Hazır · {0} · {1}",
+    "readyIdle": "Hazır",
+    "readyPhase": "Hazır · aşama: {0}",
+    "banPhase": "Ban aşaması…",
+    "waitDraft": "Şampiyon seçimi bekleniyor…",
+    "waitClient": "İstemci bekleniyor…",
+    "updatingDb": "Veritabanı güncelleniyor…",
+    "downloadingDb": "Veritabanı indiriliyor…"
+  },
+  "draft": {
+    "roleByTeam": "Rol: {0} — takım kompozisyonuna göre:",
+    "roleCounter": "Rol: {0} — kontra + sinerji:",
+    "roleBans": "Rol: {0} — kimi banlamalı:",
+    "style": "Tarz: {0}",
+    "pickHint": "⚠ Düşmanlardan önce seçim yapıyorsun — kontrlenmen mümkün. Nötr bir seçim yap ya da rakibi zaten kilitlenmiş biriyle sırayı değiştir.",
+    "aram": "ARAM — kadrodaki en iyi seçim:",
+    "counterItems": "Seni ve takımı kontrleyen eşyalar:",
+    "banBadge": "BAN"
+  },
+  "pair": {
+    "airborne": {
+      "a": "{0} düşmanları havaya fırlatıyor — bu senin ultini tetikler ve havaya kalkan tüm takımı tek seferde vurursun.",
+      "b": "Sen düşmanları havaya fırlatırsın, {0} anında hepsinin üzerine ult açar — güçlü bir teamfight kombosu."
+    },
+    "orianna": {
+      "a": "Topunu {0} üzerine koy: onlar engage aldığında ultin etraflarındaki tüm düşmanları çekip patlatır.",
+      "b": "Önce sen engage alırsın, {0} topu senin üzerine koyup ult atarak düşmanları etrafında toplar — devasa AoE hasarı."
+    },
+    "immortal": {
+      "a": "Ultin {0} karakterini yenilmez yapar — düşmanın içine dalıp hayatta kalabilir.",
+      "b": "{0}'in ulti seni yenilmez yapar ya da ölümden kurtarır — daha cesur dalabilirsin."
+    },
+    "enchanter": {
+      "a": "{0} devasa hasar verir ama kırılgan ve hareketsizdir. Onu kalkanlar/iyileştirir ve hızlandırırsan asıl o zaman parlar.",
+      "b": "Güçlü ama kırılgan bir carry'sin. {0} seni kalkanlar, iyileştirir ve güçlendirir — yakınında kal ve güvenle hasar ver."
+    },
+    "hook": {
+      "a": "Bir düşmanı pozisyonundan hook'larsın ve {0} yakalanan hedefi anında burst ile bitirir.",
+      "b": "{0} bir düşmanı hook'layıp çeker — sen yakalanan hedefi hasarınla bitirirsin. Lane'de kolay killer."
+    },
+    "burst_pick": {
+      "a": "{0} bir hedefi cc (charm/stun/root) ile kilitler — sen de hareketsizken bir saniyede burst ile silersin.",
+      "b": "Bir düşmanı cc ile kilitlersin, {0} de tutulan hedefi anında burst ile indirir. Yalnız kalan hedeflerde garanti pick."
+    },
+    "isolate": {
+      "a": "Ultin dalıp bir hedefi karanlıkta izole eder — müttefikleri kesilmişken {0} işini bitirir.",
+      "b": "{0} ult açıp tek bir hedefi izole eder — sen hasarla destek olup kurbanı bitirirsin."
+    },
+    "artillery": {
+      "a": "Sen ve {0} düşmanı uzun menzilden vurursunuz — objeler için güçlü bir poke-siege ikilisi."
+    },
+    "channel": {
+      "a": "{0} düşmanları cc ile yerinde tutarken sen tüm ultini üzerlerine kanalize edebilirsin.",
+      "b": "Sen düşmanları cc ile tutarken {0} hareketsiz hedeflerin üzerine güçlü bir ult kanalize eder — büyük hasar."
+    },
+    "peel": {
+      "a": "{0} takımın ana hasarı ama savunmasız. Düşmanları üzerinden temizlersin ki fightlerde güvenle hasar versin."
+    },
+    "frontline": {
+      "a": "Fightleri başlatır ve düşmanları cc ile kilitlersin, menzilden hasar veren {0}'i korursun.",
+      "b": "{0} fightleri başlatır ve düşmanları cc ile kilitler — bu arada sen backline'dan güvenle hasar verirsin."
+    },
+    "double_engage": {
+      "a": "Sen ve {0} birlikte engage alıp düşmanları cc ile kilitlersiniz — birlikte yalnız hedefleri kolayca yakalar ve pick kazanırsınız."
+    }
+  },
+  "combo": {
+    "howToPlay": "NASIL OYNANIR",
+    "danger": "TEHLİKE",
+    "airborne": {
+      "name": "Ult kombosu: havaya fırlatma → Yasuo/Yone",
+      "desc": "Bir havaya fırlatma, toplanmış tüm takımın üzerinde Yasuo/Yone'nin ultisini tetikler.",
+      "tipAlly": "Havaya fırlatarak engage al — Yasuo/Yone hemen arkasından ult açsın. Onları toplu haldeyken vur.",
+      "tipEnemy": "Toplanma ya da bir havaya fırlatmaya yakalanma — bu onların wombo-combo tetikleyicisi. Dağınık kal ve cleanse taşı (Mercurial, QSS)."
+    },
+    "orianna": {
+      "name": "Top şimşeği (Orianna + engage)",
+      "desc": "Top engage alan üzerinde: o dalar, Orianna ult açıp tüm grubu çekip patlatır.",
+      "tipAlly": "Topu dalan engage alıcının üzerine koy ve engage'inden hemen sonra takip et.",
+      "tipEnemy": "Orianna'nın topu kimdeyse ona dikkat et — engage onun üzerine gelir. Onlar başlatmadan önce dağıl."
+    },
+    "immortal": {
+      "name": "Ölümsüzlük (koruyucu ult + dive)",
+      "desc": "Bir yenilmezlik/kurtarma ultisi, carry'nin ölüm riski olmadan ortaya dalmasını sağlar.",
+      "tipAlly": "Agresif dal — koruyucu ultiyi carry'nin hasar zirvesi için sakla.",
+      "tipEnemy": "Yenilmezlikleri aktifken focus'unu boşa harcama — geçmesini bekle, sonra carry'yi öldür."
+    },
+    "enchanter": {
+      "name": "Hypercarry güçlendirmesi (enchanter + carry)",
+      "desc": "Saldırı/hareket hızı güçlendirmeleri ve kalkanlar, hareketsiz bir carry'yi hasar makinesine çevirir.",
+      "tipAlly": "Carry'ye yapış, onu güçlendir ve üzerinden temizle — o senin ana hasarın.",
+      "tipEnemy": "Carry'yi hızlı öldür ya da backline'larına gir: enchanter olmadan çaresizler. Lane'de onları boğ."
+    },
+    "hook": {
+      "name": "Hook pick",
+      "desc": "Bir hook, hedefi pozisyonundan koparır; burst şampiyonlar yardım gelmeden işini bitirir.",
+      "tipAlly": "Yalnız hedeflere hook ara — yakalananı takım olarak anında focus'la.",
+      "tipEnemy": "Yalnız gezme ve hook şampiyonlarından mesafeni koru. River vision'a dikkat et."
+    },
+    "aoe": {
+      "name": "Teamfight ultileri (çift AoE)",
+      "desc": "Birkaç güçlü AoE ulti üst üste biner ve toplanmış bir takımı tek seferde siler.",
+      "tipAlly": "Her iki ulti de hazırken dar geçitlerde fight başlat — düşman grubuna isabet ettir.",
+      "tipEnemy": "Ultileri hazırken üst üste toplanma ya da dar geçitlere girme. Dağıl ve tek tek gir."
+    },
+    "burstPick": {
+      "name": "Burst pick (cc → silme)",
+      "desc": "Bir düşman cc (charm/stun/root) ile yakalanır ve tepki veremeden burst ile anında silinir.",
+      "tipAlly": "Yalnız hedefleri avla: biri cc ile kilitler, geri kalanı focus'layıp bir saniyede siler.",
+      "tipEnemy": "Yalnız gezme, vision tut ve dash/QSS'ini onların başlatıcısı için sakla — yakaladıkları kişiye tüm burst'ü boşaltırlar."
+    },
+    "artillery": {
+      "name": "Topçu (uzun menzil)",
+      "desc": "Birkaç uzun menzilli şampiyon, trade yapmadan lane ve objeleri uzaktan pushlar.",
+      "tipAlly": "Fightlerden önce düşmanı menzilden poke'la ve objelere siege yap — önce yakına girme.",
+      "tipEnemy": "Poke'un içinde oturma: hızlı engage al ya da flank yap, kalkan/mobilite al ve yakın mesafe fight zorla."
+    },
+    "global": {
+      "name": "Global baskı",
+      "desc": "Global ultiler haritanın her yerinde yardım ve pick sağlar — split-push'ta güçlü baskı.",
+      "tipAlly": "Split'te baskı yap ve globallerle harita geneli pickler al — düşmanı gerdir.",
+      "tipEnemy": "4v5 çatışmalarında fazla kalma — globalleri sayıyı eşitler. Şampiyonları haritada değilken dikkatli ol."
+    },
+    "lovers": {
+      "name": "Aşıklar (Xayah + Rakan)",
+      "desc": "Xayah ve Rakan birbirini güçlendirir: uzatılmış engage menzili, paylaşılan recall ve katmanlı CC.",
+      "tipAlly": "Bot'ta tek birim gibi oyna — Xayah yakınken Rakan daha uzaktan engage alır, o da tüylerle çıkışını korur.",
+      "tipEnemy": "İkisine birden trade yapma: Rakan'ın engage menzili normalden uzundur. Yalnız kalanı cezalandır."
+    },
+    "kalista": {
+      "name": "Kaderin Çağrısı (Kalista + engage)",
+      "desc": "Kalista'nın ultisi engage alan müttefiki düşman takımına fırlatır — güvenli mesafeden durdurulamaz bir havaya fırlatma başlangıcı.",
+      "tipAlly": "Ultini engage partnerin için sakla: onu toplu düşmanların içine fırlat ya da başarısız bir dive'ı resetlemek için kullan.",
+      "tipEnemy": "Dağıl ve Kalista'nın ultisini takip et — fırlatılan müttefik havaya fırlatmayla iner. Görüş alanında toplanma."
+    },
+    "isolate": {
+      "name": "İzolasyon (Nocturne dive)",
+      "desc": "Nocturne'nin ultisi haritayı karartır ve bir hedefe dalar; yardım gelmeden lockdown ya da burst kill'i garantiler.",
+      "tipAlly": "Takımının kilitleyebileceği ya da burst'leyebileceği hedefe ult aç — takımları tepki veremeden pick gerçekleşir.",
+      "tipEnemy": "Level 6'dan sonra yalnız gezme: ultisi geride kalanları izole eder. Toplan ve onun vision'ını tut."
+    },
+    "arrow": {
+      "name": "Ok → dive (Ashe setup)",
+      "desc": "Ashe'in global oku haritanın öbür ucundan stun atar — bir dalıcı donmuş hedefi anında takip eder.",
+      "tipAlly": "Pickler ve objeler için ok at — dalıcın her isabeti kille dönüştürür.",
+      "tipEnemy": "Oku dodge'la ya da vücudunla blokla: bir isabet, tüm takiplerinin üzerine gelmesi demek. Bir cleanse hazır tut."
+    },
+    "trap": {
+      "name": "Tuzak setup (Caitlyn + CC)",
+      "desc": "Caitlyn'in tuzakları müttefik hook ve stunların altında bir hedefi bedava headshot için yerinde kilitler.",
+      "tipAlly": "Desteğinin CC attığı yerlere tuzak koy — her hook ya da stun garanti bir tuzak ve headshot'a dönüşür.",
+      "tipEnemy": "Tuzaklarının yakınında hook'lanma — zincir kilitlenme öldürücüdür. Objelerin etrafındaki tuzakları temizle."
+    },
+    "splitpush": {
+      "name": "Split-push (1-3-1)",
+      "desc": "Güçlü bir yan lane oyuncusu pushlarken bir global ulti onu korur — düşman iki tarafa birden cevap veremez.",
+      "tipAlly": "Yan lane'leri push et ve cevap vermeye zorla — global ulti her toplanma ya da harita geneli fight'ı cezalandırır.",
+      "tipEnemy": "Splitçiyi derine kadar kovalama — global gelmeden başka yerde 5v4 fight zorla."
+    },
+    "diveball": {
+      "name": "Tam dive takımı",
+      "desc": "Üç ya da daha fazla dalıcı backline'a aynı anda atlar — hiçbir peel her tehdidi durduramaz.",
+      "tipAlly": "Dive'ı birlikte carry'lerinin üzerine commit edin — dağınık girişler sayı avantajınızı boşa harcar.",
+      "tipEnemy": "Peel ve disengage biriktir, sıkı toplanın ve carry'lerinizi her zaman frontline'ın arkasında tutun."
+    }
+  },
+  "roles": {
+    "top": "TOP",
+    "jungle": "ORMAN",
+    "mid": "MID",
+    "adc": "BOT",
+    "support": "DESTEK",
+    "unknown": "—"
+  },
+  "arch": {
+    "frontToBack": "Front-to-back",
+    "dive": "Dive",
+    "pickPoke": "Pick/poke"
+  },
+  "badge": {
+    "ban": "BAN"
+  },
+  "cat": {
+    "cc": "cc (Mercs/tenacity)",
+    "autoCrit": "crit/auto (Steelcaps/Frozen Heart)",
+    "shield": "kalkan (Serpent's Fang)",
+    "heal": "iyileşme (Grievous Wounds)",
+    "physical": "fiziksel",
+    "magic": "büyü"
+  },
+  "style": {
+    "mixed": "Karışık"
+  },
+  "reason": {
+    "neutral": "Nötr seçim — düşman kompozisyonu netleşene kadar güvenli.",
+    "dmgStack": "Takım zaten {0} hasar biriktiriyor — tek bir zırh/MR eşyası birkaçını etkisiz kılar.",
+    "dmgBalance": "Takımın hasarını dengeler ({0}).",
+    "aramFront": "Takımda frontline eksik — sen engage/tanklık getiriyorsun.",
+    "aramHeal": "Takımın eksik olan sustain'ini ekler (ARAM değeri).",
+    "antiPickPoke": "Uzun menzilli kompozisyonlarına dalıyor (engage/dash).",
+    "antiDive": "Takımı onların dive'ından koruyor (peel/disengage).",
+    "antiFront": "Frontline'larını menzil/burst ile hasarda geçiyor.",
+    "vulnNearAll": "tek bir eşya neredeyse tüm takımı etkisiz kılar",
+    "vuln3": "tek bir eşya üçünü birden etkisiz kılar",
+    "vuln2": "tek bir eşya ikisini birden etkisiz kılar",
+    "dontStack": "{0} biriktirme — {1}.",
+    "exploit": "Düşman {0} biriktirdi — zorunlu eşyalarını cezalandırıyorsun.",
+    "countersPool": "Pool'unu kontrluyor ({0}'i yeniyor)",
+    "countersAlly": "Müttefikin {0}'i kontrluyor",
+    "countersMyPick": "Seçimin {0}'i kontrluyor",
+    "botlaneGood": "Düşman bot hattına karşı iyi ({0})",
+    "botlaneBad": "Düşman bot hattına karşı zorlanıyor ({0})",
+    "strongPatch": "Bu yamada güçlü — WR %{0}",
+    "oftenPicked": "Sık seçiliyor — yaygın bir rakip",
+    "notablePick": "Bu yamada dikkat çeken bir seçim",
+    "jgSetup": "Ormancı {0} cc'siz agresif — sen gank setup'ı sağlıyorsun.",
+    "adcEngage": "ADC {0} engage istiyor — fightleri onun için açıyorsun.",
+    "adcScale": "ADC {0} scale ediyor — peel/enchant'in scale olmasını sağlıyor.",
+    "womboAoe": "AoE ultin takımın teamfight wombo'suyla üst üste biniyor — toplu bir fight onları silebilir.",
+    "comfortHigh": "Bu şampiyonu çok oynuyorsun — güvenli bir konfor seçimi.",
+    "comfortMid": "Pool'undan tanıdık bir şampiyon — rahat bir seçim.",
+    "lineWinStrong": "{0}'e karşı lane'i açık ara kazanıyor (+%{1})",
+    "lineWin": "{0}'e karşı lane'i kazanıyor (+%{1})",
+    "lineEdge": "{0}'e karşı hafif üstünlük",
+    "lineHard": "{0}'e karşı zor matchup (%{1})",
+    "lineNeutral": "{0}'e karşı eşit matchup",
+    "favMatchups": "{0}'e karşı avantajlı matchupler",
+    "fitsTeam": "Mevcut takım kompozisyonuna iyi uyuyor.",
+    "baseTop": "Bu yamanın en güçlülerinden biri — WR %{0}",
+    "baseGood": "İyi temel WR %{0}",
+    "baseLow": "Düşük WR %{0} — şampiyonu bilmen gerekiyor",
+    "baseNeutral": "Nötr seçim, WR ≈%{0}",
+    "countersMany": "Takımının gösterdiği {0} şampiyonu kontrluyor"
   }
 }

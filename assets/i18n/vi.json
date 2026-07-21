@@ -65,7 +65,8 @@
     "waitDraft": "Đang chờ chọn tướng…",
     "waitClient": "Đang chờ client…",
     "updatingDb": "Đang cập nhật cơ sở dữ liệu…",
-    "downloadingDb": "Đang tải cơ sở dữ liệu…"
+    "downloadingDb": "Đang tải cơ sở dữ liệu…",
+    "readyIdle": "Sẵn sàng"
   },
   "draft": {
     "roleByTeam": "Vị trí: {0} — theo đội hình:",
@@ -180,6 +181,48 @@
       "desc": "Chiêu cuối toàn cầu hỗ trợ và bắt lẻ khắp bản đồ — áp lực mạnh khi đẩy lẻ.",
       "tipAlly": "Tạo áp lực khi đẩy lẻ và bắt lẻ xuyên bản đồ bằng chiêu toàn cầu — kéo giãn địch.",
       "tipEnemy": "Đừng nán lại trong giao tranh 4v5 — chiêu toàn cầu của họ cân bằng quân số. Chú ý khi tướng của họ ngoài bản đồ."
+    },
+    "lovers": {
+      "name": "Đôi tình nhân (Xayah + Rakan)",
+      "desc": "Xayah và Rakan tương trợ lẫn nhau: tầm mở giao tranh xa hơn, hồi thành cùng lúc và khống chế chồng lớp.",
+      "tipAlly": "Chơi đường dưới như một khối — Rakan mở giao tranh xa hơn khi có Xayah gần đó, và cô ấy che chắn đường rút bằng lông vũ.",
+      "tipEnemy": "Đừng đối đầu cả hai cùng lúc: tầm mở giao tranh của Rakan xa hơn bình thường. Trừng phạt kẻ đi một mình."
+    },
+    "kalista": {
+      "name": "Định mệnh gọi tên (Kalista + mở giao tranh)",
+      "desc": "Chiêu cuối của Kalista ném một đồng minh mở giao tranh vào giữa đội địch — pha mở trận hất tung không thể ngăn cản từ khoảng cách an toàn.",
+      "tipAlly": "Để dành chiêu cuối cho đồng minh mở giao tranh: phóng họ vào nhóm địch đang tụ hoặc dùng để cứu vãn pha lao thất bại.",
+      "tipEnemy": "Giãn đội hình và theo dõi chiêu cuối của Kalista — đồng minh bị ném sẽ hất tung khi hạ cánh. Đừng tụ lại trong tầm nhìn của cô ấy."
+    },
+    "isolate": {
+      "name": "Cô lập (Nocturne lao vào)",
+      "desc": "Chiêu cuối của Nocturne làm mù bản đồ và lao vào một mục tiêu; khống chế hoặc bùng nổ kết liễu trước khi viện binh đến.",
+      "tipAlly": "Dùng chiêu cuối vào mục tiêu mà đội bạn có thể khống chế hoặc bùng nổ — pha bắt lẻ diễn ra trước khi đội địch kịp phản ứng.",
+      "tipEnemy": "Sau cấp 6, đừng đi một mình: chiêu cuối của hắn cô lập kẻ lạc đàn. Tụ nhóm và giữ mắt theo dõi hắn."
+    },
+    "arrow": {
+      "name": "Mũi tên → lao vào (bàn đạp Ashe)",
+      "desc": "Mũi tên toàn cầu của Ashe gây choáng từ khắp bản đồ — tướng lao vào tiếp ứng ngay lập tức lên mục tiêu bị đóng băng.",
+      "tipAlly": "Bắn mũi tên vào các pha bắt lẻ và mục tiêu — tướng lao vào của bạn biến mọi cú trúng thành một mạng hạ gục.",
+      "tipEnemy": "Né hoặc dùng thân che mũi tên: trúng một phát nghĩa là toàn bộ combo tiếp theo của họ sẽ dồn lên bạn. Luôn để sẵn giải khống chế."
+    },
+    "trap": {
+      "name": "Bàn đạp bẫy (Caitlyn + khống chế)",
+      "desc": "Bẫy của Caitlyn đặt dưới các pha móc và choáng của đồng minh giữ chân mục tiêu để ăn phát bắn đầu miễn phí.",
+      "tipAlly": "Đặt bẫy ở nơi hỗ trợ của bạn khống chế trúng — mọi pha móc hay choáng đều biến thành bẫy và phát bắn đầu chắc ăn.",
+      "tipEnemy": "Đừng để bị móc gần bẫy của cô ấy — chuỗi khống chế này chí mạng. Dọn bẫy quanh các mục tiêu."
+    },
+    "splitpush": {
+      "name": "Split-push (1-3-1)",
+      "desc": "Một tướng đường mạnh đẩy lẻ trong khi chiêu cuối toàn cầu bảo kê họ — địch không thể đáp trả cả hai phía cùng lúc.",
+      "tipAlly": "Đẩy các đường biên và buộc địch phải phản ứng — chiêu cuối toàn cầu trừng phạt mọi pha gom quân hay giao tranh xuyên bản đồ.",
+      "tipEnemy": "Đừng đuổi theo tướng split-push quá sâu — ép giao tranh 5v4 ở nơi khác trước khi chiêu toàn cầu của họ đến."
+    },
+    "diveball": {
+      "name": "Đội hình toàn dive",
+      "desc": "Ba tướng lao vào trở lên cùng nhảy vào tuyến sau một lúc — không có pha bảo kê nào chặn được hết mối đe dọa.",
+      "tipAlly": "Lao vào cùng lúc nhắm vào tướng chủ lực của địch — vào riêng lẻ sẽ lãng phí lợi thế quân số.",
+      "tipEnemy": "Dồn khả năng bảo kê và thoát giao tranh, tụ đội chặt và luôn giữ tướng chủ lực phía sau tuyến đầu."
     }
   },
   "roles": {
@@ -199,7 +242,9 @@
     "counters": "KHẮC CHẾ",
     "synergy": "PHỐI HỢP",
     "youPick": "BẠN CHỌN",
-    "firstPick": "Pick đầu"
+    "firstPick": "Pick đầu",
+    "roleAuto": "Tự động (theo thống kê)",
+    "roleTip": "Vị trí của địch — được gán tự động dựa trên tần suất tướng đó chơi mỗi vị trí (mỗi địch một vị trí). Nhấn để chọn thủ công từ danh sách: nếu vị trí đã bị chiếm, địch còn lại sẽ chuyển sang vị trí tốt tiếp theo. Đề xuất cập nhật ngay lập tức."
   },
   "badge": {
     "ban": "CẤM"
@@ -232,6 +277,7 @@
     "countersPool": "Khắc chế pool của bạn (thắng {0})",
     "countersAlly": "Khắc chế đồng đội {0}",
     "countersMyPick": "Khắc chế lựa chọn của bạn {0}",
+    "countersMany": "Khắc chế {0} tướng đội bạn đã chọn",
     "botlaneGood": "Tốt trước bot địch ({0})",
     "botlaneBad": "Vất vả trước bot địch ({0})",
     "strongPatch": "Mạnh bản này — WR {0}%",
@@ -260,7 +306,13 @@
   },
   "session": {
     "needGames": "Chơi vài trận khi Counterplay đang chạy — LP mỗi trận và biểu đồ tỉ lệ thắng sẽ được cập nhật.",
-    "wl": "T:{0} - B:{1}"
+    "wl": "T:{0} - B:{1}",
+    "queue": {
+      "solo": "Đơn/Đôi",
+      "flex": "Linh hoạt",
+      "normal": "Thường",
+      "aram": "ARAM"
+    }
   },
   "ranks": {
     "iron": "Sắt",

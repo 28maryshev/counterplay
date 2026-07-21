@@ -65,7 +65,8 @@
     "waitDraft": "In attesa della selezione campioni…",
     "waitClient": "In attesa del client…",
     "updatingDb": "Aggiornamento del database…",
-    "downloadingDb": "Download del database…"
+    "downloadingDb": "Download del database…",
+    "readyIdle": "Pronto"
   },
   "draft": {
     "roleByTeam": "Ruolo: {0} — per composizione di squadra:",
@@ -180,6 +181,48 @@
       "desc": "Le ult globali danno aiuto e pick su tutta la mappa — forte pressione in split-push.",
       "tipAlly": "Fai pressione in split e prendi pick a distanza con le globali — allunga il nemico.",
       "tipEnemy": "Non attardarti negli scontri 4v5 — le loro globali pareggiano i numeri. Fai attenzione quando i loro campioni sono fuori mappa."
+    },
+    "lovers": {
+      "name": "Gli amanti (Xayah + Rakan)",
+      "desc": "Xayah e Rakan si potenziano a vicenda: raggio d'ingaggio esteso, recall condivisi e cc stratificato.",
+      "tipAlly": "Giocate la bot lane come un'unica unità — Rakan ingaggia più lontano con Xayah vicina, e lei copre la sua uscita con le piume.",
+      "tipEnemy": "Non scambiare contro entrambi insieme: il raggio d'ingaggio di Rakan è più lungo del normale. Punisci chi resta da solo."
+    },
+    "kalista": {
+      "name": "Richiamo del destino (Kalista + ingaggio)",
+      "desc": "L'ultimate di Kalista lancia un alleato ingaggiatore nella squadra nemica — un'iniziazione con knock-up inarrestabile e in sicurezza.",
+      "tipAlly": "Conserva l'ultimate per il tuo alleato ingaggiatore: lancialo sui nemici raggruppati o usala per resettare un dive fallito.",
+      "tipEnemy": "Restate sparsi e tenete d'occhio l'ultimate di Kalista — l'alleato lanciato atterra con un knock-up. Non raggruppatevi sotto la sua visuale."
+    },
+    "isolate": {
+      "name": "Isolamento (dive di Nocturne)",
+      "desc": "L'ultimate di Nocturne acceca la mappa e si tuffa su un bersaglio; il lockdown o il burst confermano la kill prima che arrivino aiuti.",
+      "tipAlly": "Ulta il bersaglio che la tua squadra può bloccare o bruciare col burst — il pick avviene prima che la squadra nemica possa reagire.",
+      "tipEnemy": "Dopo il livello 6 non camminare da solo: la sua ultimate isola chi resta indietro. Raggruppatevi e mantenete la vision su di lui."
+    },
+    "arrow": {
+      "name": "Freccia → dive (setup di Ashe)",
+      "desc": "La freccia globale di Ashe stordisce da qualsiasi punto della mappa — chi si tuffa segue subito sul bersaglio congelato.",
+      "tipAlly": "Lancia frecce su pick e obiettivi — il tuo diver converte ogni colpo in una kill.",
+      "tipEnemy": "Schiva o fai body-block alla freccia: un colpo solo significa tutto il follow-up nemico su di te. Tieni pronta una cleanse."
+    },
+    "trap": {
+      "name": "Setup trappole (Caitlyn + CC)",
+      "desc": "Le trappole di Caitlyn sotto hook e stun alleati immobilizzano il bersaglio per headshot gratuiti.",
+      "tipAlly": "Piazza le trappole dove il tuo support piazza il cc — ogni hook o stun diventa una trappola e un headshot garantiti.",
+      "tipEnemy": "Non farti agganciare vicino alle sue trappole — la catena di cc è letale. Ripulisci le trappole intorno agli obiettivi."
+    },
+    "splitpush": {
+      "name": "Split-push (1-3-1)",
+      "desc": "Un forte side-laner spinge mentre un'ultimate globale lo copre — il nemico non può rispondere su entrambi i lati.",
+      "tipAlly": "Spingi le lane laterali e costringili a rispondere — l'ultimate globale punisce ogni collasso o scontro sull'altra metà mappa.",
+      "tipEnemy": "Non inseguire lo splitter troppo a fondo — forza scontri 5v4 altrove prima che arrivi la loro globale."
+    },
+    "diveball": {
+      "name": "Squadra full dive",
+      "desc": "Tre o più diver si tuffano sulla backline insieme — nessun peel può fermare ogni minaccia.",
+      "tipAlly": "Tuffatevi insieme sulle loro carry — entrare separati spreca il vantaggio numerico.",
+      "tipEnemy": "Accumula peel e disingaggio, raggruppatevi stretti e tenete sempre le carry dietro la frontline."
     }
   },
   "roles": {
@@ -199,7 +242,9 @@
     "counters": "COUNTER",
     "synergy": "SINERGIA",
     "youPick": "TU SCEGLI",
-    "firstPick": "1° pick"
+    "firstPick": "1° pick",
+    "roleAuto": "Auto (da statistiche)",
+    "roleTip": "Ruolo del nemico — assegnato automaticamente in base a quanto spesso il campione gioca ogni ruolo (un ruolo per nemico). Clicca per sceglierlo manualmente dall'elenco: se il ruolo è già occupato, l'altro nemico passa al suo ruolo migliore successivo. I consigli si aggiornano all'istante."
   },
   "badge": {
     "ban": "BAN"
@@ -261,7 +306,13 @@
   },
   "session": {
     "needGames": "Gioca qualche partita con Counterplay aperto: i PL per partita e il grafico del winrate si riempiranno.",
-    "wl": "V:{0} - S:{1}"
+    "wl": "V:{0} - S:{1}",
+    "queue": {
+      "solo": "Solo/Duo",
+      "flex": "Flex",
+      "normal": "Normale",
+      "aram": "ARAM"
+    }
   },
   "ranks": {
     "iron": "Ferro",

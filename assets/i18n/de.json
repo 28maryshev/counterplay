@@ -5,10 +5,19 @@
     "ok": "Verstanden"
   },
   "tray": {
-    "autostart": "Mit Windows starten"
+    "autostart": "Mit Windows starten",
+    "show": "Anzeigen",
+    "exit": "Beenden"
   },
   "ready": {
-    "beta": "Counterplay wird jeden Tag besser. Fehler gefunden oder eine Idee? Schreib uns über den Support"
+    "beta": "Counterplay wird jeden Tag besser. Fehler gefunden oder eine Idee? Schreib uns über den Support",
+    "tipLabel": "PICK-TIPP",
+    "f1head": "Draft-Assistent.",
+    "f1body": " Berechnet Konter gegen Gegner, Synergie mit Verbündeten und wen du bannen solltest — aus echten Stats des aktuellen Patches. Aktualisiert sich bei jedem Hover.",
+    "f2head": "✊ ✌ ✋ Kompositionstyp.",
+    "f2body": " Front-to-Back ✊ schlägt Dive ✌, Dive schlägt Pick-Poke ✋, und Pick-Poke schlägt Front-to-Back. Wähle eine Komposition, die den Gegner kontert.",
+    "f3head": "Auf dich abgestimmt.",
+    "f3body": " Berücksichtigt deine Mastery — Comfort-Champions zuerst, keine blinden Konterpicks."
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -26,7 +35,13 @@
   },
   "session": {
     "needGames": "Spiele ein paar Spiele mit laufendem Counterplay – LP pro Spiel und der Winrate-Graph füllen sich.",
-    "wl": "S:{0} - N:{1}"
+    "wl": "S:{0} - N:{1}",
+    "queue": {
+      "solo": "Solo/Duo",
+      "flex": "Flex",
+      "normal": "Normal",
+      "aram": "ARAM"
+    }
   },
   "ranks": {
     "iron": "Eisen",
@@ -80,7 +95,12 @@
     "failed": "Fehlgeschlagen — bist du dran?"
   },
   "slot": {
-    "firstPick": "1. Pick"
+    "firstPick": "1. Pick",
+    "counters": "KONTER",
+    "synergy": "SYNERGIE",
+    "youPick": "DU PICKST",
+    "roleAuto": "Automatisch (nach Stats)",
+    "roleTip": "Gegnerrolle — wird automatisch danach zugewiesen, wie oft der Champion diese Rolle spielt (eine Rolle pro Gegner). Klick, um sie manuell aus der Liste zu wählen: ist die Rolle schon vergeben, wechselt der andere Gegner zu seiner nächstbesten Rolle. Empfehlungen passen sich sofort an."
   },
   "ban": {
     "confirm": "{0} bannen",
@@ -141,5 +161,227 @@
     "baseLow": "Niedriger WR {0}% — du musst den Champion beherrschen",
     "baseNeutral": "Neutraler Pick, WR ≈{0}%",
     "countersMany": "Kontert {0} Champions, die dein Team gezeigt hat"
+  },
+  "metric": {
+    "base": "Winrate in diesem Patch",
+    "direct": "Gegen deinen Gegner",
+    "style": "Gegen ihren Spielstil",
+    "synergy": "Synergie mit Verbündeten"
+  },
+  "team": {
+    "myTeam": "DEIN TEAM",
+    "enemies": "GEGNER",
+    "combos": "TEAM-COMBOS",
+    "enemyCombos": "GEGNER-COMBOS"
+  },
+  "tip": {
+    "pin": "Am rechten Rand des Clients anheften",
+    "minimize": "Minimieren",
+    "expand": "Erweitern"
+  },
+  "status": {
+    "loadingChamps": "Champion-Daten werden geladen…",
+    "loadingIcons": "Champion-Icons werden geladen…",
+    "loadingIconsN": "Icons werden geladen… {0}/{1}",
+    "waitingClient": "Warten auf League of Legends…",
+    "lcuStarting": "LCU startet…",
+    "connLost": "Verbindung verloren, warte auf Neustart des Clients…",
+    "noDb": "data.db nicht gefunden — führe pipeline/collect.py aus",
+    "waitNextDraft": "Warten auf die nächste Championauswahl…",
+    "checkingUpdates": "Suche nach Updates…",
+    "downloadingUpdate": "Update wird heruntergeladen… {0}%{1}",
+    "applyingUpdate": "Update wird angewendet, Neustart…",
+    "readyLine": "Bereit · {0} · {1}",
+    "readyIdle": "Bereit",
+    "readyPhase": "Bereit · Phase: {0}",
+    "banPhase": "Bannphase…",
+    "waitDraft": "Warten auf Championauswahl…",
+    "waitClient": "Warten auf den Client…",
+    "updatingDb": "Datenbank wird aktualisiert…",
+    "downloadingDb": "Datenbank wird heruntergeladen…"
+  },
+  "draft": {
+    "roleByTeam": "Rolle: {0} — nach Teamkomposition:",
+    "roleCounter": "Rolle: {0} — Konter + Synergie:",
+    "roleBans": "Rolle: {0} — wen bannen:",
+    "style": "Stil: {0}",
+    "pickHint": "⚠ Du pickst vor den Gegnern — ein Konter ist möglich. Nimm einen neutralen Pick oder tausche mit jemandem, dessen Gegner schon feststeht.",
+    "aram": "ARAM — bester Pick von der Bank:",
+    "counterItems": "Items, die dich & das Team kontern:",
+    "banBadge": "BAN"
+  },
+  "pair": {
+    "airborne": {
+      "a": "{0} wirbelt Gegner in die Luft — das löst dein Ultimate aus und trifft das ganze hochgeworfene Team auf einmal.",
+      "b": "Du wirbelst Gegner in die Luft und {0} ultet sofort in alle hinein — eine starke Teamfight-Combo."
+    },
+    "orianna": {
+      "a": "Setz deinen Ball auf {0}: Wenn er engaged, zieht dein Ultimate alle Gegner um ihn herum zusammen und lässt sie explodieren.",
+      "b": "Du engagest zuerst und {0} setzt den Ball auf dich, ultet dann und zieht die Gegner um dich zusammen — massiver AoE-Schaden."
+    },
+    "immortal": {
+      "a": "Dein Ultimate macht {0} unverwundbar — er kann in die Gegner diven und überleben.",
+      "b": "{0}s Ultimate macht dich unverwundbar oder rettet dich vor dem Tod — dive mutiger rein."
+    },
+    "enchanter": {
+      "a": "{0} macht enormen Schaden, ist aber fragil und unbeweglich. Du schildest/heilst und gibst Tempo — dann glänzt er richtig.",
+      "b": "Du bist ein starker, aber fragiler Carry. {0} schildet, heilt und buffed dich — bleib in seiner Nähe und mach sicher Schaden."
+    },
+    "hook": {
+      "a": "Du hookst einen Gegner aus der Position und {0} finished das gefangene Ziel sofort mit Burst.",
+      "b": "{0} hookt und zieht einen Gegner heraus — du finished das gefangene Ziel mit deinem Schaden. Einfache Kills in der Lane."
+    },
+    "burst_pick": {
+      "a": "{0} legt ein Ziel mit CC fest (Charm/Stun/Root) — du deleted es mit Burst in einer Sekunde, während es bewegungsunfähig ist.",
+      "b": "Du legst einen Gegner mit CC fest und {0} burstet das festgehaltene Ziel sofort down. Ein garantierter Pick auf isolierte Ziele."
+    },
+    "isolate": {
+      "a": "Dein Ultimate divet rein und isoliert ein Ziel in Dunkelheit — {0} finished es, während die Verbündeten abgeschnitten sind.",
+      "b": "{0} ultet rein und isoliert ein einzelnes Ziel — du unterstützt mit Schaden und finished das Opfer."
+    },
+    "artillery": {
+      "a": "Du und {0} beschießt die Gegner aus großer Reichweite — ein starkes Poke-and-Siege-Duo für Objectives."
+    },
+    "channel": {
+      "a": "Während {0} Gegner mit CC festhält, kannst du dein ganzes Ultimate auf sie kanalisieren.",
+      "b": "Du hältst Gegner mit CC fest, während {0} ein starkes Ultimate auf die bewegungsunfähigen Ziele kanalisiert — großer Schaden."
+    },
+    "peel": {
+      "a": "{0} ist der Hauptschaden deines Teams, aber verwundbar. Du peelst Gegner weg, damit er in Fights sicher Schaden machen kann."
+    },
+    "frontline": {
+      "a": "Du eröffnest Fights und legst Gegner mit CC fest, um {0} zu schützen, der aus der Distanz Schaden macht.",
+      "b": "{0} eröffnet Fights und legt Gegner mit CC fest — währenddessen machst du sicher Schaden aus der Backline."
+    },
+    "double_engage": {
+      "a": "Du und {0} engaged beide und legt Gegner mit CC fest — zusammen fangt ihr isolierte Ziele leicht und gewinnt Picks."
+    }
+  },
+  "combo": {
+    "howToPlay": "SO SPIELST DU ES",
+    "danger": "GEFAHR",
+    "airborne": {
+      "name": "Ult-Combo: Knock-up → Yasuo/Yone",
+      "desc": "Ein Knock-up aktiviert Yasuos/Yones Ultimate auf dem ganzen gruppierten Team.",
+      "tipAlly": "Engage mit einem Knock-up — Yasuo/Yone ultet direkt danach rein. Trefft sie, während sie gruppiert sind.",
+      "tipEnemy": "Gruppiert euch nicht und lasst euch nicht von einem Knock-up erwischen — das ist ihr Wombo-Combo-Trigger. Bleibt verteilt und nutzt Cleanse (Mercurial, QSS)."
+    },
+    "orianna": {
+      "name": "Kugelblitz (Orianna + Engage)",
+      "desc": "Ball auf dem Engager: Er divet rein, Orianna ultet, zieht alle zusammen und sprengt die ganze Gruppe.",
+      "tipAlly": "Setz den Ball auf den divenden Engager und folge direkt nach seinem Engage nach.",
+      "tipEnemy": "Achtet darauf, wer Oriannas Ball trägt — der Engage kommt auf ihn. Verteilt euch, bevor sie initiieren."
+    },
+    "immortal": {
+      "name": "Unsterblichkeit (Schutz-Ult + Dive)",
+      "desc": "Ein Unverwundbarkeits-/Rettungs-Ult lässt den Carry mitten hineinstürzen, ohne den Tod zu riskieren.",
+      "tipAlly": "Dive aggressiv — spare dir das Schutz-Ult für den Damage-Peak des Carrys auf.",
+      "tipEnemy": "Verschwendet euren Fokus nicht, solange ihre Unverwundbarkeit aktiv ist — wartet sie aus und tötet dann den Carry."
+    },
+    "enchanter": {
+      "name": "Hypercarry-Buff (Enchanter + Carry)",
+      "desc": "Angriffs-/Lauftempo-Buffs und Schilde verwandeln einen unbeweglichen Carry in eine Schadensmaschine.",
+      "tipAlly": "Bleib beim Carry, buffe und peele für ihn — er ist euer Hauptschaden.",
+      "tipEnemy": "Tötet den Carry schnell oder geht auf ihre Backline: ohne den Enchanter ist er hilflos. Chokt ihn in der Lane."
+    },
+    "hook": {
+      "name": "Hook-Pick",
+      "desc": "Ein Hook reißt ein Ziel aus der Position; Burst-Champions finishen es, bevor Hilfe eintrifft.",
+      "tipAlly": "Sucht nach Hooks auf isolierte Ziele — fokussiert das gefangene Ziel sofort als Team.",
+      "tipEnemy": "Lauft nicht allein und haltet Abstand zu Hook-Champions. Respektiert die Sicht im Fluss."
+    },
+    "aoe": {
+      "name": "Teamfight-Ultis (Doppel-AoE)",
+      "desc": "Mehrere starke AoE-Ultis stacken sich und wischen ein gruppiertes Team auf einen Schlag weg.",
+      "tipAlly": "Startet Fights in Chokepoints, wenn beide Ultis bereit sind — landet sie auf der gegnerischen Gruppe.",
+      "tipEnemy": "Stackt euch nicht und pusht nicht in Chokepoints, wenn ihre Ultis bereit sind. Splittet euch und geht einzeln rein."
+    },
+    "burstPick": {
+      "name": "Burst-Pick (CC → delete)",
+      "desc": "Ein Gegner wird von CC (Charm/Stun/Root) gefangen und sofort von Burst gedeleted, bevor er reagieren kann.",
+      "tipAlly": "Jagt isolierte Ziele: Einer legt mit CC fest, der Rest fokussiert und deleted in einer Sekunde.",
+      "tipEnemy": "Lauft nicht allein, haltet Sicht und spart euren Dash/QSS für ihren Initiator auf — sie entladen ihren ganzen Burst auf den Gefangenen."
+    },
+    "artillery": {
+      "name": "Artillerie (große Reichweite)",
+      "desc": "Mehrere Champions mit großer Reichweite pushen Lane und Objectives aus der Distanz, ohne zu traden.",
+      "tipAlly": "Poket die Gegner aus der Distanz herunter, bevor ihr fightet, und belagert Objectives — geht nicht zuerst in den Nahkampf.",
+      "tipEnemy": "Steht nicht im Poke: engaged schnell oder flankiert, nehmt Schilde/Mobilität und erzwingt Nahkampf-Fights."
+    },
+    "global": {
+      "name": "Globaler Druck",
+      "desc": "Globale Ultis liefern Hilfe und Picks über die ganze Karte — starker Druck beim Split-Push.",
+      "tipAlly": "Übt Druck im Split aus und holt euch mit Globals Picks über die ganze Karte — zieht den Gegner auseinander.",
+      "tipEnemy": "Bleibt nicht zu lange in 4v5-Scharmützeln — ihre Globals gleichen die Zahlen aus. Respektiert, wenn ihre Champs von der Karte verschwunden sind."
+    },
+    "lovers": {
+      "name": "Die Liebenden (Xayah + Rakan)",
+      "desc": "Xayah und Rakan stärken sich gegenseitig: erweiterte Engage-Reichweite, gemeinsames Recall und gestaffeltes CC.",
+      "tipAlly": "Spielt Bot als eine Einheit — Rakan engaged weiter, wenn Xayah in der Nähe ist, und sie deckt seinen Rückzug mit Federn.",
+      "tipEnemy": "Tradet nicht gegen beide gleichzeitig: Rakans Engage-Reichweite ist länger als üblich. Bestraft, wer allein ist."
+    },
+    "kalista": {
+      "name": "Ruf des Schicksals (Kalista + Engage)",
+      "desc": "Kalistas Ult wirft einen Engage-Verbündeten ins gegnerische Team — eine unaufhaltsame Knock-up-Initiation aus sicherer Distanz.",
+      "tipAlly": "Spar dir das Ult für den Engage-Partner auf: schleudere ihn in gruppierte Gegner oder nutze es, um einen misslungenen Dive zu resetten.",
+      "tipEnemy": "Verteilt euch und behaltet Kalistas Ult im Auge — der geworfene Verbündete landet mit einem Knock-up. Gruppiert euch nicht in ihrer Sichtlinie."
+    },
+    "isolate": {
+      "name": "Isolation (Nocturne-Dive)",
+      "desc": "Nocturnes Ult blindet die Karte und divet ein Ziel an; Lockdown oder Burst sichert den Kill, bevor Hilfe eintrifft.",
+      "tipAlly": "Ulte das Ziel, das euer Team locken oder bursten kann — der Pick passiert, bevor ihr Team reagieren kann.",
+      "tipEnemy": "Lauft ab Level 6 nicht allein: sein Ult isoliert Nachzügler. Bleibt gruppiert und behaltet ihn im Blick."
+    },
+    "arrow": {
+      "name": "Pfeil → Dive (Ashe-Setup)",
+      "desc": "Ashes globaler Pfeil stunt über die ganze Karte hinweg — ein Diver folgt sofort auf das eingefrorene Ziel.",
+      "tipAlly": "Schieße Pfeile auf Picks und Objectives — dein Diver verwandelt jeden Treffer in einen Kill.",
+      "tipEnemy": "Weicht dem Pfeil aus oder blockt ihn mit dem Körper: ein Treffer bedeutet, dass ihr ganzer Follow-up auf euch landet. Haltet Cleanse bereit."
+    },
+    "trap": {
+      "name": "Fallen-Setup (Caitlyn + CC)",
+      "desc": "Caitlyns Fallen unter verbündeten Hooks und Stuns legen ein Ziel fest für kostenlose Headshots.",
+      "tipAlly": "Legt Fallen dort, wo euer Support CC landet — jeder Hook oder Stun wird zu einer garantierten Falle und Headshot.",
+      "tipEnemy": "Lasst euch nicht in der Nähe ihrer Fallen hooken — der Chain-Lockdown ist tödlich. Räumt Fallen um Objectives herum."
+    },
+    "splitpush": {
+      "name": "Split-Push (1-3-1)",
+      "desc": "Ein starker Seitenlaner pusht, während ein globales Ult ihn deckt — der Gegner kann nicht auf beiden Seiten reagieren.",
+      "tipAlly": "Pusht die Seitenlanes und zwingt sie zu reagieren — das globale Ult bestraft jeden Collapse oder Fight auf der anderen Karte.",
+      "tipEnemy": "Jagt den Splitter nicht zu tief nach — erzwingt 5v4-Fights woanders, bevor ihr Global eintrifft."
+    },
+    "diveball": {
+      "name": "Volles Dive-Team",
+      "desc": "Drei oder mehr Diver springen gleichzeitig auf die Backline — kein Peel kann jede Bedrohung stoppen.",
+      "tipAlly": "Divet gemeinsam auf ihre Carrys — getrennte Einstiege verschwenden euren Zahlenvorteil.",
+      "tipEnemy": "Stackt Peel und Disengage, bleibt eng gruppiert und haltet eure Carrys jederzeit hinter der Frontline."
+    }
+  },
+  "roles": {
+    "top": "TOP",
+    "jungle": "JUNGLE",
+    "mid": "MID",
+    "adc": "BOT",
+    "support": "SUPPORT",
+    "unknown": "—"
+  },
+  "arch": {
+    "frontToBack": "Front-to-Back",
+    "dive": "Dive",
+    "pickPoke": "Pick/Poke"
+  },
+  "badge": {
+    "ban": "BAN"
+  },
+  "cat": {
+    "cc": "CC (Mercs/Tenacity)",
+    "autoCrit": "Crit/Autos (Steelcaps/Frozen Heart)",
+    "shield": "Schilde (Serpent's Fang)",
+    "heal": "Heilung (Grievous Wounds)",
+    "physical": "physisch",
+    "magic": "magisch"
+  },
+  "style": {
+    "mixed": "Gemischt"
   }
 }

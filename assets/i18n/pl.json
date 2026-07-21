@@ -48,6 +48,7 @@
     "exit": "Wyjdź"
   },
   "status": {
+    "readyIdle": "Gotowe",
     "loadingChamps": "Ładowanie danych postaci…",
     "loadingIcons": "Ładowanie ikon postaci…",
     "loadingIconsN": "Ładowanie ikon… {0}/{1}",
@@ -180,6 +181,48 @@
       "desc": "Globalne ulty dają pomoc i picki na całej mapie — silna presja w split-pushu.",
       "tipAlly": "Naciskaj w splicie i bierz picki przez mapę globalkami — rozciągaj wroga.",
       "tipEnemy": "Nie przeciągaj potyczek 4v5 — ich globalki wyrównują liczby. Uważaj, gdy ich postacie są poza mapą."
+    },
+    "lovers": {
+      "name": "Kochankowie (Xayah + Rakan)",
+      "desc": "Xayah i Rakan wzmacniają się nawzajemnie: większy zasięg inicjacji, wspólne recalle i warstwowe cc.",
+      "tipAlly": "Grajcie na bocie jako jedna jednostka — Rakan inicjuje z większego zasięgu, gdy Xayah jest blisko, a ona osłania jego wyjście piórami.",
+      "tipEnemy": "Nie walczcie z obojgiem naraz: zasięg inicjacji Rakana jest większy niż zwykle. Karz tego, kto zostanie sam."
+    },
+    "kalista": {
+      "name": "Zew Przeznaczenia (Kalista + inicjacja)",
+      "desc": "Ultimate Kality wrzuca inicjującego sojusznika w środek wrogiej drużyny — niezatrzymywalna inicjacja z podrzutem, rzucona z bezpiecznej odległości.",
+      "tipAlly": "Zachowaj ultimate dla partnera do inicjacji: wrzuć go w zgrupowanych wrogów albo użyj, by zresetować nieudany dive.",
+      "tipEnemy": "Rozproszcie się i śledźcie ultimate Kality — wrzucony sojusznik ląduje z podrzutem. Nie grupujcie się w jej polu widzenia."
+    },
+    "isolate": {
+      "name": "Izolacja (dive Nocturne'a)",
+      "desc": "Ultimate Nocturne'a zaciemnia mapę i wskakuje na cel — lockdown lub burst dobija go, zanim nadejdzie pomoc.",
+      "tipAlly": "Ultuj cel, który twoja drużyna może zablokować cc lub zbursić — pick następuje, zanim ich drużyna zdąży zareagować.",
+      "tipEnemy": "Po 6. poziomie nie chodź sam: jego ultimate izoluje odstających. Trzymajcie się razem i miejcie na niego wizję."
+    },
+    "arrow": {
+      "name": "Strzała → dive (setup Ashe)",
+      "desc": "Globalna strzała Ashe ogłusza z dowolnego miejsca na mapie — diver natychmiast dobija unieruchomiony cel.",
+      "tipAlly": "Strzelaj w picki i obiekty — twój diver zamienia każde trafienie w zabójstwo.",
+      "tipEnemy": "Unikaj strzały albo zasłoń się kimś: jedno trafienie oznacza, że cały ich follow-up spadnie na ciebie. Trzymaj cleanse w gotowości."
+    },
+    "trap": {
+      "name": "Pułapki (Caitlyn + cc)",
+      "desc": "Pułapki Caitlyn pod sojuszniczymi hookami i ogłuszeniami więżą cel w miejscu na darmowe headshoty.",
+      "tipAlly": "Stawiaj pułapki tam, gdzie twój support kładzie cc — każdy hook czy ogłuszenie zamienia się w gwarantowaną pułapkę i headshota.",
+      "tipEnemy": "Nie daj się zahaczyć blisko jej pułapek — łańcuch lockdownu jest śmiertelny. Czyśćcie pułapki wokół obiektów."
+    },
+    "splitpush": {
+      "name": "Split-push (1-3-1)",
+      "desc": "Silny side-laner pushuje, podczas gdy globalna ultimate go wspiera — wróg nie jest w stanie odpowiedzieć na obu stronach.",
+      "tipAlly": "Pushuj boczne linie i zmuszaj wroga do reakcji — globalna ultimate karze za każdy collapse czy walkę na mapie.",
+      "tipEnemy": "Nie ścigajcie splittera 3 osobami — wymuszajcie walki 5v4 gdzie indziej, zanim dotrze jego globalka."
+    },
+    "diveball": {
+      "name": "Drużyna pełnego dive'u",
+      "desc": "Trzech lub więcej diverów wskakuje na backline naraz — żaden peel nie zatrzyma wszystkich zagrożeń.",
+      "tipAlly": "Wchodźcie w dive razem na ich carry — rozdzielone wejścia marnują waszą przewagę liczebną.",
+      "tipEnemy": "Grupujcie peel i disengage, trzymajcie się razem i zawsze chowajcie carry za frontline."
     }
   },
   "roles": {
@@ -199,7 +242,9 @@
     "counters": "KONTRY",
     "synergy": "SYNERGIA",
     "youPick": "TY WYBIERASZ",
-    "firstPick": "1. pick"
+    "firstPick": "1. pick",
+    "roleAuto": "Auto (wg statystyk)",
+    "roleTip": "Rola wroga — przypisywana automatycznie na podstawie tego, jak często postać gra na danej roli (jedna rola na wroga). Kliknij, by wybrać ją ręcznie z listy: jeśli rola jest zajęta, drugi wróg przechodzi na swoją kolejną najlepszą rolę. Rekomendacje aktualizują się natychmiast."
   },
   "badge": {
     "ban": "BAN"
@@ -261,7 +306,13 @@
   },
   "session": {
     "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",
-    "wl": "W:{0} - P:{1}"
+    "wl": "W:{0} - P:{1}",
+    "queue": {
+      "solo": "Solo/Duo",
+      "flex": "Flex",
+      "normal": "Normalna",
+      "aram": "ARAM"
+    }
   },
   "ranks": {
     "iron": "Żelazo",
