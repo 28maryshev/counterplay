@@ -463,6 +463,7 @@ sealed class TestPanel : Window
         if (ChampOf(cb) != 0) return;   // уже выбран (например, я успел сам)
 
         var taken  = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
+        if (_plannedMyPick > 0) taken.Add(_plannedMyPick);  // мой пик зарезервирован — ботам нельзя
         var dbRole = RecommendationEngine.LcuToDbRole(
             cell < 5 ? _rowRoles[cell] : _enemyRoles[cell - 5]);
         var pool   = _idByName.Values
