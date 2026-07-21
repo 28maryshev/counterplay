@@ -87,8 +87,8 @@ sealed class TestPanel : Window
     // не совпадает с моим — очередь пика врага-визави отличается от моей.
     private readonly string[] _rowRoles   = [.. LcuRoles];
     private readonly string[] _enemyRoles = [.. LcuRoles];
-    private readonly TextBlock[] _roleLbls      = new TextBlock[5];
-    private readonly TextBlock[] _enemyRoleLbls = new TextBlock[5];
+    private readonly ComboBox[] _roleCombos      = new ComboBox[5];  // роль строки вручную
+    private readonly ComboBox[] _enemyRoleCombos = new ComboBox[5];
 
     private readonly OverlayWindow _overlay;
     private readonly RecommendationEngine _engine;
@@ -120,6 +120,9 @@ sealed class TestPanel : Window
     // ходе пики разнесены, и видно, как подбор реагирует на каждый по отдельности.
     private const int MaxTurnSeconds = 10;
     private readonly Dictionary<int, DateTime> _pickAt = new();   // cell → момент пика бота
+    private readonly HashSet<int> _autoPicked = new();  // клетки, занятые авто-драфтом
+    private bool _autoSetting;   // идёт программная установка чемпиона авто-драфтом
+    private bool _settingRoles;  // идёт программная установка ролей (не рекурсировать)
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
     {
@@ -142,7 +145,7 @@ sealed class TestPanel : Window
         for (int i = 0; i < 7; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         root.Children.Add(Header("МОЯ КОМАНДА (точка = я)", 0, "#36D6E7"));
-        root.Children.Add(Header("ВРАГИ (роли — кликом в оверлее)", 2, "#FF5A4D"));
+        root.Children.Add(Header("ВРАГИ (роль — списком слева)", 2, "#FF5A4D"));
 
         for (int i = 0; i < 5; i++)
         {
@@ -158,33 +161,20 @@ sealed class TestPanel : Window
             DockPanel.SetDock(_meRadio[i], Dock.Left);
             row.Children.Add(_meRadio[i]);
 
-            var roleLbl = new TextBlock
-            {
-                Text = RoleNames[i], Width = 34, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-                FontWeight = FontWeights.Bold, FontSize = 11
-            };
-            _roleLbls[i] = roleLbl;
-            DockPanel.SetDock(roleLbl, Dock.Left);
-            row.Children.Add(roleLbl);
-            row.Children.Add(_ally[i] = MakeCombo());
+            _roleCombos[i] = MakeRoleCombo(_rowRoles, _roleCombos, i, "#8AA0B2");
+            DockPanel.SetDock(_roleCombos[i], Dock.Left);
+            row.Children.Add(_roleCombos[i]);
+            row.Children.Add(_ally[i] = MakeCombo(i));
 
             Grid.SetRow(row, i + 1); Grid.SetColumn(row, 0);
             root.Children.Add(row);
 
             // Вражеский ряд: только чемпион
             var erow = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
-            var eLbl = new TextBlock
-            {
-                Text = RoleNames[i], Width = 34, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0x40, 0x40)),
-                FontWeight = FontWeights.Bold, FontSize = 11,
-                ToolTip = $"E{i + 1} — роль строки в тесте (пики ботов и прямой оппонент)"
-            };
-            _enemyRoleLbls[i] = eLbl;
-            DockPanel.SetDock(eLbl, Dock.Left);
-            erow.Children.Add(eLbl);
-            erow.Children.Add(_enemy[i] = MakeCombo());
+            _enemyRoleCombos[i] = MakeRoleCombo(_enemyRoles, _enemyRoleCombos, i, "#C84040");
+            DockPanel.SetDock(_enemyRoleCombos[i], Dock.Left);
+            erow.Children.Add(_enemyRoleCombos[i]);
+            erow.Children.Add(_enemy[i] = MakeCombo(5 + i));
             Grid.SetRow(erow, i + 1); Grid.SetColumn(erow, 2);
             root.Children.Add(erow);
         }
@@ -210,6 +200,7 @@ sealed class TestPanel : Window
             StopSim();
             _ready = false;
             foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
+            _autoPicked.Clear();
             _ready = true;
             Recompute();
         };
@@ -260,16 +251,61 @@ sealed class TestPanel : Window
         return tb;
     }
 
-    private ComboBox MakeCombo()
+    private ComboBox MakeCombo(int cell)
     {
         var cb = new ComboBox
         {
             IsEditable = true, ItemsSource = _names, SelectedIndex = 0,
-            IsTextSearchEnabled = true, Margin = new Thickness(0, 0, 0, 0)
+            IsTextSearchEnabled = true, Margin = new Thickness(0, 0, 0, 0), Tag = cell
         };
-        cb.SelectionChanged += (_, _) => Recompute();
+        cb.SelectionChanged += (_, _) => OnChampChanged(cell);
         cb.LostKeyboardFocus += (_, _) => Recompute(); // подтверждение набранного текста
         return cb;
+    }
+
+    // Пользователь сам поставил чемпиона → снимаем метку «авто» (авто-драфт его
+    // больше не сотрёт). Программные установки авто-драфта идут с _autoSetting.
+    private void OnChampChanged(int cell)
+    {
+        if (!_autoSetting) _autoPicked.Remove(cell);
+        Recompute();
+    }
+
+    // Выпадающий список роли строки. Роли уникальны: выбрал занятую другой строкой
+    // роль — строки меняются местами (перестановка ролей, как реальная смена линий).
+    private ComboBox MakeRoleCombo(string[] roles, ComboBox[] combos, int i, string color)
+    {
+        var cb = new ComboBox
+        {
+            ItemsSource = RoleNames, Width = 54, Margin = new Thickness(0, 0, 4, 0),
+            VerticalAlignment = VerticalAlignment.Center, FontSize = 11, FontWeight = FontWeights.Bold,
+            SelectedIndex = Array.IndexOf(LcuRoles, roles[i]),
+            Foreground = (Brush)new BrushConverter().ConvertFromString(color)!,
+            ToolTip = "Роль строки — выбери вручную (роли уникальны: при повторе строки меняются местами)"
+        };
+        cb.SelectionChanged += (_, _) => OnRoleChanged(roles, combos, i);
+        return cb;
+    }
+
+    private void OnRoleChanged(string[] roles, ComboBox[] combos, int i)
+    {
+        if (_settingRoles) return;
+        int sel = combos[i].SelectedIndex;
+        if (sel < 0) return;
+        var newRole = LcuRoles[sel];
+        if (roles[i] == newRole) return;
+        int j = Array.IndexOf(roles, newRole);   // строка, у которой сейчас эта роль
+        if (j >= 0) (roles[i], roles[j]) = (roles[j], roles[i]);   // меняем местами
+        else roles[i] = newRole;
+        SyncRoleCombos(roles, combos);
+        Recompute();
+    }
+
+    private void SyncRoleCombos(string[] roles, ComboBox[] combos)
+    {
+        _settingRoles = true;
+        for (int k = 0; k < 5; k++) combos[k].SelectedIndex = Array.IndexOf(LcuRoles, roles[k]);
+        _settingRoles = false;
     }
 
     // Перемешивает роли строк ОБЕИХ команд (Фишер-Йетс) — независимо, и следит,
@@ -289,11 +325,8 @@ sealed class TestPanel : Window
         do Shuffle(_enemyRoles, _rng);
         while (_enemyRoles.SequenceEqual(_rowRoles));
 
-        for (int i = 0; i < 5; i++)
-        {
-            _roleLbls[i].Text      = RoleNames[Array.IndexOf(LcuRoles, _rowRoles[i])];
-            _enemyRoleLbls[i].Text = RoleNames[Array.IndexOf(LcuRoles, _enemyRoles[i])];
-        }
+        SyncRoleCombos(_rowRoles, _roleCombos);
+        SyncRoleCombos(_enemyRoles, _enemyRoleCombos);
         Recompute();
     }
 
@@ -303,9 +336,13 @@ sealed class TestPanel : Window
     {
         if (_simTurn >= 0) { StopSim(); return; }
 
-        // Старт: чистим слоты и запускаем очередь пиков с первого игрока.
+        // Старт: чистим ТОЛЬКО клетки прошлого авто-драфта; ручные пики (в т.ч.
+        // мой заранее выбранный чемпион) сохраняем — авто-драфт возьмёт именно их
+        // и не будет ждать/перезаписывать мой слот.
         _ready = false;
-        foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
+        foreach (var cell in _autoPicked.ToList())
+            (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;
+        _autoPicked.Clear();
         _banPhase.IsChecked = false;
         _ready = true;
 
@@ -410,8 +447,12 @@ sealed class TestPanel : Window
         if (pool.Count == 0)   // нет данных по ролям — фолбэк на любых свободных
             pool = _idByName.Values.Where(id => !taken.Contains(id)).ToList();
         if (pool.Count == 0) return;
-        // SelectionChanged → Recompute
+        // SelectionChanged → Recompute. Помечаем клетку как авто-занятую, чтобы
+        // следующий запуск авто-драфта её пересобрал (а ручные пики — сохранил).
+        _autoSetting = true;
         cb.SelectedItem = DataDragon.Name(pool[_rng.Next(pool.Count)]);
+        _autoSetting = false;
+        _autoPicked.Add(cell);
     }
 
     private int ChampOf(ComboBox cb)
