@@ -993,6 +993,10 @@ public sealed class RecommendationEngine : IDisposable
     // ~49-51% WR) проваливаются. Веса откалиброваны по нашим данным.
     private const double W_PICK = 1.2;   // вклад пик-рейта в meta (откалибровано по данным)
     private const double W_BAN  = 0.4;   // вклад бан-рейта (бан-рейты крупнее пик-рейтов)
+    private const double BAN_CAP = 25.0; // потолок бан-рейта в meta: 79%-бан нового
+                                         // чемпиона не должен один тащить его в топ
+    private const double TIER_MIN_SHARE = 0.01; // мин. пик-рейт роли (1%) — отсекаем
+                                         // почти не пикаемых (новые/офф-мета)
 
     // Грейд — по РАНГУ meta-score внутри роли: доля чемпионов роли выше данного.
     // Ранговая шкала устойчива к масштабу meta (с банами или без) и всегда даёт
@@ -1012,31 +1016,34 @@ public sealed class RecommendationEngine : IDisposable
         var roles = new[] { "top", "jungle", "mid", "adc", "support" };
         var result = new List<TierEntry>();
 
-        // Знаменатель бан-рейта — число матчей: сумма участников base_wr / 10
-        // (по 10 на матч), взвешенно по патчам. Плюс баны по чемпиону (взвешенно).
+        // Тир-лист считаем по ТЕКУЩЕМУ патчу (@p1), без смеси 3 патчей — чтобы WR
+        // совпадал с тем, что видят игроки на других сайтах. Смесь остаётся у
+        // движка рекомендаций (там выборки тоньше); удержание патча (см. Create)
+        // гарантирует, что @p1 уже набрал достаточно данных.
+        // Знаменатель бан-рейта — число матчей: сумма участников base_wr / 10.
         double totalMatches = ScalarD($@"
-            SELECT COALESCE(SUM(games*{PW}),0)/10.0 FROM base_wr
-            WHERE tier_bucket=@t AND patch IN (@p1,@p2,@p3)");
+            SELECT COALESCE(SUM(games),0)/10.0 FROM base_wr
+            WHERE tier_bucket=@t AND patch=@p1");
         var bansByChamp = BansByChampion();
 
         foreach (var role in roles)
         {
             var cmd = _db.CreateCommand();
             cmd.CommandText = $@"
-                SELECT champion_id, SUM(games*{PW}) g, SUM(wins*{PW}) w FROM base_wr
-                WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                SELECT champion_id, SUM(games) g, SUM(wins) w FROM base_wr
+                WHERE role=@r AND tier_bucket=@t AND patch=@p1
                 GROUP BY champion_id
                 HAVING g >= @min
                    AND g >= @share * (
-                       SELECT SUM(games*{PW}) FROM base_wr
-                       WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3))";
+                       SELECT SUM(games) FROM base_wr
+                       WHERE role=@r AND tier_bucket=@t AND patch=@p1)";
             cmd.Parameters.AddWithValue("@r",   role);
             cmd.Parameters.AddWithValue("@t",   TierBucket);
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
             cmd.Parameters.AddWithValue("@min", TIER_MIN_GAMES);
-            cmd.Parameters.AddWithValue("@share", MIN_ROLE_SHARE);
+            cmd.Parameters.AddWithValue("@share", TIER_MIN_SHARE);
 
             var rows = new List<(int Id, double G, double W)>();
             double roleTotal = 0;
@@ -1057,7 +1064,7 @@ public sealed class RecommendationEngine : IDisposable
                 double pick = 100.0 * x.G / roleTotal;          // пик-рейт роли, %
                 double ban  = totalMatches > 0
                     ? 100.0 * bansByChamp.GetValueOrDefault(x.Id) / totalMatches : 0.0;
-                double meta = (lb - 50.0) + W_PICK * pick + W_BAN * ban;
+                double meta = (lb - 50.0) + W_PICK * pick + W_BAN * Math.Min(ban, BAN_CAP);
                 return (x.Id, wr, Games: (int)Math.Round(x.G), pick, ban, lb, meta);
             })
             // Ключ ранжирования = то, что показываем: в WR-столбце сортируем по
@@ -1086,8 +1093,8 @@ public sealed class RecommendationEngine : IDisposable
         {
             var cmd = _db.CreateCommand();
             cmd.CommandText = $@"
-                SELECT champion_id, SUM(bans*{PW}) FROM champion_bans
-                WHERE tier_bucket=@t AND patch IN (@p1,@p2,@p3) GROUP BY champion_id";
+                SELECT champion_id, SUM(bans) FROM champion_bans
+                WHERE tier_bucket=@t AND patch=@p1 GROUP BY champion_id";
             cmd.Parameters.AddWithValue("@t",  TierBucket);
             cmd.Parameters.AddWithValue("@p1", _p1);
             cmd.Parameters.AddWithValue("@p2", _p2);
