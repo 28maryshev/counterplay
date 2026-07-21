@@ -28,8 +28,8 @@ from freshness import pick_patches
 PATCH_WEIGHTS = (1.0, 0.7, 0.45)          # свежий → старый (PW в движке)
 BUCKETS = ['silver', 'gold', 'emerald', 'master']
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
-TIER_MIN_GAMES = 250                       # как TIER_MIN_GAMES в движке (взвеш. игры)
-MIN_ROLE_SHARE = 0.005                     # как MIN_ROLE_SHARE в движке
+TIER_MIN_GAMES = 250                       # как TIER_MIN_GAMES в движке
+MIN_ROLE_SHARE = 0.01                      # мин. пик-рейт роли 1% (как TIER_MIN_SHARE)
 
 
 def patch_key(p):
@@ -43,8 +43,10 @@ def main():
     args = ap.parse_args()
 
     con = sqlite3.connect(args.db)
-    # Удержание: новейший патч не берём, пока не набрал данных (см. freshness.py).
-    patches = pick_patches(con, 3)
+    # Тир-лист считаем по ТЕКУЩЕМУ (готовому) патчу, без смеси 3 патчей — чтобы WR
+    # совпадал с другими сайтами. Удержание: если новейший патч ещё сырой, берём
+    # предыдущий полный (см. freshness.pick_patches).
+    patches = pick_patches(con, 1)
     w_of = {p: PATCH_WEIGHTS[i] for i, p in enumerate(patches)}
     ph = ','.join('?' * len(patches))
     print('патчи:', patches, '| веса:', [w_of[p] for p in patches])

@@ -57,6 +57,9 @@ def main():
             print(f'  {t}: -{cur.rowcount:,}')
             total += cur.rowcount
     con.commit()
+    # Свернуть WAL обратно в базу и обрезать журнал — иначе он раздувается на
+    # сотни МБ (большие DELETE + одновременные читатели).
+    con.execute('PRAGMA wal_checkpoint(TRUNCATE)')
     con.close()
     print(f'удалено строк: {total:,}')
 
