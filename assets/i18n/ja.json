@@ -253,7 +253,8 @@
     "baseTop": "このパッチで最強格 — WR {0}%",
     "baseGood": "良好な基礎WR {0}%",
     "baseLow": "低いWR {0}% — チャンピオンの理解が必要",
-    "baseNeutral": "無難なピック、WR ≈{0}%"
+    "baseNeutral": "無難なピック、WR ≈{0}%",
+    "countersMany": "チームが見せた{0}体のチャンピオンにカウンター"
   },
   "rec": {
     "yourPick": "あなたのピック"

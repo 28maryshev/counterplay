@@ -1094,6 +1094,11 @@ public partial class OverlayWindow : Window
     {
         LangText.Text = Loc.CurrentLang.Native + " ▾";
         _tierCols = null;             // роли/тултипы тир-листа под новую локаль
+        // Обоснования рекомендаций — ГОТОВЫЕ строки, собранные движком через Loc.T
+        // на прежнем языке. Перерисовка их не переводит — перегенерируем движком из
+        // сохранённого драфта, иначе центральная колонка остаётся на старом языке.
+        if (_engine is not null && _lastDraft is not null && _lastRecs is not null)
+            _lastRecs = _lastDraft.IsAram ? _engine.RecommendAram(_lastDraft) : _engine.Recommend(_lastDraft);
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
 
         // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера

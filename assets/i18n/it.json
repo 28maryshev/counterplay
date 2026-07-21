@@ -253,7 +253,8 @@
     "baseTop": "Tra i più forti in questa patch — WR {0}%",
     "baseGood": "Buon WR base {0}%",
     "baseLow": "WR basso {0}% — devi conoscere il campione",
-    "baseNeutral": "Scelta neutrale, WR ≈{0}%"
+    "baseNeutral": "Scelta neutrale, WR ≈{0}%",
+    "countersMany": "Contrasta {0} campioni mostrati dalla tua squadra"
   },
   "rec": {
     "yourPick": "LA TUA SCELTA"

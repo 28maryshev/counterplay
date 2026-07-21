@@ -253,7 +253,8 @@
     "baseTop": "Jeden z najsilniejszych w tym patchu — WR {0}%",
     "baseGood": "Dobry bazowy WR {0}%",
     "baseLow": "Niski WR {0}% — musisz znać postać",
-    "baseNeutral": "Neutralny pick, WR ≈{0}%"
+    "baseNeutral": "Neutralny pick, WR ≈{0}%",
+    "countersMany": "Kontruje {0} czempionów pokazanych przez twoją drużynę"
   },
   "rec": {
     "yourPick": "TWÓJ PICK"
