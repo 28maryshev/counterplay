@@ -1698,23 +1698,18 @@ public partial class OverlayWindow : Window
 
     // Линейный график динамики винрейта (синий) по датам.
     /// Баланс урона команды: складываем доли физ/маг/чистого по взятым чемпионам
-    /// и нормируем в проценты. Источник — замеры по матчам (champion_damage);
-    /// пока их нет в базе, откатываемся на оценки Data Dragon (attack/magic).
+    /// и нормируем в проценты. Источник — ТОЛЬКО замеры по матчам (champion_damage).
+    /// Оценки Data Dragon (info.attack/magic) сюда не годятся: это произвольная
+    /// шкала 0..10, а не доли урона — у Кияны там attack=0 при чисто физическом
+    /// уроне, и команда из двух АД-чемпионов показывалась бы как AP 64%.
+    /// Пока замеров в базе нет — полосу не показываем вовсе.
     private (double Ad, double Ap, double Tru) DamageMix(IReadOnlyList<int> champIds)
     {
         double ad = 0, ap = 0, tru = 0;
         foreach (var id in champIds)
-        {
             if (_engine?.DamageShare(id) is { } s)
-            {
-                ad += s.Phys; ap += s.Magic; tru += s.True;
-            }
-            else if (DataDragon.DamageInfo(id) is { } d && d.Attack + d.Magic > 0)
-            {
-                var tot = (double)(d.Attack + d.Magic);
-                ad += d.Attack / tot; ap += d.Magic / tot;
-            }
-        }
+            { ad += s.Phys; ap += s.Magic; tru += s.True; }
+
         var sum = ad + ap + tru;
         return sum > 0 ? (ad / sum * 100, ap / sum * 100, tru / sum * 100) : (0, 0, 0);
     }
