@@ -527,20 +527,31 @@ sealed class PoolEditorWindow : Window
     private FrameworkElement RoleRow(string role, Dictionary<string, List<int>> data)
     {
         var list = data[role];
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 5) };
+        // DockPanel, а не горизонтальный StackPanel: тот даёт детям БЕСКОНЕЧНУЮ
+        // ширину, из-за чего WrapPanel никогда не переносил чемпионов и длинный
+        // ряд просто уезжал за край окна. Здесь список получает остаток ширины
+        // и переносится на новую строку.
+        var row = new DockPanel { Margin = new Thickness(0, 5, 0, 5), LastChildFill = true };
 
         var roleIcon = RoleIcons.Get(PoolSettingsWindow.DbToLcu[role]);
         if (roleIcon != null)
-            row.Children.Add(new Image { Source = roleIcon, Width = 26, Height = 26, Margin = new Thickness(0, 0, 4, 0),
-                VerticalAlignment = VerticalAlignment.Center, Opacity = 0.9 });
-        row.Children.Add(new TextBlock
+        {
+            var ri = new Image { Source = roleIcon, Width = 26, Height = 26, Margin = new Thickness(0, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Top, Opacity = 0.9 };
+            DockPanel.SetDock(ri, Dock.Left);
+            row.Children.Add(ri);
+        }
+        var roleLbl = new TextBlock
         {
             Text = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, role)],
             Width = 38, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-            FontWeight = FontWeights.Bold, FontSize = 11, VerticalAlignment = VerticalAlignment.Center
-        });
+            FontWeight = FontWeights.Bold, FontSize = 11, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 7, 0, 0)
+        };
+        DockPanel.SetDock(roleLbl, Dock.Left);
+        row.Children.Add(roleLbl);
 
-        var chips = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+        var chips = new WrapPanel { VerticalAlignment = VerticalAlignment.Top };
         row.Children.Add(chips);
 
         void RefreshChips()
@@ -863,6 +874,76 @@ static class PoolUi
         </ControlTemplate>
       </Setter.Value>
     </Setter>
+  </Style>
+
+  <!-- Полоса прокрутки: тонкая, без стрелок, в тон окну -->
+  <Style x:Key='CpScrollThumb' TargetType='Thumb'>
+    <Setter Property='OverridesDefaultStyle' Value='True'/>
+    <Setter Property='IsTabStop' Value='False'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='Thumb'>
+          <Border x:Name='th' Background='#35485A' CornerRadius='4' Margin='2'/>
+          <ControlTemplate.Triggers>
+            <Trigger Property='IsMouseOver' Value='True'>
+              <Setter TargetName='th' Property='Background' Value='#5A8AC8'/>
+            </Trigger>
+            <Trigger Property='IsDragging' Value='True'>
+              <Setter TargetName='th' Property='Background' Value='#6FA0DC'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key='CpScrollPage' TargetType='RepeatButton'>
+    <Setter Property='OverridesDefaultStyle' Value='True'/>
+    <Setter Property='Focusable' Value='False'/>
+    <Setter Property='IsTabStop' Value='False'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='RepeatButton'>
+          <Border Background='Transparent'/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType='ScrollBar'>
+    <Setter Property='Background' Value='Transparent'/>
+    <Setter Property='Width' Value='11'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='ScrollBar'>
+          <Grid Background='Transparent'>
+            <Border Background='#14FFFFFF' CornerRadius='4' Margin='3'/>
+            <Track x:Name='PART_Track' IsDirectionReversed='True'>
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Style='{StaticResource CpScrollPage}' Command='ScrollBar.PageUpCommand'/>
+              </Track.DecreaseRepeatButton>
+              <Track.Thumb>
+                <Thumb Style='{StaticResource CpScrollThumb}'/>
+              </Track.Thumb>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Style='{StaticResource CpScrollPage}' Command='ScrollBar.PageDownCommand'/>
+              </Track.IncreaseRepeatButton>
+            </Track>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property='Orientation' Value='Horizontal'>
+              <Setter TargetName='PART_Track' Property='IsDirectionReversed' Value='False'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property='Orientation' Value='Horizontal'>
+        <Setter Property='Width'  Value='Auto'/>
+        <Setter Property='Height' Value='11'/>
+      </Trigger>
+    </Style.Triggers>
   </Style>
 
   <Style TargetType='TextBox'>
