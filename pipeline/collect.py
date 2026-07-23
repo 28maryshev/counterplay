@@ -128,6 +128,20 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (champion_id, role, tier_bucket, patch)
         );
 
+        -- Баланс урона по чемпиону: сумма урона ПО ЧЕМПИОНАМ, разбитая по типам.
+        -- Даёт реальные доли физ/маг/чистого вместо оценок «на глаз».
+        CREATE TABLE IF NOT EXISTS champion_damage (
+            champion_id  INTEGER,
+            role         TEXT,
+            tier_bucket  TEXT,
+            patch        TEXT,
+            games        INTEGER DEFAULT 0,
+            phys         INTEGER DEFAULT 0,
+            magic        INTEGER DEFAULT 0,
+            trued        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, tier_bucket, patch)
+        );
+
         -- Противостояние на линии (один и тот же role у обоих)
         CREATE TABLE IF NOT EXISTS matchup (
             champion_id    INTEGER,
@@ -431,6 +445,22 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
             upsert(con, 'base_wr',
                    ['champion_id', 'role', 'tier_bucket', 'patch'],
                    [champ, role, tier_bucket, patch], win)
+
+            # Баланс урона: суммы урона ПО ЧЕМПИОНАМ по типам (физ/маг/чистый).
+            ph = p.get('physicalDamageDealtToChampions', 0) or 0
+            mg = p.get('magicDamageDealtToChampions', 0) or 0
+            tr = p.get('trueDamageDealtToChampions', 0) or 0
+            if ph + mg + tr > 0:
+                con.execute(
+                    """INSERT INTO champion_damage
+                           (champion_id, role, tier_bucket, patch, games, phys, magic, trued)
+                       VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+                       ON CONFLICT (champion_id, role, tier_bucket, patch)
+                       DO UPDATE SET games = games + 1,
+                                     phys  = phys  + ?,
+                                     magic = magic + ?,
+                                     trued = trued + ?""",
+                    (champ, role, tier_bucket, patch, ph, mg, tr, ph, mg, tr))
 
             # matchup — против оппонента той же роли
             opp = teams[side_b].get(role)

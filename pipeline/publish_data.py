@@ -2,7 +2,7 @@
 publish_data.py — выкладывает базы в GitHub release `data`.
 
 Программа читает из базы ТОЛЬКО движок пиков/банов (base_wr, matchup, synergy,
-botlane_matchup, champion_bans). Руны/сборки берутся с сайта (/api/stats), а
+botlane_matchup, champion_bans, champion_damage). Руны/сборки берутся с сайта (/api/stats), а
 drafts/processed_matches и таблицы рун движку не нужны. Поэтому публикуем ТОНКУЮ
 базу: только эти 5 таблиц, за последние KEEP_PATCHES патчей, без «длинного
 хвоста» (пары с 1–2 играми никогда не показываются). Это режет ~930 МБ → ~150 МБ.
@@ -40,7 +40,8 @@ UPLOADS = 'https://uploads.github.com'
 TAG = 'data'
 
 # Таблицы, которые реально читает движок программы (RecommendationEngine.cs).
-ENGINE_TABLES = ['base_wr', 'matchup', 'synergy', 'botlane_matchup', 'champion_bans']
+ENGINE_TABLES = ['base_wr', 'matchup', 'synergy', 'botlane_matchup', 'champion_bans',
+                 'champion_damage']
 BUCKETS = ['silver', 'gold', 'emerald', 'master']
 KEEP_PATCHES = 5     # сколько последних патчей класть (движок берёт из них 3 свежих)
 # «Длинный хвост»: пары с малым числом игр никогда не показываются — не кладём.
