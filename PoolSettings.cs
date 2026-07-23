@@ -25,6 +25,8 @@ sealed class PoolSettingsWindow : Window
 {
     internal static readonly string[] Roles     = ["top", "jungle", "mid", "adc", "support"];
     internal static readonly string[] RoleNames = ["TOP", "JGL", "MID", "BOT", "SUP"];
+    // Полные названия ролей (для выпадающего списка роли в связках).
+    internal static readonly string[] RoleFull  = ["Top", "Jungle", "Mid", "Bot", "Support"];
     // db-роль → LCU-позиция (для иконок ролей, как в тир-листе).
     internal static readonly Dictionary<string, string> DbToLcu = new()
         { ["top"] = "top", ["jungle"] = "jungle", ["mid"] = "middle", ["adc"] = "bottom", ["support"] = "utility" };
@@ -334,8 +336,9 @@ sealed class PoolEditorWindow : Window
         return b;
     }
 
-    // Ширины колонок для выравнивания заголовка со слотами (иконка 48 + правый отступ).
-    private const double SlotCol = 53, PlusCol = 26;
+    // Фиксированные ширины колонок связки: слот = самой длинной подписи роли
+    // (Support), чтобы иконки не сдвигались и не закрывали WR/дельту.
+    private const double DuoSlot = 82, DuoPlus = 30, DuoStats = 80;
 
     // Заголовки колонок связок: «Мой» + «Друг» + «WR · Δ», выровнены под слоты.
     private static FrameworkElement ManualHeader()
@@ -346,12 +349,25 @@ sealed class PoolEditorWindow : Window
             Text = t, Width = w, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
             FontSize = 10, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Bottom
         };
-        row.Children.Add(H(Loc.T("pool.mine"),   SlotCol));
-        row.Children.Add(H("",                   PlusCol));
-        row.Children.Add(H(Loc.T("pool.friend"), SlotCol));
-        row.Children.Add(H(Loc.T("pool.duoStatsHdr"), 100));
+        row.Children.Add(H(Loc.T("pool.mine"),   DuoSlot));
+        row.Children.Add(H("",                   DuoPlus));
+        row.Children.Add(H(Loc.T("pool.friend"), DuoSlot));
+        row.Children.Add(H(Loc.T("pool.duoStatsHdr"), DuoStats));
         return row;
     }
+
+    // Сетка одной связки с ФИКСИРОВАННЫМИ колонками — ничего не сдвигается.
+    private static Grid PairGrid()
+    {
+        var g = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DuoSlot) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DuoPlus) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DuoSlot) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DuoStats) });
+        return g;
+    }
+
+    private static void Place(Grid g, FrameworkElement e, int col) { Grid.SetColumn(e, col); g.Children.Add(e); }
 
     // Строка одной связки: слот моего (чемпион+роль) + «+» + слот друга + статистика.
     private FrameworkElement ManualPairRow(ManualDuoPair mp)
@@ -360,16 +376,16 @@ sealed class PoolEditorWindow : Window
         if (mp.Mine   != 0 && string.IsNullOrEmpty(mp.MineRole))   mp.MineRole   = DefaultRole(mp.Mine);
         if (mp.Friend != 0 && string.IsNullOrEmpty(mp.FriendRole)) mp.FriendRole = DefaultRole(mp.Friend);
 
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-        row.Children.Add(ManualSlot(mp.Mine, mp.MineRole,
+        var g = PairGrid();
+        Place(g, ManualSlot(mp.Mine, mp.MineRole,
             id   => { mp.Mine = id; mp.MineRole = id != 0 ? DefaultRole(id) : ""; DropIfEmpty(mp); _dirty = true; RenderBody(); },
-            role => { mp.MineRole = role; _dirty = true; RenderBody(); }));
-        row.Children.Add(PlusGlyph());
-        row.Children.Add(ManualSlot(mp.Friend, mp.FriendRole,
+            role => { mp.MineRole = role; _dirty = true; RenderBody(); }), 0);
+        Place(g, PlusGlyph(), 1);
+        Place(g, ManualSlot(mp.Friend, mp.FriendRole,
             id   => { mp.Friend = id; mp.FriendRole = id != 0 ? DefaultRole(id) : ""; DropIfEmpty(mp); _dirty = true; RenderBody(); },
-            role => { mp.FriendRole = role; _dirty = true; RenderBody(); }));
-        row.Children.Add(PairStatsBlock(mp));
-        return row;
+            role => { mp.FriendRole = role; _dirty = true; RenderBody(); }), 2);
+        Place(g, PairStatsBlock(mp), 3);
+        return g;
     }
 
     private void DropIfEmpty(ManualDuoPair mp)
@@ -381,25 +397,26 @@ sealed class PoolEditorWindow : Window
     // Пустая строка «+ + +» — заполнение любого слота создаёт новую связку.
     private FrameworkElement AddPairRow()
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
-        row.Children.Add(ManualSlot(0, "", id => { _manualPairs.Add(new ManualDuoPair { Mine   = id, MineRole   = DefaultRole(id) }); _dirty = true; RenderBody(); }, null));
-        row.Children.Add(PlusGlyph());
-        row.Children.Add(ManualSlot(0, "", id => { _manualPairs.Add(new ManualDuoPair { Friend = id, FriendRole = DefaultRole(id) }); _dirty = true; RenderBody(); }, null));
-        return row;
+        var g = PairGrid();
+        Place(g, ManualSlot(0, "", id => { _manualPairs.Add(new ManualDuoPair { Mine   = id, MineRole   = DefaultRole(id) }); _dirty = true; RenderBody(); }, null), 0);
+        Place(g, PlusGlyph(), 1);
+        Place(g, ManualSlot(0, "", id => { _manualPairs.Add(new ManualDuoPair { Friend = id, FriendRole = DefaultRole(id) }); _dirty = true; RenderBody(); }, null), 2);
+        return g;
     }
 
-    // Разделитель-«+» между двумя чемпионами связки (не кликается).
+    // Разделитель-«+» между двумя чемпионами связки (не кликается), по центру иконки.
     private static FrameworkElement PlusGlyph() => new TextBlock
     {
-        Text = "+", Width = PlusCol, FontSize = 20, FontWeight = FontWeights.Bold,
+        Text = "+", FontSize = 22, FontWeight = FontWeights.Bold,
         Foreground = new SolidColorBrush(PoolSettingsWindow.Blue), TextAlignment = TextAlignment.Center,
-        VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 12, 0, 0)
+        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top,
+        Margin = new Thickness(0, DuoSlot / 2 - 14, 0, 0)
     };
 
     // Статистика связки: винрейт вместе + дельта (синергия), с пояснениями в тултипах.
     private FrameworkElement PairStatsBlock(ManualDuoPair mp)
     {
-        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(4, 6, 0, 0) };
+        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6, DuoSlot / 2 - 16, 0, 0) };
         if (_engine == null || mp.Mine == 0 || mp.Friend == 0) return wrap;
 
         var (games, wr, delta) = _engine.PairStats(mp.Mine, mp.MineRole, mp.Friend, mp.FriendRole);
@@ -430,50 +447,44 @@ sealed class PoolEditorWindow : Window
         return wrap;
     }
 
-    // Слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает), а СНИЗУ
-    // (шириной с иконку) — выпадающий список роли с иконкой и названием.
+    // Слот связки: квадрат чемпиона (клик очищает) или «+» (клик выбирает) шириной
+    // с колонку, а СНИЗУ той же ширины — выпадающий список роли (иконка + название).
     private FrameworkElement ManualSlot(int id, string role, Action<int> setChamp, Action<string>? setRole)
     {
-        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        var wrap = new StackPanel { Width = DuoSlot, VerticalAlignment = VerticalAlignment.Top };
+        var zero = new Thickness(0);
         FrameworkElement tile = id != 0
-            ? ChampIcon(id, () => setChamp(0))
+            ? ChampIcon(id, () => setChamp(0), DuoSlot, zero)
             : PlusChamp(() =>
               {
                   var pick = new ChampionPickerWindow(_names, _idByName, Array.Empty<int>()) { Owner = this };
                   if (pick.ShowDialog() == true && pick.Result > 0) setChamp(pick.Result);
-              });
+              }, DuoSlot, zero);
         wrap.Children.Add(tile);
         if (id != 0 && setRole != null) wrap.Children.Add(RoleCombo(role, setRole));
         return wrap;
     }
 
-    // Выпадающий список роли (под иконкой): пункты — иконка роли + название; выбор
-    // роли пересчитывает статистику связки. Ширина совпадает с иконкой чемпиона.
+    // Выпадающий список роли (под квадратом чемпиона, той же ширины): пункты —
+    // иконка роли + полное название. Выбор роли пересчитывает статистику связки.
     private static FrameworkElement RoleCombo(string role, Action<string> setRole)
     {
+        var opts = PoolSettingsWindow.Roles.Select((r, i) => new RoleOption
+        {
+            Role = r,
+            Name = PoolSettingsWindow.RoleFull[i],
+            Icon = RoleIcons.Get(PoolSettingsWindow.DbToLcu[r]),
+        }).ToList();
+
         var cb = new ComboBox
         {
-            Width = 48, Margin = new Thickness(0, 3, 5, 0), FontSize = 10,
-            HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(3, 1, 2, 1)
+            Width = DuoSlot, Margin = new Thickness(0, 3, 0, 0),
+            ItemsSource = opts, ItemTemplate = PoolUi.RoleItemTemplate,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
         };
-        ComboBoxItem? sel = null;
-        foreach (var r in PoolSettingsWindow.Roles)
-        {
-            var idx = Array.IndexOf(PoolSettingsWindow.Roles, r);
-            var sp  = new StackPanel { Orientation = Orientation.Horizontal };
-            var icon = RoleIcons.Get(PoolSettingsWindow.DbToLcu[r]);
-            if (icon != null)
-                sp.Children.Add(new Image { Source = icon, Width = 13, Height = 13,
-                    Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
-            sp.Children.Add(new TextBlock { Text = PoolSettingsWindow.RoleNames[idx], FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center });
-            var it = new ComboBoxItem { Content = sp, Tag = r, Padding = new Thickness(4, 2, 4, 2) };
-            cb.Items.Add(it);
-            if (r == role) sel = it;
-        }
-        // Выставляем начальный выбор ДО подписки — чтобы не сработал ложный пересчёт.
-        if (sel != null) cb.SelectedItem = sel;
-        cb.SelectionChanged += (_, _) => { if (cb.SelectedItem is ComboBoxItem it && it.Tag is string rr) setRole(rr); };
+        // Начальный выбор ставим ДО подписки — чтобы не сработал ложный пересчёт.
+        cb.SelectedItem = opts.FirstOrDefault(o => o.Role == role);
+        cb.SelectionChanged += (_, _) => { if (cb.SelectedItem is RoleOption o) setRole(o.Role); };
         return cb;
     }
 
@@ -520,11 +531,11 @@ sealed class PoolEditorWindow : Window
         return row;
     }
 
-    private static FrameworkElement ChampIcon(int id, Action remove)
+    private static FrameworkElement ChampIcon(int id, Action remove, double size = 48, Thickness? margin = null)
     {
         var b = new Border
         {
-            Width = 48, Height = 48, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 5, 5),
+            Width = size, Height = size, CornerRadius = new CornerRadius(6), Margin = margin ?? new Thickness(0, 0, 5, 5),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)), BorderThickness = new Thickness(1),
             ToolTip = DataDragon.Name(id), Cursor = System.Windows.Input.Cursors.Hand
         };
@@ -550,11 +561,11 @@ sealed class PoolEditorWindow : Window
         return b;
     }
 
-    private static FrameworkElement PlusChamp(Action add)
+    private static FrameworkElement PlusChamp(Action add, double size = 48, Thickness? margin = null)
     {
         var b = new Border
         {
-            Width = 48, Height = 48, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 5, 5),
+            Width = size, Height = size, CornerRadius = new CornerRadius(6), Margin = margin ?? new Thickness(0, 0, 5, 5),
             Background = new SolidColorBrush(Color.FromArgb(0x18, 0x5A, 0x8A, 0xC8)),
             BorderBrush = new SolidColorBrush(PoolSettingsWindow.Blue), BorderThickness = new Thickness(1),
             Cursor = System.Windows.Input.Cursors.Hand
@@ -629,6 +640,14 @@ sealed class PoolEditorWindow : Window
     }
 }
 
+/// <summary>Пункт выпадающего списка роли: иконка + полное название (шаблон RoleItem).</summary>
+sealed class RoleOption
+{
+    public ImageSource? Icon { get; init; }
+    public string Name { get; init; } = "";
+    public string Role { get; init; } = "";
+}
+
 /// <summary>Выбор чемпиона: поиск сверху + общий список. Клик — выбрать.</summary>
 sealed class ChampionPickerWindow : Window
 {
@@ -698,6 +717,8 @@ static class PoolUi
 {
     private static ResourceDictionary? _rd;
     public static Style ButtonStyle { get; private set; } = null!;
+    public static DataTemplate RoleItemTemplate { get { Ensure(); return _roleItem!; } }
+    private static DataTemplate? _roleItem;
 
     private const string Xaml = @"
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
@@ -734,6 +755,87 @@ static class PoolUi
     </Setter>
   </Style>
 
+  <!-- Пункт списка роли: иконка роли + полное название мелким шрифтом -->
+  <DataTemplate x:Key='RoleItem'>
+    <StackPanel Orientation='Horizontal'>
+      <Image Source='{Binding Icon}' Width='14' Height='14' Margin='0,0,5,0' VerticalAlignment='Center'/>
+      <TextBlock Text='{Binding Name}' FontSize='10' VerticalAlignment='Center'/>
+    </StackPanel>
+  </DataTemplate>
+
+  <Style TargetType='ComboBoxItem'>
+    <Setter Property='Foreground' Value='#D7DEE6'/>
+    <Setter Property='Padding' Value='7,4'/>
+    <Setter Property='Cursor' Value='Hand'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='ComboBoxItem'>
+          <Border x:Name='ib' Background='Transparent' CornerRadius='3' Padding='{TemplateBinding Padding}'>
+            <ContentPresenter/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property='IsMouseOver' Value='True'>
+              <Setter TargetName='ib' Property='Background' Value='#22364F'/>
+            </Trigger>
+            <Trigger Property='IsSelected' Value='True'>
+              <Setter TargetName='ib' Property='Background' Value='#2C445F'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType='ComboBox'>
+    <Setter Property='Foreground' Value='#E6EDF3'/>
+    <Setter Property='Background' Value='#0F1822'/>
+    <Setter Property='BorderBrush' Value='#35485A'/>
+    <Setter Property='BorderThickness' Value='1'/>
+    <Setter Property='SnapsToDevicePixels' Value='True'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='ComboBox'>
+          <Grid>
+            <ToggleButton x:Name='tb' Focusable='False' ClickMode='Press'
+                Background='{TemplateBinding Background}' BorderBrush='{TemplateBinding BorderBrush}'
+                IsChecked='{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}'>
+              <ToggleButton.Template>
+                <ControlTemplate TargetType='ToggleButton'>
+                  <Border x:Name='cb' CornerRadius='5' Background='{TemplateBinding Background}'
+                          BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='1'>
+                    <Path HorizontalAlignment='Right' VerticalAlignment='Center' Margin='0,0,7,0'
+                          Data='M0,0 L4,4 L8,0 Z' Fill='#9FB3C8'/>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property='IsMouseOver' Value='True'>
+                      <Setter TargetName='cb' Property='BorderBrush' Value='#5A8AC8'/>
+                      <Setter TargetName='cb' Property='Background' Value='#16202C'/>
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </ToggleButton.Template>
+            </ToggleButton>
+            <ContentPresenter Content='{TemplateBinding SelectionBoxItem}'
+                ContentTemplate='{TemplateBinding SelectionBoxItemTemplate}'
+                Margin='7,3,20,3' VerticalAlignment='Center' HorizontalAlignment='Left'
+                IsHitTestVisible='False'/>
+            <Popup x:Name='PART_Popup' Placement='Bottom' AllowsTransparency='True' Focusable='False'
+                   PopupAnimation='Slide'
+                   IsOpen='{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}'>
+              <Border Background='#121A24' BorderBrush='#35485A' BorderThickness='1' CornerRadius='5'
+                      Margin='0,2,0,0'
+                      MinWidth='{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}'>
+                <ScrollViewer MaxHeight='240'>
+                  <ItemsPresenter/>
+                </ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style TargetType='TextBox'>
     <Setter Property='Foreground' Value='#E6EDF3'/>
     <Setter Property='CaretBrush' Value='#E6EDF3'/>
@@ -759,6 +861,7 @@ static class PoolUi
         if (_rd != null) return;
         _rd = (ResourceDictionary)System.Windows.Markup.XamlReader.Parse(Xaml);
         ButtonStyle = (Style)_rd["CpButton"];
+        _roleItem   = (DataTemplate)_rd["RoleItem"];
     }
 
     // Тёмные поля ввода (неявный стиль) + доступ к стилю кнопок.
