@@ -384,5 +384,9 @@
     "baseLow": "Düşük WR %{0} — şampiyonu bilmen gerekiyor",
     "baseNeutral": "Nötr seçim, WR ≈%{0}",
     "countersMany": "Takımının gösterdiği {0} şampiyonu kontrluyor"
+  },
+  "pool": {
+    "slotLabel": "Havuzundan seçim",
+    "duoLabel": "Duo havuz seçimi"
   }
 }

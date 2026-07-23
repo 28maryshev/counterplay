@@ -384,5 +384,9 @@
   },
   "style": {
     "mixed": "혼합"
+  },
+  "pool": {
+    "slotLabel": "내 풀 추천",
+    "duoLabel": "듀오 풀 추천"
   }
 }

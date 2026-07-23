@@ -384,5 +384,9 @@
     "gold": "Vàng",
     "emerald": "Lục Bảo",
     "master": "Master+"
+  },
+  "pool": {
+    "slotLabel": "Pick từ pool của bạn",
+    "duoLabel": "Pick pool duo"
   }
 }

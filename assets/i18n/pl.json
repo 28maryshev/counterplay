@@ -384,5 +384,9 @@
     "gold": "Złoto",
     "emerald": "Szmaragd",
     "master": "Master+"
+  },
+  "pool": {
+    "slotLabel": "Pick z twojej puli",
+    "duoLabel": "Pick z puli duo"
   }
 }

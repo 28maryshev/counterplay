@@ -335,13 +335,16 @@ public sealed class RecommendationEngine : IDisposable
         _         => pos
     };
 
-    public IReadOnlyList<Recommendation> Recommend(DraftState state, int topN = 6)
+    public IReadOnlyList<Recommendation> Recommend(DraftState state, int topN = 6,
+                                                   IReadOnlyCollection<int>? only = null)
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
         var wDirect = DirectWeight(myRole); // вес прямой контры зависит от роли
 
-        var candidates = GetCandidates(myRole);
+        // only — переопределение кандидатов (пул игрока): считаем ЛУЧШЕГО из пула
+        // той же логикой, даже если он не проходит порог общего списка.
+        var candidates = only?.ToList() ?? GetCandidates(myRole);
         Console.WriteLine($"  [диаг] role={myRole}  tier={TierBucket}  патчи={PatchDisplay}  кандидатов={candidates.Count}");
 
         // Исключаем из кандидатов: залоченные пики обеих команд, баны, а также
@@ -533,6 +536,12 @@ public sealed class RecommendationEngine : IDisposable
             .Select((r, i) => r with { Rank = i + 1, IsMyPick = r.ChampionId == myPickId })
             .ToList();
     }
+
+    /// Лучший ЧЕМПИОН ИЗ ПУЛА на текущую роль против врагов — той же логикой, что
+    /// и общий подбор, но кандидаты ограничены пулом (даже вне общего топа).
+    /// Забаненных/взятых пропускаем; null — если пул пуст или все недоступны.
+    public Recommendation? BestFromPool(DraftState state, IReadOnlyCollection<int> poolChamps)
+        => poolChamps.Count == 0 ? null : Recommend(state, 1, poolChamps).FirstOrDefault();
 
     // ---------- ARAM: подбор по скамейке ----------
 

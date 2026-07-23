@@ -92,6 +92,25 @@ public static class PlayerInfo
         return result;
     }
 
+    /// Аккаунт клиента: (puuid, ник). puuid стабилен и переживает переименование —
+    /// им ключуем пулы чемпионов игрока. Пусто, если недоступно.
+    public static async Task<(string? Puuid, string? Name)> GetAccountAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        try
+        {
+            var (s, body) = await http.GetAsync("/lol-summoner/v1/current-summoner", ct);
+            if (s != 200) return (null, null);
+            using var doc = JsonDocument.Parse(body);
+            var r = doc.RootElement;
+            string? puuid = r.TryGetProperty("puuid", out var p) ? p.GetString() : null;
+            string? name = r.TryGetProperty("gameName", out var gn) && !string.IsNullOrEmpty(gn.GetString())
+                ? gn.GetString()
+                : r.TryGetProperty("displayName", out var dn) ? dn.GetString() : null;
+            return (puuid, name);
+        }
+        catch { return (null, null); }
+    }
+
     public static string TierToBucket(string tier) => tier switch
     {
         "IRON" or "BRONZE" or "SILVER"                    => "silver",

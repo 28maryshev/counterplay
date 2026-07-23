@@ -384,5 +384,9 @@
   },
   "style": {
     "mixed": "Misto"
+  },
+  "pool": {
+    "slotLabel": "Pick do seu pool",
+    "duoLabel": "Pick de pool dúo"
   }
 }

@@ -63,12 +63,38 @@ static class TestMode
         }
         var engine = RecommendationEngine.Create(dbPath, "emerald");
 
-        // ТЕСТ владения: «владеем» случайной половиной чемпионов (фикс. сид) —
-        // чтобы увидеть пометку «нет чемпиона» (красная рамка + бейдж) на
-        // невладеемых в рекомендациях. В бою владение приходит из LCU.
         var allIds = DataDragon.GetAllIconUrls().Keys.ToList();
+
+        // ТЕСТ пулов: обычный + дуо-пул, дуо активен — увидеть синий слот «пик из
+        // пула» и иконку чемпиона дуо-друга. В бою пулы задаёт игрок в настройках.
+        PoolStore.SetAccount("test-account", "TEST");
+        var pools = PoolStore.Current();
+        if (pools.Pools.Count == 0 && pools.DuoPools.Count == 0)
+        {
+            var mine = new Dictionary<string, List<int>>
+            {
+                ["top"] = [86, 122, 54], ["jungle"] = [64, 19, 32], ["mid"] = [103, 238, 99],
+                ["adc"] = [222, 22, 51], ["support"] = [89, 412, 16],
+            };
+            var friend = new Dictionary<string, List<int>>
+            {
+                ["top"] = [24, 92], ["jungle"] = [11, 60], ["mid"] = [4, 45],
+                ["adc"] = [67, 236], ["support"] = [117, 40],
+            };
+            pools.Pools.Add(new ChampPool { Name = "Тест", ByRole = mine });
+            pools.DuoPools.Add(new DuoPool { FriendName = "Друг", Mine = mine, Friend = friend });
+            PoolStore.Persist();
+            PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
+        }
+
+        // ТЕСТ владения: случайная половина + ВСЕ чемпионы пулов (чтобы слот пула
+        // был чисто синим), — так виден и «нет чемпиона» в общем списке.
         var rngOwn = new Random(1);
-        overlay.SetOwnedChampions(allIds.Where(_ => rngOwn.Next(2) == 0));
+        var owned = allIds.Where(_ => rngOwn.Next(2) == 0).ToHashSet();
+        foreach (var p in pools.Pools) foreach (var l in p.ByRole.Values) owned.UnionWith(l);
+        foreach (var d in pools.DuoPools)
+        { foreach (var l in d.Mine.Values) owned.UnionWith(l); foreach (var l in d.Friend.Values) owned.UnionWith(l); }
+        overlay.SetOwnedChampions(owned);
 
         overlay.Dispatcher.Invoke(() =>
         {

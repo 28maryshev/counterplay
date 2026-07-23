@@ -384,5 +384,9 @@
     "gold": "黄金",
     "emerald": "翡翠",
     "master": "大师+"
+  },
+  "pool": {
+    "slotLabel": "你的池选择",
+    "duoLabel": "双人池选择"
   }
 }

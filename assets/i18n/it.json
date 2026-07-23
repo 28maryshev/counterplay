@@ -384,5 +384,9 @@
     "gold": "Oro",
     "emerald": "Smeraldo",
     "master": "Master+"
+  },
+  "pool": {
+    "slotLabel": "Pick dal tuo pool",
+    "duoLabel": "Pick pool duo"
   }
 }

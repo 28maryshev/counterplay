@@ -384,5 +384,9 @@
     "baseLow": "WR bajo {0}% — necesitas dominar al campeón",
     "baseNeutral": "Pick neutral, WR ≈{0}%",
     "countersMany": "Contrarresta a {0} campeones que mostró tu equipo"
+  },
+  "pool": {
+    "slotLabel": "Pick de tu pool",
+    "duoLabel": "Pick de pool dúo"
   }
 }

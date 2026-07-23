@@ -2168,7 +2168,52 @@ public partial class OverlayWindow : Window
         var allyNoMe = draft?.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
                                     .Select(p => p.EffectiveChampionId).ToList() ?? [];
 
-        FullRecList.ItemsSource = recs.Select(r =>
+        // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ»): лучший из пула на мою
+        // роль против врагов — отдельной СИНЕЙ карточкой сверху. Дуо-пул: рядом —
+        // иконка чемпиона друга (кого назвать пикнуть).
+        FullRecCard? poolCard = null;
+        if (draft != null && _engine != null)
+        {
+            var myRoleDb = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+            if (!string.IsNullOrEmpty(myRoleDb))
+            {
+                var (mine, friend, isDuo) = PoolStore.ActiveForRole(myRoleDb);
+                var pr = mine.Count > 0 ? _engine.BestFromPool(draft, mine) : null;
+                if (pr != null)
+                {
+                    var (pag, pac, pat) = ArchBadge(pr.ChampionId);
+                    ImageSource? duoIcon = null; string duoName = "";
+                    if (isDuo && friend is { Count: > 0 } fr0 && _engine.BestFromPool(draft, fr0) is { } fr)
+                    { duoIcon = IconCache.Get(fr.ChampionId); duoName = DataDragon.Name(fr.ChampionId); }
+                    poolCard = new FullRecCard
+                    {
+                        ChampionId = pr.ChampionId,
+                        FromPool   = true,
+                        PoolLabel  = Loc.T(isDuo ? "pool.duoLabel" : "pool.slotLabel"),
+                        Rank       = "★",
+                        Name       = DataDragon.Name(pr.ChampionId),
+                        Score      = Signed(pr.Score),
+                        ScoreColor = pr.Score >= 0 ? "#6AB0FF" : "#E05050",
+                        WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
+                        Icon       = IconCache.Get(pr.ChampionId),
+                        ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
+                        BaseBar    = ToBaseBar(pr.BaseDelta), DirectBar = ToBar(pr.DirectDelta),
+                        OtherBar   = ToBar(pr.StyleDelta),    SynBar    = ToBar(pr.SynergyDelta),
+                        BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
+                        OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
+                        ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
+                        SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
+                        DuoIcon    = duoIcon, DuoName = duoName,
+                        NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
+                        NotOwnedLabel = Loc.T("rec.notOwned"),
+                    };
+                }
+            }
+        }
+
+        var generalCards = recs
+            .Where(r => poolCard == null || r.ChampionId != poolCard.ChampionId)
+            .Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
             return new FullRecCard
@@ -2208,6 +2253,11 @@ public partial class OverlayWindow : Window
                 NotOwnedLabel = Loc.T("rec.notOwned"),
             };
         }).ToList();
+
+        var allCards = new List<FullRecCard>();
+        if (poolCard != null) allCards.Add(poolCard);
+        allCards.AddRange(generalCards);
+        FullRecList.ItemsSource = allCards;
 
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
@@ -2642,13 +2692,23 @@ public sealed class FullRecCard
     // Толщина рамки у ВСЕХ карточек одинаковая (1.5): разная толщина сдвигала
     // содержимое выбранной карточки на 1px — ряды «плыли» относительно соседних.
     public bool         IsSelected { get; init; }
-    public string       CardBg     => IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
-    public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
+    // Пик из пула игрока — более синий фон и тонкая синяя рамка (см. FromPool).
+    public string       CardBg     => FromPool ? "#22315C8A" : IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
+    public string       CardBorder => FromPool ? "#5A8AC8" : IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
 
     // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».
     public bool         NotOwned      { get; init; }
     public string       NotOwnedLabel { get; init; } = "";
     public Visibility   NotOwnedVisibility => NotOwned ? Visibility.Visible : Visibility.Collapsed;
+
+    // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ») — подпись слота.
+    public bool         FromPool   { get; init; }
+    public string       PoolLabel  { get; init; } = "";
+    public Visibility   PoolLabelVisibility => FromPool ? Visibility.Visible : Visibility.Collapsed;
+    // Дуо: иконка чемпиона друга (кого назвать другу пикнуть) + его имя.
+    public ImageSource? DuoIcon    { get; init; }
+    public string       DuoName    { get; init; } = "";
+    public Visibility   DuoVisibility => DuoIcon != null ? Visibility.Visible : Visibility.Collapsed;
 }
 
 public sealed class ChampSlotCard

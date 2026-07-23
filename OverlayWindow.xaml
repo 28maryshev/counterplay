@@ -1025,6 +1025,15 @@
                                              FontSize="14" Foreground="#10141A"
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
+                                <!-- Дуо-пул: иконка чемпиона друга (кого назвать пикнуть) -->
+                                <Border Width="28" Height="28" CornerRadius="14"
+                                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                        Background="#101823" BorderBrush="#6AB0FF" BorderThickness="1.5"
+                                        Visibility="{Binding DuoVisibility}" ToolTip="{Binding DuoName}">
+                                  <Ellipse Width="23" Height="23">
+                                    <Ellipse.Fill><ImageBrush ImageSource="{Binding DuoIcon}" Stretch="UniformToFill"/></Ellipse.Fill>
+                                  </Ellipse>
+                                </Border>
                               </Grid>
                               <!-- Полоски связок кандидата с союзниками — во всю ширину иконки -->
                               <ItemsControl ItemsSource="{Binding SynDashes}" Margin="0,4,0,0">
@@ -1041,6 +1050,10 @@
                             <!-- Имя + WR + описание: фиксированная ширина, отдельный столбец -->
                             <StackPanel Grid.Column="2" VerticalAlignment="Center"
                                         Width="230" Margin="0,0,14,0">
+                              <TextBlock Text="{Binding PoolLabel}" Foreground="#6AB0FF"
+                                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                                         FontWeight="Bold" Visibility="{Binding PoolLabelVisibility}"
+                                         Margin="0,0,0,2"/>
                               <TextBlock Text="{Binding MineLabel}" Foreground="#36D6E7"
                                          FontFamily="{StaticResource UiFont}" FontSize="11"
                                          FontWeight="Bold" Visibility="{Binding MineVisibility}"

@@ -262,6 +262,9 @@ class Program
         var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
         // Чемпионы аккаунта: которых нет — помечаем в рекомендациях «нет чемпиона».
         overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));
+        // Аккаунт (puuid) — ключ пулов чемпионов: подгружаем набор этого игрока.
+        var (poolPuuid, poolName) = await PlayerInfo.GetAccountAsync(http, ct);
+        PoolStore.SetAccount(poolPuuid, poolName);
 
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
         overlay.ApplyRunesHandler  = (page, name) => RunesImporter.ApplyRunesAsync(http, page, name, ct);
