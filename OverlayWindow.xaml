@@ -269,6 +269,52 @@
         </Grid>
       </Border>
     </DataTemplate>
+
+    <!-- Выпадающий список выбора пула / связки — в тёмном стиле программы -->
+    <Style x:Key="PoolMenuItemStyle" TargetType="MenuItem">
+      <Setter Property="Foreground" Value="#D7DEE6"/>
+      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Padding" Value="12,7"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="MenuItem">
+            <Border x:Name="mib" Background="Transparent" CornerRadius="4"
+                    Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+              <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="mib" Property="Background" Value="#22364F"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="PoolMenuStyle" TargetType="ContextMenu">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HasDropShadow" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ContextMenu">
+            <Border Background="#121A24" BorderBrush="#35485A" BorderThickness="1"
+                    CornerRadius="6" Padding="4" Margin="4" SnapsToDevicePixels="True">
+              <Border.Effect>
+                <DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.55"/>
+              </Border.Effect>
+              <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
 
   <Grid>

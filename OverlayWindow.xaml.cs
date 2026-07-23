@@ -1331,10 +1331,11 @@ public partial class OverlayWindow : Window
             RenderCurrentState();
             return;
         }
-        var menu = new System.Windows.Controls.ContextMenu();
+        var menu = new System.Windows.Controls.ContextMenu { Style = (Style)FindResource("PoolMenuStyle") };
+        var itemStyle = (Style)FindResource("PoolMenuItemStyle");
         foreach (var (id, name) in items)
         {
-            var mi = new System.Windows.Controls.MenuItem { Header = name };
+            var mi = new System.Windows.Controls.MenuItem { Header = name, Style = itemStyle };
             mi.Click += (_, _) => { PoolStore.SetActive(kind, id); UpdatePoolButtons(); RenderCurrentState(); };
             menu.Items.Add(mi);
         }
