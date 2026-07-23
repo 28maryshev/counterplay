@@ -51,7 +51,8 @@ sealed class PoolSettingsWindow : Window
         PoolUi.Apply(this);
 
         var grid = new Grid { Margin = new Thickness(16) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.7, GridUnitType.Star) });
+        // Колонки равные — разделительная черта строго по центру окна.
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -99,7 +100,8 @@ sealed class PoolSettingsWindow : Window
         _duoArea.Children.Clear();
         foreach (var d in a.DuoPools)
             _duoArea.Children.Add(Tile(d.FriendName, a.ActiveKind == PoolKind.Duo && a.ActiveId == d.Id,
-                () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id)));
+                () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id),
+                Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto")));
         _duoArea.Children.Add(PlusTile(() => EditDuo(null)));
     }
 
@@ -116,7 +118,7 @@ sealed class PoolSettingsWindow : Window
 
     // Плитка существующего пула: имя + клик (редактировать) + × (удалить) + ★ выбора.
     // Активный (выбранный сейчас) пул выделен синей рамкой и залитой звездой.
-    private FrameworkElement Tile(string name, bool active, Action open, Action del, Action select)
+    private FrameworkElement Tile(string name, bool active, Action open, Action del, Action select, string mode = "")
     {
         var b = new Border
         {
@@ -132,8 +134,18 @@ sealed class PoolSettingsWindow : Window
             Text = string.IsNullOrWhiteSpace(name) ? "—" : name, Foreground = Brushes.White,
             FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(6)
+            // Есть пометка режима внизу — оставляем ей место, чтобы имя не наезжало.
+            Margin = mode.Length > 0 ? new Thickness(6, 6, 6, 20) : new Thickness(6)
         });
+        // Режим подбора пары дуо-пула — снизу плитки.
+        if (mode.Length > 0)
+            g.Children.Add(new TextBlock
+            {
+                Text = mode, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(4, 0, 4, 7)
+            });
         // Звезда выбора — левый верхний угол.
         var star = new Button
         {
