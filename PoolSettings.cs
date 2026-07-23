@@ -332,8 +332,8 @@ sealed class PoolEditorWindow : Window
         return b;
     }
 
-    // Ширины колонок для выравнивания заголовка со слотами (иконка 48 + правый отступ).
-    private const double SlotCol = 53, PlusCol = 26;
+    // Ширины колонок для выравнивания заголовка со слотами (иконка 53 + полоска ролей ~28).
+    private const double SlotCol = 81, PlusCol = 26;
 
     // Заголовки колонок связок: «Мой» + «Друг» + «WR · Δ», выровнены под слоты.
     private static FrameworkElement ManualHeader()
@@ -424,11 +424,11 @@ sealed class PoolEditorWindow : Window
         return wrap;
     }
 
-    // Слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает), а под
-    // ней — полоска ролей (5 иконок), где подсвечена выбранная роль чемпиона.
+    // Слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает), а СПРАВА
+    // от неё — вертикальная полоска ролей (5 иконок), где подсвечена выбранная роль.
     private FrameworkElement ManualSlot(int id, string role, Action<int> setChamp, Action<string>? setRole)
     {
-        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        var wrap = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
         FrameworkElement tile = id != 0
             ? ChampIcon(id, () => setChamp(0))
             : PlusChamp(() =>
@@ -441,28 +441,32 @@ sealed class PoolEditorWindow : Window
         return wrap;
     }
 
-    // Полоска выбора роли: 5 иконок ролей, выбранная — ярче с синим подчёркиванием.
+    // Вертикальная полоска выбора роли (справа от иконки): 5 ролей сверху вниз,
+    // выбранная — ярче с синей меткой слева.
     private static FrameworkElement RoleStrip(string role, Action<string> setRole)
     {
-        var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 5, 0) };
+        var strip = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(1, 0, 5, 0),
+            VerticalAlignment = VerticalAlignment.Center };
         foreach (var r in PoolSettingsWindow.Roles)
         {
             var sel  = r == role;
             var icon = RoleIcons.Get(PoolSettingsWindow.DbToLcu[r]);
             var cell = new Border
             {
-                Width = 18, Height = 20, Margin = new Thickness(0, 0, 1, 0), Cursor = System.Windows.Input.Cursors.Hand,
+                Width = 26, Height = 15, Margin = new Thickness(0, 0, 0, 1), Cursor = System.Windows.Input.Cursors.Hand,
                 Background = Brushes.Transparent, ToolTip = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, r)],
-                BorderThickness = new Thickness(0, 0, 0, 2),
+                BorderThickness = new Thickness(2, 0, 0, 0),
                 BorderBrush = sel ? new SolidColorBrush(PoolSettingsWindow.Blue) : Brushes.Transparent
             };
             if (icon != null)
-                cell.Child = new Image { Source = icon, Width = 15, Height = 15, Opacity = sel ? 1.0 : 0.4,
-                    VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center };
+                cell.Child = new Image { Source = icon, Width = 13, Height = 13, Opacity = sel ? 1.0 : 0.4,
+                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(4, 0, 0, 0) };
             else
                 cell.Child = new TextBlock { Text = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, r)][..1],
                     FontSize = 9, Foreground = sel ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x60, 0x70, 0x80)),
-                    HorizontalAlignment = HorizontalAlignment.Center };
+                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(5, 0, 0, 0) };
             var rr = r;
             cell.MouseLeftButtonUp += (_, e) => { e.Handled = true; setRole(rr); };
             strip.Children.Add(cell);
