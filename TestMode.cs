@@ -153,7 +153,8 @@ sealed class TestPanel : Window
     private readonly ComboBox[]   _enemy = new ComboBox[5];
     private readonly RadioButton[] _meRadio = new RadioButton[5];
     private enum TestStage { Draft, Bans, Ready }
-    private TestStage _stage = TestStage.Draft;     // текущий тестовый этап
+    // По умолчанию — экран Ready (ник/ранг/пул). Драфт и баны — ТОЛЬКО по кнопке.
+    private TestStage _stage = TestStage.Ready;
     private readonly Button _stageDraft = new();
     private readonly Button _stageBans  = new();
     private readonly Button _stageReady = new();
