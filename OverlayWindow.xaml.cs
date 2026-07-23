@@ -2287,13 +2287,18 @@ public partial class OverlayWindow : Window
                     // Дуо-пул: пара «я + друг» как единое целое. Manual — фикс-пара,
                     // иначе автоподбор лучших пар (мой пул × пул друга).
                     var duo = PoolStore.ActiveDuo();
-                    if (duo is { Manual: true } && duo.ManualMine != 0)
+                    if (duo is { Manual: true })
                     {
-                        if (_engine.Recommend(draft, 1, new[] { duo.ManualMine }).FirstOrDefault() is { } mr)
+                        // Фиксированные связки: карточка на каждую заданную пару.
+                        foreach (var mp in duo.ManualPairs)
                         {
-                            ImageSource? di = duo.ManualFriend != 0 ? IconCache.Get(duo.ManualFriend) : null;
-                            var dn = duo.ManualFriend != 0 ? DataDragon.Name(duo.ManualFriend) : "";
-                            AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
+                            if (mp.Mine == 0) continue;
+                            if (_engine.Recommend(draft, 1, new[] { mp.Mine }).FirstOrDefault() is { } mr)
+                            {
+                                ImageSource? di = mp.Friend != 0 ? IconCache.Get(mp.Friend) : null;
+                                var dn = mp.Friend != 0 ? DataDragon.Name(mp.Friend) : "";
+                                AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
+                            }
                         }
                     }
                     else if (duo != null)

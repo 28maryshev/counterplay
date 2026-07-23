@@ -33,11 +33,17 @@ public sealed class DuoPool
     public List<int> MineForRole(string role)   => Mine.TryGetValue(role, out var l) ? l : [];
     public List<int> FriendForRole(string role) => Friend.TryGetValue(role, out var l) ? l : [];
 
-    // Manual = фиксированная пара (я всегда играю ManualMine, друг — ManualFriend),
-    // без автоподбора. Иначе пара подбирается автоматически из наборов (BestDuoPairs).
-    public bool Manual       { get; set; }
-    public int  ManualMine   { get; set; }   // championId моего фикс-пика
-    public int  ManualFriend { get; set; }   // championId фикс-пика друга
+    // Manual = фиксированные связки (без автоподбора): я всегда играю Mine, друг —
+    // Friend. Можно задать НЕСКОЛЬКО пар. Иначе пара подбирается движком (BestDuoPairs).
+    public bool Manual { get; set; }
+    public List<ManualDuoPair> ManualPairs { get; set; } = [];
+}
+
+/// Одна фиксированная дуо-связка: мой чемпион + чемпион друга.
+public sealed class ManualDuoPair
+{
+    public int Mine   { get; set; }
+    public int Friend { get; set; }
 }
 
 /// Все пулы одного аккаунта.
@@ -188,7 +194,8 @@ public static class PoolStore
                 cur.Pools.Add(new ChampPool { Name = p.Name, ByRole = Clone(p.ByRole) });
             foreach (var d in src.DuoPools)
                 cur.DuoPools.Add(new DuoPool { FriendName = d.FriendName, Mine = Clone(d.Mine), Friend = Clone(d.Friend),
-                                               Manual = d.Manual, ManualMine = d.ManualMine, ManualFriend = d.ManualFriend });
+                                               Manual = d.Manual,
+                                               ManualPairs = d.ManualPairs.Select(p => new ManualDuoPair { Mine = p.Mine, Friend = p.Friend }).ToList() });
             Save();
         }
     }

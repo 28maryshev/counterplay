@@ -416,7 +416,7 @@
     "duoMode": "Pair selection:",
     "duoAuto": "Auto",
     "duoManual": "Manual",
-    "duoManualHint": "Fixed pair — always suggest these two",
+    "duoManualHint": "Fixed pairs — add as many duos as you like",
     "duoMyChamp": "My champion",
     "duoFriendChamp": "Friend's champion"
   }
