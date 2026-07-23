@@ -63,6 +63,13 @@ static class TestMode
         }
         var engine = RecommendationEngine.Create(dbPath, "emerald");
 
+        // ТЕСТ владения: «владеем» случайной половиной чемпионов (фикс. сид) —
+        // чтобы увидеть пометку «нет чемпиона» (красная рамка + бейдж) на
+        // невладеемых в рекомендациях. В бою владение приходит из LCU.
+        var allIds = DataDragon.GetAllIconUrls().Keys.ToList();
+        var rngOwn = new Random(1);
+        overlay.SetOwnedChampions(allIds.Where(_ => rngOwn.Next(2) == 0));
+
         overlay.Dispatcher.Invoke(() =>
         {
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
