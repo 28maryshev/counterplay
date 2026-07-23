@@ -2344,9 +2344,21 @@ public partial class OverlayWindow : Window
                                 continue;
 
                             if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
+                            {
+                                // Вес дуо: напарник ещё не в составе → синергия связки
+                                // ещё не учтена, добавляем её. Уже взят — не дублируем.
+                                if (!allyIds.Contains(mateId))
+                                    mr = _engine.ApplyDuoBonus(mr, myRoleDb, mateId);
                                 manual.Add((mr, mateId));
+                            }
                         }
-                        foreach (var (mr, mateId) in manual.OrderByDescending(t => t.Rec.Score))
+                        // Как и в обычном пуле: показываем только ВЫГОДНЫЕ (Score > 0),
+                        // максимум 3. Если выгодных нет — один лучший, чтобы связка
+                        // всё равно что-то предлагала.
+                        var ordered = manual.OrderByDescending(t => t.Rec.Score).ToList();
+                        var shown   = ordered.Where(t => t.Rec.Score > 0).Take(3).ToList();
+                        if (shown.Count == 0 && ordered.Count > 0) shown = [ordered[0]];
+                        foreach (var (mr, mateId) in shown)
                         {
                             ImageSource? di = mateId != 0 ? IconCache.Get(mateId) : null;
                             var dn = mateId != 0 ? DataDragon.Name(mateId) : "";

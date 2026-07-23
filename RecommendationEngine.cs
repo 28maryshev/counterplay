@@ -605,6 +605,22 @@ public sealed class RecommendationEngine : IDisposable
         return ((int)Math.Round(syn.g), 100.0 * syn.w / syn.g, synDelta);
     }
 
+    /// Вес дуо для ФИКСИРОВАННОЙ связки: к обычной оценке моего пика добавляем
+    /// взаимную синергию с напарником (W_DUOSYN) — в паре мы играем гарантированно,
+    /// поэтому связка ценнее случайного союзника. Синергия попадает и в свою полосу.
+    /// Вызывать ТОЛЬКО если напарник ещё не взят в драфте, иначе двойной учёт.
+    public Recommendation ApplyDuoBonus(Recommendation mine, string myRole, int mateId)
+    {
+        if (mateId == 0) return mine;
+        var syn = PairSynergy(mine.ChampionId, myRole, mateId);
+        if (syn == 0) return mine;
+        return mine with
+        {
+            Score        = mine.Score + W_DUOSYN * syn,
+            SynergyDelta = mine.SynergyDelta + syn,
+        };
+    }
+
     /// Лучшие ДУО-ПАРЫ: перебор (мой пул × пул друга), оценка КАЖДОГО той же
     /// логикой + взаимная синергия пары (W_DUOSYN). Пара сопоставляется с врагами
     /// как единое целое: скор = мой_скор + скор_друга + W_DUOSYN·синергия(m,f).
@@ -634,7 +650,13 @@ public sealed class RecommendationEngine : IDisposable
                 var score = m.Score + f.Score + W_DUOSYN * syn;
                 pairs.Add(new DuoPair(m, f, fRole, score));
             }
-        return pairs.OrderByDescending(p => p.Score).Take(max).ToList();
+
+        // Как в TopFromPool: только ВЫГОДНЫЕ пары (мой пик в плюс), максимум max.
+        // Если выгодных нет — одна лучшая, чтобы пул всегда что-то предлагал.
+        var ordered = pairs.OrderByDescending(p => p.Score).ToList();
+        if (ordered.Count == 0) return [];
+        var good = ordered.Where(p => p.Mine.Score > 0).Take(max).ToList();
+        return good.Count > 0 ? good : [ordered[0]];
     }
 
     // ---------- ARAM: подбор по скамейке ----------
