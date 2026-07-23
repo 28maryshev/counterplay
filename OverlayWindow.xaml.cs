@@ -2330,6 +2330,9 @@ public partial class OverlayWindow : Window
                         // них мой, решает моя роль в этой игре. Поэтому сопоставляем
                         // обе стороны: совпала роль друга — берём его чемпиона себе,
                         // а «мой» из связки показываем как пик напарника.
+                        // Сначала считаем все подходящие связки, ПОТОМ сортируем по
+                        // скору — лучшая сверху (иначе шли в порядке создания).
+                        var manual = new List<(Recommendation Rec, int Mate)>();
                         foreach (var mp in duo.ManualPairs)
                         {
                             int mineId, mateId;
@@ -2341,11 +2344,13 @@ public partial class OverlayWindow : Window
                                 continue;
 
                             if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
-                            {
-                                ImageSource? di = mateId != 0 ? IconCache.Get(mateId) : null;
-                                var dn = mateId != 0 ? DataDragon.Name(mateId) : "";
-                                AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
-                            }
+                                manual.Add((mr, mateId));
+                        }
+                        foreach (var (mr, mateId) in manual.OrderByDescending(t => t.Rec.Score))
+                        {
+                            ImageSource? di = mateId != 0 ? IconCache.Get(mateId) : null;
+                            var dn = mateId != 0 ? DataDragon.Name(mateId) : "";
+                            AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
                         }
                     }
                     else if (duo != null)
