@@ -1396,6 +1396,8 @@ public partial class OverlayWindow : Window
             if (!_wrChartHooked)
             {
                 WrChart.SizeChanged += (_, _) => DrawWrChart();
+                // Полоса LP тянется по ширине панели — пересчитываем заполнение.
+                RankProgressTrack.SizeChanged += (_, _) => ApplyRankProgress();
                 _wrChartHooked = true;
             }
             RenderSessionView();
@@ -1430,7 +1432,8 @@ public partial class OverlayWindow : Window
             RankText.Text = "—";
             RankText.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
             RankLpText.Text = "";
-            RankProgressFill.Width = 0;
+            _rankPct = 0;
+            ApplyRankProgress();
             SessionHint.Text = Loc.T("session.needGames");
             SessionHint.Visibility = Visibility.Visible;
             Last5Panel.Children.Clear();
@@ -1451,7 +1454,7 @@ public partial class OverlayWindow : Window
             RankText.Text = string.IsNullOrEmpty(v.Division) ? tierLoc : $"{tierLoc} {v.Division}";
             RankText.Foreground = TierBrush(v.Tier);
             RankLpText.Text = $"{v.Lp} LP";
-            RankProgressFill.Width = 258.0 * Math.Clamp(v.ProgressPct, 0, 100) / 100.0;
+            _rankPct = v.ProgressPct;
         }
         else
         {
@@ -1459,8 +1462,9 @@ public partial class OverlayWindow : Window
             RankText.Text = Loc.T("session.queue." + _selectedQueue);
             RankText.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
             RankLpText.Text = "";
-            RankProgressFill.Width = 0;
+            _rankPct = 0;
         }
+        ApplyRankProgress();
 
         // Свежая установка/очередь: журнал этой очереди пуст — статистика
         // появится после сыгранных при запущенной программе игр.
@@ -1656,6 +1660,16 @@ public partial class OverlayWindow : Window
     }
 
     // Линейный график динамики винрейта (синий) по датам.
+    // Заполнение полосы LP считаем от ФАКТИЧЕСКОЙ ширины дорожки: она тянется по
+    // ширине панели, поэтому фиксированное число пикселей здесь не годится.
+    private double _rankPct;
+
+    private void ApplyRankProgress()
+    {
+        var w = RankProgressTrack.ActualWidth;
+        RankProgressFill.Width = w > 0 ? w * Math.Clamp(_rankPct, 0, 100) / 100.0 : 0;
+    }
+
     private void DrawWrChart()
     {
         WrChart.Children.Clear();

@@ -537,7 +537,7 @@
             </Grid>
 
             <!-- Ранг · LP · полоса прогресса до след. ранга -->
-            <Grid Margin="0,2,0,4" Width="258" HorizontalAlignment="Left">
+            <Grid Margin="0,2,0,4">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -550,7 +550,7 @@
                          Foreground="#9FB3C8" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
             </Grid>
             <!-- Полоса LP -->
-            <Border Width="258" Height="7" CornerRadius="4" HorizontalAlignment="Left"
+            <Border x:Name="RankProgressTrack" Height="7" CornerRadius="4"
                     Background="#22FFFFFF">
               <Border x:Name="RankProgressFill" Width="0" Height="7" CornerRadius="4"
                       HorizontalAlignment="Left">
@@ -564,7 +564,7 @@
             </Border>
 
             <!-- Последние 5 игр: иконки во всю ширину бара + LP за игру -->
-            <Grid x:Name="Last5Panel" Width="258" HorizontalAlignment="Left" Margin="0,15,0,0"/>
+            <Grid x:Name="Last5Panel" Margin="0,15,0,0"/>
 
             <!-- Подсказка: статистика наполняется по мере сыгранных игр -->
             <TextBlock x:Name="SessionHint" Visibility="Collapsed"
