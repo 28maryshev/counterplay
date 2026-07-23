@@ -200,7 +200,7 @@ sealed class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 560; Height = 450;
+        Width  = 560; Height = 492;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
@@ -208,7 +208,7 @@ sealed class TestPanel : Window
         root.ColumnDefinitions.Add(new ColumnDefinition());
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
         root.ColumnDefinitions.Add(new ColumnDefinition());
-        for (int i = 0; i < 7; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (int i = 0; i < 8; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         root.Children.Add(Header("МОЯ КОМАНДА (точка = я)", 0, "#36D6E7"));
         root.Children.Add(Header("ВРАГИ (роль — списком слева)", 2, "#FF5A4D"));
@@ -268,7 +268,7 @@ sealed class TestPanel : Window
         // сам (или включаешь авто-драфт) — подбор пойдёт с этим пулом/дуо-пулом.
         _saveDraftBtn.Content = "💾 Сохранить для драфта";
         _saveDraftBtn.Padding = new Thickness(12, 4, 12, 4);
-        _saveDraftBtn.Margin  = new Thickness(8, 0, 0, 0);
+        _saveDraftBtn.Margin  = new Thickness(0);
         _saveDraftBtn.Cursor  = System.Windows.Input.Cursors.Hand;
         _saveDraftBtn.Background  = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
         _saveDraftBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8));
@@ -276,7 +276,6 @@ sealed class TestPanel : Window
         _saveDraftBtn.Foreground = System.Windows.Media.Brushes.White;
         _saveDraftBtn.FontWeight = FontWeights.Bold;
         _saveDraftBtn.Click += (_, _) => SaveForDraft();
-        stages.Children.Add(_saveDraftBtn);
 
         bottom.Children.Add(stages);
 
@@ -321,6 +320,16 @@ sealed class TestPanel : Window
 
         Grid.SetRow(bottom, 6); Grid.SetColumn(bottom, 0); Grid.SetColumnSpan(bottom, 3);
         root.Children.Add(bottom);
+
+        // Отдельная строка: в ряду этапов кнопка не помещалась и обрезалась.
+        var saveRow = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0)
+        };
+        saveRow.Children.Add(_saveDraftBtn);
+        Grid.SetRow(saveRow, 7); Grid.SetColumn(saveRow, 0); Grid.SetColumnSpan(saveRow, 3);
+        root.Children.Add(saveRow);
 
         Content = root;
         _ready = true;
