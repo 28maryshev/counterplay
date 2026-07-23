@@ -387,6 +387,10 @@
   },
   "pool": {
     "slotLabel": "Pick từ pool của bạn",
-    "duoLabel": "Pick pool duo"
+    "duoLabel": "Pick pool duo",
+    "settings": "Cài đặt",
+    "normal": "Thường",
+    "pool": "Pool",
+    "duo": "Duo"
   }
 }

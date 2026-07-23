@@ -387,6 +387,10 @@
   },
   "pool": {
     "slotLabel": "내 풀 추천",
-    "duoLabel": "듀오 풀 추천"
+    "duoLabel": "듀오 풀 추천",
+    "settings": "설정",
+    "normal": "일반",
+    "pool": "풀",
+    "duo": "듀오"
   }
 }

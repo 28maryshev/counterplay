@@ -1237,7 +1237,66 @@ public partial class OverlayWindow : Window
         PulseAnim(false);
         LoadingInfo.Visibility = Visibility.Collapsed;
         ReadyInfo.Visibility   = Visibility.Visible;
+        UpdatePoolButtons();
         ShowIdle();
+    }
+
+    // ── Пул чемпионов против врагов: режимы (Настройки · Обычный · Пул · Дуо) ──
+    private void PoolSettings_Click(object sender, RoutedEventArgs e)
+    {
+        // Окно настроек пулов — следующий этап. Пока подсказка в статусе.
+        // (Тестовый пул уже задан в TestMode.)
+    }
+
+    private void PoolNormal_Click(object sender, RoutedEventArgs e)
+    {
+        PoolStore.SetActive(PoolKind.Normal, null);
+        UpdatePoolButtons();
+        RenderCurrentState();   // убрать/показать слот пула
+    }
+
+    private void PoolPool_Click(object sender, RoutedEventArgs e) => ShowPoolMenu(PoolKind.Pool, PoolPoolBtn);
+    private void PoolDuo_Click(object sender, RoutedEventArgs e)  => ShowPoolMenu(PoolKind.Duo,  PoolDuoBtn);
+
+    // Меню выбора конкретного пула/дуо-пула; при одном — активируем сразу.
+    private void ShowPoolMenu(PoolKind kind, System.Windows.Controls.Button anchor)
+    {
+        var a = PoolStore.Current();
+        var items = kind == PoolKind.Pool
+            ? a.Pools.Select(p => (p.Id, Name: p.Name.Length > 0 ? p.Name : Loc.T("pool.pool"))).ToList()
+            : a.DuoPools.Select(d => (d.Id, Name: d.FriendName.Length > 0 ? d.FriendName : Loc.T("pool.duo"))).ToList();
+        if (items.Count == 0) return;   // нет пулов — создать в настройках (след. этап)
+        if (items.Count == 1)
+        {
+            PoolStore.SetActive(kind, items[0].Id);
+            UpdatePoolButtons();
+            RenderCurrentState();
+            return;
+        }
+        var menu = new System.Windows.Controls.ContextMenu();
+        foreach (var (id, name) in items)
+        {
+            var mi = new System.Windows.Controls.MenuItem { Header = name };
+            mi.Click += (_, _) => { PoolStore.SetActive(kind, id); UpdatePoolButtons(); RenderCurrentState(); };
+            menu.Items.Add(mi);
+        }
+        menu.PlacementTarget = anchor;
+        menu.IsOpen = true;
+    }
+
+    // Подсветка активного режима.
+    private void UpdatePoolButtons()
+    {
+        var kind = PoolStore.Current().ActiveKind;
+        void Set(System.Windows.Controls.Button b, bool on)
+        {
+            b.Background  = on ? new SolidColorBrush(Color.FromRgb(0x22, 0x36, 0x55)) : System.Windows.Media.Brushes.Transparent;
+            b.BorderBrush = new SolidColorBrush(on ? Color.FromRgb(0x5A, 0x8A, 0xC8) : Color.FromRgb(0x40, 0x50, 0x60));
+            b.Foreground  = on ? System.Windows.Media.Brushes.White : new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
+        }
+        Set(PoolNormalBtn, kind == PoolKind.Normal);
+        Set(PoolPoolBtn,   kind == PoolKind.Pool);
+        Set(PoolDuoBtn,    kind == PoolKind.Duo);
     }
 
     private void ApplyReadyText() =>

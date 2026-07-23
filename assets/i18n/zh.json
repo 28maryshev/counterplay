@@ -387,6 +387,10 @@
   },
   "pool": {
     "slotLabel": "你的池选择",
-    "duoLabel": "双人池选择"
+    "duoLabel": "双人池选择",
+    "settings": "设置",
+    "normal": "常规",
+    "pool": "池",
+    "duo": "双人"
   }
 }

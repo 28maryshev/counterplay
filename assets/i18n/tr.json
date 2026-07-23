@@ -387,6 +387,10 @@
   },
   "pool": {
     "slotLabel": "Havuzundan seçim",
-    "duoLabel": "Duo havuz seçimi"
+    "duoLabel": "Duo havuz seçimi",
+    "settings": "Ayarlar",
+    "normal": "Normal",
+    "pool": "Havuz",
+    "duo": "Duo"
   }
 }

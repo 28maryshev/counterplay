@@ -96,9 +96,30 @@ static class TestMode
         { foreach (var l in d.Mine.Values) owned.UnionWith(l); foreach (var l in d.Friend.Values) owned.UnionWith(l); }
         overlay.SetOwnedChampions(owned);
 
+        // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
+        // с кнопками режимов пула (в бою данные приходят из клиента).
+        var last5 = new List<SessionTracker.RecentGame>
+        {
+            new(86, true, 22), new(103, false, -18), new(238, true, 20),
+            new(51, true, 19), new(99, false, -21),
+        };
+        var hist = new List<SessionTracker.WrPoint>();
+        var baseDate = DateTime.UtcNow.AddDays(-14);
+        double wr = 48; var rndWr = new Random(7);
+        for (int i = 0; i < 14; i++) { wr = Math.Clamp(wr + rndWr.Next(-3, 5), 44, 60); hist.Add(new(baseDate.AddDays(i), wr)); }
+        var fakeSession = new SessionTracker.SessionData(
+            "TestSummoner", "solo",
+            new Dictionary<string, SessionTracker.QueueView>
+            {
+                ["solo"] = new SessionTracker.QueueView(
+                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
+                    Wins: 63, Losses: 55, Winrate: 53.4, Last5: last5, WinrateHistory: hist),
+            });
+
         overlay.Dispatcher.Invoke(() =>
         {
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
+            overlay.ShowSession(fakeSession);   // фейковый ник/ранг/график
             panel = new TestPanel(overlay, engine);
             panel.Show();
         });

@@ -387,6 +387,10 @@
   },
   "pool": {
     "slotLabel": "プールからのピック",
-    "duoLabel": "デュオプールのピック"
+    "duoLabel": "デュオプールのピック",
+    "settings": "設定",
+    "normal": "通常",
+    "pool": "プール",
+    "duo": "デュオ"
   }
 }

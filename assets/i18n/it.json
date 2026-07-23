@@ -387,6 +387,10 @@
   },
   "pool": {
     "slotLabel": "Pick dal tuo pool",
-    "duoLabel": "Pick pool duo"
+    "duoLabel": "Pick pool duo",
+    "settings": "Impostazioni",
+    "normal": "Normale",
+    "pool": "Pool",
+    "duo": "Duo"
   }
 }
