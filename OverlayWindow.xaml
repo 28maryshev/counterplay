@@ -611,6 +611,13 @@
               <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
             </StackPanel>
 
+            <!-- «Сохранить для драфта»: только в тестовом режиме (включается кодом) -->
+            <Button x:Name="SaveForDraftBtn" Click="SaveForDraft_Click" Visibility="Collapsed"
+                    HorizontalAlignment="Center" Margin="0,8,0,0" Cursor="Hand"
+                    Background="#335A8AC8" BorderBrush="#5A8AC8" BorderThickness="1"
+                    Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
+                    FontWeight="Bold" Padding="12,4"/>
+
             <!-- Фаза, в которой находится окно — крупно, снизу -->
             <TextBlock x:Name="ReadyStatusText" Text="Готов"
                        FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"

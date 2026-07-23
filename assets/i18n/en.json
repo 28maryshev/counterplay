@@ -422,6 +422,8 @@
     "duoStatsHdr": "WR · Δ",
     "duoWrTip": "Winrate of this duo across {0} games together",
     "duoDeltaTip": "How much stronger the duo is than these two apart (synergy vs. their individual winrates)",
-    "duoNoData": "Not enough games together for this duo yet"
+    "duoNoData": "Not enough games together for this duo yet",
+    "saveForDraft": "💾 Save for draft",
+    "saved": "✓ Saved"
   }
 }

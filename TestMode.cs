@@ -120,6 +120,7 @@ static class TestMode
         overlay.Dispatcher.Invoke(() =>
         {
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
+            overlay.EnableSaveForDraft();   // кнопка режима-для-драфта — только в тесте
             overlay.ShowSession(fakeSession);   // фейковый ник/ранг/график
             panel = new TestPanel(overlay, engine);
             panel.Show();
@@ -159,8 +160,6 @@ sealed class TestPanel : Window
     private readonly Button _stageDraft = new();
     private readonly Button _stageBans  = new();
     private readonly Button _stageReady = new();
-    private readonly Button _saveDraftBtn = new();   // «Сохранить для драфта» — только на Ready
-    private DispatcherTimer? _saveHintTimer;         // возврат подписи после «✓ Сохранено»
     private bool _ready; // подавляет пересчёт во время построения UI
 
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
@@ -200,7 +199,7 @@ sealed class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 560; Height = 492;
+        Width  = 560; Height = 450;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
@@ -208,7 +207,7 @@ sealed class TestPanel : Window
         root.ColumnDefinitions.Add(new ColumnDefinition());
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
         root.ColumnDefinitions.Add(new ColumnDefinition());
-        for (int i = 0; i < 8; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (int i = 0; i < 7; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         root.Children.Add(Header("МОЯ КОМАНДА (точка = я)", 0, "#36D6E7"));
         root.Children.Add(Header("ВРАГИ (роль — списком слева)", 2, "#FF5A4D"));
@@ -263,20 +262,6 @@ sealed class TestPanel : Window
         stages.Children.Add(_stageBans);
         stages.Children.Add(_stageReady);
 
-        // На стадии Ready: выбрал режим подбора (Обычный/Пул/Дуо на ready-экране) →
-        // жмёшь «Сохранить для драфта». Выбор запоминается; на драфт переключаешься
-        // сам (или включаешь авто-драфт) — подбор пойдёт с этим пулом/дуо-пулом.
-        _saveDraftBtn.Content = "💾 Сохранить для драфта";
-        _saveDraftBtn.Padding = new Thickness(12, 4, 12, 4);
-        _saveDraftBtn.Margin  = new Thickness(0);
-        _saveDraftBtn.Cursor  = System.Windows.Input.Cursors.Hand;
-        _saveDraftBtn.Background  = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
-        _saveDraftBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8));
-        _saveDraftBtn.BorderThickness = new Thickness(1);
-        _saveDraftBtn.Foreground = System.Windows.Media.Brushes.White;
-        _saveDraftBtn.FontWeight = FontWeights.Bold;
-        _saveDraftBtn.Click += (_, _) => SaveForDraft();
-
         bottom.Children.Add(stages);
 
         var reset = new Button
@@ -321,15 +306,6 @@ sealed class TestPanel : Window
         Grid.SetRow(bottom, 6); Grid.SetColumn(bottom, 0); Grid.SetColumnSpan(bottom, 3);
         root.Children.Add(bottom);
 
-        // Отдельная строка: в ряду этапов кнопка не помещалась и обрезалась.
-        var saveRow = new StackPanel
-        {
-            Orientation = System.Windows.Controls.Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0)
-        };
-        saveRow.Children.Add(_saveDraftBtn);
-        Grid.SetRow(saveRow, 7); Grid.SetColumn(saveRow, 0); Grid.SetColumnSpan(saveRow, 3);
-        root.Children.Add(saveRow);
 
         Content = root;
         _ready = true;
@@ -360,20 +336,6 @@ sealed class TestPanel : Window
         Set(_stageDraft, _stage == TestStage.Draft);
         Set(_stageBans,  _stage == TestStage.Bans);
         Set(_stageReady, _stage == TestStage.Ready);
-        // Кнопка «Сохранить для драфта» — только на экране Ready (после выбора режима).
-        _saveDraftBtn.Visibility = _stage == TestStage.Ready ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    // Запоминает выбранный режим/пул для драфта (активный режим уже выставлен
-    // кнопками ready-экрана) и коротко подтверждает. Стадию НЕ меняет.
-    private void SaveForDraft()
-    {
-        PoolStore.Persist();
-        _saveDraftBtn.Content = "✓ Сохранено";
-        _saveHintTimer?.Stop();
-        _saveHintTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.6) };
-        _saveHintTimer.Tick += (_, _) => { _saveHintTimer!.Stop(); _saveDraftBtn.Content = "💾 Сохранить для драфта"; };
-        _saveHintTimer.Start();
     }
 
     private static TextBlock Header(string text, int col, string color)

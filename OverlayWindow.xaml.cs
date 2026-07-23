@@ -51,6 +51,34 @@ public partial class OverlayWindow : Window
     /// ещё на экране Ready, до старта драфта (там _engine иначе ещё не выставлен).
     public void SetEngine(RecommendationEngine engine) => _engine = engine;
 
+    // ── «Сохранить для драфта» (только тестовый режим) ───────────────────────
+    private DispatcherTimer? _saveHintTimer;
+
+    /// Показывает на экране Ready кнопку «Сохранить для драфта». В боевом режиме
+    /// не вызывается — кнопка остаётся скрытой.
+    public void EnableSaveForDraft() => Dispatcher.InvokeAsync(() =>
+    {
+        SaveForDraftBtn.Content    = Loc.T("pool.saveForDraft");
+        SaveForDraftBtn.Visibility = Visibility.Visible;
+    });
+
+    // Запоминает выбранный режим/пул (Обычный/Пул/Дуо) для драфта и применяет его
+    // к текущему подбору. Кратко подтверждает и возвращает подпись.
+    private void SaveForDraft_Click(object sender, RoutedEventArgs e)
+    {
+        PoolStore.Persist();
+        RefreshPoolSlot();
+        SaveForDraftBtn.Content = Loc.T("pool.saved");
+        _saveHintTimer?.Stop();
+        _saveHintTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.6) };
+        _saveHintTimer.Tick += (_, _) =>
+        {
+            _saveHintTimer!.Stop();
+            SaveForDraftBtn.Content = Loc.T("pool.saveForDraft");
+        };
+        _saveHintTimer.Start();
+    }
+
     // Ручное назначение ролей врагам (cellId → LCU-позиция): игрок знает, куда
     // пойдёт флекс-пик (Ирелия мид и т.п.) — клик по роли в карточке врага.
     private readonly Dictionary<int, string> _enemyRoleOverrides = new();
