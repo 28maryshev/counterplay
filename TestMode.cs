@@ -158,7 +158,8 @@ sealed class TestPanel : Window
     private readonly Button _stageDraft = new();
     private readonly Button _stageBans  = new();
     private readonly Button _stageReady = new();
-    private readonly Button _startDraftBtn = new();  // «Запустить драфт» — только на Ready
+    private readonly Button _saveDraftBtn = new();   // «Сохранить для драфта» — только на Ready
+    private DispatcherTimer? _saveHintTimer;         // возврат подписи после «✓ Сохранено»
     private bool _ready; // подавляет пересчёт во время построения UI
 
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
@@ -262,18 +263,19 @@ sealed class TestPanel : Window
         stages.Children.Add(_stageReady);
 
         // На стадии Ready: выбрал режим подбора (Обычный/Пул/Дуо на ready-экране) →
-        // жмёшь «Запустить драфт», и начинается драфт с этим режимом.
-        _startDraftBtn.Content = "▶ Запустить драфт";
-        _startDraftBtn.Padding = new Thickness(12, 4, 12, 4);
-        _startDraftBtn.Margin  = new Thickness(8, 0, 0, 0);
-        _startDraftBtn.Cursor  = System.Windows.Input.Cursors.Hand;
-        _startDraftBtn.Background  = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
-        _startDraftBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8));
-        _startDraftBtn.BorderThickness = new Thickness(1);
-        _startDraftBtn.Foreground = System.Windows.Media.Brushes.White;
-        _startDraftBtn.FontWeight = FontWeights.Bold;
-        _startDraftBtn.Click += (_, _) => SetStage(TestStage.Draft);
-        stages.Children.Add(_startDraftBtn);
+        // жмёшь «Сохранить для драфта». Выбор запоминается; на драфт переключаешься
+        // сам (или включаешь авто-драфт) — подбор пойдёт с этим пулом/дуо-пулом.
+        _saveDraftBtn.Content = "💾 Сохранить для драфта";
+        _saveDraftBtn.Padding = new Thickness(12, 4, 12, 4);
+        _saveDraftBtn.Margin  = new Thickness(8, 0, 0, 0);
+        _saveDraftBtn.Cursor  = System.Windows.Input.Cursors.Hand;
+        _saveDraftBtn.Background  = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+        _saveDraftBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8));
+        _saveDraftBtn.BorderThickness = new Thickness(1);
+        _saveDraftBtn.Foreground = System.Windows.Media.Brushes.White;
+        _saveDraftBtn.FontWeight = FontWeights.Bold;
+        _saveDraftBtn.Click += (_, _) => SaveForDraft();
+        stages.Children.Add(_saveDraftBtn);
 
         bottom.Children.Add(stages);
 
@@ -348,8 +350,20 @@ sealed class TestPanel : Window
         Set(_stageDraft, _stage == TestStage.Draft);
         Set(_stageBans,  _stage == TestStage.Bans);
         Set(_stageReady, _stage == TestStage.Ready);
-        // Кнопка «Запустить драфт» — только на экране Ready (после выбора режима).
-        _startDraftBtn.Visibility = _stage == TestStage.Ready ? Visibility.Visible : Visibility.Collapsed;
+        // Кнопка «Сохранить для драфта» — только на экране Ready (после выбора режима).
+        _saveDraftBtn.Visibility = _stage == TestStage.Ready ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // Запоминает выбранный режим/пул для драфта (активный режим уже выставлен
+    // кнопками ready-экрана) и коротко подтверждает. Стадию НЕ меняет.
+    private void SaveForDraft()
+    {
+        PoolStore.Persist();
+        _saveDraftBtn.Content = "✓ Сохранено";
+        _saveHintTimer?.Stop();
+        _saveHintTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.6) };
+        _saveHintTimer.Tick += (_, _) => { _saveHintTimer!.Stop(); _saveDraftBtn.Content = "💾 Сохранить для драфта"; };
+        _saveHintTimer.Start();
     }
 
     private static TextBlock Header(string text, int col, string color)
