@@ -158,6 +158,7 @@ sealed class TestPanel : Window
     private readonly Button _stageDraft = new();
     private readonly Button _stageBans  = new();
     private readonly Button _stageReady = new();
+    private readonly Button _startDraftBtn = new();  // «Запустить драфт» — только на Ready
     private bool _ready; // подавляет пересчёт во время построения UI
 
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
@@ -259,6 +260,21 @@ sealed class TestPanel : Window
         stages.Children.Add(_stageDraft);
         stages.Children.Add(_stageBans);
         stages.Children.Add(_stageReady);
+
+        // На стадии Ready: выбрал режим подбора (Обычный/Пул/Дуо на ready-экране) →
+        // жмёшь «Запустить драфт», и начинается драфт с этим режимом.
+        _startDraftBtn.Content = "▶ Запустить драфт";
+        _startDraftBtn.Padding = new Thickness(12, 4, 12, 4);
+        _startDraftBtn.Margin  = new Thickness(8, 0, 0, 0);
+        _startDraftBtn.Cursor  = System.Windows.Input.Cursors.Hand;
+        _startDraftBtn.Background  = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+        _startDraftBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8));
+        _startDraftBtn.BorderThickness = new Thickness(1);
+        _startDraftBtn.Foreground = System.Windows.Media.Brushes.White;
+        _startDraftBtn.FontWeight = FontWeights.Bold;
+        _startDraftBtn.Click += (_, _) => SetStage(TestStage.Draft);
+        stages.Children.Add(_startDraftBtn);
+
         bottom.Children.Add(stages);
 
         var reset = new Button
@@ -332,6 +348,8 @@ sealed class TestPanel : Window
         Set(_stageDraft, _stage == TestStage.Draft);
         Set(_stageBans,  _stage == TestStage.Bans);
         Set(_stageReady, _stage == TestStage.Ready);
+        // Кнопка «Запустить драфт» — только на экране Ready (после выбора режима).
+        _startDraftBtn.Visibility = _stage == TestStage.Ready ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static TextBlock Header(string text, int col, string color)
