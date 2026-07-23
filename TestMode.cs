@@ -88,14 +88,9 @@ static class TestMode
             PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
         }
 
-        // ТЕСТ владения: случайная половина + ВСЕ чемпионы пулов (чтобы слот пула
-        // был чисто синим), — так виден и «нет чемпиона» в общем списке.
-        var rngOwn = new Random(1);
-        var owned = allIds.Where(_ => rngOwn.Next(2) == 0).ToHashSet();
-        foreach (var p in pools.Pools) foreach (var l in p.ByRole.Values) owned.UnionWith(l);
-        foreach (var d in pools.DuoPools)
-        { foreach (var l in d.Mine.Values) owned.UnionWith(l); foreach (var l in d.Friend.Values) owned.UnionWith(l); }
-        overlay.SetOwnedChampions(owned);
+        // ТЕСТ владения: все чемпионы доступны — «нет чемпиона» уже обкатано и
+        // в песочнице только мешает (в бою список приходит из клиента).
+        overlay.SetOwnedChampions(allIds);
 
         // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
         // с кнопками режимов пула (в бою данные приходят из клиента).
