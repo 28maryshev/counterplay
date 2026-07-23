@@ -1316,13 +1316,30 @@ public partial class OverlayWindow : Window
     private void PoolPool_Click(object sender, RoutedEventArgs e) => ShowPoolMenu(PoolKind.Pool, PoolPoolBtn);
     private void PoolDuo_Click(object sender, RoutedEventArgs e)  => ShowPoolMenu(PoolKind.Duo,  PoolDuoBtn);
 
+    // Пункт меню: имя пула + приглушённая пометка режима («· Ручной» / «· Авто»).
+    private static object MenuHeader(string name, string mode)
+    {
+        if (mode.Length == 0) return name;
+        var sp = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        sp.Children.Add(new TextBlock { Text = name, VerticalAlignment = VerticalAlignment.Center });
+        sp.Children.Add(new TextBlock
+        {
+            Text = "· " + mode, FontSize = 11, FontWeight = FontWeights.Normal,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center
+        });
+        return sp;
+    }
+
     // Меню выбора конкретного пула/дуо-пула; при одном — активируем сразу.
     private void ShowPoolMenu(PoolKind kind, System.Windows.Controls.Button anchor)
     {
         var a = PoolStore.Current();
+        // У дуо-пула показываем ещё и его режим подбора пары (Ручной / Авто).
         var items = kind == PoolKind.Pool
-            ? a.Pools.Select(p => (p.Id, Name: p.Name.Length > 0 ? p.Name : Loc.T("pool.pool"))).ToList()
-            : a.DuoPools.Select(d => (d.Id, Name: d.FriendName.Length > 0 ? d.FriendName : Loc.T("pool.duo"))).ToList();
+            ? a.Pools.Select(p => (p.Id, Name: p.Name.Length > 0 ? p.Name : Loc.T("pool.pool"), Mode: "")).ToList()
+            : a.DuoPools.Select(d => (d.Id, Name: d.FriendName.Length > 0 ? d.FriendName : Loc.T("pool.duo"),
+                                      Mode: Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto"))).ToList();
         if (items.Count == 0) return;   // нет пулов — создать в настройках (след. этап)
         if (items.Count == 1)
         {
@@ -1333,9 +1350,9 @@ public partial class OverlayWindow : Window
         }
         var menu = new System.Windows.Controls.ContextMenu { Style = (Style)FindResource("PoolMenuStyle") };
         var itemStyle = (Style)FindResource("PoolMenuItemStyle");
-        foreach (var (id, name) in items)
+        foreach (var (id, name, mode) in items)
         {
-            var mi = new System.Windows.Controls.MenuItem { Header = name, Style = itemStyle };
+            var mi = new System.Windows.Controls.MenuItem { Header = MenuHeader(name, mode), Style = itemStyle };
             mi.Click += (_, _) => { PoolStore.SetActive(kind, id); UpdatePoolButtons(); RenderCurrentState(); };
             menu.Items.Add(mi);
         }
