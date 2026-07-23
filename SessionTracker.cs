@@ -32,7 +32,7 @@ public static class SessionTracker
     private const int MaxLpPerGame = 100;
 
     // queueId LCU → наш ключ очереди (400 драфт / 430 блайнд / 490 квикплей = normal).
-    private static string? QueueOf(int queueId) => queueId switch
+    internal static string? QueueOf(int queueId) => queueId switch
     {
         420                => "solo",
         440                => "flex",

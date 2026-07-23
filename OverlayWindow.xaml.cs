@@ -1290,6 +1290,13 @@ public partial class OverlayWindow : Window
         _poolSettings.Show();
     }
 
+    /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
+    public void RefreshPoolMode() => Dispatcher.InvokeAsync(() =>
+    {
+        UpdatePoolButtons();
+        RefreshPoolSlot();
+    });
+
     // Обновить слот пула, только если сейчас НЕ экран ready (т.е. показан подбор).
     // На ready-экране остаёмся: пул настраивается именно там, перерисовка в драфт
     // была бы перекидыванием (ReadyInfo — надёжный признак ready-экрана).
@@ -1338,7 +1345,8 @@ public partial class OverlayWindow : Window
     // Подсветка активного режима.
     private void UpdatePoolButtons()
     {
-        var kind = PoolStore.Current().ActiveKind;
+        var a    = PoolStore.Current();
+        var kind = a.ActiveKind;
         void Set(System.Windows.Controls.Button b, bool on)
         {
             b.Background  = on ? new SolidColorBrush(Color.FromRgb(0x22, 0x36, 0x55)) : System.Windows.Media.Brushes.Transparent;
@@ -1348,6 +1356,17 @@ public partial class OverlayWindow : Window
         Set(PoolNormalBtn, kind == PoolKind.Normal);
         Set(PoolPoolBtn,   kind == PoolKind.Pool);
         Set(PoolDuoBtn,    kind == PoolKind.Duo);
+
+        // Имя выбранного пула / связки — в конце ряда.
+        var name = kind switch
+        {
+            PoolKind.Pool => a.Pools.FirstOrDefault(p => p.Id == a.ActiveId)?.Name ?? "",
+            PoolKind.Duo  => a.DuoPools.FirstOrDefault(d => d.Id == a.ActiveId)?.FriendName ?? "",
+            _             => "",
+        };
+        PoolActiveName.Text       = name;
+        PoolActiveName.ToolTip    = name.Length > 0 ? name : null;
+        PoolActiveName.Visibility = name.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyReadyText() =>

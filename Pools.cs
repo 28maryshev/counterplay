@@ -57,6 +57,18 @@ public sealed class AccountPools
     public PoolKind        ActiveKind { get; set; } = PoolKind.Normal;
     public string?         ActiveId   { get; set; }   // id активного (дуо-)пула
     public string?         AccountName { get; set; }  // ник (для выбора при импорте)
+
+    // Выбор режима ЗАПОМИНАЕТСЯ ПО ОЧЕРЕДИ (solo/flex/normal/aram): дуо-пул из
+    // соло-очереди не должен утекать во флекс. ActiveKind/ActiveId выше — это
+    // «текущий» выбор для очереди, в которой мы сейчас (см. PoolStore.SetQueue).
+    public Dictionary<string, QueueActive> ByQueue { get; set; } = new();
+}
+
+/// Запомненный выбор режима для одной очереди.
+public sealed class QueueActive
+{
+    public PoolKind Kind { get; set; } = PoolKind.Normal;
+    public string?  Id   { get; set; }
 }
 
 public static class PoolStore
@@ -125,7 +137,43 @@ public static class PoolStore
 
     public static void Persist() { lock (Gate) { EnsureLoaded(); Save(); } }
 
-    /// Активный режим: Normal (пул выключен) / Pool / Duo.
+    private static string _queue = "solo";   // очередь текущего лобби
+
+    /// Смена очереди в лобби: подставляем ЗАПОМНЕННЫЙ для неё режим. Очередь,
+    /// в которой пул ещё не выбирали, начинается с Normal — поэтому дуо-пул из
+    /// соло не «переезжает» во флекс. Возвращает true, если выбор изменился.
+    public static bool SetQueue(string queue)
+    {
+        lock (Gate)
+        {
+            EnsureLoaded();
+            if (string.IsNullOrEmpty(queue)) return false;
+            _queue = queue;
+            var a = CurrentLocked();
+
+            // Переход со старого формата (выбор был один на аккаунт): первую
+            // встреченную очередь наследуем текущим выбором, дальше — по очередям.
+            if (a.ByQueue.Count == 0 && a.ActiveKind != PoolKind.Normal)
+                a.ByQueue[queue] = new QueueActive { Kind = a.ActiveKind, Id = a.ActiveId };
+
+            var sel = a.ByQueue.TryGetValue(queue, out var s) ? s : new QueueActive();
+
+            // Пул мог быть удалён — тогда откатываемся на обычный режим.
+            var ok = sel.Kind == PoolKind.Normal || sel.Id is null
+                     || (sel.Kind == PoolKind.Pool ? a.Pools.Any(p => p.Id == sel.Id)
+                                                   : a.DuoPools.Any(d => d.Id == sel.Id));
+            if (!ok) sel = new QueueActive();
+
+            if (a.ActiveKind == sel.Kind && a.ActiveId == sel.Id) return false;
+            a.ActiveKind = sel.Kind;
+            a.ActiveId   = sel.Id;
+            Save();
+            return true;
+        }
+    }
+
+    /// Активный режим: Normal (пул выключен) / Pool / Duo. Запоминается за той
+    /// очередью, в которой мы сейчас.
     public static void SetActive(PoolKind kind, string? id)
     {
         lock (Gate)
@@ -134,6 +182,7 @@ public static class PoolStore
             var a = CurrentLocked();
             a.ActiveKind = kind;
             a.ActiveId   = id;
+            a.ByQueue[_queue] = new QueueActive { Kind = kind, Id = id };
             Save();
         }
     }

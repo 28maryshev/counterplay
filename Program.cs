@@ -377,6 +377,10 @@ class Program
             {
                 case "/lol-gameflow/v1/session":
                     var phase = PhaseOf(ev.Data);
+                    // Очередь лобби сменилась → подставляем режим пула, запомненный
+                    // для НЕЁ (соло-дуо не переезжает во флекс, и наоборот).
+                    if (QueueKeyOf(ev.Data) is { } qk && PoolStore.SetQueue(qk))
+                        overlay.RefreshPoolMode();
                     // Фаза геймфлоу — единственный источник правды для трея.
                     if (phase is "GameStart" or "InProgress" or "Reconnect")
                     {
@@ -601,6 +605,17 @@ class Program
             mgr.ApplyUpdatesAndRestart(info);
         }
         catch { /* офлайн / нет релизов — работаем на текущей версии */ }
+    }
+
+    // Очередь текущего лобби из события геймфлоу: gameData.queue.id → наш ключ
+    // (solo/flex/normal/aram). Нужна, чтобы режим пула помнился отдельно по очередям.
+    static string? QueueKeyOf(JsonElement data)
+    {
+        if (data.ValueKind != JsonValueKind.Object) return null;
+        if (!data.TryGetProperty("gameData", out var gd) || gd.ValueKind != JsonValueKind.Object) return null;
+        if (!gd.TryGetProperty("queue", out var q) || q.ValueKind != JsonValueKind.Object) return null;
+        if (!q.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.Number) return null;
+        return SessionTracker.QueueOf(id.GetInt32());
     }
 
     static string PhaseOf(JsonElement data) =>

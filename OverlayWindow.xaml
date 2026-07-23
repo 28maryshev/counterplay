@@ -600,15 +600,23 @@
                   <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
                   <Setter Property="FontSize" Value="11"/>
                   <Setter Property="FontWeight" Value="Bold"/>
-                  <Setter Property="Padding" Value="9,4"/>
-                  <Setter Property="Margin" Value="3,0"/>
+                  <Setter Property="Padding" Value="7,4"/>
+                  <Setter Property="Margin" Value="2,0"/>
                   <Setter Property="Cursor" Value="Hand"/>
                 </Style>
               </StackPanel.Resources>
-              <Button x:Name="PoolSettingsBtn" Click="PoolSettings_Click" Content="⚙" ToolTip="{loc:T pool.settings}"/>
+              <!-- Настройки — золотом, как кнопки на сайте -->
+              <Button x:Name="PoolSettingsBtn" Click="PoolSettings_Click"
+                      Content="{loc:T pool.settings}"
+                      Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
               <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
               <Button x:Name="PoolPoolBtn" Click="PoolPool_Click" Content="{loc:T pool.pool}"/>
               <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
+              <!-- Имя выбранного пула / связки -->
+              <TextBlock x:Name="PoolActiveName" Visibility="Collapsed"
+                         FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                         Foreground="#C89B3C" VerticalAlignment="Center" Margin="6,0,0,0"
+                         MaxWidth="78" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
 
             <!-- «Сохранить для драфта»: только в тестовом режиме (включается кодом) -->
