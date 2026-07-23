@@ -30,7 +30,11 @@ static class TestMode
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         await RoleIcons.PreloadAsync(ct);
         await ItemIcons.PreloadAsync(ct);
-        await DataDb.EnsureAsync(null, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
+        // Бакет берём ТОТ ЖЕ, что и боевой режим (сохранённый ранг). Иначе теги
+        // версий не совпадают ("all:…" против "gold:…") и база перекачивается
+        // целиком при каждом переключении тест ↔ обычный режим.
+        var dbBucket = Settings.GetString("dataBucket");
+        await DataDb.EnsureAsync(dbBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
 
         // Руны: реальных данных в базе ещё нет — в тестовом режиме панель
         // наполняется правдоподобными моками, чтобы обкатать вид и кнопки.
@@ -61,7 +65,9 @@ static class TestMode
             await Task.Delay(Timeout.Infinite, ct);
             return;
         }
-        var engine = RecommendationEngine.Create(dbPath, "emerald");
+        // Тир-бакет для скоринга — тоже свой: в побакетной базе данных чужого
+        // бакета попросту нет, и все показатели вышли бы пустыми.
+        var engine = RecommendationEngine.Create(dbPath, string.IsNullOrEmpty(dbBucket) ? "emerald" : dbBucket);
         overlay.SetEngine(engine);   // окну настроек пула — считать WR/дельту связок
 
         var allIds = DataDragon.GetAllIconUrls().Keys.ToList();

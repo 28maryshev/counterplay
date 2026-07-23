@@ -426,6 +426,7 @@
     "saveForDraft": "💾 Save for draft",
     "saved": "✓ Saved",
     "select": "Use this pool",
-    "selected": "Currently in use — click to turn off"
+    "selected": "Currently in use — click to turn off",
+    "sectionTitle": "Champion pool"
   }
 }

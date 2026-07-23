@@ -590,7 +590,10 @@
             </Grid>
 
             <!-- Пул чемпионов против врагов: режимы (Настройки · Обычный · Пул · Дуо) -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
+            <TextBlock Text="{loc:T pool.sectionTitle}" Margin="0,14,0,5"
+                       FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                       Foreground="#8AA0B2" HorizontalAlignment="Left"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,0">
               <StackPanel.Resources>
                 <Style TargetType="Button">
                   <Setter Property="Background" Value="Transparent"/>

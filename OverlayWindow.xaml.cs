@@ -1364,7 +1364,7 @@ public partial class OverlayWindow : Window
             PoolKind.Duo  => a.DuoPools.FirstOrDefault(d => d.Id == a.ActiveId)?.FriendName ?? "",
             _             => "",
         };
-        PoolActiveName.Text       = name;
+        PoolActiveName.Text       = name.Length > 0 ? "· " + name : "";
         PoolActiveName.ToolTip    = name.Length > 0 ? name : null;
         PoolActiveName.Visibility = name.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
