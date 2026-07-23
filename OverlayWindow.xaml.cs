@@ -1242,17 +1242,29 @@ public partial class OverlayWindow : Window
     }
 
     // ── Пул чемпионов против врагов: режимы (Настройки · Обычный · Пул · Дуо) ──
+    private PoolSettingsWindow? _poolSettings;
+
     private void PoolSettings_Click(object sender, RoutedEventArgs e)
     {
-        // Окно настроек пулов — следующий этап. Пока подсказка в статусе.
-        // (Тестовый пул уже задан в TestMode.)
+        // Открываем окно настроек пулов (одно на приложение). После изменений —
+        // обновляем кнопки и слот пула.
+        if (_poolSettings is { IsVisible: true }) { _poolSettings.Activate(); return; }
+        _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); });
+        _poolSettings.Show();
+    }
+
+    // Обновить слот пула, только если сейчас показаны рекомендации (иначе — экран
+    // ready, остаёмся на нём: кнопки режимов настраиваются именно там).
+    private void RefreshPoolSlot()
+    {
+        if (RecScroll.Visibility == Visibility.Visible) RenderCurrentState();
     }
 
     private void PoolNormal_Click(object sender, RoutedEventArgs e)
     {
         PoolStore.SetActive(PoolKind.Normal, null);
         UpdatePoolButtons();
-        RenderCurrentState();   // убрать/показать слот пула
+        RefreshPoolSlot();
     }
 
     private void PoolPool_Click(object sender, RoutedEventArgs e) => ShowPoolMenu(PoolKind.Pool, PoolPoolBtn);

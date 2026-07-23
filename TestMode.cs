@@ -152,8 +152,11 @@ sealed class TestPanel : Window
     private readonly ComboBox[]   _ally  = new ComboBox[5];
     private readonly ComboBox[]   _enemy = new ComboBox[5];
     private readonly RadioButton[] _meRadio = new RadioButton[5];
-    private readonly CheckBox     _banPhase;
-    private readonly CheckBox     _readyView;   // показать экран ready (ник/ранг/пул)
+    private enum TestStage { Draft, Bans, Ready }
+    private TestStage _stage = TestStage.Draft;     // текущий тестовый этап
+    private readonly Button _stageDraft = new();
+    private readonly Button _stageBans  = new();
+    private readonly Button _stageReady = new();
     private bool _ready; // подавляет пересчёт во время построения UI
 
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
@@ -238,30 +241,24 @@ sealed class TestPanel : Window
             root.Children.Add(erow);
         }
 
-        // Нижний ряд: фаза банов + сброс
+        // Нижний ряд: выбор ТЕСТОВОГО ЭТАПА (Драфт · Баны · Ready/пул) + сброс.
         var bottom = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
-        _banPhase = new CheckBox
+        void InitStage(Button b, string text, TestStage s)
         {
-            Content = "Фаза банов (советы по банам)",
-            Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center
-        };
-        _banPhase.Checked   += (_, _) => Recompute();
-        _banPhase.Unchecked += (_, _) => Recompute();
-
-        // Показать раздел ready (ник/ранг/график + кнопки пула) вместо рекомендаций.
-        _readyView = new CheckBox
-        {
-            Content = "Экран ready (ник/ранг/пул)",
-            Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 4, 0, 0)
-        };
-        _readyView.Checked   += (_, _) => Recompute();
-        _readyView.Unchecked += (_, _) => Recompute();
-
-        var checks = new StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical };
-        checks.Children.Add(_banPhase);
-        checks.Children.Add(_readyView);
-        bottom.Children.Add(checks);
+            b.Content = text;
+            b.Padding = new Thickness(11, 4, 11, 4);
+            b.Margin = new Thickness(0, 0, 6, 0);
+            b.Cursor = System.Windows.Input.Cursors.Hand;
+            b.Click += (_, _) => SetStage(s);
+        }
+        InitStage(_stageDraft, "Драфт", TestStage.Draft);
+        InitStage(_stageBans,  "Баны",  TestStage.Bans);
+        InitStage(_stageReady, "Ready / пул", TestStage.Ready);
+        var stages = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        stages.Children.Add(_stageDraft);
+        stages.Children.Add(_stageBans);
+        stages.Children.Add(_stageReady);
+        bottom.Children.Add(stages);
 
         var reset = new Button
         {
@@ -307,10 +304,33 @@ sealed class TestPanel : Window
 
         Content = root;
         _ready = true;
+        UpdateStageButtons();
         Recompute();
 
         // Закрыл панель — выходим из приложения целиком.
         Closed += (_, _) => System.Windows.Application.Current.Shutdown();
+    }
+
+    // ── Тестовые этапы: Драфт · Баны · Ready/пул ─────────────────────────────
+    private void SetStage(TestStage s)
+    {
+        _stage = s;
+        UpdateStageButtons();
+        Recompute();
+    }
+
+    private void UpdateStageButtons()
+    {
+        void Set(Button b, bool on)
+        {
+            b.Background  = on ? new SolidColorBrush(Color.FromRgb(0x22, 0x36, 0x55)) : System.Windows.Media.Brushes.Transparent;
+            b.BorderBrush = new SolidColorBrush(on ? Color.FromRgb(0x5A, 0x8A, 0xC8) : Color.FromRgb(0x40, 0x50, 0x60));
+            b.BorderThickness = new Thickness(1);
+            b.Foreground  = on ? System.Windows.Media.Brushes.White : new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
+        }
+        Set(_stageDraft, _stage == TestStage.Draft);
+        Set(_stageBans,  _stage == TestStage.Bans);
+        Set(_stageReady, _stage == TestStage.Ready);
     }
 
     private static TextBlock Header(string text, int col, string color)
@@ -426,7 +446,7 @@ sealed class TestPanel : Window
         _autoPicked.Clear();
         foreach (var cell in _planned.Keys.ToList())
             (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;   // прячем до хода
-        _banPhase.IsChecked = false;
+        _stage = TestStage.Draft; UpdateStageButtons();
         _ready = true;
 
         // Монетка: кто пикает первым — мы или враги (50/50, синяя сторона).
@@ -576,9 +596,8 @@ sealed class TestPanel : Window
     {
         if (!_ready) return;
 
-        // Экран ready (ник/ранг/график + кнопки пула) вместо рекомендаций —
-        // чтобы увидеть и понастроить пул (кнопки живут в разделе ready).
-        if (_readyView.IsChecked == true)
+        // Этап Ready: экран с ником/рангом/графиком + кнопки пула (вместо подбора).
+        if (_stage == TestStage.Ready)
         {
             _overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
             return;
@@ -606,7 +625,7 @@ sealed class TestPanel : Window
 
         // В тесте считаем, что сейчас мой ход пикать (кроме банфазы) — чтобы
         // работала кнопка выбора чемпиона через интерфейс. actionId условный.
-        bool myPick = _banPhase.IsChecked != true;
+        bool myPick = _stage != TestStage.Bans;
 
         // Чей ход: при авто-драфте — текущая группа _simGroups (в парных ходах
         // подсвечиваются сразу двое), иначе мой слот.
@@ -626,7 +645,7 @@ sealed class TestPanel : Window
             myTurn    = myPick;
         }
 
-        bool banPhase = _banPhase.IsChecked == true;
+        bool banPhase = _stage == TestStage.Bans;
         var draft = new DraftState(
             my, their, [], [], my[meIdx], _rowRoles[meIdx],
             opp, false, banPhase, [], false,

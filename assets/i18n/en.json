@@ -391,6 +391,16 @@
     "settings": "Settings",
     "normal": "Normal",
     "pool": "Pool",
-    "duo": "Duo"
+    "duo": "Duo",
+    "new": "New",
+    "rename": "Rename",
+    "delete": "Delete",
+    "import": "Import",
+    "close": "Close",
+    "friend": "Friend",
+    "friendName": "Friend name",
+    "mine": "Mine",
+    "friendPool": "Friend pool",
+    "noOther": "No other accounts on this PC"
   }
 }
