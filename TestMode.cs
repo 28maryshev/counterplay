@@ -153,6 +153,7 @@ sealed class TestPanel : Window
     private readonly ComboBox[]   _enemy = new ComboBox[5];
     private readonly RadioButton[] _meRadio = new RadioButton[5];
     private readonly CheckBox     _banPhase;
+    private readonly CheckBox     _readyView;   // показать экран ready (ник/ранг/пул)
     private bool _ready; // подавляет пересчёт во время построения UI
 
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
@@ -192,7 +193,7 @@ sealed class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 560; Height = 420;
+        Width  = 560; Height = 450;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
@@ -246,7 +247,21 @@ sealed class TestPanel : Window
         };
         _banPhase.Checked   += (_, _) => Recompute();
         _banPhase.Unchecked += (_, _) => Recompute();
-        bottom.Children.Add(_banPhase);
+
+        // Показать раздел ready (ник/ранг/график + кнопки пула) вместо рекомендаций.
+        _readyView = new CheckBox
+        {
+            Content = "Экран ready (ник/ранг/пул)",
+            Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+        _readyView.Checked   += (_, _) => Recompute();
+        _readyView.Unchecked += (_, _) => Recompute();
+
+        var checks = new StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical };
+        checks.Children.Add(_banPhase);
+        checks.Children.Add(_readyView);
+        bottom.Children.Add(checks);
 
         var reset = new Button
         {
@@ -560,6 +575,14 @@ sealed class TestPanel : Window
     private void Recompute()
     {
         if (!_ready) return;
+
+        // Экран ready (ник/ранг/график + кнопки пула) вместо рекомендаций —
+        // чтобы увидеть и понастроить пул (кнопки живут в разделе ready).
+        if (_readyView.IsChecked == true)
+        {
+            _overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
+            return;
+        }
 
         int meIdx = Array.FindIndex(_meRadio, r => r.IsChecked == true);
         if (meIdx < 0) meIdx = 2;
