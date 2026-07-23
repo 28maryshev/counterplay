@@ -401,6 +401,17 @@
     "friendName": "Friend name",
     "mine": "Mine",
     "friendPool": "Friend pool",
-    "noOther": "No other accounts on this PC"
+    "noOther": "No other accounts on this PC",
+    "name": "Name",
+    "back": "Back",
+    "reset": "Reset",
+    "save": "Save",
+    "pickChamp": "Pick a champion",
+    "yes": "Yes",
+    "no": "No",
+    "confirmDelete": "Delete pool “{0}”?",
+    "confirmBack": "Discard unsaved changes?",
+    "confirmReset": "Clear all champions from this pool?",
+    "confirmSave": "Save changes to this pool?"
   }
 }
