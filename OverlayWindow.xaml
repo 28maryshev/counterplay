@@ -806,6 +806,35 @@
             <TextBlock DockPanel.Dock="Top" x:Name="MyTeamStyle" Text=""
                        FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                        Foreground="#8AA0B2" Margin="0,0,0,10"/>
+
+            <!-- Баланс урона команды: AD (красный) / AP (синий) / чистый (белый) -->
+            <StackPanel DockPanel.Dock="Bottom" x:Name="MyDmgPanel" Visibility="Collapsed"
+                        Margin="0,10,0,0">
+              <TextBlock Text="{loc:T team.damage}"
+                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                         Foreground="#8AA0B2" Margin="0,0,0,4"/>
+              <Border Height="9" CornerRadius="4" Background="#22FFFFFF" ClipToBounds="True">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="MyDmgAdCol"/>
+                    <ColumnDefinition x:Name="MyDmgApCol"/>
+                    <ColumnDefinition x:Name="MyDmgTrueCol"/>
+                  </Grid.ColumnDefinitions>
+                  <Border Grid.Column="0" Background="#E05050"/>
+                  <Border Grid.Column="1" Background="#4A9EFF"/>
+                  <Border Grid.Column="2" Background="#E8EEF5"/>
+                </Grid>
+              </Border>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <TextBlock x:Name="MyDmgAdText" Foreground="#E05050" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold" Margin="0,0,9,0"/>
+                <TextBlock x:Name="MyDmgApText" Foreground="#4A9EFF" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold" Margin="0,0,9,0"/>
+                <TextBlock x:Name="MyDmgTrueText" Foreground="#E8EEF5" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold"/>
+              </StackPanel>
+            </StackPanel>
+
             <ScrollViewer VerticalScrollBarVisibility="Hidden">
               <StackPanel>
               <Grid>
@@ -1796,6 +1825,35 @@
             <TextBlock DockPanel.Dock="Top" x:Name="EnemyTeamStyle" Text=""
                        FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                        Foreground="#C08080" Margin="0,0,0,10"/>
+
+            <!-- Баланс урона команды врага -->
+            <StackPanel DockPanel.Dock="Bottom" x:Name="EnemyDmgPanel" Visibility="Collapsed"
+                        Margin="0,10,0,0">
+              <TextBlock Text="{loc:T team.damage}"
+                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                         Foreground="#C08080" Margin="0,0,0,4"/>
+              <Border Height="9" CornerRadius="4" Background="#22FFFFFF" ClipToBounds="True">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="EnemyDmgAdCol"/>
+                    <ColumnDefinition x:Name="EnemyDmgApCol"/>
+                    <ColumnDefinition x:Name="EnemyDmgTrueCol"/>
+                  </Grid.ColumnDefinitions>
+                  <Border Grid.Column="0" Background="#E05050"/>
+                  <Border Grid.Column="1" Background="#4A9EFF"/>
+                  <Border Grid.Column="2" Background="#E8EEF5"/>
+                </Grid>
+              </Border>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <TextBlock x:Name="EnemyDmgAdText" Foreground="#E05050" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold" Margin="0,0,9,0"/>
+                <TextBlock x:Name="EnemyDmgApText" Foreground="#4A9EFF" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold" Margin="0,0,9,0"/>
+                <TextBlock x:Name="EnemyDmgTrueText" Foreground="#E8EEF5" FontFamily="{StaticResource UiFont}"
+                           FontSize="10" FontWeight="Bold"/>
+              </StackPanel>
+            </StackPanel>
+
             <ScrollViewer VerticalScrollBarVisibility="Hidden">
               <StackPanel>
               <Grid>

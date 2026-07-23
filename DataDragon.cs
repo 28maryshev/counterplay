@@ -86,6 +86,12 @@ public static class DataDragon
     public static bool IsAdChampion(int id) =>
         _champions is not null && _champions.TryGetValue(id, out var info) && info.Attack > info.Magic;
 
+    /// Оценки урона чемпиона из Data Dragon (attack/magic, 0..10). Грубый запасной
+    /// источник для полосы баланса урона, пока в базе нет замеров по матчам.
+    public static (int Attack, int Magic)? DamageInfo(int id) =>
+        _champions is not null && _champions.TryGetValue(id, out var info)
+            ? (info.Attack, info.Magic) : null;
+
     /// URL иконки для оверлея.
     public static string IconUrl(int id)
     {

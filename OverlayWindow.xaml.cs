@@ -1697,6 +1697,48 @@ public partial class OverlayWindow : Window
     }
 
     // Линейный график динамики винрейта (синий) по датам.
+    /// Баланс урона команды: складываем доли физ/маг/чистого по взятым чемпионам
+    /// и нормируем в проценты. Источник — замеры по матчам (champion_damage);
+    /// пока их нет в базе, откатываемся на оценки Data Dragon (attack/magic).
+    private (double Ad, double Ap, double Tru) DamageMix(IReadOnlyList<int> champIds)
+    {
+        double ad = 0, ap = 0, tru = 0;
+        foreach (var id in champIds)
+        {
+            if (_engine?.DamageShare(id) is { } s)
+            {
+                ad += s.Phys; ap += s.Magic; tru += s.True;
+            }
+            else if (DataDragon.DamageInfo(id) is { } d && d.Attack + d.Magic > 0)
+            {
+                var tot = (double)(d.Attack + d.Magic);
+                ad += d.Attack / tot; ap += d.Magic / tot;
+            }
+        }
+        var sum = ad + ap + tru;
+        return sum > 0 ? (ad / sum * 100, ap / sum * 100, tru / sum * 100) : (0, 0, 0);
+    }
+
+    private void RenderDamageMix(IReadOnlyList<int> champIds, UIElement panel,
+        ColumnDefinition adCol, ColumnDefinition apCol, ColumnDefinition truCol,
+        TextBlock adText, TextBlock apText, TextBlock truText)
+    {
+        var (ad, ap, tru) = DamageMix(champIds);
+        if (ad + ap + tru <= 0) { panel.Visibility = Visibility.Collapsed; return; }
+        panel.Visibility = Visibility.Visible;
+
+        // Доли — звёздочными ширинами: полоса сама тянется по ширине колонки.
+        adCol.Width  = new GridLength(ad,  GridUnitType.Star);
+        apCol.Width  = new GridLength(ap,  GridUnitType.Star);
+        truCol.Width = new GridLength(tru, GridUnitType.Star);
+
+        adText.Text  = $"AD {ad:0}%";
+        apText.Text  = $"AP {ap:0}%";
+        truText.Text = Loc.T("team.trueDmg", $"{tru:0}");
+        // Чистый урон мал/отсутствует — не занимаем место подписью.
+        truText.Visibility = tru >= 0.5 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     // Заполнение полосы LP считаем от ФАКТИЧЕСКОЙ ширины дорожки: она тянется по
     // ширине панели, поэтому фиксированное число пикселей здесь не годится.
     private double _rankPct;
@@ -2596,6 +2638,11 @@ public partial class OverlayWindow : Window
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
         MyTeamStyle.Text    = myStyle.Length    > 0 ? Loc.T("draft.style", myStyle)    : "";
         EnemyTeamStyle.Text = enemyStyle.Length > 0 ? Loc.T("draft.style", enemyStyle) : "";
+
+        RenderDamageMix(allyIds,  MyDmgPanel,    MyDmgAdCol,    MyDmgApCol,    MyDmgTrueCol,
+                        MyDmgAdText,    MyDmgApText,    MyDmgTrueText);
+        RenderDamageMix(enemyIds, EnemyDmgPanel, EnemyDmgAdCol, EnemyDmgApCol, EnemyDmgTrueCol,
+                        EnemyDmgAdText, EnemyDmgApText, EnemyDmgTrueText);
 
         var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
         var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);

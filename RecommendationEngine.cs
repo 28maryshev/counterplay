@@ -343,6 +343,52 @@ public sealed class RecommendationEngine : IDisposable
         _         => pos
     };
 
+    // ── Доли урона чемпиона (физ/маг/чистый) ────────────────────────────────
+    // Замеры из матчей (таблица champion_damage). Пока её нет в скачанной базе —
+    // возвращаем null, и оверлей падает на грубую оценку Data Dragon.
+    private bool? _dmgTable;
+    private readonly Dictionary<int, (double P, double M, double T)?> _dmgCache = new();
+
+    public (double Phys, double Magic, double True)? DamageShare(int champId)
+    {
+        if (_dmgTable == false) return null;
+        if (_dmgCache.TryGetValue(champId, out var hit)) return hit;
+
+        (double, double, double)? res = null;
+        try
+        {
+            if (_dmgTable is null)
+            {
+                var chk = _db.CreateCommand();
+                chk.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='champion_damage'";
+                _dmgTable = chk.ExecuteScalar() is not null;
+                if (_dmgTable == false) return null;
+            }
+
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = @"
+                SELECT COALESCE(SUM(phys),0), COALESCE(SUM(magic),0), COALESCE(SUM(trued),0)
+                FROM champion_damage
+                WHERE champion_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
+            cmd.Parameters.AddWithValue("@c",  champId);
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+            using var rd = cmd.ExecuteReader();
+            if (rd.Read())
+            {
+                double p = rd.GetDouble(0), m = rd.GetDouble(1), t = rd.GetDouble(2);
+                var sum = p + m + t;
+                if (sum > 0) res = (p / sum, m / sum, t / sum);
+            }
+        }
+        catch { _dmgTable = false; }
+
+        _dmgCache[champId] = res;
+        return res;
+    }
+
     // Ключ роли в БД → LCU position (обратно LcuToDbRole)
     private static string DbToLcuRole(string db) => db switch
     {

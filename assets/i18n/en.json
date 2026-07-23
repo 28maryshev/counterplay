@@ -41,7 +41,9 @@
     "myTeam": "YOUR TEAM",
     "enemies": "ENEMIES",
     "combos": "TEAM COMBOS",
-    "enemyCombos": "ENEMY COMBOS"
+    "enemyCombos": "ENEMY COMBOS",
+    "damage": "Damage mix",
+    "trueDmg": "True {0}%"
   },
   "ready": {
     "beta": "Counterplay improves every day. Found a bug or have an idea? Tell us via Support",
