@@ -412,6 +412,12 @@
     "confirmDelete": "Delete pool “{0}”?",
     "confirmBack": "Discard unsaved changes?",
     "confirmReset": "Clear all champions from this pool?",
-    "confirmSave": "Save changes to this pool?"
+    "confirmSave": "Save changes to this pool?",
+    "duoMode": "Pair selection:",
+    "duoAuto": "Auto",
+    "duoManual": "Manual",
+    "duoManualHint": "Fixed pair — always suggest these two",
+    "duoMyChamp": "My champion",
+    "duoFriendChamp": "Friend's champion"
   }
 }

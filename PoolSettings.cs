@@ -188,6 +188,11 @@ sealed class PoolEditorWindow : Window
     private readonly Dictionary<string, List<int>> _friend = NewRoles();
     private bool _dirty;
 
+    // Дуо: способ подбора пары. Manual — фикс-пара (эти два всегда), иначе автоподбор.
+    private bool _manual;
+    private int  _manualMine;
+    private int  _manualFriend;
+
     private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 240 };
     private readonly StackPanel _body = new();
 
@@ -204,7 +209,8 @@ sealed class PoolEditorWindow : Window
         if (existing is ChampPool p)
         { _srcPool = p; _name = p.Name; CopyInto(_mine, p.ByRole); }
         else if (existing is DuoPool d)
-        { _srcDuo = d; _name = d.FriendName; CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend); }
+        { _srcDuo = d; _name = d.FriendName; CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend);
+          _manual = d.Manual; _manualMine = d.ManualMine; _manualFriend = d.ManualFriend; }
         else
             _name = "";
 
@@ -266,15 +272,84 @@ sealed class PoolEditorWindow : Window
         _body.Children.Clear();
         if (_duo)
         {
-            _body.Children.Add(SectionLabel(Loc.T("pool.mine")));
-            foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _mine));
-            _body.Children.Add(SectionLabel(Loc.T("pool.friendPool")));
-            foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _friend));
+            _body.Children.Add(ModeToggle());
+            if (_manual)
+            {
+                // Ручная фикс-пара: два выбранных чемпиона, без автоподбора.
+                _body.Children.Add(SectionLabel(Loc.T("pool.duoManualHint")));
+                _body.Children.Add(ManualPairRow());
+            }
+            else
+            {
+                // Авто: наборы по ролям, лучшая пара подбирается движком.
+                _body.Children.Add(SectionLabel(Loc.T("pool.mine")));
+                foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _mine));
+                _body.Children.Add(SectionLabel(Loc.T("pool.friendPool")));
+                foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _friend));
+            }
         }
         else
         {
             foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _mine));
         }
+    }
+
+    // Переключатель «Авто / Ручной» подбора дуо-пары.
+    private FrameworkElement ModeToggle()
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 6),
+            VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.duoMode"), Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
+            FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0)
+        });
+        row.Children.Add(ModeBtn(Loc.T("pool.duoAuto"),   !_manual, () => { if (_manual)  { _manual = false; _dirty = true; RenderBody(); } }));
+        row.Children.Add(ModeBtn(Loc.T("pool.duoManual"),  _manual, () => { if (!_manual) { _manual = true;  _dirty = true; RenderBody(); } }));
+        return row;
+    }
+
+    private static Button ModeBtn(string text, bool active, Action click)
+    {
+        var b = PoolUi.Btn(text);
+        b.Margin = new Thickness(0, 0, 6, 0);
+        if (active)
+        {
+            b.Background  = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+            b.BorderBrush = new SolidColorBrush(PoolSettingsWindow.Blue);
+            b.Foreground  = Brushes.White;
+            b.FontWeight  = FontWeights.Bold;
+        }
+        b.Click += (_, _) => click();
+        return b;
+    }
+
+    // Два слота фикс-пары: мой чемпион + чемпион друга.
+    private FrameworkElement ManualPairRow()
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
+        row.Children.Add(ManualSlot(Loc.T("pool.duoMyChamp"),     _manualMine,   id => { _manualMine = id;   _dirty = true; RenderBody(); }));
+        row.Children.Add(ManualSlot(Loc.T("pool.duoFriendChamp"), _manualFriend, id => { _manualFriend = id; _dirty = true; RenderBody(); }));
+        return row;
+    }
+
+    private FrameworkElement ManualSlot(string label, int id, Action<int> set)
+    {
+        var sp = new StackPanel { Margin = new Thickness(0, 0, 22, 0) };
+        sp.Children.Add(new TextBlock
+        {
+            Text = label, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 10, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4)
+        });
+        FrameworkElement tile = id != 0
+            ? ChampIcon(id, () => set(0))     // клик очищает слот
+            : PlusChamp(() =>
+              {
+                  var pick = new ChampionPickerWindow(_names, _idByName, Array.Empty<int>()) { Owner = this };
+                  if (pick.ShowDialog() == true && pick.Result > 0) set(pick.Result);
+              });
+        sp.Children.Add(tile);
+        return sp;
     }
 
     private static TextBlock SectionLabel(string t) => new()
@@ -377,6 +452,7 @@ sealed class PoolEditorWindow : Window
     {
         if (!Confirm.Ask(this, Loc.T("pool.reset"), Loc.T("pool.confirmReset"))) return;
         foreach (var r in PoolSettingsWindow.Roles) { _mine[r].Clear(); _friend[r].Clear(); }
+        _manual = false; _manualMine = 0; _manualFriend = 0;
         _dirty = true;
         RenderBody();
     }
@@ -388,9 +464,12 @@ sealed class PoolEditorWindow : Window
         if (_duo)
         {
             var d = _srcDuo ?? new DuoPool();
-            d.FriendName = _name;
-            d.Mine   = Clone(_mine);
-            d.Friend = Clone(_friend);
+            d.FriendName   = _name;
+            d.Mine         = Clone(_mine);
+            d.Friend       = Clone(_friend);
+            d.Manual       = _manual;
+            d.ManualMine   = _manualMine;
+            d.ManualFriend = _manualFriend;
             if (_srcDuo == null) a.DuoPools.Add(d);
         }
         else

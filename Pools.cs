@@ -32,6 +32,12 @@ public sealed class DuoPool
     public Dictionary<string, List<int>> Friend { get; set; } = new();
     public List<int> MineForRole(string role)   => Mine.TryGetValue(role, out var l) ? l : [];
     public List<int> FriendForRole(string role) => Friend.TryGetValue(role, out var l) ? l : [];
+
+    // Manual = фиксированная пара (я всегда играю ManualMine, друг — ManualFriend),
+    // без автоподбора. Иначе пара подбирается автоматически из наборов (BestDuoPairs).
+    public bool Manual       { get; set; }
+    public int  ManualMine   { get; set; }   // championId моего фикс-пика
+    public int  ManualFriend { get; set; }   // championId фикс-пика друга
 }
 
 /// Все пулы одного аккаунта.
@@ -145,6 +151,19 @@ public static class PoolStore
         }
     }
 
+    /// Активный дуо-пул целиком (для авто/ручного режима пары), или null.
+    public static DuoPool? ActiveDuo()
+    {
+        lock (Gate)
+        {
+            EnsureLoaded();
+            var a = CurrentLocked();
+            if (a.ActiveKind == PoolKind.Duo && a.ActiveId is not null)
+                return a.DuoPools.FirstOrDefault(x => x.Id == a.ActiveId);
+            return null;
+        }
+    }
+
     /// Другие аккаунты на этом ПК (для импорта): puuid → ник.
     public static IReadOnlyList<(string Puuid, string Name)> OtherAccounts()
     {
@@ -168,7 +187,8 @@ public static class PoolStore
             foreach (var p in src.Pools)
                 cur.Pools.Add(new ChampPool { Name = p.Name, ByRole = Clone(p.ByRole) });
             foreach (var d in src.DuoPools)
-                cur.DuoPools.Add(new DuoPool { FriendName = d.FriendName, Mine = Clone(d.Mine), Friend = Clone(d.Friend) });
+                cur.DuoPools.Add(new DuoPool { FriendName = d.FriendName, Mine = Clone(d.Mine), Friend = Clone(d.Friend),
+                                               Manual = d.Manual, ManualMine = d.ManualMine, ManualFriend = d.ManualFriend });
             Save();
         }
     }

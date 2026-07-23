@@ -4,6 +4,9 @@ namespace Counterplay;
 
 public sealed record BanRec(int ChampionId, double Score, string[] Reasons);
 
+/// Дуо-пара: мой пик + пик друга (его роль) + суммарный скор пары.
+public sealed record DuoPair(Recommendation Mine, Recommendation Friend, string FriendRole, double Score);
+
 public sealed record Recommendation(
     int    ChampionId,
     double Score,
@@ -52,6 +55,11 @@ public sealed class RecommendationEngine : IDisposable
     // Основной канал для прочих врагов — кросс-ролевые матчапы (W_CROSS).
     private const double W_OTHER   = 0.6;
     private const double W_SYNERGY = 1.2;
+    // Взаимная синергия дуо-пары (два друга в паре). Выше обычной синергии: стата
+    // синергии считается по несогласованному соло-кью и ЗАНИЖАЕТ ценность для
+    // координированного дуо (оно реализует синергию ~1.7–2.5× полнее; средний
+    // уплифт дуо по данным ~+2.5% винрейта). 2.0 ≈ 1.7× от W_SYNERGY.
+    private const double W_DUOSYN = 2.0;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
     private const double W_NEUTRAL  = 1.0; // нейтральный пик при неопределённости
     private const double W_TRIFECTA = 0.8; //архетип-контра (камень-ножницы-бумага)
@@ -335,6 +343,15 @@ public sealed class RecommendationEngine : IDisposable
         _         => pos
     };
 
+    // Ключ роли в БД → LCU position (обратно LcuToDbRole)
+    private static string DbToLcuRole(string db) => db switch
+    {
+        "mid"     => "middle",
+        "adc"     => "bottom",
+        "support" => "utility",
+        _         => db,
+    };
+
     public IReadOnlyList<Recommendation> Recommend(DraftState state, int topN = 6,
                                                    IReadOnlyCollection<int>? only = null)
     {
@@ -553,6 +570,49 @@ public sealed class RecommendationEngine : IDisposable
         if (scored.Count == 0) return [];
         var good = scored.Where(r => r.Score > 0).Take(max).ToList();
         return good.Count > 0 ? good : [scored[0]];
+    }
+
+    /// Чистая синергия ПАРЫ (m ↔ f), как дельта: WR пары минус база m, темпер по
+    /// объёму. Роли маржинализуем (пара может быть любых линий).
+    public double PairSynergy(int m, string mRole, int f)
+    {
+        var (g, w) = RawSynergyAny(m, f);
+        if (g <= 0) return 0.0;
+        var (bg, bw) = RawBase(m, mRole);
+        var rawBase = Delta(bg, bw, K);
+        return (Delta(g, w, K_PAIR) - rawBase) * (g / (g + CONF_GAMES));
+    }
+
+    /// Лучшие ДУО-ПАРЫ: перебор (мой пул × пул друга), оценка КАЖДОГО той же
+    /// логикой + взаимная синергия пары (W_DUOSYN). Пара сопоставляется с врагами
+    /// как единое целое: скор = мой_скор + скор_друга + W_DUOSYN·синергия(m,f).
+    public IReadOnlyList<DuoPair> BestDuoPairs(DraftState state, IReadOnlyCollection<int> mineIds,
+        IReadOnlyDictionary<string, List<int>> friendByRole, string myRole, int max = 3)
+    {
+        if (mineIds.Count == 0) return [];
+        // Мои кандидаты (моя роль) — оцениваем один раз.
+        var mine = Recommend(state, mineIds.Count, mineIds);
+        if (mine.Count == 0) return [];
+
+        // Кандидаты друга по каждой его роли — с перспективы друга (его роль/оппонент).
+        var friend = new List<(Recommendation Rec, string Role)>();
+        foreach (var (fRole, fIds) in friendByRole)
+        {
+            if (fIds.Count == 0) continue;
+            var fState = state with { MyPosition = DbToLcuRole(fRole), DirectOpponent = null };
+            foreach (var rec in Recommend(fState, fIds.Count, fIds)) friend.Add((rec, fRole));
+        }
+        if (friend.Count == 0) return [];
+
+        var pairs = new List<DuoPair>();
+        foreach (var m in mine)
+            foreach (var (f, fRole) in friend)
+            {
+                var syn   = PairSynergy(m.ChampionId, myRole, f.ChampionId);
+                var score = m.Score + f.Score + W_DUOSYN * syn;
+                pairs.Add(new DuoPair(m, f, fRole, score));
+            }
+        return pairs.OrderByDescending(p => p.Score).Take(max).ToList();
     }
 
     // ---------- ARAM: подбор по скамейке ----------

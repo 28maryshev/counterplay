@@ -2252,39 +2252,63 @@ public partial class OverlayWindow : Window
             if (!string.IsNullOrEmpty(myRoleDb))
             {
                 var (mine, friend, isDuo) = PoolStore.ActiveForRole(myRoleDb);
-                if (mine.Count > 0)
+
+                // Построение синей карточки пула (мой пик + опц. иконка друга для дуо).
+                void AddPoolCard(Recommendation pr, string poolLabel, ImageSource? duoIcon, string duoName)
                 {
-                    ImageSource? duoIcon = null; string duoName = "";
-                    if (isDuo && friend is { Count: > 0 } fr0 && _engine.BestFromPool(draft, fr0) is { } fr)
-                    { duoIcon = IconCache.Get(fr.ChampionId); duoName = DataDragon.Name(fr.ChampionId); }
-                    // До 3 выгодных из пула (иначе один лучший) — синими карточками сверху.
-                    foreach (var pr in _engine.TopFromPool(draft, mine, 3))
+                    var (pag, pac, pat) = ArchBadge(pr.ChampionId);
+                    poolCards.Add(new FullRecCard
                     {
-                        var (pag, pac, pat) = ArchBadge(pr.ChampionId);
-                        poolCards.Add(new FullRecCard
+                        ChampionId = pr.ChampionId,
+                        FromPool   = true,
+                        PoolLabel  = poolLabel,
+                        Rank       = "★",
+                        Name       = DataDragon.Name(pr.ChampionId),
+                        Score      = Signed(pr.Score),
+                        ScoreColor = pr.Score >= 0 ? "#6AB0FF" : "#E05050",
+                        WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
+                        Icon       = IconCache.Get(pr.ChampionId),
+                        ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
+                        BaseBar    = ToBaseBar(pr.BaseDelta), DirectBar = ToBar(pr.DirectDelta),
+                        OtherBar   = ToBar(pr.StyleDelta),    SynBar    = ToBar(pr.SynergyDelta),
+                        BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
+                        OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
+                        ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
+                        SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
+                        DuoIcon    = duoIcon, DuoName = duoName,
+                        NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
+                        NotOwnedLabel = Loc.T("rec.notOwned"),
+                    });
+                    poolIds.Add(pr.ChampionId);
+                }
+
+                if (isDuo)
+                {
+                    // Дуо-пул: пара «я + друг» как единое целое. Manual — фикс-пара,
+                    // иначе автоподбор лучших пар (мой пул × пул друга).
+                    var duo = PoolStore.ActiveDuo();
+                    if (duo is { Manual: true } && duo.ManualMine != 0)
+                    {
+                        if (_engine.Recommend(draft, 1, new[] { duo.ManualMine }).FirstOrDefault() is { } mr)
                         {
-                            ChampionId = pr.ChampionId,
-                            FromPool   = true,
-                            PoolLabel  = Loc.T(isDuo ? "pool.duoLabel" : "pool.slotLabel"),
-                            Rank       = "★",
-                            Name       = DataDragon.Name(pr.ChampionId),
-                            Score      = Signed(pr.Score),
-                            ScoreColor = pr.Score >= 0 ? "#6AB0FF" : "#E05050",
-                            WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
-                            Icon       = IconCache.Get(pr.ChampionId),
-                            ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
-                            BaseBar    = ToBaseBar(pr.BaseDelta), DirectBar = ToBar(pr.DirectDelta),
-                            OtherBar   = ToBar(pr.StyleDelta),    SynBar    = ToBar(pr.SynergyDelta),
-                            BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
-                            OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
-                            ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
-                            SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
-                            DuoIcon    = duoIcon, DuoName = duoName,
-                            NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
-                            NotOwnedLabel = Loc.T("rec.notOwned"),
-                        });
-                        poolIds.Add(pr.ChampionId);
+                            ImageSource? di = duo.ManualFriend != 0 ? IconCache.Get(duo.ManualFriend) : null;
+                            var dn = duo.ManualFriend != 0 ? DataDragon.Name(duo.ManualFriend) : "";
+                            AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
+                        }
                     }
+                    else if (duo != null)
+                    {
+                        var mineIds = duo.MineForRole(myRoleDb);
+                        foreach (var pair in _engine.BestDuoPairs(draft, mineIds, duo.Friend, myRoleDb, 3))
+                            AddPoolCard(pair.Mine, Loc.T("pool.duoLabel"),
+                                        IconCache.Get(pair.Friend.ChampionId), DataDragon.Name(pair.Friend.ChampionId));
+                    }
+                }
+                else if (mine.Count > 0)
+                {
+                    // Обычный пул: до 3 выгодных из пула (иначе один лучший).
+                    foreach (var pr in _engine.TopFromPool(draft, mine, 3))
+                        AddPoolCard(pr, Loc.T("pool.slotLabel"), null, "");
                 }
             }
         }
