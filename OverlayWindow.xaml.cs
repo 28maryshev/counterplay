@@ -2244,48 +2244,53 @@ public partial class OverlayWindow : Window
         // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ»): лучший из пула на мою
         // роль против врагов — отдельной СИНЕЙ карточкой сверху. Дуо-пул: рядом —
         // иконка чемпиона друга (кого назвать пикнуть).
-        FullRecCard? poolCard = null;
+        var poolCards = new List<FullRecCard>();
+        var poolIds   = new HashSet<int>();
         if (draft != null && _engine != null)
         {
             var myRoleDb = RecommendationEngine.LcuToDbRole(draft.MyPosition);
             if (!string.IsNullOrEmpty(myRoleDb))
             {
                 var (mine, friend, isDuo) = PoolStore.ActiveForRole(myRoleDb);
-                var pr = mine.Count > 0 ? _engine.BestFromPool(draft, mine) : null;
-                if (pr != null)
+                if (mine.Count > 0)
                 {
-                    var (pag, pac, pat) = ArchBadge(pr.ChampionId);
                     ImageSource? duoIcon = null; string duoName = "";
                     if (isDuo && friend is { Count: > 0 } fr0 && _engine.BestFromPool(draft, fr0) is { } fr)
                     { duoIcon = IconCache.Get(fr.ChampionId); duoName = DataDragon.Name(fr.ChampionId); }
-                    poolCard = new FullRecCard
+                    // До 3 выгодных из пула (иначе один лучший) — синими карточками сверху.
+                    foreach (var pr in _engine.TopFromPool(draft, mine, 3))
                     {
-                        ChampionId = pr.ChampionId,
-                        FromPool   = true,
-                        PoolLabel  = Loc.T(isDuo ? "pool.duoLabel" : "pool.slotLabel"),
-                        Rank       = "★",
-                        Name       = DataDragon.Name(pr.ChampionId),
-                        Score      = Signed(pr.Score),
-                        ScoreColor = pr.Score >= 0 ? "#6AB0FF" : "#E05050",
-                        WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
-                        Icon       = IconCache.Get(pr.ChampionId),
-                        ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
-                        BaseBar    = ToBaseBar(pr.BaseDelta), DirectBar = ToBar(pr.DirectDelta),
-                        OtherBar   = ToBar(pr.StyleDelta),    SynBar    = ToBar(pr.SynergyDelta),
-                        BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
-                        OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
-                        ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
-                        SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
-                        DuoIcon    = duoIcon, DuoName = duoName,
-                        NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
-                        NotOwnedLabel = Loc.T("rec.notOwned"),
-                    };
+                        var (pag, pac, pat) = ArchBadge(pr.ChampionId);
+                        poolCards.Add(new FullRecCard
+                        {
+                            ChampionId = pr.ChampionId,
+                            FromPool   = true,
+                            PoolLabel  = Loc.T(isDuo ? "pool.duoLabel" : "pool.slotLabel"),
+                            Rank       = "★",
+                            Name       = DataDragon.Name(pr.ChampionId),
+                            Score      = Signed(pr.Score),
+                            ScoreColor = pr.Score >= 0 ? "#6AB0FF" : "#E05050",
+                            WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
+                            Icon       = IconCache.Get(pr.ChampionId),
+                            ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
+                            BaseBar    = ToBaseBar(pr.BaseDelta), DirectBar = ToBar(pr.DirectDelta),
+                            OtherBar   = ToBar(pr.StyleDelta),    SynBar    = ToBar(pr.SynergyDelta),
+                            BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
+                            OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
+                            ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
+                            SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
+                            DuoIcon    = duoIcon, DuoName = duoName,
+                            NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
+                            NotOwnedLabel = Loc.T("rec.notOwned"),
+                        });
+                        poolIds.Add(pr.ChampionId);
+                    }
                 }
             }
         }
 
         var generalCards = recs
-            .Where(r => poolCard == null || r.ChampionId != poolCard.ChampionId)
+            .Where(r => !poolIds.Contains(r.ChampionId))
             .Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
@@ -2328,7 +2333,7 @@ public partial class OverlayWindow : Window
         }).ToList();
 
         var allCards = new List<FullRecCard>();
-        if (poolCard != null) allCards.Add(poolCard);
+        allCards.AddRange(poolCards);
         allCards.AddRange(generalCards);
         FullRecList.ItemsSource = allCards;
 

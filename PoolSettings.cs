@@ -42,6 +42,7 @@ sealed class PoolSettingsWindow : Window
         Width  = 820; Height = 560;
         Background = new SolidColorBrush(Bg);
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        PoolUi.Apply(this);
 
         var grid = new Grid { Margin = new Thickness(16) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.7, GridUnitType.Star) });
@@ -57,7 +58,7 @@ sealed class PoolSettingsWindow : Window
 
         grid.Children.Add(Area(Loc.T("pool.duo"), _duoArea, duo: true, 2));
 
-        Content = grid;
+        Content = PoolUi.Chrome(this, Title, grid);
         Refresh();
     }
 
@@ -211,6 +212,7 @@ sealed class PoolEditorWindow : Window
         Width  = 620; Height = 560;
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        PoolUi.Apply(this);
 
         BuildUi();
     }
@@ -255,7 +257,7 @@ sealed class PoolEditorWindow : Window
 
         root.Children.Add(new ScrollViewer { Content = _body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
 
-        Content = root;
+        Content = PoolUi.Chrome(this, Title, root);
         RenderBody();
     }
 
@@ -405,13 +407,20 @@ sealed class PoolEditorWindow : Window
     private static Dictionary<string, List<int>> Clone(Dictionary<string, List<int>> src) =>
         src.ToDictionary(kv => kv.Key, kv => new List<int>(kv.Value));
 
-    // Кнопки — дефолтного стиля WPF, как выпадающие списки/кнопки по всей программе.
-    private static Button ActionBtn(string text, bool primary = false) => new()
+    // Кнопки — единый тёмный стиль (PoolUi). Сохранить — с синим акцентом.
+    private static Button ActionBtn(string text, bool primary = false)
     {
-        Content = text, Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(6, 0, 0, 0),
-        Cursor = System.Windows.Input.Cursors.Hand,
-        FontWeight = primary ? FontWeights.Bold : FontWeights.Normal
-    };
+        var b = PoolUi.Btn(text);
+        b.Margin = new Thickness(6, 0, 0, 0);
+        b.FontWeight = primary ? FontWeights.Bold : FontWeights.Normal;
+        if (primary)
+        {
+            b.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+            b.BorderBrush = new SolidColorBrush(PoolSettingsWindow.Blue);
+            b.Foreground = Brushes.White;
+        }
+        return b;
+    }
 }
 
 /// <summary>Выбор чемпиона: поиск сверху + общий список. Клик — выбрать.</summary>
@@ -431,6 +440,7 @@ sealed class ChampionPickerWindow : Window
         Width  = 460; Height = 520;
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        PoolUi.Apply(this);
 
         var root = new DockPanel { Margin = new Thickness(14) };
         _search.TextChanged += (_, _) => Render();
@@ -440,7 +450,7 @@ sealed class ChampionPickerWindow : Window
         {
             Content = _grid, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         });
-        Content = root;
+        Content = PoolUi.Chrome(this, Title, root);
         _search.Focus();
         Render();
     }
@@ -477,6 +487,145 @@ sealed class ChampionPickerWindow : Window
     }
 }
 
+/// <summary>Единый тёмный стиль окон пулов: кнопки, поля ввода, верхушка окна.</summary>
+static class PoolUi
+{
+    private static ResourceDictionary? _rd;
+    public static Style ButtonStyle { get; private set; } = null!;
+
+    private const string Xaml = @"
+<ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+                    xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
+  <Style x:Key='CpButton' TargetType='Button'>
+    <Setter Property='Foreground' Value='#C9D2DC'/>
+    <Setter Property='Background' Value='#1A2430'/>
+    <Setter Property='BorderBrush' Value='#35485A'/>
+    <Setter Property='BorderThickness' Value='1'/>
+    <Setter Property='Padding' Value='12,5'/>
+    <Setter Property='Cursor' Value='Hand'/>
+    <Setter Property='SnapsToDevicePixels' Value='True'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='Button'>
+          <Border x:Name='b' CornerRadius='5' Background='{TemplateBinding Background}'
+                  BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='{TemplateBinding BorderThickness}'>
+            <ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center' Margin='{TemplateBinding Padding}'/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property='IsMouseOver' Value='True'>
+              <Setter TargetName='b' Property='Background' Value='#22364F'/>
+              <Setter TargetName='b' Property='BorderBrush' Value='#5A8AC8'/>
+            </Trigger>
+            <Trigger Property='IsPressed' Value='True'>
+              <Setter TargetName='b' Property='Background' Value='#2C445F'/>
+            </Trigger>
+            <Trigger Property='IsEnabled' Value='False'>
+              <Setter Property='Opacity' Value='0.5'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType='TextBox'>
+    <Setter Property='Foreground' Value='#E6EDF3'/>
+    <Setter Property='CaretBrush' Value='#E6EDF3'/>
+    <Setter Property='Background' Value='#0F1822'/>
+    <Setter Property='BorderBrush' Value='#35485A'/>
+    <Setter Property='BorderThickness' Value='1'/>
+    <Setter Property='Padding' Value='7,5'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='TextBox'>
+          <Border CornerRadius='5' Background='{TemplateBinding Background}'
+                  BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='{TemplateBinding BorderThickness}'>
+            <ScrollViewer x:Name='PART_ContentHost' Margin='{TemplateBinding Padding}'/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>";
+
+    private static void Ensure()
+    {
+        if (_rd != null) return;
+        _rd = (ResourceDictionary)System.Windows.Markup.XamlReader.Parse(Xaml);
+        ButtonStyle = (Style)_rd["CpButton"];
+    }
+
+    // Тёмные поля ввода (неявный стиль) + доступ к стилю кнопок.
+    public static void Apply(Window w)
+    {
+        Ensure();
+        w.Resources.MergedDictionaries.Add(_rd!);
+    }
+
+    public static Button Btn(string text) { Ensure(); return new Button { Content = text, Style = ButtonStyle }; }
+
+    // Кастомная тёмная верхушка окна: заголовок + крестик, перетаскивание, рамка.
+    public static FrameworkElement Chrome(Window w, string title, FrameworkElement inner)
+    {
+        w.WindowStyle = WindowStyle.None;
+        w.ResizeMode = ResizeMode.NoResize;
+
+        var root = new DockPanel();
+        var bar = new Border { Height = 36, Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)) };
+        bar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) w.DragMove(); };
+        var barDock = new DockPanel { LastChildFill = true };
+
+        var close = new Button
+        {
+            Content = "✕", Width = 44, FontSize = 13, Cursor = System.Windows.Input.Cursors.Hand,
+            Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8))
+        };
+        Ensure();
+        close.Style = CloseStyle();
+        close.Click += (_, _) => w.Close();
+        DockPanel.SetDock(close, Dock.Right);
+        barDock.Children.Add(close);
+        barDock.Children.Add(new TextBlock
+        {
+            Text = title, Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
+            FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(13, 0, 0, 0)
+        });
+        bar.Child = barDock;
+        DockPanel.SetDock(bar, Dock.Top);
+        root.Children.Add(bar);
+        root.Children.Add(inner);
+
+        return new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4A)), BorderThickness = new Thickness(1),
+            Child = root
+        };
+    }
+
+    // Крестик закрытия: прозрачный, красный при наведении.
+    private static Style CloseStyle()
+    {
+        var s = new Style(typeof(Button));
+        var t = new ControlTemplate(typeof(Button));
+        var b = new System.Windows.FrameworkElementFactory(typeof(Border));
+        b.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        b.Name = "cb";
+        var cp = new System.Windows.FrameworkElementFactory(typeof(ContentPresenter));
+        cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+        b.AppendChild(cp);
+        t.VisualTree = b;
+        var tr = new Trigger { Property = System.Windows.Controls.Control.IsMouseOverProperty, Value = true };
+        tr.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xC0, 0x41, 0x3B)), "cb"));
+        tr.Setters.Add(new Setter(System.Windows.Controls.Control.ForegroundProperty, Brushes.White));
+        t.Triggers.Add(tr);
+        s.Setters.Add(new Setter(System.Windows.Controls.Control.TemplateProperty, t));
+        return s;
+    }
+}
+
 /// <summary>Диалог подтверждения (Да/Нет) с предупреждением.</summary>
 static class Confirm
 {
@@ -485,9 +634,10 @@ static class Confirm
         var dlg = new Window
         {
             Title = title, Width = 380, SizeToContent = SizeToContent.Height, Owner = owner,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = new SolidColorBrush(PoolSettingsWindow.Bg)
         };
+        PoolUi.Apply(dlg);
         var sp = new StackPanel { Margin = new Thickness(16) };
         sp.Children.Add(new TextBlock
         {
@@ -496,15 +646,18 @@ static class Confirm
         });
         bool ok = false;
         var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var no = new Button { Content = Loc.T("pool.no"), Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 0, 8, 0),
-            Cursor = System.Windows.Input.Cursors.Hand };
+        var no = PoolUi.Btn(Loc.T("pool.no"));
+        no.Margin = new Thickness(0, 0, 8, 0);
         no.Click += (_, _) => dlg.Close();
-        var yes = new Button { Content = Loc.T("pool.yes"), Padding = new Thickness(12, 4, 12, 4), FontWeight = FontWeights.Bold,
-            Cursor = System.Windows.Input.Cursors.Hand };
+        var yes = PoolUi.Btn(Loc.T("pool.yes"));
+        yes.FontWeight = FontWeights.Bold;
+        yes.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+        yes.BorderBrush = new SolidColorBrush(PoolSettingsWindow.Blue);
+        yes.Foreground = Brushes.White;
         yes.Click += (_, _) => { ok = true; dlg.Close(); };
         btns.Children.Add(no); btns.Children.Add(yes);
         sp.Children.Add(btns);
-        dlg.Content = sp;
+        dlg.Content = PoolUi.Chrome(dlg, title, sp);
         dlg.ShowDialog();
         return ok;
     }

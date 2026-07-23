@@ -543,6 +543,18 @@ public sealed class RecommendationEngine : IDisposable
     public Recommendation? BestFromPool(DraftState state, IReadOnlyCollection<int> poolChamps)
         => poolChamps.Count == 0 ? null : Recommend(state, 1, poolChamps).FirstOrDefault();
 
+    /// До max ВЫГОДНЫХ пиков из пула (Score > 0), отсортированы по силе. Если ни
+    /// один не выгоден против врагов — возвращаем ОДИН лучший (пул всегда что-то
+    /// предлагает). Общий подбор идёт ниже этих карточек.
+    public IReadOnlyList<Recommendation> TopFromPool(DraftState state, IReadOnlyCollection<int> poolChamps, int max = 3)
+    {
+        if (poolChamps.Count == 0) return [];
+        var scored = Recommend(state, poolChamps.Count, poolChamps);
+        if (scored.Count == 0) return [];
+        var good = scored.Where(r => r.Score > 0).Take(max).ToList();
+        return good.Count > 0 ? good : [scored[0]];
+    }
+
     // ---------- ARAM: подбор по скамейке ----------
 
     /// ARAM: врагов не видно, но есть скамейка. Из [мой текущий + скамейка] выбираем
