@@ -91,22 +91,39 @@ sealed class PoolSettingsWindow : Window
     {
         var a = PoolStore.Current();
         _poolArea.Children.Clear();
-        foreach (var p in a.Pools) _poolArea.Children.Add(Tile(p.Name, () => EditPool(p), () => DeletePool(p)));
+        foreach (var p in a.Pools)
+            _poolArea.Children.Add(Tile(p.Name, a.ActiveKind == PoolKind.Pool && a.ActiveId == p.Id,
+                () => EditPool(p), () => DeletePool(p), () => Select(PoolKind.Pool, p.Id)));
         _poolArea.Children.Add(PlusTile(() => EditPool(null)));
 
         _duoArea.Children.Clear();
-        foreach (var d in a.DuoPools) _duoArea.Children.Add(Tile(d.FriendName, () => EditDuo(d), () => DeleteDuo(d)));
+        foreach (var d in a.DuoPools)
+            _duoArea.Children.Add(Tile(d.FriendName, a.ActiveKind == PoolKind.Duo && a.ActiveId == d.Id,
+                () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id)));
         _duoArea.Children.Add(PlusTile(() => EditDuo(null)));
     }
 
-    // Плитка существующего пула: имя + клик (редактировать) + × (удалить).
-    private FrameworkElement Tile(string name, Action open, Action del)
+    // Сделать пул активным (звёздочка). Повторный клик по активному — снять выбор
+    // (возврат в обычный режим подбора).
+    private void Select(PoolKind kind, string id)
+    {
+        var a = PoolStore.Current();
+        if (a.ActiveKind == kind && a.ActiveId == id) PoolStore.SetActive(PoolKind.Normal, null);
+        else                                          PoolStore.SetActive(kind, id);
+        _onChange();
+        Refresh();
+    }
+
+    // Плитка существующего пула: имя + клик (редактировать) + × (удалить) + ★ выбора.
+    // Активный (выбранный сейчас) пул выделен синей рамкой и залитой звездой.
+    private FrameworkElement Tile(string name, bool active, Action open, Action del, Action select)
     {
         var b = new Border
         {
             Width = 118, Height = 96, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 10, 10),
-            Background = new SolidColorBrush(Color.FromRgb(0x16, 0x20, 0x2C)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x30, 0x42, 0x54)), BorderThickness = new Thickness(1),
+            Background = new SolidColorBrush(active ? Color.FromArgb(0x22, 0x5A, 0x8A, 0xC8) : Color.FromRgb(0x16, 0x20, 0x2C)),
+            BorderBrush = new SolidColorBrush(active ? Blue : Color.FromRgb(0x30, 0x42, 0x54)),
+            BorderThickness = new Thickness(active ? 2 : 1),
             Cursor = System.Windows.Input.Cursors.Hand
         };
         var g = new Grid();
@@ -117,6 +134,18 @@ sealed class PoolSettingsWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(6)
         });
+        // Звезда выбора — левый верхний угол.
+        var star = new Button
+        {
+            Content = active ? "★" : "☆", Width = 22, Height = 22, FontSize = 14,
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+            Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+            Foreground = new SolidColorBrush(active ? Color.FromRgb(0xC8, 0x9B, 0x3C) : Color.FromRgb(0x60, 0x70, 0x80)),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = Loc.T(active ? "pool.selected" : "pool.select")
+        };
+        star.Click += (_, e) => { e.Handled = true; select(); };
+        g.Children.Add(star);
         var x = new Button
         {
             Content = "×", Width = 20, Height = 20, FontSize = 13, FontWeight = FontWeights.Bold,

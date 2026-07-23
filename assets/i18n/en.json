@@ -424,6 +424,8 @@
     "duoDeltaTip": "How much stronger the duo is than these two apart (synergy vs. their individual winrates)",
     "duoNoData": "Not enough games together for this duo yet",
     "saveForDraft": "💾 Save for draft",
-    "saved": "✓ Saved"
+    "saved": "✓ Saved",
+    "select": "Use this pool",
+    "selected": "Currently in use — click to turn off"
   }
 }
