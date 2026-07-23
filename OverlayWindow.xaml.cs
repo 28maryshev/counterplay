@@ -2289,10 +2289,12 @@ public partial class OverlayWindow : Window
                     var duo = PoolStore.ActiveDuo();
                     if (duo is { Manual: true })
                     {
-                        // Фиксированные связки: карточка на каждую заданную пару.
+                        // Фиксированные связки: карточка на каждую пару МОЕЙ роли
+                        // (роль задана в связке — движок знает, за кого я на линии).
                         foreach (var mp in duo.ManualPairs)
                         {
                             if (mp.Mine == 0) continue;
+                            if (!string.IsNullOrEmpty(mp.MineRole) && mp.MineRole != myRoleDb) continue;
                             if (_engine.Recommend(draft, 1, new[] { mp.Mine }).FirstOrDefault() is { } mr)
                             {
                                 ImageSource? di = mp.Friend != 0 ? IconCache.Get(mp.Friend) : null;

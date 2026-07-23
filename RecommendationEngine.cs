@@ -588,17 +588,21 @@ public sealed class RecommendationEngine : IDisposable
     ///   Wr    — сырой винрейт связки (wins/games),
     ///   Delta — насколько связка сильнее, чем эти двое по отдельности
     ///           (темпер. WR пары минус средний базовый WR обоих чемпионов).
-    /// Роли неизвестны (ручной выбор) → маржинализуем по ролям.
-    public (int Games, double Wr, double Delta) PairStats(int m, int f)
+    /// Роли заданы → берём роль-специфичные данные; при нуле игр откат на маржинал.
+    public (int Games, double Wr, double Delta) PairStats(int m, string? mRole, int f, string? fRole)
     {
-        var (g, w) = RawSynergyAny(m, f);
-        if (g <= 0) return (0, 0, 0);
-        var (mg, mw) = RawBaseAny(m);
-        var (fg, fw) = RawBaseAny(f);
+        (double g, double w) syn = (0, 0);
+        if (!string.IsNullOrEmpty(mRole) && !string.IsNullOrEmpty(fRole))
+            syn = RawSynergyRoles(m, mRole!, f, fRole!);
+        if (syn.g <= 0) syn = RawSynergyAny(m, f);   // откат: пары по ролям редки
+        if (syn.g <= 0) return (0, 0, 0);
+
+        var (mg, mw) = !string.IsNullOrEmpty(mRole) ? RawBase(m, mRole!) : RawBaseAny(m);
+        var (fg, fw) = !string.IsNullOrEmpty(fRole) ? RawBase(f, fRole!) : RawBaseAny(f);
         var baseM = mg > 0 ? Delta(mg, mw, K) : 0.0;
         var baseF = fg > 0 ? Delta(fg, fw, K) : 0.0;
-        var synDelta = Delta(g, w, K_PAIR) - (baseM + baseF) / 2.0;
-        return ((int)Math.Round(g), 100.0 * w / g, synDelta);
+        var synDelta = Delta(syn.g, syn.w, K_PAIR) - (baseM + baseF) / 2.0;
+        return ((int)Math.Round(syn.g), 100.0 * syn.w / syn.g, synDelta);
     }
 
     /// Лучшие ДУО-ПАРЫ: перебор (мой пул × пул друга), оценка КАЖДОГО той же
@@ -1055,6 +1059,9 @@ public sealed class RecommendationEngine : IDisposable
     private readonly Dictionary<int, string> _roleCache = new();
 
     // Самая частая роль чемпиона по числу игр (base_wr), с кэшем.
+    // Публична: настройки пула дефолтят роль чемпиона при выборе в связку.
+    public string PrimaryRole(int champId) => InferPrimaryRole(champId);
+
     private string InferPrimaryRole(int champId)
     {
         if (_roleCache.TryGetValue(champId, out var cached)) return cached;
@@ -1325,6 +1332,32 @@ public sealed class RecommendationEngine : IDisposable
         cmd.Parameters.AddWithValue("@c",  champId);
         cmd.Parameters.AddWithValue("@r",  role);
         cmd.Parameters.AddWithValue("@a",  allyId);
+        cmd.Parameters.AddWithValue("@t",  TierBucket);
+        cmd.Parameters.AddWithValue("@p1", _p1);
+        cmd.Parameters.AddWithValue("@p2", _p2);
+        cmd.Parameters.AddWithValue("@p3", _p3);
+        return RawAgg(cmd);
+    }
+
+    // Синергия пары с ОБЕИМИ известными ролями (обе стороны записи). Точнее, чем
+    // RawSynergyAny, но выборка меньше — вызывающий делает откат при нуле игр.
+    private (double g, double w) RawSynergyRoles(int m, string mRole, int f, string fRole)
+    {
+        var cmd = _db.CreateCommand();
+        cmd.CommandText = $@"
+            SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM (
+                SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
+                  WHERE champion_id=@m AND role=@mr AND ally_id=@f AND ally_role=@fr
+                    AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                UNION ALL
+                SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
+                  WHERE champion_id=@f AND role=@fr AND ally_id=@m AND ally_role=@mr
+                    AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+            )";
+        cmd.Parameters.AddWithValue("@m",  m);
+        cmd.Parameters.AddWithValue("@mr", mRole);
+        cmd.Parameters.AddWithValue("@f",  f);
+        cmd.Parameters.AddWithValue("@fr", fRole);
         cmd.Parameters.AddWithValue("@t",  TierBucket);
         cmd.Parameters.AddWithValue("@p1", _p1);
         cmd.Parameters.AddWithValue("@p2", _p2);

@@ -39,11 +39,14 @@ public sealed class DuoPool
     public List<ManualDuoPair> ManualPairs { get; set; } = [];
 }
 
-/// Одна фиксированная дуо-связка: мой чемпион + чемпион друга.
+/// Одна фиксированная дуо-связка: мой чемпион+роль и чемпион+роль друга.
+/// Роли (db-ключ) нужны движку для роль-специфичных данных синергии/базы.
 public sealed class ManualDuoPair
 {
-    public int Mine   { get; set; }
-    public int Friend { get; set; }
+    public int    Mine       { get; set; }
+    public string MineRole   { get; set; } = "";
+    public int    Friend     { get; set; }
+    public string FriendRole { get; set; } = "";
 }
 
 /// Все пулы одного аккаунта.
@@ -195,7 +198,8 @@ public static class PoolStore
             foreach (var d in src.DuoPools)
                 cur.DuoPools.Add(new DuoPool { FriendName = d.FriendName, Mine = Clone(d.Mine), Friend = Clone(d.Friend),
                                                Manual = d.Manual,
-                                               ManualPairs = d.ManualPairs.Select(p => new ManualDuoPair { Mine = p.Mine, Friend = p.Friend }).ToList() });
+                                               ManualPairs = d.ManualPairs.Select(p => new ManualDuoPair {
+                                                   Mine = p.Mine, MineRole = p.MineRole, Friend = p.Friend, FriendRole = p.FriendRole }).ToList() });
             Save();
         }
     }

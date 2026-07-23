@@ -215,7 +215,8 @@ sealed class PoolEditorWindow : Window
         else if (existing is DuoPool d)
         { _srcDuo = d; _name = d.FriendName; CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend);
           _manual = d.Manual;
-          _manualPairs.AddRange(d.ManualPairs.Select(p => new ManualDuoPair { Mine = p.Mine, Friend = p.Friend })); }
+          _manualPairs.AddRange(d.ManualPairs.Select(p => new ManualDuoPair {
+              Mine = p.Mine, MineRole = p.MineRole, Friend = p.Friend, FriendRole = p.FriendRole })); }
         else
             _name = "";
 
@@ -350,26 +351,34 @@ sealed class PoolEditorWindow : Window
         return row;
     }
 
-    // Строка одной связки: слот моего + «+» + слот друга + статистика связки.
+    // Строка одной связки: слот моего (чемпион+роль) + «+» + слот друга + статистика.
     private FrameworkElement ManualPairRow(ManualDuoPair mp)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
-        row.Children.Add(ManualSlot(mp.Mine, id =>
-            { mp.Mine = id; if (mp.Mine == 0 && mp.Friend == 0) _manualPairs.Remove(mp); _dirty = true; RenderBody(); }));
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        row.Children.Add(ManualSlot(mp.Mine, mp.MineRole,
+            id   => { mp.Mine = id; mp.MineRole = id != 0 ? DefaultRole(id) : ""; DropIfEmpty(mp); _dirty = true; RenderBody(); },
+            role => { mp.MineRole = role; _dirty = true; RenderBody(); }));
         row.Children.Add(PlusGlyph());
-        row.Children.Add(ManualSlot(mp.Friend, id =>
-            { mp.Friend = id; if (mp.Mine == 0 && mp.Friend == 0) _manualPairs.Remove(mp); _dirty = true; RenderBody(); }));
+        row.Children.Add(ManualSlot(mp.Friend, mp.FriendRole,
+            id   => { mp.Friend = id; mp.FriendRole = id != 0 ? DefaultRole(id) : ""; DropIfEmpty(mp); _dirty = true; RenderBody(); },
+            role => { mp.FriendRole = role; _dirty = true; RenderBody(); }));
         row.Children.Add(PairStatsBlock(mp));
         return row;
     }
+
+    private void DropIfEmpty(ManualDuoPair mp)
+    { if (mp.Mine == 0 && mp.Friend == 0) _manualPairs.Remove(mp); }
+
+    // Роль по умолчанию — самая частая роль чемпиона (движок), иначе пусто.
+    private string DefaultRole(int champId) => _engine?.PrimaryRole(champId) ?? "";
 
     // Пустая строка «+ + +» — заполнение любого слота создаёт новую связку.
     private FrameworkElement AddPairRow()
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
-        row.Children.Add(ManualSlot(0, id => { _manualPairs.Add(new ManualDuoPair { Mine   = id }); _dirty = true; RenderBody(); }));
+        row.Children.Add(ManualSlot(0, "", id => { _manualPairs.Add(new ManualDuoPair { Mine   = id, MineRole   = DefaultRole(id) }); _dirty = true; RenderBody(); }, null));
         row.Children.Add(PlusGlyph());
-        row.Children.Add(ManualSlot(0, id => { _manualPairs.Add(new ManualDuoPair { Friend = id }); _dirty = true; RenderBody(); }));
+        row.Children.Add(ManualSlot(0, "", id => { _manualPairs.Add(new ManualDuoPair { Friend = id, FriendRole = DefaultRole(id) }); _dirty = true; RenderBody(); }, null));
         return row;
     }
 
@@ -378,16 +387,16 @@ sealed class PoolEditorWindow : Window
     {
         Text = "+", Width = PlusCol, FontSize = 20, FontWeight = FontWeights.Bold,
         Foreground = new SolidColorBrush(PoolSettingsWindow.Blue), TextAlignment = TextAlignment.Center,
-        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 5)
+        VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 12, 0, 0)
     };
 
     // Статистика связки: винрейт вместе + дельта (синергия), с пояснениями в тултипах.
     private FrameworkElement PairStatsBlock(ManualDuoPair mp)
     {
-        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 5) };
+        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(4, 6, 0, 0) };
         if (_engine == null || mp.Mine == 0 || mp.Friend == 0) return wrap;
 
-        var (games, wr, delta) = _engine.PairStats(mp.Mine, mp.Friend);
+        var (games, wr, delta) = _engine.PairStats(mp.Mine, mp.MineRole, mp.Friend, mp.FriendRole);
         if (games <= 0)
         {
             wrap.Children.Add(new TextBlock
@@ -415,19 +424,50 @@ sealed class PoolEditorWindow : Window
         return wrap;
     }
 
-    // Один слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает).
-    private FrameworkElement ManualSlot(int id, Action<int> set)
+    // Слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает), а под
+    // ней — полоска ролей (5 иконок), где подсвечена выбранная роль чемпиона.
+    private FrameworkElement ManualSlot(int id, string role, Action<int> setChamp, Action<string>? setRole)
     {
-        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
         FrameworkElement tile = id != 0
-            ? ChampIcon(id, () => set(0))
+            ? ChampIcon(id, () => setChamp(0))
             : PlusChamp(() =>
               {
                   var pick = new ChampionPickerWindow(_names, _idByName, Array.Empty<int>()) { Owner = this };
-                  if (pick.ShowDialog() == true && pick.Result > 0) set(pick.Result);
+                  if (pick.ShowDialog() == true && pick.Result > 0) setChamp(pick.Result);
               });
         wrap.Children.Add(tile);
+        if (id != 0 && setRole != null) wrap.Children.Add(RoleStrip(role, setRole));
         return wrap;
+    }
+
+    // Полоска выбора роли: 5 иконок ролей, выбранная — ярче с синим подчёркиванием.
+    private static FrameworkElement RoleStrip(string role, Action<string> setRole)
+    {
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 5, 0) };
+        foreach (var r in PoolSettingsWindow.Roles)
+        {
+            var sel  = r == role;
+            var icon = RoleIcons.Get(PoolSettingsWindow.DbToLcu[r]);
+            var cell = new Border
+            {
+                Width = 18, Height = 20, Margin = new Thickness(0, 0, 1, 0), Cursor = System.Windows.Input.Cursors.Hand,
+                Background = Brushes.Transparent, ToolTip = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, r)],
+                BorderThickness = new Thickness(0, 0, 0, 2),
+                BorderBrush = sel ? new SolidColorBrush(PoolSettingsWindow.Blue) : Brushes.Transparent
+            };
+            if (icon != null)
+                cell.Child = new Image { Source = icon, Width = 15, Height = 15, Opacity = sel ? 1.0 : 0.4,
+                    VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center };
+            else
+                cell.Child = new TextBlock { Text = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, r)][..1],
+                    FontSize = 9, Foreground = sel ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x60, 0x70, 0x80)),
+                    HorizontalAlignment = HorizontalAlignment.Center };
+            var rr = r;
+            cell.MouseLeftButtonUp += (_, e) => { e.Handled = true; setRole(rr); };
+            strip.Children.Add(cell);
+        }
+        return strip;
     }
 
     private static TextBlock SectionLabel(string t) => new()
@@ -548,7 +588,8 @@ sealed class PoolEditorWindow : Window
             d.Manual      = _manual;
             // Сохраняем только заполненные связки (хотя бы один чемпион).
             d.ManualPairs = _manualPairs.Where(p => p.Mine != 0 || p.Friend != 0)
-                                        .Select(p => new ManualDuoPair { Mine = p.Mine, Friend = p.Friend }).ToList();
+                                        .Select(p => new ManualDuoPair { Mine = p.Mine, MineRole = p.MineRole,
+                                                                         Friend = p.Friend, FriendRole = p.FriendRole }).ToList();
             if (_srcDuo == null) a.DuoPools.Add(d);
         }
         else
