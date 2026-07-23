@@ -418,6 +418,10 @@
     "duoManual": "Manual",
     "duoManualHint": "Fixed pairs — add as many duos as you like",
     "duoMyChamp": "My champion",
-    "duoFriendChamp": "Friend's champion"
+    "duoFriendChamp": "Friend's champion",
+    "duoStatsHdr": "WR · Δ",
+    "duoWrTip": "Winrate of this duo across {0} games together",
+    "duoDeltaTip": "How much stronger the duo is than these two apart (synergy vs. their individual winrates)",
+    "duoNoData": "Not enough games together for this duo yet"
   }
 }

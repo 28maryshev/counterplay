@@ -1249,7 +1249,7 @@ public partial class OverlayWindow : Window
         // Открываем окно настроек пулов (одно на приложение). После изменений —
         // обновляем кнопки и слот пула.
         if (_poolSettings is { IsVisible: true }) { _poolSettings.Activate(); return; }
-        _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); });
+        _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); }, _engine);
         _poolSettings.Show();
     }
 

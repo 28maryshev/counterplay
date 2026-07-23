@@ -32,12 +32,14 @@ sealed class PoolSettingsWindow : Window
     internal static readonly Color Line   = Color.FromArgb(0x40, 0x8A, 0xA0, 0xB2);
 
     private readonly Action _onChange;
+    private readonly RecommendationEngine? _engine;
     private readonly WrapPanel _poolArea = new() { Margin = new Thickness(0, 8, 0, 0) };
     private readonly WrapPanel _duoArea  = new() { Margin = new Thickness(0, 8, 0, 0) };
 
-    public PoolSettingsWindow(Action onChange)
+    public PoolSettingsWindow(Action onChange, RecommendationEngine? engine = null)
     {
         _onChange = onChange;
+        _engine   = engine;
         Title  = Loc.T("pool.settings");
         Width  = 820; Height = 560;
         Background = new SolidColorBrush(Bg);
@@ -147,14 +149,14 @@ sealed class PoolSettingsWindow : Window
 
     private void EditPool(ChampPool? existing)
     {
-        var win = new PoolEditorWindow(existing, duo: false) { Owner = this };
+        var win = new PoolEditorWindow(existing, duo: false, _engine) { Owner = this };
         if (win.ShowDialog() == true) _onChange();
         Refresh();
     }
 
     private void EditDuo(DuoPool? existing)
     {
-        var win = new PoolEditorWindow(existing, duo: true) { Owner = this };
+        var win = new PoolEditorWindow(existing, duo: true, _engine) { Owner = this };
         if (win.ShowDialog() == true) _onChange();
         Refresh();
     }
@@ -177,6 +179,7 @@ sealed class PoolSettingsWindow : Window
 sealed class PoolEditorWindow : Window
 {
     private readonly bool _duo;
+    private readonly RecommendationEngine? _engine;
     private readonly ChampPool? _srcPool;
     private readonly DuoPool?   _srcDuo;
     private readonly Dictionary<string, int> _idByName;
@@ -189,7 +192,8 @@ sealed class PoolEditorWindow : Window
     private bool _dirty;
 
     // Дуо: способ подбора. Manual — фиксированные связки (список пар), иначе автоподбор.
-    private bool _manual;
+    // По умолчанию Manual (для нового пула); существующий грузит сохранённый выбор.
+    private bool _manual = true;
     private readonly List<ManualDuoPair> _manualPairs = [];
 
     private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 240 };
@@ -198,9 +202,10 @@ sealed class PoolEditorWindow : Window
     private static Dictionary<string, List<int>> NewRoles() =>
         PoolSettingsWindow.Roles.ToDictionary(r => r, _ => new List<int>());
 
-    public PoolEditorWindow(object? existing, bool duo)
+    public PoolEditorWindow(object? existing, bool duo, RecommendationEngine? engine = null)
     {
         _duo = duo;
+        _engine = engine;
         _idByName = DataDragon.GetAllIconUrls().Keys.ToDictionary(id => DataDragon.Name(id), id => id);
         _names = _idByName.Keys.Where(n => !string.IsNullOrEmpty(n))
                           .OrderBy(n => n, StringComparer.CurrentCulture).ToList();
@@ -306,8 +311,8 @@ sealed class PoolEditorWindow : Window
             Text = Loc.T("pool.duoMode"), Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
             FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0)
         });
-        row.Children.Add(ModeBtn(Loc.T("pool.duoAuto"),   !_manual, () => { if (_manual)  { _manual = false; _dirty = true; RenderBody(); } }));
         row.Children.Add(ModeBtn(Loc.T("pool.duoManual"),  _manual, () => { if (!_manual) { _manual = true;  _dirty = true; RenderBody(); } }));
+        row.Children.Add(ModeBtn(Loc.T("pool.duoAuto"),   !_manual, () => { if (_manual)  { _manual = false; _dirty = true; RenderBody(); } }));
         return row;
     }
 
@@ -326,44 +331,94 @@ sealed class PoolEditorWindow : Window
         return b;
     }
 
-    // Заголовки колонок связок: «Мой чемпион» | «Чемпион друга».
+    // Ширины колонок для выравнивания заголовка со слотами (иконка 48 + правый отступ).
+    private const double SlotCol = 53, PlusCol = 26;
+
+    // Заголовки колонок связок: «Мой» + «Друг» + «WR · Δ», выровнены под слоты.
     private static FrameworkElement ManualHeader()
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-        TextBlock H(string t) => new()
+        TextBlock H(string t, double w) => new()
         {
-            Text = t, Width = 75, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-            FontSize = 10, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 22, 0)
+            Text = t, Width = w, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 10, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Bottom
         };
-        row.Children.Add(H(Loc.T("pool.duoMyChamp")));
-        row.Children.Add(H(Loc.T("pool.duoFriendChamp")));
+        row.Children.Add(H(Loc.T("pool.mine"),   SlotCol));
+        row.Children.Add(H("",                   PlusCol));
+        row.Children.Add(H(Loc.T("pool.friend"), SlotCol));
+        row.Children.Add(H(Loc.T("pool.duoStatsHdr"), 100));
         return row;
     }
 
-    // Строка одной связки: слот моего чемпиона + слот друга. Очистка обоих удаляет связку.
+    // Строка одной связки: слот моего + «+» + слот друга + статистика связки.
     private FrameworkElement ManualPairRow(ManualDuoPair mp)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
         row.Children.Add(ManualSlot(mp.Mine, id =>
             { mp.Mine = id; if (mp.Mine == 0 && mp.Friend == 0) _manualPairs.Remove(mp); _dirty = true; RenderBody(); }));
+        row.Children.Add(PlusGlyph());
         row.Children.Add(ManualSlot(mp.Friend, id =>
             { mp.Friend = id; if (mp.Mine == 0 && mp.Friend == 0) _manualPairs.Remove(mp); _dirty = true; RenderBody(); }));
+        row.Children.Add(PairStatsBlock(mp));
         return row;
     }
 
-    // Пустая строка «+ +» — заполнение любого слота создаёт новую связку.
+    // Пустая строка «+ + +» — заполнение любого слота создаёт новую связку.
     private FrameworkElement AddPairRow()
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
         row.Children.Add(ManualSlot(0, id => { _manualPairs.Add(new ManualDuoPair { Mine   = id }); _dirty = true; RenderBody(); }));
+        row.Children.Add(PlusGlyph());
         row.Children.Add(ManualSlot(0, id => { _manualPairs.Add(new ManualDuoPair { Friend = id }); _dirty = true; RenderBody(); }));
         return row;
+    }
+
+    // Разделитель-«+» между двумя чемпионами связки (не кликается).
+    private static FrameworkElement PlusGlyph() => new TextBlock
+    {
+        Text = "+", Width = PlusCol, FontSize = 20, FontWeight = FontWeights.Bold,
+        Foreground = new SolidColorBrush(PoolSettingsWindow.Blue), TextAlignment = TextAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 5)
+    };
+
+    // Статистика связки: винрейт вместе + дельта (синергия), с пояснениями в тултипах.
+    private FrameworkElement PairStatsBlock(ManualDuoPair mp)
+    {
+        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 5) };
+        if (_engine == null || mp.Mine == 0 || mp.Friend == 0) return wrap;
+
+        var (games, wr, delta) = _engine.PairStats(mp.Mine, mp.Friend);
+        if (games <= 0)
+        {
+            wrap.Children.Add(new TextBlock
+            {
+                Text = "—", Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)), FontSize = 12,
+                ToolTip = Loc.T("pool.duoNoData")
+            });
+            return wrap;
+        }
+
+        wrap.Children.Add(new TextBlock
+        {
+            Text = $"{wr:F1}%", Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.Bold,
+            ToolTip = Loc.T("pool.duoWrTip", games)
+        });
+        var dCol = delta > 0.2  ? Color.FromRgb(0x5A, 0xC0, 0x8A)
+                 : delta < -0.2 ? Color.FromRgb(0xE0, 0x50, 0x50)
+                                : Color.FromRgb(0x9F, 0xB3, 0xC8);
+        wrap.Children.Add(new TextBlock
+        {
+            Text = "Δ " + (delta >= 0 ? "+" : "") + delta.ToString("F1"),
+            Foreground = new SolidColorBrush(dCol), FontSize = 11, FontWeight = FontWeights.Bold,
+            ToolTip = Loc.T("pool.duoDeltaTip")
+        });
+        return wrap;
     }
 
     // Один слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает).
     private FrameworkElement ManualSlot(int id, Action<int> set)
     {
-        var wrap = new StackPanel { Margin = new Thickness(0, 0, 22, 0) };
+        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         FrameworkElement tile = id != 0
             ? ChampIcon(id, () => set(0))
             : PlusChamp(() =>

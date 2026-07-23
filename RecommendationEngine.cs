@@ -583,6 +583,24 @@ public sealed class RecommendationEngine : IDisposable
         return (Delta(g, w, K_PAIR) - rawBase) * (g / (g + CONF_GAMES));
     }
 
+    /// Статистика фиксированной связки для показа в настройках:
+    ///   Games — сколько совместных игр в данных (сила выборки),
+    ///   Wr    — сырой винрейт связки (wins/games),
+    ///   Delta — насколько связка сильнее, чем эти двое по отдельности
+    ///           (темпер. WR пары минус средний базовый WR обоих чемпионов).
+    /// Роли неизвестны (ручной выбор) → маржинализуем по ролям.
+    public (int Games, double Wr, double Delta) PairStats(int m, int f)
+    {
+        var (g, w) = RawSynergyAny(m, f);
+        if (g <= 0) return (0, 0, 0);
+        var (mg, mw) = RawBaseAny(m);
+        var (fg, fw) = RawBaseAny(f);
+        var baseM = mg > 0 ? Delta(mg, mw, K) : 0.0;
+        var baseF = fg > 0 ? Delta(fg, fw, K) : 0.0;
+        var synDelta = Delta(g, w, K_PAIR) - (baseM + baseF) / 2.0;
+        return ((int)Math.Round(g), 100.0 * w / g, synDelta);
+    }
+
     /// Лучшие ДУО-ПАРЫ: перебор (мой пул × пул друга), оценка КАЖДОГО той же
     /// логикой + взаимная синергия пары (W_DUOSYN). Пара сопоставляется с врагами
     /// как единое целое: скор = мой_скор + скор_друга + W_DUOSYN·синергия(m,f).
