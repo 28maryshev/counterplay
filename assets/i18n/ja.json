@@ -302,7 +302,8 @@
     "countersMany": "チームが見せた{0}体のチャンピオンにカウンター"
   },
   "rec": {
-    "yourPick": "あなたのピック"
+    "yourPick": "あなたのピック",
+    "notOwned": "未所持"
   },
   "session": {
     "needGames": "Counterplay を起動したまま数試合プレイすると、試合ごとの LP と勝率グラフが埋まっていきます。",

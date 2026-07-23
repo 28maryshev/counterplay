@@ -48,7 +48,8 @@
     "Found a bug or have a suggestion? Tell us via Support on the site — counterplays.com/support."
   ],
   "rec": {
-    "yourPick": "YOUR PICK"
+    "yourPick": "YOUR PICK",
+    "notOwned": "Non possédé"
   },
   "status": {
     "loadingChamps": "Chargement des données des champions…",

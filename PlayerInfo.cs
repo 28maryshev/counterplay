@@ -28,6 +28,40 @@ public static class PlayerInfo
         }
     }
 
+    /// Чемпионы, которыми ВЛАДЕЕТ текущий аккаунт (championId). Ключ Riot не нужен —
+    /// берём из LCU. Пусто, если недоступно (тогда предупреждение «нет чемпиона»
+    /// не показываем — не пугаем ложно).
+    public static async Task<HashSet<int>> GetOwnedChampionsAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        var owned = new HashSet<int>();
+        try
+        {
+            var (status, body) = await http.GetAsync("/lol-champions/v1/owned-champions-minimal", ct);
+            if (status != 200) return owned;
+
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return owned;
+
+            foreach (var c in doc.RootElement.EnumerateArray())
+            {
+                if (!c.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number)
+                    continue;
+                var id = idEl.GetInt32();
+                if (id <= 0) continue;
+                // Если есть флаг владения — уважаем его (эндпоинт может отдавать и
+                // free-to-play); иначе считаем владением.
+                bool ownedFlag = true;
+                if (c.TryGetProperty("ownership", out var own)
+                    && own.TryGetProperty("owned", out var o)
+                    && o.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    ownedFlag = o.GetBoolean();
+                if (ownedFlag) owned.Add(id);
+            }
+        }
+        catch { /* недоступно — пустой набор */ }
+        return owned;
+    }
+
     /// Очки мастерства текущего игрока по чемпионам (championId → points).
     /// Берётся из LCU, ключ Riot не нужен. Пусто, если недоступно.
     public static async Task<Dictionary<int, long>> GetMasteryAsync(LcuHttpClient http, CancellationToken ct)

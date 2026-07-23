@@ -302,7 +302,8 @@
     "countersMany": "Kontruje {0} czempionów pokazanych przez twoją drużynę"
   },
   "rec": {
-    "yourPick": "TWÓJ PICK"
+    "yourPick": "TWÓJ PICK",
+    "notOwned": "Brak bohatera"
   },
   "session": {
     "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",

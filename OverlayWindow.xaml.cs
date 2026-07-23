@@ -38,6 +38,14 @@ public partial class OverlayWindow : Window
     private DraftState?                    _lastDraft;    // с применёнными ручными ролями
     private DraftState?                    _lastRawDraft; // как пришёл из LCU
     private RecommendationEngine?          _engine;
+    private HashSet<int>                    _ownedChamps = new(); // чемпионы аккаунта (пусто = данных нет)
+
+    // Список чемпионов аккаунта из LCU: которых нет — помечаем «нет чемпиона».
+    public void SetOwnedChampions(IEnumerable<int> ids) => Dispatcher.InvokeAsync(() =>
+    {
+        _ownedChamps = ids.ToHashSet();
+        RenderCurrentState();   // перерисовать, если рекомендации уже на экране
+    });
 
     // Ручное назначение ролей врагам (cellId → LCU-позиция): игрок знает, куда
     // пойдёт флекс-пик (Ирелия мид и т.п.) — клик по роли в карточке врага.
@@ -2195,6 +2203,9 @@ public partial class OverlayWindow : Window
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
                 CounterItems = ItemValue.CounterItems(r.ChampionId, allyNoMe)
                     .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList(),
+                // Чемпиона нет на аккаунте (только если владение вообще известно).
+                NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId),
+                NotOwnedLabel = Loc.T("rec.notOwned"),
             };
         }).ToList();
 
@@ -2633,6 +2644,11 @@ public sealed class FullRecCard
     public bool         IsSelected { get; init; }
     public string       CardBg     => IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
     public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
+
+    // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».
+    public bool         NotOwned      { get; init; }
+    public string       NotOwnedLabel { get; init; } = "";
+    public Visibility   NotOwnedVisibility => NotOwned ? Visibility.Visible : Visibility.Collapsed;
 }
 
 public sealed class ChampSlotCard

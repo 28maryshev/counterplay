@@ -302,7 +302,8 @@
     "baseNeutral": "Lựa chọn trung lập, WR ≈{0}%"
   },
   "rec": {
-    "yourPick": "LỰA CHỌN CỦA BẠN"
+    "yourPick": "LỰA CHỌN CỦA BẠN",
+    "notOwned": "Chưa sở hữu"
   },
   "session": {
     "needGames": "Chơi vài trận khi Counterplay đang chạy — LP mỗi trận và biểu đồ tỉ lệ thắng sẽ được cập nhật.",

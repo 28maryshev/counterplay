@@ -31,7 +31,8 @@
     "Found a bug or have a suggestion? Tell us via Support on the site — counterplays.com/support."
   ],
   "rec": {
-    "yourPick": "YOUR PICK"
+    "yourPick": "YOUR PICK",
+    "notOwned": "미보유"
   },
   "session": {
     "needGames": "Counterplay를 켠 채로 몇 판 플레이하세요 — 판당 LP와 승률 그래프가 채워집니다.",

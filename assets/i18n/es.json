@@ -253,7 +253,8 @@
     "Found a bug or have a suggestion? Tell us via Support on the site — counterplays.com/support."
   ],
   "rec": {
-    "yourPick": "YOUR PICK"
+    "yourPick": "YOUR PICK",
+    "notOwned": "No lo tienes"
   },
   "session": {
     "needGames": "Juega algunas partidas con Counterplay abierto: los LP por partida y la gráfica de winrate se irán llenando.",

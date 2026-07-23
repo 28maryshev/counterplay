@@ -323,7 +323,8 @@
     "countersMany": "Counters {0} champions your team showed"
   },
   "rec": {
-    "yourPick": "YOUR PICK"
+    "yourPick": "YOUR PICK",
+    "notOwned": "Not owned"
   },
   "session": {
     "needGames": "Play a few games with Counterplay running — per-game LP and the winrate chart will fill in.",

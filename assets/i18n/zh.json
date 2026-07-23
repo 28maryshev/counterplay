@@ -302,7 +302,8 @@
     "countersMany": "克制敌方亮出的 {0} 名英雄"
   },
   "rec": {
-    "yourPick": "你的选择"
+    "yourPick": "你的选择",
+    "notOwned": "未拥有"
   },
   "session": {
     "needGames": "在运行 Counterplay 的情况下玩几场对局——每场 LP 和胜率图表将逐渐填充。",

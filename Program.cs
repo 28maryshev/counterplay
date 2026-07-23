@@ -260,6 +260,8 @@ class Program
             await DataDb.EnsureAsync(tierBucket, (m, f) => overlay.ShowProgress(m, f), ct);
 
         var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
+        // Чемпионы аккаунта: которых нет — помечаем в рекомендациях «нет чемпиона».
+        overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));
 
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
         overlay.ApplyRunesHandler  = (page, name) => RunesImporter.ApplyRunesAsync(http, page, name, ct);

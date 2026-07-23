@@ -302,7 +302,8 @@
     "countersMany": "Contrasta {0} campioni mostrati dalla tua squadra"
   },
   "rec": {
-    "yourPick": "LA TUA SCELTA"
+    "yourPick": "LA TUA SCELTA",
+    "notOwned": "Non posseduto"
   },
   "session": {
     "needGames": "Gioca qualche partita con Counterplay aperto: i PL per partita e il grafico del winrate si riempiranno.",
