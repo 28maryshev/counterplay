@@ -1061,6 +1061,11 @@ public partial class OverlayWindow : Window
     }
 
     // db-роль (mid/adc/support) → lcu-позиция (middle/bottom/utility) для иконок.
+    // Роль стороны связки подходит моей роли? Пустая роль — подходит любой
+    // (связка сохранена до того, как роли стали задаваться).
+    private static bool RoleFits(string pairRole, string myRole) =>
+        string.IsNullOrEmpty(pairRole) || pairRole == myRole;
+
     private static string DbToLcuRole(string db) => db switch
     {
         "mid"     => "middle",
@@ -2321,16 +2326,24 @@ public partial class OverlayWindow : Window
                     var duo = PoolStore.ActiveDuo();
                     if (duo is { Manual: true })
                     {
-                        // Фиксированные связки: карточка на каждую пару МОЕЙ роли
-                        // (роль задана в связке — движок знает, за кого я на линии).
+                        // Фиксированные связки. Связка — просто ДВА чемпиона; какой из
+                        // них мой, решает моя роль в этой игре. Поэтому сопоставляем
+                        // обе стороны: совпала роль друга — берём его чемпиона себе,
+                        // а «мой» из связки показываем как пик напарника.
                         foreach (var mp in duo.ManualPairs)
                         {
-                            if (mp.Mine == 0) continue;
-                            if (!string.IsNullOrEmpty(mp.MineRole) && mp.MineRole != myRoleDb) continue;
-                            if (_engine.Recommend(draft, 1, new[] { mp.Mine }).FirstOrDefault() is { } mr)
+                            int mineId, mateId;
+                            if (mp.Mine != 0 && RoleFits(mp.MineRole, myRoleDb))
+                                (mineId, mateId) = (mp.Mine, mp.Friend);
+                            else if (mp.Friend != 0 && RoleFits(mp.FriendRole, myRoleDb))
+                                (mineId, mateId) = (mp.Friend, mp.Mine);
+                            else
+                                continue;
+
+                            if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
                             {
-                                ImageSource? di = mp.Friend != 0 ? IconCache.Get(mp.Friend) : null;
-                                var dn = mp.Friend != 0 ? DataDragon.Name(mp.Friend) : "";
+                                ImageSource? di = mateId != 0 ? IconCache.Get(mateId) : null;
+                                var dn = mateId != 0 ? DataDragon.Name(mateId) : "";
                                 AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
                             }
                         }
