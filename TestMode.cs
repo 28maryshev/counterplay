@@ -322,6 +322,10 @@ sealed class TestPanel : Window
     {
         _stage = s;
         UpdateStageButtons();
+        // Оверлей могли закрыть крестиком — это помечает его «свёрнут вручную»,
+        // и сам он больше не всплывёт. Переключение этапа — явное действие,
+        // поэтому возвращаем принудительно, иначе окно драфта не появится.
+        _overlay.RestoreFromTray(force: true);
         Recompute();
     }
 
@@ -453,6 +457,7 @@ sealed class TestPanel : Window
         foreach (var cell in _planned.Keys.ToList())
             (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;   // прячем до хода
         _stage = TestStage.Draft; UpdateStageButtons();
+        _overlay.RestoreFromTray(force: true);   // закрытый крестиком оверлей — вернуть
         _ready = true;
 
         // Монетка: кто пикает первым — мы или враги (50/50, синяя сторона).
