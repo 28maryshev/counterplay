@@ -1253,11 +1253,13 @@ public partial class OverlayWindow : Window
         _poolSettings.Show();
     }
 
-    // Обновить слот пула, только если сейчас показаны рекомендации (иначе — экран
-    // ready, остаёмся на нём: кнопки режимов настраиваются именно там).
+    // Обновить слот пула, только если сейчас НЕ экран ready (т.е. показан подбор).
+    // На ready-экране остаёмся: пул настраивается именно там, перерисовка в драфт
+    // была бы перекидыванием (ReadyInfo — надёжный признак ready-экрана).
     private void RefreshPoolSlot()
     {
-        if (RecScroll.Visibility == Visibility.Visible) RenderCurrentState();
+        if (ReadyInfo.Visibility == Visibility.Visible) return;
+        RenderCurrentState();
     }
 
     private void PoolNormal_Click(object sender, RoutedEventArgs e)
