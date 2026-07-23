@@ -6,6 +6,8 @@ using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using Button = System.Windows.Controls.Button;
 using Color = System.Windows.Media.Color;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using Image = System.Windows.Controls.Image;
 using Orientation = System.Windows.Controls.Orientation;
@@ -332,8 +334,8 @@ sealed class PoolEditorWindow : Window
         return b;
     }
 
-    // Ширины колонок для выравнивания заголовка со слотами (иконка 53 + полоска ролей ~28).
-    private const double SlotCol = 81, PlusCol = 26;
+    // Ширины колонок для выравнивания заголовка со слотами (иконка 48 + правый отступ).
+    private const double SlotCol = 53, PlusCol = 26;
 
     // Заголовки колонок связок: «Мой» + «Друг» + «WR · Δ», выровнены под слоты.
     private static FrameworkElement ManualHeader()
@@ -354,6 +356,10 @@ sealed class PoolEditorWindow : Window
     // Строка одной связки: слот моего (чемпион+роль) + «+» + слот друга + статистика.
     private FrameworkElement ManualPairRow(ManualDuoPair mp)
     {
+        // Роль пустая (старая связка / только что выбран чемпион) → авто-роль по частоте.
+        if (mp.Mine   != 0 && string.IsNullOrEmpty(mp.MineRole))   mp.MineRole   = DefaultRole(mp.Mine);
+        if (mp.Friend != 0 && string.IsNullOrEmpty(mp.FriendRole)) mp.FriendRole = DefaultRole(mp.Friend);
+
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
         row.Children.Add(ManualSlot(mp.Mine, mp.MineRole,
             id   => { mp.Mine = id; mp.MineRole = id != 0 ? DefaultRole(id) : ""; DropIfEmpty(mp); _dirty = true; RenderBody(); },
@@ -424,11 +430,11 @@ sealed class PoolEditorWindow : Window
         return wrap;
     }
 
-    // Слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает), а СПРАВА
-    // от неё — вертикальная полоска ролей (5 иконок), где подсвечена выбранная роль.
+    // Слот связки: иконка чемпиона (клик очищает) или «+» (клик выбирает), а СНИЗУ
+    // (шириной с иконку) — выпадающий список роли с иконкой и названием.
     private FrameworkElement ManualSlot(int id, string role, Action<int> setChamp, Action<string>? setRole)
     {
-        var wrap = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+        var wrap = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
         FrameworkElement tile = id != 0
             ? ChampIcon(id, () => setChamp(0))
             : PlusChamp(() =>
@@ -437,41 +443,38 @@ sealed class PoolEditorWindow : Window
                   if (pick.ShowDialog() == true && pick.Result > 0) setChamp(pick.Result);
               });
         wrap.Children.Add(tile);
-        if (id != 0 && setRole != null) wrap.Children.Add(RoleStrip(role, setRole));
+        if (id != 0 && setRole != null) wrap.Children.Add(RoleCombo(role, setRole));
         return wrap;
     }
 
-    // Вертикальная полоска выбора роли (справа от иконки): 5 ролей сверху вниз,
-    // выбранная — ярче с синей меткой слева.
-    private static FrameworkElement RoleStrip(string role, Action<string> setRole)
+    // Выпадающий список роли (под иконкой): пункты — иконка роли + название; выбор
+    // роли пересчитывает статистику связки. Ширина совпадает с иконкой чемпиона.
+    private static FrameworkElement RoleCombo(string role, Action<string> setRole)
     {
-        var strip = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(1, 0, 5, 0),
-            VerticalAlignment = VerticalAlignment.Center };
+        var cb = new ComboBox
+        {
+            Width = 48, Margin = new Thickness(0, 3, 5, 0), FontSize = 10,
+            HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(3, 1, 2, 1)
+        };
+        ComboBoxItem? sel = null;
         foreach (var r in PoolSettingsWindow.Roles)
         {
-            var sel  = r == role;
+            var idx = Array.IndexOf(PoolSettingsWindow.Roles, r);
+            var sp  = new StackPanel { Orientation = Orientation.Horizontal };
             var icon = RoleIcons.Get(PoolSettingsWindow.DbToLcu[r]);
-            var cell = new Border
-            {
-                Width = 26, Height = 15, Margin = new Thickness(0, 0, 0, 1), Cursor = System.Windows.Input.Cursors.Hand,
-                Background = Brushes.Transparent, ToolTip = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, r)],
-                BorderThickness = new Thickness(2, 0, 0, 0),
-                BorderBrush = sel ? new SolidColorBrush(PoolSettingsWindow.Blue) : Brushes.Transparent
-            };
             if (icon != null)
-                cell.Child = new Image { Source = icon, Width = 13, Height = 13, Opacity = sel ? 1.0 : 0.4,
-                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(4, 0, 0, 0) };
-            else
-                cell.Child = new TextBlock { Text = PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, r)][..1],
-                    FontSize = 9, Foreground = sel ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x60, 0x70, 0x80)),
-                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(5, 0, 0, 0) };
-            var rr = r;
-            cell.MouseLeftButtonUp += (_, e) => { e.Handled = true; setRole(rr); };
-            strip.Children.Add(cell);
+                sp.Children.Add(new Image { Source = icon, Width = 13, Height = 13,
+                    Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
+            sp.Children.Add(new TextBlock { Text = PoolSettingsWindow.RoleNames[idx], FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center });
+            var it = new ComboBoxItem { Content = sp, Tag = r, Padding = new Thickness(4, 2, 4, 2) };
+            cb.Items.Add(it);
+            if (r == role) sel = it;
         }
-        return strip;
+        // Выставляем начальный выбор ДО подписки — чтобы не сработал ложный пересчёт.
+        if (sel != null) cb.SelectedItem = sel;
+        cb.SelectionChanged += (_, _) => { if (cb.SelectedItem is ComboBoxItem it && it.Tag is string rr) setRole(rr); };
+        return cb;
     }
 
     private static TextBlock SectionLabel(string t) => new()

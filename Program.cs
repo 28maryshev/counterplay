@@ -288,6 +288,7 @@ class Program
         {
             engine = RecommendationEngine.Create(dbPath, tierBucket);
             engine.Mastery = mastery;
+            overlay.SetEngine(engine);   // окну настроек пула — считать WR/дельту связок
             overlay.ShowReady();
         }
         else

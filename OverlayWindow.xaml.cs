@@ -47,6 +47,10 @@ public partial class OverlayWindow : Window
         RenderCurrentState();   // перерисовать, если рекомендации уже на экране
     });
 
+    /// Ранняя привязка движка — чтобы окно настроек пула считало WR/дельту связок
+    /// ещё на экране Ready, до старта драфта (там _engine иначе ещё не выставлен).
+    public void SetEngine(RecommendationEngine engine) => _engine = engine;
+
     // Ручное назначение ролей врагам (cellId → LCU-позиция): игрок знает, куда
     // пойдёт флекс-пик (Ирелия мид и т.п.) — клик по роли в карточке врага.
     private readonly Dictionary<int, string> _enemyRoleOverrides = new();

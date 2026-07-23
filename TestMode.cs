@@ -62,6 +62,7 @@ static class TestMode
             return;
         }
         var engine = RecommendationEngine.Create(dbPath, "emerald");
+        overlay.SetEngine(engine);   // окну настроек пула — считать WR/дельту связок
 
         var allIds = DataDragon.GetAllIconUrls().Keys.ToList();
 
