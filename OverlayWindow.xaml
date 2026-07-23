@@ -589,25 +589,33 @@
                       ClipToBounds="True"/>
             </Grid>
 
-            <!-- Пул чемпионов против врагов: режимы (Настройки · Обычный · Пул · Дуо) -->
-            <TextBlock Text="{loc:T pool.sectionTitle}" Margin="0,14,0,5"
-                       FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
-                       Foreground="#8AA0B2" HorizontalAlignment="Left"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,0">
-              <StackPanel.Resources>
+            <!-- Пул чемпионов: заголовок + имя выбранной связки рядом -->
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,7" HorizontalAlignment="Left">
+              <TextBlock Text="{loc:T pool.sectionTitle}"
+                         FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                         Foreground="#8AA0B2" VerticalAlignment="Center"/>
+              <TextBlock x:Name="PoolActiveName" Visibility="Collapsed"
+                         FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                         Foreground="#C89B3C" VerticalAlignment="Center" Margin="6,0,0,0"
+                         MaxWidth="165" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <!-- Режимы (Настройки · Обычный · Пул · Дуо) — во всю ширину панели -->
+            <UniformGrid Columns="4">
+              <UniformGrid.Resources>
                 <Style TargetType="Button">
                   <Setter Property="Background" Value="Transparent"/>
                   <Setter Property="BorderBrush" Value="#405060"/>
                   <Setter Property="BorderThickness" Value="1"/>
                   <Setter Property="Foreground" Value="#9FB3C8"/>
                   <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
-                  <Setter Property="FontSize" Value="11"/>
+                  <Setter Property="FontSize" Value="12"/>
                   <Setter Property="FontWeight" Value="Bold"/>
-                  <Setter Property="Padding" Value="7,4"/>
+                  <Setter Property="Padding" Value="2,8"/>
                   <Setter Property="Margin" Value="2,0"/>
                   <Setter Property="Cursor" Value="Hand"/>
                 </Style>
-              </StackPanel.Resources>
+              </UniformGrid.Resources>
               <!-- Настройки — золотом, как кнопки на сайте -->
               <Button x:Name="PoolSettingsBtn" Click="PoolSettings_Click"
                       Content="{loc:T pool.settings}"
@@ -615,12 +623,7 @@
               <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
               <Button x:Name="PoolPoolBtn" Click="PoolPool_Click" Content="{loc:T pool.pool}"/>
               <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
-              <!-- Имя выбранного пула / связки -->
-              <TextBlock x:Name="PoolActiveName" Visibility="Collapsed"
-                         FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                         Foreground="#C89B3C" VerticalAlignment="Center" Margin="6,0,0,0"
-                         MaxWidth="78" TextTrimming="CharacterEllipsis"/>
-            </StackPanel>
+            </UniformGrid>
 
             <!-- «Сохранить для драфта»: только в тестовом режиме (включается кодом) -->
             <Button x:Name="SaveForDraftBtn" Click="SaveForDraft_Click" Visibility="Collapsed"
