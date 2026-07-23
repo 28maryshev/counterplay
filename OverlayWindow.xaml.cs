@@ -2358,6 +2358,15 @@ public partial class OverlayWindow : Window
                     // Дуо-пул: пара «я + друг» как единое целое. Manual — фикс-пара,
                     // иначе автоподбор лучших пар (мой пул × пул друга).
                     var duo = PoolStore.ActiveDuo();
+
+                    // Напарник УЖЕ взял чемпиона из дуо-пула → пара определена.
+                    // Иначе движок исключил бы его как занятого и предлагал связки
+                    // с ещё свободными чемпионами, которых напарнику уже не взять.
+                    var mateTaken = duo == null ? 0 : allyNoMe.FirstOrDefault(id =>
+                        duo.Manual
+                            ? duo.ManualPairs.Any(p => p.Mine == id || p.Friend == id)
+                            : duo.Friend.Values.Any(l => l.Contains(id)));
+
                     if (duo is { Manual: true })
                     {
                         // Фиксированные связки. Связка — просто ДВА чемпиона; какой из
@@ -2376,6 +2385,9 @@ public partial class OverlayWindow : Window
                                 (mineId, mateId) = (mp.Friend, mp.Mine);
                             else
                                 continue;
+
+                            // Напарник уже определился — оставляем только связки с ним.
+                            if (mateTaken != 0 && mateId != mateTaken) continue;
 
                             if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
                             {
@@ -2402,9 +2414,20 @@ public partial class OverlayWindow : Window
                     else if (duo != null)
                     {
                         var mineIds = duo.MineForRole(myRoleDb);
-                        foreach (var pair in _engine.BestDuoPairs(draft, mineIds, duo.Friend, myRoleDb, 3))
-                            AddPoolCard(pair.Mine, Loc.T("pool.duoLabel"),
-                                        IconCache.Get(pair.Friend.ChampionId), DataDragon.Name(pair.Friend.ChampionId));
+                        if (mateTaken != 0)
+                        {
+                            // Пара уже наполовину собрана: подбираем ТОЛЬКО свой пик под
+                            // взятого напарника (синергию с ним движок уже учёл как с союзником).
+                            foreach (var pr in _engine.TopFromPool(draft, mineIds, 3))
+                                AddPoolCard(pr, Loc.T("pool.duoLabel"),
+                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken));
+                        }
+                        else
+                        {
+                            foreach (var pair in _engine.BestDuoPairs(draft, mineIds, duo.Friend, myRoleDb, 3))
+                                AddPoolCard(pair.Mine, Loc.T("pool.duoLabel"),
+                                            IconCache.Get(pair.Friend.ChampionId), DataDragon.Name(pair.Friend.ChampionId));
+                        }
                     }
                 }
                 else if (mine.Count > 0)
