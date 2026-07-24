@@ -107,9 +107,11 @@ sealed class PoolSettingsWindow : Window
         _duoArea.Children.Clear();
         foreach (var d in a.DuoPools)
         {
-            var champs = d.Mine.Values.SelectMany(l => l)
-                .Concat(d.Friend.Values.SelectMany(l => l))
-                .Concat(d.ManualPairs.SelectMany(mp => new[] { mp.Mine, mp.Friend }))
+            // Мозаика — по чемпионам АКТИВНОГО режима пула: ручной → фикс-связки,
+            // авто → наборы по ролям. Иначе в ручном лезут остатки авто-наборов.
+            var champs = (d.Manual
+                    ? d.ManualPairs.SelectMany(mp => new[] { mp.Mine, mp.Friend })
+                    : d.Mine.Values.SelectMany(l => l).Concat(d.Friend.Values.SelectMany(l => l)))
                 .Where(id => id != 0).Distinct().ToList();
             _duoArea.Children.Add(Tile(d.FriendName, a.ActiveKind == PoolKind.Duo && a.ActiveId == d.Id,
                 () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id), champs,
