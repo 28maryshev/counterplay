@@ -137,8 +137,9 @@ sealed class PoolSettingsWindow : Window
         var b = new Border
         {
             Width = 118, Height = 96, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 10, 10),
-            Background = new SolidColorBrush(active ? Color.FromArgb(0x22, 0x5A, 0x8A, 0xC8) : Color.FromRgb(0x16, 0x20, 0x2C)),
-            BorderBrush = new SolidColorBrush(active ? Blue : Color.FromRgb(0x30, 0x42, 0x54)),
+            Background = new SolidColorBrush(active ? Color.FromArgb(0x22, 0xC8, 0x9B, 0x3C) : Color.FromRgb(0x16, 0x20, 0x2C)),
+            // Активная (выбранная) плитка — золотая рамка, в цвет звезды.
+            BorderBrush = new SolidColorBrush(active ? Color.FromRgb(0xC8, 0x9B, 0x3C) : Color.FromRgb(0x30, 0x42, 0x54)),
             BorderThickness = new Thickness(active ? 2 : 1),
             Cursor = System.Windows.Input.Cursors.Hand,
             ClipToBounds = true   // фон-мозаика не вылезает за скруглённые углы
@@ -198,14 +199,19 @@ sealed class PoolSettingsWindow : Window
         return b;
     }
 
-    // Полупрозрачная мозаика иконок чемпионов пула — фон плитки.
+    // Полупрозрачная мозаика иконок чемпионов пула — фон плитки. Иконки
+    // повторяются по сетке и ПОЛНОСТЬЮ закрывают плитку (без пустых мест).
     private static FrameworkElement PoolIconWash(IReadOnlyList<int> champs)
     {
-        var wrap = new WrapPanel { Opacity = 0.22 };
-        foreach (var id in champs.Take(12))
-            if (IconCache.Get(id) is { } src)
-                wrap.Children.Add(new Image { Source = src, Width = 40, Height = 40, Stretch = Stretch.UniformToFill });
-        return wrap;
+        const int cols = 3, rows = 3;
+        var grid = new System.Windows.Controls.Primitives.UniformGrid
+        { Columns = cols, Rows = rows, Opacity = 0.13 };
+        var withIcon = champs.Where(id => IconCache.Get(id) != null).ToList();
+        if (withIcon.Count == 0) return grid;
+        for (int i = 0; i < cols * rows; i++)
+            grid.Children.Add(new Image
+            { Source = IconCache.Get(withIcon[i % withIcon.Count]), Stretch = Stretch.UniformToFill });
+        return grid;
     }
 
     // Квадратная кнопка «+» создания нового пула.
