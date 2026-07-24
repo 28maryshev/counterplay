@@ -99,11 +99,23 @@ public sealed class RecommendationEngine : IDisposable
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
         new Dictionary<int, long>();
 
+    // Чемпионы активного пула игрока (по текущей роли) — для «комфорта» пула.
+    // Ставится в начале Recommend; пусто = пул не активен.
+    private HashSet<int> _comfortPool = [];
+    // «Комфорт» за чемпиона В ПУЛЕ: сигнал, что игрок им владеет, даже если на
+    // ЭТОМ аккаунте нет наигранности (второй аккаунт). «Свой», но не одно-трик.
+    private const double POOL_COMFORT = 3.0;
+
     // Бонус за наигранность: сатурирующая кривая 0..~8 (200k очков ≈ +5.7).
-    private double ComfortDelta(int champId) =>
-        Mastery.TryGetValue(champId, out var pts) && pts > 0
+    // Чемпион из активного пула получает флор POOL_COMFORT. С наигранностью НЕ
+    // складываем — берём максимум: наигранность не надбавляет уже поднятый пулом вес.
+    private double ComfortDelta(int champId)
+    {
+        var mastery = Mastery.TryGetValue(champId, out var pts) && pts > 0
             ? 8.0 * pts / (pts + 80_000.0)
             : 0.0;
+        return _comfortPool.Contains(champId) ? Math.Max(mastery, POOL_COMFORT) : mastery;
+    }
 
     // Драфт-фичи: нейтральный пик (при неопределённости), трифекта композиций
     // и анти-стиль (инструменты против доминирующего архетипа врага).
@@ -404,6 +416,10 @@ public sealed class RecommendationEngine : IDisposable
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
         var wDirect = DirectWeight(myRole); // вес прямой контры зависит от роли
+
+        // Чемпионы моего активного пула на эту роль — им «комфорт» пула (см.
+        // ComfortDelta). Normal/пул не активен → пусто, флора нет.
+        _comfortPool = [.. PoolStore.ActiveForRole(myRole).Mine];
 
         // only — переопределение кандидатов (пул игрока): считаем ЛУЧШЕГО из пула
         // той же логикой, даже если он не проходит порог общего списка.
@@ -713,6 +729,7 @@ public sealed class RecommendationEngine : IDisposable
     /// синергию/WR берём из SR как слабый сигнал, остальное эвристикой по трейтам.
     public IReadOnlyList<Recommendation> RecommendAram(DraftState state, int topN = 6)
     {
+        _comfortPool = [];   // в ARAM пулов нет — только наигранность
         var me = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer);
         var myChamp = me?.EffectiveChampionId ?? 0;
 
