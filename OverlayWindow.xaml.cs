@@ -2421,66 +2421,44 @@ public partial class OverlayWindow : Window
                             ? duo.ManualPairs.Any(p => p.Mine == id || p.Friend == id)
                             : duo.Friend.Values.Any(l => l.Contains(id)));
 
-                    if (duo is { Manual: true })
+                    // Дуо-пул предлагаем ТОЛЬКО когда напарник уже взял чемпиона из
+                    // пула — пара сложилась. Не взял (или взял вне пула) — связки не
+                    // показываем вовсе, идёт обычный подбор ниже.
+                    if (mateTaken != 0 && duo != null)
                     {
-                        // Фиксированные связки. Связка — просто ДВА чемпиона; какой из
-                        // них мой, решает моя роль в этой игре. Поэтому сопоставляем
-                        // обе стороны: совпала роль друга — берём его чемпиона себе,
-                        // а «мой» из связки показываем как пик напарника.
-                        // Сначала считаем все подходящие связки, ПОТОМ сортируем по
-                        // скору — лучшая сверху (иначе шли в порядке создания).
-                        var manual = new List<(Recommendation Rec, int Mate)>();
-                        foreach (var mp in duo.ManualPairs)
+                        if (duo.Manual)
                         {
-                            int mineId, mateId;
-                            if (mp.Mine != 0 && RoleFits(mp.MineRole, myRoleDb))
-                                (mineId, mateId) = (mp.Mine, mp.Friend);
-                            else if (mp.Friend != 0 && RoleFits(mp.FriendRole, myRoleDb))
-                                (mineId, mateId) = (mp.Friend, mp.Mine);
-                            else
-                                continue;
-
-                            // Напарник уже определился — оставляем только связки с ним.
-                            if (mateTaken != 0 && mateId != mateTaken) continue;
-
-                            if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
+                            // Фиксированные связки с уже взятым напарником: мой пик из
+                            // связки, где вторая половина — его чемпион. Лучшие сверху.
+                            var manual = new List<Recommendation>();
+                            foreach (var mp in duo.ManualPairs)
                             {
-                                // Вес дуо: напарник ещё не в составе → синергия связки
-                                // ещё не учтена, добавляем её. Уже взят — не дублируем.
-                                if (!allyIds.Contains(mateId))
-                                    mr = _engine.ApplyDuoBonus(mr, myRoleDb, mateId);
-                                manual.Add((mr, mateId));
+                                int mineId, mateId;
+                                if (mp.Mine != 0 && RoleFits(mp.MineRole, myRoleDb))
+                                    (mineId, mateId) = (mp.Mine, mp.Friend);
+                                else if (mp.Friend != 0 && RoleFits(mp.FriendRole, myRoleDb))
+                                    (mineId, mateId) = (mp.Friend, mp.Mine);
+                                else
+                                    continue;
+                                if (mateId != mateTaken) continue;   // только связки с ним
+
+                                if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
+                                    manual.Add(mr);
                             }
-                        }
-                        // Как и в обычном пуле: показываем только ВЫГОДНЫЕ (Score > 0),
-                        // максимум 3. Если выгодных нет — один лучший, чтобы связка
-                        // всё равно что-то предлагала.
-                        var ordered = manual.OrderByDescending(t => t.Rec.Score).ToList();
-                        var shown   = ordered.Where(t => t.Rec.Score > 0).Take(3).ToList();
-                        if (shown.Count == 0 && ordered.Count > 0) shown = [ordered[0]];
-                        foreach (var (mr, mateId) in shown)
-                        {
-                            ImageSource? di = mateId != 0 ? IconCache.Get(mateId) : null;
-                            var dn = mateId != 0 ? DataDragon.Name(mateId) : "";
-                            AddPoolCard(mr, Loc.T("pool.duoLabel"), di, dn);
-                        }
-                    }
-                    else if (duo != null)
-                    {
-                        var mineIds = duo.MineForRole(myRoleDb);
-                        if (mateTaken != 0)
-                        {
-                            // Пара уже наполовину собрана: подбираем ТОЛЬКО свой пик под
-                            // взятого напарника (синергию с ним движок уже учёл как с союзником).
-                            foreach (var pr in _engine.TopFromPool(draft, mineIds, 3))
-                                AddPoolCard(pr, Loc.T("pool.duoLabel"),
+                            var ordered = manual.OrderByDescending(r => r.Score).ToList();
+                            var shown   = ordered.Where(r => r.Score > 0).Take(3).ToList();
+                            if (shown.Count == 0 && ordered.Count > 0) shown = [ordered[0]];
+                            foreach (var mr in shown)
+                                AddPoolCard(mr, Loc.T("pool.duoLabel"),
                                             IconCache.Get(mateTaken), DataDragon.Name(mateTaken));
                         }
                         else
                         {
-                            foreach (var pair in _engine.BestDuoPairs(draft, mineIds, duo.Friend, myRoleDb, 3))
-                                AddPoolCard(pair.Mine, Loc.T("pool.duoLabel"),
-                                            IconCache.Get(pair.Friend.ChampionId), DataDragon.Name(pair.Friend.ChampionId));
+                            // Авто: пара наполовину собрана — подбираем ТОЛЬКО свой пик
+                            // под взятого напарника (синергию с ним движок уже учёл).
+                            foreach (var pr in _engine.TopFromPool(draft, duo.MineForRole(myRoleDb), 3))
+                                AddPoolCard(pr, Loc.T("pool.duoLabel"),
+                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken));
                         }
                     }
                 }
