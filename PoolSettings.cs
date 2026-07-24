@@ -97,15 +97,24 @@ sealed class PoolSettingsWindow : Window
         var a = PoolStore.Current();
         _poolArea.Children.Clear();
         foreach (var p in a.Pools)
+        {
+            var champs = p.ByRole.Values.SelectMany(l => l).Where(id => id != 0).Distinct().ToList();
             _poolArea.Children.Add(Tile(p.Name, a.ActiveKind == PoolKind.Pool && a.ActiveId == p.Id,
-                () => EditPool(p), () => DeletePool(p), () => Select(PoolKind.Pool, p.Id)));
+                () => EditPool(p), () => DeletePool(p), () => Select(PoolKind.Pool, p.Id), champs));
+        }
         _poolArea.Children.Add(PlusTile(() => EditPool(null)));
 
         _duoArea.Children.Clear();
         foreach (var d in a.DuoPools)
+        {
+            var champs = d.Mine.Values.SelectMany(l => l)
+                .Concat(d.Friend.Values.SelectMany(l => l))
+                .Concat(d.ManualPairs.SelectMany(mp => new[] { mp.Mine, mp.Friend }))
+                .Where(id => id != 0).Distinct().ToList();
             _duoArea.Children.Add(Tile(d.FriendName, a.ActiveKind == PoolKind.Duo && a.ActiveId == d.Id,
-                () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id),
+                () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id), champs,
                 Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto")));
+        }
         _duoArea.Children.Add(PlusTile(() => EditDuo(null)));
     }
 
@@ -122,7 +131,8 @@ sealed class PoolSettingsWindow : Window
 
     // Плитка существующего пула: имя + клик (редактировать) + × (удалить) + ★ выбора.
     // Активный (выбранный сейчас) пул выделен синей рамкой и залитой звездой.
-    private FrameworkElement Tile(string name, bool active, Action open, Action del, Action select, string mode = "")
+    private FrameworkElement Tile(string name, bool active, Action open, Action del, Action select,
+                                  IReadOnlyList<int>? champs = null, string mode = "")
     {
         var b = new Border
         {
@@ -130,16 +140,28 @@ sealed class PoolSettingsWindow : Window
             Background = new SolidColorBrush(active ? Color.FromArgb(0x22, 0x5A, 0x8A, 0xC8) : Color.FromRgb(0x16, 0x20, 0x2C)),
             BorderBrush = new SolidColorBrush(active ? Blue : Color.FromRgb(0x30, 0x42, 0x54)),
             BorderThickness = new Thickness(active ? 2 : 1),
-            Cursor = System.Windows.Input.Cursors.Hand
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ClipToBounds = true   // фон-мозаика не вылезает за скруглённые углы
         };
         var g = new Grid();
+
+        // Фон: полупрозрачная мозаика иконок чемпионов пула — чтобы плитка не пустовала.
+        if (champs is { Count: > 0 })
+            g.Children.Add(PoolIconWash(champs));
+
+        // Затемняющая вуаль поверх мозаики — чтобы имя читалось.
+        g.Children.Add(new Border { Background = new SolidColorBrush(Color.FromArgb(0x66, 0x0E, 0x14, 0x1D)) });
+
         g.Children.Add(new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(name) ? "—" : name, Foreground = Brushes.White,
             FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             // Есть пометка режима внизу — оставляем ей место, чтобы имя не наезжало.
-            Margin = mode.Length > 0 ? new Thickness(6, 6, 6, 20) : new Thickness(6)
+            Margin = mode.Length > 0 ? new Thickness(6, 6, 6, 20) : new Thickness(6),
+            // Тень — имя выделяется на мозаике.
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            { Color = Colors.Black, BlurRadius = 5, ShadowDepth = 0, Opacity = 0.9 }
         });
         // Режим подбора пары дуо-пула — снизу плитки.
         if (mode.Length > 0)
@@ -174,6 +196,16 @@ sealed class PoolSettingsWindow : Window
         b.Child = g;
         b.MouseLeftButtonUp += (_, _) => open();
         return b;
+    }
+
+    // Полупрозрачная мозаика иконок чемпионов пула — фон плитки.
+    private static FrameworkElement PoolIconWash(IReadOnlyList<int> champs)
+    {
+        var wrap = new WrapPanel { Opacity = 0.22 };
+        foreach (var id in champs.Take(12))
+            if (IconCache.Get(id) is { } src)
+                wrap.Children.Add(new Image { Source = src, Width = 40, Height = 40, Stretch = Stretch.UniformToFill });
+        return wrap;
     }
 
     // Квадратная кнопка «+» создания нового пула.
