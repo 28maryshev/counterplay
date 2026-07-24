@@ -19,7 +19,16 @@ param(
   # Release notes for the GitHub release (the Discord bot posts them as the
   # update description). Empty = auto-generate from commits since the last tag.
   #   .\build\release.ps1 -Upload -Notes "Rune & build panel, faster updates"
-  [string]$Notes = ""
+  [string]$Notes = "",
+  # Prose "Highlights" block prepended to the notes — a human summary of a big
+  # feature that the commit list can't convey. Also read from
+  # build/RELEASE_HIGHLIGHTS.txt (gitignored) if that file exists (consumed once).
+  [string]$Highlights = "",
+  # Widen the changelog window: build notes from THIS tag..HEAD instead of just
+  # the previous release. Use to fold a feature that shipped across several small
+  # releases into ONE coherent, grouped changelog.
+  #   .\build\release.ps1 -Upload -SinceTag v1.0.95
+  [string]$SinceTag = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -102,23 +111,63 @@ if ($Upload) {
       $prev = if ($idx -gt 0) { $verTags[$idx - 1] }
               else { $verTags | Where-Object { $_ -ne "v$Version" } | Select-Object -Last 1 }
 
-      $range = if ($prev) { "$prev..HEAD" } else { "HEAD" }
+      # -SinceTag widens the window so a feature that shipped across several
+      # small releases folds into ONE changelog for this one.
+      $from  = if ($SinceTag) { $SinceTag } else { $prev }
+      $range = if ($from) { "$from..HEAD" } else { "HEAD" }
 
       # In the Discord announcement players only care about the app itself.
       # Commits that touched ONLY internal files (test sandbox, data pipeline,
       # Discord bot, build scripts, docs) are left out of the release notes.
       $internal = '^(pipeline/|bot/|build/|docs/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|TestMode\.cs|DraftTest\.cs)'
-      $lines = @()
+
+      # Group commits by FEATURE = the "Area:" prefix before the first colon
+      # (e.g. "Duo pool", "Pool settings", "Damage mix"). A big feature made of
+      # many commits collapses into one block instead of a wall of bullets.
+      $groups  = [ordered]@{}
+      $singles = @()
       foreach ($c in (git log $range --no-merges --pretty=format:'%H|%s' 2>$null)) {
         $h, $s = $c -split '\|', 2
         if (-not $s -or $s -match '^(Co-Authored-By|Merge )') { continue }
         $files = git diff-tree --no-commit-id --name-only -r $h 2>$null
         $userFacing = $files | Where-Object { $_ -notmatch $internal }
         if ($files -and -not $userFacing) { continue }   # только внутренняя кухня
-        $lines += "- $s"
+
+        if ($s -match '^([A-Z][^:]{1,26}):\s*(.+)$') {
+          $area = $matches[1].Trim(); $detail = $matches[2].Trim()
+          if (-not $groups.Contains($area)) { $groups[$area] = @() }
+          $groups[$area] += $detail
+        } else {
+          $singles += $s
+        }
       }
+
+      $lines = @()
+      foreach ($area in $groups.Keys) {
+        $details = @($groups[$area])
+        if ($details.Count -ge 2) {          # большая фича → заголовок + детали
+          $lines += "**$area**"
+          foreach ($d in $details) { $lines += "  • $d" }
+        } else {                             # один коммит области → плоской строкой
+          $lines += "- ${area}: $($details[0])"
+        }
+      }
+      foreach ($s in $singles) { $lines += "- $s" }
+
       $Notes = if ($lines) { ($lines -join "`n") } else { "Maintenance and fixes." }
-      Write-Host "Changelog since $prev ($($lines.Count) commits)" -ForegroundColor Cyan
+      Write-Host "Changelog since $from ($($groups.Count) features, $($singles.Count) other)" -ForegroundColor Cyan
+    }
+
+    # Highlights — связное описание большой фичи (проза), которого нет в коммит-
+    # логе. Из -Highlights или build/RELEASE_HIGHLIGHTS.txt (одноразово: файл
+    # удаляется после успешной подстановки, чтобы не повторяться в след. релизе).
+    $hlFile = Join-Path $PSScriptRoot "RELEASE_HIGHLIGHTS.txt"
+    if (-not $Highlights -and (Test-Path $hlFile)) {
+      $Highlights = (Get-Content $hlFile -Raw).Trim()
+    }
+    if ($Highlights) {
+      $Notes = "✨ **Highlights**`n$Highlights`n`n**Changes**`n$Notes"
+      if (Test-Path $hlFile) { Remove-Item $hlFile -Force }
     }
     $Notes | gh release edit "v$Version" --notes-file - 2>$null
     if ($LASTEXITCODE -ne 0) { Write-Host "warn: could not set release notes" -ForegroundColor Yellow }

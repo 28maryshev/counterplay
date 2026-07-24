@@ -45,3 +45,6 @@ pipeline/games_check.py
 pipeline/check_db.py
 pipeline/multicheck.py
 pipeline/dist/
+
+# Одноразовый highlights для заметок релиза (build/release.ps1)
+build/RELEASE_HIGHLIGHTS.txt
