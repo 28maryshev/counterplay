@@ -1144,11 +1144,11 @@
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <!-- Дуо-пул: иконка чемпиона друга (кого назвать пикнуть) -->
-                                <Border Width="28" Height="28" CornerRadius="14"
+                                <Border Width="36" Height="36" CornerRadius="18"
                                         HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                         Background="#101823" BorderBrush="#6AB0FF" BorderThickness="1.5"
                                         Visibility="{Binding DuoVisibility}" ToolTip="{Binding DuoName}">
-                                  <Ellipse Width="23" Height="23">
+                                  <Ellipse Width="30" Height="30">
                                     <Ellipse.Fill><ImageBrush ImageSource="{Binding DuoIcon}" Stretch="UniformToFill"/></Ellipse.Fill>
                                   </Ellipse>
                                 </Border>
