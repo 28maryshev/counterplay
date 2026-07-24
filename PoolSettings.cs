@@ -65,8 +65,45 @@ sealed class PoolSettingsWindow : Window
 
         grid.Children.Add(Area(Loc.T("pool.duo"), _duoArea, duo: true, 2));
 
-        Content = PoolUi.Chrome(this, Title, grid);
+        // Декоративный фон как на драфте: синий сверху-слева → красный снизу-справа.
+        var decorated = new Grid();
+        decorated.Children.Add(DecorBackground());
+        decorated.Children.Add(grid);
+
+        Content = PoolUi.Chrome(this, Title, decorated);
         Refresh();
+    }
+
+    // Фон в стиле оверлея: диагональная сине-красная подсветка + мягкие свечения.
+    private static UIElement DecorBackground()
+    {
+        var layer = new Grid { IsHitTestVisible = false, ClipToBounds = true };
+
+        var diag = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(1, 1) };
+        diag.GradientStops.Add(new GradientStop(Color.FromArgb(0x16, 0x36, 0xD6, 0xE7), 0));
+        diag.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0x07, 0x12, 0x23), 0.45));
+        diag.GradientStops.Add(new GradientStop(Color.FromArgb(0x16, 0xFF, 0x5A, 0x4D), 1));
+        layer.Children.Add(new System.Windows.Shapes.Rectangle { Fill = diag });
+
+        var blue = new RadialGradientBrush();
+        blue.GradientStops.Add(new GradientStop(Color.FromArgb(0x22, 0x36, 0xD6, 0xE7), 0));
+        blue.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0x36, 0xD6, 0xE7), 1));
+        layer.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Width = 520, Height = 340, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(-150, -130, 0, 0), Fill = blue
+        });
+
+        var red = new RadialGradientBrush();
+        red.GradientStops.Add(new GradientStop(Color.FromArgb(0x1A, 0xFF, 0x5A, 0x4D), 0));
+        red.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0x5A, 0x4D), 1));
+        layer.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Width = 640, Height = 400, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, -170, -130), Fill = red
+        });
+
+        return layer;
     }
 
     private FrameworkElement Area(string title, WrapPanel area, bool duo, int col)
