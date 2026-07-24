@@ -1346,7 +1346,7 @@
             </ScrollViewer>
 
             <!-- Список банов (фаза банов) — в том же центре, переключается с пиками -->
-            <ScrollViewer x:Name="BanScroll" Grid.Row="0" VerticalScrollBarVisibility="Hidden" Visibility="Collapsed">
+            <ScrollViewer x:Name="BanScroll" Grid.Row="1" VerticalScrollBarVisibility="Hidden" Visibility="Collapsed">
               <ItemsControl x:Name="BanFullList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
@@ -1401,7 +1401,7 @@
 
             <!-- Кнопка выбора чемпиона: наведён кликом по карточке → лочим
                  в клиенте. Плавает над списком, показывается только в свой ход. -->
-            <Border x:Name="PickBar" Grid.Row="0" VerticalAlignment="Bottom"
+            <Border x:Name="PickBar" Grid.Row="1" VerticalAlignment="Bottom"
                     Visibility="Collapsed" Margin="0,0,0,4" CornerRadius="7"
                     Cursor="Hand" MouseLeftButtonDown="PickConfirm_Click"
                     Background="#1E7A2E" BorderBrush="#3FD16A" BorderThickness="1.5"
@@ -1430,7 +1430,7 @@
 
             <!-- Кнопка бана: наведён кликом по карточке бана → банит в клиенте.
                  Красная, показывается только когда мой ход банить. -->
-            <Border x:Name="BanBar" Grid.Row="0" VerticalAlignment="Bottom"
+            <Border x:Name="BanBar" Grid.Row="1" VerticalAlignment="Bottom"
                     Visibility="Collapsed" Margin="0,0,0,4" CornerRadius="7"
                     Cursor="Hand" MouseLeftButtonDown="BanConfirm_Click"
                     Background="#7A1E1E" BorderBrush="#E0584F" BorderThickness="1.5"
