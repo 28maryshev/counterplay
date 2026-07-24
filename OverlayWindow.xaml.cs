@@ -1361,6 +1361,26 @@ public partial class OverlayWindow : Window
     }
 
     // Подсветка активного режима.
+    // Имя активного пула/связки (пусто, если Normal или пул удалён).
+    private static string ActivePoolName()
+    {
+        var a = PoolStore.Current();
+        return a.ActiveKind switch
+        {
+            PoolKind.Pool => a.Pools.FirstOrDefault(p => p.Id == a.ActiveId)?.Name ?? "",
+            PoolKind.Duo  => a.DuoPools.FirstOrDefault(d => d.Id == a.ActiveId)?.FriendName ?? "",
+            _             => "",
+        };
+    }
+
+    // Шапка «Champion pool: имя» над подбором. Скрыта, если пул не активен.
+    private void UpdatePoolHeader()
+    {
+        var name = ActivePoolName();
+        PoolHeaderName.Text    = name;
+        PoolHeader.Visibility  = name.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void UpdatePoolButtons()
     {
         var a    = PoolStore.Current();
@@ -1376,12 +1396,7 @@ public partial class OverlayWindow : Window
         Set(PoolDuoBtn,    kind == PoolKind.Duo);
 
         // Имя выбранного пула / связки — в конце ряда.
-        var name = kind switch
-        {
-            PoolKind.Pool => a.Pools.FirstOrDefault(p => p.Id == a.ActiveId)?.Name ?? "",
-            PoolKind.Duo  => a.DuoPools.FirstOrDefault(d => d.Id == a.ActiveId)?.FriendName ?? "",
-            _             => "",
-        };
+        var name = ActivePoolName();
         PoolActiveName.Text       = name.Length > 0 ? "· " + name : "";
         PoolActiveName.ToolTip    = name.Length > 0 ? name : null;
         PoolActiveName.Visibility = name.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2335,6 +2350,8 @@ public partial class OverlayWindow : Window
 
     private void RenderFull(IReadOnlyList<Recommendation> recs, DraftState? draft)
     {
+        UpdatePoolHeader();   // «Champion pool: имя» над подбором
+
         // Связки союзников и их цвета — нужны и панели, и дашикам рекомендаций.
         var allyIds  = draft?.MyTeam.Where(p => p.EffectiveChampionId != 0)
                                     .Select(p => p.EffectiveChampionId).ToList() ?? [];
@@ -2567,7 +2584,8 @@ public partial class OverlayWindow : Window
     {
         StatusText.Text     = Loc.T("draft.roleBans", RoleNameDb(
             draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : ""));
-        PickHint.Visibility = Visibility.Collapsed;
+        PickHint.Visibility   = Visibility.Collapsed;
+        PoolHeader.Visibility = Visibility.Collapsed;   // пул к банам не относится
 
         BanFullList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
         {
