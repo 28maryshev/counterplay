@@ -184,10 +184,11 @@ class Program
         await RunesClient.LoadManifestAsync(ct);
 
         // Гарантируем наличие data.db. Качаем базу только СВОЕГО эло (~50 МБ) по
-        // сохранённому с прошлого запуска рангу; на первом запуске ранг ещё
-        // неизвестен → общая тонкая база (все бакеты). Актуальный ранг подхватим
-        // из LCU в сессии (ниже) и, если сменился, подкачаем нужный бакет.
-        var storedBucket = Settings.GetString("dataBucket");
+        // сохранённому с прошлого запуска рангу. На ПЕРВОМ запуске ранг ещё
+        // неизвестен → берём дефолтный бакет (emerald, ~57 МБ), а НЕ общую базу
+        // всех бакетов (~198 МБ). Реальный ранг подхватим из LCU ниже и, если он
+        // другой, подкачаем нужный бакет — суммарно всё равно меньше общей базы.
+        var storedBucket = Settings.GetString("dataBucket") ?? "emerald";
         await DataDb.EnsureAsync(storedBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
         DataDb.SelfClean();
 
