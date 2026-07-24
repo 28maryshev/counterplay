@@ -153,7 +153,7 @@ sealed class PoolSettingsWindow : Window
         // Звезда выбора — левый верхний угол.
         var star = new Button
         {
-            Content = active ? "★" : "☆", Width = 22, Height = 22, FontSize = 14,
+            Content = active ? "★" : "☆", Width = 30, Height = 30, FontSize = 20,
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
             Background = Brushes.Transparent, BorderThickness = new Thickness(0),
             Foreground = new SolidColorBrush(active ? Color.FromRgb(0xC8, 0x9B, 0x3C) : Color.FromRgb(0x60, 0x70, 0x80)),
