@@ -71,21 +71,25 @@ sealed class PoolSettingsWindow : Window
 
     private FrameworkElement Area(string title, WrapPanel area, bool duo, int col)
     {
-        var panel = new DockPanel();
-        var head = new TextBlock
+        var grid = new Grid();
+
+        // Название половины — крупным полупрозрачным «водяным знаком» по центру,
+        // за тайлами. Текст из Loc.T → меняется вместе с языком (окно пересоздаётся).
+        grid.Children.Add(new TextBlock
         {
-            Text = title, Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
-            FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(2, 0, 0, 0)
-        };
-        DockPanel.SetDock(head, Dock.Top);
-        panel.Children.Add(head);
-        panel.Children.Add(new ScrollViewer
+            Text = title, Foreground = new SolidColorBrush(Color.FromArgb(0x1C, 0xC9, 0xD2, 0xDC)),
+            FontWeight = FontWeights.Bold, FontSize = 64,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false
+        });
+
+        grid.Children.Add(new ScrollViewer
         {
             Content = area, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });
-        Grid.SetColumn(panel, col);
-        return panel;
+        Grid.SetColumn(grid, col);
+        return grid;
     }
 
     private void Refresh()
