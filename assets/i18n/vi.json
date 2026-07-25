@@ -427,6 +427,8 @@
     "saved": "✓ Đã lưu",
     "select": "Dùng pool này",
     "selected": "Đang dùng — nhấp để tắt",
-    "sectionTitle": "Pool tướng"
+    "sectionTitle": "Pool tướng",
+    "helpLabel": "Cách hoạt động",
+    "help": "Pool tướng là bộ tướng riêng của bạn cho từng vị trí. Khi bật một pool, Counterplay luôn làm nổi bật lựa chọn tốt nhất từ pool đó trước đối thủ hiện tại — để bạn chơi những tướng mình thực sự thành thạo. Pool đôi dành cho bạn và một người bạn: khi đồng đội chọn một tướng trong pool, bạn nhận được các lựa chọn kết hợp tốt nhất với tướng đó. Thêm pool bằng ô +, đánh dấu pool đang dùng bằng cách bấm vào ngôi sao, và chuyển giữa Thường / Pool / Đôi ở màn hình sẵn sàng."
   }
 }

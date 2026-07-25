@@ -427,6 +427,8 @@
     "saved": "✓ Salvato",
     "select": "Usa questo pool",
     "selected": "In uso ora — clicca per disattivare",
-    "sectionTitle": "Pool di campioni"
+    "sectionTitle": "Pool di campioni",
+    "helpLabel": "Come funziona",
+    "help": "I pool di campioni sono i tuoi set di campioni per ruolo. Quando un pool è attivo, Counterplay evidenzia sempre la scelta migliore al suo interno contro i nemici attuali, così resti sui campioni che sai davvero giocare. I pool duo sono per te e un amico: quando il tuo compagno prende un campione dal pool, ottieni le scelte che si abbinano meglio con lui. Aggiungi un pool con la casella +, segna quello attivo cliccando la sua stella e cambia tra Normale / Pool / Duo nella schermata di pronto."
   }
 }

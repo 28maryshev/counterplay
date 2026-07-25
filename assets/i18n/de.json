@@ -427,6 +427,8 @@
     "saved": "✓ Gespeichert",
     "select": "Diesen Pool verwenden",
     "selected": "Aktuell in Verwendung — zum Ausschalten klicken",
-    "sectionTitle": "Champion-Pool"
+    "sectionTitle": "Champion-Pool",
+    "helpLabel": "So funktioniert's",
+    "help": "Champion-Pools sind deine eigenen Champion-Sets pro Rolle. Ist ein Pool aktiv, hebt Counterplay immer den besten Pick daraus gegen die aktuellen Gegner hervor — so bleibst du bei Champions, die du wirklich spielst. Duo-Pools sind für dich und einen Freund: nimmt dein Partner einen Champion aus dem Pool, bekommst du die Picks, die am besten dazu passen. Füge einen Pool mit der +-Kachel hinzu, markiere den aktiven per Klick auf den Stern und wechsle Normal / Pool / Duo im Bereitschaftsbildschirm."
   }
 }

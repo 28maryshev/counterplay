@@ -429,6 +429,8 @@
     "saved": "✓ Saved",
     "select": "Use this pool",
     "selected": "Currently in use — click to turn off",
-    "sectionTitle": "Champion pool"
+    "sectionTitle": "Champion pool",
+    "helpLabel": "How it works",
+    "help": "Champion pools are your own champion sets per role. When a pool is on, Counterplay always highlights the best pick from it against the current enemies — so you can stay on champions you actually play. Duo pools are for you and a friend: when your partner takes a champion from the pool, you get the picks that pair best with it. Add a pool with the + tile, mark the active one by clicking its star, and switch Normal / Pool / Duo on the ready screen."
   }
 }

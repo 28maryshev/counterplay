@@ -69,9 +69,52 @@ sealed class PoolSettingsWindow : Window
         var decorated = new Grid();
         decorated.Children.Add(DecorBackground());
         decorated.Children.Add(grid);
+        decorated.Children.Add(HelpBadge());   // «?» с пояснением снизу
 
         Content = PoolUi.Chrome(this, Title, decorated);
         Refresh();
+    }
+
+    // Иконка «?» внизу: при наведении — пояснение, что такое пулы и зачем.
+    private static FrameworkElement HelpBadge()
+    {
+        var tipText = new TextBlock
+        {
+            Text = Loc.T("pool.help"), TextWrapping = TextWrapping.Wrap, MaxWidth = 340,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)), FontSize = 12, LineHeight = 18
+        };
+        var tip = new System.Windows.Controls.ToolTip
+        {
+            Content = tipText, Padding = new Thickness(12, 10, 12, 10),
+            Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)), BorderThickness = new Thickness(1)
+        };
+
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20, 0, 0, 14),
+            Cursor = System.Windows.Input.Cursors.Hand, Background = Brushes.Transparent, ToolTip = tip
+        };
+        System.Windows.Controls.ToolTipService.SetShowDuration(row, 60000);
+        System.Windows.Controls.ToolTipService.SetInitialShowDelay(row, 150);
+
+        var q = new Border
+        {
+            Width = 18, Height = 18, CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0x5A, 0x8A, 0xC8)),
+            BorderBrush = new SolidColorBrush(Blue), BorderThickness = new Thickness(1),
+            Child = new TextBlock { Text = "?", Foreground = new SolidColorBrush(Blue), FontWeight = FontWeights.Bold,
+                FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+        };
+        row.Children.Add(q);
+        row.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.helpLabel"), Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(6, 0, 0, 0)
+        });
+        return row;
     }
 
     // Фон в стиле оверлея: диагональная сине-красная подсветка + мягкие свечения.
