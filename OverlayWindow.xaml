@@ -1482,6 +1482,12 @@
                                    FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Border>
+                      <!-- Уже забанен: затемнение + красный крест -->
+                      <Grid Visibility="{Binding BannedVisibility}">
+                        <Ellipse Fill="#B0101820"/>
+                        <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="22" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Grid>
                     </Grid>
                     <TextBlock Text="{Binding WrText}" HorizontalAlignment="Center" Margin="0,2,0,0"
                                FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"

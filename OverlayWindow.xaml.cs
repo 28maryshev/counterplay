@@ -1026,7 +1026,7 @@ public partial class OverlayWindow : Window
                 + $"  ·  {t.Games} " + Loc.T("tier.games"),
     };
 
-    private void RenderTierList()
+    private void RenderTierList(DraftState? draft = null)
     {
         if (_engine is null) { TierListBar.Visibility = Visibility.Collapsed; return; }
         if (_tierCols is null)
@@ -1058,6 +1058,16 @@ public partial class OverlayWindow : Window
         if (!ReferenceEquals(TierList.ItemsSource, _tierCols))
             TierList.ItemsSource = _tierCols;
         TierListBar.Visibility = _tierCols.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Помечаем уже забаненных чемпионов (красный крест) — обновляется по ходу
+        // банфазы, когда список банов растёт.
+        var banned = draft is null ? new HashSet<int>()
+            : new HashSet<int>(draft.MyTeamBans.Concat(draft.TheirTeamBans).Where(id => id != 0));
+        foreach (var col in _tierCols)
+        {
+            foreach (var c in col.WrCells)   c.Banned = banned.Contains(c.ChampionId);
+            foreach (var c in col.TierCells) c.Banned = banned.Contains(c.ChampionId);
+        }
     }
 
     // db-роль (mid/adc/support) → lcu-позиция (middle/bottom/utility) для иконок.
@@ -2590,7 +2600,7 @@ public partial class OverlayWindow : Window
         // тир-листа при этом сохраняется — он вне списка рекомендаций).
         if (_banHoverId > 0 && !StillAvailable(draft, _banHoverId)) _banHoverId = 0;
         UpdateBanBar();
-        RenderTierList();
+        RenderTierList(draft);
         RenderTeams(draft);
     }
 
@@ -2884,7 +2894,7 @@ public sealed class RecCard
 }
 
 /// <summary>Ячейка тир-листа (лучшие по WR на роль) под банами.</summary>
-public sealed class TierCell
+public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
 {
     public int          ChampionId { get; init; }
     public ImageSource? Icon       { get; init; }
@@ -2897,6 +2907,22 @@ public sealed class TierCell
     public bool         ShowGrade  { get; init; } = true;
     public Visibility   GradeVisibility => ShowGrade ? Visibility.Visible : Visibility.Collapsed;
     public string       FrameColor => ShowGrade ? GradeColor : "#3A4B5F";
+
+    // Чемпион уже забанен в этом драфте — помечаем оверлеем (обновляется по ходу).
+    private bool _banned;
+    public bool Banned
+    {
+        get => _banned;
+        set
+        {
+            if (_banned == value) return;
+            _banned = value;
+            PropertyChanged?.Invoke(this, new(nameof(Banned)));
+            PropertyChanged?.Invoke(this, new(nameof(BannedVisibility)));
+        }
+    }
+    public Visibility BannedVisibility => _banned ? Visibility.Visible : Visibility.Collapsed;
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 }
 
 /// <summary>Колонка роли в тир-листе: два вертикальных списка — по WR и по тиру.</summary>
