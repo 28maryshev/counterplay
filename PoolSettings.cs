@@ -579,7 +579,7 @@ sealed class PoolEditorWindow : Window
             ? ChampIcon(id, () => setChamp(0), DuoSlot, zero)
             : PlusChamp(() =>
               {
-                  var pick = new ChampionPickerWindow(_names, _idByName, Array.Empty<int>()) { Owner = this };
+                  var pick = new ChampionPickerWindow(_names, _idByName, Array.Empty<int>(), _engine) { Owner = this };
                   if (pick.ShowDialog() == true && pick.Result > 0) setChamp(pick.Result);
               }, DuoSlot, zero);
         wrap.Children.Add(tile);
@@ -655,7 +655,7 @@ sealed class PoolEditorWindow : Window
             // Квадратная «+» того же размера, что иконка — не пропадает.
             chips.Children.Add(PlusChamp(() =>
             {
-                var pick = new ChampionPickerWindow(_names, _idByName, list) { Owner = this };
+                var pick = new ChampionPickerWindow(_names, _idByName, list, _engine) { Owner = this };
                 if (pick.ShowDialog() == true && pick.Result > 0 && !list.Contains(pick.Result))
                 { list.Add(pick.Result); _dirty = true; RefreshChips(); }
             }));
@@ -788,12 +788,14 @@ sealed class ChampionPickerWindow : Window
     private readonly Dictionary<string, int> _idByName;
     private readonly HashSet<int> _exclude;
     private readonly List<string> _names;
-    private readonly WrapPanel _grid = new();
+    private readonly RecommendationEngine? _engine;   // для группировки по частой роли
+    private readonly StackPanel _root = new();        // секции ролей сверху вниз
     private readonly TextBox _search = new() { FontSize = 13 };
 
-    public ChampionPickerWindow(List<string> names, Dictionary<string, int> idByName, IEnumerable<int> exclude)
+    public ChampionPickerWindow(List<string> names, Dictionary<string, int> idByName, IEnumerable<int> exclude,
+                                RecommendationEngine? engine = null)
     {
-        _names = names; _idByName = idByName; _exclude = [.. exclude];
+        _names = names; _idByName = idByName; _exclude = [.. exclude]; _engine = engine;
         Title  = Loc.T("pool.pickChamp");
         Width  = 460; Height = 520;
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
@@ -806,7 +808,7 @@ sealed class ChampionPickerWindow : Window
         root.Children.Add(_search);
         root.Children.Add(new ScrollViewer
         {
-            Content = _grid, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            Content = _root, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         });
         Content = PoolUi.Chrome(this, Title, root);
         _search.Focus();
@@ -816,32 +818,86 @@ sealed class ChampionPickerWindow : Window
     private void Render()
     {
         var q = _search.Text.Trim();
-        _grid.Children.Clear();
-        foreach (var name in _names)
-        {
-            var id = _idByName[name];
-            if (_exclude.Contains(id)) continue;
-            if (q.Length > 0 && name.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) < 0) continue;
+        _root.Children.Clear();
 
-            var b = new Border
-            {
-                Width = 74, Height = 92, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 6, 6),
-                Background = new SolidColorBrush(Color.FromRgb(0x16, 0x20, 0x2C)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4A)), BorderThickness = new Thickness(1),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-            var sp = new StackPanel { Margin = new Thickness(4) };
-            if (IconCache.Get(id) is { } src)
-                sp.Children.Add(new Border { Width = 48, Height = 48, CornerRadius = new CornerRadius(24),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill } });
-            sp.Children.Add(new TextBlock { Text = name, Foreground = Brushes.White, FontSize = 10,
-                TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) });
-            b.Child = sp;
-            var cid = id;
-            b.MouseLeftButtonUp += (_, _) => { Result = cid; DialogResult = true; Close(); };
-            _grid.Children.Add(b);
+        // Отфильтрованные по поиску имена.
+        var visible = _names.Where(n =>
+            !_exclude.Contains(_idByName[n]) &&
+            (q.Length == 0 || n.IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0)).ToList();
+
+        // Без движка — плоский список (как раньше).
+        if (_engine == null)
+        {
+            var flat = new WrapPanel();
+            foreach (var n in visible) flat.Children.Add(ChampTile(n));
+            _root.Children.Add(flat);
+            return;
         }
+
+        // Раскладываем по самой частой роли чемпиона; без данных — в «Прочие».
+        var byRole = PoolSettingsWindow.Roles.ToDictionary(r => r, _ => new List<string>());
+        var other  = new List<string>();
+        foreach (var n in visible)
+        {
+            var role = _engine.PrimaryRole(_idByName[n]);
+            if (byRole.TryGetValue(role, out var lst)) lst.Add(n);
+            else other.Add(n);
+        }
+
+        foreach (var role in PoolSettingsWindow.Roles)
+        {
+            if (byRole[role].Count == 0) continue;
+            _root.Children.Add(RoleHeader(role));
+            var wrap = new WrapPanel();
+            foreach (var n in byRole[role]) wrap.Children.Add(ChampTile(n));
+            _root.Children.Add(wrap);
+        }
+        if (other.Count > 0)
+        {
+            _root.Children.Add(RoleHeader(null));
+            var wrap = new WrapPanel();
+            foreach (var n in other) wrap.Children.Add(ChampTile(n));
+            _root.Children.Add(wrap);
+        }
+    }
+
+    // Заголовок секции роли: иконка роли + название (null = «Прочие»).
+    private static FrameworkElement RoleHeader(string? role)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 4) };
+        if (role != null && RoleIcons.Get(PoolSettingsWindow.DbToLcu[role]) is { } icon)
+            row.Children.Add(new Image { Source = icon, Width = 18, Height = 18, Opacity = 0.9,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        row.Children.Add(new TextBlock
+        {
+            Text = role != null ? PoolSettingsWindow.RoleNames[Array.IndexOf(PoolSettingsWindow.Roles, role)] : "—",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center
+        });
+        return row;
+    }
+
+    // Плитка чемпиона: иконка + имя, клик — выбрать.
+    private FrameworkElement ChampTile(string name)
+    {
+        var id = _idByName[name];
+        var b = new Border
+        {
+            Width = 74, Height = 92, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 6, 6),
+            Background = new SolidColorBrush(Color.FromRgb(0x16, 0x20, 0x2C)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4A)), BorderThickness = new Thickness(1),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        var sp = new StackPanel { Margin = new Thickness(4) };
+        if (IconCache.Get(id) is { } src)
+            sp.Children.Add(new Border { Width = 48, Height = 48, CornerRadius = new CornerRadius(24),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill } });
+        sp.Children.Add(new TextBlock { Text = name, Foreground = Brushes.White, FontSize = 10,
+            TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) });
+        b.Child = sp;
+        b.MouseLeftButtonUp += (_, _) => { Result = id; DialogResult = true; Close(); };
+        return b;
     }
 }
 
