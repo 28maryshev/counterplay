@@ -1050,10 +1050,27 @@ public sealed class RecommendationEngine : IDisposable
             if (bestByProtectee.TryGetValue(pid, out var bc)
                 && !chosen.Contains(bc.Champ) && chosen.Count < top - 1)
                 chosen.Add(bc.Champ);
+        // Добор по скору — но не даём забить весь список контрпиками ОДНОГО нашего
+        // чемпиона. Кандидаты моей роли получают ещё и мета-баллы (сила в патче,
+        // популярность), поэтому защита моего пика вытесняла союзников в самый
+        // хвост: 4 бана под мой пик и по одному под остальных.
+        const int maxPerProtectee = 2;
+        var perProtectee = new Dictionary<int, int>();
+        foreach (var k in chosen)
+            if (hitsOf.TryGetValue(k, out var hs0))
+                foreach (var h in hs0) perProtectee[h.Id] = perProtectee.GetValueOrDefault(h.Id) + 1;
+
         foreach (var k in scores.Keys.Where(k => !chosen.Contains(k)).OrderByDescending(k => scores[k]))
         {
             if (chosen.Count >= top) break;
+            var hits = hitsOf.GetValueOrDefault(k);
+            // Защитный кандидат идёт только если хоть кому-то из его подзащитных
+            // ещё не хватает банов. Чисто мета-баны (никого не защищают) — без лимита.
+            if (hits is { Count: > 0 } && hits.All(h => perProtectee.GetValueOrDefault(h.Id) >= maxPerProtectee))
+                continue;
             chosen.Add(k);
+            if (hits != null)
+                foreach (var h in hits) perProtectee[h.Id] = perProtectee.GetValueOrDefault(h.Id) + 1;
         }
 
         return chosen

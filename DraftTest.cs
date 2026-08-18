@@ -142,6 +142,12 @@ static class DraftTest
         PrintBans("my hover Jinx + allies hovered (Ahri/LeeSin/Malphite), NO roles",
             BuildBan("bottom", 222, new[] { (103, ""), (64, ""), (54, "") }));
 
+        // 8b. Реальный случай из игры: я мид с Владимиром, союзники Атрокс (топ) и
+        //     Сайлас (джангл) — РОЛИ ИЗВЕСТНЫ. Ждём в списке контр-пики не только
+        //     моего Владимира, но и Атрокса с Сайласом.
+        PrintBans("my Vladimir (mid) + Aatrox (top) + Sylas (jungle), roles known",
+            BuildBan("middle", 8, new[] { (266, "top"), (517, "jungle") }));
+
         // 9. Баны с ИСТОРИЕЙ ховеров: команда перебрала несколько чемпионов —
         //    ждём бонус «широты» для бана, контрящего 2+ показанных.
         PrintBans("hover history: mid showed Ahri+Lux+Xerath, top showed Riven+Fiora",
