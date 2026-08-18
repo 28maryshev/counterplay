@@ -299,7 +299,8 @@
     "baseTop": "Một trong những tướng mạnh nhất bản này — WR {0}%",
     "baseGood": "WR cơ bản tốt {0}%",
     "baseLow": "WR thấp {0}% — bạn cần thạo tướng này",
-    "baseNeutral": "Lựa chọn trung lập, WR ≈{0}%"
+    "baseNeutral": "Lựa chọn trung lập, WR ≈{0}%",
+    "personalWr": "Tỉ lệ thắng của bạn với tướng này — {0}% qua {1} trận"
   },
   "rec": {
     "yourPick": "LỰA CHỌN CỦA BẠN",
@@ -429,6 +430,8 @@
     "selected": "Đang dùng — nhấp để tắt",
     "sectionTitle": "Pool tướng",
     "helpLabel": "Cách hoạt động",
-    "help": "Pool tướng là bộ tướng riêng của bạn cho từng vị trí. Khi bật một pool, Counterplay luôn làm nổi bật lựa chọn tốt nhất từ pool đó trước đối thủ hiện tại — để bạn chơi những tướng mình thực sự thành thạo. Pool đôi dành cho bạn và một người bạn: khi đồng đội chọn một tướng trong pool, bạn nhận được các lựa chọn kết hợp tốt nhất với tướng đó. Thêm pool bằng ô +, đánh dấu pool đang dùng bằng cách bấm vào ngôi sao, và chuyển giữa Thường / Pool / Đôi ở màn hình sẵn sàng."
+    "help": "Pool tướng là bộ tướng riêng của bạn cho từng vị trí. Khi bật một pool, Counterplay luôn làm nổi bật lựa chọn tốt nhất từ pool đó trước đối thủ hiện tại — để bạn chơi những tướng mình thực sự thành thạo. Pool đôi dành cho bạn và một người bạn: khi đồng đội chọn một tướng trong pool, bạn nhận được các lựa chọn kết hợp tốt nhất với tướng đó. Thêm pool bằng ô +, đánh dấu pool đang dùng bằng cách bấm vào ngôi sao, và chuyển giữa Thường / Pool / Đôi ở màn hình sẵn sàng.",
+    "wrRanked": "Tỉ lệ thắng xếp hạng (đơn/linh hoạt): {0}% qua {1} trận",
+    "wrNormal": "Tỉ lệ thắng thường: {0}% qua {1} trận"
   }
 }

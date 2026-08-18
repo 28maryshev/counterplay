@@ -322,7 +322,8 @@
     "baseGood": "Good base WR {0}%",
     "baseLow": "Low WR {0}% — you need to know the champion",
     "baseNeutral": "Neutral pick, WR ≈{0}%",
-    "countersMany": "Counters {0} champions your team showed"
+    "countersMany": "Counters {0} champions your team showed",
+    "personalWr": "Your win rate on this champion — {0}% over {1} games"
   },
   "rec": {
     "yourPick": "YOUR PICK",
@@ -431,6 +432,8 @@
     "selected": "Currently in use — click to turn off",
     "sectionTitle": "Champion pool",
     "helpLabel": "How it works",
-    "help": "Champion pools are your own champion sets per role. When a pool is on, Counterplay always highlights the best pick from it against the current enemies — so you can stay on champions you actually play. Duo pools are for you and a friend: when your partner takes a champion from the pool, you get the picks that pair best with it. Add a pool with the + tile, mark the active one by clicking its star, and switch Normal / Pool / Duo on the ready screen."
+    "help": "Champion pools are your own champion sets per role. When a pool is on, Counterplay always highlights the best pick from it against the current enemies — so you can stay on champions you actually play. Duo pools are for you and a friend: when your partner takes a champion from the pool, you get the picks that pair best with it. Add a pool with the + tile, mark the active one by clicking its star, and switch Normal / Pool / Duo on the ready screen.",
+    "wrRanked": "Your ranked win rate (solo/flex): {0}% over {1} games",
+    "wrNormal": "Your normal-game win rate: {0}% over {1} games"
   }
 }

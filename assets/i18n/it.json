@@ -299,7 +299,8 @@
     "baseGood": "Buon WR base {0}%",
     "baseLow": "WR basso {0}% — devi conoscere il campione",
     "baseNeutral": "Scelta neutrale, WR ≈{0}%",
-    "countersMany": "Contrasta {0} campioni mostrati dalla tua squadra"
+    "countersMany": "Contrasta {0} campioni mostrati dalla tua squadra",
+    "personalWr": "Il tuo winrate con questo campione: {0}% su {1} partite"
   },
   "rec": {
     "yourPick": "LA TUA SCELTA",
@@ -429,6 +430,8 @@
     "selected": "In uso ora — clicca per disattivare",
     "sectionTitle": "Pool di campioni",
     "helpLabel": "Come funziona",
-    "help": "I pool di campioni sono i tuoi set di campioni per ruolo. Quando un pool è attivo, Counterplay evidenzia sempre la scelta migliore al suo interno contro i nemici attuali, così resti sui campioni che sai davvero giocare. I pool duo sono per te e un amico: quando il tuo compagno prende un campione dal pool, ottieni le scelte che si abbinano meglio con lui. Aggiungi un pool con la casella +, segna quello attivo cliccando la sua stella e cambia tra Normale / Pool / Duo nella schermata di pronto."
+    "help": "I pool di campioni sono i tuoi set di campioni per ruolo. Quando un pool è attivo, Counterplay evidenzia sempre la scelta migliore al suo interno contro i nemici attuali, così resti sui campioni che sai davvero giocare. I pool duo sono per te e un amico: quando il tuo compagno prende un campione dal pool, ottieni le scelte che si abbinano meglio con lui. Aggiungi un pool con la casella +, segna quello attivo cliccando la sua stella e cambia tra Normale / Pool / Duo nella schermata di pronto.",
+    "wrRanked": "Il tuo winrate in classificata (solo/flex): {0}% su {1} partite",
+    "wrNormal": "Il tuo winrate in normale: {0}% su {1} partite"
   }
 }

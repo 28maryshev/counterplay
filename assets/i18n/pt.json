@@ -161,7 +161,8 @@
     "baseGood": "Bom WR base {0}%",
     "baseLow": "WR baixo {0}% — você precisa dominar o campeão",
     "baseNeutral": "Pick neutro, WR ≈{0}%",
-    "countersMany": "Counter de {0} campeões que seu time mostrou"
+    "countersMany": "Counter de {0} campeões que seu time mostrou",
+    "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas"
   },
   "metric": {
     "base": "Taxa de vitória neste patch",
@@ -429,6 +430,8 @@
     "selected": "Em uso agora — clique para desativar",
     "sectionTitle": "Pool de campeões",
     "helpLabel": "Como funciona",
-    "help": "Os pools de campeões são seus próprios conjuntos de campeões por rota. Quando um pool está ativo, o Counterplay sempre destaca a melhor escolha dele contra os inimigos atuais — assim você joga com campeões que realmente domina. Pools de dupla são para você e um amigo: quando seu parceiro pega um campeão do pool, você recebe as escolhas que melhor combinam com ele. Adicione um pool com o bloco +, marque o ativo clicando na sua estrela e alterne entre Normal / Pool / Dupla na tela de pronto."
+    "help": "Os pools de campeões são seus próprios conjuntos de campeões por rota. Quando um pool está ativo, o Counterplay sempre destaca a melhor escolha dele contra os inimigos atuais — assim você joga com campeões que realmente domina. Pools de dupla são para você e um amigo: quando seu parceiro pega um campeão do pool, você recebe as escolhas que melhor combinam com ele. Adicione um pool com o bloco +, marque o ativo clicando na sua estrela e alterne entre Normal / Pool / Dupla na tela de pronto.",
+    "wrRanked": "Seu winrate na ranqueada (solo/flex): {0}% em {1} partidas",
+    "wrNormal": "Seu winrate em normais: {0}% em {1} partidas"
   }
 }

@@ -383,7 +383,8 @@
     "baseGood": "Buen WR base {0}%",
     "baseLow": "WR bajo {0}% — necesitas dominar al campeón",
     "baseNeutral": "Pick neutral, WR ≈{0}%",
-    "countersMany": "Contrarresta a {0} campeones que mostró tu equipo"
+    "countersMany": "Contrarresta a {0} campeones que mostró tu equipo",
+    "personalWr": "Tu winrate con este campeón: {0}% en {1} partidas"
   },
   "pool": {
     "slotLabel": "Pick de tu pool",
@@ -429,6 +430,8 @@
     "selected": "En uso ahora — haz clic para desactivar",
     "sectionTitle": "Pool de campeones",
     "helpLabel": "Cómo funciona",
-    "help": "Los pools de campeones son tus propios conjuntos de campeones por rol. Cuando un pool está activo, Counterplay siempre resalta la mejor elección de él contra los enemigos actuales, para que juegues con campeones que de verdad dominas. Los pools de dúo son para ti y un amigo: cuando tu compañero elige un campeón del pool, obtienes las selecciones que mejor combinan con él. Añade un pool con la casilla +, marca el activo pulsando su estrella y cambia entre Normal / Pool / Dúo en la pantalla de preparación."
+    "help": "Los pools de campeones son tus propios conjuntos de campeones por rol. Cuando un pool está activo, Counterplay siempre resalta la mejor elección de él contra los enemigos actuales, para que juegues con campeones que de verdad dominas. Los pools de dúo son para ti y un amigo: cuando tu compañero elige un campeón del pool, obtienes las selecciones que mejor combinan con él. Añade un pool con la casilla +, marca el activo pulsando su estrella y cambia entre Normal / Pool / Dúo en la pantalla de preparación.",
+    "wrRanked": "Tu winrate en clasificatoria (solo/flex): {0}% en {1} partidas",
+    "wrNormal": "Tu winrate en normales: {0}% en {1} partidas"
   }
 }

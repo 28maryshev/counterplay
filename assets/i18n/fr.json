@@ -383,7 +383,8 @@
     "baseGood": "Bon WR de base {0}%",
     "baseLow": "WR faible {0}% — il faut maîtriser le champion",
     "baseNeutral": "Pick neutre, WR ≈{0}%",
-    "countersMany": "Contre {0} champions montrés par ton équipe"
+    "countersMany": "Contre {0} champions montrés par ton équipe",
+    "personalWr": "Votre winrate avec ce champion : {0}% sur {1} parties"
   },
   "pool": {
     "slotLabel": "Pick de ton pool",
@@ -429,6 +430,8 @@
     "selected": "Actuellement utilisé — cliquez pour désactiver",
     "sectionTitle": "Pool de champions",
     "helpLabel": "Comment ça marche",
-    "help": "Les pools de champions sont vos propres ensembles de champions par rôle. Quand un pool est actif, Counterplay met toujours en avant le meilleur choix qu'il contient face aux ennemis actuels — pour rester sur des champions que vous jouez vraiment. Les pools duo sont pour vous et un ami : quand votre partenaire prend un champion du pool, vous obtenez les choix qui s'associent le mieux avec lui. Ajoutez un pool avec la tuile +, marquez l'actif en cliquant sur son étoile, et basculez entre Normal / Pool / Duo sur l'écran de préparation."
+    "help": "Les pools de champions sont vos propres ensembles de champions par rôle. Quand un pool est actif, Counterplay met toujours en avant le meilleur choix qu'il contient face aux ennemis actuels — pour rester sur des champions que vous jouez vraiment. Les pools duo sont pour vous et un ami : quand votre partenaire prend un champion du pool, vous obtenez les choix qui s'associent le mieux avec lui. Ajoutez un pool avec la tuile +, marquez l'actif en cliquant sur son étoile, et basculez entre Normal / Pool / Duo sur l'écran de préparation.",
+    "wrRanked": "Votre winrate en classée (solo/flex) : {0}% sur {1} parties",
+    "wrNormal": "Votre winrate en normale : {0}% sur {1} parties"
   }
 }

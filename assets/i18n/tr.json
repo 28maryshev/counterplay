@@ -383,7 +383,8 @@
     "baseGood": "İyi temel WR %{0}",
     "baseLow": "Düşük WR %{0} — şampiyonu bilmen gerekiyor",
     "baseNeutral": "Nötr seçim, WR ≈%{0}",
-    "countersMany": "Takımının gösterdiği {0} şampiyonu kontrluyor"
+    "countersMany": "Takımının gösterdiği {0} şampiyonu kontrluyor",
+    "personalWr": "Bu şampiyonla kazanma oranın — {1} maçta %{0}"
   },
   "pool": {
     "slotLabel": "Havuzundan seçim",
@@ -429,6 +430,8 @@
     "selected": "Şu anda kullanımda — kapatmak için tıkla",
     "sectionTitle": "Şampiyon havuzu",
     "helpLabel": "Nasıl çalışır",
-    "help": "Şampiyon havuzları, her rol için kendi şampiyon setlerindir. Bir havuz açıkken Counterplay, mevcut düşmanlara karşı içindeki en iyi seçimi her zaman öne çıkarır — böylece gerçekten oynadığın şampiyonlarda kalırsın. Düo havuzları sen ve bir arkadaşın içindir: partnerin havuzdan bir şampiyon aldığında, onunla en iyi eşleşen seçimleri alırsın. + karesiyle havuz ekle, yıldızına tıklayarak aktif olanı işaretle ve hazır ekranında Normal / Havuz / Düo arasında geçiş yap."
+    "help": "Şampiyon havuzları, her rol için kendi şampiyon setlerindir. Bir havuz açıkken Counterplay, mevcut düşmanlara karşı içindeki en iyi seçimi her zaman öne çıkarır — böylece gerçekten oynadığın şampiyonlarda kalırsın. Düo havuzları sen ve bir arkadaşın içindir: partnerin havuzdan bir şampiyon aldığında, onunla en iyi eşleşen seçimleri alırsın. + karesiyle havuz ekle, yıldızına tıklayarak aktif olanı işaretle ve hazır ekranında Normal / Havuz / Düo arasında geçiş yap.",
+    "wrRanked": "Dereceli kazanma oranın (solo/esnek): {1} maçta %{0}",
+    "wrNormal": "Normal maç kazanma oranın: {1} maçta %{0}"
   }
 }

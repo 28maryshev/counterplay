@@ -299,7 +299,8 @@
     "baseGood": "Dobry bazowy WR {0}%",
     "baseLow": "Niski WR {0}% — musisz znać postać",
     "baseNeutral": "Neutralny pick, WR ≈{0}%",
-    "countersMany": "Kontruje {0} czempionów pokazanych przez twoją drużynę"
+    "countersMany": "Kontruje {0} czempionów pokazanych przez twoją drużynę",
+    "personalWr": "Twój winrate na tym bohaterze — {0}% z {1} gier"
   },
   "rec": {
     "yourPick": "TWÓJ PICK",
@@ -429,6 +430,8 @@
     "selected": "Aktualnie używana — kliknij, aby wyłączyć",
     "sectionTitle": "Pula bohaterów",
     "helpLabel": "Jak to działa",
-    "help": "Pule bohaterów to twoje własne zestawy bohaterów na każdą rolę. Gdy pula jest aktywna, Counterplay zawsze wyróżnia z niej najlepszy wybór przeciw obecnym przeciwnikom — dzięki temu grasz bohaterami, których naprawdę znasz. Pule duo są dla ciebie i znajomego: gdy partner weźmie bohatera z puli, dostajesz wybory, które najlepiej z nim współgrają. Dodaj pulę kafelkiem +, oznacz aktywną klikając jej gwiazdkę i przełączaj Normalny / Pula / Duo na ekranie gotowości."
+    "help": "Pule bohaterów to twoje własne zestawy bohaterów na każdą rolę. Gdy pula jest aktywna, Counterplay zawsze wyróżnia z niej najlepszy wybór przeciw obecnym przeciwnikom — dzięki temu grasz bohaterami, których naprawdę znasz. Pule duo są dla ciebie i znajomego: gdy partner weźmie bohatera z puli, dostajesz wybory, które najlepiej z nim współgrają. Dodaj pulę kafelkiem +, oznacz aktywną klikając jej gwiazdkę i przełączaj Normalny / Pula / Duo na ekranie gotowości.",
+    "wrRanked": "Twój winrate w rankedzie (solo/flex): {0}% z {1} gier",
+    "wrNormal": "Twój winrate w normalach: {0}% z {1} gier"
   }
 }

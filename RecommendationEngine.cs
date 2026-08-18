@@ -61,6 +61,16 @@ public sealed class RecommendationEngine : IDisposable
     // уплифт дуо по данным ~+2.5% винрейта). 2.0 ≈ 1.7× от W_SYNERGY.
     private const double W_DUOSYN = 2.0;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
+    // Личный винрейт игрока на чемпионе (соло+флекс+нормалы, ARAM не в счёт).
+    // Вес небольшой и намеренно ниже мета-факторов: это подсказка «у тебя на нём
+    // идёт», а не повод пикать слабого чемпиона. Малые выборки гасятся сильным
+    // сглаживанием (K_PERSONAL) и темпером по объёму (PERSONAL_CONF).
+    private const double W_PERSONAL = 0.5;
+    private const double K_PERSONAL = 12.0;  // Лаплас: 3 игры подряд ≠ 100% винрейт
+    private const double PERSONAL_CONF = 15.0;
+    // Потолок личной дельты. Без него 70% на 50 играх давали бы ~+9 — больше, чем
+    // прямой контрпик, и подбор превращался бы в «играй что привык».
+    private const double PERSONAL_CAP = 6.0;
     private const double W_NEUTRAL  = 1.0; // нейтральный пик при неопределённости
     private const double W_TRIFECTA = 0.8; //архетип-контра (камень-ножницы-бумага)
     private const double W_STYLE    = 0.6; // анти-стиль: инструменты против компы врага
@@ -599,13 +609,26 @@ public sealed class RecommendationEngine : IDisposable
                 else if (botlaneDelta <= -1.2)
                     draftReasons.Add(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId)));
 
+                var personalDelta = PersonalDelta(champId);   // «у меня на нём идёт»
+
                 var score   = W_BASE * baseDelta + wDirect * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + wBotlane * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta;
-                var reasons = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
-                                           otherDelta, otherByEnemy, baseDelta, comfortDelta)
-                                .Concat(draftReasons).ToArray();
+                            + wBotlane * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta
+                            + W_PERSONAL * personalDelta;
+                var reasonList = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
+                                              otherDelta, otherByEnemy, baseDelta, comfortDelta)
+                                   .Concat(draftReasons).ToList();
+                // Личный винрейт показываем только когда он заметен — иначе строка
+                // «твой винрейт» висела бы у каждого второго кандидата.
+                if (personalDelta >= 1.5)
+                {
+                    var (pg, pw) = SessionTracker.ChampStats(
+                        champId, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+                    if (pg > 0)
+                        reasonList.Add(Loc.T("reason.personalWr", $"{100.0 * pw / pg:F0}", pg));
+                }
+                var reasons = reasonList.ToArray();
                 return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, styleScore, reasons);
             })
             .OrderByDescending(r => r.Score)
@@ -1159,6 +1182,18 @@ public sealed class RecommendationEngine : IDisposable
     }
 
     private readonly Dictionary<int, string> _roleCache = new();
+
+    /// Личный винрейт игрока на чемпионе как дельта к 50%: «у меня на нём идёт».
+    /// Считается по своим играм (соло+флекс+нормалы, ARAM не берём), сглажен по
+    /// Лапласу и притушен по объёму — 2 победы подряд не дают +50.
+    public double PersonalDelta(int champId)
+    {
+        var (g, w) = SessionTracker.ChampStats(
+            champId, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        if (g <= 0) return 0.0;
+        var d = Delta(g, w, K_PERSONAL) * (g / (g + PERSONAL_CONF));
+        return Math.Clamp(d, -PERSONAL_CAP, PERSONAL_CAP);
+    }
 
     // Самая частая роль чемпиона по числу игр (base_wr), с кэшем.
     // Публична: настройки пула дефолтят роль чемпиона при выборе в связку.

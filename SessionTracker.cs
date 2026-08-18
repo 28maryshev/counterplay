@@ -119,6 +119,57 @@ public static class SessionTracker
     // параллельные вызовы гонялись на файле журнала (затирали его пустым).
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
+    // ── Личная статистика по чемпионам ───────────────────────────────────────
+    // Группы очередей для «моего винрейта»: ранкед = соло+флекс, обычные =
+    // нормалы. ARAM намеренно не входит — там пик случайный и WR ни о чём не
+    // говорит.
+    public static readonly string[] QueuesRanked = ["solo", "flex"];
+    public static readonly string[] QueuesNormal = ["normal"];
+
+    // Журнал лежит в файле; для пула его читают по десяткам чемпионов сразу,
+    // поэтому карту держим в коротком кэше.
+    private static readonly Dictionary<string, (DateTime At, Dictionary<int, (int G, int W)> Map)> StatsCache = new();
+
+    /// Личная статистика игрока по чемпионам в указанных очередях: id → (игры, победы).
+    /// Берётся аккаунт, которым играли последним.
+    public static IReadOnlyDictionary<int, (int Games, int Wins)> ChampStatsMap(params string[] queues)
+    {
+        var key = string.Join(",", queues);
+        lock (StatsCache)
+        {
+            if (StatsCache.TryGetValue(key, out var c) && (DateTime.UtcNow - c.At).TotalSeconds < 20)
+                return c.Map.ToDictionary(kv => kv.Key, kv => (kv.Value.G, kv.Value.W));
+        }
+
+        var map = new Dictionary<int, (int G, int W)>();
+        try
+        {
+            var s = Load();
+            var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
+                ? a : s.Accounts.Values.FirstOrDefault();
+            if (acc != null)
+                foreach (var q in queues)
+                    if (acc.Queues.TryGetValue(q, out var ql))
+                        foreach (var g in ql.Games)
+                        {
+                            if (g.ChampionId == 0) continue;
+                            var cur = map.GetValueOrDefault(g.ChampionId);
+                            map[g.ChampionId] = (cur.G + 1, cur.W + (g.Win ? 1 : 0));
+                        }
+        }
+        catch { /* журнала нет или он битый — считаем, что статистики нет */ }
+
+        lock (StatsCache) StatsCache[key] = (DateTime.UtcNow, map);
+        return map.ToDictionary(kv => kv.Key, kv => (kv.Value.G, kv.Value.W));
+    }
+
+    /// Личная статистика по одному чемпиону в указанных очередях.
+    public static (int Games, int Wins) ChampStats(int championId, params string[] queues)
+    {
+        var m = ChampStatsMap(queues);
+        return m.TryGetValue(championId, out var v) ? v : (0, 0);
+    }
+
     private static Store Load()
     {
         // Основной файл, затем резервная копия — журнал не теряется из-за

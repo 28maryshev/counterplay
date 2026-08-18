@@ -698,7 +698,7 @@ sealed class PoolEditorWindow : Window
         {
             chips.Children.Clear();
             foreach (var id in list.ToList())
-                chips.Children.Add(ChampIcon(id, () => { list.Remove(id); _dirty = true; RefreshChips(); }));
+                chips.Children.Add(ChampWithWr(id, () => { list.Remove(id); _dirty = true; RefreshChips(); }));
             // Квадратная «+» того же размера, что иконка — не пропадает.
             chips.Children.Add(PlusChamp(() =>
             {
@@ -709,6 +709,41 @@ sealed class PoolEditorWindow : Window
         }
         RefreshChips();
         return row;
+    }
+
+    // Иконка чемпиона + МОЙ винрейт на нём: ранкед (соло+флекс) и нормалы.
+    // ARAM не считаем — там пик случайный. Нет своих игр — строка не рисуется.
+    private static FrameworkElement ChampWithWr(int id, Action remove)
+    {
+        var wrap = new StackPanel { Margin = new Thickness(0, 0, 5, 5) };
+        wrap.Children.Add(ChampIcon(id, remove, 48, new Thickness(0)));
+
+        var (rg, rw) = SessionTracker.ChampStats(id, SessionTracker.QueuesRanked);
+        var (ng, nw) = SessionTracker.ChampStats(id, SessionTracker.QueuesNormal);
+        if (rg + ng == 0) return wrap;
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center };
+        if (rg > 0) row.Children.Add(WrChip("R", rw, rg));
+        if (ng > 0) row.Children.Add(WrChip("N", nw, ng));
+        wrap.Children.Add(row);
+        return wrap;
+    }
+
+    // «R 57%» / «N 62%» — буква очереди + винрейт, цвет по значению, игры в тултипе.
+    private static FrameworkElement WrChip(string tag, int wins, int games)
+    {
+        var wr  = 100.0 * wins / games;
+        var col = games < 5              ? Color.FromRgb(0x8A, 0xA0, 0xB2)   // мало игр — нейтрально
+                : wr >= 55.0             ? Color.FromRgb(0x5A, 0xC0, 0x8A)
+                : wr >= 48.0             ? Color.FromRgb(0xC9, 0xD2, 0xDC)
+                                         : Color.FromRgb(0xE0, 0x70, 0x70);
+        return new TextBlock
+        {
+            Text = $"{tag} {wr:F0}%", FontSize = 9, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(col), Margin = new Thickness(0, 0, 4, 0),
+            ToolTip = Loc.T(tag == "R" ? "pool.wrRanked" : "pool.wrNormal", $"{wr:F1}", games)
+        };
     }
 
     private static FrameworkElement ChampIcon(int id, Action remove, double size = 48, Thickness? margin = null)
