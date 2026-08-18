@@ -433,7 +433,7 @@
     "help": "Şampiyon havuzları, her rol için kendi şampiyon setlerindir. Bir havuz açıkken Counterplay, mevcut düşmanlara karşı içindeki en iyi seçimi her zaman öne çıkarır — böylece gerçekten oynadığın şampiyonlarda kalırsın. Düo havuzları sen ve bir arkadaşın içindir: partnerin havuzdan bir şampiyon aldığında, onunla en iyi eşleşen seçimleri alırsın. + karesiyle havuz ekle, yıldızına tıklayarak aktif olanı işaretle ve hazır ekranında Normal / Havuz / Düo arasında geçiş yap.",
     "wrRanked": "Dereceli kazanma oranın (solo/esnek): {1} maçta %{0}",
     "wrNormal": "Normal maç kazanma oranın: {1} maçta %{0}",
-    "myWinrates": "Şampiyon bazında kazanma oranın",
+    "myWinrates": "Şampiyon bazında kazanma oranın · son {0} gün",
     "myWinratesEmpty": "Henüz kayıtlı maç yok — Counterplay açıkken oyna, kazanma oranların burada görünecek."
   }
 }

@@ -433,7 +433,7 @@
     "help": "I pool di campioni sono i tuoi set di campioni per ruolo. Quando un pool è attivo, Counterplay evidenzia sempre la scelta migliore al suo interno contro i nemici attuali, così resti sui campioni che sai davvero giocare. I pool duo sono per te e un amico: quando il tuo compagno prende un campione dal pool, ottieni le scelte che si abbinano meglio con lui. Aggiungi un pool con la casella +, segna quello attivo cliccando la sua stella e cambia tra Normale / Pool / Duo nella schermata di pronto.",
     "wrRanked": "Il tuo winrate in classificata (solo/flex): {0}% su {1} partite",
     "wrNormal": "Il tuo winrate in normale: {0}% su {1} partite",
-    "myWinrates": "Il tuo winrate per campione",
+    "myWinrates": "Il tuo winrate per campione · ultimi {0} giorni",
     "myWinratesEmpty": "Ancora nessuna partita: gioca con Counterplay avviato e qui compariranno i tuoi winrate."
   }
 }

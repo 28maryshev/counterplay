@@ -130,11 +130,20 @@ public static class SessionTracker
     // поэтому карту держим в коротком кэше.
     private static readonly Dictionary<string, (DateTime At, Dictionary<int, (int G, int W)> Map)> StatsCache = new();
 
-    /// Личная статистика игрока по чемпионам в указанных очередях: id → (игры, победы).
-    /// Берётся аккаунт, которым играли последним.
+    /// Окно «свежей формы». Журнал держится за весь сезон, но для подбора важно,
+    /// как человек играет СЕЙЧАС: 600 игр с 50% за сезон не говорят ни о чём, а
+    /// 30 игр с 60% за месяц — говорят.
+    public const int RecentDays = 30;
+
+    /// Личная статистика по чемпионам за последние RecentDays дней.
     public static IReadOnlyDictionary<int, (int Games, int Wins)> ChampStatsMap(params string[] queues)
+        => ChampStatsMap(RecentDays, queues);
+
+    /// То же с явным окном в днях (0 или меньше — за всё время).
+    public static IReadOnlyDictionary<int, (int Games, int Wins)> ChampStatsMap(int days, params string[] queues)
     {
-        var key = string.Join(",", queues);
+        var since = days > 0 ? DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds() : 0;
+        var key = days + "|" + string.Join(",", queues);
         lock (StatsCache)
         {
             if (StatsCache.TryGetValue(key, out var c) && (DateTime.UtcNow - c.At).TotalSeconds < 20)
@@ -153,6 +162,7 @@ public static class SessionTracker
                         foreach (var g in ql.Games)
                         {
                             if (g.ChampionId == 0) continue;
+                            if (since > 0 && g.Ts > 0 && g.Ts < since) continue;   // вне окна
                             var cur = map.GetValueOrDefault(g.ChampionId);
                             map[g.ChampionId] = (cur.G + 1, cur.W + (g.Win ? 1 : 0));
                         }
@@ -163,7 +173,7 @@ public static class SessionTracker
         return map.ToDictionary(kv => kv.Key, kv => (kv.Value.G, kv.Value.W));
     }
 
-    /// Личная статистика по одному чемпиону в указанных очередях.
+    /// Личная статистика по одному чемпиону за последние RecentDays дней.
     public static (int Games, int Wins) ChampStats(int championId, params string[] queues)
     {
         var m = ChampStatsMap(queues);

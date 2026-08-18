@@ -103,7 +103,7 @@ sealed class PoolSettingsWindow : Window
 
         _wrStrip.Children.Add(new TextBlock
         {
-            Text = Loc.T("pool.myWinrates"),
+            Text = Loc.T("pool.myWinrates", SessionTracker.RecentDays),
             Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
             FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6)
         });
@@ -122,10 +122,7 @@ sealed class PoolSettingsWindow : Window
         var row = new WrapPanel();
         foreach (var id in ids)
         {
-            var (rg, rw) = ranked.GetValueOrDefault(id);
-            var (ng, nw) = normal.GetValueOrDefault(id);
-
-            var cell = new StackPanel { Margin = new Thickness(0, 0, 8, 6), Width = 46 };
+            var cell = new StackPanel { Margin = new Thickness(0, 0, 8, 6), Width = 58 };
             if (IconCache.Get(id) is { } src)
                 cell.Children.Add(new Border
                 {
@@ -134,10 +131,11 @@ sealed class PoolSettingsWindow : Window
                     ToolTip = DataDragon.Name(id),
                     Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
                 });
-            var wrs = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) };
-            if (rg > 0) wrs.Children.Add(PoolEditorWindow.WrChip("R", rw, rg));
-            if (ng > 0) wrs.Children.Add(PoolEditorWindow.WrChip("N", nw, ng));
-            cell.Children.Add(wrs);
+            if (PoolEditorWindow.WrChip(id) is { } chip)
+            {
+                chip.Margin = new Thickness(0, 2, 0, 0);
+                cell.Children.Add(chip);
+            }
             row.Children.Add(cell);
         }
         _wrStrip.Children.Add(new ScrollViewer
@@ -792,28 +790,37 @@ sealed class PoolEditorWindow : Window
         var wrap = new StackPanel { Margin = new Thickness(0, 0, 5, 5) };
         wrap.Children.Add(ChampIcon(id, remove, 48, new Thickness(0)));
 
-        var (rg, rw) = SessionTracker.ChampStats(id, SessionTracker.QueuesRanked);
-        var (ng, nw) = SessionTracker.ChampStats(id, SessionTracker.QueuesNormal);
-        if (rg + ng == 0) return wrap;
-
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Center };
-        if (rg > 0) row.Children.Add(WrChip("R", rw, rg));
-        if (ng > 0) row.Children.Add(WrChip("N", nw, ng));
-        wrap.Children.Add(row);
+        if (WrChip(id) is { } chip)
+        {
+            chip.Margin = new Thickness(0, 2, 0, 0);
+            wrap.Children.Add(chip);
+        }
         return wrap;
     }
 
-    // «R 57%» / «N 62%» — буква очереди + винрейт, цвет по значению, игры в тултипе.
-    internal static FrameworkElement WrChip(string tag, int wins, int games)
+    /// Винрейт чемпиона одной цифрой — ранкед и нормалы ВМЕСТЕ (так виднее общая
+    /// форма), а разбивка по очередям показывается при наведении.
+    /// Возвращает null, если своих игр на чемпионе нет.
+    internal static FrameworkElement? WrChip(int championId)
     {
-        var wr = 100.0 * wins / games;
+        var (rg, rw) = SessionTracker.ChampStats(championId, SessionTracker.QueuesRanked);
+        var (ng, nw) = SessionTracker.ChampStats(championId, SessionTracker.QueuesNormal);
+        var games = rg + ng;
+        if (games == 0) return null;
+
+        var wr = 100.0 * (rw + nw) / games;
+        var tip = new List<string>();
+        if (rg > 0) tip.Add(Loc.T("pool.wrRanked", $"{100.0 * rw / rg:F1}", rg));
+        if (ng > 0) tip.Add(Loc.T("pool.wrNormal", $"{100.0 * nw / ng:F1}", ng));
+
         return new TextBlock
         {
-            Text = $"{tag} {wr:F0}%", FontSize = 9, FontWeight = FontWeights.Bold,
+            // «57% / 12» — винрейт и через слэш число сыгранных игр за окно.
+            Text = $"{wr:F0}% / {games}", FontSize = 10, FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
             // Общая шкала винрейта (WinrateColor); на 1–4 играх — нейтральный серый.
-            Foreground = WinrateColor.BrushForSample(wr, games), Margin = new Thickness(0, 0, 4, 0),
-            ToolTip = Loc.T(tag == "R" ? "pool.wrRanked" : "pool.wrNormal", $"{wr:F1}", games)
+            Foreground = WinrateColor.BrushForSample(wr, games),
+            ToolTip = string.Join(Environment.NewLine, tip)
         };
     }
 
