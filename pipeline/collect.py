@@ -806,6 +806,10 @@ def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
 # доля новых упала ниже SATURATION (бакет вычерпан) — переключаемся дальше.
 import collections as _collections
 
+# Как часто сбрасывать WAL в основную базу (в новых матчах). Реже — WAL пухнет,
+# чаще — лишние паузы на запись.
+CHECKPOINT_EVERY = 500
+
 SAT_WINDOW = 250
 SAT_MIN_NEW = 12  # < ~5% новых на окне → считаем бакет исчерпанным
 
@@ -851,6 +855,16 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
             recent.append(1)
             if collected % 10 == 0:
                 print(f'    +{collected} (всего в базе: {db_total(con)})', flush=True)
+            # WAL при непрерывной записи растёт, пока его не сбросят в базу; у нас
+            # он доходил до 1.7 ГБ и съедал диск. Периодически сбрасываем и УСЕКАЕМ
+            # файл. Если базу в этот момент кто-то читает (экспорт/публикация),
+            # SQLite откажет — не страшно, получится в следующий раз.
+            if collected % CHECKPOINT_EVERY == 0:
+                with DB_LOCK:
+                    try:
+                        con.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+                    except Exception:
+                        pass
             if cap and session_total + collected >= cap:
                 print(f'  Достигнут общий лимит {cap}.', flush=True)
                 return collected
@@ -949,7 +963,8 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
         print(f'\n[диск] {e} — останавливаюсь и сохраняю собранное…', flush=True)
 
     # Сбрасываем WAL в основной файл — иначе C# в ReadOnly не увидит данные.
-    con.execute('PRAGMA wal_checkpoint(FULL)')
+    # TRUNCATE (а не FULL): помимо сброса ещё и обнуляет файл WAL, освобождая диск.
+    con.execute('PRAGMA wal_checkpoint(TRUNCATE)')
     final = db_total(con)
     con.close()
 
