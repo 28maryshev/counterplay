@@ -108,6 +108,10 @@ public sealed class RecommendationEngine : IDisposable
     // нелинейно — бан, который бьёт троих, ценнее полутора банов против одного:
     // перепикнуть одного легко, а сразу нескольких — нет.
     private const double W_BAN_BREADTH = 2.2;
+    // «Угроза для всей команды»: чемпион, который стабильно обыгрывает НАШИХ
+    // вообще — не обязательно будучи топ-контрой кого-то одного. Такой бан
+    // закрывает проблему всей команде, поэтому вес заметный.
+    private const double W_BAN_TEAM = 2.4;
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -1007,6 +1011,18 @@ public sealed class RecommendationEngine : IDisposable
                 }
             }
 
+        // Угроза для всей команды: чемпион, который обыгрывает НАШИХ вообще, даже
+        // не будучи чьей-то персональной топ-контрой. Считаем по всем показанным
+        // пикам сразу — один бан снимает проблему всей команде.
+        var teamPicks = protectees.Select(p => p.Id).Distinct().ToList();
+        foreach (var (c, (threat, covered)) in TeamThreats(teamPicks))
+        {
+            if (taken.Contains(c)) continue;
+            scores[c] = scores.GetValueOrDefault(c) + W_BAN_TEAM * threat;
+            if (threat >= 0.5)
+                AddReason(c, Loc.T("reason.teamThreat", covered));
+        }
+
         // Бонус за ширину: кандидат, контрящий 2+ РАЗНЫХ наших чемпионов,
         // отсекает сразу несколько вариантов пула — именно его стоит банить.
         foreach (var (c, vs) in victimsOf)
@@ -1563,6 +1579,57 @@ public sealed class RecommendationEngine : IDisposable
 
     // (champion_id, games, wins) → ранг по нижней границе Уилсона. minEdge отсекает
     // «неуверенные» пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
+    /// «Кто бьёт нашу команду в целом»: для каждого чемпиона — насколько он играет
+    /// против НАШИХ лучше, чем против всех подряд, и скольких наших это покрывает.
+    /// Отличается от списка контрпиков конкретного игрока: чемпион может не быть
+    /// топ-контрой ни для кого по отдельности, но стабильно обыгрывать всю
+    /// команду — такой бан помогает всем сразу.
+    private Dictionary<int, (double Threat, int Covered)> TeamThreats(IReadOnlyCollection<int> allyIds)
+    {
+        var res = new Dictionary<int, (double, int)>();
+        if (allyIds.Count < 2) return res;   // «командная» угроза начинается с двоих
+        try
+        {
+            var ids = string.Join(",", allyIds.Where(x => x > 0));
+            if (ids.Length == 0) return res;
+
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = $@"
+                SELECT champion_id,
+                       COUNT(DISTINCT vs_champion_id) AS n,
+                       SUM(games*{PW}) AS g,
+                       SUM(wins*{PW})  AS w
+                FROM   matchup
+                WHERE  vs_champion_id IN ({ids}) AND patch IN (@p1, @p2, @p3)
+                GROUP  BY champion_id
+                HAVING n >= 2 AND g >= 150";
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                var id = rd.GetInt32(0);
+                var n  = rd.GetInt32(1);
+                var g  = Convert.ToDouble(rd.GetValue(2));
+                var w  = Convert.ToDouble(rd.GetValue(3));
+
+                // Чистая угроза: WR против наших минус собственный средний WR —
+                // иначе наверх лезли бы просто сильные чемпионы патча.
+                var (bg, bw) = RawBaseAny(id);
+                if (bg <= 0) continue;
+                var threat = (Delta(g, w, K_PAIR) - Delta(bg, bw, K)) * (g / (g + MATCHUP_CONF));
+                if (threat <= 0) continue;
+
+                // Масштабируем по охвату: бьёт троих — весомее, чем двоих.
+                res[id] = (threat * n / allyIds.Count, n);
+            }
+        }
+        catch { /* нет данных — фактор молчит */ }
+        return res;
+    }
+
     private static List<int> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE)
     {
         var scored = new List<(int Id, double Lb)>();

@@ -300,7 +300,8 @@
     "baseGood": "WR cơ bản tốt {0}%",
     "baseLow": "WR thấp {0}% — bạn cần thạo tướng này",
     "baseNeutral": "Lựa chọn trung lập, WR ≈{0}%",
-    "personalWr": "Tỉ lệ thắng của bạn với tướng này — {0}% qua {1} trận"
+    "personalWr": "Tỉ lệ thắng của bạn với tướng này — {0}% qua {1} trận",
+    "teamThreat": "Thắng đội bạn nói chung — mạnh trước {0} lựa chọn của bạn"
   },
   "rec": {
     "yourPick": "LỰA CHỌN CỦA BẠN",

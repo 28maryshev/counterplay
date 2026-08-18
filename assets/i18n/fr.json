@@ -384,7 +384,8 @@
     "baseLow": "WR faible {0}% — il faut maîtriser le champion",
     "baseNeutral": "Pick neutre, WR ≈{0}%",
     "countersMany": "Contre vos {0}",
-    "personalWr": "Votre winrate avec ce champion : {0}% sur {1} parties"
+    "personalWr": "Votre winrate avec ce champion : {0}% sur {1} parties",
+    "teamThreat": "Bat votre équipe en général — fort contre {0} de vos picks"
   },
   "pool": {
     "slotLabel": "Pick de ton pool",

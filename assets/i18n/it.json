@@ -300,7 +300,8 @@
     "baseLow": "WR basso {0}% — devi conoscere il campione",
     "baseNeutral": "Scelta neutrale, WR ≈{0}%",
     "countersMany": "Contrasta i vostri: {0}",
-    "personalWr": "Il tuo winrate con questo campione: {0}% su {1} partite"
+    "personalWr": "Il tuo winrate con questo campione: {0}% su {1} partite",
+    "teamThreat": "Batte la tua squadra in generale: forte contro {0} dei vostri pick"
   },
   "rec": {
     "yourPick": "LA TUA SCELTA",

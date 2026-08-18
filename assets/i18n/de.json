@@ -162,7 +162,8 @@
     "baseLow": "Niedriger WR {0}% — du musst den Champion beherrschen",
     "baseNeutral": "Neutraler Pick, WR ≈{0}%",
     "countersMany": "Kontert eure {0}",
-    "personalWr": "Deine Winrate mit diesem Champion — {0}% über {1} Spiele"
+    "personalWr": "Deine Winrate mit diesem Champion — {0}% über {1} Spiele",
+    "teamThreat": "Schlägt euer Team generell — stark gegen {0} eurer Picks"
   },
   "metric": {
     "base": "Winrate in diesem Patch",

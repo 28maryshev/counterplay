@@ -162,7 +162,8 @@
     "baseLow": "WR baixo {0}% — você precisa dominar o campeão",
     "baseNeutral": "Pick neutro, WR ≈{0}%",
     "countersMany": "Counter dos seus: {0}",
-    "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas"
+    "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas",
+    "teamThreat": "Vence seu time no geral — forte contra {0} das suas escolhas"
   },
   "metric": {
     "base": "Taxa de vitória neste patch",

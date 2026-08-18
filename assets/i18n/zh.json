@@ -300,7 +300,8 @@
     "countersMyPick": "克制你的选择 {0}",
     "womboAoe": "你的 AoE 大招与队伍的团战连招叠加——一次抱团开战就能团灭他们。",
     "countersMany": "克制你方：{0}",
-    "personalWr": "你使用该英雄的胜率 — {1} 场 {0}%"
+    "personalWr": "你使用该英雄的胜率 — {1} 场 {0}%",
+    "teamThreat": "整体压制你方——克制你方 {0} 个选择"
   },
   "rec": {
     "yourPick": "你的选择",
