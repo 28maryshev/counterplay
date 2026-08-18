@@ -128,6 +128,26 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (champion_id, role, tier_bucket, patch)
         );
 
+        -- Где остановился обход лиг: следующий круг начинаем ОТСЮДА, а не с
+        -- первой страницы. Иначе каждый ключ обходит одних и тех же игроков,
+        -- чьи матчи уже собраны, и улов падает почти до нуля.
+        CREATE TABLE IF NOT EXISTS collect_cursor (
+            region     TEXT,
+            bucket     TEXT,
+            tier       TEXT,
+            division   TEXT,
+            page       INTEGER,
+            updated_at INTEGER,
+            PRIMARY KEY (region, bucket)
+        );
+
+        -- Недавно обойдённые игроки: их матчлист уже прочитан, повторно трогать
+        -- смысла нет — экономим запросы на действительно новых.
+        CREATE TABLE IF NOT EXISTS seen_players (
+            puuid TEXT PRIMARY KEY,
+            ts    INTEGER
+        );
+
         -- Баланс урона по чемпиону: сумма урона ПО ЧЕМПИОНАМ, разбитая по типам.
         -- Даёт реальные доли физ/маг/чистого вместо оценок «на глаз».
         CREATE TABLE IF NOT EXISTS champion_damage (
@@ -672,7 +692,46 @@ def api_call(fn, *args, **kwargs):
 
 # ---------- Перебор игроков бакета ----------
 
-def iter_players(watcher, platform: str, bucket: str, seen: set):
+# Сколько дней не трогаем уже обойдённого игрока (его матчлист свежий).
+RECENT_PLAYER_DAYS = 3
+
+
+def _cursor_get(con, platform: str, bucket: str):
+    with DB_LOCK:
+        return con.execute(
+            'SELECT tier, division, page FROM collect_cursor WHERE region=? AND bucket=?',
+            (platform, bucket)).fetchone()
+
+
+def _cursor_set(con, platform: str, bucket: str, tier: str, division: str, page: int):
+    with DB_LOCK:
+        con.execute(
+            """INSERT INTO collect_cursor (region, bucket, tier, division, page, updated_at)
+               VALUES (?,?,?,?,?,strftime('%s','now'))
+               ON CONFLICT(region, bucket) DO UPDATE SET
+                   tier=excluded.tier, division=excluded.division,
+                   page=excluded.page, updated_at=excluded.updated_at""",
+            (platform, bucket, tier, division, page))
+        con.commit()
+
+
+def _recently_seen(con, puuid: str) -> bool:
+    with DB_LOCK:
+        r = con.execute(
+            "SELECT 1 FROM seen_players WHERE puuid=? AND ts > strftime('%s','now') - ?",
+            (puuid, RECENT_PLAYER_DAYS * 86400)).fetchone()
+    return r is not None
+
+
+def mark_player_seen(con, puuid: str):
+    with DB_LOCK:
+        con.execute(
+            """INSERT INTO seen_players (puuid, ts) VALUES (?, strftime('%s','now'))
+               ON CONFLICT(puuid) DO UPDATE SET ts=excluded.ts""", (puuid,))
+        con.commit()
+
+
+def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
     """Бесконечно (пока есть страницы) выдаёт НОВЫЕ puuid игроков бакета.
     Для апекса (master/GM/challenger) — отдельные эндпоинты, для остальных —
     постраничный entries по дивизионам. Когда страницы кончились — добираем
@@ -692,12 +751,26 @@ def iter_players(watcher, platform: str, bucket: str, seen: set):
                     puuid = summ['puuid'] if summ else None
                 if puuid and puuid not in seen:
                     seen.add(puuid)
+                    if con is not None and _recently_seen(con, puuid):
+                        continue          # матчлист уже читали недавно
                     yield puuid
         return
 
-    # Обычные тиры: листаем страницы дивизиона, пока не опустеют.
-    for tier, division in TIER_BUCKETS[bucket]:
-        page = 1
+    # Обычные тиры: листаем страницы дивизиона, пока не опустеют. Стартуем С
+    # СОХРАНЁННОЙ ПОЗИЦИИ и идём по кругу — так каждый новый ключ берёт следующих
+    # игроков, а не перечитывает первые страницы, уже собранные прошлым кругом.
+    pairs = TIER_BUCKETS[bucket]
+    start_i, start_page = 0, 1
+    cur = _cursor_get(con, platform, bucket) if con is not None else None
+    if cur:
+        t, d, pg = cur
+        if (t, d) in pairs:
+            start_i = pairs.index((t, d))
+            start_page = max(1, int(pg or 1))
+
+    for k in range(len(pairs)):
+        tier, division = pairs[(start_i + k) % len(pairs)]
+        page = start_page if k == 0 else 1
         while True:
             entries = api_call(
                 watcher.league.entries,
@@ -706,6 +779,10 @@ def iter_players(watcher, platform: str, bucket: str, seen: set):
             if not entries:
                 break  # дивизион исчерпан — к следующему
             page += 1
+            # Позицию двигаем сразу: даже если круг прервётся (ключ/диск),
+            # следующий запуск продолжит отсюда.
+            if con is not None:
+                _cursor_set(con, platform, bucket, tier, division, page)
             for entry in entries:
                 puuid = entry.get('puuid')
                 if not puuid and entry.get('summonerId'):
@@ -713,7 +790,14 @@ def iter_players(watcher, platform: str, bucket: str, seen: set):
                     puuid = summ['puuid'] if summ else None
                 if puuid and puuid not in seen:
                     seen.add(puuid)
+                    if con is not None and _recently_seen(con, puuid):
+                        continue          # матчлист уже читали недавно
                     yield puuid
+
+    # Полный круг по дивизионам пройден — начинаем сначала (данные к этому
+    # моменту успевают обновиться).
+    if con is not None and pairs:
+        _cursor_set(con, platform, bucket, pairs[0][0], pairs[0][1], 1)
 
 
 # ---------- Сбор одного бакета ----------
@@ -742,7 +826,7 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
     collected = 0
     players = 0
 
-    for puuid in iter_players(watcher, platform, bucket, seen):
+    for puuid in iter_players(watcher, platform, bucket, seen, con):
         players += 1
         print(f'  [{platform}/{bucket}] игрок {players} · новых матчей за бакет {collected}', flush=True)
 
@@ -750,6 +834,7 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
             watcher.match.matchlist_by_puuid,
             regional, puuid, queue=QUEUE_RANKED, count=30, start_time=start_time
         )
+        mark_player_seen(con, puuid)   # матчлист прочитан — пропустим его N дней
         for mid in (match_ids or []):
             if is_processed(con, mid):
                 recent.append(0)
