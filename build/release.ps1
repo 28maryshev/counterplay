@@ -28,7 +28,12 @@ param(
   # the previous release. Use to fold a feature that shipped across several small
   # releases into ONE coherent, grouped changelog.
   #   .\build\release.ps1 -Upload -SinceTag v1.0.95
-  [string]$SinceTag = ""
+  [string]$SinceTag = "",
+  # How many recent versions to keep in .\Releases. Every build leaves a ~72 MB
+  # full package (plus a delta) there, so the folder grows without bound; older
+  # ones are on GitHub anyway. Velopack needs the PREVIOUS full package to build
+  # the next delta, so keep at least 2. Use 0 to disable the cleanup.
+  [int]$KeepReleases = 3
 )
 
 $ErrorActionPreference = "Stop"
@@ -213,4 +218,26 @@ if ($Upload) {
   if ($LASTEXITCODE -ne 0) { throw "failed to update the 'latest' feed" }
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
   Write-Host "Update feed refreshed (tag 'latest'): $($feed.Name -join ', ')" -ForegroundColor Green
+}
+
+# ── Housekeeping: keep only the last $KeepReleases versions in .\Releases ─────
+# Older packages are already published on GitHub; locally they only eat disk
+# (~72 MB per build). Setup.exe / Portable.zip / feed files are never touched.
+if ($KeepReleases -gt 0 -and (Test-Path "Releases")) {
+  $pkgs = @(Get-ChildItem "Releases" -File -Filter "Counterplay-*.nupkg")
+  $versions = @($pkgs | ForEach-Object {
+    if ($_.Name -match 'Counterplay-(\d+\.\d+\.\d+)-') { $matches[1] }
+  } | Sort-Object -Unique { [version]$_ })
+
+  if ($versions.Count -gt $KeepReleases) {
+    $keep = @($versions | Select-Object -Last $KeepReleases)
+    $old  = @($pkgs | Where-Object {
+      $_.Name -match 'Counterplay-(\d+\.\d+\.\d+)-' -and $keep -notcontains $matches[1]
+    })
+    if ($old.Count -gt 0) {
+      $freedGb = [math]::Round((($old | Measure-Object Length -Sum).Sum) / 1GB, 2)
+      $old | Remove-Item -Force -ErrorAction SilentlyContinue
+      Write-Host "Releases cleanup: removed $($old.Count) package(s), freed $freedGb GB (kept $($keep -join ', '))" -ForegroundColor Green
+    }
+  }
 }
