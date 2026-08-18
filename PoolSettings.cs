@@ -375,7 +375,11 @@ sealed class PoolEditorWindow : Window
     {
         _duo = duo;
         _engine = engine;
-        _idByName = DataDragon.GetAllIconUrls().Keys.ToDictionary(id => DataDragon.Name(id), id => id);
+        // GroupBy, а не ToDictionary: дубликат имени в Data Dragon (бывает при
+        // выкатке патча) не должен ронять окно настроек — берём первого.
+        _idByName = DataDragon.GetAllIconUrls().Keys
+            .GroupBy(DataDragon.Name)
+            .ToDictionary(g => g.Key, g => g.First());
         _names = _idByName.Keys.Where(n => !string.IsNullOrEmpty(n))
                           .OrderBy(n => n, StringComparer.CurrentCulture).ToList();
 

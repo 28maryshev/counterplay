@@ -196,7 +196,11 @@ sealed class TestPanel : Window
         _engine  = engine;
 
         _idByName = DataDragon.GetAllIconUrls().Keys
-            .ToDictionary(id => DataDragon.Name(id), id => id);
+            // GroupBy, а не ToDictionary: если Data Dragon отдаст двух чемпионов с
+            // одинаковым именем (бывает при выкатке патча), приложение не должно
+            // падать — берём первого.
+            .GroupBy(DataDragon.Name)
+            .ToDictionary(g => g.Key, g => g.First());
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
