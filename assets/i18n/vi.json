@@ -277,7 +277,7 @@
     "countersPool": "Khắc chế pool của bạn (thắng {0})",
     "countersAlly": "Khắc chế đồng đội {0}",
     "countersMyPick": "Khắc chế lựa chọn của bạn {0}",
-    "countersMany": "Khắc chế {0} tướng đội bạn đã chọn",
+    "countersMany": "Khắc chế: {0}",
     "botlaneGood": "Tốt trước bot địch ({0})",
     "botlaneBad": "Vất vả trước bot địch ({0})",
     "strongPatch": "Mạnh bản này — WR {0}%",

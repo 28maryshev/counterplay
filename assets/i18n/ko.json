@@ -161,7 +161,7 @@
     "baseGood": "준수한 기본 승률 {0}%",
     "baseLow": "낮은 승률 {0}% — 챔피언 숙련이 필요",
     "baseNeutral": "무난한 픽, 승률 ≈{0}%",
-    "countersMany": "팀이 보여준 챔피언 {0}명을 카운터",
+    "countersMany": "아군 {0}을(를) 카운터",
     "personalWr": "이 챔피언으로의 승률 — {1}게임에서 {0}%"
   },
   "metric": {

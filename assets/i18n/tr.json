@@ -383,7 +383,7 @@
     "baseGood": "İyi temel WR %{0}",
     "baseLow": "Düşük WR %{0} — şampiyonu bilmen gerekiyor",
     "baseNeutral": "Nötr seçim, WR ≈%{0}",
-    "countersMany": "Takımının gösterdiği {0} şampiyonu kontrluyor",
+    "countersMany": "Takımından {0} karşı koz",
     "personalWr": "Bu şampiyonla kazanma oranın — {1} maçta %{0}"
   },
   "pool": {

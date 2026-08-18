@@ -161,7 +161,7 @@
     "baseGood": "Bom WR base {0}%",
     "baseLow": "WR baixo {0}% — você precisa dominar o campeão",
     "baseNeutral": "Pick neutro, WR ≈{0}%",
-    "countersMany": "Counter de {0} campeões que seu time mostrou",
+    "countersMany": "Counter dos seus: {0}",
     "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas"
   },
   "metric": {

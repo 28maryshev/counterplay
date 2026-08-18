@@ -299,7 +299,7 @@
     "aramHeal": "补上队伍欠缺的续航（ARAM 价值）。",
     "countersMyPick": "克制你的选择 {0}",
     "womboAoe": "你的 AoE 大招与队伍的团战连招叠加——一次抱团开战就能团灭他们。",
-    "countersMany": "克制敌方亮出的 {0} 名英雄",
+    "countersMany": "克制你方：{0}",
     "personalWr": "你使用该英雄的胜率 — {1} 场 {0}%"
   },
   "rec": {

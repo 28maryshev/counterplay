@@ -978,7 +978,10 @@ public sealed class RecommendationEngine : IDisposable
         // в топе банов (см. ниже): игрок навёл чемпиона в фазе банов — значит
         // хочет увидеть, от кого его защищать.
         var bestByProtectee = new Dictionary<int, (int Champ, double Strength)>();
-        var victimsOf = new Dictionary<int, HashSet<int>>(); // бан-кандидат → кого из наших он контрит
+        var victimsOf = new Dictionary<int, HashSet<int>>(); // бан-кандидат → кого он контрит ЗАМЕТНО (для бонуса ширины)
+        // Все, кого кандидат контрит хоть сколько-то: из этого строим подпись
+        // «контрит Сону, Люкс и Морgану» — игрок должен видеть ВЕСЬ список.
+        var hitsOf = new Dictionary<int, List<(int Id, bool Mine)>>();
 
         foreach (var (pid, prole, weight, mine) in protectees)
             foreach (var c in TopCounters(pid, prole, 8, minGames: 20, minEdge: 0.48))
@@ -993,7 +996,8 @@ public sealed class RecommendationEngine : IDisposable
                 var strength = (Delta(pbg, pbw, K) - Delta(mg, mw, K_PAIR)) * (mg / (mg + MATCHUP_CONF));
                 if (strength < 0.15) continue;
                 scores[c] = scores.GetValueOrDefault(c) + weight * strength;
-                AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(pid)));
+                if (!hitsOf.TryGetValue(c, out var hits)) hitsOf[c] = hits = [];
+                if (!hits.Any(h => h.Id == pid)) hits.Add((pid, mine));
                 if (!bestByProtectee.TryGetValue(pid, out var cur) || strength > cur.Strength)
                     bestByProtectee[pid] = (c, strength);
                 if (strength >= 0.3)
@@ -1007,11 +1011,23 @@ public sealed class RecommendationEngine : IDisposable
         // отсекает сразу несколько вариантов пула — именно его стоит банить.
         foreach (var (c, vs) in victimsOf)
             if (vs.Count >= 2)
-            {
                 // Нелинейно (count^1.4): двое — заметно, трое и больше — сильно.
                 scores[c] = scores.GetValueOrDefault(c) + W_BAN_BREADTH * Math.Pow(vs.Count, 1.4);
-                AddReason(c, Loc.T("reason.countersMany", vs.Count));
+
+        // Подписи «кого контрит этот бан». Одного называем как раньше, нескольких
+        // перечисляем поимённо — видно, что одним баном закрывается пол-команды.
+        foreach (var (c, hits) in hitsOf)
+        {
+            if (hits.Count == 1)
+            {
+                var (id, mine) = hits[0];
+                AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(id)));
+                continue;
             }
+            // Свой пик — первым в списке: он важнее чужих.
+            var names = hits.OrderByDescending(h => h.Mine).Select(h => DataDragon.Name(h.Id));
+            AddReason(c, Loc.T("reason.countersMany", string.Join(", ", names)));
+        }
 
         // Резервируем места: по одному самому жёсткому контрпику на защищаемого
         // (сначала мой пик, затем союзники), максимум top-1 — минимум один слот

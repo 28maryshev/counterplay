@@ -322,7 +322,7 @@
     "baseGood": "Good base WR {0}%",
     "baseLow": "Low WR {0}% — you need to know the champion",
     "baseNeutral": "Neutral pick, WR ≈{0}%",
-    "countersMany": "Counters {0} champions your team showed",
+    "countersMany": "Counters your team's {0}",
     "personalWr": "Your win rate on this champion — {0}% over {1} games"
   },
   "rec": {

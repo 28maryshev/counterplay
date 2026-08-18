@@ -299,7 +299,7 @@
     "baseGood": "Dobry bazowy WR {0}%",
     "baseLow": "Niski WR {0}% — musisz znać postać",
     "baseNeutral": "Neutralny pick, WR ≈{0}%",
-    "countersMany": "Kontruje {0} czempionów pokazanych przez twoją drużynę",
+    "countersMany": "Kontruje waszych: {0}",
     "personalWr": "Twój winrate na tym bohaterze — {0}% z {1} gier"
   },
   "rec": {
