@@ -2358,6 +2358,18 @@ public partial class OverlayWindow : Window
         double maxDir  = recs.Count > 0 ? recs.Max(r => r.DirectDelta)  : 0;
         double maxSty  = recs.Count > 0 ? recs.Max(r => r.StyleDelta)   : 0;
         double maxSyn  = recs.Count > 0 ? recs.Max(r => r.SynergyDelta) : 0;
+
+        // Полоски масштабируем по РАЗБРОСУ в текущем списке, а не по абсолютной
+        // шкале. На большой базе дельты честно малы (доли п.п.), и фиксированная
+        // шкала рисовала у всех почти пустые полосы — разницу между кандидатами
+        // было не разглядеть. Порог (floor) не даёт растягивать шум, когда лидер
+        // и сам близок к нулю.
+        static double Scaled(double d, double max, double floor) =>
+            d <= 0 ? 0 : Math.Max(0, Math.Min(214, d / Math.Max(max, floor) * 214));
+        double DirBar(double d) => Scaled(d, maxDir,  1.5);
+        double StyBar(double d) => Scaled(d, maxSty,  1.5);
+        double SynBar(double d) => Scaled(d, maxSyn,  1.5);
+        double BaseBarS(double d) => Scaled(d, maxBase, 2.0);
         static bool IsMax(double v, double max) => max > 0.05 && v >= max - 0.05;
 
         // Имена чемпионов драфта → цвет их архетипа (подсветка имён в обоснованиях).
@@ -2404,8 +2416,8 @@ public partial class OverlayWindow : Window
                         WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
                         Icon       = IconCache.Get(pr.ChampionId),
                         ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
-                        BaseBar    = ToBaseBar(pr.BaseDelta), DirectBar = ToBar(pr.DirectDelta),
-                        OtherBar   = ToBar(pr.StyleDelta),    SynBar    = ToBar(pr.SynergyDelta),
+                        BaseBar    = BaseBarS(pr.BaseDelta), DirectBar = DirBar(pr.DirectDelta),
+                        OtherBar   = StyBar(pr.StyleDelta),   SynBar    = SynBar(pr.SynergyDelta),
                         BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
                         OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
                         ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
@@ -2500,10 +2512,10 @@ public partial class OverlayWindow : Window
                 Icon       = IconCache.Get(r.ChampionId),
                 // Маркеры «•» + имена чемпионов цветом их архетипа (см. ReasonSegments).
                 ReasonSegs = ReasonSegments(r.Reasons, nameColor),
-                BaseBar    = ToBaseBar(r.BaseDelta),
-                DirectBar  = ToBar(r.DirectDelta),
-                OtherBar   = ToBar(r.StyleDelta),   // строка «Против их стиля»
-                SynBar     = ToBar(r.SynergyDelta),
+                BaseBar    = BaseBarS(r.BaseDelta),
+                DirectBar  = DirBar(r.DirectDelta),
+                OtherBar   = StyBar(r.StyleDelta),   // строка «Против их стиля»
+                SynBar     = SynBar(r.SynergyDelta),
                 BaseText   = Signed(r.BaseDelta),
                 DirectText = Signed(r.DirectDelta),
                 OtherText  = Signed(r.StyleDelta),
