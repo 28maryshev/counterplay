@@ -1007,8 +1007,7 @@ public partial class OverlayWindow : Window
         _   => "#6E5140",   // тёмно-коричневый (D) — как ранг Iron
     };
 
-    private static string WrBrush(double wr) =>
-        wr >= 52 ? "#4CD08A" : wr >= 50 ? "#C9D2DC" : "#E0806A";
+    private static string WrBrush(double wr) => WinrateColor.Hex(wr);
 
     private TierCell TierCellOf(RecommendationEngine.TierEntry t, bool showGrade) => new()
     {
@@ -1571,15 +1570,11 @@ public partial class OverlayWindow : Window
     }
 
     // Цвет цифры винрейта по заданным порогам.
+    // Единая шкала на всё приложение (см. WinrateColor): серый → белый →
+    // оранжевый → красный, с плавным переливом между зонами.
     private static Brush WinrateBrush(double wr)
     {
-        Color c;
-        if (wr > 65)      c = Color.FromRgb(0xF0, 0x8A, 0x3C); // оранжевый
-        else if (wr > 55) c = Color.FromRgb(0xE2, 0x4C, 0x4C); // красный
-        else if (wr >= 50) c = Color.FromRgb(0xE6, 0xED, 0xF3); // нейтральный (белый)
-        else if (wr >= 45) c = Color.FromRgb(0xF0, 0xC9, 0xC4); // светло-красный, ближе к белому
-        else              c = Color.FromRgb(0xE2, 0x4C, 0x4C); // красный
-        return new SolidColorBrush(c);
+        return WinrateColor.Brush(wr);
     }
 
     // Локализованное название ранга (ranks.* в i18n; нет перевода — как есть).
@@ -1790,7 +1785,9 @@ public partial class OverlayWindow : Window
         double X(int i) => pts.Count == 1 ? (plotL + plotR) / 2
             : plotL + (double)i / (pts.Count - 1) * (plotR - plotL - 2) + 1;
 
-        var lineBrush = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
+        // Линия графика — в цвете ТЕКУЩЕГО винрейта по общей шкале: тренд и
+        // крупная цифра рядом читаются как одно целое.
+        var lineBrush = WinrateColor.Brush(pts[^1].Winrate);
         var gridBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
 
         // Вертикальная ось + горизонтальная сетка со шкалой винрейта.
