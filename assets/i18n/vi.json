@@ -432,6 +432,8 @@
     "helpLabel": "Cách hoạt động",
     "help": "Pool tướng là bộ tướng riêng của bạn cho từng vị trí. Khi bật một pool, Counterplay luôn làm nổi bật lựa chọn tốt nhất từ pool đó trước đối thủ hiện tại — để bạn chơi những tướng mình thực sự thành thạo. Pool đôi dành cho bạn và một người bạn: khi đồng đội chọn một tướng trong pool, bạn nhận được các lựa chọn kết hợp tốt nhất với tướng đó. Thêm pool bằng ô +, đánh dấu pool đang dùng bằng cách bấm vào ngôi sao, và chuyển giữa Thường / Pool / Đôi ở màn hình sẵn sàng.",
     "wrRanked": "Tỉ lệ thắng xếp hạng (đơn/linh hoạt): {0}% qua {1} trận",
-    "wrNormal": "Tỉ lệ thắng thường: {0}% qua {1} trận"
+    "wrNormal": "Tỉ lệ thắng thường: {0}% qua {1} trận",
+    "myWinrates": "Tỉ lệ thắng theo tướng",
+    "myWinratesEmpty": "Chưa có trận nào — chơi khi đang mở Counterplay, tỉ lệ thắng sẽ hiện ở đây."
   }
 }

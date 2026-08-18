@@ -432,6 +432,8 @@
     "helpLabel": "Jak to działa",
     "help": "Pule bohaterów to twoje własne zestawy bohaterów na każdą rolę. Gdy pula jest aktywna, Counterplay zawsze wyróżnia z niej najlepszy wybór przeciw obecnym przeciwnikom — dzięki temu grasz bohaterami, których naprawdę znasz. Pule duo są dla ciebie i znajomego: gdy partner weźmie bohatera z puli, dostajesz wybory, które najlepiej z nim współgrają. Dodaj pulę kafelkiem +, oznacz aktywną klikając jej gwiazdkę i przełączaj Normalny / Pula / Duo na ekranie gotowości.",
     "wrRanked": "Twój winrate w rankedzie (solo/flex): {0}% z {1} gier",
-    "wrNormal": "Twój winrate w normalach: {0}% z {1} gier"
+    "wrNormal": "Twój winrate w normalach: {0}% z {1} gier",
+    "myWinrates": "Twój winrate wg bohatera",
+    "myWinratesEmpty": "Brak zapisanych gier — zagraj z uruchomionym Counterplay, a winrate pojawi się tutaj."
   }
 }

@@ -432,6 +432,8 @@
     "helpLabel": "Como funciona",
     "help": "Os pools de campeões são seus próprios conjuntos de campeões por rota. Quando um pool está ativo, o Counterplay sempre destaca a melhor escolha dele contra os inimigos atuais — assim você joga com campeões que realmente domina. Pools de dupla são para você e um amigo: quando seu parceiro pega um campeão do pool, você recebe as escolhas que melhor combinam com ele. Adicione um pool com o bloco +, marque o ativo clicando na sua estrela e alterne entre Normal / Pool / Dupla na tela de pronto.",
     "wrRanked": "Seu winrate na ranqueada (solo/flex): {0}% em {1} partidas",
-    "wrNormal": "Seu winrate em normais: {0}% em {1} partidas"
+    "wrNormal": "Seu winrate em normais: {0}% em {1} partidas",
+    "myWinrates": "Seu winrate por campeão",
+    "myWinratesEmpty": "Nenhuma partida registrada — jogue com o Counterplay aberto e seus winrates aparecerão aqui."
   }
 }

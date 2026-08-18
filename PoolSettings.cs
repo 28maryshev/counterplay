@@ -65,14 +65,87 @@ sealed class PoolSettingsWindow : Window
 
         grid.Children.Add(Area(Loc.T("pool.duo"), _duoArea, duo: true, 2));
 
+        // Низ окна: мой винрейт по чемпионам + «?». Пулы занимают верх, здесь
+        // остаётся пустое место — показываем в нём, на ком реально идёт игра.
+        var bottom = new DockPanel { Margin = new Thickness(16, 0, 16, 10) };
+        var help = HelpBadge();
+        DockPanel.SetDock(help, Dock.Bottom);
+        bottom.Children.Add(help);
+        bottom.Children.Add(_wrStrip);
+
+        var layout = new DockPanel();
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        layout.Children.Add(bottom);
+        layout.Children.Add(grid);           // остаток — пулы
+
         // Декоративный фон как на драфте: синий сверху-слева → красный снизу-справа.
         var decorated = new Grid();
         decorated.Children.Add(DecorBackground());
-        decorated.Children.Add(grid);
-        decorated.Children.Add(HelpBadge());   // «?» с пояснением снизу
+        decorated.Children.Add(layout);
 
         Content = PoolUi.Chrome(this, Title, decorated);
         Refresh();
+    }
+
+    // Лента «мой винрейт по чемпионам»: ранкед (соло+флекс) и нормалы отдельно,
+    // ARAM не в счёт. Сортировка по числу игр — сверху те, на ком реально играют.
+    private readonly StackPanel _wrStrip = new() { Margin = new Thickness(0, 0, 0, 8) };
+
+    private void RefreshWinrates()
+    {
+        _wrStrip.Children.Clear();
+
+        var ranked = SessionTracker.ChampStatsMap(SessionTracker.QueuesRanked);
+        var normal = SessionTracker.ChampStatsMap(SessionTracker.QueuesNormal);
+        var ids = ranked.Keys.Concat(normal.Keys).Distinct()
+            .OrderByDescending(id => ranked.GetValueOrDefault(id).Games + normal.GetValueOrDefault(id).Games)
+            .Take(30).ToList();
+
+        _wrStrip.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.myWinrates"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
+            FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6)
+        });
+
+        if (ids.Count == 0)
+        {
+            _wrStrip.Children.Add(new TextBlock
+            {
+                Text = Loc.T("pool.myWinratesEmpty"),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)),
+                FontSize = 11, Margin = new Thickness(2, 0, 0, 0), TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        var row = new WrapPanel();
+        foreach (var id in ids)
+        {
+            var (rg, rw) = ranked.GetValueOrDefault(id);
+            var (ng, nw) = normal.GetValueOrDefault(id);
+
+            var cell = new StackPanel { Margin = new Thickness(0, 0, 8, 6), Width = 46 };
+            if (IconCache.Get(id) is { } src)
+                cell.Children.Add(new Border
+                {
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(20),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    ToolTip = DataDragon.Name(id),
+                    Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
+                });
+            var wrs = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) };
+            if (rg > 0) wrs.Children.Add(PoolEditorWindow.WrChip("R", rw, rg));
+            if (ng > 0) wrs.Children.Add(PoolEditorWindow.WrChip("N", nw, ng));
+            cell.Children.Add(wrs);
+            row.Children.Add(cell);
+        }
+        _wrStrip.Children.Add(new ScrollViewer
+        {
+            Content = row, MaxHeight = 150,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        });
     }
 
     // Иконка «?» внизу: при наведении — пояснение, что такое пулы и зачем.
@@ -174,6 +247,7 @@ sealed class PoolSettingsWindow : Window
 
     private void Refresh()
     {
+        RefreshWinrates();
         var a = PoolStore.Current();
         _poolArea.Children.Clear();
         foreach (var p in a.Pools)
@@ -731,7 +805,7 @@ sealed class PoolEditorWindow : Window
     }
 
     // «R 57%» / «N 62%» — буква очереди + винрейт, цвет по значению, игры в тултипе.
-    private static FrameworkElement WrChip(string tag, int wins, int games)
+    internal static FrameworkElement WrChip(string tag, int wins, int games)
     {
         var wr  = 100.0 * wins / games;
         var col = games < 5              ? Color.FromRgb(0x8A, 0xA0, 0xB2)   // мало игр — нейтрально
