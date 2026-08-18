@@ -93,7 +93,10 @@ public sealed class RecommendationEngine : IDisposable
     private const double W_BAN_MYPICK  = 3.2; // контрит мой наведённый/взятый пик (макс. приоритет)
     private const double W_BAN_ALLY    = 2.6; // контрит наведённый/взятый пик союзника (защита команды)
     private const double W_BAN_HOVER   = 1.8; // контрит чемпиона из ИСТОРИИ ховеров (показанный пул)
-    private const double W_BAN_BREADTH = 1.5; // бонус за ширину: кандидат контрит 2+ наших чемпионов
+    // Бонус за ширину: кандидат контрит 2+ показанных чемпионов команды. Растёт
+    // нелинейно — бан, который бьёт троих, ценнее полутора банов против одного:
+    // перепикнуть одного легко, а сразу нескольких — нет.
+    private const double W_BAN_BREADTH = 2.2;
 
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
     public IReadOnlyDictionary<int, long> Mastery { get; set; } =
@@ -977,7 +980,8 @@ public sealed class RecommendationEngine : IDisposable
         foreach (var (c, vs) in victimsOf)
             if (vs.Count >= 2)
             {
-                scores[c] = scores.GetValueOrDefault(c) + W_BAN_BREADTH * vs.Count;
+                // Нелинейно (count^1.4): двое — заметно, трое и больше — сильно.
+                scores[c] = scores.GetValueOrDefault(c) + W_BAN_BREADTH * Math.Pow(vs.Count, 1.4);
                 AddReason(c, Loc.T("reason.countersMany", vs.Count));
             }
 
@@ -985,6 +989,19 @@ public sealed class RecommendationEngine : IDisposable
         // (сначала мой пик, затем союзники), максимум top-1 — минимум один слот
         // остаётся мете. Остаток добирается по общему скору.
         var chosen = new List<int>();
+
+        // СНАЧАЛА — «широкие» баны: кандидат, который бьёт СРАЗУ нескольких
+        // показавших пик. Один такой бан закрывает пол-команды, поэтому он важнее
+        // узкой контры одного чемпиона (её всегда можно перепикнуть).
+        foreach (var (c, vs) in victimsOf
+                     .Where(v => v.Value.Count >= 2)
+                     .OrderByDescending(v => v.Value.Count)
+                     .ThenByDescending(v => scores.GetValueOrDefault(v.Key)))
+        {
+            if (chosen.Count >= top - 1) break;
+            if (!chosen.Contains(c)) chosen.Add(c);
+        }
+
         foreach (var (pid, _, _, _) in protectees) // порядок: я → союзники
             if (bestByProtectee.TryGetValue(pid, out var bc)
                 && !chosen.Contains(bc.Champ) && chosen.Count < top - 1)
