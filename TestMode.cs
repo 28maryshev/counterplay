@@ -94,8 +94,9 @@ static class TestMode
             PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
         }
 
-        // ТЕСТ владения: все чемпионы доступны — «нет чемпиона» уже обкатано и
-        // в песочнице только мешает (в бою список приходит из клиента).
+        // ТЕСТ владения: по умолчанию доступны ВСЕ чемпионы (в песочнице «нет
+        // чемпиона» обычно мешает). Проверить плашку можно галочкой в панели —
+        // тогда часть чемпионов считается отсутствующими.
         overlay.SetOwnedChampions(allIds);
 
         // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
@@ -123,7 +124,7 @@ static class TestMode
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
             overlay.EnableSaveForDraft();   // кнопка режима-для-драфта — только в тесте
             overlay.ShowSession(fakeSession);   // фейковый ник/ранг/график
-            panel = new TestPanel(overlay, engine);
+            panel = new TestPanel(overlay, engine, allIds);
             panel.Show();
         });
 
@@ -149,6 +150,8 @@ sealed class TestPanel : Window
 
     private readonly OverlayWindow _overlay;
     private readonly RecommendationEngine _engine;
+    private readonly List<int> _allChampIds;   // для галочки «часть чемпионов нет»
+    private readonly CheckBox _missingChamps = new();
     private readonly Dictionary<string, int> _idByName;   // имя чемпиона → id
     private readonly List<string> _names;                 // "—" + имена по алфавиту
 
@@ -190,10 +193,11 @@ sealed class TestPanel : Window
     // её владелец (я / союзник / враг) взял этого чемпиона в свою очередь. Для видео.
     private readonly Dictionary<int, int> _planned = new();
 
-    public TestPanel(OverlayWindow overlay, RecommendationEngine engine)
+    public TestPanel(OverlayWindow overlay, RecommendationEngine engine, List<int> allChampIds)
     {
         _overlay = overlay;
         _engine  = engine;
+        _allChampIds = allChampIds;
 
         _idByName = DataDragon.GetAllIconUrls().Keys
             // GroupBy, а не ToDictionary: если Data Dragon отдаст двух чемпионов с
@@ -267,6 +271,16 @@ sealed class TestPanel : Window
         stages.Children.Add(_stageBans);
         stages.Children.Add(_stageReady);
 
+        // Проверка плашки «нет чемпиона»: половина ростера считается некупленной.
+        _missingChamps.Content = "Нет части чемпионов";
+        _missingChamps.Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
+        _missingChamps.VerticalAlignment = VerticalAlignment.Center;
+        _missingChamps.Margin = new Thickness(12, 0, 0, 0);
+        _missingChamps.ToolTip = "Отметить часть чемпионов как отсутствующих на аккаунте — видно предупреждение в подборе и в пуле";
+        _missingChamps.Checked   += (_, _) => ApplyOwnership();
+        _missingChamps.Unchecked += (_, _) => ApplyOwnership();
+        stages.Children.Add(_missingChamps);
+
         bottom.Children.Add(stages);
 
         var reset = new Button
@@ -319,6 +333,16 @@ sealed class TestPanel : Window
 
         // Закрыл панель — выходим из приложения целиком.
         Closed += (_, _) => System.Windows.Application.Current.Shutdown();
+    }
+
+    // Владение чемпионами в песочнице: всё куплено, либо половина «отсутствует»
+    // (детерминированно по id) — чтобы проверить плашку «нет чемпиона».
+    private void ApplyOwnership()
+    {
+        if (_missingChamps.IsChecked == true)
+            _overlay.SetOwnedChampions(_allChampIds.Where(id => id % 2 == 0).ToList());
+        else
+            _overlay.SetOwnedChampions(_allChampIds);
     }
 
     // ── Тестовые этапы: Драфт · Баны · Ready/пул ─────────────────────────────
