@@ -25,7 +25,7 @@ from pathlib import Path
 # ── Пороги: ниже них данные — шум, и мы их не публикуем ────────────────────
 MIN_GAMES        = 200   # игр на чемпиона+роль, чтобы вообще показывать руны
 MIN_KEYSTONE     = 30    # игр на кейстоун, чтобы он попал в варианты
-MIN_PAGE         = 15    # игр на конкретную страницу рун
+MIN_PAGE         = 40    # игр на конкретную страницу рун
 MIN_VS_GAMES     = 40    # игр в матчапе, чтобы показывать поправку на оппонента
 MIN_BUILD        = 25    # игр на итоговый билд
 MIN_ITEM         = 40    # игр на отдельный предмет
@@ -38,6 +38,23 @@ ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
 def wr(games: int, wins: int) -> float:
     """Сглаженный винрейт в процентах: мало игр → ближе к 50%."""
     return 100.0 * (wins + K / 2) / (games + K)
+
+
+def wr_lower(games: int, wins: int, z: float = 1.96) -> float:
+    """Нижняя граница Уилсона — «винрейт, в котором мы уверены».
+
+    Лучшую страницу нельзя выбирать по обычному винрейту: вариантов перков
+    десятки, и максимум из них почти всегда достаётся редкой комбинации,
+    которой просто повезло (22 игры и 57% при 50% у самого кейстоуна). Нижняя
+    граница штрафует малые выборки, поэтому наверх выходит то, что реально
+    работает, а не то, что удачно выпало."""
+    if games <= 0:
+        return 0.0
+    p = wins / games
+    d = 1 + z * z / games
+    centre = p + z * z / (2 * games)
+    margin = z * ((p * (1 - p) / games + z * z / (4 * games * games)) ** 0.5)
+    return 100.0 * (centre - margin) / d
 
 
 def patches(con: sqlite3.Connection) -> list[str]:
@@ -90,7 +107,7 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
                   [champ, role, ks, *ps, MIN_PAGE])
         if not pages:
             continue
-        best = max(pages, key=lambda r: wr(r[4], r[5]))
+        best = max(pages, key=lambda r: wr_lower(r[4], r[5]))
         prim, sub, perks, shards, pg, pw = best
         main, secondary = perks.split('|')
 
