@@ -900,6 +900,10 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     print(f'Лимит за сессию: {"без лимита" if not cap else cap}. Ctrl+C — остановка с сохранением.\n')
 
     session_total = 0
+    # Точка отсчёта по базе: session_total прибавляется только на ЗАВЕРШЁННЫХ
+    # бакетах, а при истечении ключа они прерываются исключением — собранное в
+    # них терялось для отчёта. Прирост базы это учитывает.
+    start_total = db_total(con)
     interrupted = False
     # Ключ протух или кончился диск — пробросим ПОСЛЕ штатного сохранения базы.
     expired: KeyExpired | DiskLow | None = None
@@ -968,15 +972,20 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     final = db_total(con)
     con.close()
 
+    # Прирост берём ПО БАЗЕ: session_total растёт только на полностью
+    # завершённых бакетах, а при истечении ключа они прерываются исключением —
+    # и всё собранное в них терялось для отчёта («собрал 200k, в уведомлении 20k»).
+    added = max(session_total, final - start_total)
+
     print(f'\nГотово. За сессию собрано: {session_total}. Всего в базе: {final}. База: {db_path}')
-    if interrupted or session_total:
+    if interrupted or added:
         print('Чтобы выложить базу на сервер, выполни:')
         print('  powershell -ExecutionPolicy Bypass -File .\\build\\publish-data.ps1')
 
     if expired:
-        expired.collected = session_total  # сервису — для уведомления «+N за ключ»
+        expired.collected = added  # сервису — для уведомления «+N за ключ»
         raise expired   # база сохранена — теперь пусть решает вызывающий
-    return session_total
+    return added
 
 
 def _parse_list(value: str, valid, name: str) -> list:
