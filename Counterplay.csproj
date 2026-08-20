@@ -41,6 +41,15 @@
     <EmbeddedResource Include="assets\i18n\*.json" />
   </ItemGroup>
 
+  <!-- Секрет телеметрии: передаётся при сборке (-p:TelemetrySecret=…), в коде и в
+       репозитории его нет. Без параметра приложение шлёт телеметрию без заголовка. -->
+  <ItemGroup Condition="'$(TelemetrySecret)' != ''">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>TelemetrySecret</_Parameter1>
+      <_Parameter2>$(TelemetrySecret)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="Velopack" Version="1.2.0" />

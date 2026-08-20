@@ -9,7 +9,7 @@
 # чемпион+роль, что есть в выгрузке — фичи включаются сами по мере накопления данных.
 
 param(
-  [string]$Server = "3.68.217.116",
+  [string]$Server = $env:CP_SITE_SERVER,
   [string]$Db     = "pipeline/data.db"
 )
 

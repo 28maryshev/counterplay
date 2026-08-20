@@ -48,3 +48,6 @@ pipeline/dist/
 
 # Одноразовый highlights для заметок релиза (build/release.ps1)
 build/RELEASE_HIGHLIGHTS.txt
+
+# Секрет телеметрии для сборки (в репозиторий не попадает)
+build/telemetry.secret

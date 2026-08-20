@@ -49,9 +49,9 @@ node index.js
 
 ```bash
 # локально: копируем без node_modules
-scp -r bot 3.68.217.116:counterplay-bot && scp bot/.env 3.68.217.116:counterplay-bot/.env
-ssh 3.68.217.116 'cd counterplay-bot && docker compose up -d --build'
-ssh 3.68.217.116 'docker logs -f counterplay-bot'   # проверить старт
+scp -r bot $SERVER:counterplay-bot && scp bot/.env $SERVER:counterplay-bot/.env
+ssh $SERVER 'cd counterplay-bot && docker compose up -d --build'
+ssh $SERVER 'docker logs -f counterplay-bot'   # проверить старт
 ```
 
 `restart: unless-stopped` — контейнер переживает ребут сервера.

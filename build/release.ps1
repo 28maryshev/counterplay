@@ -80,7 +80,23 @@ if (-not $FeedOnly) {
   # 2. Self-contained publish (bundles .NET runtime and native deps)
   $pub = "publish"
   if (Test-Path $pub) { Remove-Item $pub -Recurse -Force }
-  dotnet publish Counterplay.csproj -c Release -r win-x64 --self-contained true -o $pub
+  # Секрет телеметрии не хранится в репозитории: берём из переменной окружения
+  # или из build	elemetry.secret (в .gitignore). Нет файла — сборка всё равно
+  # проходит, просто приложение шлёт телеметрию без заголовка.
+  $telemetryFile = Join-Path $PSScriptRoot "telemetry.secret"
+  $telemetry = $env:TELEMETRY_SHARED_SECRET
+  if (-not $telemetry -and (Test-Path $telemetryFile)) {
+    $telemetry = (Get-Content $telemetryFile -Raw).Trim()
+  }
+  $secretArgs = @()
+  if ($telemetry) {
+    $secretArgs = @("-p:TelemetrySecret=$telemetry")
+    Write-Host "Telemetry secret: taken from $(if ($env:TELEMETRY_SHARED_SECRET) {'environment'} else {'build	elemetry.secret'})" -ForegroundColor Cyan
+  } else {
+    Write-Host "warn: no telemetry secret - the build will not report installs" -ForegroundColor Yellow
+  }
+
+  dotnet publish Counterplay.csproj -c Release -r win-x64 --self-contained true -o $pub @secretArgs
 
   # 3. Build Setup.exe and update package (with logo icon if present)
   $iconArgs = @()

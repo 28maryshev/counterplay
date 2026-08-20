@@ -1,6 +1,10 @@
 # Обновление данных с новым патчем — чеклист
 
-Единственный источник данных — `data.db` на сервере коллектора (`3.75.82.29`,
+> **Адреса серверов.** В репозитории их нет — задай перед работой:
+> `$env:SERVER = "ubuntu@<ip сайта>"`, `$env:CP_SITE_SERVER = "<ip сайта>"`.
+> Сами адреса держи в приватных заметках, а не в git.
+
+Единственный источник данных — `data.db` на сервере коллектора (сервер коллектора,
 `~/counterplay-collector/data/data.db`). Коллектор непрерывно наполняет его по
 всем эло и патчам. Всё ниже — производные от него выгрузки.
 
@@ -41,7 +45,7 @@
 # 1–2: выгрузить свежие stats.json/champions.json/tiers.json на сервере коллектора,
 #      скачать в локальный репозиторий сайта, затем:
 #   git commit && собрать и залить tar на сервер сайта →
-ssh ubuntu@3.68.217.116 'cd ~/counterplay-site && docker compose build web && docker compose up -d web'
+ssh $SERVER 'cd ~/counterplay-site && docker compose build web && docker compose up -d web'
 
 # 4 (руны): скопировать v1/<patch>/*.json + manifest.json в том:
 #   ~/counterplay-site/stats/v1/  (manifest.json короткий TTL — обновится за ~10 мин)

@@ -527,7 +527,7 @@ WR обеих сторон, games, вердикт-строка
 
 ### 10.1 Сервер
 
-- VPS: AWS Lightsail Ubuntu, IP 3.68.217.116, **2 GB RAM (свободно ~0.5 GB)**.
+- VPS: AWS Lightsail Ubuntu, IP — см. приватные заметки, **2 GB RAM (свободно ~0.5 GB)**.
 - На хосте НЕТ node и pm2. Есть **Docker + Compose** (там же крутится сайт:
   сервисы web + db в `~/counterplay-site`).
 - Бот деплоится контейнером: `~/counterplay-bot` со своим `docker-compose.yml`
@@ -559,7 +559,7 @@ WR обеих сторон, games, вердикт-строка
 
 1. Локально собрать и проверить (можно и на Windows — better-sqlite3 ставится).
 2. `scp -r` папку бота (без node_modules) в `~/counterplay-bot`, `.env` — отдельно.
-3. `ssh 3.68.217.116 'cd counterplay-bot && docker compose up -d --build'`.
+3. `ssh $SERVER 'cd counterplay-bot && docker compose up -d --build'`.
 4. `node deploy-commands.js` — можно выполнить один раз локально (регистрирует
    команды через REST, серверу не нужен) или внутри контейнера.
 5. Прогнать чеклист §11 админ-командами.

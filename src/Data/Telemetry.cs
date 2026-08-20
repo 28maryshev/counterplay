@@ -12,8 +12,17 @@ namespace Counterplay;
 public static class Telemetry
 {
     private const string Url = "https://counterplays.com/api/telemetry";
-    // Должен совпадать с TELEMETRY_SHARED_SECRET на сервере (в .env сайта).
-    private const string Secret = "dev-telemetry-secret";
+
+    // Общий секрет с сервером. В КОД НЕ ПИШЕТСЯ: подставляется при сборке
+    // (-p:TelemetrySecret=…, см. build/release.ps1) и попадает в сборку атрибутом.
+    // Полноценной защитой это быть не может — из .exe строку всё равно достанут,
+    // — но и лежать открытым текстом в публичном репозитории ей незачем.
+    // Пусто (обычная dotnet build без параметра) — шлём без заголовка.
+    private static readonly string Secret =
+        typeof(Telemetry).Assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+            .Cast<System.Reflection.AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == "TelemetrySecret")?.Value ?? "";
 
     public static async Task PingAsync()
     {
@@ -21,7 +30,8 @@ public static class Telemetry
         {
             var version = typeof(Telemetry).Assembly.GetName().Version?.ToString() ?? "0";
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-            http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
+            if (Secret.Length > 0)
+                http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
             var json = JsonSerializer.Serialize(new { installId = DeviceId(), version });
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             await http.PostAsync(Url, content);
