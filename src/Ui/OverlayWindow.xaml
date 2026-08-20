@@ -628,10 +628,12 @@
             <Grid x:Name="Last5Panel" Margin="0,15,0,0"/>
 
             <!-- Подсказка: статистика наполняется по мере сыгранных игр -->
+            <!-- Крупнее и контрастнее обычной подписи: на пустом экране это
+                 единственное объяснение, почему статистики ещё нет. -->
             <TextBlock x:Name="SessionHint" Visibility="Collapsed"
-                       FontFamily="{StaticResource UiFont}" FontSize="11"
-                       Foreground="#8AA0B2" TextWrapping="Wrap" LineHeight="15"
-                       Margin="0,10,0,0"/>
+                       FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                       Foreground="#C3D3E0" TextWrapping="Wrap" LineHeight="18"
+                       TextAlignment="Center" Margin="0,12,0,2"/>
 
             <!-- Винрейт слева (W–L мелко, % крупно с цветом) + график справа -->
             <Grid Margin="0,16,0,0">
