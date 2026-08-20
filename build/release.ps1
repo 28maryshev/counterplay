@@ -196,7 +196,13 @@ if ($Upload) {
       $Notes = "✨ **Highlights**`n$Highlights`n`n**Changes**`n$Notes"
       if (Test-Path $hlFile) { Remove-Item $hlFile -Force }
     }
-    $Notes | gh release edit "v$Version" --notes-file - 2>$null
+    # Notes go through a UTF-8 file, never through the pipe: PowerShell encodes
+    # stdin for native commands in the console codepage, which turns the bullets
+    # and the emoji in the changelog into mojibake on GitHub.
+    $notesFile = Join-Path ([System.IO.Path]::GetTempPath()) "cp-notes-$Version.md"
+    [System.IO.File]::WriteAllText($notesFile, $Notes, (New-Object System.Text.UTF8Encoding($false)))
+    gh release edit "v$Version" --notes-file $notesFile 2>$null
+    Remove-Item $notesFile -Force -ErrorAction SilentlyContinue
     if ($LASTEXITCODE -ne 0) { Write-Host "warn: could not set release notes" -ForegroundColor Yellow }
     else { Write-Host "Release notes set for v$Version" -ForegroundColor Green }
   }
