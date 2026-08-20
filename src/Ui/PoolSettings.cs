@@ -122,35 +122,43 @@ sealed class PoolSettingsWindow : Window
         var row = new WrapPanel();
         foreach (var id in ids)
         {
-            var cell = new StackPanel { Margin = new Thickness(0, 0, 8, 6), Width = 58 };
+            // Слот чемпиона: рамка охватывает и иконку, и винрейт под ней, а её
+            // цвет — цвет этого винрейта. Так результат читается по слоту целиком.
+            var (rg2, rw2) = SessionTracker.ChampStats(id, SessionTracker.QueuesRanked);
+            var (ng2, nw2) = SessionTracker.ChampStats(id, SessionTracker.QueuesNormal);
+            var gAll  = rg2 + ng2;
+            var wrAll = gAll > 0 ? 100.0 * (rw2 + nw2) / gAll : 50.0;
+            var frame = WinrateColor.BrushForSample(wrAll, gAll);
+
+            var inner = new StackPanel { Margin = new Thickness(4, 4, 4, 3) };
             if (IconCache.Get(id) is { } src)
-            {
-                // Квадрат со слегка скруглёнными углами, рамка — в цвет винрейта:
-                // видно результат по чемпиону, не читая цифру под иконкой.
-                var (rg2, rw2) = SessionTracker.ChampStats(id, SessionTracker.QueuesRanked);
-                var (ng2, nw2) = SessionTracker.ChampStats(id, SessionTracker.QueuesNormal);
-                var gAll = rg2 + ng2;
-                var wrAll = gAll > 0 ? 100.0 * (rw2 + nw2) / gAll : 50.0;
-                cell.Children.Add(new Border
+                inner.Children.Add(new Border
                 {
-                    Width = 40, Height = 40, CornerRadius = new CornerRadius(6),
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(4),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    ToolTip = DataDragon.Name(id),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = WinrateColor.BrushForSample(wrAll, gAll),
                     Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
                 });
-            }
             if (PoolEditorWindow.WrChip(id) is { } chip)
             {
-                chip.Margin = new Thickness(0, 2, 0, 0);
-                cell.Children.Add(chip);
+                chip.Margin = new Thickness(0, 3, 0, 0);
+                inner.Children.Add(chip);
             }
-            row.Children.Add(cell);
+
+            var slot = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                BorderThickness = new Thickness(2),
+                BorderBrush = frame,
+                Background = new SolidColorBrush(Color.FromArgb(0x1E, 0x16, 0x20, 0x2C)),
+                Margin = new Thickness(0, 0, 8, 8),
+                ToolTip = DataDragon.Name(id),
+                Child = inner
+            };
+            row.Children.Add(slot);
         }
         _wrStrip.Children.Add(new ScrollViewer
         {
-            Content = row, MaxHeight = 150,
+            Content = row, MaxHeight = 170,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });
