@@ -40,16 +40,20 @@ public static class Skeleton
         };
 
         // Блик гоняем сдвигом самой кисти: градиент проезжает по плашке слева
-        // направо и уходит за край, потом пауза — как в веб-скелетонах.
+        // направо, уходит за край и там ЖДЁТ — из-за паузы мерцание редкое и
+        // не дёргает глаз (проезд ~1,4 с, следующий — через ~4 с).
         var t = new TranslateTransform();
         b.RelativeTransform = t;
-        t.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
+
+        var sweep = new DoubleAnimationUsingKeyFrames
         {
-            From = -1.2, To = 1.2,
-            Duration       = TimeSpan.FromSeconds(1.5),
-            BeginTime      = TimeSpan.Zero,
+            Duration       = new Duration(TimeSpan.FromSeconds(5.4)),
             RepeatBehavior = RepeatBehavior.Forever,
-        });
+        };
+        sweep.KeyFrames.Add(new DiscreteDoubleKeyFrame(-1.2, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        sweep.KeyFrames.Add(new LinearDoubleKeyFrame(1.2, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.4))));
+        sweep.KeyFrames.Add(new DiscreteDoubleKeyFrame(1.2, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(5.4))));
+        t.BeginAnimation(TranslateTransform.XProperty, sweep);
         return b;
     }
 
