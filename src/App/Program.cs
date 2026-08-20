@@ -80,7 +80,8 @@ class Program
         {
             try
             {
-                if (testMode) await TestMode.RunAsync(overlay, cts.Token);
+                // «test empty» — сразу скелетон-вид (профиль без единой игры).
+                if (testMode) await TestMode.RunAsync(overlay, args.Contains("empty"), cts.Token);
                 else          await RunLcuAsync(overlay, args, cts.Token);
             }
             catch (OperationCanceledException) { }

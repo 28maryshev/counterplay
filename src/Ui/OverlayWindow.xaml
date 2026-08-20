@@ -697,9 +697,9 @@
             <!-- Мои чемпионы за 30 дней: одна строка ровно по ширине ряда кнопок
                  пула (UniformGrid на то же число колонок, что и карточек). -->
             <StackPanel x:Name="MyChampsBox" Visibility="Collapsed" Margin="0,8,0,0">
-              <TextBlock Text="{loc:T pool.myChamps30d}" Margin="2,0,2,3"
+              <TextBlock Text="{loc:T pool.myChamps30d}" Margin="4,0,2,3"
                          FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
-                         Foreground="#6E8AA0" HorizontalAlignment="Center"/>
+                         Foreground="#6E8AA0" HorizontalAlignment="Left"/>
             <ItemsControl x:Name="MyChampsStrip" Height="52">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate><UniformGrid Rows="1" Columns="6"/></ItemsPanelTemplate>

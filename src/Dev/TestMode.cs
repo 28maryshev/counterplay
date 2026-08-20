@@ -21,7 +21,7 @@ namespace Counterplay;
 /// </summary>
 static class TestMode
 {
-    public static async Task RunAsync(OverlayWindow overlay, CancellationToken ct)
+    public static async Task RunAsync(OverlayWindow overlay, bool emptyProfile, CancellationToken ct)
     {
         // Та же подготовка, что в боевом режиме: статика, иконки, база.
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
@@ -124,7 +124,7 @@ static class TestMode
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
             overlay.EnableSaveForDraft();   // кнопка режима-для-драфта — только в тесте
             overlay.ShowSession(fakeSession);   // фейковый ник/ранг/график
-            panel = new TestPanel(overlay, engine, allIds);
+            panel = new TestPanel(overlay, engine, allIds, emptyProfile);
             panel.Show();
         });
 
@@ -194,7 +194,8 @@ sealed class TestPanel : Window
     // её владелец (я / союзник / враг) взял этого чемпиона в свою очередь. Для видео.
     private readonly Dictionary<int, int> _planned = new();
 
-    public TestPanel(OverlayWindow overlay, RecommendationEngine engine, List<int> allChampIds)
+    public TestPanel(OverlayWindow overlay, RecommendationEngine engine, List<int> allChampIds,
+                     bool emptyProfile = false)
     {
         _overlay = overlay;
         _engine  = engine;
@@ -341,6 +342,8 @@ sealed class TestPanel : Window
         Content = root;
         _ready = true;
         UpdateStageButtons();
+        // Запуск «dotnet run -- test empty»: сразу скелетон-вид ready-экрана.
+        if (emptyProfile) _emptyProfile.IsChecked = true;
         Recompute();
 
         // Закрыл панель — выходим из приложения целиком.
