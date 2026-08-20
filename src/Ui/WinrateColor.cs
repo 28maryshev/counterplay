@@ -64,6 +64,16 @@ public static class WinrateColor
 
     /// Цвет с оговоркой на объём выборки: на 1–4 играх винрейт ещё ничего не
     /// значит, поэтому такие цифры показываем нейтрально-серыми.
+    public static Color ColorForSample(double wr, int games) =>
+        games < 5 ? Color.FromRgb(0x8A, 0xA0, 0xB2) : Of(wr);
+
     public static Brush BrushForSample(double wr, int games) =>
-        games < 5 ? new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)) : Brush(wr);
+        new SolidColorBrush(ColorForSample(wr, games));
+
+    /// Тот же цвет еле заметной заливкой — подложка слота под рамку в тон.
+    public static Brush TintForSample(double wr, int games, byte alpha = 0x1F)
+    {
+        var c = ColorForSample(wr, games);
+        return new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
+    }
 }

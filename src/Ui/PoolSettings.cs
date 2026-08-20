@@ -147,9 +147,11 @@ sealed class PoolSettingsWindow : Window
             var slot = new Border
             {
                 CornerRadius = new CornerRadius(8),
-                BorderThickness = new Thickness(1.2),
+                BorderThickness = new Thickness(1),
                 BorderBrush = frame,
-                Background = new SolidColorBrush(Color.FromArgb(0x1E, 0x16, 0x20, 0x2C)),
+                // Подложка того же цвета, но почти прозрачная — слот слегка
+                // «подсвечен» результатом, не перетягивая внимание с портрета.
+                Background = WinrateColor.TintForSample(wrAll, gAll),
                 Margin = new Thickness(0, 0, 8, 8),
                 ToolTip = DataDragon.Name(id),
                 Child = inner
