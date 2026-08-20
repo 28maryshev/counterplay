@@ -124,13 +124,23 @@ sealed class PoolSettingsWindow : Window
         {
             var cell = new StackPanel { Margin = new Thickness(0, 0, 8, 6), Width = 58 };
             if (IconCache.Get(id) is { } src)
+            {
+                // Квадрат со слегка скруглёнными углами, рамка — в цвет винрейта:
+                // видно результат по чемпиону, не читая цифру под иконкой.
+                var (rg2, rw2) = SessionTracker.ChampStats(id, SessionTracker.QueuesRanked);
+                var (ng2, nw2) = SessionTracker.ChampStats(id, SessionTracker.QueuesNormal);
+                var gAll = rg2 + ng2;
+                var wrAll = gAll > 0 ? 100.0 * (rw2 + nw2) / gAll : 50.0;
                 cell.Children.Add(new Border
                 {
-                    Width = 40, Height = 40, CornerRadius = new CornerRadius(20),
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(6),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     ToolTip = DataDragon.Name(id),
+                    BorderThickness = new Thickness(2),
+                    BorderBrush = WinrateColor.BrushForSample(wrAll, gAll),
                     Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
                 });
+            }
             if (PoolEditorWindow.WrChip(id) is { } chip)
             {
                 chip.Margin = new Thickness(0, 2, 0, 0);
