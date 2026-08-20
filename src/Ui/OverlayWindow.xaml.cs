@@ -1785,9 +1785,10 @@ public partial class OverlayWindow : Window
         double X(int i) => pts.Count == 1 ? (plotL + plotR) / 2
             : plotL + (double)i / (pts.Count - 1) * (plotR - plotL - 2) + 1;
 
-        // Линия графика — в цвете ТЕКУЩЕГО винрейта по общей шкале: тренд и
-        // крупная цифра рядом читаются как одно целое.
-        var lineBrush = WinrateColor.Brush(pts[^1].Winrate);
+        // Линия графика — того же бирюзового тона, что и заливка под ней, только
+        // светлее и без прозрачности: тренд выделяется, но график остаётся
+        // одноцветным (разные цвета линии по винрейту сбивали с толку).
+        var lineBrush = new SolidColorBrush(Color.FromRgb(0x5C, 0xE2, 0xF0));
         var gridBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
 
         // Вертикальная ось + горизонтальная сетка со шкалой винрейта.
