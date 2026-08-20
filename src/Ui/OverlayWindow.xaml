@@ -771,6 +771,12 @@
               </StackPanel>
             </Border>
 
+            <!-- Фаза, в которой находится окно — крупно, над плашкой беты -->
+            <TextBlock x:Name="ReadyStatusText" Text="Готов"
+                       FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"
+                       Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" Margin="0,12,0,0"/>
+
             <!-- Плашка беты: светящаяся надпись + просьба писать в поддержку -->
             <Border Margin="0,11,0,0" Width="282" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
@@ -795,11 +801,6 @@
               </StackPanel>
             </Border>
 
-            <!-- Фаза, в которой находится окно — крупно, самой нижней строкой -->
-            <TextBlock x:Name="ReadyStatusText" Text="Готов"
-                       FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"
-                       Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
-                       TextWrapping="Wrap" Margin="0,10,0,0"/>
           </StackPanel>
           </ScrollViewer>
         </Grid>
