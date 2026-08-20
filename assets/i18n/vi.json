@@ -437,5 +437,18 @@
     "myWinrates": "Tỉ lệ thắng theo tướng · {0} ngày gần nhất",
     "myWinratesEmpty": "Chưa có trận nào — chơi khi đang mở Counterplay, tỉ lệ thắng sẽ hiện ở đây.",
     "myChamps30d": "Tỉ lệ thắng · 30 ngày qua"
+  },
+  "phaseState": {
+    "none": "Sẵn sàng · mở sảnh đi",
+    "lobby": "Sảnh · gợi ý bắt đầu ở draft",
+    "matchmaking": "Đang tìm trận",
+    "readycheck": "Đã tìm thấy trận — chấp nhận",
+    "champselect": "Draft · đang chọn khắc chế",
+    "gamestart": "Trận đấu bắt đầu",
+    "inprogress": "Đang trong trận · không có gợi ý",
+    "waitingforstats": "Đang tính kết quả",
+    "preendofgame": "Trận sắp kết thúc",
+    "endofgame": "Trận đã kết thúc",
+    "reconnect": "Đang kết nối lại"
   }
 }

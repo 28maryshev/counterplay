@@ -439,5 +439,18 @@
     "myWinrates": "Your win rate by champion · last {0} days",
     "myWinratesEmpty": "No games recorded yet — play with Counterplay running and your win rates will show up here.",
     "myChamps30d": "Winrate · last 30 days"
+  },
+  "phaseState": {
+    "none": "Ready · open a lobby",
+    "lobby": "Lobby · tips start in draft",
+    "matchmaking": "Searching for a game",
+    "readycheck": "Match found — accept it",
+    "champselect": "Draft · picking counters",
+    "gamestart": "Game is starting",
+    "inprogress": "In game · no tips here",
+    "waitingforstats": "Counting the results",
+    "preendofgame": "Game is wrapping up",
+    "endofgame": "Game over",
+    "reconnect": "Reconnecting to the game"
   }
 }

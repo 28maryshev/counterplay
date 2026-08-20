@@ -437,5 +437,18 @@
     "myWinrates": "Twój winrate wg bohatera · ostatnie {0} dni",
     "myWinratesEmpty": "Brak zapisanych gier — zagraj z uruchomionym Counterplay, a winrate pojawi się tutaj.",
     "myChamps30d": "Winrate · ostatnie 30 dni"
+  },
+  "phaseState": {
+    "none": "Gotowe · otwórz lobby",
+    "lobby": "Lobby · podpowiedzi w drafcie",
+    "matchmaking": "Szukanie gry",
+    "readycheck": "Gra znaleziona — zaakceptuj",
+    "champselect": "Draft · szukam counterów",
+    "gamestart": "Gra się zaczyna",
+    "inprogress": "W grze · bez podpowiedzi",
+    "waitingforstats": "Liczę wyniki",
+    "preendofgame": "Gra się kończy",
+    "endofgame": "Gra zakończona",
+    "reconnect": "Ponowne łączenie"
   }
 }

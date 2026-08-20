@@ -437,5 +437,18 @@
     "myWinrates": "챔피언별 내 승률 · 최근 {0}일",
     "myWinratesEmpty": "아직 기록된 게임이 없습니다 — Counterplay를 켠 채로 플레이하면 승률이 여기에 표시됩니다.",
     "myChamps30d": "승률 · 최근 30일"
+  },
+  "phaseState": {
+    "none": "대기 중 · 로비를 열어줘",
+    "lobby": "로비 · 밴픽부터 추천",
+    "matchmaking": "게임 찾는 중",
+    "readycheck": "매치 성사 — 수락해",
+    "champselect": "밴픽 · 카운터 고르는 중",
+    "gamestart": "게임 시작",
+    "inprogress": "게임 중 · 추천 없음",
+    "waitingforstats": "결과 집계 중",
+    "preendofgame": "게임 마무리 중",
+    "endofgame": "게임 종료",
+    "reconnect": "재접속 중"
   }
 }

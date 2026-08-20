@@ -487,7 +487,7 @@
              ограничение по высоте строки и прокручивается вместо обрезки. -->
         <Grid Grid.Row="2" x:Name="IdlePanel" Visibility="Collapsed"
               VerticalAlignment="Center" HorizontalAlignment="Center"
-              Margin="24,18,24,28">
+              Margin="24,10,24,14">
 
           <!-- ── Стадия загрузки/ожидания: точки + крупный статус + прогресс ── -->
           <StackPanel x:Name="LoadingInfo">
@@ -625,7 +625,7 @@
             </Border>
 
             <!-- Последние 5 игр: иконки во всю ширину бара + LP за игру -->
-            <Grid x:Name="Last5Panel" Margin="0,15,0,0"/>
+            <Grid x:Name="Last5Panel" Margin="0,12,0,0"/>
 
             <!-- Подсказка: статистика наполняется по мере сыгранных игр -->
             <!-- Крупнее и контрастнее обычной подписи: на пустом экране это
@@ -633,10 +633,10 @@
             <TextBlock x:Name="SessionHint" Visibility="Collapsed"
                        FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                        Foreground="#C3D3E0" TextWrapping="Wrap" LineHeight="18"
-                       TextAlignment="Center" Margin="0,12,0,2"/>
+                       TextAlignment="Center" Margin="0,10,0,0"/>
 
             <!-- Винрейт слева (W–L мелко, % крупно с цветом) + график справа -->
-            <Grid Margin="0,16,0,0">
+            <Grid Margin="0,12,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -661,7 +661,7 @@
             </Grid>
 
             <!-- Пул чемпионов: заголовок + имя выбранной связки рядом -->
-            <StackPanel Orientation="Horizontal" Margin="0,16,0,7" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,6" HorizontalAlignment="Left">
               <TextBlock Text="{loc:T pool.sectionTitle}"
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#8AA0B2" VerticalAlignment="Center"/>
@@ -698,7 +698,7 @@
 
             <!-- Мои чемпионы за 30 дней: одна строка ровно по ширине ряда кнопок
                  пула (UniformGrid на то же число колонок, что и карточек). -->
-            <StackPanel x:Name="MyChampsBox" Visibility="Collapsed" Margin="0,8,0,0">
+            <StackPanel x:Name="MyChampsBox" Visibility="Collapsed" Margin="0,7,0,0">
               <TextBlock Text="{loc:T pool.myChamps30d}" Margin="4,0,2,3"
                          FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                          Foreground="#6E8AA0" HorizontalAlignment="Left"/>
@@ -736,12 +736,6 @@
                     Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
                     FontWeight="Bold" Padding="12,4"/>
 
-            <!-- Фаза, в которой находится окно — крупно, снизу -->
-            <TextBlock x:Name="ReadyStatusText" Text="Готов"
-                       FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
-                       Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
-                       TextWrapping="Wrap" Margin="0,18,0,0"/>
-
             <!-- Карусель советов (временно скрыта на время беты — вернём позже):
             <Border Margin="0,15,0,0" Width="282" Height="118" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
@@ -778,9 +772,9 @@
             </Border>
 
             <!-- Плашка беты: светящаяся надпись + просьба писать в поддержку -->
-            <Border Margin="0,15,0,0" Width="282" CornerRadius="7"
+            <Border Margin="0,11,0,0" Width="282" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
-                    Padding="13,12">
+                    Padding="13,10">
               <StackPanel>
                 <TextBlock Text="BETA" HorizontalAlignment="Center"
                            FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
@@ -800,6 +794,12 @@
                 </TextBlock>
               </StackPanel>
             </Border>
+
+            <!-- Фаза, в которой находится окно — крупно, самой нижней строкой -->
+            <TextBlock x:Name="ReadyStatusText" Text="Готов"
+                       FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"
+                       Foreground="#C89B3C" HorizontalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" Margin="0,10,0,0"/>
           </StackPanel>
           </ScrollViewer>
         </Grid>

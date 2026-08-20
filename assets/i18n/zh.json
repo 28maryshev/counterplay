@@ -437,5 +437,18 @@
     "myWinrates": "你各英雄的胜率 · 最近 {0} 天",
     "myWinratesEmpty": "暂无对局记录——开着 Counterplay 游玩后，这里会显示你的胜率。",
     "myChamps30d": "胜率 · 近30天"
+  },
+  "phaseState": {
+    "none": "就绪 · 去开个房间",
+    "lobby": "房间 · 选人阶段开始推荐",
+    "matchmaking": "正在匹配",
+    "readycheck": "匹配成功 — 请接受",
+    "champselect": "选人 · 正在挑克制英雄",
+    "gamestart": "对局即将开始",
+    "inprogress": "对局中 · 不提供推荐",
+    "waitingforstats": "正在统计结果",
+    "preendofgame": "对局收尾中",
+    "endofgame": "对局结束",
+    "reconnect": "正在重连"
   }
 }

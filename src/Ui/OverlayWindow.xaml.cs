@@ -183,6 +183,27 @@ public partial class OverlayWindow : Window
         }
         Left = r.Right / dpiX;
         Top  = r.Top  / dpiY;
+        LimitHeightToClient();
+    }
+
+    // Ready-экран растёт по контенту (SizeToContent.Height), поэтому его нужно
+    // подрезать снаружи: окно не должно быть выше окна клиента LoL, рядом с
+    // которым висит. Лишнее уходит в прокрутку, а не за край экрана.
+    private void LimitHeightToClient()
+    {
+        double dpiY = 1;
+        var src = System.Windows.PresentationSource.FromVisual(this);
+        if (src?.CompositionTarget is { } ct) dpiY = ct.TransformToDevice.M22;
+
+        // Снизу окно не должно уходить за рабочую область — считаем от своего Top.
+        var wa = SystemParameters.WorkArea;
+        var max = wa.Bottom - Math.Max(wa.Top, Top) - 8;
+        if (TryGetClientRect(out var r))
+        {
+            var clientH = (r.Bottom - r.Top) / dpiY;
+            if (clientH > MinH) max = Math.Min(max, clientH);
+        }
+        MaxHeight = Math.Max(MinH, max);
     }
 
     // Привязка только при появлении и пока пользователь не двигал окно сам.
@@ -1451,14 +1472,22 @@ public partial class OverlayWindow : Window
         ReadyStatusText.Text = _readyCustom
             ?? (_readyPhaseRaw is null
                 ? Loc.T("status.readyIdle")
-                : Loc.T("status.readyPhase", PhaseDisplay(_readyPhaseRaw)));
+                : PhaseDisplay(_readyPhaseRaw));
 
-    // Локализованное имя фазы геймфлоу (phase.* в i18n; неизвестная — как есть).
+    // Строка состояния для фазы геймфлоу. Сначала берём человеческое описание
+    // (phaseState.* — «что сейчас происходит и чего ждать от программы»),
+    // и только если его нет — сухое имя фазы, как раньше.
     private static string PhaseDisplay(string phase)
     {
-        var key = "phase." + phase.ToLowerInvariant();
+        var lower = phase.ToLowerInvariant();
+
+        var stateKey = "phaseState." + lower;
+        var state = Loc.T(stateKey);
+        if (state != stateKey) return state;
+
+        var key = "phase." + lower;
         var t = Loc.T(key);
-        return t == key ? phase : t;
+        return Loc.T("status.readyPhase", t == key ? phase : t);
     }
 
     // ── Трекер сессии на экране ожидания ─────────────────────────────────────
@@ -2142,6 +2171,7 @@ public partial class OverlayWindow : Window
         MinWidth  = 0;
         MinHeight = 0;
         Width     = IdleW;
+        LimitHeightToClient();   // но не выше окна клиента — остальное прокруткой
 
         if (_inTray) return; // во время игры окно скрыто в трее
         Show();

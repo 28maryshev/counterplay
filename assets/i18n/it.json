@@ -437,5 +437,18 @@
     "myWinrates": "Il tuo winrate per campione · ultimi {0} giorni",
     "myWinratesEmpty": "Ancora nessuna partita: gioca con Counterplay avviato e qui compariranno i tuoi winrate.",
     "myChamps30d": "Winrate · ultimi 30 giorni"
+  },
+  "phaseState": {
+    "none": "Pronto · apri una lobby",
+    "lobby": "Lobby · consigli nel draft",
+    "matchmaking": "Ricerca partita",
+    "readycheck": "Partita trovata — accetta",
+    "champselect": "Draft · cerco i counter",
+    "gamestart": "La partita inizia",
+    "inprogress": "In partita · nessun consiglio",
+    "waitingforstats": "Calcolo i risultati",
+    "preendofgame": "La partita si chiude",
+    "endofgame": "Partita finita",
+    "reconnect": "Riconnessione"
   }
 }

@@ -437,5 +437,18 @@
     "myWinrates": "Şampiyon bazında kazanma oranın · son {0} gün",
     "myWinratesEmpty": "Henüz kayıtlı maç yok — Counterplay açıkken oyna, kazanma oranların burada görünecek.",
     "myChamps30d": "Kazanma oranı · son 30 gün"
+  },
+  "phaseState": {
+    "none": "Hazır · bir lobi aç",
+    "lobby": "Lobi · ipuçları seçimde",
+    "matchmaking": "Maç aranıyor",
+    "readycheck": "Maç bulundu — kabul et",
+    "champselect": "Seçim · counter arıyorum",
+    "gamestart": "Maç başlıyor",
+    "inprogress": "Maçta · ipucu yok",
+    "waitingforstats": "Sonuçlar sayılıyor",
+    "preendofgame": "Maç bitiyor",
+    "endofgame": "Maç bitti",
+    "reconnect": "Yeniden bağlanılıyor"
   }
 }
