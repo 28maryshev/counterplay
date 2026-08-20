@@ -545,9 +545,9 @@
           </StackPanel>
 
           <!-- ── Готов: трекер сессии (ранг/LP/последние игры/винрейт) + советы ── -->
-          <!-- Ready-экран в прокрутке: содержимое никогда не вылезает за окно,
-               каким бы высоким ни было (окно не должно быть выше клиента LoL). -->
-          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+          <!-- Ready-экран БЕЗ прокрутки: окно просто вырастает под содержимое.
+               Полоса прокрутки здесь мешала больше, чем лишние пиксели высоты. -->
+          <ScrollViewer VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled"
                         x:Name="ReadyScroll" Visibility="Collapsed">
             <StackPanel x:Name="ReadyInfo" MaxWidth="282">
 

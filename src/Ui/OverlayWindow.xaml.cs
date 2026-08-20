@@ -186,23 +186,13 @@ public partial class OverlayWindow : Window
         LimitHeightToClient();
     }
 
-    // Ready-экран растёт по контенту (SizeToContent.Height), поэтому его нужно
-    // подрезать снаружи: окно не должно быть выше окна клиента LoL, рядом с
-    // которым висит. Лишнее уходит в прокрутку, а не за край экрана.
+    // Ready-экран растёт по контенту (SizeToContent.Height). Прокрутки внутри
+    // нет — окно может быть выше клиента LoL, это нормально; ограничиваем его
+    // только рабочей областью экрана, чтобы низ не ушёл под панель задач.
     private void LimitHeightToClient()
     {
-        double dpiY = 1;
-        var src = System.Windows.PresentationSource.FromVisual(this);
-        if (src?.CompositionTarget is { } ct) dpiY = ct.TransformToDevice.M22;
-
-        // Снизу окно не должно уходить за рабочую область — считаем от своего Top.
         var wa = SystemParameters.WorkArea;
         var max = wa.Bottom - Math.Max(wa.Top, Top) - 8;
-        if (TryGetClientRect(out var r))
-        {
-            var clientH = (r.Bottom - r.Top) / dpiY;
-            if (clientH > MinH) max = Math.Min(max, clientH);
-        }
         MaxHeight = Math.Max(MinH, max);
     }
 
