@@ -483,9 +483,11 @@
         </StackPanel>
 
         <!-- ══ ЭКРАН ОЖИДАНИЯ ════════════════════════════════════════ -->
-        <StackPanel Grid.Row="2" x:Name="IdlePanel" Visibility="Collapsed"
-                    VerticalAlignment="Center" HorizontalAlignment="Center"
-                    Margin="24,18,24,28">
+        <!-- Grid, а не StackPanel: так вложенный ScrollViewer получает
+             ограничение по высоте строки и прокручивается вместо обрезки. -->
+        <Grid Grid.Row="2" x:Name="IdlePanel" Visibility="Collapsed"
+              VerticalAlignment="Center" HorizontalAlignment="Center"
+              Margin="24,18,24,28">
 
           <!-- ── Стадия загрузки/ожидания: точки + крупный статус + прогресс ── -->
           <StackPanel x:Name="LoadingInfo">
@@ -543,7 +545,11 @@
           </StackPanel>
 
           <!-- ── Готов: трекер сессии (ранг/LP/последние игры/винрейт) + советы ── -->
-          <StackPanel x:Name="ReadyInfo" Visibility="Collapsed" MaxWidth="282">
+          <!-- Ready-экран в прокрутке: содержимое никогда не вылезает за окно,
+               каким бы высоким ни было (окно не должно быть выше клиента LoL). -->
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        x:Name="ReadyScroll" Visibility="Collapsed">
+            <StackPanel x:Name="ReadyInfo" MaxWidth="282">
 
             <!-- Эмблема ранга + ник с «крыльями» (в цвет ранга) и выбор очереди -->
             <Grid>
@@ -671,6 +677,29 @@
               <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
             </UniformGrid>
 
+            <!-- Мои чемпионы за 30 дней: одна строка под кнопками пула.
+                 Высота фиксирована, лишние прячутся — панель не растёт вниз. -->
+            <ItemsControl x:Name="MyChampsStrip" Visibility="Collapsed" Margin="0,8,0,0" Height="52">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Margin="0,0,4,0" CornerRadius="6" BorderThickness="1" Padding="3,2"
+                          BorderBrush="{Binding Frame}" Background="{Binding Tint}" ToolTip="{Binding Tip}">
+                    <StackPanel>
+                      <!-- Fill — иконка чемпиона либо ровная заливка пустого слота -->
+                      <Border Width="30" Height="30" CornerRadius="4" HorizontalAlignment="Center"
+                              Background="{Binding Fill}"/>
+                      <TextBlock Text="{Binding Wr}" Foreground="{Binding Frame}" HorizontalAlignment="Center"
+                                 FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                                 Margin="0,2,0,0"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
             <!-- «Сохранить для драфта»: только в тестовом режиме (включается кодом) -->
             <Button x:Name="SaveForDraftBtn" Click="SaveForDraft_Click" Visibility="Collapsed"
                     HorizontalAlignment="Center" Margin="0,8,0,0" Cursor="Hand"
@@ -743,7 +772,8 @@
               </StackPanel>
             </Border>
           </StackPanel>
-        </StackPanel>
+          </ScrollViewer>
+        </Grid>
 
         <!-- ══ КОМПАКТНЫЙ ВИД ════════════════════════════════════════ -->
         <ScrollViewer Grid.Row="2" x:Name="CompactScroll" Visibility="Collapsed"

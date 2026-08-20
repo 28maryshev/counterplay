@@ -152,6 +152,7 @@ sealed class TestPanel : Window
     private readonly RecommendationEngine _engine;
     private readonly List<int> _allChampIds;   // для галочки «часть чемпионов нет»
     private readonly CheckBox _missingChamps = new();
+    private readonly CheckBox _emptyProfile  = new();   // «ещё ни одной игры»
     private readonly Dictionary<string, int> _idByName;   // имя чемпиона → id
     private readonly List<string> _names;                 // "—" + имена по алфавиту
 
@@ -280,6 +281,17 @@ sealed class TestPanel : Window
         _missingChamps.Checked   += (_, _) => ApplyOwnership();
         _missingChamps.Unchecked += (_, _) => ApplyOwnership();
         stages.Children.Add(_missingChamps);
+
+        // Проверка первого запуска: журнал пуст, но все элементы ready-экрана
+        // на месте (пустые последние игры, пустой график, пустая полоса чемпионов).
+        _emptyProfile.Content = "Профиль без игр";
+        _emptyProfile.Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
+        _emptyProfile.VerticalAlignment = VerticalAlignment.Center;
+        _emptyProfile.Margin = new Thickness(12, 0, 0, 0);
+        _emptyProfile.ToolTip = "Показать ready-экран так, как его видит человек сразу после установки — до первой сыгранной игры";
+        _emptyProfile.Checked   += (_, _) => _overlay.SetEmptyProfilePreview(true);
+        _emptyProfile.Unchecked += (_, _) => _overlay.SetEmptyProfilePreview(false);
+        stages.Children.Add(_emptyProfile);
 
         bottom.Children.Add(stages);
 

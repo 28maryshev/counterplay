@@ -1282,7 +1282,7 @@ public partial class OverlayWindow : Window
         DlBar.Visibility = Visibility.Collapsed;
         PulseAnim(false);
         LoadingInfo.Visibility = Visibility.Collapsed;
-        ReadyInfo.Visibility   = Visibility.Visible;
+        ReadyScroll.Visibility = Visibility.Visible;
         UpdatePoolButtons();
         ShowIdle();
     }
@@ -1299,6 +1299,56 @@ public partial class OverlayWindow : Window
         _poolSettings.Show();
     }
 
+    /// Мои чемпионы за 30 дней — одна строка под кнопками пула на ready-экране.
+    /// Показываем ровно столько, сколько влезает в ширину панели: строка не
+    /// переносится и не растягивает окно (оно не должно быть выше клиента LoL).
+    private const int MyChampsMax = 6;
+
+    // Предпросмотр «профиль без единой игры» — только тестовый режим: рисуем
+    // ready-экран так, как его увидит человек сразу после установки.
+    private bool _emptyProfilePreview;
+
+    public void SetEmptyProfilePreview(bool on) => Dispatcher.Invoke(() =>
+    {
+        _emptyProfilePreview = on;
+        UpdateMyChampsStrip();
+        RenderSessionView();
+    });
+
+    private void UpdateMyChampsStrip()
+    {
+        var ranked = SessionTracker.ChampStatsMap(SessionTracker.QueuesRanked);
+        var normal = SessionTracker.ChampStatsMap(SessionTracker.QueuesNormal);
+        var items = ranked.Keys.Concat(normal.Keys).Distinct()
+            .Select(id =>
+            {
+                var (rg, rw) = ranked.GetValueOrDefault(id);
+                var (ng, nw) = normal.GetValueOrDefault(id);
+                var g = rg + ng;
+                return (Id: id, Games: g, Wr: g > 0 ? 100.0 * (rw + nw) / g : 0.0);
+            })
+            .Where(x => x.Games > 0)
+            .OrderByDescending(x => x.Games)
+            .Take(MyChampsMax)
+            .Select(x => MyChampCard.FromChampion(
+                IconCache.Get(x.Id),
+                $"{x.Wr:F0}%",
+                WinrateColor.BrushForSample(x.Wr, x.Games),
+                WinrateColor.TintForSample(x.Wr, x.Games),
+                $"{DataDragon.Name(x.Id)} — {x.Wr:F0}% / {x.Games}"))
+            .ToList();
+
+        if (_emptyProfilePreview) items.Clear();
+
+        // Игр ещё нет — строка не исчезает, а стоит пустыми слотами: место под
+        // статистику видно сразу, а с первой игрой слоты просто наполняются.
+        while (items.Count < MyChampsMax)
+            items.Add(MyChampCard.Placeholder(Loc.T("session.needGames")));
+
+        MyChampsStrip.ItemsSource = items;
+        MyChampsStrip.Visibility  = Visibility.Visible;
+    }
+
     /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
     public void RefreshPoolMode() => Dispatcher.InvokeAsync(() =>
     {
@@ -1311,7 +1361,7 @@ public partial class OverlayWindow : Window
     // была бы перекидыванием (ReadyInfo — надёжный признак ready-экрана).
     private void RefreshPoolSlot()
     {
-        if (ReadyInfo.Visibility == Visibility.Visible) return;
+        if (ReadyScroll.Visibility == Visibility.Visible) return;
         RenderCurrentState();
     }
 
@@ -1372,6 +1422,7 @@ public partial class OverlayWindow : Window
     // Подсветка активного режима.
     private void UpdatePoolButtons()
     {
+        UpdateMyChampsStrip();
         var a    = PoolStore.Current();
         var kind = a.ActiveKind;
         void Set(System.Windows.Controls.Button b, bool on)
@@ -1457,6 +1508,7 @@ public partial class OverlayWindow : Window
 
         var d = _session;
         var v = d?.Queues.GetValueOrDefault(_selectedQueue);
+        if (_emptyProfilePreview) v = null;   // тестовый предпросмотр «нет игр»
         _sessionView = v;
 
         NickText.Text  = d?.Nick ?? "";
@@ -1482,11 +1534,11 @@ public partial class OverlayWindow : Window
             ApplyRankProgress();
             SessionHint.Text = Loc.T("session.needGames");
             SessionHint.Visibility = Visibility.Visible;
-            Last5Panel.Children.Clear();
-            SeasonWlText.Text = "";
+            FillLast5(null);                      // 5 пустых ячеек вместо пустоты
+            SeasonWlText.Text = Loc.T("session.wl", 0, 0);
             WinrateBig.Text = "—";
             WinrateBig.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
-            WrChart.Children.Clear();
+            DrawWrChart();                        // пустая сетка со шкалой
             return;
         }
 
@@ -1517,17 +1569,7 @@ public partial class OverlayWindow : Window
         SessionHint.Text = Loc.T("session.needGames");
         SessionHint.Visibility = v.WinrateHistory.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        // Последние 5 игр — 5 равных колонок во всю ширину бара
-        Last5Panel.Children.Clear();
-        Last5Panel.ColumnDefinitions.Clear();
-        for (int i = 0; i < 5; i++)
-            Last5Panel.ColumnDefinitions.Add(new ColumnDefinition());
-        for (int i = 0; i < v.Last5.Count && i < 5; i++)
-        {
-            var cell = BuildGameCell(v.Last5[i]);
-            Grid.SetColumn(cell, i);
-            Last5Panel.Children.Add(cell);
-        }
+        FillLast5(v.Last5);
 
         // W/L (мелко, локализовано) + винрейт (крупно, цвет по правилам)
         var played = v.Wins + v.Losses;
@@ -1659,6 +1701,51 @@ public partial class OverlayWindow : Window
     }
 
     // Ячейка одной игры: иконка чемпиона (рамка по W/L) + LP за игру под ней.
+    // Последние 5 игр — всегда пять равных колонок во всю ширину бара.
+    // Недосыгранные слоты рисуем пустыми: панель не «прыгает» по высоте и
+    // сразу показывает, где появится история.
+    private void FillLast5(IReadOnlyList<SessionTracker.RecentGame>? games)
+    {
+        Last5Panel.Children.Clear();
+        Last5Panel.ColumnDefinitions.Clear();
+        for (int i = 0; i < 5; i++)
+            Last5Panel.ColumnDefinitions.Add(new ColumnDefinition());
+        for (int i = 0; i < 5; i++)
+        {
+            var cell = games != null && i < games.Count
+                ? BuildGameCell(games[i])
+                : BuildEmptyGameCell();
+            Grid.SetColumn(cell, i);
+            Last5Panel.Children.Add(cell);
+        }
+    }
+
+    // Пустой слот игры: та же геометрия, приглушённая рамка, прочерк вместо LP.
+    private FrameworkElement BuildEmptyGameCell()
+    {
+        var col = new StackPanel
+        {
+            Margin = new Thickness(2, 0, 2, 0),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+        };
+        col.Children.Add(new Border
+        {
+            Width = 47, Height = 47, CornerRadius = new CornerRadius(9),
+            BorderThickness = new Thickness(2),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF)),
+            Background  = new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)),
+        });
+        col.Children.Add(new TextBlock
+        {
+            Text = "·", Foreground = MuteBrush,
+            FontFamily = (FontFamily)FindResource("UiFont"),
+            FontSize = 11, FontWeight = FontWeights.Bold,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            Margin = new Thickness(0, 3, 0, 0),
+        });
+        return col;
+    }
+
     private FrameworkElement BuildGameCell(SessionTracker.RecentGame g)
     {
         var col = new StackPanel
@@ -1753,11 +1840,9 @@ public partial class OverlayWindow : Window
     {
         WrChart.Children.Clear();
         var v = _sessionView;
-        if (v is null) return;
-        IReadOnlyList<SessionTracker.WrPoint> pts = v.WinrateHistory;
+        IReadOnlyList<SessionTracker.WrPoint> pts = v?.WinrateHistory ?? [];
         double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
         double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
-        if (pts.Count == 0) return;
 
         // Журнал сезонный (сотни игр) — для рисования прореживаем до ~120 точек
         // равномерной выборкой, первая и последняя игры сохраняются всегда.
@@ -1771,7 +1856,10 @@ public partial class OverlayWindow : Window
         }
 
         // Диапазон Y — вокруг данных, чтобы динамика была видна.
-        double min = pts.Min(p => p.Winrate), max = pts.Max(p => p.Winrate);
+        // Истории ещё нет — берём нейтральные 45–55%: оси и сетка на месте,
+        // просто без линии (график не пропадает до первой игры).
+        double min = pts.Count > 0 ? pts.Min(p => p.Winrate) : 45;
+        double max = pts.Count > 0 ? pts.Max(p => p.Winrate) : 55;
         if (max - min < 6) { double m = (min + max) / 2; min = m - 3; max = m + 3; }
         min = Math.Max(0, min - 1); max = Math.Min(100, max + 1);
         if (max <= min) max = min + 1;
@@ -1828,6 +1916,8 @@ public partial class OverlayWindow : Window
             for (int i = 0; i < pts.Count; i++) poly.Points.Add(new Point(X(i), Y(pts[i].Winrate)));
             WrChart.Children.Add(poly);
         }
+
+        if (pts.Count == 0) return;   // истории нет — оставляем пустую сетку
 
         // Точка последнего значения
         int last = pts.Count - 1;
@@ -1959,7 +2049,7 @@ public partial class OverlayWindow : Window
     private void SetLoadingMode()
     {
         LoadingInfo.Visibility = Visibility.Visible;
-        ReadyInfo.Visibility   = Visibility.Collapsed;
+        ReadyScroll.Visibility = Visibility.Collapsed;
         // _tipTimer?.Stop(); // карусель советов (см. блок ниже)
     }
 
@@ -2936,6 +3026,39 @@ public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
 }
 
 /// <summary>Колонка роли в тир-листе: два вертикальных списка — по WR и по тиру.</summary>
+/// Чемпион в ленте «мои за 30 дней» на ready-экране.
+public sealed class MyChampCard
+{
+    public Brush?  Fill  { get; init; }          // иконка чемпиона или заливка пустого слота
+    public string  Wr    { get; init; } = "";
+    public Brush   Frame { get; init; } = System.Windows.Media.Brushes.Gray;
+    public Brush   Tint  { get; init; } = System.Windows.Media.Brushes.Transparent;
+    public string  Tip   { get; init; } = "";
+
+    public static MyChampCard FromChampion(ImageSource? icon, string wr, Brush frame, Brush tint, string tip)
+        => new()
+        {
+            Fill  = icon != null
+                ? new ImageBrush(icon) { Stretch = Stretch.UniformToFill }
+                : EmptyFill,
+            Wr = wr, Frame = frame, Tint = tint, Tip = tip,
+        };
+
+    // Пустой слот: тот же размер и рамка, только без данных — ready-экран
+    // выглядит одинаково и до первой сыгранной игры, и после.
+    public static MyChampCard Placeholder(string tip) => new()
+    {
+        Fill  = EmptyFill,
+        Wr    = "—",
+        Frame = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+        Tint  = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x0F, 0xFF, 0xFF, 0xFF)),
+        Tip   = tip,
+    };
+
+    private static readonly Brush EmptyFill =
+        new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+}
+
 public sealed class TierRoleCol
 {
     public string           RoleLabel { get; init; } = "";
