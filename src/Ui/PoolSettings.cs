@@ -147,7 +147,7 @@ sealed class PoolSettingsWindow : Window
             var slot = new Border
             {
                 CornerRadius = new CornerRadius(8),
-                BorderThickness = new Thickness(2),
+                BorderThickness = new Thickness(1.2),
                 BorderBrush = frame,
                 Background = new SolidColorBrush(Color.FromArgb(0x1E, 0x16, 0x20, 0x2C)),
                 Margin = new Thickness(0, 0, 8, 8),
