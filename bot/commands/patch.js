@@ -25,18 +25,18 @@ module.exports = {
     const dbLine = !db || !db.patches || !db.patches.length
       ? 'no data'
       : db.ready
-        ? `${db.newest} — ready ✅`
-        : `${db.newest} — filling ⏳ ${(db.fraction * 100).toFixed(0)}% (holding on ${db.primary})`;
+        ? `${dp(db.newest)} — ready ✅`
+        : `${dp(db.newest)} — filling ⏳ ${(db.fraction * 100).toFixed(0)}% (holding on ${dp(db.primary)})`;
 
     const e = embed(COLORS.blue)
       .setTitle('🩺 Data freshness')
       .addFields(
-        { name: 'Live patch (Data Dragon)', value: s.official ? `**${s.official}**` : 'n/a', inline: true },
+        { name: 'Live patch (Data Dragon)', value: s.official ? `**${dp(s.official)}**` : 'n/a', inline: true },
         { name: 'Our database', value: dbLine, inline: true },
         { name: '​', value: '​', inline: true },
-        { name: 'Site · tier list / guides', value: `${s.published.site || '—'} ${mark(s.published.site, primary)}`, inline: true },
-        { name: 'Program · app database', value: `${s.published.program || '—'} ${mark(s.published.program, primary)}`, inline: true },
-        { name: 'Runes / builds', value: `${s.published.runes || '—'} ${mark(s.published.runes, primary)}`, inline: true }
+        { name: 'Site · tier list / guides', value: `${s.published.site ? dp(s.published.site) : '—'} ${mark(s.published.site, primary)}`, inline: true },
+        { name: 'Program · app database', value: `${s.published.program ? dp(s.published.program) : '—'} ${mark(s.published.program, primary)}`, inline: true },
+        { name: 'Runes / builds', value: `${s.published.runes ? dp(s.published.runes) : '—'} ${mark(s.published.runes, primary)}`, inline: true }
       );
 
     const stale = ['site', 'program', 'runes'].filter(
@@ -44,8 +44,8 @@ module.exports = {
     );
     e.setDescription(
       stale.length
-        ? `Primary ready patch: **${primary}**. Behind: **${stale.join(', ')}** — needs an update.`
-        : `Everything is on **${primary}**. ✅`
+        ? `Primary ready patch: **${dp(primary)}**. Behind: **${stale.join(', ')}** — needs an update.`
+        : `Everything is on **${dp(primary)}**. ✅`
     );
     await interaction.editReply({ embeds: [e] });
   }

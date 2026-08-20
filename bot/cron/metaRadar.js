@@ -8,6 +8,7 @@ const scoring = require('../lib/scoring');
 const { COLORS, embed } = require('../lib/embeds');
 const { db, kvGet, kvSet } = require('../db/botDb');
 const logger = require('../lib/logger');
+const {displayPatch} = require('../lib/patch');
 
 const TYPES = ['sleeper', 'rising', 'trap', 'counter_surprise'];
 
@@ -76,7 +77,7 @@ function buildEmbed(type, c, patch) {
   const name = champs.name(c.championId);
   const role = roleLabel[c.role] ?? c.role;
   const e = embed(type === 'trap' ? COLORS.red : type === 'counter_surprise' ? COLORS.blue : COLORS.green)
-    .setTitle(`📡 META RADAR — Patch ${patch}`);
+    .setTitle(`📡 META RADAR — Patch ${displayPatch(patch)}`);
   const icon = champs.iconUrl(c.championId);
   if (icon) e.setThumbnail(icon);
 
@@ -109,12 +110,24 @@ function buildEmbed(type, c, patch) {
   return e;
 }
 
+// Роль считаем «настоящей» для чемпиона, если на ней сыграна заметная доля его
+// игр. Без этого в подборку лезли офф-роль пики (Калиста на миде — 236 игр,
+// 4 % её игр): на такой выборке винрейт скачет на ±10 пп, и это чистый шум,
+// а не смена меты.
+const MOVER_MIN_GAMES = 3000;   // абсолютный минимум игр на «чемпион+роль»
+const MOVER_MIN_SHARE = 0.15;   // и не меньше 15 % игр этого чемпиона
+
+function significantPairs(patch) {
+  const rows = dl.getChampionStats(patch, { minGames: MOVER_MIN_GAMES });
+  const perChamp = new Map();
+  for (const r of dl.getChampionStats(patch))
+    perChamp.set(r.championId, (perChamp.get(r.championId) ?? 0) + r.g);
+  return rows.filter((r) => r.g / (perChamp.get(r.championId) || r.g) >= MOVER_MIN_SHARE);
+}
+
 function seismographEmbed(cur, old) {
-  const curMap = new Map(
-    dl.getChampionStats(cur, { minGames: 200 }).map((r) => [`${r.championId}:${r.role}`, r])
-  );
-  const movers = dl
-    .getChampionStats(old, { minGames: 200 })
+  const curMap = new Map(significantPairs(cur).map((r) => [`${r.championId}:${r.role}`, r]));
+  const movers = significantPairs(old)
     .map((p) => {
       const n = curMap.get(`${p.championId}:${p.role}`);
       return n ? { ...n, from: adj(p), to: adj(n), d: adj(n) - adj(p) } : null;
@@ -129,7 +142,7 @@ function seismographEmbed(cur, old) {
       `${m.from.toFixed(1)}% → **${m.to.toFixed(1)}%** (${m.d >= 0 ? '+' : ''}${m.d.toFixed(1)})`
   );
   return embed(COLORS.gold)
-    .setTitle(`🌋 SEISMOGRAPH — Patch ${cur} vs ${old}`)
+    .setTitle(`🌋 SEISMOGRAPH — Patch ${displayPatch(cur)} vs ${displayPatch(old)}`)
     .setDescription(`Biggest win-rate moves of the new patch:\n\n${lines.join('\n')}`);
 }
 

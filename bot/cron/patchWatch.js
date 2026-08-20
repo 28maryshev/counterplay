@@ -8,6 +8,7 @@ const { COLORS, embed } = require('../lib/embeds');
 const { kvGet, kvSet } = require('../db/botDb');
 const freshness = require('../lib/freshness');
 const logger = require('../lib/logger');
+const {displayPatch: dp} = require('../lib/patch');
 
 const KV_OFFICIAL = 'patchwatch_last_official';
 const KV_READY = 'patchwatch_last_ready';
@@ -33,13 +34,13 @@ async function run(ctx, { force = false } = {}) {
   const msgs = [];
   if (s.official !== lastOfficial) {
     msgs.push(
-      `🌐 **New LoL patch ${s.official}** detected. Collecting matches — the tier list and guides stay on **${primary || lastReady || '—'}** until the new patch has enough data.`
+      `🌐 **New LoL patch ${dp(s.official)}** detected. Collecting matches — the tier list and guides stay on **${dp(primary || lastReady || '—')}** until the new patch has enough data.`
     );
     kvSet(KV_OFFICIAL, s.official);
   }
   if (primary && primary !== lastReady && (!lastReady || freshness.cmpPatch(primary, lastReady) > 0)) {
     msgs.push(
-      `📊 **Patch ${primary} data is ready.** The app database updates itself; run the site deploy to move guides & tier list to **${primary}**.`
+      `📊 **Patch ${dp(primary)} data is ready.** The app database updates itself; run the site deploy to move guides & tier list to **${dp(primary)}**.`
     );
     kvSet(KV_READY, primary);
   }
