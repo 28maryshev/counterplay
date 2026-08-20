@@ -126,8 +126,22 @@ def ensure_release(s: requests.Session) -> int:
     r = s.get(f'{API}/repos/{REPO}/releases/tags/{TAG}')
     if r.status_code == 200:
         return r.json()['id']
+    if r.status_code in (401, 403):
+        raise RuntimeError(
+            f'GitHub отказал ({r.status_code}) — проверь GITHUB_TOKEN '
+            f'(протух или нет прав Contents: read/write): {r.text[:200]}')
+    if r.status_code != 404:
+        raise RuntimeError(f'GitHub releases/tags/{TAG} -> {r.status_code}: {r.text[:200]}')
+
+    # Релиза нет — создаём. 422 здесь означает «уже существует» (гонка или тег
+    # есть, а GET его не отдал): не падаем, а перечитываем релиз по тегу.
     r = s.post(f'{API}/repos/{REPO}/releases', json={
         'tag_name': TAG, 'name': 'Data', 'body': 'Central database, updated each patch'})
+    if r.status_code == 422:
+        again = s.get(f'{API}/repos/{REPO}/releases/tags/{TAG}')
+        if again.status_code == 200:
+            return again.json()['id']
+        raise RuntimeError(f'Релиз {TAG} не создать и не прочитать: {r.text[:200]}')
     r.raise_for_status()
     return r.json()['id']
 
