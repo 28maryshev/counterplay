@@ -435,6 +435,7 @@
     "wrRanked": "你的排位胜率（单双/灵活）：{1} 场 {0}%",
     "wrNormal": "你的匹配胜率：{1} 场 {0}%",
     "myWinrates": "你各英雄的胜率 · 最近 {0} 天",
-    "myWinratesEmpty": "暂无对局记录——开着 Counterplay 游玩后，这里会显示你的胜率。"
+    "myWinratesEmpty": "暂无对局记录——开着 Counterplay 游玩后，这里会显示你的胜率。",
+    "myChamps30d": "胜率 · 近30天"
   }
 }

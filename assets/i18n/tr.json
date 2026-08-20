@@ -435,6 +435,7 @@
     "wrRanked": "Dereceli kazanma oranın (solo/esnek): {1} maçta %{0}",
     "wrNormal": "Normal maç kazanma oranın: {1} maçta %{0}",
     "myWinrates": "Şampiyon bazında kazanma oranın · son {0} gün",
-    "myWinratesEmpty": "Henüz kayıtlı maç yok — Counterplay açıkken oyna, kazanma oranların burada görünecek."
+    "myWinratesEmpty": "Henüz kayıtlı maç yok — Counterplay açıkken oyna, kazanma oranların burada görünecek.",
+    "myChamps30d": "Kazanma oranı · son 30 gün"
   }
 }

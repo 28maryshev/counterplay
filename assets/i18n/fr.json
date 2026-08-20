@@ -435,6 +435,7 @@
     "wrRanked": "Votre winrate en classée (solo/flex) : {0}% sur {1} parties",
     "wrNormal": "Votre winrate en normale : {0}% sur {1} parties",
     "myWinrates": "Votre winrate par champion · {0} derniers jours",
-    "myWinratesEmpty": "Aucune partie enregistrée — jouez avec Counterplay lancé et vos winrates apparaîtront ici."
+    "myWinratesEmpty": "Aucune partie enregistrée — jouez avec Counterplay lancé et vos winrates apparaîtront ici.",
+    "myChamps30d": "Winrate · 30 derniers jours"
   }
 }

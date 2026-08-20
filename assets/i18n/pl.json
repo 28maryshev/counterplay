@@ -435,6 +435,7 @@
     "wrRanked": "Twój winrate w rankedzie (solo/flex): {0}% z {1} gier",
     "wrNormal": "Twój winrate w normalach: {0}% z {1} gier",
     "myWinrates": "Twój winrate wg bohatera · ostatnie {0} dni",
-    "myWinratesEmpty": "Brak zapisanych gier — zagraj z uruchomionym Counterplay, a winrate pojawi się tutaj."
+    "myWinratesEmpty": "Brak zapisanych gier — zagraj z uruchomionym Counterplay, a winrate pojawi się tutaj.",
+    "myChamps30d": "Winrate · ostatnie 30 dni"
   }
 }

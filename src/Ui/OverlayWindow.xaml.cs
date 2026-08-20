@@ -1346,7 +1346,7 @@ public partial class OverlayWindow : Window
             items.Add(MyChampCard.Placeholder(Loc.T("session.needGames")));
 
         MyChampsStrip.ItemsSource = items;
-        MyChampsStrip.Visibility  = Visibility.Visible;
+        MyChampsBox.Visibility    = Visibility.Visible;
     }
 
     /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
@@ -1534,13 +1534,15 @@ public partial class OverlayWindow : Window
             ApplyRankProgress();
             SessionHint.Text = Loc.T("session.needGames");
             SessionHint.Visibility = Visibility.Visible;
-            FillLast5(null);                      // 5 пустых ячеек вместо пустоты
-            SeasonWlText.Text = Loc.T("session.wl", 0, 0);
-            WinrateBig.Text = "—";
-            WinrateBig.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
-            DrawWrChart();                        // пустая сетка со шкалой
+            ShowSkeletons(true);                  // плашки на месте будущих данных
+            FillLast5(null);                      // 5 скелетон-ячеек
+            SeasonWlText.Text = "";
+            WinrateBig.Text = "";
+            DrawWrChart();                        // скелетон вместо графика
             return;
         }
+
+        ShowSkeletons(false);
 
         // Ранг есть только у Solo/Flex; для Normal/ARAM — имя очереди вместо тира.
         if (v.HasRank)
@@ -1701,6 +1703,25 @@ public partial class OverlayWindow : Window
     }
 
     // Ячейка одной игры: иконка чемпиона (рамка по W/L) + LP за игру под ней.
+    // Скелетон-режим ready-экрана: вместо цифр — плашки той же формы с бликом.
+    // Так экран сразу выглядит собранным, а не «поломанным прочерками».
+    private void ShowSkeletons(bool on)
+    {
+        var v = on ? Visibility.Visible : Visibility.Collapsed;
+        EmblemSkel.Visibility   = v;
+        RankSkel.Visibility     = v;
+        RankLpSkel.Visibility   = v;
+        WinrateSkel.Visibility  = v;
+        RankSkel.Background     = WlSkelBar.Background = EmblemSkel.Background =
+        WrSkelBar.Background    = RankLpSkel.Background = Skeleton.Shimmer;
+
+        // Настоящие подписи прячем, чтобы они не просвечивали сквозь плашки.
+        RankText.Visibility     = on ? Visibility.Hidden : Visibility.Visible;
+        RankLpText.Visibility   = on ? Visibility.Hidden : Visibility.Visible;
+        SeasonWlText.Visibility = on ? Visibility.Hidden : Visibility.Visible;
+        WinrateBig.Visibility   = on ? Visibility.Hidden : Visibility.Visible;
+    }
+
     // Последние 5 игр — всегда пять равных колонок во всю ширину бара.
     // Недосыгранные слоты рисуем пустыми: панель не «прыгает» по высоте и
     // сразу показывает, где появится история.
@@ -1720,7 +1741,7 @@ public partial class OverlayWindow : Window
         }
     }
 
-    // Пустой слот игры: та же геометрия, приглушённая рамка, прочерк вместо LP.
+    // Скелетон слота игры: та же геометрия, что у настоящей ячейки, с бликом.
     private FrameworkElement BuildEmptyGameCell()
     {
         var col = new StackPanel
@@ -1728,21 +1749,11 @@ public partial class OverlayWindow : Window
             Margin = new Thickness(2, 0, 2, 0),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
         };
-        col.Children.Add(new Border
-        {
-            Width = 47, Height = 47, CornerRadius = new CornerRadius(9),
-            BorderThickness = new Thickness(2),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF)),
-            Background  = new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)),
-        });
-        col.Children.Add(new TextBlock
-        {
-            Text = "·", Foreground = MuteBrush,
-            FontFamily = (FontFamily)FindResource("UiFont"),
-            FontSize = 11, FontWeight = FontWeights.Bold,
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-            Margin = new Thickness(0, 3, 0, 0),
-        });
+        col.Children.Add(Skeleton.Block(47, 47, 9));
+        var lp = Skeleton.Block(22, 8);
+        lp.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+        lp.Margin = new Thickness(0, 4, 0, 1);
+        col.Children.Add(lp);
         return col;
     }
 
@@ -1843,6 +1854,24 @@ public partial class OverlayWindow : Window
         IReadOnlyList<SessionTracker.WrPoint> pts = v?.WinrateHistory ?? [];
         double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
         double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
+
+        // Истории ещё нет — вместо графика скелетон: крупная плашка под область
+        // линии и три коротких под подписи дат.
+        if (pts.Count == 0)
+        {
+            var area = Skeleton.Block(Math.Max(20, w - 22), Math.Max(12, h - 18), 6);
+            Canvas.SetLeft(area, 22);
+            Canvas.SetTop(area, 2);
+            WrChart.Children.Add(area);
+            for (int i = 0; i < 3; i++)
+            {
+                var lab = Skeleton.Block(26, 7, 3);
+                Canvas.SetLeft(lab, 22 + i * Math.Max(30, (w - 48) / 2.4));
+                Canvas.SetTop(lab, h - 11);
+                WrChart.Children.Add(lab);
+            }
+            return;
+        }
 
         // Журнал сезонный (сотни игр) — для рисования прореживаем до ~120 точек
         // равномерной выборкой, первая и последняя игры сохраняются всегда.
@@ -3034,29 +3063,29 @@ public sealed class MyChampCard
     public Brush   Frame { get; init; } = System.Windows.Media.Brushes.Gray;
     public Brush   Tint  { get; init; } = System.Windows.Media.Brushes.Transparent;
     public string  Tip   { get; init; } = "";
+    public Visibility WrSkeleton { get; init; } = Visibility.Collapsed;
 
     public static MyChampCard FromChampion(ImageSource? icon, string wr, Brush frame, Brush tint, string tip)
         => new()
         {
+            // Иконки ещё нет (Data Dragon не докачал) — скелетон вместо дыры.
             Fill  = icon != null
                 ? new ImageBrush(icon) { Stretch = Stretch.UniformToFill }
-                : EmptyFill,
+                : Skeleton.Shimmer,
             Wr = wr, Frame = frame, Tint = tint, Tip = tip,
         };
 
-    // Пустой слот: тот же размер и рамка, только без данных — ready-экран
-    // выглядит одинаково и до первой сыгранной игры, и после.
+    // Скелетон слота: размеры настоящей карточки, вместо иконки и цифр — плашки
+    // с бликом, чтобы место под статистику читалось как «скоро заполнится».
     public static MyChampCard Placeholder(string tip) => new()
     {
-        Fill  = EmptyFill,
-        Wr    = "—",
-        Frame = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
-        Tint  = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x0F, 0xFF, 0xFF, 0xFF)),
-        Tip   = tip,
+        Fill       = Skeleton.Shimmer,
+        Wr         = "",
+        WrSkeleton = Visibility.Visible,
+        Frame      = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
+        Tint       = System.Windows.Media.Brushes.Transparent,
+        Tip        = tip,
     };
-
-    private static readonly Brush EmptyFill =
-        new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
 }
 
 public sealed class TierRoleCol

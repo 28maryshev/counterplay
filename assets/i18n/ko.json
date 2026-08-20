@@ -435,6 +435,7 @@
     "wrRanked": "랭크 승률(솔로/자유): {1}게임에서 {0}%",
     "wrNormal": "일반 게임 승률: {1}게임에서 {0}%",
     "myWinrates": "챔피언별 내 승률 · 최근 {0}일",
-    "myWinratesEmpty": "아직 기록된 게임이 없습니다 — Counterplay를 켠 채로 플레이하면 승률이 여기에 표시됩니다."
+    "myWinratesEmpty": "아직 기록된 게임이 없습니다 — Counterplay를 켠 채로 플레이하면 승률이 여기에 표시됩니다.",
+    "myChamps30d": "승률 · 최근 30일"
   }
 }
