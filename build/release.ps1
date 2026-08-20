@@ -53,8 +53,14 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
       $Version = $latest
       Write-Host "Feed for the latest published release: v$Version" -ForegroundColor Cyan
     } else {
-      $v       = [version]$latest
-      $Version = "$($v.Major).$($v.Minor).$($v.Build + 1)"
+      # Разряды не растут бесконечно: после .9 переносим в следующий разряд,
+      # чтобы номер оставался читаемым (1.0.9 -> 1.1.0 -> ... -> 1.9.9 -> 2.0.0),
+      # а не превращался в 1.0.107.
+      $v   = [version]$latest
+      $maj = $v.Major; $min = $v.Minor; $pat = $v.Build + 1
+      if ($pat -gt 9) { $pat = 0; $min++ }
+      if ($min -gt 9) { $min = 0; $maj++ }
+      $Version = "$maj.$min.$pat"
       Write-Host "Auto version: $Version (latest tag v$latest)" -ForegroundColor Cyan
     }
   } else {
@@ -124,7 +130,7 @@ if ($Upload) {
       # In the Discord announcement players only care about the app itself.
       # Commits that touched ONLY internal files (test sandbox, data pipeline,
       # Discord bot, build scripts, docs) are left out of the release notes.
-      $internal = '^(pipeline/|bot/|build/|docs/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|TestMode\.cs|DraftTest\.cs)'
+      $internal = '^(pipeline/|bot/|build/|docs/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|src/Dev/)'
 
       # Group commits by FEATURE = the "Area:" prefix before the first colon
       # (e.g. "Duo pool", "Pool settings", "Damage mix"). A big feature made of

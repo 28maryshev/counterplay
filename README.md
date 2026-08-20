@@ -21,16 +21,21 @@ Windows desktop app that gives champion pick recommendations during the draft ph
 
 ```
 Counterplay/
-├── *.cs                  # C# app — LCU connector + recommendation engine
-├── Counterplay.csproj
-├── test-draft/           # Browser-based draft sandbox (no build needed)
-│   ├── index.html
-│   ├── engine.js
-│   ├── app.js
-│   └── styles.css
-└── pipeline/
-    ├── collect.py        # Fetches match history via MATCH-V5, builds SQLite DB
-    └── data.db           # Aggregated stats (not included in repo, generate locally)
+├── src/                  # C# application (.NET 8, WPF)
+│   ├── App/              # entry point, autostart, settings
+│   ├── Client/           # League Client (LCU) — connection, draft parsing, rune import
+│   ├── Engine/           # pick scoring: matchups, synergy, champion traits, pools
+│   ├── Data/             # stats database, Data Dragon, session tracking, telemetry
+│   ├── Ui/               # overlay window, pool settings, icons, localization
+│   └── Dev/              # sandboxes for testing without a live client
+├── assets/               # fonts, icons, i18n strings (embedded into the build)
+├── pipeline/             # Python: match collection and stat aggregation
+│   ├── collect.py        # fetches matches via MATCH-V5 into SQLite
+│   ├── publish_data.py   # publishes the slim database as a GitHub release
+│   └── export_*.py       # exports for the website (draft, tier list, runes)
+├── bot/                  # Discord bot: meta radar, data freshness, release notes
+├── build/                # release scripts (Velopack installer, data publishing)
+└── docs/                 # design notes and specifications
 ```
 
 ## Running the C# app
@@ -50,9 +55,13 @@ dotnet run -- "D:\path\to\lockfile"
 
 It will print draft state and recommendations to the console as you go through champion select.
 
-## Running the web prototype
+## Testing without a live client
 
-Open `test-draft/index.html` in a browser. No build step, no dependencies. Lets you manually set up any draft scenario and see how the recommendation engine responds. Uses synthetic win rate data (deterministic from champion IDs) — real numbers come from the data pipeline.
+```
+dotnet run test
+```
+
+Opens a sandbox where you place picks and bans by hand and watch the recommendations react — the same engine and the same database as in a real draft, no League client needed.
 
 ## Building the stats database
 
