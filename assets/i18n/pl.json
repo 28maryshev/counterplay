@@ -439,11 +439,11 @@
     "myChamps30d": "Winrate · ostatnie 30 dni"
   },
   "phaseState": {
-    "none": "Gotowe · otwórz lobby",
-    "lobby": "Lobby · podpowiedzi w drafcie",
+    "none": "Gotowe",
+    "lobby": "Lobby",
     "matchmaking": "Szukanie gry",
     "readycheck": "Gra znaleziona — zaakceptuj",
-    "champselect": "Draft · szukam counterów",
+    "champselect": "Draft",
     "gamestart": "Gra się zaczyna",
     "inprogress": "W grze · bez podpowiedzi",
     "waitingforstats": "Liczę wyniki",

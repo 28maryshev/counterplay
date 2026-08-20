@@ -439,11 +439,11 @@
     "myChamps30d": "Tỉ lệ thắng · 30 ngày qua"
   },
   "phaseState": {
-    "none": "Sẵn sàng · mở sảnh đi",
-    "lobby": "Sảnh · gợi ý bắt đầu ở draft",
+    "none": "Sẵn sàng",
+    "lobby": "Sảnh chờ",
     "matchmaking": "Đang tìm trận",
     "readycheck": "Đã tìm thấy trận — chấp nhận",
-    "champselect": "Draft · đang chọn khắc chế",
+    "champselect": "Draft",
     "gamestart": "Trận đấu bắt đầu",
     "inprogress": "Đang trong trận · không có gợi ý",
     "waitingforstats": "Đang tính kết quả",

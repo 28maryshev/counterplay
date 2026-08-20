@@ -439,11 +439,11 @@
     "myChamps30d": "胜率 · 近30天"
   },
   "phaseState": {
-    "none": "就绪 · 去开个房间",
-    "lobby": "房间 · 选人阶段开始推荐",
+    "none": "就绪",
+    "lobby": "房间",
     "matchmaking": "正在匹配",
     "readycheck": "匹配成功 — 请接受",
-    "champselect": "选人 · 正在挑克制英雄",
+    "champselect": "选人",
     "gamestart": "对局即将开始",
     "inprogress": "对局中 · 不提供推荐",
     "waitingforstats": "正在统计结果",

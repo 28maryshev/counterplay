@@ -439,11 +439,11 @@
     "myChamps30d": "勝率 · 直近30日"
   },
   "phaseState": {
-    "none": "待機中 · ロビーを開こう",
-    "lobby": "ロビー · ドラフトから助言",
+    "none": "待機中",
+    "lobby": "ロビー",
     "matchmaking": "マッチ検索中",
     "readycheck": "マッチ成立 — 承認して",
-    "champselect": "ドラフト · カウンター選定中",
+    "champselect": "ドラフト",
     "gamestart": "ゲーム開始",
     "inprogress": "ゲーム中 · 助言なし",
     "waitingforstats": "結果を集計中",

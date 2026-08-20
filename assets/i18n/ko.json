@@ -439,11 +439,11 @@
     "myChamps30d": "승률 · 최근 30일"
   },
   "phaseState": {
-    "none": "대기 중 · 로비를 열어줘",
-    "lobby": "로비 · 밴픽부터 추천",
+    "none": "대기 중",
+    "lobby": "로비",
     "matchmaking": "게임 찾는 중",
     "readycheck": "매치 성사 — 수락해",
-    "champselect": "밴픽 · 카운터 고르는 중",
+    "champselect": "밴픽",
     "gamestart": "게임 시작",
     "inprogress": "게임 중 · 추천 없음",
     "waitingforstats": "결과 집계 중",

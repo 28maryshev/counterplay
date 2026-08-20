@@ -439,11 +439,11 @@
     "myChamps30d": "Kazanma oranı · son 30 gün"
   },
   "phaseState": {
-    "none": "Hazır · bir lobi aç",
-    "lobby": "Lobi · ipuçları seçimde",
+    "none": "Hazır",
+    "lobby": "Lobi",
     "matchmaking": "Maç aranıyor",
     "readycheck": "Maç bulundu — kabul et",
-    "champselect": "Seçim · counter arıyorum",
+    "champselect": "Seçim",
     "gamestart": "Maç başlıyor",
     "inprogress": "Maçta · ipucu yok",
     "waitingforstats": "Sonuçlar sayılıyor",

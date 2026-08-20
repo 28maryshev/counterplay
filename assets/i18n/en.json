@@ -441,11 +441,11 @@
     "myChamps30d": "Winrate · last 30 days"
   },
   "phaseState": {
-    "none": "Ready · open a lobby",
-    "lobby": "Lobby · tips start in draft",
+    "none": "Ready",
+    "lobby": "Lobby",
     "matchmaking": "Searching for a game",
     "readycheck": "Match found — accept it",
-    "champselect": "Draft · picking counters",
+    "champselect": "Draft",
     "gamestart": "Game is starting",
     "inprogress": "In game · no tips here",
     "waitingforstats": "Counting the results",

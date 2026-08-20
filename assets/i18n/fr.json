@@ -439,11 +439,11 @@
     "myChamps30d": "Winrate · 30 derniers jours"
   },
   "phaseState": {
-    "none": "Prêt · ouvre un salon",
-    "lobby": "Salon · conseils au draft",
+    "none": "Prêt",
+    "lobby": "Salon",
     "matchmaking": "Recherche de partie",
     "readycheck": "Partie trouvée — accepte",
-    "champselect": "Draft · je cherche les counters",
+    "champselect": "Draft",
     "gamestart": "La partie commence",
     "inprogress": "En partie · pas de conseils",
     "waitingforstats": "Calcul des résultats",
