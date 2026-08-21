@@ -17,6 +17,7 @@ module.exports = {
     .addSubcommand((s) => s.setName('reveal-now').setDescription('Reveal the current duel immediately'))
     .addSubcommand((s) => s.setName('board-now').setDescription('Post the weekly leaderboard'))
     .addSubcommand((s) => s.setName('announce-now').setDescription('Re-announce the latest app release'))
+    .addSubcommand((s) => s.setName('installs-now').setDescription('Post the daily install summary immediately'))
     .addSubcommand((s) => s.setName('data-sync').setDescription('Check/download the latest database snapshot')),
 
   async execute(interaction, ctx) {
@@ -73,7 +74,8 @@ module.exports = {
       'duel-now': { mod: require('../cron/duelPost'), needs: 'draftDuels' },
       'reveal-now': { mod: require('../cron/duelReveal'), needs: 'draftDuels' },
       'board-now': { mod: require('../cron/weeklyBoard'), needs: 'draftDuels' },
-      'announce-now': { mod: require('../cron/releaseWatch'), needs: 'announcements', opts: { force: true } }
+      'announce-now': { mod: require('../cron/releaseWatch'), needs: 'announcements', opts: { force: true } },
+      'installs-now': { mod: require('../cron/installsDaily'), needs: 'installs' }
     };
     const job = jobs[sub];
     if (!job) return;

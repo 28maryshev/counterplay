@@ -16,7 +16,8 @@ function build() {
       draftDuels: process.env.CH_DRAFT_DUELS || '',
       submitFinds: process.env.CH_SUBMIT_FINDS || '',
       hallOfFame: process.env.CH_HALL_OF_FAME || '',
-      announcements: process.env.CH_ANNOUNCEMENTS || ''
+      announcements: process.env.CH_ANNOUNCEMENTS || '',
+      installs: process.env.CH_INSTALLS || ''
     },
     dataDbUrl:
       process.env.DATA_DB_URL ||
@@ -30,7 +31,9 @@ function build() {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
-    siteUrl: process.env.SITE_URL || 'https://counterplays.com'
+    siteUrl: process.env.SITE_URL || 'https://counterplays.com',
+    // Общий секрет с сайтом: им закрыт /api/telemetry/summary (итоги установок).
+    telemetrySecret: process.env.TELEMETRY_SHARED_SECRET || ''
   };
 }
 

@@ -1,0 +1,21 @@
+HTTP/1.1 200 OK
+Date: Fri, 21 Aug 2026 10:14:06 GMT
+Content-Type: text/html; charset=utf-8
+Connection: keep-alive
+link: <https://counterplays.com/>; rel="alternate"; hreflang="en", <https://counterplays.com/es>; rel="alternate"; hreflang="es", <https://counterplays.com/pt>; rel="alternate"; hreflang="pt", <https://counterplays.com/de>; rel="alternate"; hreflang="de", <https://counterplays.com/fr>; rel="alternate"; hreflang="fr", <https://counterplays.com/it>; rel="alternate"; hreflang="it", <https://counterplays.com/pl>; rel="alternate"; hreflang="pl", <https://counterplays.com/ru>; rel="alternate"; hreflang="ru", <https://counterplays.com/uk>; rel="alternate"; hreflang="uk", <https://counterplays.com/tr>; rel="alternate"; hreflang="tr", <https://counterplays.com/vi>; rel="alternate"; hreflang="vi", <https://counterplays.com/th>; rel="alternate"; hreflang="th", <https://counterplays.com/ja>; rel="alternate"; hreflang="ja", <https://counterplays.com/ko>; rel="alternate"; hreflang="ko", <https://counterplays.com/zh>; rel="alternate"; hreflang="zh", <https://counterplays.com/>; rel="alternate"; hreflang="x-default"
+set-cookie: NEXT_LOCALE=uk; Path=/; SameSite=lax
+set-cookie: cp_cid=0672a3b7-2255-4151-b61f-7e11d4420ca3; Path=/; Expires=Sun, 20 Aug 2028 10:14:06 GMT; Max-Age=63072000; SameSite=lax
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+x-nextjs-cache: HIT
+x-nextjs-prerender: 1
+x-nextjs-prerender: 1
+x-nextjs-stale-time: 300
+X-Powered-By: Next.js
+Cache-Control: s-maxage=31536000
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rpijpWEslJi41RY8C7w2cbn0nNBkMxyyflYBcguhilYhlNZKJ2hx%2Fe5ByhHPrdKrJc9KwqotcFPI5DHjDTr32kWR5LCLO8XiMdhuNO4%2Fm%2BXpH%2FAQ5sI1A8QI3ms63xVHPdzY"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-cache-status: DYNAMIC
+Server: cloudflare
+CF-RAY: a2e8de717b46c284-VIE
+alt-svc: h3=":443"; ma=86400
+
