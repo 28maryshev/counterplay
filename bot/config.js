@@ -33,7 +33,11 @@ function build() {
       .filter(Boolean),
     siteUrl: process.env.SITE_URL || 'https://counterplays.com',
     // Общий секрет с сайтом: им закрыт /api/telemetry/summary (итоги установок).
-    telemetrySecret: process.env.TELEMETRY_SHARED_SECRET || ''
+    telemetrySecret: process.env.TELEMETRY_SHARED_SECRET || '',
+    // Google Analytics: ключ сервисного аккаунта и id ресурса. Без них блок
+    // «Источники визитов» в сводке просто не показывается.
+    gaKeyPath: process.env.GA_KEY_FILE || '',
+    gaProperty: process.env.GA_PROPERTY_ID || ''
   };
 }
 

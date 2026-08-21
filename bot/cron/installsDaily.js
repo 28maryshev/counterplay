@@ -9,6 +9,7 @@
 // Наружу приложение шлёт только обезличенный id устройства; сюда приходят
 // исключительно агрегаты — ни одного идентификатора в канал не попадает.
 const { COLORS, embed } = require('../lib/embeds');
+const ga = require('../lib/ga');
 const logger = require('../lib/logger');
 
 // Флаги стран эмодзи: 'TR' → 🇹🇷. Неизвестная страна (нет CF-заголовка) — глобус.
@@ -45,6 +46,16 @@ async function run(ctx) {
   const versions =
     s.versions?.length > 0 ? s.versions.map((v) => `\`${v.version}\` — ${v.n}`).join('\n') : '—';
 
+  // Источники визитов на сайт за сутки. GA знает только агрегаты, поэтому здесь
+  // они и уместны: видно, какой канал вообще приводит людей и сколько из них
+  // дожали до кнопки «Скачать».
+  let sources = null;
+  try {
+    sources = await ga.sourcesLastDay(config);
+  } catch (err) {
+    logger.warn(`installsDaily: GA unavailable (${err.message})`);
+  }
+
   const e = embed(COLORS.green)
     .setTitle('📥 Установки за сутки')
     .setDescription(
@@ -57,6 +68,16 @@ async function run(ctx) {
       { name: 'Откуда новые', value: countries, inline: true },
       { name: 'Версии в строю', value: versions, inline: true }
     );
+
+  if (sources?.length) {
+    e.addFields({
+      name: 'Источники визитов (GA)',
+      value: sources
+        .map((s2) => `${s2.source} — ${s2.sessions}${s2.downloads ? ` (скачали ${s2.downloads})` : ''}`)
+        .join('\n'),
+      inline: false
+    });
+  }
 
   const channel = await client.channels.fetch(config.channels.installs);
   await channel.send({ embeds: [e] });

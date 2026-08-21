@@ -51,3 +51,6 @@ build/RELEASE_HIGHLIGHTS.txt
 
 # Секрет телеметрии для сборки (в репозиторий не попадает)
 build/telemetry.secret
+
+# Ключи сервисных аккаунтов (Google Analytics) — только на сервере
+bot/secrets/

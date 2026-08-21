@@ -10,6 +10,8 @@ services:
       # Обмен с коллектором: /collect кладёт сюда ключ, читает status.
       # Тот же каталог смонтирован в контейнер коллектора (pipeline/docker-compose.yml).
       - ../counterplay-collector/control:/control
+      # Ключ сервисного аккаунта Google Analytics (только чтение отчётов).
+      - ./secrets:/secrets:ro
     environment:
       CONTROL_DIR: /control
     # Снапшот базы (~143 МБ) + discord.js: 300 МБ было мало, бот падал в цикл
