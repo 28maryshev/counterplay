@@ -52,8 +52,8 @@ async function run(ctx) {
     )
     .addFields(
       { name: 'Всего установок', value: `${s.totalInstalls}`, inline: true },
-      { name: 'Запускали за сутки', value: `${s.activeToday}`, inline: true },
-      { name: 'Запускали за 7 дней', value: `${s.active7d}`, inline: true },
+      { name: 'Активны за сутки (DAU)', value: `${s.activeToday}`, inline: true },
+      { name: 'Активны за неделю (WAU)', value: `${s.active7d}`, inline: true },
       { name: 'Откуда новые', value: countries, inline: true },
       { name: 'Версии в строю', value: versions, inline: true }
     );
