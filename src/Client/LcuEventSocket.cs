@@ -42,11 +42,12 @@ public sealed class LcuEventSocket : IAsyncDisposable
         return _ws!.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
     }
 
-    // Тишина в сокете дольше этого = мёртвое (полуоткрытое) соединение. LCU
-    // очень «болтлив» (шлёт друзей/присутствие/статусы постоянно, ReceiveAsync
-    // видит ВСЕ события до фильтра по uri), поэтому здоровый клиент столько молчать
-    // не может — ложных срабатываний нет, а зависший сокет ловится и обрывается.
-    private const int RecvTimeoutSec = 90;
+    // Тишина в сокете — ещё НЕ обрыв: сидя в лобби, клиент может не слать
+    // событий сколько угодно (раньше это считалось смертью соединения, и
+    // программа каждые полторы минуты переподключалась и лезла за базой).
+    // По истечении этого срока пробуем ПИСАТЬ в сокет: живое соединение примет
+    // отправку, мёртвое бросит исключение — вот это и есть обрыв.
+    private const int RecvTimeoutSec = 60;
 
     public async IAsyncEnumerable<LcuEvent> ReadEventsAsync([EnumeratorCancellation] CancellationToken ct)
     {
@@ -57,6 +58,7 @@ public sealed class LcuEventSocket : IAsyncDisposable
         {
             sb.Clear();
             bool endOfMessage = false;
+            bool silent = false;      // истёк таймаут приёма — сокет проверим отправкой
             while (!endOfMessage)
             {
                 WebSocketReceiveResult result;
@@ -71,15 +73,28 @@ public sealed class LcuEventSocket : IAsyncDisposable
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    // Не наша отмена, а таймаут приёма → сокет мёртв. Бросаем как
-                    // обрыв: внешний цикл в Program переподключится и пере-синкнет
-                    // фазу (вернёт оверлей из трея после игры).
-                    throw new IOException($"LCU socket idle > {RecvTimeoutSec}s — reconnecting");
+                    // Не наша отмена, а таймаут приёма: событий давно не было.
+                    // Само по себе это нормально (тихое лобби) — проверяем сокет
+                    // отправкой ниже, а пока прерываем чтение этого сообщения.
+                    silent = true;
+                    break;
                 }
                 if (result.MessageType == WebSocketMessageType.Close)
                     yield break;
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
                 endOfMessage = result.EndOfMessage;
+            }
+
+            if (silent)
+            {
+                // Пере-подписка как пинг: для LCU повторный SUBSCRIBE безвреден,
+                // а нам важен сам факт успешной записи в сокет.
+                try { await SendAsync("[5,\"OnJsonApiEvent\"]", ct); }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    throw new IOException("LCU socket is dead — reconnecting", e);
+                }
+                continue;
             }
 
             if (sb.Length == 0) continue;

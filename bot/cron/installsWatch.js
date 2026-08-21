@@ -46,12 +46,19 @@ async function run(ctx) {
   for (const [i, inst] of shown.entries()) {
     const no = lastNo ? lastNo - (shown.length - 1 - i) : null;
     const where = inst.country ? `${flag(inst.country)} ${inst.country}` : '🌐 неизвестно';
-    const version = inst.version ? ` · \`${inst.version}\`` : '';
-    await channel.send(`🎉 **Новая установка**${no ? ` №${no}` : ''} — ${where}${version}`);
+    // Источник вместо версии: важнее, откуда человек пришёл, чем какой у него
+    // билд (версии всё равно видны в ежедневной сводке).
+    const from = inst.source ? ` · из **${inst.source}**` : '';
+    await channel.send(`🎉 **Новая установка**${no ? ` №${no}` : ''} — ${where}${from}`);
   }
   if (skipped > 0) await channel.send(`…и ещё **${skipped}** установок за эту минуту.`);
 
-  kvSet(KV_KEY, list[list.length - 1].firstSeen);
+  // Курсор — строка от сайта как есть (с микросекундами): пересобирать его
+  // через Date нельзя, иначе последняя установка снова окажется «новой».
+  // Если сайт курсор не прислал (старая версия) — двигаемся на текущее время:
+  // лучше пропустить пару установок, чем показывать одну и ту же по кругу.
+  const cursor = list[list.length - 1].cursor;
+  kvSet(KV_KEY, cursor || new Date().toISOString());
   logger.info(`installsWatch: posted ${shown.length} new install(s)`);
 }
 

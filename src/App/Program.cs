@@ -220,6 +220,9 @@ class Program
         }
     }
 
+    // Бакеты, за которыми уже ходили в этом запуске: одна попытка на бакет.
+    private static readonly HashSet<string> _bucketFetched = [];
+
     // ── Одна сессия клиента ────────────────────────────────────────────────────
 
     static async Task RunSessionAsync(OverlayWindow overlay, LcuCredentials creds, CancellationToken ct)
@@ -258,7 +261,11 @@ class Program
         // база ("all") содержит все бакеты — до-качка не нужна.
         Settings.Set("dataBucket", tierBucket);
         var loaded = DataDb.CurrentBucket;
-        if (loaded is not null && loaded != "all" && loaded != tierBucket)
+        if (loaded is not null && loaded != "all" && loaded != tierBucket
+            && _bucketFetched.Add(tierBucket))
+            // Add() — не только проверка ранга, но и защита от петли: если
+            // закачка не довела до конца (оборвалась сеть, не записался тег),
+            // переподключение к клиенту не должно тянуть базу снова и снова.
             await DataDb.EnsureAsync(tierBucket, (m, f) => overlay.ShowProgress(m, f), ct);
 
         var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
