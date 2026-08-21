@@ -48,7 +48,12 @@ async function run(ctx) {
     const where = inst.country ? `${flag(inst.country)} ${inst.country}` : '🌐 неизвестно';
     // Источник вместо версии: важнее, откуда человек пришёл, чем какой у него
     // билд (версии всё равно видны в ежедневной сводке).
-    const from = inst.source ? ` · из **${inst.source}**` : '';
+    // «вероятно» — источник не подтверждён меткой, а угадан по сети (телефон
+    // и компьютер под одним IP): честнее показать разницу, чем выдать догадку
+    // за факт.
+    const from = inst.source
+      ? ` · ${inst.guessed ? 'вероятно, из' : 'из'} **${inst.source}**`
+      : '';
     await channel.send(`🎉 **Новая установка**${no ? ` №${no}` : ''} — ${where}${from}`);
   }
   if (skipped > 0) await channel.send(`…и ещё **${skipped}** установок за эту минуту.`);
