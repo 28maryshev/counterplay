@@ -260,7 +260,7 @@ sealed class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 560; Height = 450;
+        Width  = 620; Height = 500;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
@@ -331,7 +331,6 @@ sealed class TestPanel : Window
         _missingChamps.ToolTip = "Отметить часть чемпионов как отсутствующих на аккаунте — видно предупреждение в подборе и в пуле";
         _missingChamps.Checked   += (_, _) => ApplyOwnership();
         _missingChamps.Unchecked += (_, _) => ApplyOwnership();
-        stages.Children.Add(_missingChamps);
 
         // Проверка первого запуска: журнал пуст, но все элементы ready-экрана
         // на месте (пустые последние игры, пустой график, пустая полоса чемпионов).
@@ -342,7 +341,6 @@ sealed class TestPanel : Window
         _emptyProfile.ToolTip = "Показать ready-экран так, как его видит человек сразу после установки — до первой сыгранной игры";
         _emptyProfile.Checked   += (_, _) => ApplyProfileScenario();
         _emptyProfile.Unchecked += (_, _) => ApplyProfileScenario();
-        stages.Children.Add(_emptyProfile);
 
         // Сколько игр «уже сыграно» — от свежей установки до полной истории.
         _profile.Items.Add("Профиль: полный");
@@ -354,7 +352,6 @@ sealed class TestPanel : Window
         _profile.Width = 150;
         _profile.ToolTip = "Что видно на ready-экране при разном количестве сыгранных игр: график появляется с пятой";
         _profile.SelectionChanged += (_, _) => ApplyProfileScenario();
-        stages.Children.Add(_profile);
 
         bottom.Children.Add(stages);
 
@@ -399,6 +396,27 @@ sealed class TestPanel : Window
 
         Grid.SetRow(bottom, 6); Grid.SetColumn(bottom, 0); Grid.SetColumnSpan(bottom, 3);
         root.Children.Add(bottom);
+
+        // Настройки профиля — СВОЕЙ строкой: в ряду с кнопками этапов они не
+        // помещались по ширине и просто уезжали за край окна.
+        var profileRow = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        profileRow.Children.Add(new TextBlock
+        {
+            Text = "Сценарий:",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
+        profileRow.Children.Add(_profile);
+        profileRow.Children.Add(_emptyProfile);
+        profileRow.Children.Add(_missingChamps);
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(profileRow, 7); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
+        root.Children.Add(profileRow);
 
 
         Content = root;
