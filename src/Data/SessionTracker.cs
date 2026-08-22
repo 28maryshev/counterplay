@@ -39,6 +39,15 @@ public static class SessionTracker
     /// сегодняшней, а журнал не растёт без предела.
     public const int ChartDays = 90;
 
+    /// Сколько «виртуальных» игр по 50% подмешивать в винрейт для графика.
+    /// Это не подгонка цифры, а признание того, что по трём играм винрейт
+    /// неизвестен: точка стартует у середины и расходится по мере реальных игр.
+    private const int PriorGames = 6;
+
+    /// Винрейт со сглаживанием к 50%.
+    private static double SmoothWr(int wins, int games) =>
+        100.0 * (wins + PriorGames * 0.5) / (games + PriorGames);
+
     // queueId LCU → наш ключ очереди (400 драфт / 430 блайнд / 490 квикплей = normal).
     internal static string? QueueOf(int queueId) => queueId switch
     {
@@ -511,7 +520,13 @@ public static class SessionTracker
             }
             else
             {
-                game.Wr = 100.0 * q.Games.Count(x => x.Win) / q.Games.Count;
+                // Тянем к 50%: без этого первая победа даёт точку на 100%, и
+                // график начинается с потолка, а потом «падает» до нормальных
+                // значений — как будто игрок сдал, хотя он просто сыграл вторую
+                // игру. Приор в PriorGames игр по 50% рассасывается сам: к
+                // двадцатой игре он уже почти не влияет.
+                var wins = q.Games.Count(x => x.Win);
+                game.Wr = SmoothWr(wins, q.Games.Count);
             }
         }
 

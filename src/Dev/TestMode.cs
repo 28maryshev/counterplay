@@ -155,9 +155,11 @@ static class TestMode
             new(86, true, 22), new(103, false, -19), new(86, true, 21),
             new(99, true, 20), new(103, false, -18),
         };
+        // Значения — как их посчитает трекер: винрейт тянется к 50%, поэтому
+        // первая победа даёт ~57%, а не 100%.
         var fiveHist = new List<SessionTracker.WrPoint>();
         var start = DateTime.Now.AddDays(-4);
-        foreach (var (day, pct) in new[] {(0, 100.0), (1, 50.0), (2, 66.7), (3, 75.0), (4, 60.0)})
+        foreach (var (day, pct) in new[] {(0, 57.1), (1, 50.0), (2, 55.6), (3, 60.0), (4, 54.5)})
             fiveHist.Add(new(start.AddDays(day), pct));
         FiveGamesSession = new SessionTracker.SessionData(
             "TestSummoner", "solo",
