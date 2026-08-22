@@ -140,11 +140,16 @@ static class TestMode
             {
                 ["solo"] = new SessionTracker.QueueView(
                     HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
-                    Wins: 1, Losses: 0, Winrate: 100,
+                    // W/L и винрейт ранговой очереди приходят из клиента, а не
+                    // копятся программой: человек ставит её посреди сезона и
+                    // сразу видит свои 64–56.
+                    Wins: 64, Losses: 56, Winrate: 53.3,
                     Last5: [new(FirstGameChampion, true, 22)],
-                    // График начинается с пятой игры — по одной точке рисовать
-                    // нечего, а «100%» потом навсегда растянул бы шкалу.
-                    WinrateHistory: []),
+                    // Две точки уже после первой игры: опора — сезонный винрейт
+                    // на момент установки, вторая — после сыгранного матча.
+                    WinrateHistory: [
+                        new(DateTime.Now.AddHours(-2), 53.3),
+                        new(DateTime.Now, 53.7)]),
             });
         FullSession = fakeSession;
 

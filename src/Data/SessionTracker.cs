@@ -72,6 +72,12 @@ public static class SessionTracker
     {
         public int LastAbsLp { get; set; } = int.MinValue;
         public List<GameLog> Games { get; set; } = [];
+
+        // Опорная точка графика для ранговых очередей: сезонный винрейт на
+        // момент первого подключения. Клиент знает его сразу, поэтому линии не
+        // нужно ждать пять игр — она начинается с реального значения игрока.
+        public long AnchorTs { get; set; }
+        public double AnchorWr { get; set; }
     }
 
     private sealed class RankedCache
@@ -508,6 +514,19 @@ public static class SessionTracker
             }
         }
 
+        // 6a) Опорная точка графика для ранговых: ставим один раз, как только
+        //     клиент отдал сезонную статистику. Дальше линия растёт от неё.
+        foreach (var key in new[] {"solo", "flex"})
+        {
+            var r = ranked[key];
+            var played = r.Wins + r.Losses;
+            if (!r.HasRank || played == 0) continue;
+            var q = GetQueue(acc, key);
+            if (q.AnchorTs != 0) continue;
+            q.AnchorTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            q.AnchorWr = 100.0 * r.Wins / played;
+        }
+
         // 6) Винрейт на момент игры: ранкед — сезонный, нормал/ARAM — по журналу.
         foreach (var (key, game) in appended)
         {
@@ -542,17 +561,26 @@ public static class SessionTracker
             if (last5.Count == 0) // свежая установка — показать хотя бы иконки из истории
                 last5 = history.Where(h => h.Queue == key).Take(5)
                     .Select(h => new RecentGame(h.ChampionId, h.Win, null)).ToList();
-            // График строим ТОЛЬКО когда игр набралось достаточно: на первых
-            // матчах винрейт скачет между 0 и 100, и такая точка потом навсегда
-            // растягивает шкалу — вся дальнейшая динамика сплющивается в линию.
-            // И держим окно в три месяца: старое отваливается само.
+            // Окно графика — три месяца: старое отваливается само.
             var chartFrom = DateTimeOffset.UtcNow.AddDays(-ChartDays).ToUnixTimeSeconds();
-            var points = q.Games.Count < MinGamesForChart
+            var ranked2 = key is "solo" or "flex";
+
+            // Порог «не рисуем, пока мало игр» нужен только там, где винрейт
+            // считаем сами (нормал/ARAM): на первых матчах он скачет от 0 до
+            // 100 и навсегда растягивает шкалу. У ранговых значения приходят из
+            // клиента и достоверны с первой секунды.
+            var points = !ranked2 && q.Games.Count < MinGamesForChart
                 ? []
                 : q.Games
                     .Where(g => g.Ts >= chartFrom)
                     .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
                     .ToList();
+
+            // Опора ранговых — первой точкой, чтобы линия шла от того винрейта,
+            // с которым человек пришёл, а не от первой сыгранной игры.
+            if (ranked2 && q.AnchorTs >= chartFrom && points.Count > 0)
+                points.Insert(0, new WrPoint(
+                    DateTimeOffset.FromUnixTimeSeconds(q.AnchorTs).LocalDateTime, q.AnchorWr));
 
             if (key is "solo" or "flex")
             {
