@@ -31,6 +31,14 @@ public static class SessionTracker
     /// Всё, что выше — признак смены аккаунта или сброса сезона, а не результата.
     private const int MaxLpPerGame = 100;
 
+    /// Сколько игр нужно, чтобы показывать винрейт и график. По одной-двум играм
+    /// «100%» и «0%» — не статистика, а шум, который вдобавок портит масштаб.
+    public const int MinGamesForChart = 5;
+
+    /// Окно графика: три месяца. Прошлогодняя форма ничего не говорит о
+    /// сегодняшней, а журнал не растёт без предела.
+    public const int ChartDays = 90;
+
     // queueId LCU → наш ключ очереди (400 драфт / 430 блайнд / 490 квикплей = normal).
     internal static string? QueueOf(int queueId) => queueId switch
     {
@@ -519,9 +527,17 @@ public static class SessionTracker
             if (last5.Count == 0) // свежая установка — показать хотя бы иконки из истории
                 last5 = history.Where(h => h.Queue == key).Take(5)
                     .Select(h => new RecentGame(h.ChampionId, h.Win, null)).ToList();
-            var points = q.Games
-                .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
-                .ToList();
+            // График строим ТОЛЬКО когда игр набралось достаточно: на первых
+            // матчах винрейт скачет между 0 и 100, и такая точка потом навсегда
+            // растягивает шкалу — вся дальнейшая динамика сплющивается в линию.
+            // И держим окно в три месяца: старое отваливается само.
+            var chartFrom = DateTimeOffset.UtcNow.AddDays(-ChartDays).ToUnixTimeSeconds();
+            var points = q.Games.Count < MinGamesForChart
+                ? []
+                : q.Games
+                    .Where(g => g.Ts >= chartFrom)
+                    .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
+                    .ToList();
 
             if (key is "solo" or "flex")
             {

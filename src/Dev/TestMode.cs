@@ -135,7 +135,9 @@ static class TestMode
                     HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
                     Wins: 1, Losses: 0, Winrate: 100,
                     Last5: [new(FirstGameChampion, true, 22)],
-                    WinrateHistory: [new(DateTime.UtcNow, 100)]),
+                    // График начинается с пятой игры — по одной точке рисовать
+                    // нечего, а «100%» потом навсегда растянул бы шкалу.
+                    WinrateHistory: []),
             });
         FullSession = fakeSession;
 
