@@ -34,7 +34,10 @@ async function run(ctx) {
   }
 
   const data = await fetchNew(config, since);
-  const list = data.installs ?? [];
+  // Страховка от повторов: всё, что не новее сохранённой метки, отбрасываем сами.
+  // Граница «строго новее» уже стоит в запросе, но она зависит от точности
+  // времени на обеих сторонах — а показывать одну установку дважды нельзя.
+  const list = (data.installs ?? []).filter((i) => !i.cursor || i.cursor > since);
   if (list.length === 0) return;
 
   const channel = await client.channels.fetch(config.channels.installs);

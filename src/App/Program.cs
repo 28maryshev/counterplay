@@ -268,7 +268,7 @@ class Program
             // переподключение к клиенту не должно тянуть базу снова и снова.
             await DataDb.EnsureAsync(tierBucket, (m, f) => overlay.ShowProgress(m, f), ct);
 
-        var mastery    = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
+        var mastery = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
         // Чемпионы аккаунта: которых нет — помечаем в рекомендациях «нет чемпиона».
         overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));
         // Аккаунт (puuid) — ключ пулов чемпионов: подгружаем набор этого игрока.
@@ -348,6 +348,46 @@ class Program
                 draft.IsAram ? engine?.RecommendAram(draft) : engine?.Recommend(draft), draft, engine);
         }
 
+        // Сменили аккаунт в клиенте — перечитываем ВСЁ, что к нему привязано.
+        // Без этого панель ждала бы следующего тика фонового обновления (до
+        // минуты) и показывала бы ранг с пулом прошлого игрока.
+        async Task ReloadAccountAsync()
+        {
+            try
+            {
+                var (puuid, name) = await PlayerInfo.GetAccountAsync(http, ct);
+                // Пусто — клиент между аккаунтами (вышли, ещё не вошли): ничего
+                // не трогаем, дождёмся события о новом игроке.
+                if (string.IsNullOrEmpty(puuid) || puuid == poolPuuid) return;
+                poolPuuid = puuid;
+                PoolStore.SetAccount(puuid, name);
+
+                // Эло у нового аккаунта своё: и пул чемпионов, и владение
+                // чемпионами, и рекомендации считаются по нему.
+                var bucket = await PlayerInfo.GetTierBucketAsync(http, ct);
+                Settings.Set("dataBucket", bucket);
+                mastery = await PlayerInfo.GetMasteryAsync(http, ct);
+                overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));
+
+                if (engine is not null)
+                {
+                    // Бакет базы зашит в движок при создании — под новое эло его
+                    // пересобираем (данные уже на диске, это дёшево).
+                    if (bucket != tierBucket && dbPath is not null)
+                    {
+                        tierBucket = bucket;
+                        engine = RecommendationEngine.Create(dbPath, bucket);
+                        overlay.SetEngine(engine);
+                    }
+                    engine.Mastery = mastery;
+                }
+
+                overlay.RefreshPoolMode();        // пул нового игрока
+                await RefreshSessionAsync();      // ник, ранг, LP, последние игры
+            }
+            catch { /* клиент в переходном состоянии — попробуем на следующем событии */ }
+        }
+
         // Трекер сессии для экрана ожидания (ранг/LP/последние игры/винрейт).
         async Task RefreshSessionAsync()
         {
@@ -384,6 +424,10 @@ class Program
         {
             switch (ev.Uri)
             {
+                case "/lol-summoner/v1/current-summoner":
+                    await ReloadAccountAsync();
+                    break;
+
                 case "/lol-gameflow/v1/session":
                     var phase = PhaseOf(ev.Data);
                     // Очередь лобби сменилась → подставляем режим пула, запомненный
