@@ -203,6 +203,28 @@ public static class SessionTracker
         return m.TryGetValue(championId, out var v) ? v : (0, 0);
     }
 
+    /// Правит журнал после ошибки в привязке LP: победа отдавала свои очки
+    /// предыдущему поражению, и в истории оставалась пара «поражение +23» и
+    /// «победа 0». Раз известно, чьи это очки, возвращаем их победе; если
+    /// подходящей игры рядом нет — просто стираем, прочерк честнее чужого числа.
+    private static void FixImpossibleLp(Store store)
+    {
+        foreach (var acc in store.Accounts.Values)
+            foreach (var q in acc.Queues.Values)
+            {
+                var games = q.Games;
+                for (int i = 0; i < games.Count; i++)
+                {
+                    if (games[i].Lp is not int lp || lp == 0 || games[i].Win == lp > 0) continue;
+
+                    var next = i + 1 < games.Count ? games[i + 1] : null;
+                    if (next is not null && next.Lp is null or 0 && next.Win == lp > 0)
+                        next.Lp = lp;      // очки нашли своего владельца
+                    games[i].Lp = null;
+                }
+            }
+    }
+
     private static Store Load()
     {
         // Основной файл, затем резервная копия — журнал не теряется из-за
@@ -212,7 +234,9 @@ public static class SessionTracker
             try
             {
                 if (!File.Exists(path)) continue;
-                return JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
+                var store = JsonSerializer.Deserialize<Store>(File.ReadAllText(path)) ?? new Store();
+                FixImpossibleLp(store);
+                return store;
             }
             catch { /* пробуем следующий */ }
         }
@@ -495,17 +519,33 @@ public static class SessionTracker
                 continue;
             }
 
-            if (appended.TryGetValue(key, out var game))
+            // Игра только что появилась в истории — дельта её, если знак сходится
+            // с результатом. Ноль допустим у обоих: поражение на дне дивизиона
+            // ничего не отнимает, а победа в редких случаях ничего не даёт.
+            if (appended.TryGetValue(key, out var game)
+                && (delta == 0 || game.Win == delta > 0))
             {
                 game.Lp = delta;
                 q.LastAbsLp = abs;
             }
             else if (delta != 0)
             {
-                // Обратный порядок: игра уже догнана историей (без дельты или с
-                // нулевой), а LP доехал только сейчас — вешаем дельту на неё.
+                // Обратный порядок: игра уже догнана историей (дельта ещё не
+                // назначена), а LP доехал только сейчас — вешаем дельту на неё.
+                //
+                // Lp == 0 — это НЕ «дельты нет»: так выглядит честный ноль,
+                // когда поражение на 0 LP съел запас перед вылетом из дивизиона.
+                // Раньше такой ноль считался пустым местом, и следующая победа
+                // отдавала свои +23 проигранной игре, а сама получала 0.
+                //
+                // Знак тоже обязан совпадать с результатом: за победу LP не
+                // отнимают, за поражение не начисляют. Не совпал — дельта
+                // относится к другой игре, ждём её (LastAbsLp не двигаем,
+                // поэтому разница не потеряется).
                 var lastGame = q.Games.Count > 0 ? q.Games[^1] : null;
-                if (lastGame is not null && lastGame.Lp is null or 0 && now - lastGame.Ts < 900)
+                if (lastGame is not null && lastGame.Lp is null
+                    && lastGame.Win == delta > 0
+                    && now - lastGame.Ts < 900)
                 {
                     lastGame.Lp = delta;
                     q.LastAbsLp = abs;

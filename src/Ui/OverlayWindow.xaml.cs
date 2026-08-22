@@ -1839,8 +1839,11 @@ public partial class OverlayWindow : Window
         };
         if (g.LpDelta is int lpd)
         {
-            lp.Text = lpd >= 0 ? $"+{lpd}" : lpd.ToString();
-            lp.Foreground = lpd >= 0 ? WinBrush : LossBrush;
+            // Ноль — это не начисление: так выглядит поражение на 0 LP, когда
+            // запас перед вылетом из дивизиона съел потерю. «+0» зелёным читался
+            // бы как «дали ноль очков за победу».
+            lp.Text = lpd == 0 ? "0" : lpd > 0 ? $"+{lpd}" : lpd.ToString();
+            lp.Foreground = lpd == 0 ? MuteBrush : lpd > 0 ? WinBrush : LossBrush;
         }
         else { lp.Text = "·"; lp.Foreground = MuteBrush; }
         col.Children.Add(lp);
