@@ -21,7 +21,12 @@ namespace Counterplay;
 /// </summary>
 static class TestMode
 {
-    public static async Task RunAsync(OverlayWindow overlay, bool emptyProfile, CancellationToken ct)
+    // Сессии для тестовых сценариев: полная история и «первая игра».
+    public const int FirstGameChampion = 86;   // Гарен — узнаваемая иконка
+    internal static SessionTracker.SessionData? FullSession;
+    internal static SessionTracker.SessionData? FirstGameSession;
+
+    public static async Task RunAsync(OverlayWindow overlay, bool emptyProfile, bool firstGame, CancellationToken ct)
     {
         // Та же подготовка, что в боевом режиме: статика, иконки, база.
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
@@ -119,12 +124,27 @@ static class TestMode
                     Wins: 63, Losses: 55, Winrate: 53.4, Last5: last5, WinrateHistory: hist),
             });
 
+        // Сценарий «поставил программу и сыграл одну игру»: ранг из клиента уже
+        // есть, а СВОЯ история только началась — одна игра из пяти, одна точка
+        // на графике, один чемпион в полосе. Остальное — скелетон.
+        FirstGameSession = new SessionTracker.SessionData(
+            "TestSummoner", "solo",
+            new Dictionary<string, SessionTracker.QueueView>
+            {
+                ["solo"] = new SessionTracker.QueueView(
+                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
+                    Wins: 1, Losses: 0, Winrate: 100,
+                    Last5: [new(FirstGameChampion, true, 22)],
+                    WinrateHistory: [new(DateTime.UtcNow, 100)]),
+            });
+        FullSession = fakeSession;
+
         overlay.Dispatcher.Invoke(() =>
         {
             overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
             overlay.EnableSaveForDraft();   // кнопка режима-для-драфта — только в тесте
             overlay.ShowSession(fakeSession);   // фейковый ник/ранг/график
-            panel = new TestPanel(overlay, engine, allIds, emptyProfile);
+            panel = new TestPanel(overlay, engine, allIds, emptyProfile, firstGame);
             panel.Show();
         });
 
@@ -153,6 +173,7 @@ sealed class TestPanel : Window
     private readonly List<int> _allChampIds;   // для галочки «часть чемпионов нет»
     private readonly CheckBox _missingChamps = new();
     private readonly CheckBox _emptyProfile  = new();   // «ещё ни одной игры»
+    private readonly CheckBox _firstGame     = new();   // «сыграна ровно одна»
     private readonly Dictionary<string, int> _idByName;   // имя чемпиона → id
     private readonly List<string> _names;                 // "—" + имена по алфавиту
 
@@ -195,7 +216,7 @@ sealed class TestPanel : Window
     private readonly Dictionary<int, int> _planned = new();
 
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine, List<int> allChampIds,
-                     bool emptyProfile = false)
+                     bool emptyProfile = false, bool firstGame = false)
     {
         _overlay = overlay;
         _engine  = engine;
@@ -290,9 +311,20 @@ sealed class TestPanel : Window
         _emptyProfile.VerticalAlignment = VerticalAlignment.Center;
         _emptyProfile.Margin = new Thickness(12, 0, 0, 0);
         _emptyProfile.ToolTip = "Показать ready-экран так, как его видит человек сразу после установки — до первой сыгранной игры";
-        _emptyProfile.Checked   += (_, _) => _overlay.SetEmptyProfilePreview(true);
-        _emptyProfile.Unchecked += (_, _) => _overlay.SetEmptyProfilePreview(false);
+        _emptyProfile.Checked   += (_, _) => { _firstGame.IsChecked = false; ApplyProfileScenario(); };
+        _emptyProfile.Unchecked += (_, _) => ApplyProfileScenario();
         stages.Children.Add(_emptyProfile);
+
+        // Сценарий сразу после первого матча: половина панели уже с данными,
+        // половина ещё скелетон — самое частое состояние у новичка.
+        _firstGame.Content = "Сыграна 1 игра";
+        _firstGame.Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
+        _firstGame.VerticalAlignment = VerticalAlignment.Center;
+        _firstGame.Margin = new Thickness(12, 0, 0, 0);
+        _firstGame.ToolTip = "Человек поставил программу и сыграл одну игру: одна игра в истории, одна точка на графике, один чемпион в полосе винрейта";
+        _firstGame.Checked   += (_, _) => { _emptyProfile.IsChecked = false; ApplyProfileScenario(); };
+        _firstGame.Unchecked += (_, _) => ApplyProfileScenario();
+        stages.Children.Add(_firstGame);
 
         bottom.Children.Add(stages);
 
@@ -344,6 +376,7 @@ sealed class TestPanel : Window
         UpdateStageButtons();
         // Запуск «dotnet run -- test empty»: сразу скелетон-вид ready-экрана.
         if (emptyProfile) _emptyProfile.IsChecked = true;
+        if (firstGame) _firstGame.IsChecked = true;
         Recompute();
 
         // Закрыл панель — выходим из приложения целиком.
@@ -358,6 +391,27 @@ sealed class TestPanel : Window
             _overlay.SetOwnedChampions(_allChampIds.Where(id => id % 2 == 0).ToList());
         else
             _overlay.SetOwnedChampions(_allChampIds);
+    }
+
+    // Показ выбранного сценария профиля: пустой / первая игра / полная история.
+    private void ApplyProfileScenario()
+    {
+        if (_emptyProfile.IsChecked == true)
+        {
+            _overlay.SetEmptyProfilePreview(true);
+            return;
+        }
+        _overlay.SetEmptyProfilePreview(false);
+        if (_firstGame.IsChecked == true)
+        {
+            _overlay.ShowSession(TestMode.FirstGameSession);
+            _overlay.SetFirstGamePreview(TestMode.FirstGameChampion);
+        }
+        else
+        {
+            _overlay.ShowSession(TestMode.FullSession);
+            _overlay.SetFirstGamePreview(0);
+        }
     }
 
     // ── Тестовые этапы: Драфт · Баны · Ready/пул ─────────────────────────────

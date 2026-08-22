@@ -1318,9 +1318,22 @@ public partial class OverlayWindow : Window
     // Предпросмотр «профиль без единой игры» — только тестовый режим: рисуем
     // ready-экран так, как его увидит человек сразу после установки.
     private bool _emptyProfilePreview;
+    // Предпросмотр «сыграна первая игра»: в полосе чемпионов одна карточка,
+    // остальные слоты — скелетон. Так видно переходное состояние, в котором
+    // человек оказывается сразу после первого матча.
+    private int _firstGamePreview;   // 0 — выключено, иначе id чемпиона
+
+    public void SetFirstGamePreview(int championId) => Dispatcher.Invoke(() =>
+    {
+        _firstGamePreview = championId;
+        _emptyProfilePreview = false;
+        UpdateMyChampsStrip();
+        RenderSessionView();
+    });
 
     public void SetEmptyProfilePreview(bool on) => Dispatcher.Invoke(() =>
     {
+        if (on) _firstGamePreview = 0;
         _emptyProfilePreview = on;
         UpdateMyChampsStrip();
         RenderSessionView();
@@ -1350,6 +1363,18 @@ public partial class OverlayWindow : Window
             .ToList();
 
         if (_emptyProfilePreview) items.Clear();
+
+        // Первая игра: ровно одна заполненная карточка — 100% с одной игры.
+        if (_firstGamePreview != 0)
+        {
+            items.Clear();
+            items.Add(MyChampCard.FromChampion(
+                IconCache.Get(_firstGamePreview),
+                "100%",
+                WinrateColor.BrushForSample(100, 1),
+                WinrateColor.TintForSample(100, 1),
+                $"{DataDragon.Name(_firstGamePreview)} — 100% / 1"));
+        }
 
         // Игр ещё нет — строка не исчезает, а стоит пустыми слотами: место под
         // статистику видно сразу, а с первой игрой слоты просто наполняются.

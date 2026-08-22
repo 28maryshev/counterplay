@@ -81,7 +81,8 @@ class Program
             try
             {
                 // «test empty» — сразу скелетон-вид (профиль без единой игры).
-                if (testMode) await TestMode.RunAsync(overlay, args.Contains("empty"), cts.Token);
+                if (testMode)
+                    await TestMode.RunAsync(overlay, args.Contains("empty"), args.Contains("firstgame"), cts.Token);
                 else          await RunLcuAsync(overlay, args, cts.Token);
             }
             catch (OperationCanceledException) { }
