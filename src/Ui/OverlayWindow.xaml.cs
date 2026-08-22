@@ -1321,19 +1321,22 @@ public partial class OverlayWindow : Window
     // Предпросмотр «сыграна первая игра»: в полосе чемпионов одна карточка,
     // остальные слоты — скелетон. Так видно переходное состояние, в котором
     // человек оказывается сразу после первого матча.
-    private int _firstGamePreview;   // 0 — выключено, иначе id чемпиона
+    // Подменные чемпионы для тестовых сценариев: (id, винрейт, число игр).
+    // null — берём настоящую статистику из журнала.
+    private IReadOnlyList<(int Id, double Wr, int Games)>? _champsPreview;
 
-    public void SetFirstGamePreview(int championId) => Dispatcher.Invoke(() =>
-    {
-        _firstGamePreview = championId;
-        _emptyProfilePreview = false;
-        UpdateMyChampsStrip();
-        RenderSessionView();
-    });
+    public void SetChampsPreview(IReadOnlyList<(int Id, double Wr, int Games)>? champs) =>
+        Dispatcher.Invoke(() =>
+        {
+            _champsPreview = champs;
+            _emptyProfilePreview = false;
+            UpdateMyChampsStrip();
+            RenderSessionView();
+        });
 
     public void SetEmptyProfilePreview(bool on) => Dispatcher.Invoke(() =>
     {
-        if (on) _firstGamePreview = 0;
+        if (on) _champsPreview = null;
         _emptyProfilePreview = on;
         UpdateMyChampsStrip();
         RenderSessionView();
@@ -1364,16 +1367,17 @@ public partial class OverlayWindow : Window
 
         if (_emptyProfilePreview) items.Clear();
 
-        // Первая игра: ровно одна заполненная карточка — 100% с одной игры.
-        if (_firstGamePreview != 0)
+        // Тестовый сценарий: показываем заданный набор вместо своей статистики.
+        if (_champsPreview is { } preview)
         {
             items.Clear();
-            items.Add(MyChampCard.FromChampion(
-                IconCache.Get(_firstGamePreview),
-                "100%",
-                WinrateColor.BrushForSample(100, 1),
-                WinrateColor.TintForSample(100, 1),
-                $"{DataDragon.Name(_firstGamePreview)} — 100% / 1"));
+            foreach (var (id, wr, games) in preview.Take(MyChampsMax))
+                items.Add(MyChampCard.FromChampion(
+                    IconCache.Get(id),
+                    $"{wr:F0}%",
+                    WinrateColor.BrushForSample(wr, games),
+                    WinrateColor.TintForSample(wr, games),
+                    $"{DataDragon.Name(id)} — {wr:F0}% / {games}"));
         }
 
         // Игр ещё нет — строка не исчезает, а стоит пустыми слотами: место под
