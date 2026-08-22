@@ -67,13 +67,15 @@ async function main() {
     cron.schedule('15 * * * *', job('dataSync', null, () => dataSync.sync()), tz);
     cron.schedule('30 * * * *', job('releaseWatch', 'announcements', require('./cron/releaseWatch').run), tz);
     cron.schedule('45 * * * *', job('patchWatch', 'announcements', require('./cron/patchWatch').run), tz);
-    // Установки: лента каждую минуту и итоги дня в полночь по Киеву (не UTC —
-    // «конец дня» должен совпадать с календарным днём владельца).
-    cron.schedule('* * * * *', job('installsWatch', 'installs', require('./cron/installsWatch').run), tz);
+    // Итоги дня по установкам — в полночь по Киеву (не UTC: «конец дня» должен
+    // совпадать с календарным днём владельца). Сами установки сюда больше не
+    // опрашиваются: о каждой сообщает сам сайт вебхуком в момент первого
+    // выхода программы на связь (см. lib/install-notify.ts на сайте), поэтому
+    // минутная лента отключена — она давала второе сообщение о том же событии.
     cron.schedule('0 0 * * *', job('installsDaily', 'installs', require('./cron/installsDaily').run), {
       timezone: 'Europe/Kyiv'
     });
-    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync+releases+patch hourly; installs: live feed every minute, summary at 00:00 Europe/Kyiv');
+    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync+releases+patch hourly; installs summary at 00:00 Europe/Kyiv (live feed is pushed by the site)');
   });
 
   await client.login(config.token);
