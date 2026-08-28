@@ -645,7 +645,14 @@ public sealed class RecommendationEngine : IDisposable
                         reasonList.Add(Loc.T("reason.personalWr", $"{100.0 * pw / pg:F0}", pg));
                 }
                 var reasons = reasonList.ToArray();
-                return new Recommendation(champId, score, baseDelta, directDelta, otherDelta, synDelta, comfortDelta, styleScore, reasons);
+
+                // «Против оппонента» на нижней линии — это вся вражеская пара, а не
+                // один визави. Саппорту важнее всего, как он играется против ЧУЖОГО
+                // АДК (и наоборот), но раньше полоска показывала только матчап со
+                // своей же ролью: пока вражеский саппорт не выбран, там стоял ноль,
+                // хотя счёт уже учитывал контру против их адк.
+                var shownDirect = directDelta + botlaneDelta;
+                return new Recommendation(champId, score, baseDelta, shownDirect, otherDelta, synDelta, comfortDelta, styleScore, reasons);
             })
             .OrderByDescending(r => r.Score)
             .ToList();

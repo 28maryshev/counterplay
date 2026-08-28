@@ -109,9 +109,15 @@ DB_LOCK = threading.RLock()
 
 
 def init_db(path: str) -> sqlite3.Connection:
-    con = sqlite3.connect(path, check_same_thread=False)
+    # timeout/busy_timeout: раз в сутки по cron приходит prune_db.py, удаляет
+    # полтора миллиона строк и делает TRUNCATE-чекпоинт под эксклюзивной
+    # блокировкой. Со стандартными пятью секундами сбор просто падал с
+    # «database is locked» и перезапускался. Две минуты ожидания — чистка
+    # успевает закончиться, и сбор продолжается как ни в чём не бывало.
+    con = sqlite3.connect(path, check_same_thread=False, timeout=120)
     con.executescript("""
         PRAGMA journal_mode = WAL;
+        PRAGMA busy_timeout = 120000;
 
         CREATE TABLE IF NOT EXISTS processed_matches (
             match_id TEXT PRIMARY KEY

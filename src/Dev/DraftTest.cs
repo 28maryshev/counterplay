@@ -53,6 +53,14 @@ static class DraftTest
             }
         }
 
+        // 0. Саппорт: вражеский САППОРТ ещё не выбран, но их АДК известен (Кейтлин).
+        //    Проверяем, что «против оппонента» перестал быть нулём — теперь он
+        //    считает всю вражескую нижнюю линию, а не только визави по роли.
+        Print("SUPPORT: enemy ADC known, enemy support unknown",
+            Build("utility",
+                new[] { (22, "bottom") },
+                new[] { (51, "bottom") }));
+
         // 1. ADC, команда уже 3 AP (Акали/Сона/Тимо) + Йорик AD, у врага танки → ждём AD-адк вверх.
         Print("ADC: team 3AP+1AD vs tanky enemies",
             Build("bottom",
