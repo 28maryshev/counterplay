@@ -188,6 +188,7 @@ public partial class OverlayWindow : Window
         }
         Left = r.Right / dpiX;
         Top  = r.Top  / dpiY;
+        _lastClientRect = r;   // фолловеру нечего доклеивать
         LimitHeightToClient();
     }
 
@@ -415,6 +416,14 @@ public partial class OverlayWindow : Window
         _inTray = false;
         if (_tray != null) _tray.Visible = false;
         Show();
+
+        // За время игры клиент мог переехать, сменить размер или пересоздать окно
+        // (экран конца игры), а оверлей вернулся бы на старое место — поверх него.
+        // Прикрепляемся заново, и ещё раз с задержкой: клиент доезжает не сразу.
+        AnchorIfNotMoved();
+        var settle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        settle.Tick += (_, _) => { settle.Stop(); AnchorIfNotMoved(); };
+        settle.Start();
     });
 
     private IntPtr Hwnd => new System.Windows.Interop.WindowInteropHelper(this).Handle;
