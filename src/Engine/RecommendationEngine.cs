@@ -22,6 +22,15 @@ public sealed record Recommendation(
 
 public sealed class RecommendationEngine : IDisposable
 {
+    // Знак причины — невидимым префиксом в самой строке: так он доезжает до
+    // интерфейса через все слои (Recommendation, BanRec, тесты), не ломая их
+    // сигнатуры. Оверлей по нему красит маркер строки: зелёный — довод «за»,
+    // красный — «против», серый — нейтральный факт.
+    public const char SIGN_GOOD = '';
+    public const char SIGN_BAD  = '';
+    private static string Good(string s) => SIGN_GOOD + s;
+    private static string Bad(string s)  => SIGN_BAD + s;
+
     // Лаплас-сглаживание: при малом числе игр тянем к 50%.
     private const double K      = 50.0; // для базового WR (данных много)
     private const double K_PAIR = 20.0; // для парных таблиц (синергия/матчап) — данных мало
@@ -621,9 +630,9 @@ public sealed class RecommendationEngine : IDisposable
                 var botlaneDelta = PureVs(btg, btw);
 
                 if (botlaneDelta >= 0.8)
-                    draftReasons.Add(Loc.T("reason.botlaneGood", DataDragon.Name(enemyDuoId)));
+                    draftReasons.Add(Good(Loc.T("reason.botlaneGood", DataDragon.Name(enemyDuoId))));
                 else if (botlaneDelta <= -1.2)
-                    draftReasons.Add(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId)));
+                    draftReasons.Add(Bad(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId))));
 
                 var personalDelta = PersonalDelta(champId);   // «у меня на нём идёт»
 
@@ -642,7 +651,7 @@ public sealed class RecommendationEngine : IDisposable
                     var (pg, pw) = SessionTracker.ChampStats(
                         champId, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
                     if (pg > 0)
-                        reasonList.Add(Loc.T("reason.personalWr", $"{100.0 * pw / pg:F0}", pg));
+                        reasonList.Add(Good(Loc.T("reason.personalWr", $"{100.0 * pw / pg:F0}", pg)));
                 }
                 var reasons = reasonList.ToArray();
 
@@ -814,18 +823,18 @@ public sealed class RecommendationEngine : IDisposable
             double gap = 0;
             var reasons = new List<string>();
             if (!hasFront && (ChampionTraits.IsTanky(champId) || ChampionTags.Has(champId, "engage")))
-            { gap += 2.5; reasons.Add(Loc.T("reason.aramFront")); }
+            { gap += 2.5; reasons.Add(Good(Loc.T("reason.aramFront"))); }
             if (!hasHeal && ChampionTraits.HealReliant(champId))
-            { gap += 1.5; reasons.Add(Loc.T("reason.aramHeal")); }
+            { gap += 1.5; reasons.Add(Good(Loc.T("reason.aramHeal"))); }
             if (ChampionTraits.LongRange(champId)) gap += 0.8;
 
             var comfort = ComfortDelta(champId);
-            if      (comfort >= 5.0) reasons.Add(Loc.T("reason.comfortHigh"));
-            else if (comfort >= 2.5) reasons.Add(Loc.T("reason.comfortMid"));
+            if      (comfort >= 5.0) reasons.Add(Good(Loc.T("reason.comfortHigh")));
+            else if (comfort >= 2.5) reasons.Add(Good(Loc.T("reason.comfortMid")));
 
-            if (synDelta > 0.5) reasons.Add(Loc.T("reason.fitsTeam"));
-            if      (baseDelta >= 2.5) reasons.Add(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}"));
-            else if (baseDelta >= 1.0) reasons.Add(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}"));
+            if (synDelta > 0.5) reasons.Add(Good(Loc.T("reason.fitsTeam")));
+            if      (baseDelta >= 2.5) reasons.Add(Good(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}")));
+            else if (baseDelta >= 1.0) reasons.Add(Good(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}")));
             if (reasons.Count == 0) reasons.Add(Loc.T("reason.baseNeutral", $"{50 + baseDelta:F1}"));
 
             var score = W_ARAM_BASE * baseDelta + W_ARAM_SYN * synDelta
@@ -957,7 +966,7 @@ public sealed class RecommendationEngine : IDisposable
 
             if (counterMe >= 1.5 && beatMain != 0)
                 AddReason(x, Loc.T("reason.countersPool", DataDragon.Name(beatMain)));
-            if (metaWr >= 1.5) AddReason(x, Loc.T("reason.strongPatch", $"{50 + metaWr:F1}"));
+            if (metaWr >= 1.5) AddReason(x, Good(Loc.T("reason.strongPatch", $"{50 + metaWr:F1}")));
             if (pop >= 0.6)    AddReason(x, Loc.T("reason.oftenPicked"));
         }
 
@@ -1152,7 +1161,7 @@ public sealed class RecommendationEngine : IDisposable
             if (aoeAllies >= 2 && allyIds.Any(TeamSynergies.IsGrouper))
             {
                 b += Math.Min(aoeAllies, 3) * 0.7; // +1.4 … +2.1 (×W_STRUCT)
-                reasons.Add(Loc.T("reason.womboAoe"));
+                reasons.Add(Good(Loc.T("reason.womboAoe")));
             }
         }
 
@@ -1164,7 +1173,7 @@ public sealed class RecommendationEngine : IDisposable
             if (ChampionTraits.HardCc(champId) >= 1)
             {
                 b += 1;
-                reasons.Add(Loc.T("reason.jgSetup", DataDragon.Name(jungleAllyId)));
+                reasons.Add(Good(Loc.T("reason.jgSetup", DataDragon.Name(jungleAllyId))));
             }
             if (ChampionTraits.EarlyPower(champId) >= 2) b += 0.5;
             if (ChampionTraits.EarlyPower(champId) == 0) b -= 1;
@@ -1176,12 +1185,12 @@ public sealed class RecommendationEngine : IDisposable
             if (ChampionTraits.EngageDependentAdc(adcAllyId) && ChampionTraits.Engage(champId) >= 2)
             {
                 b += 1;
-                reasons.Add(Loc.T("reason.adcEngage", DataDragon.Name(adcAllyId)));
+                reasons.Add(Good(Loc.T("reason.adcEngage", DataDragon.Name(adcAllyId))));
             }
             if (ChampionTraits.ScaleAdcCarry(adcAllyId) && ChampionTraits.Peel(champId) >= 2)
             {
                 b += 1;
-                reasons.Add(Loc.T("reason.adcScale", DataDragon.Name(adcAllyId)));
+                reasons.Add(Good(Loc.T("reason.adcScale", DataDragon.Name(adcAllyId))));
             }
         }
 
@@ -1727,8 +1736,8 @@ public sealed class RecommendationEngine : IDisposable
         var lines = new List<string>();
 
         // 0. Комфорт: часто наигранный чемпион игрока — упоминаем первым.
-        if      (comfortDelta >= 5.0) lines.Add(Loc.T("reason.comfortHigh"));
-        else if (comfortDelta >= 2.5) lines.Add(Loc.T("reason.comfortMid"));
+        if      (comfortDelta >= 5.0) lines.Add(Good(Loc.T("reason.comfortHigh")));
+        else if (comfortDelta >= 2.5) lines.Add(Good(Loc.T("reason.comfortMid")));
 
         // 1. Развёрнутые объяснения синергии с конкретными союзниками.
         // Сначала пары с наибольшей статистической синергией. Дедупим по ТИПУ
@@ -1749,10 +1758,10 @@ public sealed class RecommendationEngine : IDisposable
         if (directOppId != 0)
         {
             var oppName = DataDragon.Name(directOppId);
-            if      (directDelta >=  2.0) lines.Add(Loc.T("reason.lineWinStrong", oppName, $"{directDelta:F1}"));
-            else if (directDelta >=  1.0) lines.Add(Loc.T("reason.lineWin", oppName, $"{directDelta:F1}"));
-            else if (directDelta >=  0.3) lines.Add(Loc.T("reason.lineEdge", oppName));
-            else if (directDelta <= -1.5) lines.Add(Loc.T("reason.lineHard", oppName, $"{directDelta:F1}"));
+            if      (directDelta >=  2.0) lines.Add(Good(Loc.T("reason.lineWinStrong", oppName, $"{directDelta:F1}")));
+            else if (directDelta >=  1.0) lines.Add(Good(Loc.T("reason.lineWin", oppName, $"{directDelta:F1}")));
+            else if (directDelta >=  0.3) lines.Add(Good(Loc.T("reason.lineEdge", oppName)));
+            else if (directDelta <= -1.5) lines.Add(Bad(Loc.T("reason.lineHard", oppName, $"{directDelta:F1}")));
             else                          lines.Add(Loc.T("reason.lineNeutral", oppName));
         }
 
@@ -1764,19 +1773,19 @@ public sealed class RecommendationEngine : IDisposable
             if (good.Count > 0)
             {
                 var names = string.Join(", ", good.Select(x => DataDragon.Name(x.Id)));
-                lines.Add(Loc.T("reason.favMatchups", names));
+                lines.Add(Good(Loc.T("reason.favMatchups", names)));
             }
         }
 
         // 4. Если понятных объяснений не нашлось, но статистика хорошая —
         // мягкая общая фраза вместо сухих процентов.
         if (explained == 0 && synByAlly.Count > 0 && synDelta > 0.5)
-            lines.Add(Loc.T("reason.fitsTeam"));
+            lines.Add(Good(Loc.T("reason.fitsTeam")));
 
         // 5. Базовый WR
-        if      (baseDelta >=  2.5) lines.Add(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}"));
-        else if (baseDelta >=  1.0) lines.Add(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}"));
-        else if (baseDelta <= -1.5) lines.Add(Loc.T("reason.baseLow", $"{50 + baseDelta:F1}"));
+        if      (baseDelta >=  2.5) lines.Add(Good(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}")));
+        else if (baseDelta >=  1.0) lines.Add(Good(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}")));
+        else if (baseDelta <= -1.5) lines.Add(Bad(Loc.T("reason.baseLow", $"{50 + baseDelta:F1}")));
 
         if (lines.Count == 0) lines.Add(Loc.T("reason.baseNeutral", $"{50 + baseDelta:F1}"));
         return [.. lines];

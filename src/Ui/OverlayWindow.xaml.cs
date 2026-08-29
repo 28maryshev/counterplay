@@ -2662,6 +2662,12 @@ public partial class OverlayWindow : Window
             }
         }
 
+        // Сколько кандидатов приводят ровно эту причину — по ней и отсеиваем общие.
+        var reasonFreq = new Dictionary<string, int>();
+        foreach (var r in recs)
+            foreach (var reason in r.Reasons)
+                reasonFreq[reason] = reasonFreq.GetValueOrDefault(reason) + 1;
+
         var generalCards = recs
             .Where(r => !poolIds.Contains(r.ChampionId))
             .Select(r =>
@@ -2680,7 +2686,7 @@ public partial class OverlayWindow : Window
                 WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
                 Icon       = IconCache.Get(r.ChampionId),
                 // Маркеры «•» + имена чемпионов цветом их архетипа (см. ReasonSegments).
-                ReasonSegs = ReasonSegments(r.Reasons, nameColor),
+                ReasonSegs = ReasonSegments(Distinctive(r.Reasons, reasonFreq, recs.Count), nameColor),
                 BaseBar    = BaseBarS(r.BaseDelta),
                 DirectBar  = DirBar(r.DirectDelta),
                 OtherBar   = StyBar(r.StyleDelta),   // строка «Против их стиля»
@@ -2727,6 +2733,25 @@ public partial class OverlayWindow : Window
 
     // Разбивает причины на сегменты: маркер «•», перевод строк между причинами и
     // имена чемпионов, покрашенные в цвет их архетипа (nameColor).
+    /// Оставляет причины, которые действительно РАЗЛИЧАЮТ кандидатов.
+    ///
+    /// Половина строк в карточках — про команду, а не про пик: «Кейтлин хрупкая,
+    /// прикрывай её» повторяется у каждого саппорта подряд. Читать одно и то же
+    /// пять раз бессмысленно, а выбрать по этому нельзя. Поэтому доводы, которые
+    /// встречаются почти у всех, из карточек убираем — но не жадно: минимум две
+    /// строки в карточке остаются всегда, иначе получится пусто.
+    private const int REASONS_SHOWN = 4;
+
+    private static string[] Distinctive(string[] reasons, Dictionary<string, int> freq, int total)
+    {
+        if (total <= 2) return reasons.Take(REASONS_SHOWN).ToArray();
+        var common = Math.Max(2, (int)Math.Ceiling(total * 0.6));   // «почти у всех»
+        var kept = reasons.Where(r => freq.GetValueOrDefault(r) < common).ToList();
+        // Всё оказалось общим — оставляем как есть, лучше повтор, чем пустая карточка.
+        if (kept.Count < 2) kept = [.. reasons];
+        return [.. kept.Take(REASONS_SHOWN)];
+    }
+
     private static List<ReasonSeg> ReasonSegments(string[] reasons, Dictionary<string, string> nameColor)
     {
         var segs = new List<ReasonSeg>();
@@ -2740,7 +2765,27 @@ public partial class OverlayWindow : Window
         for (int i = 0; i < reasons.Length; i++)
         {
             if (i > 0) segs.Add(new ReasonSeg { Break = true });
-            var line = "•  " + reasons[i];
+
+            // Первый символ строки — знак довода (см. RecommendationEngine).
+            // Красим им ТОЛЬКО маркер: подсветить всю строку целиком значило бы
+            // сделать полотно ещё пестрее, а так знак читается боковым зрением,
+            // и глазу не нужно вчитываться, чтобы понять «за» это или «против».
+            var raw  = reasons[i];
+            var sign = raw.Length > 0 ? raw[0] : ' ';
+            var text = sign is RecommendationEngine.SIGN_GOOD or RecommendationEngine.SIGN_BAD
+                ? raw[1..] : raw;
+            segs.Add(new ReasonSeg
+            {
+                Text  = "•  ",
+                Color = sign switch
+                {
+                    RecommendationEngine.SIGN_GOOD => "#57C98A",
+                    RecommendationEngine.SIGN_BAD  => "#E0736A",
+                    _                              => "#5C7183",   // нейтральный факт
+                }
+            });
+
+            var line = text;
             if (rx is null) { segs.Add(new ReasonSeg { Text = line }); continue; }
             foreach (var part in rx.Split(line))
             {
