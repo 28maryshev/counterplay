@@ -37,6 +37,7 @@ public partial class OverlayWindow : Window
     private IReadOnlyList<BanRec>?         _lastBans;
     private ChampionTraits.Arch?           _allyStyle;    // выраженный стиль моей команды
     private Dictionary<string, string>     _comboColors = [];  // связка → цвет её полоски
+    private Dictionary<string, int>        _comboIndex  = [];  // связка → её скобка в списке
     private List<int>                      _allyIdsNow  = [];  // чемпионы союзников сейчас
     private DraftState?                    _lastDraft;    // с применёнными ручными ролями
     private DraftState?                    _lastRawDraft; // как пришёл из LCU
@@ -856,51 +857,53 @@ public partial class OverlayWindow : Window
 
     private void RecCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id, fe);
+        if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id);
     }
 
-    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => SynLinks.Children.Clear();
+    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) =>
+        SynLinks.Children.Clear();
 
-    private void DrawSynergyLinks(int champId, FrameworkElement card)
+    private void DrawSynergyLinks(int champId)
     {
         SynLinks.Children.Clear();
         if (champId == 0 || _engine is null || _lastDraft is null) return;
 
-        var cardPt = card.TransformToVisual(SynLinks)
-                         .Transform(new System.Windows.Point(0, card.ActualHeight / 2));
-
-        // championId → строка в списке союзников
+        // championId → строка в списке союзников; отдельно мой слот — в него
+        // подставляем кандидата, чтобы связка шла от него, как от готового пика.
         var rowOf = new Dictionary<int, int>();
+        int myRow = -1;
         for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
         {
-            var id = _lastDraft.MyTeam[i].EffectiveChampionId;
+            var p = _lastDraft.MyTeam[i];
+            if (p.IsLocalPlayer) myRow = i;
+            var id = p.EffectiveChampionId;
             if (id != 0 && !rowOf.ContainsKey(id)) rowOf[id] = i;
         }
+        if (myRow >= 0 && !rowOf.ContainsKey(champId)) rowOf[champId] = myRow;
+
+        DrawPickPreview(myRow, champId);
 
         // Связки, в которые кандидат войдёт своим пиком: те самые цветные полоски
-        // под его иконкой. Цвет берём тот же, что у полоски, — иначе не связать.
+        // под его иконкой. Цвет и место скобки — как у готовых связок, новая
+        // встаёт следующей за ними.
         var ids  = _allyIdsNow.Contains(champId) ? _allyIdsNow : [.. _allyIdsNow, champId];
         var team = ids.Select(id => (Id: id, Role: "")).ToList();
-        int nextColor = _comboColors.Count;
-        int shown = 0;
+        int nextSlot = _comboColors.Count;
 
         foreach (var combo in TeamSynergies.Detect(team, forAlly: true))
         {
             if (!combo.ChampionIds.Contains(champId)) continue;
-            if (!_comboColors.TryGetValue(combo.Name, out var color))
-                color = ComboColors[nextColor++ % ComboColors.Length];
+            var known = _comboColors.TryGetValue(combo.Name, out var color);
+            if (!known) color = ComboColors[nextSlot % ComboColors.Length];
+            var slot = known ? _comboIndex.GetValueOrDefault(combo.Name) : nextSlot++;
 
-            var partners = combo.ChampionIds.Where(id => id != champId && rowOf.ContainsKey(id)).ToList();
-            if (partners.Count == 0) continue;
-
-            foreach (var partner in partners)
-                DrawLink(rowOf[partner], cardPt, color, 0.55, 2.0);
-            DrawLabel(combo.Name, cardPt, color, shown++);
+            var rows = combo.ChampionIds.Where(rowOf.ContainsKey).Select(id => rowOf[id])
+                            .Distinct().OrderBy(r => r).ToList();
+            if (rows.Count >= 2) DrawBracket(rows, color!, slot, combo.Name);
         }
 
-        // Плюс — с кем именно кандидат силён в паре: зелёное свечение портрета и
-        // величина под ним. Без линий: связка и так видна по цветной дуге, а
-        // здесь важна не связь, а сила.
+        // С кем именно кандидат силён в паре: зелёное свечение портрета и величина
+        // под ним. Без линий — здесь важна не связь, а сила.
         var myRole = RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition);
         for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
         {
@@ -911,6 +914,77 @@ public partial class OverlayWindow : Window
             var syn = _engine.PairSynergy(champId, myRole, ally);
             if (syn >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
         }
+    }
+
+    // Кандидат в моём пустом слоте: наводишь — видно, как он встанет в состав,
+    // и связка идёт от него, а не откуда-то из карточки.
+    private void DrawPickPreview(int myRow, int champId)
+    {
+        if (myRow < 0 || IconCache.Get(champId) is not { } icon) return;
+        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(myRow) is not FrameworkElement c) return;
+        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
+
+        var preview = new System.Windows.Shapes.Ellipse
+        {
+            Width = 68, Height = 68, Opacity = 0.9,
+            Fill = new ImageBrush(icon) { Stretch = Stretch.UniformToFill },
+            Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xD7, 0x7A)),
+            StrokeThickness = 2,
+        };
+        Canvas.SetLeft(preview, pt.X - 34);
+        Canvas.SetTop(preview, pt.Y - 34);
+        SynLinks.Children.Add(preview);
+    }
+
+    // Скобка-коннектор между участниками связки — та же, что у готовых связок
+    // команды (см. DrawTeamLines), только строится под наведённого кандидата.
+    private void DrawBracket(List<int> rows, string color, int slot, string name)
+    {
+        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(rows[0]) is not FrameworkElement first) return;
+
+        double? RowY(int i) =>
+            MyTeamList.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement c
+                ? c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(0, 42)).Y
+                : null;
+
+        var ys = rows.Select(RowY).Where(y => y.HasValue).Select(y => y!.Value).OrderBy(y => y).ToList();
+        if (ys.Count < 2) return;
+
+        // x берём через тот же слот списка: канвас шире колонки команды
+        var portraitRight = first.TransformToVisual(SynLinks).Transform(new System.Windows.Point(72, 0)).X;
+        var stemX = first.TransformToVisual(SynLinks)
+                         .Transform(new System.Windows.Point(80 + slot * 9, 0)).X;
+
+        var brush = new SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+        brush.Freeze();
+
+        SynLinks.Children.Add(new Line
+        {
+            X1 = stemX, Y1 = ys.First(), X2 = stemX, Y2 = ys.Last(),
+            Stroke = brush, StrokeThickness = 2.5,
+        });
+        foreach (var y in ys)
+            SynLinks.Children.Add(new Line
+            {
+                X1 = portraitRight, Y1 = y, X2 = stemX, Y2 = y,
+                Stroke = brush, StrokeThickness = 2.5,
+                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+            });
+
+        // Название связки у скобки — иначе цвет ничего не говорит.
+        var label = new TextBlock
+        {
+            Text = name, Foreground = brush, FontSize = 10, FontWeight = FontWeights.Bold,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = System.Windows.Media.Colors.Black, ShadowDepth = 0,
+                BlurRadius = 5, Opacity = 0.95,
+            },
+        };
+        Canvas.SetLeft(label, stemX + 6);
+        Canvas.SetTop(label, (ys.First() + ys.Last()) / 2 - 7);
+        SynLinks.Children.Add(label);
     }
 
     // Портрет союзника, с которым кандидат хорошо играет: чем сильнее пара, тем
@@ -953,61 +1027,8 @@ public partial class OverlayWindow : Window
         };
         num.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
         Canvas.SetLeft(num, pt.X - num.DesiredSize.Width / 2);
-        Canvas.SetTop(num, pt.Y + 30);
+        Canvas.SetTop(num, pt.Y + 40);   // под портретом, до разделителя ещё есть место
         SynLinks.Children.Add(num);
-    }
-
-    // Дуга от портрета союзника (строка i) к левому краю карточки + кольцо на портрете.
-    private void DrawLink(int row, System.Windows.Point cardPt, string color,
-                          double opacity, double thickness)
-    {
-        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
-        // (72, 42) — правый край портрета и его центр по вертикали (см. DrawTeamLines)
-        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(72, 42));
-
-        var brush = new SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color))
-            { Opacity = opacity };
-        brush.Freeze();
-
-        var dx  = Math.Max(40, (cardPt.X - pt.X) * 0.45);
-        var fig = new PathFigure { StartPoint = pt };
-        fig.Segments.Add(new BezierSegment(
-            new System.Windows.Point(pt.X + dx, pt.Y),
-            new System.Windows.Point(cardPt.X - dx, cardPt.Y), cardPt, true));
-        var geo = new PathGeometry();
-        geo.Figures.Add(fig);
-        SynLinks.Children.Add(new System.Windows.Shapes.Path
-        {
-            Data = geo, Stroke = brush, StrokeThickness = thickness,
-            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
-        });
-
-        var ring = new System.Windows.Shapes.Ellipse
-        {
-            Width = 74, Height = 74, Stroke = brush, StrokeThickness = 2,
-        };
-        Canvas.SetLeft(ring, pt.X - 73);
-        Canvas.SetTop(ring, pt.Y - 37);
-        SynLinks.Children.Add(ring);
-    }
-
-    // Название связки у карточки — чтобы было видно, ЧТО за комбинация, а не
-    // только с кем. Несколько связок ставим друг под другом.
-    private void DrawLabel(string name, System.Windows.Point cardPt, string color, int index)
-    {
-        var brush = new SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
-        brush.Freeze();
-        var label = new TextBlock
-        {
-            Text = name, Foreground = brush, FontSize = 10,
-            FontWeight = FontWeights.Bold, Opacity = 0.95,
-        };
-        label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(label, Math.Max(0, cardPt.X - label.DesiredSize.Width - 8));
-        Canvas.SetTop(label, cardPt.Y - 7 + index * 14);
-        SynLinks.Children.Add(label);
     }
 
     private async void RecCard_Click(object sender, MouseButtonEventArgs e)
@@ -2687,6 +2708,8 @@ public partial class OverlayWindow : Window
         for (int i = 0; i < myCombos.Count; i++)
             comboColorByName[myCombos[i].Name] = ComboColors[i % ComboColors.Length];
         _comboColors = comboColorByName;   // для подсветки связок при наведении
+        _comboIndex  = myCombos.Select((c, i) => (c.Name, i))
+                               .ToDictionary(x => x.Name, x => x.i);
         _allyIdsNow  = allyIds;
 
         // Сильнейшая метрика среди показанных пиков → золотое свечение всей строки (если > 0).
