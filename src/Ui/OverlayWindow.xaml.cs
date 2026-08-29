@@ -1146,6 +1146,9 @@ public partial class OverlayWindow : Window
     // и связка идёт от него, а не откуда-то из карточки.
     private void DrawPickPreview(int myRow, int champId)
     {
+        // В банфазе чемпион в моём слоте читался бы как «беру его» — а его как раз
+        // собираются забанить.
+        if (_lastDraft?.InBanPhase == true) return;
         if (myRow < 0 || IconCache.Get(champId) is not { } icon) return;
         if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(myRow) is not FrameworkElement c) return;
         var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));

@@ -1623,8 +1623,7 @@
                        прозрачный, но задан — иначе клики по пустоте не ловятся. -->
                   <StackPanel x:Name="TierCellRoot" Margin="0,0,0,4" HorizontalAlignment="Center"
                               ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
-                              MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}"
-                              MouseEnter="PoolCell_Enter" MouseLeave="PoolCell_Leave">
+                              MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
                     <Grid Width="36" Height="36" HorizontalAlignment="Center">
                       <!-- Иконка чемпиона. При наведении её обводка краснеет и
                            толстеет (см. триггер) — видно, что можно пикнуть/забанить. -->
