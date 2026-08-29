@@ -154,6 +154,17 @@ def read_key() -> str | None:
         return None
 
 
+def drop_key(used: str):
+    """Убирает отработанный ключ — но только если это тот самый ключ.
+
+    Публикация базы идёт минутами, и за это время бот может положить свежий
+    ключ. Безусловный unlink стирал его молча: сбор не начинался, а человек
+    видел лишь «пришли ключ» и не понимал, куда делся уже отправленный.
+    """
+    if read_key() == used:
+        KEY_FILE.unlink(missing_ok=True)
+
+
 def wait_for_key() -> str:
     """Ждёт ключ от бота. Просит его один раз, потом молча поллит."""
     asked = False
@@ -176,6 +187,8 @@ def publish_db(session_total: int):
         return
     try:
         set_status(state='publishing')
+        notify(f'📦 Круг завершён (+{session_total}) — публикую базу. '
+               'Это несколько минут; сбор продолжится сразу после неё.')
         # Снапшот (~1 ГБ) + тонкие побакетные базы строятся во временной папке.
         # Кладём её на ТОМ (диск), а не в /tmp контейнера (там tmpfs мал).
         tmp = Path(DB_PATH).parent / 'publtmp'
@@ -223,7 +236,7 @@ def main():
             got = collect.run_continuous(key, DB_PATH, regions, buckets, DAYS, 0)
             # Круг пройден до конца — публикуем и ждём следующий ключ/запуск.
             publish_db(got or 0)
-            KEY_FILE.unlink(missing_ok=True)
+            drop_key(key)
             set_status(state='idle', collected=got or 0)
         except DiskLow as e:
             # Место кончилось: публикуем собранное (на это запаса хватает — порог
@@ -248,7 +261,7 @@ def main():
         except KeyExpired as e:
             # Штатно: база уже сохранена внутри run_continuous. Публикуем всё,
             # что успели, чистим ключ и ждём новый.
-            KEY_FILE.unlink(missing_ok=True)
+            drop_key(key)
             got = getattr(e, 'collected', 0) or 0
             publish_db(got)
             notify(f'⌛ Ключ истёк — за этот ключ собрано **+{got}** матчей.\n'
