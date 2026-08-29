@@ -36,6 +36,8 @@ public partial class OverlayWindow : Window
     private IReadOnlyList<Recommendation>? _lastRecs;
     private IReadOnlyList<BanRec>?         _lastBans;
     private ChampionTraits.Arch?           _allyStyle;    // выраженный стиль моей команды
+    private Dictionary<string, string>     _comboColors = [];  // связка → цвет её полоски
+    private List<int>                      _allyIdsNow  = [];  // чемпионы союзников сейчас
     private DraftState?                    _lastDraft;    // с применёнными ручными ролями
     private DraftState?                    _lastRawDraft; // как пришёл из LCU
     private RecommendationEngine?          _engine;
@@ -864,66 +866,116 @@ public partial class OverlayWindow : Window
         SynLinks.Children.Clear();
         if (champId == 0 || _engine is null || _lastDraft is null) return;
 
-        var myRole = RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition);
         var cardPt = card.TransformToVisual(SynLinks)
                          .Transform(new System.Windows.Point(0, card.ActualHeight / 2));
 
+        // championId → строка в списке союзников
+        var rowOf = new Dictionary<int, int>();
         for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
         {
-            var p     = _lastDraft.MyTeam[i];
-            var ally  = p.EffectiveChampionId;
+            var id = _lastDraft.MyTeam[i].EffectiveChampionId;
+            if (id != 0 && !rowOf.ContainsKey(id)) rowOf[id] = i;
+        }
+
+        // Связки, в которые кандидат войдёт своим пиком: те самые цветные полоски
+        // под его иконкой. Цвет берём тот же, что у полоски, — иначе не связать.
+        var ids  = _allyIdsNow.Contains(champId) ? _allyIdsNow : [.. _allyIdsNow, champId];
+        var team = ids.Select(id => (Id: id, Role: "")).ToList();
+        int nextColor = _comboColors.Count;
+        int shown = 0;
+
+        foreach (var combo in TeamSynergies.Detect(team, forAlly: true))
+        {
+            if (!combo.ChampionIds.Contains(champId)) continue;
+            if (!_comboColors.TryGetValue(combo.Name, out var color))
+                color = ComboColors[nextColor++ % ComboColors.Length];
+
+            var partners = combo.ChampionIds.Where(id => id != champId && rowOf.ContainsKey(id)).ToList();
+            if (partners.Count == 0) continue;
+
+            foreach (var partner in partners)
+                DrawLink(rowOf[partner], cardPt, color, 0.55, 2.0);
+            DrawLabel(combo.Name, cardPt, color, shown++);
+        }
+
+        // Именованной связки нет — показываем хотя бы, с кем кандидат сильнее
+        // всего в паре: наведение не должно оставаться без ответа.
+        if (shown > 0) return;
+        for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
+        {
+            var p    = _lastDraft.MyTeam[i];
+            var ally = p.EffectiveChampionId;
             if (ally == 0 || ally == champId || p.IsLocalPlayer) continue;
 
-            var syn = _engine.PairSynergy(champId, myRole, ally);
+            var syn = _engine.PairSynergy(champId, RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition), ally);
             if (syn < SYN_LINK_MIN) continue;
-
-            if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(i) is not FrameworkElement c) continue;
-            // (72, 42) — правый край портрета и его центр по вертикали (см. DrawTeamLines)
-            var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(72, 42));
-
-            // Чем сильнее пара, тем заметнее линия — но всё равно вполсилы,
-            // это подсказка поверх интерфейса, а не его часть.
             var strength = Math.Min(1.0, syn / 3.0);
-            var brush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B))
-                        { Opacity = 0.22 + 0.33 * strength };
-            brush.Freeze();
-
-            // Дуга: из портрета вправо, в левый край карточки — чтобы линии не
-            // сливались в пучок прямых.
-            var dx = Math.Max(40, (cardPt.X - pt.X) * 0.45);
-            var fig = new PathFigure { StartPoint = pt };
-            fig.Segments.Add(new BezierSegment(
-                new System.Windows.Point(pt.X + dx, pt.Y),
-                new System.Windows.Point(cardPt.X - dx, cardPt.Y),
-                cardPt, true));
-            var geo = new PathGeometry();
-            geo.Figures.Add(fig);
-            SynLinks.Children.Add(new System.Windows.Shapes.Path
-            {
-                Data = geo, Stroke = brush,
-                StrokeThickness = 1.5 + 1.5 * strength,
-                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
-            });
-
-            // Кольцо вокруг портрета союзника + величина синергии у линии.
-            var ring = new System.Windows.Shapes.Ellipse
-            {
-                Width = 74, Height = 74, Stroke = brush, StrokeThickness = 2,
-            };
-            Canvas.SetLeft(ring, pt.X - 73);
-            Canvas.SetTop(ring, pt.Y - 37);
-            SynLinks.Children.Add(ring);
-
-            var label = new TextBlock
-            {
-                Text = "+" + syn.ToString("F1"),
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B)),
-                FontSize = 10, FontWeight = FontWeights.Bold, Opacity = 0.85,
-            };
-            Canvas.SetLeft(label, pt.X + 6);
-            Canvas.SetTop(label, pt.Y - 15);
-            SynLinks.Children.Add(label);
+            DrawLink(i, cardPt, "#4CE38B", 0.22 + 0.33 * strength, 1.5 + 1.5 * strength,
+                     "+" + syn.ToString("F1"));
         }
+    }
+
+    // Дуга от портрета союзника (строка i) к левому краю карточки + кольцо на портрете.
+    private void DrawLink(int row, System.Windows.Point cardPt, string color,
+                          double opacity, double thickness, string? note = null)
+    {
+        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
+        // (72, 42) — правый край портрета и его центр по вертикали (см. DrawTeamLines)
+        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(72, 42));
+
+        var brush = new SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color))
+            { Opacity = opacity };
+        brush.Freeze();
+
+        var dx  = Math.Max(40, (cardPt.X - pt.X) * 0.45);
+        var fig = new PathFigure { StartPoint = pt };
+        fig.Segments.Add(new BezierSegment(
+            new System.Windows.Point(pt.X + dx, pt.Y),
+            new System.Windows.Point(cardPt.X - dx, cardPt.Y), cardPt, true));
+        var geo = new PathGeometry();
+        geo.Figures.Add(fig);
+        SynLinks.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = geo, Stroke = brush, StrokeThickness = thickness,
+            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+        });
+
+        var ring = new System.Windows.Shapes.Ellipse
+        {
+            Width = 74, Height = 74, Stroke = brush, StrokeThickness = 2,
+        };
+        Canvas.SetLeft(ring, pt.X - 73);
+        Canvas.SetTop(ring, pt.Y - 37);
+        SynLinks.Children.Add(ring);
+
+        if (note is null) return;
+        var num = new TextBlock
+        {
+            Text = note, Foreground = brush.Clone(), FontSize = 10,
+            FontWeight = FontWeights.Bold, Opacity = 0.9,
+        };
+        Canvas.SetLeft(num, pt.X + 6);
+        Canvas.SetTop(num, pt.Y - 15);
+        SynLinks.Children.Add(num);
+    }
+
+    // Название связки у карточки — чтобы было видно, ЧТО за комбинация, а не
+    // только с кем. Несколько связок ставим друг под другом.
+    private void DrawLabel(string name, System.Windows.Point cardPt, string color, int index)
+    {
+        var brush = new SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+        brush.Freeze();
+        var label = new TextBlock
+        {
+            Text = name, Foreground = brush, FontSize = 10,
+            FontWeight = FontWeights.Bold, Opacity = 0.95,
+        };
+        label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(label, Math.Max(0, cardPt.X - label.DesiredSize.Width - 8));
+        Canvas.SetTop(label, cardPt.Y - 7 + index * 14);
+        SynLinks.Children.Add(label);
     }
 
     private async void RecCard_Click(object sender, MouseButtonEventArgs e)
@@ -2602,6 +2654,8 @@ public partial class OverlayWindow : Window
         var comboColorByName = new Dictionary<string, string>();
         for (int i = 0; i < myCombos.Count; i++)
             comboColorByName[myCombos[i].Name] = ComboColors[i % ComboColors.Length];
+        _comboColors = comboColorByName;   // для подсветки связок при наведении
+        _allyIdsNow  = allyIds;
 
         // Сильнейшая метрика среди показанных пиков → золотое свечение всей строки (если > 0).
         double maxBase = recs.Count > 0 ? recs.Max(r => r.BaseDelta)    : 0;
@@ -3348,8 +3402,8 @@ public sealed class FullRecCard
     public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public bool         ArchStrong { get; init; }   // поддерживает стиль команды
     public bool         ArchDim    { get; init; }   // выбивается из стиля
-    public double       ArchOpacity   => ArchDim ? 0.4 : 1.0;
-    public string       ArchRing      => ArchStrong ? "#F5F9FF" : "#00000000";
+    public double       ArchOpacity   => ArchDim ? 0.75 : 1.0;
+    public string       ArchRing      => ArchStrong ? "#F5D77A" : "#00000000";
     public double       ArchRingWidth => ArchStrong ? 2.0 : 0.0;
     public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
 
@@ -3411,8 +3465,8 @@ public sealed class ChampSlotCard
     public Visibility  ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public bool        ArchStrong     { get; init; }   // задаёт стиль команды
     public bool        ArchDim        { get; init; }   // выбивается из стиля
-    public double      ArchOpacity    => ArchDim ? 0.4 : 1.0;
-    public string      ArchRing       => ArchStrong ? "#F5F9FF" : "#00000000";
+    public double      ArchOpacity    => ArchDim ? 0.75 : 1.0;
+    public string      ArchRing       => ArchStrong ? "#F5D77A" : "#00000000";
     public double      ArchRingWidth  => ArchStrong ? 2.0 : 0.0;
 
 

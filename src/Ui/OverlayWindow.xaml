@@ -1042,6 +1042,21 @@
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
                                 Margin="0,0,0,0" Visibility="{Binding ArchVisibility}"
                                 ToolTip="{Binding ArchTip}">
+                          <Border.Style>
+                            <Style TargetType="Border">
+                              <Style.Triggers>
+                                <!-- Задаёт стиль команды — золотое размытое свечение -->
+                                <DataTrigger Binding="{Binding ArchStrong}" Value="True">
+                                  <Setter Property="Effect">
+                                    <Setter.Value>
+                                      <DropShadowEffect Color="#F5D77A" BlurRadius="14"
+                                                        ShadowDepth="0" Opacity="0.95"/>
+                                    </Setter.Value>
+                                  </Setter>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
                           <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
                           <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
                                      FontSize="14" Foreground="#10141A"
@@ -1205,7 +1220,22 @@
                                 BorderThickness="{Binding ArchRingWidth}"
                                         HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding ArchVisibility}" ToolTip="{Binding ArchTip}">
-                                  <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
+                                  <Border.Style>
+                            <Style TargetType="Border">
+                              <Style.Triggers>
+                                <!-- Задаёт стиль команды — золотое размытое свечение -->
+                                <DataTrigger Binding="{Binding ArchStrong}" Value="True">
+                                  <Setter Property="Effect">
+                                    <Setter.Value>
+                                      <DropShadowEffect Color="#F5D77A" BlurRadius="14"
+                                                        ShadowDepth="0" Opacity="0.95"/>
+                                    </Setter.Value>
+                                  </Setter>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
+                          <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
                                   <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
                                              FontSize="14" Foreground="#10141A"
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -2074,6 +2104,21 @@
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
                                 Margin="0,0,0,0" Visibility="{Binding ArchVisibility}"
                                 ToolTip="{Binding ArchTip}">
+                          <Border.Style>
+                            <Style TargetType="Border">
+                              <Style.Triggers>
+                                <!-- Задаёт стиль команды — золотое размытое свечение -->
+                                <DataTrigger Binding="{Binding ArchStrong}" Value="True">
+                                  <Setter Property="Effect">
+                                    <Setter.Value>
+                                      <DropShadowEffect Color="#F5D77A" BlurRadius="14"
+                                                        ShadowDepth="0" Opacity="0.95"/>
+                                    </Setter.Value>
+                                  </Setter>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
                           <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
                           <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
                                      FontSize="14" Foreground="#10141A"
