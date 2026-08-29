@@ -898,26 +898,68 @@ public partial class OverlayWindow : Window
             DrawLabel(combo.Name, cardPt, color, shown++);
         }
 
-        // Именованной связки нет — показываем хотя бы, с кем кандидат сильнее
-        // всего в паре: наведение не должно оставаться без ответа.
-        if (shown > 0) return;
+        // Плюс — с кем именно кандидат силён в паре: зелёное свечение портрета и
+        // величина под ним. Без линий: связка и так видна по цветной дуге, а
+        // здесь важна не связь, а сила.
+        var myRole = RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition);
         for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
         {
             var p    = _lastDraft.MyTeam[i];
             var ally = p.EffectiveChampionId;
             if (ally == 0 || ally == champId || p.IsLocalPlayer) continue;
 
-            var syn = _engine.PairSynergy(champId, RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition), ally);
-            if (syn < SYN_LINK_MIN) continue;
-            var strength = Math.Min(1.0, syn / 3.0);
-            DrawLink(i, cardPt, "#4CE38B", 0.22 + 0.33 * strength, 1.5 + 1.5 * strength,
-                     "+" + syn.ToString("F1"));
+            var syn = _engine.PairSynergy(champId, myRole, ally);
+            if (syn >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
         }
+    }
+
+    // Портрет союзника, с которым кандидат хорошо играет: чем сильнее пара, тем
+    // ярче и шире зелёное свечение. Под портретом — сама величина в пунктах.
+    private void DrawAllySynergy(int row, double syn)
+    {
+        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
+        // (36, 42) — центр портрета в координатах слота (см. DrawTeamLines)
+        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
+
+        var strength = Math.Min(1.0, syn / 3.0);
+        var green = System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B);
+
+        var glow = new SolidColorBrush(green) { Opacity = 0.35 + 0.6 * strength };
+        glow.Freeze();
+        var ring = new System.Windows.Shapes.Ellipse
+        {
+            Width = 72, Height = 72, Stroke = glow,
+            StrokeThickness = 1.5 + 2.5 * strength,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = green, ShadowDepth = 0,
+                BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
+            },
+        };
+        Canvas.SetLeft(ring, pt.X - 36);
+        Canvas.SetTop(ring, pt.Y - 36);
+        SynLinks.Children.Add(ring);
+
+        var num = new TextBlock
+        {
+            Text = "+" + syn.ToString("F1"),
+            Foreground = new SolidColorBrush(green) { Opacity = 0.6 + 0.4 * strength },
+            FontSize = 11, FontWeight = FontWeights.Bold,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = System.Windows.Media.Colors.Black, ShadowDepth = 0,
+                BlurRadius = 4, Opacity = 0.9,
+            },
+        };
+        num.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(num, pt.X - num.DesiredSize.Width / 2);
+        Canvas.SetTop(num, pt.Y + 30);
+        SynLinks.Children.Add(num);
     }
 
     // Дуга от портрета союзника (строка i) к левому краю карточки + кольцо на портрете.
     private void DrawLink(int row, System.Windows.Point cardPt, string color,
-                          double opacity, double thickness, string? note = null)
+                          double opacity, double thickness)
     {
         if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
         // (72, 42) — правый край портрета и его центр по вертикали (см. DrawTeamLines)
@@ -948,16 +990,6 @@ public partial class OverlayWindow : Window
         Canvas.SetLeft(ring, pt.X - 73);
         Canvas.SetTop(ring, pt.Y - 37);
         SynLinks.Children.Add(ring);
-
-        if (note is null) return;
-        var num = new TextBlock
-        {
-            Text = note, Foreground = brush.Clone(), FontSize = 10,
-            FontWeight = FontWeights.Bold, Opacity = 0.9,
-        };
-        Canvas.SetLeft(num, pt.X + 6);
-        Canvas.SetTop(num, pt.Y - 15);
-        SynLinks.Children.Add(num);
     }
 
     // Название связки у карточки — чтобы было видно, ЧТО за комбинация, а не
