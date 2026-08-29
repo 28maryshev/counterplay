@@ -1,4 +1,4 @@
-# Build Counterplay installer (Velopack) and optionally publish a GitHub release.
+﻿# Build Counterplay installer (Velopack) and optionally publish a GitHub release.
 #
 #   .\build\release.ps1 -Version 1.0.1
 #   .\build\release.ps1 -Version 1.0.1 -Upload -Token <github_token>
