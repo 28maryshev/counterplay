@@ -1067,6 +1067,33 @@ public partial class OverlayWindow : Window
         }
     }
 
+    // Кольцо вокруг портрета с разрывом в левом верхнем углу: там сидит значок
+    // архетипа, и сплошная обводка перечёркивала его. Дуга идёт на 300°, пропуская
+    // сектор под значком.
+    private const double RING_GAP_FROM = 255, RING_GAP_SWEEP = 300;
+
+    private static System.Windows.Shapes.Path RingArc(
+        System.Windows.Point center, double radius, Brush stroke, double thickness,
+        System.Windows.Media.Effects.Effect? effect = null)
+    {
+        System.Windows.Point At(double deg) => new(
+            center.X + radius * Math.Cos(deg * Math.PI / 180),
+            center.Y + radius * Math.Sin(deg * Math.PI / 180));
+
+        var fig = new PathFigure { StartPoint = At(RING_GAP_FROM), IsClosed = false };
+        fig.Segments.Add(new ArcSegment(
+            At(RING_GAP_FROM + RING_GAP_SWEEP), new System.Windows.Size(radius, radius),
+            0, RING_GAP_SWEEP > 180, SweepDirection.Clockwise, true));
+        var geo = new PathGeometry();
+        geo.Figures.Add(fig);
+        return new System.Windows.Shapes.Path
+        {
+            Data = geo, Stroke = stroke, StrokeThickness = thickness,
+            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+            Effect = effect,
+        };
+    }
+
     // Союзник в смысловой связке с кандидатом, но без статистического перевеса.
     private void DrawAllyPair(int row)
     {
@@ -1074,18 +1101,11 @@ public partial class OverlayWindow : Window
         var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
 
         var cyan = System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7);
-        var ring = new System.Windows.Shapes.Ellipse
-        {
-            Width = 72, Height = 72, StrokeThickness = 2,
-            Stroke = new SolidColorBrush(cyan) { Opacity = 0.5 },
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
+        SynLinks.Children.Add(RingArc(pt, 36, new SolidColorBrush(cyan) { Opacity = 0.5 }, 2,
+            new System.Windows.Media.Effects.DropShadowEffect
             {
                 Color = cyan, ShadowDepth = 0, BlurRadius = 10, Opacity = 0.5,
-            },
-        };
-        Canvas.SetLeft(ring, pt.X - 36);
-        Canvas.SetTop(ring, pt.Y - 36);
-        SynLinks.Children.Add(ring);
+            }));
     }
 
     // Портрет врага: свечение по знаку матчапа (зелёное — кандидат его бьёт,
@@ -1104,19 +1124,12 @@ public partial class OverlayWindow : Window
         {
             var glow = new SolidColorBrush(color) { Opacity = 0.35 + 0.6 * strength };
             glow.Freeze();
-            var ring = new System.Windows.Shapes.Ellipse
-            {
-                Width = 72, Height = 72, Stroke = glow,
-                StrokeThickness = 1.5 + 2.5 * strength,
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
+            SynLinks.Children.Add(RingArc(pt, 36, glow, 1.5 + 2.5 * strength,
+                new System.Windows.Media.Effects.DropShadowEffect
                 {
                     Color = color, ShadowDepth = 0,
                     BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
-                },
-            };
-            Canvas.SetLeft(ring, pt.X - 36);
-            Canvas.SetTop(ring, pt.Y - 36);
-            SynLinks.Children.Add(ring);
+                }));
         }
 
         // Матчап и стиль в одну строку: цвет разделяет их лучше подписей —
@@ -1236,19 +1249,12 @@ public partial class OverlayWindow : Window
 
         var glow = new SolidColorBrush(green) { Opacity = 0.35 + 0.6 * strength };
         glow.Freeze();
-        var ring = new System.Windows.Shapes.Ellipse
-        {
-            Width = 72, Height = 72, Stroke = glow,
-            StrokeThickness = 1.5 + 2.5 * strength,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
+        SynLinks.Children.Add(RingArc(pt, 36, glow, 1.5 + 2.5 * strength,
+            new System.Windows.Media.Effects.DropShadowEffect
             {
                 Color = green, ShadowDepth = 0,
                 BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
-            },
-        };
-        Canvas.SetLeft(ring, pt.X - 36);
-        Canvas.SetTop(ring, pt.Y - 36);
-        SynLinks.Children.Add(ring);
+            }));
 
         var num = new TextBlock
         {
