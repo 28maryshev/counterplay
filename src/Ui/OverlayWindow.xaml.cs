@@ -930,6 +930,12 @@ public partial class OverlayWindow : Window
 
             var syn = _engine.PairSynergy(champId, myRole, ally);
             if (syn >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
+            // Смысловая связка есть, а прибавки в винрейте нет (энчантер + кэрри
+            // выигрывают не чаще среднего) — отмечаем бирюзой, без числа: пара
+            // работает по механикам, но статистикой это не подтверждается.
+            else if (TeamSynergies.ExplainPair(champId, ally,
+                         RecommendationEngine.LcuToDbRole(p.Position)) is not null)
+                DrawAllyPair(i);
         }
 
         // Враги: как кандидат идёт против каждого лично (матчап) и против его
@@ -946,6 +952,27 @@ public partial class OverlayWindow : Window
                 ? RecommendationEngine.StyleVsArch(champId, arch) : 0.0;
             if (Math.Abs(vs) >= SYN_LINK_MIN || style >= 0.5) DrawEnemyMatchup(i, vs, style);
         }
+    }
+
+    // Союзник в смысловой связке с кандидатом, но без статистического перевеса.
+    private void DrawAllyPair(int row)
+    {
+        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
+        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
+
+        var cyan = System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7);
+        var ring = new System.Windows.Shapes.Ellipse
+        {
+            Width = 72, Height = 72, StrokeThickness = 2,
+            Stroke = new SolidColorBrush(cyan) { Opacity = 0.5 },
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = cyan, ShadowDepth = 0, BlurRadius = 10, Opacity = 0.5,
+            },
+        };
+        Canvas.SetLeft(ring, pt.X - 36);
+        Canvas.SetTop(ring, pt.Y - 36);
+        SynLinks.Children.Add(ring);
     }
 
     // Портрет врага: свечение по знаку матчапа (зелёное — кандидат его бьёт,
