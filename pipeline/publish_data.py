@@ -179,11 +179,15 @@ def publish(db_path: str, token: str) -> dict:
         slim = tmp / 'data.db'
         build_slim(full, slim, patches, bucket=None, matches=matches)
 
-        # Побакетные тонкие базы.
+        # Побакетные тонкие базы — из УЖЕ отфильтрованной тонкой базы, а не из
+        # полного снапшота. Строки те же (условия у бакета строго уже), но читать
+        # приходится 0.5 ГБ вместо 4+ ГБ, и так четыре раза подряд: именно эти
+        # четыре прохода по полной базе растягивали публикацию на часы — при 256 МБ
+        # памяти контейнера кэш не держит и половины файла.
         bucket_files = {}
         for b in BUCKETS:
             bf = tmp / f'data-{b}.db'
-            build_slim(full, bf, patches, bucket=b, matches=matches)
+            build_slim(slim, bf, patches, bucket=b, matches=matches)
             bucket_files[b] = bf
 
         # Манифест.
