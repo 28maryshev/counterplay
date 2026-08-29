@@ -931,7 +931,80 @@ public partial class OverlayWindow : Window
             var syn = _engine.PairSynergy(champId, myRole, ally);
             if (syn >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
         }
+
+        // Враги: как кандидат идёт против каждого лично (матчап) и против его
+        // стиля. В полосках это одно усреднённое число — здесь видно, кем оно
+        // набрано и с кем будет тяжело.
+        for (int i = 0; i < _lastDraft.TheirTeam.Count && i < 5; i++)
+        {
+            var e = _lastDraft.TheirTeam[i];
+            if (e.EffectiveChampionId == 0) continue;
+
+            var vs = _engine.VersusDelta(champId, myRole, e.EffectiveChampionId,
+                                         RecommendationEngine.LcuToDbRole(e.Position));
+            var style = ChampionTraits.ChampArch(e.EffectiveChampionId) is { } arch
+                ? RecommendationEngine.StyleVsArch(champId, arch) : 0.0;
+            if (Math.Abs(vs) >= SYN_LINK_MIN || style >= 0.5) DrawEnemyMatchup(i, vs, style);
+        }
     }
+
+    // Портрет врага: свечение по знаку матчапа (зелёное — кандидат его бьёт,
+    // красное — проигрывает), под ним само число, рядом — вклад против стиля.
+    private void DrawEnemyMatchup(int row, double vs, double style)
+    {
+        if (EnemyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
+        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
+
+        var good     = vs >= 0;
+        var color    = good ? System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B)
+                            : System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x5E);
+        var strength = Math.Min(1.0, Math.Abs(vs) / 3.0);
+
+        if (Math.Abs(vs) >= SYN_LINK_MIN)
+        {
+            var glow = new SolidColorBrush(color) { Opacity = 0.35 + 0.6 * strength };
+            glow.Freeze();
+            var ring = new System.Windows.Shapes.Ellipse
+            {
+                Width = 72, Height = 72, Stroke = glow,
+                StrokeThickness = 1.5 + 2.5 * strength,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = color, ShadowDepth = 0,
+                    BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
+                },
+            };
+            Canvas.SetLeft(ring, pt.X - 36);
+            Canvas.SetTop(ring, pt.Y - 36);
+            SynLinks.Children.Add(ring);
+        }
+
+        // Матчап и стиль в одну строку: цвет разделяет их лучше подписей —
+        // зелёный/красный это «против него», янтарный — «против его стиля».
+        var line = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        if (Math.Abs(vs) >= SYN_LINK_MIN)
+            line.Children.Add(Num(Signed(vs), color, 0.6 + 0.4 * strength));
+        if (style >= 0.5)
+            line.Children.Add(Num("+" + style.ToString("F1"),
+                                  System.Windows.Media.Color.FromRgb(0xE8, 0xB8, 0x4B), 0.85));
+        if (line.Children.Count == 0) return;
+
+        line.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(line, pt.X - line.DesiredSize.Width / 2);
+        Canvas.SetTop(line, pt.Y + 40);
+        SynLinks.Children.Add(line);
+    }
+
+    private static TextBlock Num(string text, System.Windows.Media.Color color, double opacity) =>
+        new()
+        {
+            Text = text, FontSize = 11, FontWeight = FontWeights.Bold, Margin = new Thickness(3, 0, 3, 0),
+            Foreground = new SolidColorBrush(color) { Opacity = opacity },
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = System.Windows.Media.Colors.Black, ShadowDepth = 0, BlurRadius = 4, Opacity = 0.9,
+            },
+        };
 
     // Кандидат в моём пустом слоте: наводишь — видно, как он встанет в состав,
     // и связка идёт от него, а не откуда-то из карточки.
@@ -940,6 +1013,17 @@ public partial class OverlayWindow : Window
         if (myRow < 0 || IconCache.Get(champId) is not { } icon) return;
         if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(myRow) is not FrameworkElement c) return;
         var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
+
+        // Значок роли в пустом слоте сливался бы с полупрозрачной иконкой — гасим
+        // его глухим кружком цвета панели.
+        var cover = new System.Windows.Shapes.Ellipse
+        {
+            Width = 70, Height = 70,
+            Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0C, 0x12, 0x1A)),
+        };
+        Canvas.SetLeft(cover, pt.X - 35);
+        Canvas.SetTop(cover, pt.Y - 35);
+        SynLinks.Children.Add(cover);
 
         var preview = new System.Windows.Shapes.Ellipse
         {

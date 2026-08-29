@@ -692,6 +692,43 @@ public sealed class RecommendationEngine : IDisposable
         return good.Count > 0 ? good : [scored[0]];
     }
 
+    /// Чистая контра кандидата ПРОТИВ КОНКРЕТНОГО врага (%пп) — та же формула, что
+    /// внутри скоринга: матчап минус собственная база, темпер по объёму пары.
+    /// Для подсветки врагов при наведении на карточку.
+    public double VersusDelta(int champId, string myRole, int enemyId, string enemyRole)
+    {
+        if (champId == 0 || enemyId == 0) return 0.0;
+        var (bg, bw) = RawBase(champId, myRole);
+        var rawBase  = Delta(bg, bw, K);
+
+        var (g, w) = enemyRole.Length > 0 ? RawBotlane(champId, myRole, enemyId, enemyRole) : (0.0, 0.0);
+        if (g <= 0) (g, w) = RawMatchup(champId, myRole, enemyId);
+        return g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0.0;
+    }
+
+    /// Вклад «против стиля» в расчёте на ОДНОГО врага: та же трифекта и тот же
+    /// анти-стиль, что в DraftFit, но по архетипу конкретного чемпиона.
+    public static double StyleVsArch(int champId, ChampionTraits.Arch enemyArch)
+    {
+        var (f2b, dive, pick) = ChampionTraits.Archetype(champId);
+        var want = enemyArch switch
+        {
+            ChampionTraits.Arch.Dive     => f2b,
+            ChampionTraits.Arch.PickPoke => dive,
+            _                            => pick,
+        };
+        double style = enemyArch switch
+        {
+            ChampionTraits.Arch.PickPoke =>
+                ChampionTraits.Gapclose(champId) + ChampionTraits.Engage(champId),
+            ChampionTraits.Arch.Dive =>
+                ChampionTraits.Peel(champId) + ChampionTraits.Disengage(champId),
+            _ =>
+                (ChampionTraits.LongRange(champId) ? 2 : 0) + ChampionTraits.Burst(champId),
+        };
+        return W_TRIFECTA * want + W_STYLE * style;
+    }
+
     /// Чистая синергия ПАРЫ (m ↔ f), как дельта: WR пары минус база m, темпер по
     /// объёму. Роли маржинализуем (пара может быть любых линий).
     public double PairSynergy(int m, string mRole, int f)
