@@ -983,7 +983,12 @@ public partial class OverlayWindow : Window
         // зелёный/красный это «против него», янтарный — «против его стиля».
         var line = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
         if (Math.Abs(vs) >= SYN_LINK_MIN)
+        {
+            // «vs» — чтобы число не читалось как синергия: у союзников такие же
+            // зелёные цифры, но там это пара, а здесь матчап против врага.
+            line.Children.Add(Num("vs", System.Windows.Media.Color.FromRgb(0x8A, 0xA0, 0xB2), 0.9));
             line.Children.Add(Num(Signed(vs), color, 0.6 + 0.4 * strength));
+        }
         if (style >= 0.5)
             line.Children.Add(Num("+" + style.ToString("F1"),
                                   System.Windows.Media.Color.FromRgb(0xE8, 0xB8, 0x4B), 0.85));
@@ -998,7 +1003,7 @@ public partial class OverlayWindow : Window
     private static TextBlock Num(string text, System.Windows.Media.Color color, double opacity) =>
         new()
         {
-            Text = text, FontSize = 11, FontWeight = FontWeights.Bold, Margin = new Thickness(3, 0, 3, 0),
+            Text = text, FontSize = 11, FontWeight = FontWeights.Bold, Margin = new Thickness(2, 0, 2, 0),
             Foreground = new SolidColorBrush(color) { Opacity = opacity },
             Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
