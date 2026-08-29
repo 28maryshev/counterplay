@@ -896,7 +896,8 @@
               </StackPanel>
             </StackPanel>
 
-            <ScrollViewer VerticalScrollBarVisibility="Hidden">
+            <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                          ScrollChanged="TeamScroll_Changed">
               <StackPanel>
               <Grid>
               <ItemsControl x:Name="MyTeamList">

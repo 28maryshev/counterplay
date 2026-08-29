@@ -899,7 +899,7 @@ public partial class OverlayWindow : Window
 
     private void PoolCell_Leave(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        RecCard_Leave(sender, e);
+        ClearHoverArt();
         RolePoolHint.Inlines.Clear();
     }
 
@@ -943,11 +943,24 @@ public partial class OverlayWindow : Window
         if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id);
     }
 
-    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e)
+    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
+
+    // Подсветка нарисована в абсолютных координатах канваса, поэтому живёт ровно
+    // до следующего изменения раскладки: прокрутка списка команды или перерисовка
+    // драфта сдвигают портреты, и оставленные дуги/цифры повисают не на месте.
+    private void ClearHoverArt()
     {
-        SynLinks.Children.Clear();
-        MyTeamCombos.ItemsSource  = _myComboCards;
-        MyCombosHeader.Visibility = _myComboCards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (SynLinks.Children.Count > 0) SynLinks.Children.Clear();
+        if (!ReferenceEquals(MyTeamCombos.ItemsSource, _myComboCards))
+        {
+            MyTeamCombos.ItemsSource  = _myComboCards;
+            MyCombosHeader.Visibility = _myComboCards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void TeamScroll_Changed(object sender, ScrollChangedEventArgs e)
+    {
+        if (e.VerticalChange != 0) ClearHoverArt();
     }
 
     private void DrawSynergyLinks(int champId)
@@ -1141,6 +1154,10 @@ public partial class OverlayWindow : Window
         // собираются забанить.
         if (_lastDraft?.InBanPhase == true) return;
         if (myRow < 0 || IconCache.Get(champId) is not { } icon) return;
+        // Свой пик уже сделан — подставлять в занятый слот чужую иконку незачем:
+        // именно она и висела поверх состава, пока смотришь статистику остальных.
+        if (_lastDraft is not null && myRow < _lastDraft.MyTeam.Count
+            && _lastDraft.MyTeam[myRow].ChampionId > 0) return;
         if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(myRow) is not FrameworkElement c) return;
         var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
 
@@ -3313,6 +3330,7 @@ public partial class OverlayWindow : Window
     // Команды по бокам (слоты, стиль, связки, линии) — общее для пиков и банов.
     private void RenderTeams(DraftState draft)
     {
+        ClearHoverArt();   // слоты сейчас переедут — старая подсветка станет мусором
         var myRole = RecommendationEngine.LcuToDbRole(draft.MyPosition);
 
         var allyIds  = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
