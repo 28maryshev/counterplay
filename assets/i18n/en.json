@@ -103,49 +103,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} knocks enemies airborne — that triggers your ultimate, hitting the whole knocked-up team at once.",
-      "b": "You knock enemies airborne and {0} instantly ults into all of them — a powerful teamfight combo."
+      "a": "Your ult follows {0}'s knock-up",
+      "b": "{0} ults into your knock-up"
     },
     "orianna": {
-      "a": "Put your ball on {0}: when they engage, your ultimate pulls in and detonates every enemy around them.",
-      "b": "You engage first and {0} puts the ball on you, ulting to gather enemies around you — huge AoE damage."
+      "a": "Ball on {0} before the engage",
+      "b": "{0} puts the ball on your engage"
     },
     "immortal": {
-      "a": "Your ultimate makes {0} invulnerable — they can dive into the enemy and survive.",
-      "b": "{0}'s ultimate makes you invulnerable or saves you from death — dive in more boldly."
+      "a": "Your ult keeps {0} alive in a dive",
+      "b": "{0}'s ult keeps you alive in a dive"
     },
     "enchanter": {
-      "a": "{0} deals huge damage but is fragile and immobile. You shield/heal and speed them up — that's when they shine.",
-      "b": "You're a strong but fragile carry. {0} shields, heals and buffs you — stay close and deal damage safely."
+      "a": "You shield and speed up fragile {0}",
+      "b": "{0} shields and speeds you up"
     },
     "hook": {
-      "a": "You hook an enemy out of position and {0} instantly finishes the caught target with burst.",
-      "b": "{0} hooks and pulls an enemy out — you finish the caught target with your damage. Easy kills in lane."
+      "a": "You hook, {0} bursts the target",
+      "b": "{0} hooks, you burst the target"
     },
     "burst_pick": {
-      "a": "{0} locks a target with cc (charm/stun/root) — you delete it with burst in a second while it's immobilized.",
-      "b": "You lock an enemy with cc and {0} instantly bursts the held target down. A guaranteed pick on isolated targets."
+      "a": "{0} locks the target, you burst it",
+      "b": "You lock the target, {0} bursts it"
     },
     "isolate": {
-      "a": "Your ultimate dives and isolates a target in darkness — {0} finishes it off while its allies are cut off.",
-      "b": "{0} ults in and isolates a single target — you back them up with damage and finish the victim."
+      "a": "You isolate the target, {0} finishes",
+      "b": "{0} isolates the target, you finish"
     },
     "artillery": {
-      "a": "You and {0} shoot the enemy from long range — a strong poke-and-siege duo for objectives."
+      "a": "Long-range poke and siege with {0}"
     },
     "channel": {
-      "a": "While {0} holds enemies in place with cc, you get to channel your whole ultimate onto them.",
-      "b": "You hold enemies with cc while {0} channels a powerful ultimate onto the stationary targets — big damage."
+      "a": "{0}'s cc holds targets for your ult",
+      "b": "Your cc holds targets for {0}'s ult"
     },
     "peel": {
-      "a": "{0} is your team's main damage but vulnerable. You peel enemies off so they can deal damage safely in fights."
+      "a": "You peel for fragile {0}"
     },
     "frontline": {
-      "a": "You start fights and lock enemies with cc, protecting {0}, who deals damage from range.",
-      "b": "{0} starts fights and locks enemies with cc — meanwhile you deal damage safely from the backline."
+      "a": "You engage, {0} damages from range",
+      "b": "{0} engages, you damage from range"
     },
     "double_engage": {
-      "a": "You and {0} both engage and lock enemies with cc — together you easily catch isolated targets and win picks."
+      "a": "Double engage with {0}"
     }
   },
   "combo": {

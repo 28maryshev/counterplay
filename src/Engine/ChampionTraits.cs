@@ -108,6 +108,22 @@ public static class ChampionTraits
         return d >= p ? Arch.Dive : Arch.PickPoke;
     }
 
+    /// Выраженный стиль команды — или null, если состав смешанный. По нему
+    /// подсвечиваем значки тех чемпионов, которые этот стиль и задают.
+    public static Arch? DominantStyle(IReadOnlyList<int> ids)
+    {
+        if (ids.Count < 2) return null;
+        var (f, d, p) = TeamArchetype(ids);
+        if (f + d + p <= 0) return null;
+
+        var max = Math.Max(f, Math.Max(d, p));
+        // Второй по величине — чтобы отличить «явный» стиль от «смешанного».
+        var second = (f == max ? Math.Max(d, p) : d == max ? Math.Max(f, p) : Math.Max(f, d));
+        if (max < 0.45 || max - second < 0.12) return null;
+
+        return f == max ? Arch.FrontToBack : d == max ? Arch.Dive : Arch.PickPoke;
+    }
+
     /// Человекочитаемый ярлык стиля команды по составу. Пусто, если чемпионов < 2.
     public static string StyleLabel(IReadOnlyList<int> ids)
     {
@@ -115,13 +131,13 @@ public static class ChampionTraits
         var (f, d, p) = TeamArchetype(ids);
         if (f + d + p <= 0) return "";
 
-        var max = Math.Max(f, Math.Max(d, p));
-        // Второй по величине — чтобы отличить «явный» стиль от «смешанного».
-        var second = (f == max ? Math.Max(d, p) : d == max ? Math.Max(f, p) : Math.Max(f, d));
-        if (max < 0.45 || max - second < 0.12) return Loc.T("style.mixed");
-
-        if (f == max) return Loc.T("arch.frontToBack");
-        return d == max ? Loc.T("arch.dive") : Loc.T("arch.pickPoke");
+        return DominantStyle(ids) switch
+        {
+            Arch.FrontToBack => Loc.T("arch.frontToBack"),
+            Arch.Dive        => Loc.T("arch.dive"),
+            Arch.PickPoke    => Loc.T("arch.pickPoke"),
+            _                => Loc.T("style.mixed"),
+        };
     }
 
     // Инструменты (грубые 0..2) — из тегов ChampionTags.

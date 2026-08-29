@@ -35,6 +35,7 @@ public partial class OverlayWindow : Window
 
     private IReadOnlyList<Recommendation>? _lastRecs;
     private IReadOnlyList<BanRec>?         _lastBans;
+    private ChampionTraits.Arch?           _allyStyle;    // выраженный стиль моей команды
     private DraftState?                    _lastDraft;    // с применёнными ручными ролями
     private DraftState?                    _lastRawDraft; // как пришёл из LCU
     private RecommendationEngine?          _engine;
@@ -845,6 +846,86 @@ public partial class OverlayWindow : Window
                                     // (сессия перерисовывается каждый тик таймера)
 
     // Клик по карточке рекомендации: наводим чемпиона в клиенте (обратимо).
+    // ── Линии синергии по наведению ─────────────────────────────────────────
+    // Наводишь курсор на кандидата — видно, с кем из союзников он играет в паре
+    // и насколько. Иначе синергия остаётся числом в полоске, из которого не
+    // понять, кем она набрана.
+    private const double SYN_LINK_MIN = 0.3;   // пп — ниже это шум выборки
+
+    private void RecCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id, fe);
+    }
+
+    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => SynLinks.Children.Clear();
+
+    private void DrawSynergyLinks(int champId, FrameworkElement card)
+    {
+        SynLinks.Children.Clear();
+        if (champId == 0 || _engine is null || _lastDraft is null) return;
+
+        var myRole = RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition);
+        var cardPt = card.TransformToVisual(SynLinks)
+                         .Transform(new System.Windows.Point(0, card.ActualHeight / 2));
+
+        for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
+        {
+            var p     = _lastDraft.MyTeam[i];
+            var ally  = p.EffectiveChampionId;
+            if (ally == 0 || ally == champId || p.IsLocalPlayer) continue;
+
+            var syn = _engine.PairSynergy(champId, myRole, ally);
+            if (syn < SYN_LINK_MIN) continue;
+
+            if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(i) is not FrameworkElement c) continue;
+            // (72, 42) — правый край портрета и его центр по вертикали (см. DrawTeamLines)
+            var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(72, 42));
+
+            // Чем сильнее пара, тем заметнее линия — но всё равно вполсилы,
+            // это подсказка поверх интерфейса, а не его часть.
+            var strength = Math.Min(1.0, syn / 3.0);
+            var brush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B))
+                        { Opacity = 0.22 + 0.33 * strength };
+            brush.Freeze();
+
+            // Дуга: из портрета вправо, в левый край карточки — чтобы линии не
+            // сливались в пучок прямых.
+            var dx = Math.Max(40, (cardPt.X - pt.X) * 0.45);
+            var fig = new PathFigure { StartPoint = pt };
+            fig.Segments.Add(new BezierSegment(
+                new System.Windows.Point(pt.X + dx, pt.Y),
+                new System.Windows.Point(cardPt.X - dx, cardPt.Y),
+                cardPt, true));
+            var geo = new PathGeometry();
+            geo.Figures.Add(fig);
+            SynLinks.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = geo, Stroke = brush,
+                StrokeThickness = 1.5 + 1.5 * strength,
+                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+            });
+
+            // Кольцо вокруг портрета союзника + величина синергии у линии.
+            var ring = new System.Windows.Shapes.Ellipse
+            {
+                Width = 74, Height = 74, Stroke = brush, StrokeThickness = 2,
+            };
+            Canvas.SetLeft(ring, pt.X - 73);
+            Canvas.SetTop(ring, pt.Y - 37);
+            SynLinks.Children.Add(ring);
+
+            var label = new TextBlock
+            {
+                Text = "+" + syn.ToString("F1"),
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B)),
+                FontSize = 10, FontWeight = FontWeights.Bold, Opacity = 0.85,
+            };
+            Canvas.SetLeft(label, pt.X + 6);
+            Canvas.SetTop(label, pt.Y - 15);
+            SynLinks.Children.Add(label);
+        }
+    }
+
     private async void RecCard_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
@@ -2673,6 +2754,7 @@ public partial class OverlayWindow : Window
             .Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
+            var candArch = ChampionTraits.ChampArch(r.ChampionId);
             return new FullRecCard
             {
                 ChampionId = r.ChampionId,
@@ -2702,6 +2784,8 @@ public partial class OverlayWindow : Window
                 ArchGlyph  = ag,
                 ArchColor  = ac,
                 ArchTip    = at,
+                ArchStrong = _allyStyle != null && candArch == _allyStyle,
+                ArchDim    = _allyStyle != null && candArch != _allyStyle,
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
                 CounterItems = ItemValue.CounterItems(r.ChampionId, allyNoMe)
                     .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList(),
@@ -2742,14 +2826,36 @@ public partial class OverlayWindow : Window
     /// строки в карточке остаются всегда, иначе получится пусто.
     private const int REASONS_SHOWN = 4;
 
+    private static int ReasonSign(string r) => r.Length == 0 ? 0
+        : r[0] == RecommendationEngine.SIGN_GOOD ?  1
+        : r[0] == RecommendationEngine.SIGN_BAD  ? -1 : 0;
+
     private static string[] Distinctive(string[] reasons, Dictionary<string, int> freq, int total)
     {
-        if (total <= 2) return reasons.Take(REASONS_SHOWN).ToArray();
-        var common = Math.Max(2, (int)Math.Ceiling(total * 0.6));   // «почти у всех»
-        var kept = reasons.Where(r => freq.GetValueOrDefault(r) < common).ToList();
-        // Всё оказалось общим — оставляем как есть, лучше повтор, чем пустая карточка.
-        if (kept.Count < 2) kept = [.. reasons];
-        return [.. kept.Take(REASONS_SHOWN)];
+        // Нейтральные доводы («ровный матчап», «часто пикается») не говорят ни за,
+        // ни против — на выбор они не влияют, а место занимают. Выкидываем.
+        var meaningful = reasons.Where(r => ReasonSign(r) != 0).ToList();
+
+        // Общие для почти всех кандидатов — про команду, а не про пик: читать
+        // одно и то же в каждой карточке бессмысленно.
+        if (total > 2)
+        {
+            var common = Math.Max(2, (int)Math.Ceiling(total * 0.6));
+            var kept = meaningful.Where(r => freq.GetValueOrDefault(r) < common).ToList();
+            if (kept.Count >= 2) meaningful = kept;
+        }
+
+        // Совсем пусто — лучше нейтральная строка, чем карточка без объяснения.
+        if (meaningful.Count == 0) meaningful = reasons.Take(1).ToList();
+
+        // Сперва доводы «за», потом «против»: сначала зачем брать, затем чего
+        // опасаться. Внутри групп порядок движка сохраняем — он по значимости.
+        return [.. meaningful
+            .Select((r, i) => (r, i))
+            .OrderByDescending(x => ReasonSign(x.r))
+            .ThenBy(x => x.i)
+            .Select(x => x.r)
+            .Take(REASONS_SHOWN)];
     }
 
     private static List<ReasonSeg> ReasonSegments(string[] reasons, Dictionary<string, string> nameColor)
@@ -2779,9 +2885,9 @@ public partial class OverlayWindow : Window
                 Text  = "•  ",
                 Color = sign switch
                 {
-                    RecommendationEngine.SIGN_GOOD => "#57C98A",
-                    RecommendationEngine.SIGN_BAD  => "#E0736A",
-                    _                              => "#5C7183",   // нейтральный факт
+                    RecommendationEngine.SIGN_GOOD => "#4CE38B",
+                    RecommendationEngine.SIGN_BAD  => "#FF6B5E",
+                    _                              => "#6E8598",   // нейтральный факт
                 }
             });
 
@@ -2834,15 +2940,20 @@ public partial class OverlayWindow : Window
     private void RenderTeams(DraftState draft)
     {
         var myRole = RecommendationEngine.LcuToDbRole(draft.MyPosition);
-        MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole,
-                                               null, draft.ActiveCells, draft.FirstPickCell);
-        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
-                                               _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell);
 
         var allyIds  = draft.MyTeam.Where(p => p.EffectiveChampionId != 0)
                                    .Select(p => p.EffectiveChampionId).ToList();
         var enemyIds = draft.TheirTeam.Where(p => p.EffectiveChampionId != 0)
                                       .Select(p => p.EffectiveChampionId).ToList();
+        _allyStyle = ChampionTraits.DominantStyle(allyIds);
+        var enemyArch = ChampionTraits.DominantStyle(enemyIds);
+
+        MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole,
+                                               null, draft.ActiveCells, draft.FirstPickCell, _allyStyle);
+        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
+                                               _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell,
+                                               enemyArch);
+
         var myStyle    = ChampionTraits.StyleLabel(allyIds);
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
         MyTeamStyle.Text    = myStyle.Length    > 0 ? Loc.T("draft.style", myStyle)    : "";
@@ -2978,7 +3089,8 @@ public partial class OverlayWindow : Window
         IReadOnlyList<DraftPlayer> players, bool ally,
         RecommendationEngine? engine, string myRole,
         IReadOnlyDictionary<int, string>? roleOverrides = null,
-        IReadOnlyList<int>? activeCells = null, int firstPickCell = -1)
+        IReadOnlyList<int>? activeCells = null, int firstPickCell = -1,
+        ChampionTraits.Arch? teamStyle = null)
     {
         return Enumerable.Range(0, 5).Select(i =>
         {
@@ -3013,12 +3125,18 @@ public partial class OverlayWindow : Window
 
             // Значок архетипа (камень/ножницы/бумага), определяется по чемпиону.
             var (archGlyph, archColor, archTip) = hasChamp ? ArchBadge(champId) : ("", "#888888", "");
+            // У команды выраженный стиль — подсвечиваем тех, кто его и задаёт,
+            // остальных приглушаем: сразу видно, на чём состав держится.
+            var archOfChamp = hasChamp ? ChampionTraits.ChampArch(champId) : null;
+            var archStrong  = teamStyle != null && archOfChamp == teamStyle;
+            var archDim     = teamStyle != null && archOfChamp != teamStyle;
 
             return new ChampSlotCard
             {
-                Name        = hasChamp
-                    ? (ally ? DataDragon.Name(champId).ToUpperInvariant() : $"ENEMY {i + 1}")
-                    : "—",
+                // Имя чемпиона показываем и у врагов: правила Riot запрещают
+                // раскрывать личность соперника (ник), а пик в драфте и так виден
+                // в самом клиенте.
+                Name        = hasChamp ? DataDragon.Name(champId).ToUpperInvariant() : "—",
                 // У врага с чемпионом роль кликабельна («▾»): игрок может задать её
                 // вручную, если знает, куда пойдёт флекс-пик.
                 Role        = hasChamp
@@ -3043,6 +3161,8 @@ public partial class OverlayWindow : Window
                 ArchGlyph   = archGlyph,
                 ArchColor   = archColor,
                 ArchTip     = archTip,
+                ArchStrong  = archStrong,
+                ArchDim     = archDim,
                 IsPicking   = isPicking,
                 // Союзник пикает — синяя волна слева, враг — красная справа.
                 PickGradStrong  = ally ? "#5C36D6E7" : "#5CFF5A4D",
@@ -3226,6 +3346,11 @@ public sealed class FullRecCard
     public string       ArchColor  { get; init; } = "#888888";
     public string       ArchTip    { get; init; } = "";
     public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public bool         ArchStrong { get; init; }   // поддерживает стиль команды
+    public bool         ArchDim    { get; init; }   // выбивается из стиля
+    public double       ArchOpacity   => ArchDim ? 0.4 : 1.0;
+    public string       ArchRing      => ArchStrong ? "#F5F9FF" : "#00000000";
+    public double       ArchRingWidth => ArchStrong ? 2.0 : 0.0;
     public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
 
     // Иконки предметов, которыми враг контрит состав (см. ItemValue.CounterItems).
@@ -3284,6 +3409,12 @@ public sealed class ChampSlotCard
     public string      ArchColor      { get; init; } = "#888888";
     public string      ArchTip        { get; init; } = "";
     public Visibility  ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public bool        ArchStrong     { get; init; }   // задаёт стиль команды
+    public bool        ArchDim        { get; init; }   // выбивается из стиля
+    public double      ArchOpacity    => ArchDim ? 0.4 : 1.0;
+    public string      ArchRing       => ArchStrong ? "#F5F9FF" : "#00000000";
+    public double      ArchRingWidth  => ArchStrong ? 2.0 : 0.0;
+
 
     // Выделение слота локального игрока (мой пик)
     public bool         IsMe            { get; init; }

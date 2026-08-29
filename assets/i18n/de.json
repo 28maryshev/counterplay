@@ -215,49 +215,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} wirbelt Gegner in die Luft — das löst dein Ultimate aus und trifft das ganze hochgeworfene Team auf einmal.",
-      "b": "Du wirbelst Gegner in die Luft und {0} ultet sofort in alle hinein — eine starke Teamfight-Combo."
+      "a": "Dein Ult folgt dem Knock-up von {0}",
+      "b": "{0} ultet in deinen Knock-up"
     },
     "orianna": {
-      "a": "Setz deinen Ball auf {0}: Wenn er engaged, zieht dein Ultimate alle Gegner um ihn herum zusammen und lässt sie explodieren.",
-      "b": "Du engagest zuerst und {0} setzt den Ball auf dich, ultet dann und zieht die Gegner um dich zusammen — massiver AoE-Schaden."
+      "a": "Ball auf {0} vor dem Engage",
+      "b": "{0} setzt den Ball auf dein Engage"
     },
     "immortal": {
-      "a": "Dein Ultimate macht {0} unverwundbar — er kann in die Gegner diven und überleben.",
-      "b": "{0}s Ultimate macht dich unverwundbar oder rettet dich vor dem Tod — dive mutiger rein."
+      "a": "Dein Ult hält {0} im Dive am Leben",
+      "b": "{0}s Ult hält dich im Dive am Leben"
     },
     "enchanter": {
-      "a": "{0} macht enormen Schaden, ist aber fragil und unbeweglich. Du schildest/heilst und gibst Tempo — dann glänzt er richtig.",
-      "b": "Du bist ein starker, aber fragiler Carry. {0} schildet, heilt und buffed dich — bleib in seiner Nähe und mach sicher Schaden."
+      "a": "Du schützt und beschleunigst {0}",
+      "b": "{0} schützt und beschleunigt dich"
     },
     "hook": {
-      "a": "Du hookst einen Gegner aus der Position und {0} finished das gefangene Ziel sofort mit Burst.",
-      "b": "{0} hookt und zieht einen Gegner heraus — du finished das gefangene Ziel mit deinem Schaden. Einfache Kills in der Lane."
+      "a": "Du hakst, {0} bursted das Ziel",
+      "b": "{0} hakt, du burstest das Ziel"
     },
     "burst_pick": {
-      "a": "{0} legt ein Ziel mit CC fest (Charm/Stun/Root) — du deleted es mit Burst in einer Sekunde, während es bewegungsunfähig ist.",
-      "b": "Du legst einen Gegner mit CC fest und {0} burstet das festgehaltene Ziel sofort down. Ein garantierter Pick auf isolierte Ziele."
+      "a": "{0} hält das Ziel, du burstest",
+      "b": "Du hältst das Ziel, {0} bursted"
     },
     "isolate": {
-      "a": "Dein Ultimate divet rein und isoliert ein Ziel in Dunkelheit — {0} finished es, während die Verbündeten abgeschnitten sind.",
-      "b": "{0} ultet rein und isoliert ein einzelnes Ziel — du unterstützt mit Schaden und finished das Opfer."
+      "a": "Du isolierst, {0} macht den Kill",
+      "b": "{0} isoliert, du machst den Kill"
     },
     "artillery": {
-      "a": "Du und {0} beschießt die Gegner aus großer Reichweite — ein starkes Poke-and-Siege-Duo für Objectives."
+      "a": "Poke und Belagerung mit {0}"
     },
     "channel": {
-      "a": "Während {0} Gegner mit CC festhält, kannst du dein ganzes Ultimate auf sie kanalisieren.",
-      "b": "Du hältst Gegner mit CC fest, während {0} ein starkes Ultimate auf die bewegungsunfähigen Ziele kanalisiert — großer Schaden."
+      "a": "{0}s CC hält Ziele für deinen Ult",
+      "b": "Dein CC hält Ziele für {0}s Ult"
     },
     "peel": {
-      "a": "{0} ist der Hauptschaden deines Teams, aber verwundbar. Du peelst Gegner weg, damit er in Fights sicher Schaden machen kann."
+      "a": "Du peelst für den fragilen {0}"
     },
     "frontline": {
-      "a": "Du eröffnest Fights und legst Gegner mit CC fest, um {0} zu schützen, der aus der Distanz Schaden macht.",
-      "b": "{0} eröffnet Fights und legt Gegner mit CC fest — währenddessen machst du sicher Schaden aus der Backline."
+      "a": "Du startest, {0} macht Schaden aus Distanz",
+      "b": "{0} startet, du machst Schaden aus Distanz"
     },
     "double_engage": {
-      "a": "Du und {0} engaged beide und legt Gegner mit CC fest — zusammen fangt ihr isolierte Ziele leicht und gewinnt Picks."
+      "a": "Doppeltes Engage mit {0}"
     }
   },
   "combo": {

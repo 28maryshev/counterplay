@@ -1036,6 +1036,9 @@
                                Visibility="{Binding RoleIconVisibility}"/>
                         <!-- Значок архетипа (камень/ножницы/бумага) в левом верхнем углу -->
                         <Border Width="27" Height="27" CornerRadius="13"
+                                Opacity="{Binding ArchOpacity}"
+                                BorderBrush="{Binding ArchRing}"
+                                BorderThickness="{Binding ArchRingWidth}"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
                                 Margin="0,0,0,0" Visibility="{Binding ArchVisibility}"
                                 ToolTip="{Binding ArchTip}">
@@ -1146,7 +1149,8 @@
                          бы триггер наведения. -->
                     <Border Margin="0,3" CornerRadius="4" Padding="10,9" Cursor="Hand"
                             Background="{Binding CardBg}" BorderThickness="1.5"
-                            MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}">
+                            MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}"
+                            MouseEnter="RecCard_Enter" MouseLeave="RecCard_Leave">
                       <Border.Style>
                         <Style TargetType="Border">
                           <Setter Property="BorderBrush" Value="{Binding CardBorder}"/>
@@ -1196,6 +1200,9 @@
                                   <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
                                 </Ellipse>
                                 <Border Width="27" Height="27" CornerRadius="13"
+                                Opacity="{Binding ArchOpacity}"
+                                BorderBrush="{Binding ArchRing}"
+                                BorderThickness="{Binding ArchRingWidth}"
                                         HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding ArchVisibility}" ToolTip="{Binding ArchTip}">
                                   <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
@@ -2061,6 +2068,9 @@
                                Visibility="{Binding RoleIconVisibility}"/>
                         <!-- Значок архетипа (камень/ножницы/бумага) в левом верхнем углу -->
                         <Border Width="27" Height="27" CornerRadius="13"
+                                Opacity="{Binding ArchOpacity}"
+                                BorderBrush="{Binding ArchRing}"
+                                BorderThickness="{Binding ArchRingWidth}"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
                                 Margin="0,0,0,0" Visibility="{Binding ArchVisibility}"
                                 ToolTip="{Binding ArchTip}">
@@ -2150,6 +2160,10 @@
               </StackPanel>
             </ScrollViewer>
           </DockPanel>
+
+          <!-- Линии синергии: появляются при наведении на карточку пика -->
+          <Canvas x:Name="SynLinks" Grid.Column="0" Grid.ColumnSpan="3"
+                  IsHitTestVisible="False"/>
         </Grid>
 
         <!-- ══ РУНЫ И БИЛД ═══════════════════════════════════════════════

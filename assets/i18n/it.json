@@ -80,49 +80,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} manda i nemici in aria — questo attiva la tua ultimate, colpendo tutta la squadra sollevata in una volta.",
-      "b": "Tu mandi i nemici in aria e {0} ulta subito su tutti loro — una potente combo da teamfight."
+      "a": "La tua ult segue lo knock-up di {0}",
+      "b": "{0} ulta sul tuo knock-up"
     },
     "orianna": {
-      "a": "Metti la tua palla su {0}: quando ingaggia, la tua ultimate attira e fa esplodere ogni nemico intorno a lui.",
-      "b": "Tu ingaggi per primo e {0} mette la palla su di te, ultando per raggruppare i nemici — enormi danni ad area."
+      "a": "Palla su {0} prima dell'ingaggio",
+      "b": "{0} mette la palla sul tuo ingaggio"
     },
     "immortal": {
-      "a": "La tua ultimate rende {0} invulnerabile — può tuffarsi tra i nemici e sopravvivere.",
-      "b": "L'ultimate di {0} ti rende invulnerabile o ti salva dalla morte — tuffati con più coraggio."
+      "a": "La tua ult salva {0} nel dive",
+      "b": "L'ult di {0} ti salva nel dive"
     },
     "enchanter": {
-      "a": "{0} fa danni enormi ma è fragile e immobile. Tu lo scudi/curi e lo acceleri — è allora che brilla.",
-      "b": "Sei una carry forte ma fragile. {0} ti scuda, cura e potenzia — stagli vicino e fai danno in sicurezza."
+      "a": "Scudi e acceleri il fragile {0}",
+      "b": "{0} ti scuda e ti accelera"
     },
     "hook": {
-      "a": "Tu agganci un nemico fuori posizione e {0} finisce subito il bersaglio catturato con il burst.",
-      "b": "{0} aggancia e trascina fuori un nemico — tu finisci il bersaglio catturato con il tuo danno. Kill facili in lane."
+      "a": "Tu agganci, {0} brucia il bersaglio",
+      "b": "{0} aggancia, tu bruci il bersaglio"
     },
     "burst_pick": {
-      "a": "{0} blocca un bersaglio con il cc (charm/stun/root) — tu lo elimini con il burst in un secondo mentre è immobilizzato.",
-      "b": "Tu blocchi un nemico con il cc e {0} elimina all'istante il bersaglio fermo. Un pick garantito sugli isolati."
+      "a": "{0} blocca il bersaglio, tu lo bruci",
+      "b": "Tu blocchi il bersaglio, {0} lo brucia"
     },
     "isolate": {
-      "a": "La tua ultimate si tuffa e isola un bersaglio nel buio — {0} lo finisce mentre gli alleati sono tagliati fuori.",
-      "b": "{0} ulta e isola un singolo bersaglio — tu lo supporti col danno e finisci la vittima."
+      "a": "Tu isoli, {0} finisce",
+      "b": "{0} isola, tu finisci"
     },
     "artillery": {
-      "a": "Tu e {0} colpite il nemico da lunga distanza — una forte coppia da poke e assedio agli obiettivi."
+      "a": "Poke e assedio da lontano con {0}"
     },
     "channel": {
-      "a": "Mentre {0} tiene fermi i nemici col cc, tu riesci a incanalare tutta la tua ultimate su di loro.",
-      "b": "Tu tieni i nemici col cc mentre {0} incanala una potente ultimate sui bersagli fermi — grossi danni."
+      "a": "Il cc di {0} tiene i bersagli per la tua ult",
+      "b": "Il tuo cc tiene i bersagli per l'ult di {0}"
     },
     "peel": {
-      "a": "{0} è il danno principale della squadra ma vulnerabile. Tu allontani i nemici così fa danno in sicurezza."
+      "a": "Proteggi il fragile {0}"
     },
     "frontline": {
-      "a": "Tu inizi gli scontri e blocchi i nemici col cc, proteggendo {0}, che fa danno dalla distanza.",
-      "b": "{0} inizia gli scontri e blocca i nemici col cc — intanto tu fai danno in sicurezza dalle retrovie."
+      "a": "Tu ingaggi, {0} danneggia da lontano",
+      "b": "{0} ingaggia, tu danneggi da lontano"
     },
     "double_engage": {
-      "a": "Tu e {0} ingaggiate entrambi e bloccate i nemici col cc — insieme catturate facilmente gli isolati e vincete i pick."
+      "a": "Doppio ingaggio con {0}"
     }
   },
   "combo": {

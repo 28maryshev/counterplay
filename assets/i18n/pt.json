@@ -215,49 +215,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} joga os inimigos para o alto — isso ativa sua ultimate, acertando todo o time arremessado de uma vez.",
-      "b": "Você joga os inimigos para o alto e {0} usa a ultimate instantaneamente em todos eles — um combo poderoso de teamfight."
+      "a": "Sua ult segue o arremesso de {0}",
+      "b": "{0} ulta no seu arremesso"
     },
     "orianna": {
-      "a": "Coloque sua bola em {0}: quando ele engajar, sua ultimate puxa e detona todos os inimigos ao redor dele.",
-      "b": "Você engaja primeiro e {0} coloca a bola em você, usando a ultimate para juntar os inimigos ao seu redor — dano em área enorme."
+      "a": "Bola em {0} antes do engage",
+      "b": "{0} joga a bola no seu engage"
     },
     "immortal": {
-      "a": "Sua ultimate torna {0} invulnerável — ele pode mergulhar no time inimigo e sobreviver.",
-      "b": "A ultimate de {0} te torna invulnerável ou te salva da morte — mergulhe com mais ousadia."
+      "a": "Sua ult salva {0} no dive",
+      "b": "A ult de {0} te salva no dive"
     },
     "enchanter": {
-      "a": "{0} causa muito dano, mas é frágil e imóvel. Você dá escudo/cura e velocidade — é aí que ele brilha.",
-      "b": "Você é um carry forte, mas frágil. {0} te dá escudo, cura e buffs — fique perto e cause dano com segurança."
+      "a": "Você escuda e acelera o frágil {0}",
+      "b": "{0} te escuda e acelera"
     },
     "hook": {
-      "a": "Você fisga um inimigo fora de posição e {0} finaliza o alvo capturado instantaneamente com burst.",
-      "b": "{0} fisga e puxa um inimigo para fora — você finaliza o alvo capturado com seu dano. Kills fáceis na rota."
+      "a": "Você puxa, {0} explode o alvo",
+      "b": "{0} puxa, você explode o alvo"
     },
     "burst_pick": {
-      "a": "{0} prende um alvo com cc (charme/stun/root) — você deleta em um segundo enquanto ele está imobilizado.",
-      "b": "Você prende um inimigo com cc e {0} explode o alvo preso instantaneamente. Um pick garantido em alvos isolados."
+      "a": "{0} prende o alvo, você explode",
+      "b": "Você prende o alvo, {0} explode"
     },
     "isolate": {
-      "a": "Sua ultimate mergulha e isola um alvo na escuridão — {0} finaliza enquanto os aliados dele ficam cortados.",
-      "b": "{0} usa a ultimate e isola um único alvo — você dá suporte com dano e finaliza a vítima."
+      "a": "Você isola, {0} finaliza",
+      "b": "{0} isola, você finaliza"
     },
     "artillery": {
-      "a": "Você e {0} atiram no inimigo à longa distância — uma dupla forte de poke e cerco para objetivos."
+      "a": "Poke e cerco de longe com {0}"
     },
     "channel": {
-      "a": "Enquanto {0} prende os inimigos no lugar com cc, você canaliza sua ultimate inteira neles.",
-      "b": "Você prende os inimigos com cc enquanto {0} canaliza uma ultimate poderosa nos alvos parados — dano enorme."
+      "a": "O controle de {0} segura sua ult",
+      "b": "Seu controle segura a ult de {0}"
     },
     "peel": {
-      "a": "{0} é o principal dano do seu time, mas é vulnerável. Você faz o peel dos inimigos para que ele cause dano com segurança nas lutas."
+      "a": "Você protege o frágil {0}"
     },
     "frontline": {
-      "a": "Você inicia as lutas e prende os inimigos com cc, protegendo {0}, que causa dano à distância.",
-      "b": "{0} inicia as lutas e prende os inimigos com cc — enquanto isso, você causa dano com segurança na retaguarda."
+      "a": "Você inicia, {0} causa dano de longe",
+      "b": "{0} inicia, você causa dano de longe"
     },
     "double_engage": {
-      "a": "Você e {0} engajam e prendem os inimigos com cc — juntos, vocês pegam alvos isolados com facilidade e vencem picks."
+      "a": "Engage duplo com {0}"
     }
   },
   "combo": {

@@ -84,49 +84,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} envoie les ennemis dans les airs — ça déclenche ton ultime et touche toute l'équipe soulevée d'un coup.",
-      "b": "Tu envoies les ennemis dans les airs et {0} lance instantanément son ultime sur eux — un combo de teamfight puissant."
+      "a": "Ton ult suit le knock-up de {0}",
+      "b": "{0} ult sur ton knock-up"
     },
     "orianna": {
-      "a": "Place ta boule sur {0} : quand il engage, ton ultime attire et fait exploser tous les ennemis autour de lui.",
-      "b": "Tu engages en premier et {0} place la boule sur toi, puis ulte pour rassembler les ennemis autour de toi — d'énormes dégâts de zone."
+      "a": "Balle sur {0} avant l'engage",
+      "b": "{0} met la balle sur ton engage"
     },
     "immortal": {
-      "a": "Ton ultime rend {0} invulnérable — il peut plonger dans l'équipe ennemie et survivre.",
-      "b": "L'ultime de {0} te rend invulnérable ou te sauve de la mort — plonge plus audacieusement."
+      "a": "Ton ult garde {0} en vie en dive",
+      "b": "L'ult de {0} te garde en vie en dive"
     },
     "enchanter": {
-      "a": "{0} inflige énormément de dégâts mais est fragile et peu mobile. Tu le shield/soigne et l'accélères — c'est là qu'il brille.",
-      "b": "Tu es un carry puissant mais fragile. {0} te shield, soigne et buff — reste proche et inflige des dégâts en sécurité."
+      "a": "Tu protèges et accélères {0}",
+      "b": "{0} te protège et t'accélère"
     },
     "hook": {
-      "a": "Tu hook un ennemi hors position et {0} achève instantanément la cible avec du burst.",
-      "b": "{0} hook et tire un ennemi hors position — tu achèves la cible avec tes dégâts. Des kills faciles en lane."
+      "a": "Tu accroches, {0} burst la cible",
+      "b": "{0} accroche, tu burst la cible"
     },
     "burst_pick": {
-      "a": "{0} verrouille une cible avec du cc (charme/stun/root) — tu la supprimes avec du burst en une seconde pendant qu'elle est immobilisée.",
-      "b": "Tu verrouilles un ennemi avec du cc et {0} burst instantanément la cible immobilisée. Un pick garanti sur les cibles isolées."
+      "a": "{0} bloque la cible, tu la burst",
+      "b": "Tu bloques la cible, {0} la burst"
     },
     "isolate": {
-      "a": "Ton ultime plonge et isole une cible dans les ténèbres — {0} l'achève pendant que ses alliés sont coupés.",
-      "b": "{0} ulte et isole une seule cible — tu le soutiens avec tes dégâts et achèves la victime."
+      "a": "Tu isoles, {0} achève",
+      "b": "{0} isole, tu achèves"
     },
     "artillery": {
-      "a": "Toi et {0} tirez sur l'ennemi à longue portée — un duo de poke et de siège puissant pour les objectifs."
+      "a": "Poke et siège à distance avec {0}"
     },
     "channel": {
-      "a": "Pendant que {0} immobilise les ennemis avec du cc, tu peux canaliser tout ton ultime sur eux.",
-      "b": "Tu immobilises les ennemis avec du cc pendant que {0} canalise un ultime puissant sur les cibles immobiles — de gros dégâts."
+      "a": "Le CC de {0} tient la cible pour ton ult",
+      "b": "Ton CC tient la cible pour l'ult de {0}"
     },
     "peel": {
-      "a": "{0} est le principal dégât de ton équipe mais reste vulnérable. Tu peel les ennemis pour qu'il inflige ses dégâts en sécurité pendant les combats."
+      "a": "Tu peel pour {0}, fragile"
     },
     "frontline": {
-      "a": "Tu inities les combats et verrouilles les ennemis avec du cc, protégeant {0}, qui inflige des dégâts à distance.",
-      "b": "{0} initie les combats et verrouille les ennemis avec du cc — pendant ce temps tu infliges des dégâts en sécurité depuis l'arrière."
+      "a": "Tu engages, {0} inflige des dégâts à distance",
+      "b": "{0} engage, tu infliges des dégâts à distance"
     },
     "double_engage": {
-      "a": "Toi et {0} engagez tous les deux et verrouillez les ennemis avec du cc — ensemble vous attrapez facilement les cibles isolées et gagnez les picks."
+      "a": "Double engage avec {0}"
     }
   },
   "combo": {

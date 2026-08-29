@@ -172,49 +172,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} düşmanları havaya fırlatıyor — bu senin ultini tetikler ve havaya kalkan tüm takımı tek seferde vurursun.",
-      "b": "Sen düşmanları havaya fırlatırsın, {0} anında hepsinin üzerine ult açar — güçlü bir teamfight kombosu."
+      "a": "{0} havaya atar, ardından ultin gelir",
+      "b": "{0} senin havaya atışına ult atar"
     },
     "orianna": {
-      "a": "Topunu {0} üzerine koy: onlar engage aldığında ultin etraflarındaki tüm düşmanları çekip patlatır.",
-      "b": "Önce sen engage alırsın, {0} topu senin üzerine koyup ult atarak düşmanları etrafında toplar — devasa AoE hasarı."
+      "a": "Engage öncesi top {0} üzerinde",
+      "b": "{0} topu senin engage'ine atar"
     },
     "immortal": {
-      "a": "Ultin {0} karakterini yenilmez yapar — düşmanın içine dalıp hayatta kalabilir.",
-      "b": "{0}'in ulti seni yenilmez yapar ya da ölümden kurtarır — daha cesur dalabilirsin."
+      "a": "Ultin dalışta {0} karakterini hayatta tutar",
+      "b": "{0} ultisi dalışta seni hayatta tutar"
     },
     "enchanter": {
-      "a": "{0} devasa hasar verir ama kırılgan ve hareketsizdir. Onu kalkanlar/iyileştirir ve hızlandırırsan asıl o zaman parlar.",
-      "b": "Güçlü ama kırılgan bir carry'sin. {0} seni kalkanlar, iyileştirir ve güçlendirir — yakınında kal ve güvenle hasar ver."
+      "a": "Kırılgan {0} için kalkan ve hız",
+      "b": "{0} sana kalkan ve hız verir"
     },
     "hook": {
-      "a": "Bir düşmanı pozisyonundan hook'larsın ve {0} yakalanan hedefi anında burst ile bitirir.",
-      "b": "{0} bir düşmanı hook'layıp çeker — sen yakalanan hedefi hasarınla bitirirsin. Lane'de kolay killer."
+      "a": "Sen çengel atarsın, {0} patlatır",
+      "b": "{0} çengel atar, sen patlatırsın"
     },
     "burst_pick": {
-      "a": "{0} bir hedefi cc (charm/stun/root) ile kilitler — sen de hareketsizken bir saniyede burst ile silersin.",
-      "b": "Bir düşmanı cc ile kilitlersin, {0} de tutulan hedefi anında burst ile indirir. Yalnız kalan hedeflerde garanti pick."
+      "a": "{0} hedefi kilitler, sen patlatırsın",
+      "b": "Sen hedefi kilitlersin, {0} patlatır"
     },
     "isolate": {
-      "a": "Ultin dalıp bir hedefi karanlıkta izole eder — müttefikleri kesilmişken {0} işini bitirir.",
-      "b": "{0} ult açıp tek bir hedefi izole eder — sen hasarla destek olup kurbanı bitirirsin."
+      "a": "Sen izole edersin, {0} bitirir",
+      "b": "{0} izole eder, sen bitirirsin"
     },
     "artillery": {
-      "a": "Sen ve {0} düşmanı uzun menzilden vurursunuz — objeler için güçlü bir poke-siege ikilisi."
+      "a": "{0} ile uzaktan poke ve kuşatma"
     },
     "channel": {
-      "a": "{0} düşmanları cc ile yerinde tutarken sen tüm ultini üzerlerine kanalize edebilirsin.",
-      "b": "Sen düşmanları cc ile tutarken {0} hareketsiz hedeflerin üzerine güçlü bir ult kanalize eder — büyük hasar."
+      "a": "{0} kontrolü hedefi ultin için tutar",
+      "b": "Senin kontrolün {0} ultisi için tutar"
     },
     "peel": {
-      "a": "{0} takımın ana hasarı ama savunmasız. Düşmanları üzerinden temizlersin ki fightlerde güvenle hasar versin."
+      "a": "Kırılgan {0} karakterini korursun"
     },
     "frontline": {
-      "a": "Fightleri başlatır ve düşmanları cc ile kilitlersin, menzilden hasar veren {0}'i korursun.",
-      "b": "{0} fightleri başlatır ve düşmanları cc ile kilitler — bu arada sen backline'dan güvenle hasar verirsin."
+      "a": "Sen başlatırsın, {0} uzaktan vurur",
+      "b": "{0} başlatır, sen uzaktan vurursun"
     },
     "double_engage": {
-      "a": "Sen ve {0} birlikte engage alıp düşmanları cc ile kilitlersiniz — birlikte yalnız hedefleri kolayca yakalar ve pick kazanırsınız."
+      "a": "{0} ile çifte engage"
     }
   },
   "combo": {

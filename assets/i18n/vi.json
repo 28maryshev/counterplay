@@ -80,49 +80,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} hất tung địch lên không — điều đó kích hoạt chiêu cuối của bạn, trúng cả đội bị hất cùng lúc.",
-      "b": "Bạn hất tung địch và {0} lập tức tung chiêu cuối vào tất cả — combo giao tranh mạnh."
+      "a": "Chiêu cuối nối tiếp cú hất tung của {0}",
+      "b": "{0} tung chiêu cuối theo cú hất của bạn"
     },
     "orianna": {
-      "a": "Đặt quả cầu lên {0}: khi họ lao vào, chiêu cuối của bạn hút và nổ mọi kẻ địch quanh họ.",
-      "b": "Bạn lao vào trước và {0} đặt cầu lên bạn, tung chiêu cuối gom địch quanh bạn — sát thương diện rộng khổng lồ."
+      "a": "Đặt cầu lên {0} trước khi lao vào",
+      "b": "{0} đặt cầu lên pha lao vào của bạn"
     },
     "immortal": {
-      "a": "Chiêu cuối của bạn khiến {0} bất tử — họ có thể lao vào địch và sống sót.",
-      "b": "Chiêu cuối của {0} khiến bạn bất tử hoặc cứu bạn khỏi chết — cứ lao vào bạo dạn hơn."
+      "a": "Chiêu cuối của bạn cứu {0} khi lao vào",
+      "b": "Chiêu cuối của {0} cứu bạn khi lao vào"
     },
     "enchanter": {
-      "a": "{0} gây sát thương lớn nhưng mỏng manh và ít cơ động. Bạn khiên/hồi máu và tăng tốc cho họ — lúc đó họ tỏa sáng.",
-      "b": "Bạn là xạ thủ mạnh nhưng mỏng manh. {0} khiên, hồi và buff cho bạn — bám sát và đánh an toàn."
+      "a": "Bạn khiên và tăng tốc cho {0} mỏng manh",
+      "b": "{0} khiên và tăng tốc cho bạn"
     },
     "hook": {
-      "a": "Bạn móc một kẻ địch ra khỏi vị trí và {0} lập tức kết liễu mục tiêu bị bắt bằng bùng nổ.",
-      "b": "{0} móc và kéo một kẻ địch ra — bạn kết liễu mục tiêu bị bắt bằng sát thương của mình. Hạ gục dễ ở đường."
+      "a": "Bạn móc, {0} dứt điểm",
+      "b": "{0} móc, bạn dứt điểm"
     },
     "burst_pick": {
-      "a": "{0} khóa mục tiêu bằng khống chế (mê hoặc/choáng/trói) — bạn xóa sổ nó bằng bùng nổ trong một giây khi nó bất động.",
-      "b": "Bạn khóa địch bằng khống chế và {0} lập tức bùng nổ hạ mục tiêu bị giữ. Bắt lẻ chắc ăn với kẻ đơn độc."
+      "a": "{0} khống chế mục tiêu, bạn dứt điểm",
+      "b": "Bạn khống chế mục tiêu, {0} dứt điểm"
     },
     "isolate": {
-      "a": "Chiêu cuối của bạn lao vào và cô lập mục tiêu trong bóng tối — {0} kết liễu nó khi đồng minh bị cắt đứt.",
-      "b": "{0} tung chiêu cuối và cô lập một mục tiêu — bạn tiếp sức bằng sát thương và kết liễu nạn nhân."
+      "a": "Bạn cô lập, {0} kết liễu",
+      "b": "{0} cô lập, bạn kết liễu"
     },
     "artillery": {
-      "a": "Bạn và {0} bắn địch từ tầm xa — bộ đôi poke và công trình mục tiêu mạnh."
+      "a": "Poke và công thành từ xa cùng {0}"
     },
     "channel": {
-      "a": "Trong khi {0} giữ chân địch bằng khống chế, bạn kịp trút toàn bộ chiêu cuối lên chúng.",
-      "b": "Bạn giữ địch bằng khống chế còn {0} niệm một chiêu cuối mạnh lên mục tiêu đứng yên — sát thương lớn."
+      "a": "Khống chế của {0} giữ mục tiêu cho chiêu cuối của bạn",
+      "b": "Khống chế của bạn giữ mục tiêu cho chiêu cuối của {0}"
     },
     "peel": {
-      "a": "{0} là nguồn sát thương chính của đội nhưng dễ tổn thương. Bạn gạt địch ra để họ đánh an toàn trong giao tranh."
+      "a": "Bạn bảo vệ {0} mỏng manh"
     },
     "frontline": {
-      "a": "Bạn mở giao tranh và khóa địch bằng khống chế, bảo vệ {0} đang đánh từ xa.",
-      "b": "{0} mở giao tranh và khóa địch bằng khống chế — còn bạn đánh an toàn từ tuyến sau."
+      "a": "Bạn mở giao tranh, {0} gây sát thương từ xa",
+      "b": "{0} mở giao tranh, bạn gây sát thương từ xa"
     },
     "double_engage": {
-      "a": "Bạn và {0} đều mở giao tranh và khóa địch bằng khống chế — cùng nhau dễ bắt kẻ đơn độc và thắng pha bắt lẻ."
+      "a": "Mở giao tranh kép cùng {0}"
     }
   },
   "combo": {

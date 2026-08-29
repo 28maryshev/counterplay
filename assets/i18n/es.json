@@ -69,49 +69,49 @@
   },
   "pair": {
     "airborne": {
-      "a": "{0} lanza a los enemigos por los aires — eso activa tu definitiva, golpeando a todo el equipo derribado a la vez.",
-      "b": "Derribas a los enemigos y {0} usa su definitiva al instante sobre todos ellos — un combo de teamfight muy potente."
+      "a": "Tu ulti sigue al derribo de {0}",
+      "b": "{0} ultea sobre tu derribo"
     },
     "orianna": {
-      "a": "Pon tu bola sobre {0}: cuando inicie, tu definitiva atrae y detona a todos los enemigos a su alrededor.",
-      "b": "Inicias primero y {0} pone la bola sobre ti, usando su definitiva para agrupar enemigos a tu alrededor — daño en área enorme."
+      "a": "Bola en {0} antes del engage",
+      "b": "{0} lanza la bola en tu engage"
     },
     "immortal": {
-      "a": "Tu definitiva hace invulnerable a {0} — puede meterse entre los enemigos y sobrevivir.",
-      "b": "La definitiva de {0} te hace invulnerable o te salva de la muerte — métete con más confianza."
+      "a": "Tu ulti salva a {0} en el dive",
+      "b": "El ulti de {0} te salva en el dive"
     },
     "enchanter": {
-      "a": "{0} hace muchísimo daño pero es frágil e inmóvil. Tú escudas/curas y le das velocidad — ahí es cuando brilla.",
-      "b": "Eres un carry fuerte pero frágil. {0} te escuda, cura y potencia — quédate cerca y haz daño con seguridad."
+      "a": "Escudas y aceleras al frágil {0}",
+      "b": "{0} te escuda y te acelera"
     },
     "hook": {
-      "a": "Enganchas a un enemigo fuera de posición y {0} remata al instante al objetivo atrapado con burst.",
-      "b": "{0} engancha y saca a un enemigo — tú rematas al objetivo atrapado con tu daño. Kills fáciles en línea."
+      "a": "Tú enganchas, {0} revienta",
+      "b": "{0} engancha, tú revientas"
     },
     "burst_pick": {
-      "a": "{0} inmoviliza a un objetivo con cc (encantamiento/aturdimiento/raíz) — tú lo eliminas con burst en un segundo mientras está inmovilizado.",
-      "b": "Inmovilizas a un enemigo con cc y {0} elimina al instante con burst al objetivo retenido. Un pick garantizado sobre objetivos aislados."
+      "a": "{0} fija el objetivo, tú lo revientas",
+      "b": "Tú fijas el objetivo, {0} lo revienta"
     },
     "isolate": {
-      "a": "Tu definitiva se lanza y aísla a un objetivo en la oscuridad — {0} lo remata mientras sus aliados quedan aislados.",
-      "b": "{0} usa su definitiva y aísla a un solo objetivo — tú lo respaldas con daño y rematas a la víctima."
+      "a": "Tú aíslas, {0} remata",
+      "b": "{0} aísla, tú rematas"
     },
     "artillery": {
-      "a": "Tú y {0} disparáis al enemigo desde larga distancia — un dúo fuerte de poke y asedio para los objetivos."
+      "a": "Poke y asedio a distancia con {0}"
     },
     "channel": {
-      "a": "Mientras {0} inmoviliza a los enemigos con cc, tú puedes canalizar toda tu definitiva sobre ellos.",
-      "b": "Inmovilizas a los enemigos con cc mientras {0} canaliza una definitiva poderosa sobre los objetivos inmóviles — daño enorme."
+      "a": "El control de {0} sostiene tu ulti",
+      "b": "Tu control sostiene el ulti de {0}"
     },
     "peel": {
-      "a": "{0} es el daño principal de tu equipo pero es vulnerable. Tú alejas a los enemigos para que pueda hacer daño con seguridad en las peleas."
+      "a": "Proteges al frágil {0}"
     },
     "frontline": {
-      "a": "Inicias las peleas e inmovilizas a los enemigos con cc, protegiendo a {0}, que hace daño a distancia.",
-      "b": "{0} inicia las peleas e inmoviliza a los enemigos con cc — mientras tanto tú haces daño con seguridad desde la retaguardia."
+      "a": "Tú inicias, {0} daña desde lejos",
+      "b": "{0} inicia, tú dañas desde lejos"
     },
     "double_engage": {
-      "a": "Tú y {0} iniciáis e inmovilizáis a los enemigos con cc — juntos atrapáis fácilmente objetivos aislados y ganáis picks."
+      "a": "Doble engage con {0}"
     }
   },
   "combo": {
