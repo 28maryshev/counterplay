@@ -887,6 +887,57 @@ public partial class OverlayWindow : Window
     // понять, кем она набрана.
     private const double SYN_LINK_MIN = 0.3;   // пп — ниже это шум выборки
 
+    // Наведение на иконку в пуле роли: те же подсветки, что и у карточки
+    // (связки, синергия с союзниками, матчапы против врагов), плюс строка
+    // показателей — у чемпиона из пула карточки со шкалами нет.
+    private void PoolCell_Enter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not int id || id <= 0) return;
+        DrawSynergyLinks(id);
+        ShowPoolMetrics(id);
+    }
+
+    private void PoolCell_Leave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        RecCard_Leave(sender, e);
+        RolePoolHint.Inlines.Clear();
+    }
+
+    private void ShowPoolMetrics(int champId)
+    {
+        RolePoolHint.Inlines.Clear();
+        if (_engine is null || _lastDraft is null) return;
+
+        // Считаем ровно тем же движком, что и карточки, только для одного
+        // кандидата — числа обязаны совпадать с полосками.
+        var r = _engine.Recommend(_lastDraft, topN: 1, only: [champId]).FirstOrDefault();
+        if (r is null) return;
+
+        void Add(string label, string value, string color)
+        {
+            RolePoolHint.Inlines.Add(new System.Windows.Documents.Run(label + " ")
+            {
+                Foreground = Brush("#7C97AC"),
+            });
+            RolePoolHint.Inlines.Add(new System.Windows.Documents.Run(value + "   ")
+            {
+                Foreground = Brush(color), FontWeight = FontWeights.Bold,
+            });
+        }
+
+        RolePoolHint.Inlines.Add(new System.Windows.Documents.Run(DataDragon.Name(champId) + "   ")
+        {
+            Foreground = Brush("#E8EEF5"), FontWeight = FontWeights.Bold,
+        });
+        Add(Loc.T("metric.base"),    Signed(r.BaseDelta),    "#5C9BDC");
+        Add(Loc.T("metric.direct"),  Signed(r.DirectDelta),  "#E06464");
+        Add(Loc.T("metric.style"),   Signed(r.StyleDelta),   "#E0944C");
+        Add(Loc.T("metric.synergy"), Signed(r.SynergyDelta), "#5BC487");
+    }
+
+    private static SolidColorBrush Brush(string hex) => new(
+        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
+
     private void RecCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id);
