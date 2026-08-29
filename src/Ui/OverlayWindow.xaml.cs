@@ -38,6 +38,7 @@ public partial class OverlayWindow : Window
     private ChampionTraits.Arch?           _allyStyle;    // выраженный стиль моей команды
     private Dictionary<string, string>     _comboColors = [];  // связка → цвет её полоски
     private Dictionary<string, int>        _comboIndex  = [];  // связка → её скобка в списке
+    private List<ComboCard>                _myComboCards = [];  // связки команды без наведения
     private List<int>                      _allyIdsNow  = [];  // чемпионы союзников сейчас
     private DraftState?                    _lastDraft;    // с применёнными ручными ролями
     private DraftState?                    _lastRawDraft; // как пришёл из LCU
@@ -860,8 +861,12 @@ public partial class OverlayWindow : Window
         if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id);
     }
 
-    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) =>
+    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
         SynLinks.Children.Clear();
+        MyTeamCombos.ItemsSource  = _myComboCards;
+        MyCombosHeader.Visibility = _myComboCards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void DrawSynergyLinks(int champId)
     {
@@ -889,6 +894,7 @@ public partial class OverlayWindow : Window
         var ids  = _allyIdsNow.Contains(champId) ? _allyIdsNow : [.. _allyIdsNow, champId];
         var team = ids.Select(id => (Id: id, Role: "")).ToList();
         int nextSlot = _comboColors.Count;
+        var fresh = new List<TeamCombo>();
 
         foreach (var combo in TeamSynergies.Detect(team, forAlly: true))
         {
@@ -899,7 +905,18 @@ public partial class OverlayWindow : Window
 
             var rows = combo.ChampionIds.Where(rowOf.ContainsKey).Select(id => rowOf[id])
                             .Distinct().OrderBy(r => r).ToList();
-            if (rows.Count >= 2) DrawBracket(rows, color!, slot, combo.Name);
+            if (rows.Count >= 2) DrawBracket(rows, color!, slot);
+            if (!known) fresh.Add(combo);   // связку создаёт сам пик
+        }
+
+        // Названия связок — в самой панели связок, бледными карточками: на линии
+        // подпись налезала на состав и не читалась.
+        if (fresh.Count > 0)
+        {
+            MyTeamCombos.ItemsSource = _myComboCards
+                .Concat(ToCards(fresh, ally: true, ghost: true, colorFrom: _myComboCards.Count))
+                .ToList();
+            MyCombosHeader.Visibility = Visibility.Visible;
         }
 
         // С кем именно кандидат силён в паре: зелёное свечение портрета и величина
@@ -926,7 +943,7 @@ public partial class OverlayWindow : Window
 
         var preview = new System.Windows.Shapes.Ellipse
         {
-            Width = 68, Height = 68, Opacity = 0.9,
+            Width = 68, Height = 68, Opacity = 0.45,   // примерка, а не пик
             Fill = new ImageBrush(icon) { Stretch = Stretch.UniformToFill },
             Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xD7, 0x7A)),
             StrokeThickness = 2,
@@ -938,7 +955,7 @@ public partial class OverlayWindow : Window
 
     // Скобка-коннектор между участниками связки — та же, что у готовых связок
     // команды (см. DrawTeamLines), только строится под наведённого кандидата.
-    private void DrawBracket(List<int> rows, string color, int slot, string name)
+    private void DrawBracket(List<int> rows, string color, int slot)
     {
         if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(rows[0]) is not FrameworkElement first) return;
 
@@ -972,19 +989,6 @@ public partial class OverlayWindow : Window
                 StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
             });
 
-        // Название связки у скобки — иначе цвет ничего не говорит.
-        var label = new TextBlock
-        {
-            Text = name, Foreground = brush, FontSize = 10, FontWeight = FontWeights.Bold,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
-            {
-                Color = System.Windows.Media.Colors.Black, ShadowDepth = 0,
-                BlurRadius = 5, Opacity = 0.95,
-            },
-        };
-        Canvas.SetLeft(label, stemX + 6);
-        Canvas.SetTop(label, (ys.First() + ys.Last()) / 2 - 7);
-        SynLinks.Children.Add(label);
     }
 
     // Портрет союзника, с которым кандидат хорошо играет: чем сильнее пара, тем
@@ -3075,7 +3079,8 @@ public partial class OverlayWindow : Window
 
         var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
         var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
-        MyTeamCombos.ItemsSource     = ToCards(myCombos,    ally: true);
+        _myComboCards                = ToCards(myCombos,    ally: true);
+        MyTeamCombos.ItemsSource     = _myComboCards;
         EnemyTeamCombos.ItemsSource  = ToCards(enemyCombos, ally: false);
         MyCombosHeader.Visibility    = myCombos.Count    > 0 ? Visibility.Visible : Visibility.Collapsed;
         EnemyCombosHeader.Visibility = enemyCombos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -3101,16 +3106,18 @@ public partial class OverlayWindow : Window
         return TeamSynergies.Detect(team, ally).Take(3).ToList();
     }
 
-    private static List<ComboCard> ToCards(List<TeamCombo> combos, bool ally) =>
+    private static List<ComboCard> ToCards(List<TeamCombo> combos, bool ally,
+                                           bool ghost = false, int colorFrom = 0) =>
         combos.Select((co, i) => new ComboCard
         {
+            Ghost       = ghost,
             Title       = co.Name,
             Icons       = co.ChampionIds.Select(IconCache.Get).Where(x => x != null).Cast<ImageSource>().ToList(),
             Description = co.Description,
             Tip         = co.Tip,
             TipLabel    = ally ? Loc.T("combo.howToPlay") : Loc.T("combo.danger"),
             AccentColor = ally ? "#C89B3C" : "#C84040",
-            LineColor   = ComboColors[i % ComboColors.Length],
+            LineColor   = ComboColors[(colorFrom + i) % ComboColors.Length],
         }).ToList();
 
     // Цветные «черточки» под иконкой рекомендации: кандидат входит в связку с
@@ -3560,4 +3567,8 @@ public sealed class ComboCard
     public string            TipLabel    { get; init; } = "";
     public string            AccentColor { get; init; } = "#C89B3C";
     public string            LineColor   { get; init; } = "#8B7CF6"; // цвет коннектор-линии
+    // Связка появится, только если взять наведённого кандидата — показываем её
+    // бледной, чтобы не путать с уже собранными.
+    public bool              Ghost       { get; init; }
+    public double            CardOpacity => Ghost ? 0.55 : 1.0;
 }
