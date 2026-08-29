@@ -17,7 +17,8 @@
     "f2head": "✊ ✌ ✋ 조합 유형.",
     "f2body": " 전열 조합 ✊은 다이브 ✌을, 다이브는 픽/포크 ✋를, 픽/포크는 전열 조합을 이깁니다. 상대를 카운터하는 조합을 고르세요.",
     "f3head": "당신에게 맞춤.",
-    "f3body": " 당신의 숙련도를 반영합니다 — 자신 있는 챔피언 우선, 무리한 카운터픽은 배제합니다."
+    "f3body": " 당신의 숙련도를 반영합니다 — 자신 있는 챔피언 우선, 무리한 카운터픽은 배제합니다.",
+    "updateReady": "새 버전 {0} — Counterplay를 다시 시작하세요"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -450,5 +451,8 @@
     "preendofgame": "게임 마무리 중",
     "endofgame": "게임 종료",
     "reconnect": "재접속 중"
+  },
+  "rolePool": {
+    "title": "{0} 챔피언"
   }
 }

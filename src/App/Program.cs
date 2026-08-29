@@ -166,9 +166,11 @@ class Program
         // подсовывал бы «--autostart» вместо пути к lockfile.
         var lockfilePath = args.FirstOrDefault(a => !a.StartsWith('-'));
 
+        overlay.SetVersion(CurrentVersion());
+
         // Проверка обновлений при каждом запуске (только для установленной версии).
         await CheckForUpdatesAsync(overlay, ct);
-        StartUpdateWatcher(ct); // и дальше — раз в 4 часа (программа живёт в трее сутками)
+        StartUpdateWatcher(overlay, ct); // и дальше — раз в 4 часа (живём в трее сутками)
 
         // Data Dragon + иконки грузим один раз при старте
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
@@ -599,7 +601,21 @@ class Program
     // трее сутками — без этого она узнала бы о новой версии только при следующем
     // запуске Windows. Обновление НЕ перезапускает приложение на ходу (человек
     // может быть в драфте): скачиваем и применяем при выходе.
-    static void StartUpdateWatcher(CancellationToken ct)
+    // Версия сборки: у установленной берём ту, что знает Velopack, у dev-сборки —
+    // из атрибутов самой сборки.
+    static string CurrentVersion()
+    {
+        try
+        {
+            var mgr = new UpdateManager(UpdateSource);
+            if (mgr.IsInstalled && mgr.CurrentVersion is { } v) return v.ToString();
+        }
+        catch { /* не установлено через Velopack */ }
+        var asm = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        return asm is null ? "dev" : $"{asm.Major}.{asm.Minor}.{asm.Build}";
+    }
+
+    static void StartUpdateWatcher(OverlayWindow overlay, CancellationToken ct)
     {
         _ = Task.Run(async () =>
         {
@@ -616,6 +632,8 @@ class Program
                     await mgr.DownloadUpdatesAsync(info);
                     // Применить при выходе, без перезапуска на ходу.
                     mgr.WaitExitThenApplyUpdates(info, silent: true, restart: false);
+                    // Обновление лежит готовым — просим перезапустить программу.
+                    overlay.ShowUpdateReady(info.TargetFullRelease?.Version.ToString() ?? "");
                 }
                 catch { /* офлайн / лимит GitHub — попробуем через 4 часа */ }
             }

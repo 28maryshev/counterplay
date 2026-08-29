@@ -30,7 +30,8 @@
     "f2head": "✊ ✌ ✋ Loại đội hình.",
     "f2body": " Front-to-back ✊ khắc dive ✌, dive khắc pick-poke ✋, và pick-poke khắc front-to-back. Chọn đội hình khắc chế địch.",
     "f3head": "Riêng cho bạn.",
-    "f3body": " Tính đến độ thành thạo — ưu tiên tướng quen tay, không khắc chế mù."
+    "f3body": " Tính đến độ thành thạo — ưu tiên tướng quen tay, không khắc chế mù.",
+    "updateReady": "Phiên bản mới {0} — khởi động lại Counterplay"
   },
   "tip": {
     "pin": "Ghim vào mép phải của client",
@@ -450,5 +451,8 @@
     "preendofgame": "Trận sắp kết thúc",
     "endofgame": "Trận đã kết thúc",
     "reconnect": "Đang kết nối lại"
+  },
+  "rolePool": {
+    "title": "Tướng cho {0}"
   }
 }

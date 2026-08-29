@@ -53,7 +53,8 @@
     "f2head": "✊ ✌ ✋ Composition type.",
     "f2body": " Front-to-back ✊ beats dive ✌, dive beats pick-poke ✋, and pick-poke beats front-to-back. Pick a comp that counters the enemy.",
     "f3head": "Tuned to you.",
-    "f3body": " Factors in your mastery — comfort champions first, no blind counter-picks."
+    "f3body": " Factors in your mastery — comfort champions first, no blind counter-picks.",
+    "updateReady": "New version {0} — restart Counterplay"
   },
   "tip": {
     "pin": "Pin to the right edge of the client",
@@ -452,5 +453,8 @@
     "preendofgame": "Game is wrapping up",
     "endofgame": "Game over",
     "reconnect": "Reconnecting to the game"
+  },
+  "rolePool": {
+    "title": "Champions for {0}"
   }
 }

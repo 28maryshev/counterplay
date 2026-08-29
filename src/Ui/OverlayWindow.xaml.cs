@@ -111,6 +111,26 @@ public partial class OverlayWindow : Window
 
     /// Геймфлоу сообщает, идёт ли игра (или вход в неё). В это время авто-возврат
     /// оверлея из трея по слежению за окном подавлен — иначе окно всплыло бы поверх игры.
+    /// Версия программы под дисклеймером — чтобы в поддержке было видно, с какой
+    /// сборки пришёл отчёт, и человек сам понимал, обновился он или нет.
+    public void SetVersion(string version) => Dispatcher.InvokeAsync(() =>
+        VersionText.Text = "v" + version);
+
+    /// Обновление скачано и встанет при следующем запуске: говорим об этом прямо
+    /// и мигаем — иначе программа, живущая в трее сутками, так и останется старой.
+    public void ShowUpdateReady(string version) => Dispatcher.InvokeAsync(() =>
+    {
+        VersionText.Text = Loc.T("ready.updateReady", version);
+        VersionText.Foreground = new SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(0xF5, 0xD7, 0x7A));
+        VersionText.FontWeight = FontWeights.Bold;
+        VersionText.BeginAnimation(OpacityProperty, new DoubleAnimation
+        {
+            From = 1.0, To = 0.25, Duration = TimeSpan.FromSeconds(0.9),
+            AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
+        });
+    });
+
     public void SetGameActive(bool active) => _gameActive = active;
 
     /// LCU подключён/отключён — гейтит авто-возврат из трея (см. _lcuReady).
@@ -533,6 +553,7 @@ public partial class OverlayWindow : Window
             {
                 RunesBar.Visibility = Visibility.Collapsed;
                 TierListBar.Visibility = Visibility.Collapsed;   // тир-лист — только под банами
+                RenderRolePool(_lastDraft);                      // рун нет — вернём пул роли
                 return;
             }
 
@@ -547,6 +568,7 @@ public partial class OverlayWindow : Window
             RunesStatus.Visibility = Visibility.Collapsed;
             RunesBar.Visibility = Visibility.Visible;
             TierListBar.Visibility = Visibility.Collapsed;   // руны заняли Row 1 — тир-лист прячем
+            RolePoolBar.Visibility = Visibility.Collapsed;   // и пул роли тоже
             PulseApplyButton();   // сразу подсвечиваем: вариант выбран по умолчанию
         });
 
@@ -1351,6 +1373,50 @@ public partial class OverlayWindow : Window
                 + $"  ·  {t.Games} " + Loc.T("tier.games"),
     };
 
+    // Все чемпионы, которых играют на моей роли, порядком тир-листа. Показываем
+    // до пика — вместо рун, которых ещё нет. Список кэшируем по роли: при свапе
+    // ролей он пересобирается, в остальное время статичен в пределах патча.
+    private List<TierCell>? _rolePoolCells;
+    private string _rolePoolRole = "";
+
+    private void RenderRolePool(DraftState? draft)
+    {
+        if (_engine is null || draft is null) { RolePoolBar.Visibility = Visibility.Collapsed; return; }
+
+        var role = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+        if (role.Length == 0) { RolePoolBar.Visibility = Visibility.Collapsed; return; }
+
+        if (role != _rolePoolRole || _rolePoolCells is null)
+        {
+            _rolePoolRole = role;
+            // perRole с запасом: нужен весь пул роли, а не топ-15 как в тир-листе.
+            _rolePoolCells = _engine.TierList(perRole: 200)
+                .Where(t => t.Role == role)
+                .Select(t =>
+                {
+                    var cell = TierCellOf(t, showGrade: true);
+                    return new TierCell
+                    {
+                        ChampionId = cell.ChampionId, Icon = cell.Icon,
+                        WrText = cell.WrText, WrBrush = cell.WrBrush,
+                        Grade  = cell.Grade,  GradeColor = cell.GradeColor,
+                        Tip    = cell.Tip, ShowGrade = true,
+                        NotOwned = _ownedChamps.Count > 0 && !_ownedChamps.Contains(t.ChampionId),
+                    };
+                }).ToList();
+            RolePoolList.ItemsSource = _rolePoolCells;
+            RolePoolTitle.Text = Loc.T("rolePool.title", RoleNameDb(role));
+        }
+
+        // Занятые: баны обеих команд и уже взятые чемпионы — крестом, как в тир-листе.
+        var gone = new HashSet<int>(draft.MyTeamBans.Concat(draft.TheirTeamBans)
+            .Concat(draft.MyTeam.Concat(draft.TheirTeam).Select(p => p.ChampionId))
+            .Where(id => id != 0));
+        foreach (var c in _rolePoolCells) c.Banned = gone.Contains(c.ChampionId);
+
+        RolePoolBar.Visibility = _rolePoolCells.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void RenderTierList(DraftState? draft = null)
     {
         if (_engine is null) { TierListBar.Visibility = Visibility.Collapsed; return; }
@@ -1421,7 +1487,11 @@ public partial class OverlayWindow : Window
         e.Handled = true;
     }
 
-    public void HideRunes() => Dispatcher.InvokeAsync(() => RunesBar.Visibility = Visibility.Collapsed);
+    public void HideRunes() => Dispatcher.InvokeAsync(() =>
+    {
+        RunesBar.Visibility = Visibility.Collapsed;
+        if (_lastDraft?.InBanPhase != true) RenderRolePool(_lastDraft);
+    });
 
     // ── Автозапуск: разовое уведомление после включения ──────────────────────
 
@@ -3042,6 +3112,9 @@ public partial class OverlayWindow : Window
         BanScroll.Visibility = Visibility.Collapsed;
         BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
         TierListBar.Visibility = Visibility.Collapsed;  // тир-лист — только под банами
+        // Пока рун нет (чемпион не выбран) — показываем пул роли в той же строке.
+        if (RunesBar.Visibility == Visibility.Visible) RolePoolBar.Visibility = Visibility.Collapsed;
+        else RenderRolePool(draft);
         // Пики заполняют список (звёздная строка), руны — по контенту (Auto).
         CenterGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         CenterGrid.RowDefinitions[1].Height = GridLength.Auto;
@@ -3170,6 +3243,7 @@ public partial class OverlayWindow : Window
         // тир-листа при этом сохраняется — он вне списка рекомендаций).
         if (_banHoverId > 0 && !StillAvailable(draft, _banHoverId)) _banHoverId = 0;
         UpdateBanBar();
+        RolePoolBar.Visibility = Visibility.Collapsed;   // в банфазе строку занимает тир-лист
         RenderTierList(draft);
         RenderTeams(draft);
     }
@@ -3493,7 +3567,11 @@ public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
     // У WR-столбца грейдов нет: скрываем бейдж, рамку красим нейтрально.
     public bool         ShowGrade  { get; init; } = true;
     public Visibility   GradeVisibility => ShowGrade ? Visibility.Visible : Visibility.Collapsed;
-    public string       FrameColor => ShowGrade ? GradeColor : "#3A4B5F";
+    // Чемпиона нет на аккаунте — гасим и обводим красным: видно, что он есть в
+    // роли, но взять его нельзя.
+    public bool         NotOwned   { get; init; }
+    public double       CellOpacity => NotOwned ? 0.45 : 1.0;
+    public string       FrameColor => NotOwned ? "#F0402F" : ShowGrade ? GradeColor : "#3A4B5F";
 
     // Чемпион уже забанен в этом драфте — помечаем оверлеем (обновляется по ходу).
     private bool _banned;

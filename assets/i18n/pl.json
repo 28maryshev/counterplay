@@ -30,7 +30,8 @@
     "f2head": "✊ ✌ ✋ Typ kompozycji.",
     "f2body": " Front-to-back ✊ bije dive ✌, dive bije pick-poke ✋, a pick-poke bije front-to-back. Wybierz kompozycję kontrującą wroga.",
     "f3head": "Dopasowane do ciebie.",
-    "f3body": " Uwzględnia twoje mastery — najpierw komfortowe postacie, żadnych ślepych kontr-picków."
+    "f3body": " Uwzględnia twoje mastery — najpierw komfortowe postacie, żadnych ślepych kontr-picków.",
+    "updateReady": "Nowa wersja {0} — uruchom Counterplay ponownie"
   },
   "tip": {
     "pin": "Przypnij do prawej krawędzi klienta",
@@ -450,5 +451,8 @@
     "preendofgame": "Gra się kończy",
     "endofgame": "Gra zakończona",
     "reconnect": "Ponowne łączenie"
+  },
+  "rolePool": {
+    "title": "Bohaterowie na {0}"
   }
 }

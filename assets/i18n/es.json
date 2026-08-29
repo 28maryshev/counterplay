@@ -17,7 +17,8 @@
     "f2head": "✊ ✌ ✋ Tipo de composición.",
     "f2body": " Front-to-back ✊ vence a dive ✌, dive vence a pick-poke ✋, y pick-poke vence a front-to-back. Elige una composición que contrarreste al enemigo.",
     "f3head": "Adaptado a ti.",
-    "f3body": " Tiene en cuenta tu maestría — primero tus campeones de confianza, sin contra-picks a ciegas."
+    "f3body": " Tiene en cuenta tu maestría — primero tus campeones de confianza, sin contra-picks a ciegas.",
+    "updateReady": "Nueva versión {0} — reinicia Counterplay"
   },
   "metric": {
     "base": "Winrate este parche",
@@ -450,5 +451,8 @@
     "preendofgame": "La partida termina",
     "endofgame": "Partida terminada",
     "reconnect": "Reconectando"
+  },
+  "rolePool": {
+    "title": "Campeones para {0}"
   }
 }

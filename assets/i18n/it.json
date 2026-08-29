@@ -30,7 +30,8 @@
     "f2head": "✊ ✌ ✋ Tipo di composizione.",
     "f2body": " Front-to-back ✊ batte il dive ✌, il dive batte il pick-poke ✋, e il pick-poke batte il front-to-back. Scegli una comp che counter-a il nemico.",
     "f3head": "Su misura per te.",
-    "f3body": " Considera la tua maestria — prima i campioni comfort, niente counter-pick alla cieca."
+    "f3body": " Considera la tua maestria — prima i campioni comfort, niente counter-pick alla cieca.",
+    "updateReady": "Nuova versione {0} — riavvia Counterplay"
   },
   "tip": {
     "pin": "Aggancia al bordo destro del client",
@@ -450,5 +451,8 @@
     "preendofgame": "La partita si chiude",
     "endofgame": "Partita finita",
     "reconnect": "Riconnessione"
+  },
+  "rolePool": {
+    "title": "Campioni per {0}"
   }
 }

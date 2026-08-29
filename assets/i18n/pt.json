@@ -17,7 +17,8 @@
     "f2head": "✊ ✌ ✋ Tipo de composição.",
     "f2body": " Front-to-back ✊ vence dive ✌, dive vence pick-poke ✋, e pick-poke vence front-to-back. Escolha uma composição que counter a do inimigo.",
     "f3head": "Ajustado para você.",
-    "f3body": " Considera sua maestria — prioriza campeões de conforto, sem counter-picks às cegas."
+    "f3body": " Considera sua maestria — prioriza campeões de conforto, sem counter-picks às cegas.",
+    "updateReady": "Nova versão {0} — reinicie o Counterplay"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -450,5 +451,8 @@
     "preendofgame": "A partida termina",
     "endofgame": "Partida terminada",
     "reconnect": "A reconectar"
+  },
+  "rolePool": {
+    "title": "Campeões para {0}"
   }
 }

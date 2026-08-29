@@ -29,7 +29,8 @@
     "f2head": "✊ ✌ ✋ Type de composition.",
     "f2body": " Front-to-back ✊ bat dive ✌, dive bat pick-poke ✋, et pick-poke bat front-to-back. Choisis une compo qui counter l'ennemi.",
     "f3head": "Adapté à toi.",
-    "f3body": " Prend en compte ta maîtrise — priorité à tes champions de confort, pas de counter-pick à l'aveugle."
+    "f3body": " Prend en compte ta maîtrise — priorité à tes champions de confort, pas de counter-pick à l'aveugle.",
+    "updateReady": "Nouvelle version {0} — redémarre Counterplay"
   },
   "tip": {
     "pin": "Épingler au bord droit du client",
@@ -450,5 +451,8 @@
     "preendofgame": "Fin de partie",
     "endofgame": "Partie terminée",
     "reconnect": "Reconnexion"
+  },
+  "rolePool": {
+    "title": "Champions pour {0}"
   }
 }

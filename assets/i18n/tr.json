@@ -17,7 +17,8 @@
     "f2head": "✊ ✌ ✋ Kompozisyon tipi.",
     "f2body": " Front-to-back ✊, dive'ı ✌ yener; dive, pick-poke'u ✋ yener; pick-poke da front-to-back'i yener. Düşmanı kontrleyen bir kompozisyon seç.",
     "f3head": "Sana özel ayarlandı.",
-    "f3body": " Ustalığını hesaba katar — önce konfor şampiyonların, kör kontr-pick yok."
+    "f3body": " Ustalığını hesaba katar — önce konfor şampiyonların, kör kontr-pick yok.",
+    "updateReady": "Yeni sürüm {0} — Counterplay'i yeniden başlat"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -450,5 +451,8 @@
     "preendofgame": "Maç bitiyor",
     "endofgame": "Maç bitti",
     "reconnect": "Yeniden bağlanılıyor"
+  },
+  "rolePool": {
+    "title": "{0} için şampiyonlar"
   }
 }

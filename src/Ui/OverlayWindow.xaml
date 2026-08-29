@@ -1550,6 +1550,61 @@
                  Лучшие по винрейту чемпионы, разложенные по ролям. Высота
                  ограничена половиной центра — баны важнее, тир-лист их не
                  вытесняет; при нехватке места роли прокручиваются. -->
+            <!-- Все чемпионы моей роли — пока пик не сделан (руны ещё не пришли).
+                 Мелкие иконки в две строки, порядок как в тир-листе. -->
+            <Border Grid.Row="1" x:Name="RolePoolBar" Visibility="Collapsed"
+                    Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
+                    Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" x:Name="RolePoolTitle" Text="" Margin="2,0,0,6"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="12" FontWeight="Bold"
+                           Foreground="#C89B3C"/>
+                <!-- Две строки иконок; остальное — прокруткой, панель низкая -->
+                <ScrollViewer MaxHeight="84" VerticalScrollBarVisibility="Auto">
+                  <ItemsControl x:Name="RolePoolList">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid x:Name="PoolCellRoot" Width="34" Height="34" Margin="0,0,4,4"
+                              ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
+                              Opacity="{Binding CellOpacity}"
+                              MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
+                          <Ellipse x:Name="PoolIcon" StrokeThickness="1.5">
+                            <Ellipse.Fill>
+                              <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+                            </Ellipse.Fill>
+                            <Ellipse.Stroke><SolidColorBrush Color="{Binding FrameColor}"/></Ellipse.Stroke>
+                          </Ellipse>
+                          <!-- Грейд тир-листа — маленьким бейджем в углу -->
+                          <Border CornerRadius="3" Padding="1,0" Height="11" MinWidth="11"
+                                  HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                            <Border.Background><SolidColorBrush Color="{Binding GradeColor}"/></Border.Background>
+                            <TextBlock Text="{Binding Grade}" Foreground="#10141A"
+                                       FontFamily="{StaticResource DisplayFont}" FontSize="8" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </Border>
+                          <!-- Уже забанен или взят -->
+                          <Grid Visibility="{Binding BannedVisibility}">
+                            <Ellipse Fill="#B0101820"/>
+                            <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="19" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </Grid>
+                        </Grid>
+                        <DataTemplate.Triggers>
+                          <Trigger SourceName="PoolCellRoot" Property="IsMouseOver" Value="True">
+                            <Setter TargetName="PoolIcon" Property="StrokeThickness" Value="2.5"/>
+                            <Setter TargetName="PoolIcon" Property="Stroke" Value="#FF4A4A"/>
+                          </Trigger>
+                        </DataTemplate.Triggers>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+            </Border>
+
             <Border Grid.Row="1" x:Name="TierListBar" Visibility="Collapsed"
                     Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
@@ -2215,12 +2270,19 @@
         <!-- ══ РУНЫ И БИЛД ═══════════════════════════════════════════════
              Появляется, когда чемпион выбран и данные по нему есть. Слева —
              варианты страниц рун (кнопки), справа — экспорт билда в клиент. -->
-        <!-- ── Дисклеймер (полный обязательный текст Riot) ───────────── -->
-        <TextBlock Grid.Row="3"
+        <!-- ── Дисклеймер (полный обязательный текст Riot) + версия ──── -->
+        <StackPanel Grid.Row="3">
+          <TextBlock
                    Text="Counterplay isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc."
                    Foreground="#33708090" FontFamily="{StaticResource UiFont}" FontSize="9"
                    TextWrapping="Wrap" TextAlignment="Center"
-                   HorizontalAlignment="Stretch" Margin="16,6,16,8"/>
+                   HorizontalAlignment="Stretch" Margin="16,6,16,2"/>
+          <!-- Версия программы; при готовом обновлении текст меняется и мигает -->
+          <TextBlock x:Name="VersionText" Text="" Foreground="#4A6070"
+                     FontFamily="{StaticResource UiFont}" FontSize="10"
+                     TextWrapping="Wrap" TextAlignment="Center"
+                     HorizontalAlignment="Stretch" Margin="16,0,16,7"/>
+        </StackPanel>
       </Grid>
     </Border>
 

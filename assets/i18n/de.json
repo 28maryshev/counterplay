@@ -17,7 +17,8 @@
     "f2head": "✊ ✌ ✋ Kompositionstyp.",
     "f2body": " Front-to-Back ✊ schlägt Dive ✌, Dive schlägt Pick-Poke ✋, und Pick-Poke schlägt Front-to-Back. Wähle eine Komposition, die den Gegner kontert.",
     "f3head": "Auf dich abgestimmt.",
-    "f3body": " Berücksichtigt deine Mastery — Comfort-Champions zuerst, keine blinden Konterpicks."
+    "f3body": " Berücksichtigt deine Mastery — Comfort-Champions zuerst, keine blinden Konterpicks.",
+    "updateReady": "Neue Version {0} — starte Counterplay neu"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -450,5 +451,8 @@
     "preendofgame": "Spiel endet",
     "endofgame": "Spiel beendet",
     "reconnect": "Neu verbinden"
+  },
+  "rolePool": {
+    "title": "Champions für {0}"
   }
 }
