@@ -208,7 +208,6 @@ public partial class OverlayWindow : Window
         }
         Left = r.Right / dpiX;
         Top  = r.Top  / dpiY;
-        _lastClientRect = r;   // фолловеру нечего доклеивать
         LimitHeightToClient();
     }
 
@@ -234,28 +233,6 @@ public partial class OverlayWindow : Window
     private void AnchorIfNotMoved()
     {
         if (!_userMoved) AnchorToClient();
-    }
-
-    // Возврат после игры. Своё положение окна уважаем — но не когда оно налезло
-    // на клиент: так его никто не ставил, это старые координаты под прежнюю
-    // геометрию (в игре клиент меняет размер, а экран итогов — ещё раз).
-    private void AnchorBackToClient()
-    {
-        if (!_userMoved) { AnchorToClient(); return; }
-        if (!TryGetClientRect(out var r)) return;
-
-        double dpiX = 1, dpiY = 1;
-        if (System.Windows.PresentationSource.FromVisual(this)?.CompositionTarget is { } ct)
-        {
-            dpiX = ct.TransformToDevice.M11;
-            dpiY = ct.TransformToDevice.M22;
-        }
-        var w = ActualWidth  > 0 ? ActualWidth  : Width;
-        var h = ActualHeight > 0 ? ActualHeight : MinH;
-        double l = Left * dpiX, t = Top * dpiY, rr = (Left + w) * dpiX, b = (Top + h) * dpiY;
-
-        var overlaps = l < r.Right && rr > r.Left && t < r.Bottom && b > r.Top;
-        if (overlaps) AnchorToClient();
     }
 
     // ── Слежение за окном клиента LoL ─────────────────────────────────────
@@ -466,14 +443,6 @@ public partial class OverlayWindow : Window
         _inTray = false;
         if (_tray != null) _tray.Visible = false;
         Show();
-
-        // За время игры клиент мог переехать, сменить размер или пересоздать окно
-        // (экран конца игры), а оверлей вернулся бы на старое место — поверх него.
-        // Прикрепляемся заново, и ещё раз с задержкой: клиент доезжает не сразу.
-        AnchorBackToClient();
-        var settle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
-        settle.Tick += (_, _) => { settle.Stop(); AnchorBackToClient(); };
-        settle.Start();
     });
 
     private IntPtr Hwnd => new System.Windows.Interop.WindowInteropHelper(this).Handle;
