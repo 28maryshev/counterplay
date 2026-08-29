@@ -215,8 +215,16 @@ public partial class OverlayWindow : Window
     // Ready-экран растёт по контенту (SizeToContent.Height). Прокрутки внутри
     // нет — окно может быть выше клиента LoL, это нормально; ограничиваем его
     // только рабочей областью экрана, чтобы низ не ушёл под панель задач.
+    //
+    // Ограничение касается ТОЛЬКО авто-высоты. В драфте высоту задаёт человек, и
+    // потолок там мешал: окно упиралось в него при растягивании вниз.
     private void LimitHeightToClient()
     {
+        if (SizeToContent != SizeToContent.Height)
+        {
+            MaxHeight = double.PositiveInfinity;
+            return;
+        }
         var wa = SystemParameters.WorkArea;
         var max = wa.Bottom - Math.Max(wa.Top, Top) - 8;
         MaxHeight = Math.Max(MinH, max);
@@ -476,6 +484,7 @@ public partial class OverlayWindow : Window
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
         _userMoved = true; // ручной ресайз — фиксируем положение пользователя
+        MaxHeight  = double.PositiveInfinity;   // тянут вручную — потолок не мешаем
         SendMessage(Hwnd, 0x0112 /*WM_SYSCOMMAND*/, new IntPtr(0xF000 /*SC_SIZE*/ + (int)dir), IntPtr.Zero);
         e.Handled = true;
     }
@@ -1696,6 +1705,7 @@ public partial class OverlayWindow : Window
             _isFullMode = true;
             _settingSize = true;
             SizeToContent  = SizeToContent.Manual;
+            MaxHeight      = double.PositiveInfinity;
             Width          = w;
             Height         = h;
             MinWidth       = MinW;
@@ -2696,6 +2706,7 @@ public partial class OverlayWindow : Window
             var (w, h) = (_savedFullW, _savedFullH);
             _settingSize = true;
             SizeToContent = SizeToContent.Manual;
+            MaxHeight     = double.PositiveInfinity;
             MinWidth  = MinW;
             MinHeight = MinH;
             Width     = w;
