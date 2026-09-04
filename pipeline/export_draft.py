@@ -89,6 +89,11 @@ def main():
                    'updated': date.today().isoformat(),  # dateModified/lastmod для SEO
                    'base': base, 'matchup': mu, 'synergy': syn}, f, separators=(',', ':'))
     print('stats.json записан')
+    # Данные бандлятся в сборку сайта, поэтому порядок такой: сначала деплой,
+    # потом пинг IndexNow (Bing переобойдёт страницы за минуты, а на его индекс
+    # опирается поиск ChatGPT). Скрипт пинга сам не даст позвать робота раньше
+    # деплоя — сверяет патч на боевом сайте с этой выгрузкой.
+    print('Дальше: задеплоить сайт, затем в папке сайта — npm run indexnow')
 
     # champions.json: id → ключ/имена/роли/классы (Data Dragon en+ru).
     ver = json.load(urllib.request.urlopen(
