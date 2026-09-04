@@ -176,7 +176,9 @@
     "myTeam": "SEU TIME",
     "enemies": "INIMIGOS",
     "combos": "COMBOS DO TIME",
-    "enemyCombos": "COMBOS INIMIGOS"
+    "enemyCombos": "COMBOS INIMIGOS",
+    "damage": "Dano",
+    "trueDmg": "Puro {0}%"
   },
   "tip": {
     "pin": "Fixar na borda direita do cliente",
@@ -221,14 +223,14 @@
     },
     "orianna": {
       "a": "Bola em {0} antes do engage",
-      "b": "{0} joga a bola no seu engage"
+      "b": "{0} coloca a bola no seu engage"
     },
     "immortal": {
       "a": "Sua ult salva {0} no dive",
       "b": "A ult de {0} te salva no dive"
     },
     "enchanter": {
-      "a": "Você escuda e acelera o frágil {0}",
+      "a": "Você escuda e acelera {0}",
       "b": "{0} te escuda e acelera"
     },
     "hook": {
@@ -236,8 +238,8 @@
       "b": "{0} puxa, você explode o alvo"
     },
     "burst_pick": {
-      "a": "{0} prende o alvo, você explode",
-      "b": "Você prende o alvo, {0} explode"
+      "a": "{0} prende, você explode o alvo",
+      "b": "Você prende, {0} explode o alvo"
     },
     "isolate": {
       "a": "Você isola, {0} finaliza",
@@ -247,11 +249,11 @@
       "a": "Poke e cerco de longe com {0}"
     },
     "channel": {
-      "a": "O controle de {0} segura sua ult",
-      "b": "Seu controle segura a ult de {0}"
+      "a": "O CC de {0} segura o alvo para sua ult",
+      "b": "Seu CC segura o alvo para a ult de {0}"
     },
     "peel": {
-      "a": "Você protege o frágil {0}"
+      "a": "Você faz peel para {0}"
     },
     "frontline": {
       "a": "Você inicia, {0} causa dano de longe",

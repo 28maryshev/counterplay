@@ -14,7 +14,9 @@
     "myTeam": "TON ÉQUIPE",
     "enemies": "ENNEMIS",
     "combos": "COMBOS D'ÉQUIPE",
-    "enemyCombos": "COMBOS ENNEMIS"
+    "enemyCombos": "COMBOS ENNEMIS",
+    "damage": "Répartition",
+    "trueDmg": "Brut {0}%"
   },
   "tray": {
     "autostart": "Démarrer avec Windows",
@@ -86,7 +88,7 @@
   "pair": {
     "airborne": {
       "a": "Ton ult suit le knock-up de {0}",
-      "b": "{0} ult sur ton knock-up"
+      "b": "{0} ulte sur ton knock-up"
     },
     "orianna": {
       "a": "Balle sur {0} avant l'engage",
@@ -97,7 +99,7 @@
       "b": "L'ult de {0} te garde en vie en dive"
     },
     "enchanter": {
-      "a": "Tu protèges et accélères {0}",
+      "a": "Boucliers et vitesse pour {0}",
       "b": "{0} te protège et t'accélère"
     },
     "hook": {
@@ -109,8 +111,8 @@
       "b": "Tu bloques la cible, {0} la burst"
     },
     "isolate": {
-      "a": "Tu isoles, {0} achève",
-      "b": "{0} isole, tu achèves"
+      "a": "Tu isoles la cible, {0} l'achève",
+      "b": "{0} isole la cible, tu l'achèves"
     },
     "artillery": {
       "a": "Poke et siège à distance avec {0}"
@@ -120,11 +122,11 @@
       "b": "Ton CC tient la cible pour l'ult de {0}"
     },
     "peel": {
-      "a": "Tu peel pour {0}, fragile"
+      "a": "Tu peel pour {0}"
     },
     "frontline": {
-      "a": "Tu engages, {0} inflige des dégâts à distance",
-      "b": "{0} engage, tu infliges des dégâts à distance"
+      "a": "Tu engages, {0} tape à distance",
+      "b": "{0} engage, tu tapes à distance"
     },
     "double_engage": {
       "a": "Double engage avec {0}"

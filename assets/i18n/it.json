@@ -20,7 +20,9 @@
     "myTeam": "LA TUA SQUADRA",
     "enemies": "NEMICI",
     "combos": "COMBO DI SQUADRA",
-    "enemyCombos": "COMBO NEMICHE"
+    "enemyCombos": "COMBO NEMICHE",
+    "damage": "Danni",
+    "trueDmg": "Puro {0}%"
   },
   "ready": {
     "beta": "Counterplay migliora ogni giorno. Un bug o un'idea? Scrivici dal Supporto",
@@ -81,7 +83,7 @@
   },
   "pair": {
     "airborne": {
-      "a": "La tua ult segue lo knock-up di {0}",
+      "a": "La tua ult segue il knock-up di {0}",
       "b": "{0} ulta sul tuo knock-up"
     },
     "orianna": {
@@ -93,34 +95,34 @@
       "b": "L'ult di {0} ti salva nel dive"
     },
     "enchanter": {
-      "a": "Scudi e acceleri il fragile {0}",
+      "a": "Scudi e acceleri {0}",
       "b": "{0} ti scuda e ti accelera"
     },
     "hook": {
-      "a": "Tu agganci, {0} brucia il bersaglio",
-      "b": "{0} aggancia, tu bruci il bersaglio"
+      "a": "Tu agganci, {0} bursta il bersaglio",
+      "b": "{0} aggancia, tu bursti il bersaglio"
     },
     "burst_pick": {
-      "a": "{0} blocca il bersaglio, tu lo bruci",
-      "b": "Tu blocchi il bersaglio, {0} lo brucia"
+      "a": "{0} blocca il bersaglio, tu lo bursti",
+      "b": "Tu blocchi il bersaglio, {0} lo bursta"
     },
     "isolate": {
-      "a": "Tu isoli, {0} finisce",
-      "b": "{0} isola, tu finisci"
+      "a": "Tu isoli il bersaglio, {0} lo finisce",
+      "b": "{0} isola il bersaglio, tu lo finisci"
     },
     "artillery": {
       "a": "Poke e assedio da lontano con {0}"
     },
     "channel": {
-      "a": "Il cc di {0} tiene i bersagli per la tua ult",
-      "b": "Il tuo cc tiene i bersagli per l'ult di {0}"
+      "a": "Il cc di {0} blocca i bersagli per la tua ult",
+      "b": "Il tuo cc blocca i bersagli per l'ult di {0}"
     },
     "peel": {
-      "a": "Proteggi il fragile {0}"
+      "a": "Fai peel per {0}"
     },
     "frontline": {
-      "a": "Tu ingaggi, {0} danneggia da lontano",
-      "b": "{0} ingaggia, tu danneggi da lontano"
+      "a": "Tu ingaggi, {0} fa danno da lontano",
+      "b": "{0} ingaggia, tu fai danno da lontano"
     },
     "double_engage": {
       "a": "Doppio ingaggio con {0}"

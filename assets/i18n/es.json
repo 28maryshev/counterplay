@@ -30,7 +30,9 @@
     "myTeam": "TU EQUIPO",
     "enemies": "ENEMIGOS",
     "combos": "COMBOS DEL EQUIPO",
-    "enemyCombos": "COMBOS ENEMIGOS"
+    "enemyCombos": "COMBOS ENEMIGOS",
+    "damage": "Daño",
+    "trueDmg": "Puro {0}%"
   },
   "tip": {
     "pin": "Anclar al borde derecho del cliente",
@@ -70,19 +72,19 @@
   },
   "pair": {
     "airborne": {
-      "a": "Tu ulti sigue al derribo de {0}",
+      "a": "Tu ulti sigue el derribo de {0}",
       "b": "{0} ultea sobre tu derribo"
     },
     "orianna": {
       "a": "Bola en {0} antes del engage",
-      "b": "{0} lanza la bola en tu engage"
+      "b": "{0} pone la bola en tu engage"
     },
     "immortal": {
       "a": "Tu ulti salva a {0} en el dive",
       "b": "El ulti de {0} te salva en el dive"
     },
     "enchanter": {
-      "a": "Escudas y aceleras al frágil {0}",
+      "a": "Escudas y aceleras a {0}",
       "b": "{0} te escuda y te acelera"
     },
     "hook": {
@@ -90,8 +92,8 @@
       "b": "{0} engancha, tú revientas"
     },
     "burst_pick": {
-      "a": "{0} fija el objetivo, tú lo revientas",
-      "b": "Tú fijas el objetivo, {0} lo revienta"
+      "a": "{0} inmoviliza el objetivo, tú lo revientas",
+      "b": "Tú inmovilizas el objetivo, {0} lo revienta"
     },
     "isolate": {
       "a": "Tú aíslas, {0} remata",
@@ -101,15 +103,15 @@
       "a": "Poke y asedio a distancia con {0}"
     },
     "channel": {
-      "a": "El control de {0} sostiene tu ulti",
-      "b": "Tu control sostiene el ulti de {0}"
+      "a": "El CC de {0} retiene al rival para tu ulti",
+      "b": "Tu CC retiene al rival para el ulti de {0}"
     },
     "peel": {
-      "a": "Proteges al frágil {0}"
+      "a": "Le haces peel a {0}"
     },
     "frontline": {
-      "a": "Tú inicias, {0} daña desde lejos",
-      "b": "{0} inicia, tú dañas desde lejos"
+      "a": "Tú inicias, {0} hace daño desde lejos",
+      "b": "{0} inicia, tú haces daño desde lejos"
     },
     "double_engage": {
       "a": "Doble engage con {0}"

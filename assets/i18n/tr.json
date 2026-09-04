@@ -133,7 +133,9 @@
     "myTeam": "TAKIMIN",
     "enemies": "DÜŞMANLAR",
     "combos": "TAKIM KOMBOLARI",
-    "enemyCombos": "DÜŞMAN KOMBOLARI"
+    "enemyCombos": "DÜŞMAN KOMBOLARI",
+    "damage": "Hasar dağılımı",
+    "trueDmg": "Saf {0}%"
   },
   "tip": {
     "pin": "İstemcinin sağ kenarına sabitle",
@@ -181,16 +183,16 @@
       "b": "{0} topu senin engage'ine atar"
     },
     "immortal": {
-      "a": "Ultin dalışta {0} karakterini hayatta tutar",
+      "a": "Ultin sayesinde {0} dalışta ölmez",
       "b": "{0} ultisi dalışta seni hayatta tutar"
     },
     "enchanter": {
-      "a": "Kırılgan {0} için kalkan ve hız",
+      "a": "Kırılgan {0} için kalkan ve hız verirsin",
       "b": "{0} sana kalkan ve hız verir"
     },
     "hook": {
-      "a": "Sen çengel atarsın, {0} patlatır",
-      "b": "{0} çengel atar, sen patlatırsın"
+      "a": "Sen hook atarsın, {0} patlatır",
+      "b": "{0} hook atar, sen patlatırsın"
     },
     "burst_pick": {
       "a": "{0} hedefi kilitler, sen patlatırsın",
@@ -201,18 +203,18 @@
       "b": "{0} izole eder, sen bitirirsin"
     },
     "artillery": {
-      "a": "{0} ile uzaktan poke ve kuşatma"
+      "a": "{0} ile uzaktan poke ve siege"
     },
     "channel": {
-      "a": "{0} kontrolü hedefi ultin için tutar",
-      "b": "Senin kontrolün {0} ultisi için tutar"
+      "a": "{0} cc'si hedefi ultin için tutar",
+      "b": "Senin cc'n hedefi {0} ultisi için tutar"
     },
     "peel": {
-      "a": "Kırılgan {0} karakterini korursun"
+      "a": "Kırılgan {0} için peel yaparsın"
     },
     "frontline": {
-      "a": "Sen başlatırsın, {0} uzaktan vurur",
-      "b": "{0} başlatır, sen uzaktan vurursun"
+      "a": "Sen engage alırsın, {0} uzaktan vurur",
+      "b": "{0} engage alır, sen uzaktan vurursun"
     },
     "double_engage": {
       "a": "{0} ile çifte engage"

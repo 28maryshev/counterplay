@@ -176,7 +176,9 @@
     "myTeam": "DEIN TEAM",
     "enemies": "GEGNER",
     "combos": "TEAM-COMBOS",
-    "enemyCombos": "GEGNER-COMBOS"
+    "enemyCombos": "GEGNER-COMBOS",
+    "damage": "Schadensmix",
+    "trueDmg": "Absolut {0}%"
   },
   "tip": {
     "pin": "Am rechten Rand des Clients anheften",
@@ -225,19 +227,19 @@
     },
     "immortal": {
       "a": "Dein Ult hält {0} im Dive am Leben",
-      "b": "{0}s Ult hält dich im Dive am Leben"
+      "b": "Das Ult von {0} hält dich im Dive am Leben"
     },
     "enchanter": {
       "a": "Du schützt und beschleunigst {0}",
       "b": "{0} schützt und beschleunigt dich"
     },
     "hook": {
-      "a": "Du hakst, {0} bursted das Ziel",
-      "b": "{0} hakt, du burstest das Ziel"
+      "a": "Du hookst, {0} burstet das Ziel",
+      "b": "{0} hookt, du burstest das Ziel"
     },
     "burst_pick": {
-      "a": "{0} hält das Ziel, du burstest",
-      "b": "Du hältst das Ziel, {0} bursted"
+      "a": "{0} hält das Ziel fest, du burstest",
+      "b": "Du hältst das Ziel fest, {0} burstet"
     },
     "isolate": {
       "a": "Du isolierst, {0} macht den Kill",
@@ -247,15 +249,15 @@
       "a": "Poke und Belagerung mit {0}"
     },
     "channel": {
-      "a": "{0}s CC hält Ziele für deinen Ult",
-      "b": "Dein CC hält Ziele für {0}s Ult"
+      "a": "Das CC von {0} hält Ziele für dein Ult",
+      "b": "Dein CC hält Ziele für das Ult von {0}"
     },
     "peel": {
-      "a": "Du peelst für den fragilen {0}"
+      "a": "Du peelst für {0}"
     },
     "frontline": {
-      "a": "Du startest, {0} macht Schaden aus Distanz",
-      "b": "{0} startet, du machst Schaden aus Distanz"
+      "a": "Du gehst rein, {0} macht Schaden aus Distanz",
+      "b": "{0} geht rein, du machst Schaden aus Distanz"
     },
     "double_engage": {
       "a": "Doppeltes Engage mit {0}"

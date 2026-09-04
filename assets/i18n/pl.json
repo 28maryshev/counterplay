@@ -20,7 +20,9 @@
     "myTeam": "TWOJA DRUŻYNA",
     "enemies": "WROGOWIE",
     "combos": "COMBOSY DRUŻYNY",
-    "enemyCombos": "COMBOSY WROGA"
+    "enemyCombos": "COMBOSY WROGA",
+    "damage": "Obrażenia",
+    "trueDmg": "Nieusuwalne {0}%"
   },
   "ready": {
     "beta": "Counterplay staje się lepszy każdego dnia. Błąd lub pomysł? Napisz przez Wsparcie",
@@ -81,20 +83,20 @@
   },
   "pair": {
     "airborne": {
-      "a": "Twoja ulti po podbiciu od {0}",
-      "b": "{0} ultuje w twoje podbicie"
+      "a": "{0} podrzuca, ty dobijasz ulti",
+      "b": "{0} ultuje w twój podrzut"
     },
     "orianna": {
-      "a": "Kula na {0} przed szarżą",
-      "b": "{0} rzuca kulę na twoją szarżę"
+      "a": "Kula na sojusznika {0} przed inicjacją",
+      "b": "{0} rzuca kulę na twoją inicjację"
     },
     "immortal": {
-      "a": "Twoja ulti ratuje {0} w dive'ie",
-      "b": "Ulti {0} ratuje ciebie w dive'ie"
+      "a": "{0} przeżywa dive'a dzięki twojej ulti",
+      "b": "{0} swoją ulti ratuje cię w dive'ie"
     },
     "enchanter": {
-      "a": "Tarcze i przyspieszenie dla kruchego {0}",
-      "b": "{0} osłania i przyspiesza ciebie"
+      "a": "Tarcze i przyspieszenie dla sojusznika {0}",
+      "b": "{0} osłania cię i przyspiesza"
     },
     "hook": {
       "a": "Ty hakujesz, {0} dobija cel",
@@ -109,21 +111,21 @@
       "b": "{0} izoluje, ty kończysz"
     },
     "artillery": {
-      "a": "Poke i oblężenie z dystansu z {0}"
+      "a": "Poke i oblężenie z sojusznikiem {0}"
     },
     "channel": {
-      "a": "CC od {0} trzyma cele pod twoją ulti",
-      "b": "Twoje CC trzyma cele pod ulti {0}"
+      "a": "{0} trzyma cele w cc, ty ultujesz",
+      "b": "Twoje cc trzyma cele, {0} ultuje"
     },
     "peel": {
-      "a": "Osłaniasz kruchego {0}"
+      "a": "Osłaniasz kruchego sojusznika {0}"
     },
     "frontline": {
-      "a": "Ty zaczynasz, {0} bije z dystansu",
-      "b": "{0} zaczyna, ty bijesz z dystansu"
+      "a": "Ty inicjujesz, {0} bije z dystansu",
+      "b": "{0} inicjuje, ty bijesz z dystansu"
     },
     "double_engage": {
-      "a": "Podwójna szarża z {0}"
+      "a": "Podwójna inicjacja: ty i {0}"
     }
   },
   "combo": {

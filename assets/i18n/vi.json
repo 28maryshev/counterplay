@@ -20,7 +20,9 @@
     "myTeam": "ĐỘI CỦA BẠN",
     "enemies": "ĐỊCH",
     "combos": "COMBO ĐỘI",
-    "enemyCombos": "COMBO ĐỊCH"
+    "enemyCombos": "COMBO ĐỊCH",
+    "damage": "Sát thương",
+    "trueDmg": "Chuẩn {0}%"
   },
   "ready": {
     "beta": "Counterplay cải thiện mỗi ngày. Thấy lỗi hay có ý tưởng? Nhắn qua Hỗ trợ",
@@ -86,15 +88,15 @@
     },
     "orianna": {
       "a": "Đặt cầu lên {0} trước khi lao vào",
-      "b": "{0} đặt cầu lên pha lao vào của bạn"
+      "b": "{0} đặt cầu lên bạn trước pha lao vào"
     },
     "immortal": {
       "a": "Chiêu cuối của bạn cứu {0} khi lao vào",
       "b": "Chiêu cuối của {0} cứu bạn khi lao vào"
     },
     "enchanter": {
-      "a": "Bạn khiên và tăng tốc cho {0} mỏng manh",
-      "b": "{0} khiên và tăng tốc cho bạn"
+      "a": "Bạn tạo khiên và tăng tốc cho {0} mỏng máu",
+      "b": "{0} tạo khiên và tăng tốc cho bạn"
     },
     "hook": {
       "a": "Bạn móc, {0} dứt điểm",
@@ -116,7 +118,7 @@
       "b": "Khống chế của bạn giữ mục tiêu cho chiêu cuối của {0}"
     },
     "peel": {
-      "a": "Bạn bảo vệ {0} mỏng manh"
+      "a": "Bạn bảo vệ {0} mỏng máu"
     },
     "frontline": {
       "a": "Bạn mở giao tranh, {0} gây sát thương từ xa",
