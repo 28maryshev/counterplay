@@ -619,23 +619,39 @@ class Program
     {
         _ = Task.Run(async () =>
         {
+            // Первый заход быстрый: программа с автозапуском живёт в трее сутками,
+            // и ждать четыре часа, чтобы сказать о новой версии, незачем.
+            var delay = TimeSpan.FromMinutes(10);
             while (!ct.IsCancellationRequested)
             {
-                try { await Task.Delay(TimeSpan.FromHours(4), ct); }
+                try { await Task.Delay(delay, ct); }
                 catch (OperationCanceledException) { return; }
+                delay = TimeSpan.FromHours(1);
+
                 try
                 {
                     var mgr = new UpdateManager(UpdateSource);
                     if (!mgr.IsInstalled) return;
+
+                    // Признак «скачано и ждёт перезапуска» спрашиваем У VELOPACK, а не
+                    // помним по факту своей же загрузки. Раньше уведомление показывалось
+                    // ровно один раз — сразу после скачивания; если тот заход падал
+                    // (сеть, лимит GitHub) или обновление скачал прошлый запуск, человек
+                    // не узнавал о новой версии никогда.
+                    if (mgr.UpdatePendingRestart is { } staged)
+                    {
+                        overlay.ShowUpdateReady(staged.Version?.ToString() ?? "");
+                        continue;   // качать нечего, ждём перезапуска
+                    }
+
                     var info = await mgr.CheckForUpdatesAsync();
                     if (info == null) continue;
                     await mgr.DownloadUpdatesAsync(info);
                     // Применить при выходе, без перезапуска на ходу.
                     mgr.WaitExitThenApplyUpdates(info, silent: true, restart: false);
-                    // Обновление лежит готовым — просим перезапустить программу.
                     overlay.ShowUpdateReady(info.TargetFullRelease?.Version.ToString() ?? "");
                 }
-                catch { /* офлайн / лимит GitHub — попробуем через 4 часа */ }
+                catch { /* офлайн / лимит GitHub — попробуем на следующем круге */ }
             }
         }, ct);
     }
@@ -648,6 +664,15 @@ class Program
         {
             var mgr = new UpdateManager(UpdateSource);
             if (!mgr.IsInstalled) return; // запущено из dev-сборки — не обновляемся
+
+            // Обновление уже подготовлено прошлым запуском, но программу с тех пор
+            // не закрывали — применяем сразу, оно того и ждёт.
+            if (mgr.UpdatePendingRestart is { } staged)
+            {
+                overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
+                mgr.ApplyUpdatesAndRestart(staged);
+                return;
+            }
 
             overlay.ShowStatus(Loc.T("status.checkingUpdates"));
             var info = await mgr.CheckForUpdatesAsync();
