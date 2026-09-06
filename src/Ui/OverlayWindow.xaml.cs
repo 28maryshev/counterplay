@@ -245,6 +245,9 @@ public partial class OverlayWindow : Window
     private DispatcherTimer? _followTimer;
     private RECT _lastClientRect;
     private bool _followHidden; // в трей убрал именно фолловер (клиент свёрнут/закрыт)
+    // Идёт драфт, а подбор выключен настройкой: окно должно остаться в трее.
+    // Без этого фолловер поднимал бы его обратно на следующем же тике.
+    private bool _draftSuppressed;
     private bool _clientSeen;   // клиент хоть раз был найден в этой сессии
 
     // Находит окно клиента (RCLIENT) даже свёрнутым — без фильтра по размеру.
@@ -309,6 +312,7 @@ public partial class OverlayWindow : Window
         {
             // Возвращаем именно то, что прятал фолловер, и фиксируем сбоку.
             _followHidden = false;
+            if (_draftSuppressed) return;   // подбор выключен и идёт драфт — остаёмся в трее
             RestoreFromTray();   // не развернёт, если свёрнуто вручную крестиком
             AnchorIfNotMoved();  // приклеит сбоку, если оверлей не двигали руками
             return;
@@ -319,7 +323,7 @@ public partial class OverlayWindow : Window
         // возвращаем окно. Условие _lcuReady КРИТИЧНО: без него при автозапуске окно
         // вылазило бы из трея с экраном «ожидание клиента», едва появится окно клиента,
         // хотя LCU ещё не подключён. Не трогаем во время игры и при ручном скрытии.
-        if (_inTray && !_userHidden && !_gameActive && _lcuReady)
+        if (_inTray && !_userHidden && !_gameActive && !_draftSuppressed && _lcuReady)
         {
             RestoreFromTray();
             AnchorIfNotMoved();
@@ -1693,8 +1697,12 @@ public partial class OverlayWindow : Window
         RankCard.Visibility       = V(s.ReadyRank);
         Last5Panel.Visibility     = V(s.ReadyLast5);
         WinrateRow.Visibility     = V(s.ReadyWinrate);
-        PoolTitleRow.Visibility   = V(s.ReadyPool);
-        PoolButtonsRow.Visibility = V(s.ReadyPool);
+        // Пул нужен только подбору: выключен подбор — вместо кнопок объяснение,
+        // почему их нет и где включить обратно.
+        var poolUseful = s.ReadyPool && s.DraftEnabled;
+        PoolTitleRow.Visibility   = V(poolUseful);
+        PoolButtonsRow.Visibility = V(poolUseful);
+        DraftOffNotice.Visibility = V(!s.DraftEnabled);
         ReadyStatusText.Visibility = V(s.ReadyPhase);
         BetaCard.Visibility       = V(s.ReadyBeta);
         // Полосу чемпионов гасим только принудительно: сама она появляется
@@ -2959,7 +2967,21 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             if (engine != null) _engine = engine;
-            if (draft is null) _enemyRoleOverrides.Clear(); // конец драфта — сброс меток
+            // Подбор выключен настройкой: в драфте прячемся в трей и ничего не
+            // считаем. Программа остаётся тем, ради чего её оставили, —
+            // информационной панелью между играми.
+            if (!AppSettings.Current.DraftEnabled && draft is not null)
+            {
+                _lastDraft = null; _lastRawDraft = null; _lastRecs = null;
+                _draftSuppressed = true;    // фолловеру: не возвращать окно до конца драфта
+                if (!_inTray) HideToTray();
+                return;
+            }
+            if (draft is null)
+            {
+                _enemyRoleOverrides.Clear();   // конец драфта — сброс меток
+                _draftSuppressed = false;      // …и запрет на авто-показ снят
+            }
             _lastRawDraft = draft;
             var eff = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
             _lastDraft = eff;

@@ -655,6 +655,17 @@
                       ClipToBounds="True"/>
             </Grid>
 
+            <!-- Подбор выключен в настройках: занимает место блока пула -->
+            <Border x:Name="DraftOffNotice" Visibility="Collapsed"
+                    Margin="0,12,0,0" Width="282" CornerRadius="7"
+                    Background="#14FFFFFF" BorderBrush="#3336D6E7" BorderThickness="1"
+                    Padding="12,10">
+              <TextBlock Text="{loc:T ready.draftOff}"
+                         FontFamily="{StaticResource UiFont}" FontSize="12"
+                         Foreground="#C3D3E0" TextWrapping="Wrap" LineHeight="16"
+                         TextAlignment="Center"/>
+            </Border>
+
             <!-- Пул чемпионов: заголовок + имя выбранной связки рядом -->
             <StackPanel x:Name="PoolTitleRow" Orientation="Horizontal" Margin="0,12,0,6" HorizontalAlignment="Left">
               <TextBlock Text="{loc:T pool.sectionTitle}"

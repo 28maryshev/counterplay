@@ -134,6 +134,8 @@ sealed class SettingsWindow : Window
             s.ReadyBeta,   v => { s.ReadyBeta = v;   MarkDirty(); }));
 
         body.Children.Add(Section(Loc.T("settings.draft")));
+        body.Children.Add(Row(Loc.T("settings.draftEnabled"), Loc.T("settings.draftEnabledHint"),
+            s.DraftEnabled, v => { s.DraftEnabled = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftRolePool"), Loc.T("settings.draftRolePoolHint"),
             s.DraftRolePool, v => { s.DraftRolePool = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftReasons"),  Loc.T("settings.draftReasonsHint"),

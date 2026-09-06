@@ -64,6 +64,10 @@ public sealed class AppSettings
     public double FontScale { get; set; } = 1.0;
 
     // ── Драфт ───────────────────────────────────────────────────────────────
+    /// Подбор целиком. Выключен — в драфте окно уходит в трей, а программа
+    /// остаётся информационной панелью: ранг, форма, чемпионы за месяц.
+    public bool DraftEnabled    { get; set; } = true;
+
     public bool DraftRolePool   { get; set; } = true;  // все чемпионы роли до пика
     public bool DraftReasons    { get; set; } = true;  // текстовые доводы в карточках
     public bool DraftMetrics    { get; set; } = true;  // полоски показателей

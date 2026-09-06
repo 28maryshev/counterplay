@@ -54,7 +54,8 @@
     "f2body": " Front-to-back ✊ beats dive ✌, dive beats pick-poke ✋, and pick-poke beats front-to-back. Pick a comp that counters the enemy.",
     "f3head": "Tuned to you.",
     "f3body": " Factors in your mastery — comfort champions first, no blind counter-picks.",
-    "updateReady": "New version {0} — restart Counterplay"
+    "updateReady": "New version {0} — restart Counterplay",
+    "draftOff": "Draft assistant is off — the overlay stays hidden during champion select. Turn it back on in Settings."
   },
   "tip": {
     "pin": "Pin to the right edge of the client",
@@ -535,7 +536,9 @@
     "inGameHint": "Off by default: a transparent always-on-top window can block entering the game. Hints are shown in champion select only, as Riot requires",
     "apply": "Apply",
     "applyHint": "Changes take effect when you press Apply. Close the window without it and they are dropped.",
-    "language": "Language"
+    "language": "Language",
+    "draftEnabled": "Draft assistant",
+    "draftEnabledHint": "Off: the overlay hides to tray during champion select and only the profile panel stays"
   },
   "chart": {
     "noRating": "Play a few ranked games — the rank chart fills in as LP changes."
