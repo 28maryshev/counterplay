@@ -2627,24 +2627,45 @@ public partial class OverlayWindow : Window
         // выбираем по высоте полосы: помещается дивизион — подписываем дивизионы,
         // не помещается — только тиры, а если и им тесно — через один.
         double divH = chartH / Math.Max(1, (max - min) / 100.0);
-        int step = divH >= 12 ? 100 : divH * 4 >= 12 ? 400 : 800;
+
+        // Подписи ставим ПО ГРАНИЦАМ САМИХ ТИРОВ, а не от нижнего края графика.
+        // Иначе при шаге в тир (400 LP) буквы отсчитывались от произвольного
+        // «min», кратного сотне, и уезжали относительно цветных полос: на широком
+        // диапазоне «G» оказывалась над серебряной полосой.
+        var marks = new List<(double Lp, string Text, Color Color)>();
+        if (divH >= 12)
+        {
+            // Помещается дивизион — подписываем каждый: «EIV», «EIII», …
+            for (int line = min; line < max; line += 100)
+            {
+                var t = BandAt(line);
+                marks.Add((line + 50,
+                    line >= 2800 ? "M" : $"{t.Name[0]}{new[] { "IV", "III", "II", "I" }[(line % 400) / 100]}",
+                    t.Color));
+            }
+        }
+        else
+        {
+            // Тесно — только тиры, буквой по центру ВИДИМОЙ части своей полосы.
+            for (int tier = min / 400 * 400; tier < max; tier += 400)
+            {
+                double from = Math.Max(min, tier), to = Math.Min(max, tier + 400);
+                if (to - from < 60) continue;        // от полосы видна одна щель
+                var t = BandAt(tier);
+                marks.Add(((from + to) / 2, tier >= 2800 ? "M" : t.Name[0].ToString(), t.Color));
+            }
+        }
 
         double lastLabelY = double.MaxValue;
-        for (int line = min; line < max; line += step)
+        foreach (var (lp, text, color) in marks)
         {
-            var tier = BandAt(line);
-            var y = Y(line + step / 2.0);
-            if (lastLabelY - y < 11) continue;      // соседняя подпись слишком близко
-
-            // На шаге в дивизион — «EIV», крупнее — только буква тира.
-            var text = line >= 2800 ? "M"
-                : step == 100 ? $"{tier.Name[0]}{new[] { "IV", "III", "II", "I" }[(line % 400) / 100]}"
-                : tier.Name[0].ToString();
+            var y = Y(lp);
+            if (lastLabelY - y < 11) continue;       // соседняя подпись слишком близко
             var lab = new TextBlock
             {
                 Text = text, FontFamily = (FontFamily)FindResource("UiFont"),
                 FontSize = 8, FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(tier.Color), Opacity = 0.95
+                Foreground = new SolidColorBrush(color), Opacity = 0.95
             };
             lab.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(lab, Math.Max(0, axisW - 4 - lab.DesiredSize.Width));
