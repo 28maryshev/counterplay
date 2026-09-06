@@ -79,6 +79,21 @@ public sealed class AppSettings
     public bool DraftSideIcons  { get; set; } = true;  // синергии у своих / контры у врагов
     public bool DraftRunes      { get; set; } = true;  // панель рун и сборки после пика
 
+    // ── Окно в драфте ───────────────────────────────────────────────────────
+    /// Куда ставить оверлей, когда начинается драфт:
+    ///   "right"    — справа от клиента (как было);
+    ///   "cover"    — точно поверх окна клиента;
+    ///   "allies"   — поверх, но левая часть клиента (наши пики) видна;
+    ///   "center"   — поверх, но центр с сеткой чемпионов виден;
+    ///   "remember" — там, где окно стояло в конце прошлого драфта.
+    public string DraftPlacement { get; set; } = "right";
+
+    /// Запомненное положение окна (для "remember"). 0 = ещё не запоминали.
+    public double DraftLeft   { get; set; }
+    public double DraftTop    { get; set; }
+    public double DraftWidth  { get; set; }
+    public double DraftHeight { get; set; }
+
     // ── Баны ────────────────────────────────────────────────────────────────
     public bool BansTierList { get; set; } = true;     // тир-лист под списком банов
 
@@ -109,6 +124,21 @@ public sealed class AppSettings
             catch { /* битый файл — вернёмся к значениям по умолчанию */ }
             return _current ??= new AppSettings();
         }
+    }
+
+    /// Сохранить молча — без перерисовки оверлея. Для служебных записей вроде
+    /// запомненного положения окна: они не меняют вид, а перерисовка посреди
+    /// драфта дорога и заметна.
+    public static void SaveQuiet()
+    {
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
+            var tmp = Path_ + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(Current, JsonOpts));
+            File.Move(tmp, Path_, overwrite: true);
+        }
+        catch { /* не критично */ }
     }
 
     /// Сохранить и сообщить окну, что пора перерисоваться.

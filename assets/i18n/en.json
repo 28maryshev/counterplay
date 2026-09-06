@@ -538,7 +538,19 @@
     "applyHint": "Changes take effect when you press Apply. Close the window without it and they are dropped.",
     "language": "Language",
     "draftEnabled": "Draft assistant",
-    "draftEnabledHint": "Off: the overlay hides to tray during champion select and only the profile panel stays"
+    "draftEnabledHint": "Off: the overlay hides to tray during champion select and only the profile panel stays",
+    "placement": "Overlay in champion select",
+    "placementHint": "Where the window goes when a draft starts",
+    "placeRight": "Beside the client",
+    "placeRightHint": "To the right of the client window — the default",
+    "placeCover": "Over the client",
+    "placeCoverHint": "Exactly on top of the client window",
+    "placeAllies": "Over the client, allies visible",
+    "placeAlliesHint": "Leaves the left third free so you can see your team's picks",
+    "placeCenter": "Over the client, champion grid visible",
+    "placeCenterHint": "Leaves the left half free — picks and the champion grid stay readable",
+    "placeRemember": "Where I left it",
+    "placeRememberHint": "Reuses the position from the end of the last draft"
   },
   "chart": {
     "noRating": "Play a few ranked games — the rank chart fills in as LP changes."

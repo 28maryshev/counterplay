@@ -225,6 +225,15 @@ sealed class SettingsWindow : Window
         body.Children.Add(Row(Loc.T("settings.draftMirror"),  Loc.T("settings.draftMirrorHint"),
             s.DraftMirror,  v => { s.DraftMirror = v;  MarkDirty(); }));
 
+        body.Children.Add(Section(Loc.T("settings.placement")));
+        body.Children.Add(ChoiceList(Loc.T("settings.placementHint"),
+            [("right",    Loc.T("settings.placeRight"),    Loc.T("settings.placeRightHint")),
+             ("cover",    Loc.T("settings.placeCover"),    Loc.T("settings.placeCoverHint")),
+             ("allies",   Loc.T("settings.placeAllies"),   Loc.T("settings.placeAlliesHint")),
+             ("center",   Loc.T("settings.placeCenter"),   Loc.T("settings.placeCenterHint")),
+             ("remember", Loc.T("settings.placeRemember"), Loc.T("settings.placeRememberHint"))],
+            s.DraftPlacement, v => { s.DraftPlacement = v; MarkDirty(); }));
+
         body.Children.Add(Section(Loc.T("settings.bans")));
         body.Children.Add(Row(Loc.T("settings.bansTier"), Loc.T("settings.bansTierHint"),
             s.BansTierList, v => { s.BansTierList = v; MarkDirty(); }));
@@ -368,6 +377,66 @@ sealed class SettingsWindow : Window
         var state = value;
         track.MouseLeftButtonDown += (_, _) => { state = !state; Paint(state); onSet(state); };
         return track;
+    }
+
+    /// Выбор из многих вариантов — списком: у каждого своё пояснение, и в строку
+    /// они бы не поместились.
+    private static UIElement ChoiceList(
+        string title, (string Key, string Label, string Hint)[] options,
+        string value, Action<string> onSet)
+    {
+        var wrap = new StackPanel { Margin = new Thickness(0, 7, 0, 7) };
+        wrap.Children.Add(new TextBlock
+        {
+            Text = title, FontFamily = Font("UiFont"), FontSize = 13,
+            Foreground = new SolidColorBrush(Text), Margin = new Thickness(0, 0, 0, 6)
+        });
+
+        var rows = new List<Border>();
+        var state = value;
+
+        void Paint()
+        {
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var on = options[i].Key == state;
+                rows[i].Background = new SolidColorBrush(on
+                    ? Color.FromArgb(0x2A, 0x36, 0xD6, 0xE7)
+                    : Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF));
+                rows[i].BorderBrush = new SolidColorBrush(on
+                    ? Color.FromRgb(0x36, 0xD6, 0xE7)
+                    : Color.FromArgb(0x30, 0x8A, 0xA0, 0xB2));
+            }
+        }
+
+        foreach (var (key, label, hint) in options)
+        {
+            var texts = new StackPanel();
+            texts.Children.Add(new TextBlock
+            {
+                Text = label, FontFamily = Font("UiFont"), FontSize = 12.5,
+                FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Text)
+            });
+            if (hint.Length > 0)
+                texts.Children.Add(new TextBlock
+                {
+                    Text = hint, FontFamily = Font("UiFont"), FontSize = 11,
+                    Foreground = new SolidColorBrush(Mute),
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0)
+                });
+
+            var row = new Border
+            {
+                CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
+                Padding = new Thickness(11, 8, 11, 8), Margin = new Thickness(0, 0, 0, 5),
+                Cursor = Cursors.Hand, Child = texts
+            };
+            row.MouseLeftButtonDown += (_, _) => { state = key; Paint(); onSet(key); };
+            rows.Add(row);
+            wrap.Children.Add(row);
+        }
+        Paint();
+        return wrap;
     }
 
     /// Выбор из нескольких значений — сегментированная кнопка.

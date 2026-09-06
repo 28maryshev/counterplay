@@ -230,9 +230,80 @@ public partial class OverlayWindow : Window
         MaxHeight = Math.Max(MinH, max);
     }
 
+    // ── Раскладка окна на время драфта ────────────────────────────────────
+    // Клиент у всех стоит по-разному: если он посреди экрана, оверлей справа от
+    // него наполовину уезжает за край монитора, и окно приходится таскать руками
+    // каждый драфт. Поэтому на старте драфта ставим его по выбранному правилу.
+
+    private bool _placementApplied;   // раскладка этого драфта уже применена
+
+    /// Запомнить положение окна — вызывается перед уходом в трей в конце драфта.
+    private void RememberDraftPlacement()
+    {
+        if (AppSettings.Current.DraftPlacement != "remember" || Width <= 0 || Height <= 0) return;
+        var s = AppSettings.Current;
+        s.DraftLeft = Left; s.DraftTop = Top;
+        s.DraftWidth = Width; s.DraftHeight = Height;
+        AppSettings.SaveQuiet();
+    }
+
+    /// Поставить окно по правилу из настроек. Ничего не делает, если окно уже
+    /// подвинули руками в этом же драфте.
+    private void ApplyDraftPlacement()
+    {
+        if (_placementApplied) return;
+        var mode = AppSettings.Current.DraftPlacement;
+        if (mode == "right") { _placementApplied = true; AnchorIfNotMoved(); return; }
+
+        if (mode == "remember")
+        {
+            var s = AppSettings.Current;
+            if (s.DraftWidth > 100 && s.DraftHeight > 100)
+            {
+                Left = s.DraftLeft; Top = s.DraftTop;
+                Width = s.DraftWidth; Height = s.DraftHeight;
+            }
+            _placementApplied = true;
+            return;
+        }
+
+        if (!TryGetClientRect(out var r)) return;   // клиента не видно — попробуем позже
+
+        double dpiX = 1, dpiY = 1;
+        if (System.Windows.PresentationSource.FromVisual(this)?.CompositionTarget is { } ct)
+        {
+            dpiX = ct.TransformToDevice.M11;
+            dpiY = ct.TransformToDevice.M22;
+        }
+        double cl = r.Left / dpiX, cw = (r.Right - r.Left) / dpiX;
+        double cTop = r.Top / dpiY, chh = (r.Bottom - r.Top) / dpiY;
+
+        // Доля ширины клиента, которую оставляем открытой слева:
+        //   cover  — ничего (окно ровно поверх клиента);
+        //   allies — треть (колонка своих пиков);
+        //   center — больше половины (наши пики + сетка чемпионов).
+        double keepLeft = mode switch { "allies" => 0.30, "center" => 0.55, _ => 0.0 };
+
+        var w = Math.Max(MinW, cw * (1 - keepLeft));
+        Left   = cl + cw - w;
+        Top    = cTop;
+        Width  = w;
+        Height = Math.Max(MinH, chh);
+        MaxHeight = double.PositiveInfinity;
+        _placementApplied = true;
+    }
+
     // Привязка только при появлении и пока пользователь не двигал окно сам.
     private void AnchorIfNotMoved()
     {
+        // Во время драфта положением распоряжается правило раскладки: боковая
+        // привязка утащила бы окно вбок при первом же сдвиге клиента.
+        if (_lastDraft is not null && AppSettings.Current.DraftPlacement != "right")
+        {
+            _placementApplied = false;   // клиент переехал — пересчитываем
+            ApplyDraftPlacement();
+            return;
+        }
         if (!_userMoved) AnchorToClient();
     }
 
@@ -341,7 +412,7 @@ public partial class OverlayWindow : Window
                 r.Right != _lastClientRect.Right || r.Bottom != _lastClientRect.Bottom)
             {
                 _lastClientRect = r;
-                AnchorToClient();
+                AnchorIfNotMoved();   // в драфте — по правилу раскладки, иначе сбоку
             }
         }
     }
@@ -447,6 +518,9 @@ public partial class OverlayWindow : Window
     /// автоматически (только по клику в трее). Вызывается из фонового потока тоже.
     public void HideToTray(bool userInitiated = false) => Dispatcher.InvokeAsync(() =>
     {
+        // Уходим в трей в конце драфта (за 5 секунд до игры) — самое время
+        // запомнить, где человек оставил окно.
+        if (_lastDraft is not null) RememberDraftPlacement();
         EnsureTray();
         if (userInitiated) _userHidden = true;
         if (_inTray) return;
@@ -2988,7 +3062,9 @@ public partial class OverlayWindow : Window
             {
                 _enemyRoleOverrides.Clear();   // конец драфта — сброс меток
                 _draftSuppressed = false;      // …и запрет на авто-показ снят
+                _placementApplied = false;     // следующий драфт снова расставит окно
             }
+            else ApplyDraftPlacement();
             _lastRawDraft = draft;
             var eff = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
             _lastDraft = eff;
