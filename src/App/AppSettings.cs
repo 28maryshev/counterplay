@@ -79,9 +79,13 @@ public sealed class AppSettings
     public bool BansTierList { get; set; } = true;     // тир-лист под списком банов
 
     // ── Хранение ────────────────────────────────────────────────────────────
+    // ОТДЕЛЬНЫЙ файл, не settings.json: там живёт свободный key-value стор
+    // (язык, автозапуск), который пишется как JsonObject. Сериализация нашего
+    // класса в тот же файл затирала бы соседние ключи — язык слетал бы при
+    // первом же изменении настроек интерфейса.
     private static string Path_ => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "settings.json");
+        "Counterplay", "ui.json");
 
     private static readonly JsonSerializerOptions JsonOpts = new()
         { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -109,7 +113,12 @@ public sealed class AppSettings
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
-            File.WriteAllText(Path_, JsonSerializer.Serialize(Current, JsonOpts));
+            // Пишем во временный файл и подменяем: обрыв на середине записи
+            // (выключили питание, убили процесс) не оставит обрезанный JSON,
+            // который потом не прочитается.
+            var tmp = Path_ + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(Current, JsonOpts));
+            File.Move(tmp, Path_, overwrite: true);
         }
         catch { /* не критично: настройки просто не переживут перезапуск */ }
         Changed?.Invoke();

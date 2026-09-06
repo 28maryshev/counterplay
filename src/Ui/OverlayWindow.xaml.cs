@@ -2535,7 +2535,9 @@ public partial class OverlayWindow : Window
             var sep = new System.Windows.Shapes.Line
             {
                 X1 = plotL, X2 = plotR, Y1 = Y(line), Y2 = Y(line),
-                Stroke = new SolidColorBrush(Color.FromArgb(tierEdge ? (byte)0x66 : (byte)0x2E,
+                // Пунктир дивизионов — почти незаметный: он размечает шкалу, а не
+                // спорит с линией графика. Граница тира заметно ярче.
+                Stroke = new SolidColorBrush(Color.FromArgb(tierEdge ? (byte)0x66 : (byte)0x16,
                                                             0xFF, 0xFF, 0xFF)),
                 StrokeThickness = tierEdge ? 1.4 : 1
             };
