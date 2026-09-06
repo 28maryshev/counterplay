@@ -2495,7 +2495,12 @@ public partial class OverlayWindow : Window
     private void DrawRatingChart()
     {
         WrChart.Children.Clear();
-        var pts = _sessionView?.RatingHistory ?? [];
+        IReadOnlyList<SessionTracker.LpPoint> pts = _sessionView?.RatingHistory ?? [];
+        // Окно показа из настроек — то же самое, что и у графика винрейта.
+        var since = DateTime.Now.AddDays(-Math.Max(1, AppSettings.Current.ChartDays));
+        if (pts.Count > 0 && pts.Any(p => p.Date >= since))
+            pts = pts.Where(p => p.Date >= since).ToList();
+
         double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
         double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
 

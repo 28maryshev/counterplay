@@ -118,22 +118,24 @@ static class TestMode
             new(86, true, 22), new(103, false, -18), new(238, true, 20),
             new(51, true, 19), new(99, false, -21),
         };
+        // Три месяца истории: иначе переключатель окна графика (30/90 дней)
+        // нечем проверить — на 14 точках оба варианта выглядят одинаково.
         var hist = new List<SessionTracker.WrPoint>();
-        var baseDate = DateTime.UtcNow.AddDays(-14);
+        var baseDate = DateTime.Now.AddDays(-95);
         double wr = 48; var rndWr = new Random(7);
-        for (int i = 0; i < 14; i++) { wr = Math.Clamp(wr + rndWr.Next(-3, 5), 44, 60); hist.Add(new(baseDate.AddDays(i), wr)); }
+        for (int i = 0; i < 95; i++) { wr = Math.Clamp(wr + rndWr.Next(-3, 4) * 0.6, 42, 62); hist.Add(new(baseDate.AddDays(i), wr)); }
 
         // История рейтинга для второго режима графика. Специально ведём её через
         // границу тира (эмеральд IV → платина I, 2000 LP), чтобы на тесте было
         // видно и деление на дивизионы, и смену цвета фона.
         var rating = new List<SessionTracker.LpPoint>();
-        var lpAbs = 1955; var rndLp = new Random(11);
-        for (int i = 0; i < 26; i++)
+        var lpAbs = 1780; var rndLp = new Random(11);
+        for (int i = 0; i < 92; i++)
         {
-            lpAbs += rndLp.Next(0, 10) < 6 ? rndLp.Next(14, 26) : -rndLp.Next(12, 24);
-            rating.Add(new(DateTime.UtcNow.AddDays(-26 + i), lpAbs));
+            lpAbs += rndLp.Next(0, 10) < 6 ? rndLp.Next(12, 24) : -rndLp.Next(10, 22);
+            rating.Add(new(DateTime.Now.AddDays(-92 + i), lpAbs));
         }
-        rating.Add(new(DateTime.UtcNow, 2047));   // эмеральд II, 47 LP — как в карточке
+        rating.Add(new(DateTime.Now, 2047));   // эмеральд II, 47 LP — как в карточке
         var fakeSession = new SessionTracker.SessionData(
             "TestSummoner", "solo",
             new Dictionary<string, SessionTracker.QueueView>
