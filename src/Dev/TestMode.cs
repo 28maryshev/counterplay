@@ -31,6 +31,20 @@ static class TestMode
     /// перестают помещаться и должны прореживаться.
     internal static SessionTracker.SessionData? ClimbSession;
 
+    /// Нажали «Боевой режим»: песочница завершается, и Program подключается к
+    /// настоящему клиенту. Нужно, чтобы проверять свежую сборку на своих данных
+    /// LCU, не перезапуская программу с другими аргументами.
+    private static readonly TaskCompletionSource LiveRequested =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal static bool SwitchToLive { get; private set; }
+
+    internal static void RequestLiveMode()
+    {
+        if (SwitchToLive) return;
+        SwitchToLive = true;
+        LiveRequested.TrySetResult();
+    }
+
     // Чемпионы в полосе винрейта для каждого сценария: (id, винрейт, игр).
     internal static readonly (int, double, int)[] FirstGameChamps = [(86, 100, 1)];
     internal static readonly (int, double, int)[] FiveGamesChamps =
@@ -223,7 +237,29 @@ static class TestMode
             panel.Show();
         });
 
-        await Task.Delay(Timeout.Infinite, ct); // живём до закрытия окна/Ctrl+C
+        // Живём до закрытия окна/Ctrl+C — или до нажатия «Боевой режим»: тогда
+        // возвращаем управление, и Program поднимает обычный цикл LCU.
+        await Task.WhenAny(LiveRequested.Task, Task.Delay(Timeout.Infinite, ct));
+        if (!SwitchToLive) return;
+
+        overlay.Dispatcher.Invoke(() =>
+        {
+            panel?.Close();
+            // Сбрасываем всё тестовое: фейковый профиль, превью чемпионов,
+            // рекомендации и мок-хендлеры — дальше данные придут из клиента.
+            overlay.SetEmptyProfilePreview(false);
+            overlay.SetChampsPreview(null);
+            overlay.ShowSession(null);
+            overlay.UpdateRecommendations(null, null);
+            overlay.ApplyRunesHandler = null;
+            overlay.ApplySpellsHandler = null;
+            overlay.ExportBuildHandler = null;
+            overlay.HoverHandler = null;
+            overlay.LockHandler = null;
+            overlay.BanHoverHandler = null;
+            overlay.BanLockHandler = null;
+        });
+        RunesClient.UseMock = false;   // руны — настоящие, из базы
     }
 }
 
@@ -429,6 +465,27 @@ sealed class TestPanel : Window
         _simBtn.Click += (_, _) => ToggleSim();
         DockPanel.SetDock(_simBtn, Dock.Right);
         bottom.Children.Insert(0, _simBtn);
+
+        // Боевой режим: та же сборка, но на своём клиенте. Окно уходит в трей и
+        // ждёт League — как обычный запуск, только без перезапуска программы.
+        var live = new Button
+        {
+            Content = "⚔ Боевой режим", Width = 130,
+            Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 7, 0),
+            ToolTip = "Отключить песочницу и подключиться к своему клиенту LoL: "
+                    + "окно свернётся в трей и поднимется, когда начнётся драфт"
+        };
+        live.Click += (_, _) =>
+        {
+            if (!ConfirmWindow.Ask(
+                    "Перейти в боевой режим? Песочница закроется, программа подключится "
+                    + "к твоему клиенту LoL и свернётся в трей до начала драфта.",
+                    "Перейти", "Отмена", this)) return;
+            StopSim();
+            TestMode.RequestLiveMode();
+        };
+        DockPanel.SetDock(live, Dock.Right);
+        bottom.Children.Insert(0, live);
 
         // Перемешать роли строк: порядок пика перестаёт совпадать с ролями.
         var shuffle = new Button

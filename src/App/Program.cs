@@ -82,9 +82,14 @@ class Program
             {
                 // «test empty» — сразу скелетон-вид (профиль без единой игры).
                 if (testMode)
+                {
                     await TestMode.RunAsync(overlay, args.Contains("empty"), args.Contains("firstgame"),
                                             args.Contains("fivegames"), cts.Token);
-                else          await RunLcuAsync(overlay, args, cts.Token);
+                    // Песочница вернула управление — значит, в ней нажали
+                    // «Боевой режим»: дальше работаем на настоящем клиенте.
+                    if (TestMode.SwitchToLive) await RunLcuAsync(overlay, args, cts.Token);
+                }
+                else await RunLcuAsync(overlay, args, cts.Token);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
