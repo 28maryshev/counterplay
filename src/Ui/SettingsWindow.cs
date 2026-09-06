@@ -19,8 +19,9 @@ namespace Counterplay;
 /// Разделы совпадают с экранами (ожидание / драфт / баны), чтобы искать
 /// переключатель там же, где видишь мешающий блок.
 ///
-/// Изменения применяются сразу — окно можно не закрывать: включил, посмотрел
-/// на оверлей, выключил обратно.
+/// Правки копятся в копии настроек и уходят в оверлей по кнопке «Применить»:
+/// перерисовка драфта — не бесплатная операция, а щёлкать тумблерами человек
+/// может подряд. Закрыть окно, не нажав «Применить», = отказаться от правок.
 /// </summary>
 sealed class SettingsWindow : Window
 {
@@ -51,16 +52,33 @@ sealed class SettingsWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         PoolUi.Apply(this);
 
-        var s = AppSettings.Current;
+        Content = Build();
+    }
+
+    private AppSettings _draft = AppSettings.Current.Clone();
+    private Button? _apply;
+    private bool _dirty;
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        if (_apply is null) return;
+        _apply.IsEnabled = true;
+        _apply.Opacity = 1.0;
+    }
+
+    private UIElement Build()
+    {
+        var s = _draft;
         var body = new StackPanel { Margin = new Thickness(20, 16, 20, 16) };
 
         body.Children.Add(Section(Loc.T("settings.ready")));
         body.Children.Add(Row(Loc.T("settings.readyRank"),    Loc.T("settings.readyRankHint"),
-            s.ReadyRank,    v => { s.ReadyRank = v;    AppSettings.Save(); }));
+            s.ReadyRank,    v => { s.ReadyRank = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.readyLast5"),   Loc.T("settings.readyLast5Hint"),
-            s.ReadyLast5,   v => { s.ReadyLast5 = v;   AppSettings.Save(); }));
+            s.ReadyLast5,   v => { s.ReadyLast5 = v;   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.readyWinrate"), Loc.T("settings.readyWinrateHint"),
-            s.ReadyWinrate, v => { s.ReadyWinrate = v; AppSettings.Save(); }));
+            s.ReadyWinrate, v => { s.ReadyWinrate = v; MarkDirty(); }));
 
         // Переключатель данных графика — единственная настройка, где выбор не
         // «да/нет», а «что показывать».
@@ -68,108 +86,129 @@ sealed class SettingsWindow : Window
             [("winrate", Loc.T("settings.chartWinrate")),
              ("rating",  Loc.T("settings.chartRating")),
              ("off",     Loc.T("settings.chartOff"))],
-            s.ChartMode, v => { s.ChartMode = v; AppSettings.Save(); }));
+            s.ChartMode, v => { s.ChartMode = v; MarkDirty(); }));
 
         body.Children.Add(Choice(Loc.T("settings.chartDays"), Loc.T("settings.chartDaysHint"),
             [("30", Loc.T("settings.days30")), ("90", Loc.T("settings.days90"))],
-            s.ChartDays.ToString(), v => { s.ChartDays = int.Parse(v); AppSettings.Save(); }));
+            s.ChartDays.ToString(), v => { s.ChartDays = int.Parse(v); MarkDirty(); }));
 
         body.Children.Add(Choice(Loc.T("settings.queue"), Loc.T("settings.queueHint"),
             [("last", Loc.T("settings.queueLast")), ("solo", "Solo/Duo"), ("flex", "Flex")],
-            s.DefaultQueue, v => { s.DefaultQueue = v; AppSettings.Save(); }));
+            s.DefaultQueue, v => { s.DefaultQueue = v; MarkDirty(); }));
 
         body.Children.Add(Row(Loc.T("settings.readyCompact"), Loc.T("settings.readyCompactHint"),
-            s.ReadyCompact, v => { s.ReadyCompact = v; AppSettings.Save(); }));
+            s.ReadyCompact, v => { s.ReadyCompact = v; MarkDirty(); }));
 
         body.Children.Add(Row(Loc.T("settings.readyPool"),   Loc.T("settings.readyPoolHint"),
-            s.ReadyPool,   v => { s.ReadyPool = v;   AppSettings.Save(); }));
+            s.ReadyPool,   v => { s.ReadyPool = v;   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.readyChamps"), Loc.T("settings.readyChampsHint"),
-            s.ReadyChamps, v => { s.ReadyChamps = v; AppSettings.Save(); }));
+            s.ReadyChamps, v => { s.ReadyChamps = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.readyPhase"),  Loc.T("settings.readyPhaseHint"),
-            s.ReadyPhase,  v => { s.ReadyPhase = v;  AppSettings.Save(); }));
+            s.ReadyPhase,  v => { s.ReadyPhase = v;  MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.readyBeta"),   Loc.T("settings.readyBetaHint"),
-            s.ReadyBeta,   v => { s.ReadyBeta = v;   AppSettings.Save(); }));
+            s.ReadyBeta,   v => { s.ReadyBeta = v;   MarkDirty(); }));
 
         body.Children.Add(Section(Loc.T("settings.draft")));
         body.Children.Add(Row(Loc.T("settings.draftRolePool"), Loc.T("settings.draftRolePoolHint"),
-            s.DraftRolePool, v => { s.DraftRolePool = v; AppSettings.Save(); }));
+            s.DraftRolePool, v => { s.DraftRolePool = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftReasons"),  Loc.T("settings.draftReasonsHint"),
-            s.DraftReasons,  v => { s.DraftReasons = v;  AppSettings.Save(); }));
+            s.DraftReasons,  v => { s.DraftReasons = v;  MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftMetrics"),  Loc.T("settings.draftMetricsHint"),
-            s.DraftMetrics,  v => { s.DraftMetrics = v;  AppSettings.Save(); }));
+            s.DraftMetrics,  v => { s.DraftMetrics = v;  MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftItems"),    Loc.T("settings.draftItemsHint"),
-            s.DraftItems,    v => { s.DraftItems = v;    AppSettings.Save(); }));
+            s.DraftItems,    v => { s.DraftItems = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftHover"),    Loc.T("settings.draftHoverHint"),
-            s.DraftHover,    v => { s.DraftHover = v;    AppSettings.Save(); }));
+            s.DraftHover,    v => { s.DraftHover = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftCombos"),   Loc.T("settings.draftCombosHint"),
-            s.DraftCombos,   v => { s.DraftCombos = v;   AppSettings.Save(); }));
+            s.DraftCombos,   v => { s.DraftCombos = v;   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftArch"),     Loc.T("settings.draftArchHint"),
-            s.DraftArch,     v => { s.DraftArch = v;     AppSettings.Save(); }));
+            s.DraftArch,     v => { s.DraftArch = v;     MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftSideIcons"), Loc.T("settings.draftSideIconsHint"),
-            s.DraftSideIcons, v => { s.DraftSideIcons = v; AppSettings.Save(); }));
+            s.DraftSideIcons, v => { s.DraftSideIcons = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftDamage"),   Loc.T("settings.draftDamageHint"),
-            s.DraftDamage,   v => { s.DraftDamage = v;   AppSettings.Save(); }));
+            s.DraftDamage,   v => { s.DraftDamage = v;   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftRunes"),    Loc.T("settings.draftRunesHint"),
-            s.DraftRunes,    v => { s.DraftRunes = v;    AppSettings.Save(); }));
+            s.DraftRunes,    v => { s.DraftRunes = v;    MarkDirty(); }));
 
         body.Children.Add(Choice(Loc.T("settings.draftCount"), Loc.T("settings.draftCountHint"),
             [("6", "6"), ("8", "8"), ("10", "10")],
-            s.DraftCount.ToString(), v => { s.DraftCount = int.Parse(v); AppSettings.Save(); }));
+            s.DraftCount.ToString(), v => { s.DraftCount = int.Parse(v); MarkDirty(); }));
 
         body.Children.Add(Row(Loc.T("settings.draftUnowned"), Loc.T("settings.draftUnownedHint"),
-            s.DraftUnowned, v => { s.DraftUnowned = v; AppSettings.Save(); }));
+            s.DraftUnowned, v => { s.DraftUnowned = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftMirror"),  Loc.T("settings.draftMirrorHint"),
-            s.DraftMirror,  v => { s.DraftMirror = v;  AppSettings.Save(); }));
+            s.DraftMirror,  v => { s.DraftMirror = v;  MarkDirty(); }));
 
         body.Children.Add(Section(Loc.T("settings.bans")));
         body.Children.Add(Row(Loc.T("settings.bansTier"), Loc.T("settings.bansTierHint"),
-            s.BansTierList, v => { s.BansTierList = v; AppSettings.Save(); }));
+            s.BansTierList, v => { s.BansTierList = v; MarkDirty(); }));
 
         body.Children.Add(Section(Loc.T("settings.general")));
         body.Children.Add(Choice(Loc.T("settings.opacity"), Loc.T("settings.opacityHint"),
             [("1", "100%"), ("0.85", "85%"), ("0.7", "70%")],
             s.Opacity.ToString(System.Globalization.CultureInfo.InvariantCulture),
             v => { s.Opacity = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
-                   AppSettings.Save(); }));
+                   MarkDirty(); }));
         body.Children.Add(Choice(Loc.T("settings.scale"), Loc.T("settings.scaleHint"),
             [("0.9", Loc.T("settings.scaleS")), ("1", Loc.T("settings.scaleM")), ("1.15", Loc.T("settings.scaleL"))],
             s.FontScale.ToString(System.Globalization.CultureInfo.InvariantCulture),
             v => { s.FontScale = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
-                   AppSettings.Save(); }));
+                   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.onTop"),   Loc.T("settings.onTopHint"),
-            s.AlwaysOnTop,    v => { s.AlwaysOnTop = v;    AppSettings.Save(); }));
+            s.AlwaysOnTop,    v => { s.AlwaysOnTop = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.inGame"),  Loc.T("settings.inGameHint"),
-            s.KeepDuringGame, v => { s.KeepDuringGame = v; AppSettings.Save(); }));
+            s.KeepDuringGame, v => { s.KeepDuringGame = v; MarkDirty(); }));
 
-        var reset = new Button
+        var reset = ActionButton(Loc.T("settings.reset"), "#8AA0B2", "#35485A");
+        reset.Click += (_, _) => { _draft = new AppSettings(); MarkDirty(); Content = Build(); };
+
+        _apply = ActionButton(Loc.T("settings.apply"), "#0E141D", "#36D6E7");
+        _apply.Background = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
+        _apply.IsEnabled = _dirty;
+        _apply.Opacity = _dirty ? 1.0 : 0.45;
+        _apply.Click += (_, _) =>
         {
-            Content = Loc.T("settings.reset"),
-            Margin = new Thickness(0, 18, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Padding = new Thickness(14, 6, 14, 6),
-            Background = new SolidColorBrush(Color.FromArgb(0x18, 0xC8, 0x9B, 0x3C)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x6D, 0x2F)),
-            Foreground = new SolidColorBrush(Gold),
-            Cursor = Cursors.Hand
+            AppSettings.Apply(_draft);       // сохранить и перерисовать оверлей разом
+            _draft = AppSettings.Current.Clone();
+            _dirty = false;
+            _apply.IsEnabled = false;
+            _apply.Opacity = 0.45;
         };
-        reset.Click += (_, _) => { AppSettings.Reset(); Rebuild(); };
-        body.Children.Add(reset);
 
-        Content = new ScrollViewer
+        var bottom = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 20, 0, 0)
+        };
+        bottom.Children.Add(_apply);
+        bottom.Children.Add(reset);
+        body.Children.Add(bottom);
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("settings.applyHint"),
+            FontFamily = Font("UiFont"), FontSize = 11,
+            Foreground = new SolidColorBrush(Mute),
+            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0)
+        });
+
+        return new ScrollViewer
         {
             Content = body,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
     }
 
-    // Настройки сбросили — проще пересобрать окно, чем разыскивать все тумблеры.
-    private void Rebuild()
+    private static Button ActionButton(string text, string fg, string border) => new()
     {
-        var pos = new { Left, Top };
-        var fresh = new SettingsWindow { Left = pos.Left, Top = pos.Top, Owner = Owner };
-        fresh.Show();
-        Close();
-    }
+        Content = text,
+        Margin = new Thickness(0, 0, 10, 0),
+        Padding = new Thickness(16, 7, 16, 7),
+        Background = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+        BorderBrush = (SolidColorBrush)new BrushConverter().ConvertFrom(border)!,
+        Foreground = (SolidColorBrush)new BrushConverter().ConvertFrom(fg)!,
+        FontWeight = FontWeights.Bold,
+        Cursor = Cursors.Hand
+    };
 
     private static TextBlock Section(string text) => new()
     {

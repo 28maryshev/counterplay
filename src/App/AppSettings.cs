@@ -115,6 +115,17 @@ public sealed class AppSettings
         Changed?.Invoke();
     }
 
+    /// Копия для правки в окне настроек: пока не нажали «Применить», оверлей
+    /// живёт по старым значениям и не дёргается на каждый щелчок.
+    public AppSettings Clone() => (AppSettings)MemberwiseClone();
+
+    /// Принять отредактированную копию: сохранить и перерисовать оверлей.
+    public static void Apply(AppSettings edited)
+    {
+        _current = edited;
+        Save();
+    }
+
     /// Вернуть всё к «показывать целиком».
     public static void Reset()
     {

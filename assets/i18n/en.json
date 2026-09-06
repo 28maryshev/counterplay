@@ -530,7 +530,9 @@
     "onTop": "Always on top",
     "onTopHint": "Otherwise the overlay drops behind the client window when the client is active",
     "inGame": "Stay visible in game",
-    "inGameHint": "Off by default: a transparent always-on-top window can block entering the game. Hints are shown in champion select only, as Riot requires"
+    "inGameHint": "Off by default: a transparent always-on-top window can block entering the game. Hints are shown in champion select only, as Riot requires",
+    "apply": "Apply",
+    "applyHint": "Changes take effect when you press Apply. Close the window without it and they are dropped."
   },
   "chart": {
     "noRating": "Play a few ranked games — the rank chart fills in as LP changes."
