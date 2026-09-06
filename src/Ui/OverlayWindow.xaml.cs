@@ -2528,34 +2528,51 @@ public partial class OverlayWindow : Window
             WrChart.Children.Add(rect);
         }
 
-        // Разделители дивизионов; границу тира (кратно 400) выделяем ярче.
+        // Разделители: дивизионы — пунктиром, граница тира — сплошной и ярче.
         for (int line = min; line <= max; line += 100)
         {
             var tierEdge = line % 400 == 0;
-            WrChart.Children.Add(new System.Windows.Shapes.Line
+            var sep = new System.Windows.Shapes.Line
             {
                 X1 = plotL, X2 = plotR, Y1 = Y(line), Y2 = Y(line),
-                Stroke = new SolidColorBrush(Color.FromArgb(tierEdge ? (byte)0x66 : (byte)0x26,
+                Stroke = new SolidColorBrush(Color.FromArgb(tierEdge ? (byte)0x66 : (byte)0x2E,
                                                             0xFF, 0xFF, 0xFF)),
                 StrokeThickness = tierEdge ? 1.4 : 1
-            });
+            };
+            if (!tierEdge) sep.StrokeDashArray = [3, 3];
+            WrChart.Children.Add(sep);
         }
 
-        // Подпись слева — дивизион римскими (IV…I), у мастера+ просто LP.
-        for (int line = min; line < max; line += 100)
+        // Подписи слева. Сколько их влезет — столько и рисуем: за две недели можно
+        // проехать из серебра в платину, и тогда дивизионов в кадре два десятка —
+        // подписать каждый нельзя, они сольются в кашу. Поэтому шаг подписи
+        // выбираем по высоте полосы: помещается дивизион — подписываем дивизионы,
+        // не помещается — только тиры, а если и им тесно — через один.
+        double divH = chartH / Math.Max(1, (max - min) / 100.0);
+        int step = divH >= 12 ? 100 : divH * 4 >= 12 ? 400 : 800;
+
+        double lastLabelY = double.MaxValue;
+        for (int line = min; line < max; line += step)
         {
             var tier = BandAt(line);
-            var divIdx = (line % 400) / 100;               // 0 = IV … 3 = I
-            var text = line >= 2800 ? "M" : $"{tier.Name[0]}{new[] { "IV", "III", "II", "I" }[divIdx]}";
+            var y = Y(line + step / 2.0);
+            if (lastLabelY - y < 11) continue;      // соседняя подпись слишком близко
+
+            // На шаге в дивизион — «EIV», крупнее — только буква тира.
+            var text = line >= 2800 ? "M"
+                : step == 100 ? $"{tier.Name[0]}{new[] { "IV", "III", "II", "I" }[(line % 400) / 100]}"
+                : tier.Name[0].ToString();
             var lab = new TextBlock
             {
                 Text = text, FontFamily = (FontFamily)FindResource("UiFont"),
-                FontSize = 8, Foreground = new SolidColorBrush(tier.Color), Opacity = 0.95
+                FontSize = 8, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(tier.Color), Opacity = 0.95
             };
             lab.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(lab, Math.Max(0, axisW - 4 - lab.DesiredSize.Width));
-            Canvas.SetTop(lab, Y(line + 50) - lab.DesiredSize.Height / 2);
+            Canvas.SetTop(lab, y - lab.DesiredSize.Height / 2);
             WrChart.Children.Add(lab);
+            lastLabelY = y;
         }
 
         var lineColor = BandAt(pts[^1].AbsLp).Color;

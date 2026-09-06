@@ -26,6 +26,10 @@ static class TestMode
     internal static SessionTracker.SessionData? FullSession;
     internal static SessionTracker.SessionData? FirstGameSession;
     internal static SessionTracker.SessionData? FiveGamesSession;
+    /// Профиль «рывок»: серебро → платина за две недели. Нужен, чтобы видеть, как
+    /// график рейтинга ведёт себя на широком диапазоне — подписи дивизионов там
+    /// перестают помещаться и должны прореживаться.
+    internal static SessionTracker.SessionData? ClimbSession;
 
     // Чемпионы в полосе винрейта для каждого сценария: (id, винрейт, игр).
     internal static readonly (int, double, int)[] FirstGameChamps = [(86, 100, 1)];
@@ -168,6 +172,25 @@ static class TestMode
                     RatingHistory: [new(DateTime.Now, 2047)]),
             });
         FullSession = fakeSession;
+
+        // Тот самый «рывок»: 800 → 1660 LP (Silver IV → Platinum I) за 14 дней.
+        var climb = new List<SessionTracker.LpPoint>();
+        var climbLp = 812; var rndC = new Random(3);
+        for (int i = 0; i < 60; i++)
+        {
+            climbLp += rndC.Next(0, 10) < 8 ? rndC.Next(16, 30) : -rndC.Next(10, 20);
+            climb.Add(new(DateTime.Now.AddDays(-14).AddHours(i * 5.6), climbLp));
+        }
+        climb.Add(new(DateTime.Now, 1663));
+        ClimbSession = new SessionTracker.SessionData(
+            "TestSummoner", "solo",
+            new Dictionary<string, SessionTracker.QueueView>
+            {
+                ["solo"] = new SessionTracker.QueueView(
+                    HasRank: true, Tier: "PLATINUM", Division: "I", Lp: 63, ProgressPct: 63,
+                    Wins: 92, Losses: 61, Winrate: 60.1, Last5: last5,
+                    WinrateHistory: hist, RatingHistory: climb),
+            });
 
         // Пятая игра — момент, когда график только появляется: точек ровно
         // столько, сколько сыграно, а винрейт ещё скачет широкими шагами.
@@ -369,6 +392,7 @@ sealed class TestPanel : Window
         _profile.Items.Add("Профиль: полный");
         _profile.Items.Add("Профиль: 1 игра");
         _profile.Items.Add("Профиль: 5 игр");
+        _profile.Items.Add("Профиль: рывок серебро→платина");
         _profile.SelectedIndex = 0;
         _profile.VerticalAlignment = VerticalAlignment.Center;
         _profile.Margin = new Thickness(12, 0, 0, 0);
@@ -483,6 +507,10 @@ sealed class TestPanel : Window
             case 2:
                 _overlay.ShowSession(TestMode.FiveGamesSession);
                 _overlay.SetChampsPreview(TestMode.FiveGamesChamps);
+                break;
+            case 3:
+                _overlay.ShowSession(TestMode.ClimbSession);
+                _overlay.SetChampsPreview(null);
                 break;
             default:
                 _overlay.ShowSession(TestMode.FullSession);
