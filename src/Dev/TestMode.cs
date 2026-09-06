@@ -63,7 +63,11 @@ static class TestMode
         // Бакет берём ТОТ ЖЕ, что и боевой режим (сохранённый ранг). Иначе теги
         // версий не совпадают ("all:…" против "gold:…") и база перекачивается
         // целиком при каждом переключении тест ↔ обычный режим.
-        var dbBucket = Settings.GetString("dataBucket");
+        // Тот же бакет, что и в боевом режиме, ВКЛЮЧАЯ фолбэк «emerald». Без
+        // фолбэка на свежей машине (ранг из LCU ещё не сохранён) песочница
+        // просила общую базу всех эло, а боевой режим — эмеральдовую: теги версий
+        // не совпадали, и база в 530 МБ качалась заново при каждой смене режима.
+        var dbBucket = Settings.GetString("dataBucket") ?? "emerald";
         await DataDb.EnsureAsync(dbBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
 
         // Руны: реальных данных в базе ещё нет — в тестовом режиме панель
@@ -97,7 +101,7 @@ static class TestMode
         }
         // Тир-бакет для скоринга — тоже свой: в побакетной базе данных чужого
         // бакета попросту нет, и все показатели вышли бы пустыми.
-        var engine = RecommendationEngine.Create(dbPath, string.IsNullOrEmpty(dbBucket) ? "emerald" : dbBucket);
+        var engine = RecommendationEngine.Create(dbPath, dbBucket);
         overlay.SetEngine(engine);   // окну настроек пула — считать WR/дельту связок
 
         var allIds = DataDragon.GetAllIconUrls().Keys.ToList();
