@@ -1698,8 +1698,13 @@ public partial class OverlayWindow : Window
         DrawWrChart();
 
         // Драфт
-        MyDmgPanel.Visibility    = V(s.DraftDamage && MyDmgPanel.Tag as string != "empty");
-        EnemyDmgPanel.Visibility = V(s.DraftDamage && EnemyDmgPanel.Tag as string != "empty");
+        // Показывать полосу урона решает RenderDamageMix (у неё есть данные);
+        // отсюда только гасим, если настройка выключена.
+        if (!s.DraftDamage)
+        {
+            MyDmgPanel.Visibility    = Visibility.Collapsed;
+            EnemyDmgPanel.Visibility = Visibility.Collapsed;
+        }
         if (!s.DraftCombos)
         {
             MyCombosHeader.Visibility    = Visibility.Collapsed;
