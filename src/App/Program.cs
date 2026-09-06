@@ -96,8 +96,10 @@ class Program
                     {
                         var liveArgs = args
                             .Where(a => a is not ("test" or "--test" or "empty"
-                                                  or "firstgame" or "fivegames"))
+                                                  or "firstgame" or "fivegames" or "golive"))
                             .ToArray();
+                        Console.WriteLine("[live] стартую боевой цикл, аргументы: "
+                                          + (liveArgs.Length == 0 ? "(нет)" : string.Join(" ", liveArgs)));
                         await RunLcuAsync(overlay, liveArgs, cts.Token);
                     }
                 }

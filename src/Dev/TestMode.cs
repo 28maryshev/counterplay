@@ -239,12 +239,16 @@ static class TestMode
 
         // Живём до закрытия окна/Ctrl+C — или до нажатия «Боевой режим»: тогда
         // возвращаем управление, и Program поднимает обычный цикл LCU.
+        // «test golive» — тот же переход без клика: нужен, чтобы проверять
+        // боевой режим автоматически.
+        if (Environment.GetCommandLineArgs().Contains("golive")) RequestLiveMode();
+
         await Task.WhenAny(LiveRequested.Task, Task.Delay(Timeout.Infinite, ct));
         if (!SwitchToLive) return;
 
         overlay.Dispatcher.Invoke(() =>
         {
-            panel?.Close();
+            if (panel is not null) { panel.SwitchingToLive = true; panel.Close(); }
             // Сбрасываем всё тестовое: фейковый профиль, превью чемпионов,
             // рекомендации и мок-хендлеры — дальше данные придут из клиента.
             overlay.SetEmptyProfilePreview(false);
@@ -550,7 +554,13 @@ sealed class TestPanel : Window
         Recompute();
 
         // Закрыл панель — выходим из приложения целиком.
-        Closed += (_, _) => System.Windows.Application.Current.Shutdown();
+        // Закрыли песочницу — вышли из программы. Кроме одного случая: переход в
+        // боевой режим тоже закрывает панель, и раньше это убивало приложение
+        // целиком (окно исчезало, клиента никто не ждал).
+        Closed += (_, _) =>
+        {
+            if (!SwitchingToLive) System.Windows.Application.Current.Shutdown();
+        };
     }
 
     // Владение чемпионами в песочнице: всё куплено, либо половина «отсутствует»
@@ -836,6 +846,9 @@ sealed class TestPanel : Window
 
     // Пик из оверлея (кнопка «Выбрать»): ставим чемпиона в мой слот панели.
     // SelectionChanged сам вызовет Recompute, а SimTick снимет паузу.
+    /// Панель закрывают ради боевого режима, а не выхода из программы.
+    public bool SwitchingToLive { get; set; }
+
     public void LockMy(int champId)
     {
         var name = DataDragon.Name(champId);
