@@ -364,6 +364,13 @@ public partial class OverlayWindow : Window
             if (!Topmost) Topmost = true;           // наш оверлей активен → поверх
             return;
         }
+        // Открыты настройки — оверлей остаётся на виду: человек меняет тумблеры,
+        // чтобы смотреть на результат, а не на окно клиента.
+        if (_settingsWin is { IsVisible: true })
+        {
+            if (!Topmost) Topmost = true;
+            return;
+        }
         if (Topmost) Topmost = false;               // снимаем «всегда сверху»…
         SetWindowPos(Hwnd, clientHwnd, 0, 0, 0, 0,  // …и опускаем ровно под окно клиента
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);

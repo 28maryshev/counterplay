@@ -51,6 +51,9 @@ sealed class SettingsWindow : Window
         Title = Loc.T("settings.title");
         Width = 560; Height = 640;
         Background = new SolidColorBrush(Bg);
+        // Поверх всего: оверлей по своей логике ныряет под окно клиента, а
+        // настройки — его дочернее окно и уходили вниз вместе с ним.
+        Topmost = true;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         PoolUi.Apply(this);
 

@@ -27,6 +27,7 @@ sealed class ConfirmWindow : Window
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         Background = new SolidColorBrush(Bg);
+        Topmost = true;      // тот же случай, что и у настроек: не прятаться под клиент
         Owner = owner;
         WindowStartupLocation = owner is null
             ? WindowStartupLocation.CenterScreen
