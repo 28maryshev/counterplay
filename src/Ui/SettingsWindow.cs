@@ -29,6 +29,20 @@ sealed class SettingsWindow : Window
     private static readonly Color Text = Color.FromRgb(0xC9, 0xD2, 0xDC);
     private static readonly Color Mute = Color.FromRgb(0x8A, 0xA0, 0xB2);
 
+    /// Шрифты объявлены в ресурсах ОКНА оверлея, а не приложения, поэтому
+    /// Application.Current.FindResource на них падает (и роняет программу при
+    /// открытии настроек). Ищем по открытым окнам, а если не нашли — системный.
+    private static FontFamily Font(string key)
+    {
+        if (Application.Current is { } app)
+        {
+            if (app.TryFindResource(key) is FontFamily appFont) return appFont;
+            foreach (Window w in app.Windows)
+                if (w.TryFindResource(key) is FontFamily winFont) return winFont;
+        }
+        return new FontFamily("Segoe UI");
+    }
+
     public SettingsWindow()
     {
         Title = Loc.T("settings.title");
@@ -124,7 +138,7 @@ sealed class SettingsWindow : Window
     private static TextBlock Section(string text) => new()
     {
         Text = text,
-        FontFamily = (FontFamily)Application.Current.FindResource("DisplayFont"),
+        FontFamily = Font("DisplayFont"),
         FontSize = 15, FontWeight = FontWeights.Bold,
         Foreground = new SolidColorBrush(Gold),
         Margin = new Thickness(0, 18, 0, 6)
@@ -141,14 +155,14 @@ sealed class SettingsWindow : Window
         texts.Children.Add(new TextBlock
         {
             Text = title,
-            FontFamily = (FontFamily)Application.Current.FindResource("UiFont"),
+            FontFamily = Font("UiFont"),
             FontSize = 13, Foreground = new SolidColorBrush(Text), TextWrapping = TextWrapping.Wrap
         });
         if (hint.Length > 0)
             texts.Children.Add(new TextBlock
             {
                 Text = hint,
-                FontFamily = (FontFamily)Application.Current.FindResource("UiFont"),
+                FontFamily = Font("UiFont"),
                 FontSize = 11, Foreground = new SolidColorBrush(Mute),
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 12, 0)
             });
@@ -201,14 +215,14 @@ sealed class SettingsWindow : Window
         wrap.Children.Add(new TextBlock
         {
             Text = title,
-            FontFamily = (FontFamily)Application.Current.FindResource("UiFont"),
+            FontFamily = Font("UiFont"),
             FontSize = 13, Foreground = new SolidColorBrush(Text)
         });
         if (hint.Length > 0)
             wrap.Children.Add(new TextBlock
             {
                 Text = hint,
-                FontFamily = (FontFamily)Application.Current.FindResource("UiFont"),
+                FontFamily = Font("UiFont"),
                 FontSize = 11, Foreground = new SolidColorBrush(Mute),
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0)
             });
@@ -243,7 +257,7 @@ sealed class SettingsWindow : Window
                 Child = new TextBlock
                 {
                     Text = label,
-                    FontFamily = (FontFamily)Application.Current.FindResource("UiFont"),
+                    FontFamily = Font("UiFont"),
                     FontSize = 12, FontWeight = FontWeights.Bold
                 }
             };

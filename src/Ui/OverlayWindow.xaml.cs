@@ -1673,9 +1673,20 @@ public partial class OverlayWindow : Window
     private void OnSettings(object sender, RoutedEventArgs e)
     {
         if (_settingsWin is { IsVisible: true }) { _settingsWin.Activate(); return; }
-        _settingsWin = new SettingsWindow { Owner = this };
-        _settingsWin.Closed += (_, _) => _settingsWin = null;
-        _settingsWin.Show();
+        try
+        {
+            _settingsWin = new SettingsWindow { Owner = this };
+            _settingsWin.Closed += (_, _) => _settingsWin = null;
+            _settingsWin.Show();
+        }
+        catch (Exception ex)
+        {
+            // Настройки — не тот повод, чтобы ронять оверлей посреди драфта:
+            // показываем причину в строке состояния и продолжаем работать.
+            _settingsWin = null;
+            Console.WriteLine("Settings window failed: " + ex);
+            ShowStatus("Settings: " + ex.Message);
+        }
     }
 
     /// Применяет настройки к уже построенным экранам. Вызывается при запуске и
