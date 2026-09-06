@@ -59,7 +59,9 @@
   "tip": {
     "pin": "Pin to the right edge of the client",
     "minimize": "Minimize",
-    "expand": "Expand"
+    "expand": "Expand",
+    "tray": "Minimize to tray",
+    "quit": "Quit Counterplay"
   },
   "autostart": {
     "notice": "Counterplay now starts with Windows and waits quietly in the tray — it only pops up during champ select. You can turn this off any time in the tray menu.",
@@ -537,5 +539,10 @@
   },
   "chart": {
     "noRating": "Play a few ranked games — the rank chart fills in as LP changes."
+  },
+  "quit": {
+    "question": "Close Counterplay? It will stop watching champion select.",
+    "yes": "Quit",
+    "no": "Cancel"
   }
 }

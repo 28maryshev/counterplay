@@ -456,11 +456,11 @@
                     Background="Transparent" BorderThickness="0"
                     Foreground="#C89B3C" FontSize="14" Padding="6,0"
                     Cursor="Hand" ToolTip="{loc:T tip.pin}"/>
-            <Button x:Name="ToggleBtn" Content="⊟" Click="OnToggle"
+            <Button x:Name="TrayBtn" Content="—" Click="OnMinimize"
                     Background="Transparent" BorderThickness="0"
-                    Foreground="#C89B3C" FontSize="17" Padding="6,0"
-                    Cursor="Hand" ToolTip="{loc:T tip.minimize}"/>
-            <Button Content="✕" Click="OnClose"
+                    Foreground="#C89B3C" FontSize="15" Padding="6,0"
+                    Cursor="Hand" ToolTip="{loc:T tip.tray}"/>
+            <Button Content="✕" Click="OnQuit"
                     Background="Transparent" BorderThickness="0"
                     Foreground="#507090" FontSize="12" Padding="6,0"
                     Cursor="Hand"/>

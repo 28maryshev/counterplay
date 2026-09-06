@@ -19,7 +19,8 @@ namespace Counterplay;
 
 public partial class OverlayWindow : Window
 {
-    private bool   _isFullMode = true;
+    // Компактный вид убран из шапки: окно всегда полное, а прячется в трей.
+    private readonly bool _isFullMode = true;
     private const double FullW    = 1320;
     // Высота по умолчанию: чтобы в боковой колонке целиком помещалась первая
     // карточка TEAM COMBOS (заголовок + описание + how-to-play).
@@ -1758,43 +1759,19 @@ public partial class OverlayWindow : Window
     // Крестик сворачивает окно в трей (значок остаётся). Окно не вернётся само
     // при событиях LCU — только по двойному клику в трее. Полный выход — пункт
     // «Выход» в меню значка.
-    private void OnClose(object sender, RoutedEventArgs e) => HideToTray(userInitiated: true);
+    /// Свернуть в трей: программа продолжает работать и сама поднимется в драфте.
+    private void OnMinimize(object sender, RoutedEventArgs e) => HideToTray(userInitiated: true);
+
+    /// Крестик закрывает программу по-настоящему — но спрашивает. Раньше он
+    /// прятал окно в трей, и человек, желавший выйти, оставлял её работать.
+    private void OnQuit(object sender, RoutedEventArgs e)
+    {
+        if (ConfirmWindow.Ask(Loc.T("quit.question"), Loc.T("quit.yes"), Loc.T("quit.no"), this))
+            System.Windows.Application.Current.Shutdown();
+    }
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape) Hide();
-    }
-
-    private void OnToggle(object sender, RoutedEventArgs e)
-    {
-        if (_isFullMode)
-        {
-            // Сохраняем текущие размеры перед сворачиванием
-            _savedFullW = Width;
-            _savedFullH = Height;
-
-            _isFullMode = false;
-            SizeToContent  = SizeToContent.Height; // компактный — высота по контенту
-            Width          = CompactW;
-            ToggleBtn.Content = "⊞";
-            ToggleBtn.ToolTip = Loc.T("tip.expand");
-        }
-        else
-        {
-            var (w, h) = (_savedFullW, _savedFullH);
-            _isFullMode = true;
-            _settingSize = true;
-            SizeToContent  = SizeToContent.Manual;
-            MaxHeight      = double.PositiveInfinity;
-            Width          = w;
-            Height         = h;
-            MinWidth       = MinW;
-            MinHeight      = MinH;
-            _settingSize = false;
-            ToggleBtn.Content = "⊟";
-            ToggleBtn.ToolTip = Loc.T("tip.minimize");
-        }
-
-        RenderCurrentState();
     }
 
     // ── Вызывается из фонового потока (цикл событий LCU) ──────────────────
