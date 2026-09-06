@@ -254,8 +254,11 @@ sealed class SettingsWindow : Window
         _apply.Opacity = _dirty ? 1.0 : 0.45;
         _apply.Click += (_, _) =>
         {
-            AppSettings.Apply(_draft);       // сохранить и перерисовать оверлей разом
-            _draft = AppSettings.Current.Clone();
+            // Отдаём КОПИЮ, а сам _draft не подменяем: обработчики тумблеров
+            // держат ссылку на тот объект, с которым их построили. Раньше после
+            // «Применить» поле указывало на новый объект, а переключатели правили
+            // старый — второе изменение просто некуда было применить.
+            AppSettings.Apply(_draft.Clone());
             _dirty = false;
             _apply.IsEnabled = false;
             _apply.Opacity = 0.45;
