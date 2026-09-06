@@ -2523,16 +2523,19 @@ public partial class OverlayWindow : Window
     }
 
     // Цвет тира для полос графика рейтинга: тот же язык, что и эмблемы рангов.
+    // Цвета берём СВЕТЛЫЕ: полоса рисуется прозрачной поверх тёмного фона, и
+    // «настоящий» золотой (#D8A63E) на 20% превращался в коричневый, а изумруд —
+    // в болотный. Светлая база после смешивания с фоном даёт узнаваемый оттенок.
     private static readonly (int Base, string Name, Color Color)[] TierBands =
     [
-        (0,    "Iron",     Color.FromRgb(0x6B, 0x63, 0x5D)),
-        (400,  "Bronze",   Color.FromRgb(0x8C, 0x5A, 0x33)),
-        (800,  "Silver",   Color.FromRgb(0x9A, 0xAC, 0xBA)),
-        (1200, "Gold",     Color.FromRgb(0xD8, 0xA6, 0x3E)),
-        (1600, "Platinum", Color.FromRgb(0x4F, 0xBF, 0xB6)),
-        (2000, "Emerald",  Color.FromRgb(0x2E, 0xAF, 0x62)),
-        (2400, "Diamond",  Color.FromRgb(0x6C, 0xA6, 0xF5)),
-        (2800, "Master",   Color.FromRgb(0xA0, 0x5C, 0xD6)),
+        (0,    "Iron",     Color.FromRgb(0x9A, 0x93, 0x8B)),
+        (400,  "Bronze",   Color.FromRgb(0xD2, 0x8B, 0x4C)),
+        (800,  "Silver",   Color.FromRgb(0xCD, 0xDC, 0xEA)),
+        (1200, "Gold",     Color.FromRgb(0xFF, 0xD4, 0x6A)),
+        (1600, "Platinum", Color.FromRgb(0x74, 0xEC, 0xD9)),
+        (2000, "Emerald",  Color.FromRgb(0x4A, 0xEE, 0x90)),
+        (2400, "Diamond",  Color.FromRgb(0x96, 0xC8, 0xFF)),
+        (2800, "Master",   Color.FromRgb(0xCE, 0x86, 0xFF)),
     ];
 
     private static (string Name, Color Color) BandAt(int absLp)
@@ -2597,7 +2600,7 @@ public partial class OverlayWindow : Window
             {
                 Width = Math.Max(1, plotR - plotL),
                 Height = Math.Max(1, Y(band) - Y(band + 100)),
-                Fill = new SolidColorBrush(color) { Opacity = 0.16 }
+                Fill = new SolidColorBrush(color) { Opacity = 0.20 }
             };
             Canvas.SetLeft(rect, plotL);
             Canvas.SetTop(rect, Y(band + 100));
