@@ -233,6 +233,23 @@ class Program
     {
         using var http = new LcuHttpClient(creds);
 
+        // Язык клиента LoL — лучшая подсказка, чем язык Windows: человек с
+        // английской системой, играющий в русский клиент, ждёт русский интерфейс
+        // (у него и имена чемпионов русские). Ручной выбор это не трогает.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var (code, body) = await http.GetAsync("/riotclient/region-locale", ct);
+                if (code is < 200 or >= 300) return;
+                using var doc = JsonDocument.Parse(body);
+                var locale = doc.RootElement.TryGetProperty("locale", out var l) ? l.GetString() : null;
+                if (Loc.FromClientLocale(locale) is { } lang)
+                    overlay.Dispatcher.Invoke(() => Loc.SetLanguageAuto(lang));
+            }
+            catch { /* старый клиент или нет такого эндпоинта — остаёмся на языке Windows */ }
+        }, ct);
+
         // Ждём пока LCU реально поднимется (lockfile появляется раньше первых ответов).
         // Ждём НЕ вечно: если клиент закрылся или lockfile протух (порт/пароль от
         // прошлой сессии), выходим — внешний цикл перечитает свежие креды.

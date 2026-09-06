@@ -68,6 +68,27 @@ public static class Loc
         LanguageChanged?.Invoke();
     }
 
+    /// Язык выбран человеком вручную (тогда его не переопределяем автоматикой).
+    public static bool HasSavedChoice => Settings.GetString("language") is not null;
+
+    /// Язык, подсказанный клиентом LoL. НЕ сохраняем: сменит человек язык клиента —
+    /// сменится и здесь. Ручной выбор из настроек всегда важнее.
+    public static void SetLanguageAuto(string code)
+    {
+        if (HasSavedChoice || code == Current || Languages.All(l => l.Code != code)) return;
+        Current = code;
+        _doc = code == "en" ? _fallbackDoc : (LoadDoc(code) ?? _fallbackDoc);
+        LanguageChanged?.Invoke();
+    }
+
+    /// Локаль клиента LoL ("ru_RU", "pt_BR") → наш код языка, если он у нас есть.
+    public static string? FromClientLocale(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale)) return null;
+        var two = locale.Split('_', '-')[0].ToLowerInvariant();
+        return Languages.Any(l => l.Code == two) ? two : null;
+    }
+
     /// Строка по ключу (поддерживает вложенность через точку: "section.key").
     public static string T(string key)
     {

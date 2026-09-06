@@ -508,7 +508,6 @@ public partial class OverlayWindow : Window
         ApplySettings();
 
         // Чип языка: показываем текущий, меню — по клику.
-        LangText.Text = Loc.CurrentLang.Native + " ▾";
         Loc.LanguageChanged += OnLanguageChanged;
     }
 
@@ -1609,32 +1608,10 @@ public partial class OverlayWindow : Window
         AutostartNotice.Visibility = Visibility.Collapsed;
 
     // Клик по чипу языка — выпадающий список в стиле выбора очереди.
-    private void LangChip_Click(object sender, MouseButtonEventArgs e)
-    {
-        e.Handled = true;
-        var menu = new ContextMenu { Style = (Style)FindResource("RoleMenuStyle") };
-        var itemStyle = (Style)FindResource("RoleMenuItemStyle");
-        foreach (var lang in Loc.Languages)
-        {
-            var item = new MenuItem
-            {
-                Header    = lang.Native,
-                IsChecked = lang.Code == Loc.Current,
-                Style     = itemStyle,
-            };
-            var code = lang.Code;
-            item.Click += (_, _) => Loc.SetLanguage(code);
-            menu.Items.Add(item);
-        }
-        menu.PlacementTarget = LangChip;
-        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-        menu.IsOpen = true;
-    }
 
     // Язык сменился: обновляем UI сразу, имена чемпионов — после дозагрузки Data Dragon.
     private void OnLanguageChanged()
     {
-        LangText.Text = Loc.CurrentLang.Native + " ▾";
         _tierCols = null;             // роли/тултипы тир-листа под новую локаль
         // Обоснования рекомендаций — ГОТОВЫЕ строки, собранные движком через Loc.T
         // на прежнем языке. Перерисовка их не переводит — перегенерируем движком из

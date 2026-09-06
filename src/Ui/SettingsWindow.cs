@@ -11,6 +11,8 @@ using FontFamily = System.Windows.Media.FontFamily;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 
 namespace Counterplay;
 
@@ -71,6 +73,29 @@ sealed class SettingsWindow : Window
     {
         var s = _draft;
         var body = new StackPanel { Margin = new Thickness(20, 16, 20, 16) };
+
+        // Язык — самым верхом и в обход «Применить»: смена языка перерисовывает
+        // само окно настроек, ждать кнопки тут не от чего.
+        body.Children.Add(Section(Loc.T("settings.language")));
+        var langs = new ComboBox
+        {
+            Margin = new Thickness(0, 2, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            MinWidth = 220, Padding = new Thickness(8, 4, 8, 4),
+            FontFamily = Font("UiFont"), FontSize = 13, Cursor = Cursors.Hand
+        };
+        foreach (var l in Loc.Languages)
+            langs.Items.Add(new ComboBoxItem { Content = l.Native, Tag = l.Code, FontFamily = Font("UiFont") });
+        langs.SelectedIndex = Math.Max(0, Loc.Languages.ToList().FindIndex(l => l.Code == Loc.Current));
+        langs.SelectionChanged += (_, _) =>
+        {
+            if (langs.SelectedItem is ComboBoxItem { Tag: string code } && code != Loc.Current)
+            {
+                Loc.SetLanguage(code);
+                Content = Build();      // перестраиваем окно на новом языке
+            }
+        };
+        body.Children.Add(langs);
 
         body.Children.Add(Section(Loc.T("settings.ready")));
         body.Children.Add(Row(Loc.T("settings.readyRank"),    Loc.T("settings.readyRankHint"),

@@ -448,16 +448,6 @@
             </TextBlock>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
-            <!-- Язык: чип с выпадающим списком — как выбор очереди в трекере -->
-            <Border x:Name="LangChip" VerticalAlignment="Center" Margin="0,0,8,0"
-                    CornerRadius="4" BorderBrush="#557089" BorderThickness="1"
-                    Background="#1AFFFFFF" Padding="9,2,9,3" Cursor="Hand"
-                    MouseLeftButtonDown="LangChip_Click"
-                    ToolTip="Язык / Language">
-              <TextBlock x:Name="LangText" Text=""
-                         FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
-                         Foreground="#C9D2DC"/>
-            </Border>
             <Button x:Name="SettingsBtn" Content="⚙" Click="OnSettings"
                     Background="Transparent" BorderThickness="0"
                     Foreground="#C89B3C" FontSize="15" Padding="6,0"
