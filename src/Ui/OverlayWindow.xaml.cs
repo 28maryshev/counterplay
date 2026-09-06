@@ -496,6 +496,11 @@ public partial class OverlayWindow : Window
         // Слежение за окном клиента (свернуть/развернуть/переместить).
         StartWindowFollow();
 
+        // Настройки применяем при запуске и на каждое изменение — окно настроек
+        // остаётся открытым, эффект виден сразу.
+        AppSettings.Changed += () => Dispatcher.InvokeAsync(ApplySettings);
+        ApplySettings();
+
         // Чип языка: показываем текущий, меню — по клику.
         LangText.Text = Loc.CurrentLang.Native + " ▾";
         Loc.LanguageChanged += OnLanguageChanged;
@@ -966,6 +971,7 @@ public partial class OverlayWindow : Window
     private void DrawSynergyLinks(int champId)
     {
         SynLinks.Children.Clear();
+        if (!AppSettings.Current.DraftHover) return;
         if (champId == 0 || _engine is null || _lastDraft is null) return;
 
         // championId → строка в списке союзников; отдельно мой слот — в него
@@ -1660,6 +1666,63 @@ public partial class OverlayWindow : Window
     {
         _userMoved = true; // дальше окно стоит там, куда его поставил пользователь
         DragMove();
+    }
+
+    private SettingsWindow? _settingsWin;
+
+    private void OnSettings(object sender, RoutedEventArgs e)
+    {
+        if (_settingsWin is { IsVisible: true }) { _settingsWin.Activate(); return; }
+        _settingsWin = new SettingsWindow { Owner = this };
+        _settingsWin.Closed += (_, _) => _settingsWin = null;
+        _settingsWin.Show();
+    }
+
+    /// Применяет настройки к уже построенным экранам. Вызывается при запуске и
+    /// после каждого изменения — окно настроек можно не закрывать, эффект виден
+    /// сразу на живом оверлее.
+    private void ApplySettings()
+    {
+        var s = AppSettings.Current;
+        Visibility V(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+
+        // Экран ожидания
+        RankCard.Visibility       = V(s.ReadyRank);
+        Last5Panel.Visibility     = V(s.ReadyLast5);
+        WinrateRow.Visibility     = V(s.ReadyWinrate);
+        PoolTitleRow.Visibility   = V(s.ReadyPool);
+        PoolButtonsRow.Visibility = V(s.ReadyPool);
+        ReadyStatusText.Visibility = V(s.ReadyPhase);
+        BetaCard.Visibility       = V(s.ReadyBeta);
+        // Полосу чемпионов гасим только принудительно: сама она появляется
+        // лишь когда игры есть (см. FillMyChamps).
+        if (!s.ReadyChamps) MyChampsBox.Visibility = Visibility.Collapsed;
+        WrChart.Visibility = V(s.ReadyWinrate && s.ChartMode != "off");
+        DrawWrChart();
+
+        // Драфт
+        MyDmgPanel.Visibility    = V(s.DraftDamage && MyDmgPanel.Tag as string != "empty");
+        EnemyDmgPanel.Visibility = V(s.DraftDamage && EnemyDmgPanel.Tag as string != "empty");
+        if (!s.DraftCombos)
+        {
+            MyCombosHeader.Visibility    = Visibility.Collapsed;
+            MyTeamCombos.Visibility      = Visibility.Collapsed;
+            EnemyCombosHeader.Visibility = Visibility.Collapsed;
+            EnemyTeamCombos.Visibility   = Visibility.Collapsed;
+            MyTeamLines.Children.Clear();
+            EnemyTeamLines.Children.Clear();
+        }
+        else
+        {
+            MyTeamCombos.Visibility    = Visibility.Visible;
+            EnemyTeamCombos.Visibility = Visibility.Visible;
+        }
+        if (!s.DraftRunes) RunesBar.Visibility = Visibility.Collapsed;
+        if (!s.DraftRolePool) RolePoolBar.Visibility = Visibility.Collapsed;
+        if (!s.BansTierList) TierListBar.Visibility = Visibility.Collapsed;
+
+        // Карточки и слоты перестраиваются с новыми правилами.
+        if (_lastDraft is not null) RenderCurrentState();
     }
 
     // Кнопка-пин: вернуть оверлей к правому краю окна клиента
@@ -2361,8 +2424,145 @@ public partial class OverlayWindow : Window
         RankProgressFill.Width = w > 0 ? w * Math.Clamp(_rankPct, 0, 100) / 100.0 : 0;
     }
 
+    // Цвет тира для полос графика рейтинга: тот же язык, что и эмблемы рангов.
+    private static readonly (int Base, string Name, Color Color)[] TierBands =
+    [
+        (0,    "Iron",     Color.FromRgb(0x6B, 0x63, 0x5D)),
+        (400,  "Bronze",   Color.FromRgb(0x8C, 0x5A, 0x33)),
+        (800,  "Silver",   Color.FromRgb(0x9A, 0xAC, 0xBA)),
+        (1200, "Gold",     Color.FromRgb(0xD8, 0xA6, 0x3E)),
+        (1600, "Platinum", Color.FromRgb(0x4F, 0xBF, 0xB6)),
+        (2000, "Emerald",  Color.FromRgb(0x2E, 0xAF, 0x62)),
+        (2400, "Diamond",  Color.FromRgb(0x6C, 0xA6, 0xF5)),
+        (2800, "Master",   Color.FromRgb(0xA0, 0x5C, 0xD6)),
+    ];
+
+    private static (string Name, Color Color) BandAt(int absLp)
+    {
+        var b = TierBands[0];
+        foreach (var t in TierBands) if (absLp >= t.Base) b = t;
+        return (b.Name, b.Color);
+    }
+
+    /// График движения ранга за месяц. Ось Y — абсолютный LP, поэтому дивизионы
+    /// ложатся ровными полосами по 100 очков, а тир задаёт цвет фона: видно не
+    /// только «вверх/вниз», но и где именно ты идёшь и близко ли граница.
+    private void DrawRatingChart()
+    {
+        WrChart.Children.Clear();
+        var pts = _sessionView?.RatingHistory ?? [];
+        double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
+        double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
+
+        if (pts.Count == 0)
+        {
+            var hint = new TextBlock
+            {
+                Text = Loc.T("chart.noRating"), FontFamily = (FontFamily)FindResource("UiFont"),
+                FontSize = 10, Foreground = MuteBrush, TextWrapping = TextWrapping.Wrap,
+                Width = Math.Max(60, w - 26)
+            };
+            Canvas.SetLeft(hint, 24);
+            Canvas.SetTop(hint, h / 2 - 14);
+            WrChart.Children.Add(hint);
+            return;
+        }
+
+        // Границы — по данным, но выровненные на дивизион (100 LP), чтобы полосы
+        // не обрезались посередине.
+        int lo = pts.Min(p => p.AbsLp), hi = pts.Max(p => p.AbsLp);
+        if (hi - lo < 60) { int m = (lo + hi) / 2; lo = m - 30; hi = m + 30; }
+        int min = (int)(Math.Floor((lo - 12) / 100.0) * 100);
+        int max = (int)(Math.Ceiling((hi + 12) / 100.0) * 100);
+        if (max <= min) max = min + 100;
+
+        const double axisW = 26;
+        double padY = 4, bottomPad = 12;
+        double plotL = axisW, plotR = w;
+        double chartH = h - padY - bottomPad;
+        double baseY = padY + chartH;
+        double Y(double lp) => padY + (1 - (lp - min) / (double)(max - min)) * chartH;
+        double X(int i) => pts.Count == 1 ? (plotL + plotR) / 2
+            : plotL + (double)i / (pts.Count - 1) * (plotR - plotL - 2) + 1;
+
+        // Полосы тиров: если за месяц пересёк границу тира, фон делится на два
+        // цвета — сразу видно, где закончилось золото и началась платина.
+        for (int band = min; band < max; band += 100)
+        {
+            var (_, color) = BandAt(band);
+            var rect = new System.Windows.Shapes.Rectangle
+            {
+                Width = Math.Max(1, plotR - plotL),
+                Height = Math.Max(1, Y(band) - Y(band + 100)),
+                Fill = new SolidColorBrush(color) { Opacity = 0.16 }
+            };
+            Canvas.SetLeft(rect, plotL);
+            Canvas.SetTop(rect, Y(band + 100));
+            WrChart.Children.Add(rect);
+        }
+
+        // Разделители дивизионов; границу тира (кратно 400) выделяем ярче.
+        for (int line = min; line <= max; line += 100)
+        {
+            var tierEdge = line % 400 == 0;
+            WrChart.Children.Add(new System.Windows.Shapes.Line
+            {
+                X1 = plotL, X2 = plotR, Y1 = Y(line), Y2 = Y(line),
+                Stroke = new SolidColorBrush(Color.FromArgb(tierEdge ? (byte)0x66 : (byte)0x26,
+                                                            0xFF, 0xFF, 0xFF)),
+                StrokeThickness = tierEdge ? 1.4 : 1
+            });
+        }
+
+        // Подпись слева — дивизион римскими (IV…I), у мастера+ просто LP.
+        for (int line = min; line < max; line += 100)
+        {
+            var tier = BandAt(line);
+            var divIdx = (line % 400) / 100;               // 0 = IV … 3 = I
+            var text = line >= 2800 ? "M" : $"{tier.Name[0]}{new[] { "IV", "III", "II", "I" }[divIdx]}";
+            var lab = new TextBlock
+            {
+                Text = text, FontFamily = (FontFamily)FindResource("UiFont"),
+                FontSize = 8, Foreground = new SolidColorBrush(tier.Color), Opacity = 0.95
+            };
+            lab.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(lab, Math.Max(0, axisW - 4 - lab.DesiredSize.Width));
+            Canvas.SetTop(lab, Y(line + 50) - lab.DesiredSize.Height / 2);
+            WrChart.Children.Add(lab);
+        }
+
+        var lineColor = BandAt(pts[^1].AbsLp).Color;
+        var stroke = new SolidColorBrush(Color.FromRgb(0xF0, 0xF4, 0xF8));
+
+        if (pts.Count >= 2)
+        {
+            var poly = new System.Windows.Shapes.Polyline
+            { Stroke = stroke, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round };
+            for (int i = 0; i < pts.Count; i++) poly.Points.Add(new Point(X(i), Y(pts[i].AbsLp)));
+            WrChart.Children.Add(poly);
+        }
+
+        int last = pts.Count - 1;
+        var dot = new System.Windows.Shapes.Ellipse
+        {
+            Width = 7, Height = 7, Fill = new SolidColorBrush(lineColor),
+            Stroke = stroke, StrokeThickness = 1.5
+        };
+        Canvas.SetLeft(dot, X(last) - 3.5);
+        Canvas.SetTop(dot, Y(pts[last].AbsLp) - 3.5);
+        WrChart.Children.Add(dot);
+
+        var occupied = new List<(double L, double R)>();
+        AddDateLabel(pts[0].Date, X(0), h, Align.Left, occupied);
+        if (pts.Count > 1) AddDateLabel(pts[last].Date, X(last), h, Align.Right, occupied);
+    }
+
     private void DrawWrChart()
     {
+        // Режим графика — из настроек: винрейт, движение ранга или ничего.
+        if (AppSettings.Current.ChartMode == "rating") { DrawRatingChart(); return; }
+        if (AppSettings.Current.ChartMode == "off") { WrChart.Children.Clear(); return; }
+
         WrChart.Children.Clear();
         var v = _sessionView;
         IReadOnlyList<SessionTracker.WrPoint> pts = v?.WinrateHistory ?? [];
@@ -3142,6 +3342,7 @@ public partial class OverlayWindow : Window
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
             var candArch = ChampionTraits.ChampArch(r.ChampionId);
+            var cfg = AppSettings.Current;
             return new FullRecCard
             {
                 ChampionId = r.ChampionId,
@@ -3155,7 +3356,10 @@ public partial class OverlayWindow : Window
                 WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
                 Icon       = IconCache.Get(r.ChampionId),
                 // Маркеры «•» + имена чемпионов цветом их архетипа (см. ReasonSegments).
-                ReasonSegs = ReasonSegments(Distinctive(r.Reasons, reasonFreq, recs.Count), nameColor),
+                ReasonSegs = cfg.DraftReasons
+                    ? ReasonSegments(Distinctive(r.Reasons, reasonFreq, recs.Count), nameColor)
+                    : [],
+                MetricsVisibility = cfg.DraftMetrics ? Visibility.Visible : Visibility.Collapsed,
                 BaseBar    = BaseBarS(r.BaseDelta),
                 DirectBar  = DirBar(r.DirectDelta),
                 OtherBar   = StyBar(r.StyleDelta),   // строка «Против их стиля»
@@ -3168,14 +3372,16 @@ public partial class OverlayWindow : Window
                 DirectStrong = IsMax(r.DirectDelta,  maxDir),
                 OtherStrong  = IsMax(r.StyleDelta,   maxSty),
                 SynStrong    = IsMax(r.SynergyDelta, maxSyn),
-                ArchGlyph  = ag,
+                ArchGlyph  = cfg.DraftArch ? ag : "",
                 ArchColor  = ac,
                 ArchTip    = at,
                 ArchStrong = _allyStyle != null && candArch == _allyStyle,
                 ArchDim    = _allyStyle != null && candArch != _allyStyle,
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
-                CounterItems = ItemValue.CounterItems(r.ChampionId, allyNoMe)
-                    .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList(),
+                CounterItems = cfg.DraftItems
+                    ? ItemValue.CounterItems(r.ChampionId, allyNoMe)
+                        .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList()
+                    : [],
                 // Чемпиона нет на аккаунте (только если владение вообще известно).
                 NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId),
                 NotOwnedLabel = Loc.T("rec.notOwned"),
@@ -3501,7 +3707,7 @@ public partial class OverlayWindow : Window
 
             List<ImageSource> sideIcons = [];
             string sideLabel = "";
-            if (hasChamp && engine != null)
+            if (hasChamp && engine != null && AppSettings.Current.DraftSideIcons)
             {
                 if (!ally)
                 {
@@ -3519,7 +3725,8 @@ public partial class OverlayWindow : Window
             }
 
             // Значок архетипа (камень/ножницы/бумага), определяется по чемпиону.
-            var (archGlyph, archColor, archTip) = hasChamp ? ArchBadge(champId) : ("", "#888888", "");
+            var (archGlyph, archColor, archTip) = hasChamp && AppSettings.Current.DraftArch
+                ? ArchBadge(champId) : ("", "#888888", "");
             // У команды выраженный стиль — подсвечиваем тех, кто его и задаёт,
             // остальных приглушаем: сразу видно, на чём состав держится.
             var archOfChamp = hasChamp ? ChampionTraits.ChampArch(champId) : null;
@@ -3745,6 +3952,9 @@ public sealed class FullRecCard
     public string       ArchColor  { get; init; } = "#888888";
     public string       ArchTip    { get; init; } = "";
     public Visibility   ArchVisibility => ArchGlyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    // Полоски показателей можно выключить в настройках — карточка становится
+    // компактнее, остаются имя, счёт и доводы.
+    public Visibility   MetricsVisibility { get; init; } = Visibility.Visible;
     public bool         ArchStrong { get; init; }   // поддерживает стиль команды
     public bool         ArchDim    { get; init; }   // выбивается из стиля
     public double       ArchOpacity   => ArchDim ? 0.75 : 1.0;

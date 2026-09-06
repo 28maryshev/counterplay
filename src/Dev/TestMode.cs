@@ -122,13 +122,25 @@ static class TestMode
         var baseDate = DateTime.UtcNow.AddDays(-14);
         double wr = 48; var rndWr = new Random(7);
         for (int i = 0; i < 14; i++) { wr = Math.Clamp(wr + rndWr.Next(-3, 5), 44, 60); hist.Add(new(baseDate.AddDays(i), wr)); }
+
+        // История рейтинга для второго режима графика. Специально ведём её через
+        // границу тира (эмеральд IV → платина I, 2000 LP), чтобы на тесте было
+        // видно и деление на дивизионы, и смену цвета фона.
+        var rating = new List<SessionTracker.LpPoint>();
+        var lpAbs = 1955; var rndLp = new Random(11);
+        for (int i = 0; i < 26; i++)
+        {
+            lpAbs += rndLp.Next(0, 10) < 6 ? rndLp.Next(14, 26) : -rndLp.Next(12, 24);
+            rating.Add(new(DateTime.UtcNow.AddDays(-26 + i), lpAbs));
+        }
+        rating.Add(new(DateTime.UtcNow, 2047));   // эмеральд II, 47 LP — как в карточке
         var fakeSession = new SessionTracker.SessionData(
             "TestSummoner", "solo",
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
                     HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
-                    Wins: 63, Losses: 55, Winrate: 53.4, Last5: last5, WinrateHistory: hist),
+                    Wins: 63, Losses: 55, Winrate: 53.4, Last5: last5, WinrateHistory: hist, RatingHistory: rating),
             });
 
         // Сценарий «поставил программу и сыграл одну игру»: ранг из клиента уже
@@ -149,7 +161,9 @@ static class TestMode
                     // на момент установки, вторая — после сыгранного матча.
                     WinrateHistory: [
                         new(DateTime.Now.AddHours(-2), 53.3),
-                        new(DateTime.Now, 53.7)]),
+                        new(DateTime.Now, 53.7)],
+                    // Одна игра — и на графике рейтинга ровно одна точка.
+                    RatingHistory: [new(DateTime.Now, 2047)]),
             });
         FullSession = fakeSession;
 
@@ -172,7 +186,7 @@ static class TestMode
             {
                 ["solo"] = new SessionTracker.QueueView(
                     HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
-                    Wins: 3, Losses: 2, Winrate: 60, Last5: five, WinrateHistory: fiveHist),
+                    Wins: 3, Losses: 2, Winrate: 60, Last5: five, WinrateHistory: fiveHist, RatingHistory: rating),
             });
 
         overlay.Dispatcher.Invoke(() =>

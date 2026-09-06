@@ -15,12 +15,17 @@ public static class SessionTracker
     public sealed record RecentGame(int ChampionId, bool Win, int? LpDelta);
     public sealed record WrPoint(DateTime Date, double Winrate);
 
+    /// Точка графика рейтинга: абсолютный LP (тир*400 + дивизион*100 + очки) —
+    /// в такой шкале дивизионы ложатся ровными полосами по 100.
+    public sealed record LpPoint(DateTime Date, int AbsLp);
+
     /// Статистика одной очереди для панели трекера.
     public sealed record QueueView(
         bool HasRank, string Tier, string Division, int Lp, int ProgressPct,
         int Wins, int Losses, double Winrate,
         IReadOnlyList<RecentGame> Last5,
-        IReadOnlyList<WrPoint> WinrateHistory);
+        IReadOnlyList<WrPoint> WinrateHistory,
+        IReadOnlyList<LpPoint> RatingHistory);
 
     public sealed record SessionData(string Nick, string SelectedQueue, IReadOnlyDictionary<string, QueueView> Queues);
 
@@ -37,6 +42,9 @@ public static class SessionTracker
 
     /// Окно графика: три месяца. Прошлогодняя форма ничего не говорит о
     /// сегодняшней, а журнал не растёт без предела.
+    /// Окно графика рейтинга — месяц: за него видно текущую серию, а не весь сезон.
+    private const int RatingDays = 30;
+
     public const int ChartDays = 90;
 
     /// Сколько «виртуальных» игр по 50% подмешивать в винрейт для графика.
@@ -370,6 +378,31 @@ public static class SessionTracker
         ["IV"] = 0, ["III"] = 1, ["II"] = 2, ["I"] = 3
     };
 
+    /// История рейтинга за месяц. Абсолютных значений мы не храним — только
+    /// дельты за игру, поэтому идём от ТЕКУЩЕГО ранга назад, вычитая дельты: так
+    /// последняя точка всегда совпадает с тем, что показывает клиент, а
+    /// накопленная погрешность (игры без дельты) остаётся в прошлом.
+    private static List<LpPoint> RatingPoints(QueueLog q, Ranked r)
+    {
+        if (!r.HasRank) return [];
+        var from = DateTimeOffset.UtcNow.AddDays(-RatingDays).ToUnixTimeSeconds();
+        var games = q.Games.Where(g => g.Ts >= from && g.Lp is not null).ToList();
+        if (games.Count == 0) return [];
+
+        var now = AbsLp(r.Tier, r.Div, r.Lp);
+        var pts = new List<LpPoint>(games.Count + 1)
+            { new(DateTimeOffset.FromUnixTimeSeconds(games[^1].Ts).LocalDateTime, now) };
+
+        var lp = now;
+        for (int i = games.Count - 1; i >= 0; i--)
+        {
+            lp -= games[i].Lp ?? 0;
+            pts.Add(new LpPoint(DateTimeOffset.FromUnixTimeSeconds(games[i].Ts).LocalDateTime, lp));
+        }
+        pts.Reverse();
+        return pts;
+    }
+
     private static int AbsLp(string tier, string div, int lp)
     {
         var t = TierBase.GetValueOrDefault(tier.ToUpperInvariant(), 2000);
@@ -630,7 +663,7 @@ public static class SessionTracker
                     r.HasRank, Cap(r.Tier), r.Div, r.Lp,
                     r.HasRank ? ProgressPct(r.Tier, r.Lp) : 0,
                     r.Wins, r.Losses, g > 0 ? 100.0 * r.Wins / g : 0,
-                    last5, points);
+                    last5, points, RatingPoints(q, r));
             }
             else
             {
@@ -638,7 +671,7 @@ public static class SessionTracker
                 views[key] = new QueueView(
                     false, "", "", 0, 0, w, l,
                     q.Games.Count > 0 ? 100.0 * w / q.Games.Count : 0,
-                    last5, points);
+                    last5, points, []);
             }
         }
 

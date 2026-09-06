@@ -458,6 +458,10 @@
                          FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
                          Foreground="#C9D2DC"/>
             </Border>
+            <Button x:Name="SettingsBtn" Content="⚙" Click="OnSettings"
+                    Background="Transparent" BorderThickness="0"
+                    Foreground="#C89B3C" FontSize="15" Padding="6,0"
+                    Cursor="Hand" ToolTip="{loc:T settings.title}"/>
             <Button x:Name="PinBtn" Content="📌" Click="OnPin"
                     Background="Transparent" BorderThickness="0"
                     Foreground="#C89B3C" FontSize="14" Padding="6,0"
@@ -553,7 +557,7 @@
             <StackPanel x:Name="ReadyInfo" MaxWidth="282">
 
             <!-- Эмблема ранга + ник с «крыльями» (в цвет ранга) и выбор очереди -->
-            <Grid>
+            <Grid x:Name="RankCard">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -637,7 +641,7 @@
                        TextAlignment="Center" Margin="0,10,0,0"/>
 
             <!-- Винрейт слева (W–L мелко, % крупно с цветом) + график справа -->
-            <Grid Margin="0,12,0,0">
+            <Grid x:Name="WinrateRow" Margin="0,12,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -662,7 +666,7 @@
             </Grid>
 
             <!-- Пул чемпионов: заголовок + имя выбранной связки рядом -->
-            <StackPanel Orientation="Horizontal" Margin="0,12,0,6" HorizontalAlignment="Left">
+            <StackPanel x:Name="PoolTitleRow" Orientation="Horizontal" Margin="0,12,0,6" HorizontalAlignment="Left">
               <TextBlock Text="{loc:T pool.sectionTitle}"
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#8AA0B2" VerticalAlignment="Center"/>
@@ -673,7 +677,7 @@
             </StackPanel>
 
             <!-- Режимы (Настройки · Обычный · Пул · Дуо) — во всю ширину панели -->
-            <UniformGrid Columns="4">
+            <UniformGrid x:Name="PoolButtonsRow" Columns="4">
               <UniformGrid.Resources>
                 <Style TargetType="Button">
                   <Setter Property="Background" Value="Transparent"/>
@@ -779,7 +783,7 @@
                        TextWrapping="Wrap" Margin="0,12,0,0"/>
 
             <!-- Плашка беты: светящаяся надпись + просьба писать в поддержку -->
-            <Border Margin="0,11,0,0" Width="282" CornerRadius="7"
+            <Border x:Name="BetaCard" Margin="0,11,0,0" Width="282" CornerRadius="7"
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
                     Padding="13,10">
               <StackPanel>
@@ -1314,7 +1318,8 @@
                             </StackPanel>
 
                             <!-- Показатели: справа, по центру бокса -->
-                            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center"
+                                        Visibility="{Binding MetricsVisibility}">
                               <StackPanel.Resources>
                                 <!-- Золотой прямоугольник у сильнейшей метрики (лейбл + число + бар) -->
                                 <Style x:Key="MetricBox" TargetType="Border">
