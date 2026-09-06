@@ -327,7 +327,7 @@
         <DropShadowEffect Color="Black" BlurRadius="16" ShadowDepth="3" Opacity="0.7"/>
       </Border.Effect>
 
-      <Grid>
+      <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>  <!-- шапка       -->
           <RowDefinition Height="Auto"/>  <!-- статус      -->
@@ -863,7 +863,7 @@
           </Grid.ColumnDefinitions>
 
           <!-- МОЯ КОМАНДА ─────────────────────────────────────────── -->
-          <DockPanel Grid.Column="0" Margin="0,0,10,0">
+          <DockPanel x:Name="MyTeamPanel" Grid.Column="0" Margin="0,0,10,0">
             <TextBlock DockPanel.Dock="Top"
                        Text="{loc:T team.myTeam}"
                        FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="Bold"
@@ -1988,7 +1988,7 @@
           </Border>
 
           <!-- ВРАГИ ────────────────────────────────────────────────── -->
-          <DockPanel Grid.Column="2" Margin="10,0,0,0">
+          <DockPanel x:Name="EnemyTeamPanel" Grid.Column="2" Margin="10,0,0,0">
             <TextBlock DockPanel.Dock="Top"
                        Text="{loc:T team.enemies}"
                        FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="Bold"

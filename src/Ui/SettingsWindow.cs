@@ -70,6 +70,17 @@ sealed class SettingsWindow : Window
              ("off",     Loc.T("settings.chartOff"))],
             s.ChartMode, v => { s.ChartMode = v; AppSettings.Save(); }));
 
+        body.Children.Add(Choice(Loc.T("settings.chartDays"), Loc.T("settings.chartDaysHint"),
+            [("30", Loc.T("settings.days30")), ("90", Loc.T("settings.days90"))],
+            s.ChartDays.ToString(), v => { s.ChartDays = int.Parse(v); AppSettings.Save(); }));
+
+        body.Children.Add(Choice(Loc.T("settings.queue"), Loc.T("settings.queueHint"),
+            [("last", Loc.T("settings.queueLast")), ("solo", "Solo/Duo"), ("flex", "Flex")],
+            s.DefaultQueue, v => { s.DefaultQueue = v; AppSettings.Save(); }));
+
+        body.Children.Add(Row(Loc.T("settings.readyCompact"), Loc.T("settings.readyCompactHint"),
+            s.ReadyCompact, v => { s.ReadyCompact = v; AppSettings.Save(); }));
+
         body.Children.Add(Row(Loc.T("settings.readyPool"),   Loc.T("settings.readyPoolHint"),
             s.ReadyPool,   v => { s.ReadyPool = v;   AppSettings.Save(); }));
         body.Children.Add(Row(Loc.T("settings.readyChamps"), Loc.T("settings.readyChampsHint"),
@@ -101,9 +112,34 @@ sealed class SettingsWindow : Window
         body.Children.Add(Row(Loc.T("settings.draftRunes"),    Loc.T("settings.draftRunesHint"),
             s.DraftRunes,    v => { s.DraftRunes = v;    AppSettings.Save(); }));
 
+        body.Children.Add(Choice(Loc.T("settings.draftCount"), Loc.T("settings.draftCountHint"),
+            [("6", "6"), ("8", "8"), ("10", "10")],
+            s.DraftCount.ToString(), v => { s.DraftCount = int.Parse(v); AppSettings.Save(); }));
+
+        body.Children.Add(Row(Loc.T("settings.draftUnowned"), Loc.T("settings.draftUnownedHint"),
+            s.DraftUnowned, v => { s.DraftUnowned = v; AppSettings.Save(); }));
+        body.Children.Add(Row(Loc.T("settings.draftMirror"),  Loc.T("settings.draftMirrorHint"),
+            s.DraftMirror,  v => { s.DraftMirror = v;  AppSettings.Save(); }));
+
         body.Children.Add(Section(Loc.T("settings.bans")));
         body.Children.Add(Row(Loc.T("settings.bansTier"), Loc.T("settings.bansTierHint"),
             s.BansTierList, v => { s.BansTierList = v; AppSettings.Save(); }));
+
+        body.Children.Add(Section(Loc.T("settings.general")));
+        body.Children.Add(Choice(Loc.T("settings.opacity"), Loc.T("settings.opacityHint"),
+            [("1", "100%"), ("0.85", "85%"), ("0.7", "70%")],
+            s.Opacity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            v => { s.Opacity = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
+                   AppSettings.Save(); }));
+        body.Children.Add(Choice(Loc.T("settings.scale"), Loc.T("settings.scaleHint"),
+            [("0.9", Loc.T("settings.scaleS")), ("1", Loc.T("settings.scaleM")), ("1.15", Loc.T("settings.scaleL"))],
+            s.FontScale.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            v => { s.FontScale = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
+                   AppSettings.Save(); }));
+        body.Children.Add(Row(Loc.T("settings.onTop"),   Loc.T("settings.onTopHint"),
+            s.AlwaysOnTop,    v => { s.AlwaysOnTop = v;    AppSettings.Save(); }));
+        body.Children.Add(Row(Loc.T("settings.inGame"),  Loc.T("settings.inGameHint"),
+            s.KeepDuringGame, v => { s.KeepDuringGame = v; AppSettings.Save(); }));
 
         var reset = new Button
         {

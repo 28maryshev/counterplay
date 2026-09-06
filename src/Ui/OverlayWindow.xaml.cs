@@ -348,6 +348,12 @@ public partial class OverlayWindow : Window
     // висела поверх всего). Клик по оверлею делает его активным и возвращает поверх.
     private void UpdateZOrder(IntPtr clientHwnd)
     {
+        // «Всегда поверх» из настроек: не опускаем окно под клиент вообще.
+        if (AppSettings.Current.AlwaysOnTop)
+        {
+            if (!Topmost) Topmost = true;
+            return;
+        }
         if (GetForegroundWindow() == Hwnd)
         {
             if (!Topmost) Topmost = true;           // наш оверлей активен → поверх
@@ -571,7 +577,8 @@ public partial class OverlayWindow : Window
             RenderBuilds(stats);
 
             RunesStatus.Visibility = Visibility.Collapsed;
-            RunesBar.Visibility = Visibility.Visible;
+            RunesBar.Visibility = AppSettings.Current.DraftRunes
+                ? Visibility.Visible : Visibility.Collapsed;
             TierListBar.Visibility = Visibility.Collapsed;   // руны заняли Row 1 — тир-лист прячем
             RolePoolBar.Visibility = Visibility.Collapsed;   // и пул роли тоже
             PulseApplyButton();   // сразу подсвечиваем: вариант выбран по умолчанию
@@ -1497,7 +1504,8 @@ public partial class OverlayWindow : Window
             .Where(id => id != 0));
         foreach (var c in _rolePoolCells) c.Banned = gone.Contains(c.ChampionId);
 
-        RolePoolBar.Visibility = _rolePoolCells.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        RolePoolBar.Visibility = _rolePoolCells.Count > 0 && AppSettings.Current.DraftRolePool
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void RenderTierList(DraftState? draft = null)
@@ -1531,7 +1539,8 @@ public partial class OverlayWindow : Window
         // переприсвоение на каждом событии драфта зря пересобирало бы 150 эмблем.
         if (!ReferenceEquals(TierList.ItemsSource, _tierCols))
             TierList.ItemsSource = _tierCols;
-        TierListBar.Visibility = _tierCols.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TierListBar.Visibility = _tierCols.Count > 0 && AppSettings.Current.BansTierList
+            ? Visibility.Visible : Visibility.Collapsed;
 
         // Помечаем уже забаненных чемпионов (красный крест) — обновляется по ходу
         // банфазы, когда список банов растёт.
@@ -1732,6 +1741,23 @@ public partial class OverlayWindow : Window
         if (!s.DraftRolePool) RolePoolBar.Visibility = Visibility.Collapsed;
         if (!s.BansTierList) TierListBar.Visibility = Visibility.Collapsed;
 
+        // Прозрачность, масштаб и «поверх всех» — свойства самого окна.
+        Opacity = Math.Clamp(s.Opacity, 0.5, 1.0);
+        RootGrid.LayoutTransform = Math.Abs(s.FontScale - 1.0) < 0.01
+            ? System.Windows.Media.Transform.Identity
+            : new ScaleTransform(s.FontScale, s.FontScale);
+        if (s.AlwaysOnTop) Topmost = true;
+
+        // Компактная карточка ранга: эмблема мельче, полосы прогресса нет.
+        RankEmblem.Height = s.ReadyCompact ? 46 : 74;
+        RankProgressTrack.Visibility = V(s.ReadyRank && !s.ReadyCompact);
+
+        // Команды местами: моя команда справа, враги слева.
+        Grid.SetColumn(MyTeamPanel,    s.DraftMirror ? 2 : 0);
+        Grid.SetColumn(EnemyTeamPanel, s.DraftMirror ? 0 : 2);
+        MyTeamPanel.Margin    = s.DraftMirror ? new Thickness(10, 0, 0, 0) : new Thickness(0, 0, 10, 0);
+        EnemyTeamPanel.Margin = s.DraftMirror ? new Thickness(0, 0, 10, 0) : new Thickness(10, 0, 0, 0);
+
         // Карточки и слоты перестраиваются с новыми правилами.
         if (_lastDraft is not null) RenderCurrentState();
     }
@@ -1923,7 +1949,8 @@ public partial class OverlayWindow : Window
             items.Add(MyChampCard.Placeholder(Loc.T("session.needGames")));
 
         MyChampsStrip.ItemsSource = items;
-        MyChampsBox.Visibility    = Visibility.Visible;
+        MyChampsBox.Visibility    = AppSettings.Current.ReadyChamps
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
@@ -2072,9 +2099,15 @@ public partial class OverlayWindow : Window
             }
 
             _session = d;
-            // Автоопределённая очередь (где больше игр) — пока пользователь
-            // не выбрал вручную в этой сессии.
-            if (!_queueUserSet && d is not null) _selectedQueue = d.SelectedQueue;
+            // Очередь по умолчанию: из настроек, если там выбрана конкретная,
+            // иначе автоопределённая (где больше игр). И то и другое отменяется
+            // ручным выбором в этой сессии.
+            if (!_queueUserSet && d is not null)
+            {
+                var pref = AppSettings.Current.DefaultQueue;
+                _selectedQueue = pref is "solo" or "flex" or "normal" or "aram"
+                    ? pref : d.SelectedQueue;
+            }
             if (!_wrChartHooked)
             {
                 WrChart.SizeChanged += (_, _) => DrawWrChart();
@@ -2410,7 +2443,8 @@ public partial class OverlayWindow : Window
         TextBlock adText, TextBlock apText, TextBlock truText)
     {
         var (ad, ap, tru) = DamageMix(champIds);
-        if (ad + ap + tru <= 0) { panel.Visibility = Visibility.Collapsed; return; }
+        if (ad + ap + tru <= 0 || !AppSettings.Current.DraftDamage)
+        { panel.Visibility = Visibility.Collapsed; return; }
         panel.Visibility = Visibility.Visible;
 
         // Доли — звёздочными ширинами: полоса сама тянется по ширине колонки.
@@ -2597,6 +2631,11 @@ public partial class OverlayWindow : Window
             }
             return;
         }
+
+        // Окно графика из настроек: 30 дней — текущая форма, 90 — тренд за сезон.
+        var since = DateTime.Now.AddDays(-Math.Max(1, AppSettings.Current.ChartDays));
+        if (pts.Count > 0 && pts.Any(p => p.Date >= since))
+            pts = pts.Where(p => p.Date >= since).ToList();
 
         // Журнал сезонный (сотни игр) — для рисования прореживаем до ~120 точек
         // равномерной выборкой, первая и последняя игры сохраняются всегда.
@@ -3349,6 +3388,10 @@ public partial class OverlayWindow : Window
 
         var generalCards = recs
             .Where(r => !poolIds.Contains(r.ChampionId))
+            // Нет на аккаунте — можно не показывать вовсе: список станет короче,
+            // но в нём останутся только те, кого реально можно взять.
+            .Where(r => AppSettings.Current.DraftUnowned
+                        || _ownedChamps.Count == 0 || _ownedChamps.Contains(r.ChampionId))
             .Select(r =>
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
@@ -3578,8 +3621,11 @@ public partial class OverlayWindow : Window
         _myComboCards                = ToCards(myCombos,    ally: true);
         MyTeamCombos.ItemsSource     = _myComboCards;
         EnemyTeamCombos.ItemsSource  = ToCards(enemyCombos, ally: false);
-        MyCombosHeader.Visibility    = myCombos.Count    > 0 ? Visibility.Visible : Visibility.Collapsed;
-        EnemyCombosHeader.Visibility = enemyCombos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var showCombos = AppSettings.Current.DraftCombos;
+        MyCombosHeader.Visibility    = showCombos && myCombos.Count    > 0 ? Visibility.Visible : Visibility.Collapsed;
+        EnemyCombosHeader.Visibility = showCombos && enemyCombos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MyTeamCombos.Visibility      = showCombos ? Visibility.Visible : Visibility.Collapsed;
+        EnemyTeamCombos.Visibility   = showCombos ? Visibility.Visible : Visibility.Collapsed;
 
         var myTeam    = draft.MyTeam;
         var enemyTeam = draft.TheirTeam;
@@ -3647,7 +3693,7 @@ public partial class OverlayWindow : Window
         IReadOnlyList<DraftPlayer> players, List<TeamCombo> combos)
     {
         canvas.Children.Clear();
-        if (combos.Count == 0) return;
+        if (combos.Count == 0 || !AppSettings.Current.DraftCombos) return;
 
         // championId → индекс строки (0..4)
         var rowOf = new Dictionary<int, int>();

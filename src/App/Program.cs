@@ -325,7 +325,9 @@ class Program
                 if (phase is "GameStart" or "InProgress" or "Reconnect")
                 {
                     overlay.SetGameActive(true);
-                    overlay.HideToTray();
+                    // По умолчанию прячемся: прозрачное topmost-окно мешает входу
+                    // в игру. Настройкой это можно отключить.
+                    if (!AppSettings.Current.KeepDuringGame) overlay.HideToTray();
                 }
                 else if (phase != "ChampSelect")
                 {
@@ -349,7 +351,9 @@ class Program
             myPickActionId = draft.MyPickActionId;
             myBanActionId  = draft.MyBanActionId;
             overlay.UpdateRecommendations(
-                draft.IsAram ? engine?.RecommendAram(draft) : engine?.Recommend(draft), draft, engine);
+                draft.IsAram ? engine?.RecommendAram(draft, AppSettings.Current.DraftCount)
+                             : engine?.Recommend(draft, AppSettings.Current.DraftCount),
+                draft, engine);
         }
 
         // Сменили аккаунт в клиенте — перечитываем ВСЁ, что к нему привязано.
@@ -444,7 +448,7 @@ class Program
                         // Игра идёт — оверлей скрыт в трее (не разворачиваем ни при каких
                         // событиях, иначе прозрачное topmost-окно блокирует вход в игру).
                         overlay.SetGameActive(true);
-                        overlay.HideToTray();
+                        if (!AppSettings.Current.KeepDuringGame) overlay.HideToTray();
                         lastHash = "";
                     }
                     else if (phase != "ChampSelect")
@@ -499,7 +503,7 @@ class Program
                                 {
                                     await Task.Delay(TimeSpan.FromMilliseconds(delay), token);
                                     overlay.SetGameActive(true); // вход в игру — подавляем авто-показ
-                                    overlay.HideToTray();
+                                    if (!AppSettings.Current.KeepDuringGame) overlay.HideToTray();
                                 }
                                 catch (OperationCanceledException) { }
                             }, token);
@@ -542,7 +546,7 @@ class Program
                         }
                         else
                         {
-                            var recs = engine?.Recommend(draft);
+                            var recs = engine?.Recommend(draft, AppSettings.Current.DraftCount);
                             overlay.UpdateRecommendations(recs, draft, engine);
 
                             // Руны: панель для МОЕГО чемпиона (залоченного или наведённого).
