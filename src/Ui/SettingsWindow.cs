@@ -50,14 +50,70 @@ sealed class SettingsWindow : Window
     {
         Title = Loc.T("settings.title");
         Width = 560; Height = 640;
-        Background = new SolidColorBrush(Bg);
+        // Системная белая рамка выбивалась из тёмного интерфейса — рисуем свою,
+        // как у оверлея: заголовок с крестиком, перетаскивание за шапку.
+        WindowStyle = WindowStyle.None;
+        AllowsTransparency = true;
+        ResizeMode = ResizeMode.NoResize;
+        Background = System.Windows.Media.Brushes.Transparent;
         // Поверх всего: оверлей по своей логике ныряет под окно клиента, а
         // настройки — его дочернее окно и уходили вниз вместе с ним.
         Topmost = true;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         PoolUi.Apply(this);
 
-        Content = Build();
+        _body = new ContentControl { Content = Build() };
+        Content = Shell();
+    }
+
+    private ContentControl _body = null!;
+
+    /// Рамка окна в стиле программы: тёмный фон, золотая шапка, свой крестик.
+    private UIElement Shell()
+    {
+        var grid = new Grid();
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        var header = new Grid { Height = 38, Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)) };
+        header.MouseLeftButtonDown += (_, e) =>
+        { if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove(); };
+
+        var title = new TextBlock
+        {
+            Text = Loc.T("settings.title"),
+            FontFamily = Font("DisplayFont"), FontSize = 14, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Gold),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0, 0, 0)
+        };
+        header.Children.Add(title);
+
+        var close = new Button
+        {
+            Content = "✕", Width = 40,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Background = System.Windows.Media.Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Foreground = new SolidColorBrush(Gold),
+            FontSize = 13, Cursor = Cursors.Hand
+        };
+        close.Click += (_, _) => Close();
+        header.Children.Add(close);
+        grid.Children.Add(header);
+
+        Grid.SetRow(_body, 1);
+        grid.Children.Add(_body);
+
+        return new Border
+        {
+            Background = new SolidColorBrush(Bg),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x60, 0xC8, 0x9B, 0x3C)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            ClipToBounds = true,
+            Child = grid
+        };
     }
 
     private AppSettings _draft = AppSettings.Current.Clone();
@@ -95,7 +151,7 @@ sealed class SettingsWindow : Window
             if (langs.SelectedItem is ComboBoxItem { Tag: string code } && code != Loc.Current)
             {
                 Loc.SetLanguage(code);
-                Content = Build();      // перестраиваем окно на новом языке
+                _body.Content = Build();   // перестраиваем содержимое на новом языке
             }
         };
         body.Children.Add(langs);
@@ -190,7 +246,7 @@ sealed class SettingsWindow : Window
             s.KeepDuringGame, v => { s.KeepDuringGame = v; MarkDirty(); }));
 
         var reset = ActionButton(Loc.T("settings.reset"), "#8AA0B2", "#35485A");
-        reset.Click += (_, _) => { _draft = new AppSettings(); MarkDirty(); Content = Build(); };
+        reset.Click += (_, _) => { _draft = new AppSettings(); MarkDirty(); _body.Content = Build(); };
 
         _apply = ActionButton(Loc.T("settings.apply"), "#0E141D", "#36D6E7");
         _apply.Background = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));

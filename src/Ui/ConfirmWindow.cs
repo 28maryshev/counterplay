@@ -26,7 +26,10 @@ sealed class ConfirmWindow : Window
         Width = 380; SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
-        Background = new SolidColorBrush(Bg);
+        // Своя рамка, как у настроек и оверлея: системная шапка тут белая и чужая.
+        WindowStyle = WindowStyle.None;
+        AllowsTransparency = true;
+        Background = System.Windows.Media.Brushes.Transparent;
         Topmost = true;      // тот же случай, что и у настроек: не прятаться под клиент
         Owner = owner;
         WindowStartupLocation = owner is null
@@ -56,7 +59,17 @@ sealed class ConfirmWindow : Window
         row.Children.Add(yesBtn);
         body.Children.Add(row);
 
-        Content = body;
+        body.MouseLeftButtonDown += (_, e) =>
+        { if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove(); };
+
+        Content = new Border
+        {
+            Background = new SolidColorBrush(Bg),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x60, 0xC8, 0x9B, 0x3C)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Child = body
+        };
     }
 
     /// Шрифты объявлены в ресурсах окна оверлея — ищем там же, где и настройки.
