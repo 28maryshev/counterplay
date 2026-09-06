@@ -407,6 +407,11 @@ public partial class OverlayWindow : Window
             menu.Items.Add(_autostartItem);
         }
 
+        // Настройки — из трея тоже: окно может быть свёрнуто, а поменять что-то
+        // (например, вернуть спрятанный блок) нужно именно тогда.
+        menu.Items.Add(Loc.T("settings.title"), null, (_, _) =>
+            Dispatcher.Invoke(() => OnSettings(this, new RoutedEventArgs())));
+
         menu.Items.Add(Loc.T("tray.exit"), null, (_, _) => System.Windows.Application.Current.Shutdown());
         _tray.ContextMenuStrip = menu;
 
