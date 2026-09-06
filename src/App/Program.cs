@@ -87,7 +87,19 @@ class Program
                                             args.Contains("fivegames"), cts.Token);
                     // Песочница вернула управление — значит, в ней нажали
                     // «Боевой режим»: дальше работаем на настоящем клиенте.
-                    if (TestMode.SwitchToLive) await RunLcuAsync(overlay, args, cts.Token);
+                    //
+                    // Аргументы песочницы обязательно вычищаем: путь к lockfile
+                    // берётся как ПЕРВЫЙ не-флаговый аргумент, и слово «test»
+                    // уходило туда как путь. Клиент по нему не находился, цикл
+                    // сразу заканчивался — и программа закрывалась целиком.
+                    if (TestMode.SwitchToLive)
+                    {
+                        var liveArgs = args
+                            .Where(a => a is not ("test" or "--test" or "empty"
+                                                  or "firstgame" or "fivegames"))
+                            .ToArray();
+                        await RunLcuAsync(overlay, liveArgs, cts.Token);
+                    }
                 }
                 else await RunLcuAsync(overlay, args, cts.Token);
             }

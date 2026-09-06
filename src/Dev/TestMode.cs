@@ -498,8 +498,8 @@ sealed class TestPanel : Window
         profileRow.Children.Add(_emptyProfile);
         profileRow.Children.Add(_missingChamps);
 
-        // Боевой режим: та же сборка, но на своём клиенте. Стоит в строке
-        // сценария, а не в ряду кнопок этапов — там он перекрывал «Драфт» и «Баны».
+        // Боевой режим — ОТДЕЛЬНОЙ строкой: в общих рядах кнопка перекрывала
+        // соседние («Драфт», «Баны») и путалась со сценариями песочницы.
         var live = new Button
         {
             Content = "⚔ Боевой режим", Width = 130,
@@ -508,6 +508,7 @@ sealed class TestPanel : Window
             ToolTip = "Отключить песочницу и подключиться к своему клиенту LoL: "
                     + "окно свернётся в трей и поднимется, когда начнётся драфт"
         };
+        live.Margin = new Thickness(0);
         live.Click += (_, _) =>
         {
             if (!ConfirmWindow.Ask(
@@ -517,10 +518,26 @@ sealed class TestPanel : Window
             StopSim();
             TestMode.RequestLiveMode();
         };
-        profileRow.Children.Add(live);
+        var liveRow = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            Margin = new Thickness(0, 10, 0, 0)
+        };
+        liveRow.Children.Add(live);
+        liveRow.Children.Add(new TextBlock
+        {
+            Text = "— песочница закроется, данные пойдут из твоего клиента",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0)
+        });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(profileRow, 7); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
         root.Children.Add(profileRow);
+
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(liveRow, 8); Grid.SetColumn(liveRow, 0); Grid.SetColumnSpan(liveRow, 3);
+        root.Children.Add(liveRow);
 
 
         Content = root;
