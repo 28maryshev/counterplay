@@ -466,27 +466,6 @@ sealed class TestPanel : Window
         DockPanel.SetDock(_simBtn, Dock.Right);
         bottom.Children.Insert(0, _simBtn);
 
-        // Боевой режим: та же сборка, но на своём клиенте. Окно уходит в трей и
-        // ждёт League — как обычный запуск, только без перезапуска программы.
-        var live = new Button
-        {
-            Content = "⚔ Боевой режим", Width = 130,
-            Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 7, 0),
-            ToolTip = "Отключить песочницу и подключиться к своему клиенту LoL: "
-                    + "окно свернётся в трей и поднимется, когда начнётся драфт"
-        };
-        live.Click += (_, _) =>
-        {
-            if (!ConfirmWindow.Ask(
-                    "Перейти в боевой режим? Песочница закроется, программа подключится "
-                    + "к твоему клиенту LoL и свернётся в трей до начала драфта.",
-                    "Перейти", "Отмена", this)) return;
-            StopSim();
-            TestMode.RequestLiveMode();
-        };
-        DockPanel.SetDock(live, Dock.Right);
-        bottom.Children.Insert(0, live);
-
         // Перемешать роли строк: порядок пика перестаёт совпадать с ролями.
         var shuffle = new Button
         {
@@ -518,6 +497,27 @@ sealed class TestPanel : Window
         profileRow.Children.Add(_profile);
         profileRow.Children.Add(_emptyProfile);
         profileRow.Children.Add(_missingChamps);
+
+        // Боевой режим: та же сборка, но на своём клиенте. Стоит в строке
+        // сценария, а не в ряду кнопок этапов — там он перекрывал «Драфт» и «Баны».
+        var live = new Button
+        {
+            Content = "⚔ Боевой режим", Width = 130,
+            Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(14, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Отключить песочницу и подключиться к своему клиенту LoL: "
+                    + "окно свернётся в трей и поднимется, когда начнётся драфт"
+        };
+        live.Click += (_, _) =>
+        {
+            if (!ConfirmWindow.Ask(
+                    "Перейти в боевой режим? Песочница закроется, программа подключится "
+                    + "к твоему клиенту LoL и свернётся в трей до начала драфта.",
+                    "Перейти", "Отмена", this)) return;
+            StopSim();
+            TestMode.RequestLiveMode();
+        };
+        profileRow.Children.Add(live);
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(profileRow, 7); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
         root.Children.Add(profileRow);
