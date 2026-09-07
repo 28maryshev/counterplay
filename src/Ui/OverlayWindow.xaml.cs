@@ -241,7 +241,10 @@ public partial class OverlayWindow : Window
     private void RememberDraftPlacement()
     {
         if (AppSettings.Current.DraftPlacement != "remember") return;
-        if (Width <= 100 || Height <= 100) return;   // окно ещё не разложено
+        // Запоминаем только «драфтовую» геометрию: если раскладка ещё не
+        // применялась, окно стоит в виде сайдбара, и такие размеры вспоминать
+        // на следующем драфте бессмысленно.
+        if (!_placementApplied || Width <= 100 || Height <= 100) return;
         var s = AppSettings.Current;
         s.DraftLeft = Left; s.DraftTop = Top;
         s.DraftWidth = Width; s.DraftHeight = Height;
@@ -3154,6 +3157,10 @@ public partial class OverlayWindow : Window
             }
             if (draft is null)
             {
+                // Драфт кончился — неважно, дошёл он до игры или кто-то сдоджил
+                // на середине. Положение запоминаем здесь: окно ещё стоит там,
+                // где его оставили, а до вида сайдбара дело дойдёт следующим шагом.
+                RememberDraftPlacement();
                 _enemyRoleOverrides.Clear();   // конец драфта — сброс меток
                 _draftSuppressed = false;      // …и запрет на авто-показ снят
                 _placementApplied = false;     // следующий драфт снова расставит окно
@@ -3196,7 +3203,12 @@ public partial class OverlayWindow : Window
 
             // Банфаза начинается раньше пиков — раскладку окна ставим уже здесь,
             // иначе она применялась бы только с первым пиком.
-            if (draft is null) { _draftSuppressed = false; _placementApplied = false; }
+            if (draft is null)
+            {
+                RememberDraftPlacement();      // тот же случай, но из банфазы
+                _draftSuppressed = false;
+                _placementApplied = false;
+            }
             else ApplyDraftPlacement();
 
             RenderCurrentState();
