@@ -280,11 +280,18 @@ public partial class OverlayWindow : Window
 
         // Доля ширины клиента, которую оставляем открытой слева:
         //   cover  — ничего (окно ровно поверх клиента);
-        //   allies — треть (колонка своих пиков);
-        //   center — больше половины (наши пики + сетка чемпионов).
-        double keepLeft = mode switch { "allies" => 0.30, "center" => 0.55, _ => 0.0 };
+        //   allies — узкая полоса слева: колонка своих пиков и таймер;
+        //   center — почти половина: пики и сетка выбора чемпиона.
+        double keepLeft = mode switch { "allies" => 0.22, "center" => 0.45, _ => 0.0 };
 
-        var w = Math.Max(MinW, cw * (1 - keepLeft));
+        // Обычный минимум окна — 1240 px, и он съедал всю разницу между
+        // раскладками: на клиенте 1600 px и «своя команда», и «сетка чемпионов»
+        // упирались в него и выглядели как «поверх клиента». Под раскладку
+        // минимум опускаем — до ширины, на которой три колонки ещё читаются.
+        const double MinPlacedW = 700;
+        var w = Math.Max(MinPlacedW, cw * (1 - keepLeft));
+
+        MinWidth = Math.Min(MinW, w);
         Left   = cl + cw - w;
         Top    = cTop;
         Width  = w;
@@ -3069,15 +3076,16 @@ public partial class OverlayWindow : Window
             _settingSize = true;
             SizeToContent = SizeToContent.Manual;
             MaxHeight     = double.PositiveInfinity;
-            MinWidth  = MinW;
             MinHeight = MinH;
             // Размер уже задан раскладкой драфта — оставляем как есть. Иначе на
             // переходе «баны → пики» окно прыгало обратно к сохранённому размеру,
             // и раскладка выглядела так, будто у банов и пиков она разная.
+            // MinWidth тоже не трогаем: он шире раскладки и растянул бы окно.
             if (!(_placementApplied && AppSettings.Current.DraftPlacement != "right"))
             {
-                Width  = w;
-                Height = h;
+                MinWidth = MinW;
+                Width    = w;
+                Height   = h;
             }
             _settingSize = false;
         }
