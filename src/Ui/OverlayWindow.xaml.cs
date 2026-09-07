@@ -284,15 +284,27 @@ public partial class OverlayWindow : Window
         //   center — почти половина: пики и сетка выбора чемпиона.
         double keepLeft = mode switch { "allies" => 0.22, "center" => 0.45, _ => 0.0 };
 
-        // Обычный минимум окна — 1240 px, и он съедал всю разницу между
-        // раскладками: на клиенте 1600 px и «своя команда», и «сетка чемпионов»
-        // упирались в него и выглядели как «поверх клиента». Под раскладку
-        // минимум опускаем — до ширины, на которой три колонки ещё читаются.
-        const double MinPlacedW = 700;
-        var w = Math.Max(MinPlacedW, cw * (1 - keepLeft));
+        // Левый край — там, где заканчивается открытая часть клиента.
+        var x0 = cl + cw * keepLeft;
+
+        // Вправо окно НЕ сужаем под остаток клиента: если сдвинуть его сильно,
+        // от оверлея осталась бы полоска с обрезанными колонками. Вместо этого
+        // разрешаем выйти за правый край клиента — до края рабочей области.
+        var wa = SystemParameters.WorkArea;
+        var avail = Math.Max(1, wa.Right - x0);
+        // Хотим либо остаток клиента, либо привычную полную ширину — что больше.
+        var want = keepLeft > 0 ? Math.Max(cw - cw * keepLeft, MinW) : cw;
+
+        const double MinPlacedW = 700;   // уже этого три колонки не читаются
+        var w = Math.Min(want, avail);
+        if (w < MinPlacedW)
+        {
+            w  = Math.Min(MinPlacedW, wa.Width);
+            x0 = Math.Max(wa.Left, wa.Right - w);
+        }
 
         MinWidth = Math.Min(MinW, w);
-        Left   = cl + cw - w;
+        Left   = x0;
         Top    = cTop;
         Width  = w;
         Height = Math.Max(MinH, chh);
