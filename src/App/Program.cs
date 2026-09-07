@@ -571,7 +571,8 @@ class Program
 
                         if (draft.IsAram)
                         {
-                            overlay.UpdateRecommendations(engine?.RecommendAram(draft), draft, engine);
+                            overlay.UpdateRecommendations(
+                                engine?.RecommendAram(draft, AppSettings.Current.DraftCount), draft, engine);
                             overlay.HideRunes();               // руны не в этом режиме
                         }
                         else if (draft.InBanPhase)

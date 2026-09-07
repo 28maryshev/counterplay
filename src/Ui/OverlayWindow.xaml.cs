@@ -1766,7 +1766,9 @@ public partial class OverlayWindow : Window
         // на прежнем языке. Перерисовка их не переводит — перегенерируем движком из
         // сохранённого драфта, иначе центральная колонка остаётся на старом языке.
         if (_engine is not null && _lastDraft is not null && _lastRecs is not null)
-            _lastRecs = _lastDraft.IsAram ? _engine.RecommendAram(_lastDraft) : _engine.Recommend(_lastDraft);
+            _lastRecs = _lastDraft.IsAram
+                ? _engine.RecommendAram(_lastDraft, AppSettings.Current.DraftCount)
+                : _engine.Recommend(_lastDraft, AppSettings.Current.DraftCount);
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
 
         // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера
@@ -3318,7 +3320,12 @@ public partial class OverlayWindow : Window
         var eff = ApplyEnemyRoleOverrides(_lastRawDraft);
         _lastDraft = eff;
         if (_engine != null && _lastRecs != null)
-            _lastRecs = eff.IsAram ? _engine.RecommendAram(eff) : _engine.Recommend(eff);
+            // Длину списка обязательно передаём: этот пересчёт (после раскладки
+            // ролей врагов) идёт на КАЖДОМ событии драфта и перетирал результат
+            // боевого вызова — сколько бы ни стояло в настройках, оставалось 6.
+            _lastRecs = eff.IsAram
+                ? _engine.RecommendAram(eff, AppSettings.Current.DraftCount)
+                : _engine.Recommend(eff, AppSettings.Current.DraftCount);
         RenderCurrentState();
     }
 

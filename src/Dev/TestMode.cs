@@ -963,7 +963,10 @@ sealed class TestPanel : Window
         }
         else
         {
-            _overlay.UpdateRecommendations(_engine.Recommend(draft), draft, _engine);
+            // Длину списка берём из настроек — как в боевом режиме, иначе в
+            // песочнице настройка «сколько рекомендаций» ничего не меняла.
+            _overlay.UpdateRecommendations(
+                _engine.Recommend(draft, AppSettings.Current.DraftCount), draft, _engine);
             _ = Program.UpdateRunesAsync(_overlay, draft, CancellationToken.None);
         }
     }
