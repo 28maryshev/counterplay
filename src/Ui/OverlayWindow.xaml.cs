@@ -283,7 +283,7 @@ public partial class OverlayWindow : Window
         //   allies — узкая полоса слева: колонка своих пиков и таймер;
         //   center — почти три четверти: сетка выбора чемпиона занимает середину
         //            окна клиента и заканчивается примерно на 70% его ширины.
-        double keepLeft = mode switch { "allies" => 0.22, "center" => 0.73, _ => 0.0 };
+        double keepLeft = mode switch { "allies" => 0.25, "center" => 0.73, _ => 0.0 };
 
         // Левый край — там, где заканчивается открытая часть клиента.
         var x0 = cl + cw * keepLeft;
@@ -464,6 +464,14 @@ public partial class OverlayWindow : Window
         // Открыты настройки — оверлей остаётся на виду: человек меняет тумблеры,
         // чтобы смотреть на результат, а не на окно клиента.
         if (_settingsWin is { IsVisible: true })
+        {
+            if (!Topmost) Topmost = true;
+            return;
+        }
+        // Идёт драфт — держимся поверх клиента: подсказки нужны именно сейчас, а
+        // уходя под окно клиента, оверлей прятал бы их ровно в тот момент, когда
+        // человек кликает по чемпионам.
+        if (_lastDraft is not null)
         {
             if (!Topmost) Topmost = true;
             return;
