@@ -3161,10 +3161,28 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             if (engine != null) _engine = engine;   // нужен тир-листу (банфаза идёт до пиков)
+
+            // Подбор выключен настройкой — банфаза тоже не наша: прячемся в трей.
+            // Раньше проверка стояла только у пиков, и оверлей всё равно всплывал
+            // на банах.
+            if (!AppSettings.Current.DraftEnabled && draft is not null)
+            {
+                _lastDraft = null; _lastRawDraft = null; _lastBans = null;
+                _draftSuppressed = true;
+                if (!_inTray) HideToTray();
+                return;
+            }
+
             _lastBans  = bans;
             _lastRecs  = null;
             _lastRawDraft = draft;
             _lastDraft = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
+
+            // Банфаза начинается раньше пиков — раскладку окна ставим уже здесь,
+            // иначе она применялась бы только с первым пиком.
+            if (draft is null) { _draftSuppressed = false; _placementApplied = false; }
+            else ApplyDraftPlacement();
+
             RenderCurrentState();
         });
 
