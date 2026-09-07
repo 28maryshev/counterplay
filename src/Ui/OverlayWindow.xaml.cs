@@ -3058,8 +3058,14 @@ public partial class OverlayWindow : Window
             MaxHeight     = double.PositiveInfinity;
             MinWidth  = MinW;
             MinHeight = MinH;
-            Width     = w;
-            Height    = h;
+            // Размер уже задан раскладкой драфта — оставляем как есть. Иначе на
+            // переходе «баны → пики» окно прыгало обратно к сохранённому размеру,
+            // и раскладка выглядела так, будто у банов и пиков она разная.
+            if (!(_placementApplied && AppSettings.Current.DraftPlacement != "right"))
+            {
+                Width  = w;
+                Height = h;
+            }
             _settingSize = false;
         }
         else
