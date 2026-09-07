@@ -3179,7 +3179,9 @@ public partial class OverlayWindow : Window
             // Авто-раскладка ролей врагов + ручные метки меняют оппонента и
             // кросс-пары — пересчитываем подбор по эффективному драфту.
             if (recs != null && eff != null && _engine != null && !ReferenceEquals(eff, draft))
-                recs = eff.IsAram ? _engine.RecommendAram(eff) : _engine.Recommend(eff);
+                recs = eff.IsAram
+                    ? _engine.RecommendAram(eff, AppSettings.Current.DraftCount)
+                    : _engine.Recommend(eff, AppSettings.Current.DraftCount);
             _lastRecs  = recs;
             _lastBans  = null;
             RenderCurrentState();
