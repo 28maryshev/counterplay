@@ -278,9 +278,14 @@ public partial class OverlayWindow : Window
                 Height = s.DraftHeight;
                 _settingSize = false;
             }
-            else AnchorIfNotMoved();   // вспоминать пока нечего — встаём сбоку
-            _placementApplied = true;
-            return;
+            else
+            {
+                // Первый запуск: вспоминать нечего — раскладываем так, чтобы
+                // сетка чемпионов оставалась открытой, а дальше человек подвинет
+                // окно под себя, и это положение и запомнится.
+                mode = "center";
+            }
+            if (mode == "remember") { _placementApplied = true; return; }
         }
 
         if (!TryGetClientRect(out var r)) return;   // клиента не видно — попробуем позже

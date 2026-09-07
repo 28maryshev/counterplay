@@ -550,7 +550,7 @@
     "placeCenter": "Over the client, champion grid visible",
     "placeCenterHint": "Leaves the left half open — picks and champion selection",
     "placeRemember": "Where you left it",
-    "placeRememberHint": "The position the window had at the end of the last draft"
+    "placeRememberHint": "Where the window stood at the end of the last draft. The first time, over the client with the champion grid visible"
   },
   "chart": {
     "noRating": "Play a few ranked games — the rank chart fills in as LP changes."

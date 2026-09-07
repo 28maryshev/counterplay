@@ -86,7 +86,9 @@ public sealed class AppSettings
     ///   "allies"   — поверх, но левая часть клиента (наши пики) видна;
     ///   "center"   — поверх, но центр с сеткой чемпионов виден;
     ///   "remember" — там, где окно стояло в конце прошлого драфта.
-    public string DraftPlacement { get; set; } = "right";
+    /// По умолчанию — "remember": окно возвращается туда, где его оставили. Пока
+    /// вспоминать нечего (первый запуск), работает как "center".
+    public string DraftPlacement { get; set; } = "remember";
 
     /// Запомненное положение окна (для "remember"). 0 = ещё не запоминали.
     public double DraftLeft   { get; set; }
