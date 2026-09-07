@@ -296,14 +296,10 @@ public partial class OverlayWindow : Window
     // Привязка только при появлении и пока пользователь не двигал окно сам.
     private void AnchorIfNotMoved()
     {
-        // Во время драфта положением распоряжается правило раскладки: боковая
-        // привязка утащила бы окно вбок при первом же сдвиге клиента.
-        if (_lastDraft is not null && AppSettings.Current.DraftPlacement != "right")
-        {
-            _placementApplied = false;   // клиент переехал — пересчитываем
-            ApplyDraftPlacement();
-            return;
-        }
+        // Раскладка драфта уже расставила окно — больше не трогаем. Иначе любое
+        // обновление содержимого (а их за драфт десятки) возвращало бы окно на
+        // исходное место, и подвинуть его руками было невозможно.
+        if (_placementApplied && AppSettings.Current.DraftPlacement != "right") return;
         if (!_userMoved) AnchorToClient();
     }
 
@@ -412,7 +408,17 @@ public partial class OverlayWindow : Window
                 r.Right != _lastClientRect.Right || r.Bottom != _lastClientRect.Bottom)
             {
                 _lastClientRect = r;
-                AnchorIfNotMoved();   // в драфте — по правилу раскладки, иначе сбоку
+                // Клиент реально переехал или сменил размер. Раскладки «поверх»
+                // считаются от его прямоугольника — пересчитываем их. «Где
+                // оставили» не трогаем: это абсолютные координаты, к клиенту они
+                // не привязаны.
+                if (_lastDraft is not null
+                    && AppSettings.Current.DraftPlacement is not ("right" or "remember"))
+                {
+                    _placementApplied = false;
+                    ApplyDraftPlacement();
+                }
+                else AnchorIfNotMoved();
             }
         }
     }
