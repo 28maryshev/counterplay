@@ -240,7 +240,8 @@ public partial class OverlayWindow : Window
     /// Запомнить положение окна — вызывается перед уходом в трей в конце драфта.
     private void RememberDraftPlacement()
     {
-        if (AppSettings.Current.DraftPlacement != "remember" || Width <= 0 || Height <= 0) return;
+        if (AppSettings.Current.DraftPlacement != "remember") return;
+        if (Width <= 100 || Height <= 100) return;   // окно ещё не разложено
         var s = AppSettings.Current;
         s.DraftLeft = Left; s.DraftTop = Top;
         s.DraftWidth = Width; s.DraftHeight = Height;
@@ -260,9 +261,21 @@ public partial class OverlayWindow : Window
             var s = AppSettings.Current;
             if (s.DraftWidth > 100 && s.DraftHeight > 100)
             {
-                Left = s.DraftLeft; Top = s.DraftTop;
-                Width = s.DraftWidth; Height = s.DraftHeight;
+                // Режим окна обязательно ручной: на экране ожидания высота
+                // считается по контенту, и присвоенная высота просто терялась —
+                // окно оставалось таким, каким его сделала прошлая раскладка.
+                _settingSize = true;
+                SizeToContent = SizeToContent.Manual;
+                MaxHeight = double.PositiveInfinity;
+                MinWidth  = Math.Min(MinW, s.DraftWidth);
+                MinHeight = Math.Min(MinH, s.DraftHeight);
+                Left   = s.DraftLeft;
+                Top    = s.DraftTop;
+                Width  = s.DraftWidth;
+                Height = s.DraftHeight;
+                _settingSize = false;
             }
+            else AnchorIfNotMoved();   // вспоминать пока нечего — встаём сбоку
             _placementApplied = true;
             return;
         }
@@ -304,12 +317,15 @@ public partial class OverlayWindow : Window
             x0 = Math.Max(wa.Left, wa.Right - w);
         }
 
-        MinWidth = Math.Min(MinW, w);
+        _settingSize = true;
+        SizeToContent = SizeToContent.Manual;   // иначе высота считается по контенту
+        MaxHeight = double.PositiveInfinity;
+        MinWidth  = Math.Min(MinW, w);
         Left   = x0;
         Top    = cTop;
         Width  = w;
         Height = Math.Max(MinH, chh);
-        MaxHeight = double.PositiveInfinity;
+        _settingSize = false;
         _placementApplied = true;
     }
 
