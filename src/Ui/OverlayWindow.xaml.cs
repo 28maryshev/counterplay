@@ -248,10 +248,8 @@ public partial class OverlayWindow : Window
     {
         var scale = AppSettings.Current.FontScale * ClientScale();
         var w = ActualWidth > 0 ? ActualWidth : Width;
-        if (FullView.Visibility == Visibility.Visible && w > 0)
-            scale = Math.Min(scale, w / FullW);
-        else if (w > 0)
-            scale = Math.Min(scale, w / IdleW);
+        var draftView = _lastDraft is not null || FullView.Visibility == Visibility.Visible;
+        if (w > 0) scale = Math.Min(scale, w / (draftView ? FullW : IdleW));
 
         RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
             ? System.Windows.Media.Transform.Identity
@@ -401,6 +399,7 @@ public partial class OverlayWindow : Window
         _settingSize = false;
         _placementApplied = true;
         ClampToScreen();
+        ApplyScale();
     }
 
     // Привязка только при появлении и пока пользователь не двигал окно сам.
@@ -3154,6 +3153,7 @@ public partial class OverlayWindow : Window
         Show();
         AnchorIfNotMoved();
         ClampToScreen();
+        ApplyScale();
     }
 
     // Идёт программная установка размера (RestoreModeSize/OnToggle): такие
@@ -3214,6 +3214,7 @@ public partial class OverlayWindow : Window
             MinHeight = 0;
             Width     = CompactW;
         }
+        ApplyScale();   // вид сменился — пересчитываем под новую ширину
     }
 
     public void UpdateRecommendations(
@@ -3491,6 +3492,7 @@ public partial class OverlayWindow : Window
         Show();
         AnchorIfNotMoved();
         ClampToScreen();
+        ApplyScale();
     }
 
     // ── Фаза банов ─────────────────────────────────────────────────────────
@@ -3750,6 +3752,7 @@ public partial class OverlayWindow : Window
         allCards.AddRange(generalCards);
         FullRecList.ItemsSource = allCards;
 
+        ApplyScale();                                // масштаб под текущую ширину
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
         BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
