@@ -105,6 +105,19 @@ public sealed class AppSettings
     // ── Баны ────────────────────────────────────────────────────────────────
     public bool BansTierList { get; set; } = true;     // тир-лист под списком банов
 
+    // ── Ревизия файла ───────────────────────────────────────────────────────
+    /// Версия схемы ui.json. Нужна для разовых миграций: без неё не отличить
+    /// «человек выбрал это значение» от «значение досталось от старого
+    /// умолчания». У файла, записанного до появления поля, здесь 0.
+    public int Rev { get; set; }
+
+    private const int SchemaRev = 1;
+
+    /// Настройки по умолчанию для НОВОЙ установки и для кнопки сброса: ревизия
+    /// сразу текущая, иначе миграция при следующем запуске примет свежий файл
+    /// за старый и переиграет выбор человека.
+    public static AppSettings Defaults() => new() { Rev = SchemaRev };
+
     // ── Хранение ────────────────────────────────────────────────────────────
     // ОТДЕЛЬНЫЙ файл, не settings.json: там живёт свободный key-value стор
     // (язык, автозапуск), который пишется как JsonObject. Сериализация нашего
@@ -130,7 +143,8 @@ public sealed class AppSettings
                     _current = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path_))?.Normalize();
             }
             catch { /* битый файл — вернёмся к значениям по умолчанию */ }
-            return _current ??= new AppSettings();
+            if (_current is { _migrated: true }) SaveQuiet();   // миграция — один раз
+            return _current ??= Defaults();
         }
     }
 
@@ -159,7 +173,31 @@ public sealed class AppSettings
             DraftWidth < 200 || DraftHeight < 200)
             (DraftLeft, DraftTop, DraftWidth, DraftHeight) = (0, 0, 0, 0);
 
+        Migrate();
         return this;
+    }
+
+    private bool _migrated;
+
+    /// Разовые переносы значений при смене умолчаний. Файл пишется после
+    /// каждого драфта (запоминается положение окна), поэтому у всех, кто уже
+    /// играл, старое умолчание лежит на диске как явный выбор — без миграции
+    /// новое умолчание увидели бы только чистые установки.
+    private void Migrate()
+    {
+        if (Rev >= SchemaRev) return;
+
+        // Rev 0 → 1: график ранга вместо винрейта. Отличить осознанный выбор
+        // винрейта от доставшегося умолчания нельзя — переносим всех, кто на
+        // винрейте; вернуть обратно можно одним щелчком в настройках.
+        if (Rev < 1 && ChartMode == "winrate")
+        {
+            ChartMode = "rating";
+            Log.Write("миграция настроек: график ранга вместо винрейта");
+        }
+
+        Rev = SchemaRev;
+        _migrated = true;
     }
 
     /// Сохранить молча — без перерисовки оверлея. Для служебных записей вроде
@@ -220,7 +258,7 @@ public sealed class AppSettings
     public static void Reset()
     {
         Log.Write("настройки сброшены к значениям по умолчанию");
-        _current = new AppSettings();
+        _current = Defaults();
         Save();
     }
 

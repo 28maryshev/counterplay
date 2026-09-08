@@ -313,7 +313,7 @@ sealed class SettingsWindow : Window
             s.KeepDuringGame, v => { s.KeepDuringGame = v; MarkDirty(); }));
 
         var reset = ActionButton(Loc.T("settings.reset"), "#8AA0B2", "#35485A");
-        reset.Click += (_, _) => { _draft = new AppSettings(); MarkDirty(); _body.Content = Build(); };
+        reset.Click += (_, _) => { _draft = AppSettings.Defaults(); MarkDirty(); _body.Content = Build(); };
 
         _apply = ActionButton(Loc.T("settings.apply"), "#0E141D", "#36D6E7");
         _apply.Background = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
