@@ -487,7 +487,17 @@ public partial class OverlayWindow : Window
                 // окно под себя, и это положение и запомнится.
                 mode = "center";
             }
-            if (mode == "remember") { _placementApplied = true; return; }
+            if (mode == "remember")
+            {
+                // Монитор, на котором стояло окно, могли отключить — тогда
+                // запомненные координаты ведут в пустоту, и без этой проверки
+                // человек видит «программа не открывается» и ничего в журнале.
+                KeepHeaderOnScreen();
+                Log.Write($"раскладка «запомненная»: окно {Width:0}×{Height:0} в ({Left:0};{Top:0})");
+                _placementApplied = true;
+                ApplyScale();
+                return;
+            }
         }
 
         if (!TryGetClientRect(out var r)) return;   // клиента не видно — попробуем позже

@@ -127,11 +127,39 @@ public sealed class AppSettings
             try
             {
                 if (File.Exists(Path_))
-                    _current = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path_));
+                    _current = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path_))?.Normalize();
             }
             catch { /* битый файл — вернёмся к значениям по умолчанию */ }
             return _current ??= new AppSettings();
         }
+    }
+
+    /// Приводит значения к допустимым. ui.json — обычный файл: его правят руками,
+    /// его может обрезать сбойная запись, а поля в нём переживают обновления
+    /// программы, где набор допустимых значений успел поменяться. Цена ошибки
+    /// высокая: прозрачность 0 или 100 карточек в драфте человек уже не починит
+    /// сам — окно к тому моменту не видно или не отвечает.
+    private AppSettings Normalize()
+    {
+        Opacity    = double.IsFinite(Opacity)   ? Math.Clamp(Opacity, 0.5, 1.0)   : 1.0;
+        FontScale  = double.IsFinite(FontScale) ? Math.Clamp(FontScale, 0.8, 1.5) : 1.0;
+        DraftCount = Math.Clamp(DraftCount, 3, 12);
+        if (ChartDays is not (30 or 90)) ChartDays = 90;
+        if (ChartMode is not ("winrate" or "rating" or "off")) ChartMode = "winrate";
+        if (string.IsNullOrWhiteSpace(DefaultQueue)) DefaultQueue = "last";
+        if (ClientSize is not ("auto" or "1024" or "1280" or "1600" or "1920")) ClientSize = "auto";
+        if (DraftPlacement is not ("right" or "cover" or "allies" or "center" or "remember"))
+            DraftPlacement = "remember";
+
+        // Запомненная геометрия: мусор здесь — это окно нулевого размера или
+        // окно за пределами всех мониторов. Просто забываем её, тогда раскладка
+        // отработает как на первом запуске.
+        if (!double.IsFinite(DraftLeft) || !double.IsFinite(DraftTop) ||
+            !double.IsFinite(DraftWidth) || !double.IsFinite(DraftHeight) ||
+            DraftWidth < 200 || DraftHeight < 200)
+            (DraftLeft, DraftTop, DraftWidth, DraftHeight) = (0, 0, 0, 0);
+
+        return this;
     }
 
     /// Сохранить молча — без перерисовки оверлея. Для служебных записей вроде
@@ -191,6 +219,7 @@ public sealed class AppSettings
     /// Вернуть всё к «показывать целиком».
     public static void Reset()
     {
+        Log.Write("настройки сброшены к значениям по умолчанию");
         _current = new AppSettings();
         Save();
     }
