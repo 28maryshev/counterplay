@@ -75,6 +75,7 @@ class Program
 
         // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.
         var testMode = args.Contains("test") || args.Contains("--test");
+        Log.Mode = testMode ? "тестовый" : "боевой";
 
         var lcuTask = Task.Run(async () =>
         {
@@ -186,6 +187,7 @@ class Program
         var lockfilePath = args.FirstOrDefault(a => !a.StartsWith('-'));
 
         overlay.SetVersion(CurrentVersion());
+        Log.Version = CurrentVersion();
 
         // Проверка обновлений при каждом запуске (только для установленной версии).
         await CheckForUpdatesAsync(overlay, ct);

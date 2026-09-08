@@ -62,6 +62,7 @@ public static class Loc
     public static void SetLanguage(string code)
     {
         if (code == Current || Languages.All(l => l.Code != code)) return;
+        Log.Write($"язык: {Current} → {code} (выбран вручную)");
         Current = code;
         _doc = code == "en" ? _fallbackDoc : (LoadDoc(code) ?? _fallbackDoc);
         Save(code);
@@ -76,6 +77,7 @@ public static class Loc
     public static void SetLanguageAuto(string code)
     {
         if (HasSavedChoice || code == Current || Languages.All(l => l.Code != code)) return;
+        Log.Write($"язык: {Current} → {code} (по клиенту LoL)");
         Current = code;
         _doc = code == "en" ? _fallbackDoc : (LoadDoc(code) ?? _fallbackDoc);
         LanguageChanged?.Invoke();

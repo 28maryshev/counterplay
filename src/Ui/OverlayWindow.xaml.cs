@@ -153,10 +153,18 @@ public partial class OverlayWindow : Window
         });
     });
 
-    public void SetGameActive(bool active) => _gameActive = active;
+    public void SetGameActive(bool active)
+    {
+        if (_gameActive != active) Log.Write(active ? "игра началась" : "игра закончилась");
+        _gameActive = active;
+    }
 
     /// LCU подключён/отключён — гейтит авто-возврат из трея (см. _lcuReady).
-    public void SetLcuReady(bool ready) => _lcuReady = ready;
+    public void SetLcuReady(bool ready)
+    {
+        if (_lcuReady != ready) Log.Write(ready ? "клиент LoL подключён" : "клиент LoL отключён");
+        _lcuReady = ready;
+    }
 
     /// Разрешить авто-показ снова (сбросить ручное скрытие крестиком). Зовём при
     /// входе в чемп-селект: закрыл окно раньше — на драфте оно всё равно вернётся.
@@ -291,15 +299,97 @@ public partial class OverlayWindow : Window
 
     private double _loggedScale = -1;
 
+    // ── Снимок состояния для журнала ────────────────────────────────────────
+
+    private (double X, double Y) Dpi()
+    {
+        var src = System.Windows.PresentationSource.FromVisual(this);
+        return src?.CompositionTarget is { } ct
+            ? (ct.TransformToDevice.M11, ct.TransformToDevice.M22) : (1, 1);
+    }
+
+    private static string Fmt(object? v) => v switch
+    {
+        bool b     => b ? "да" : "нет",
+        double d   => d.ToString("0.##"),
+        null       => "—",
+        _          => v.ToString() ?? "—",
+    };
+
+    /// Всё, что нужно для разбора жалобы, без единого встречного вопроса:
+    /// сборка, режим, язык, база, экран и DPI, окно клиента и выбранный по нему
+    /// масштаб, положение нашего окна — и ВЕСЬ список настроек (изменённые от
+    /// умолчаний помечены звёздочкой). Дальше идут события — но они без этой
+    /// шапки почти бесполезны: одно и то же поведение при разных настройках
+    /// разбирается по-разному.
+    private string BuildSnapshot()
+    {
+        var sb = new StringBuilder();
+        var s  = AppSettings.Current;
+
+        sb.AppendLine($"── Counterplay v{Log.Version} · {DateTime.Now:dd.MM HH:mm:ss} ──");
+        sb.AppendLine($"режим {Log.Mode} · язык {Loc.Current} · база {DataDb.CurrentBucket ?? "—"}");
+
+        var wa = SystemParameters.WorkArea;
+        var (dpiX, dpiY) = Dpi();
+        sb.AppendLine($"экран: рабочая область {wa.Width:0}×{wa.Height:0} в ({wa.Left:0};{wa.Top:0}), " +
+                      $"весь стол {SystemParameters.VirtualScreenWidth:0}×{SystemParameters.VirtualScreenHeight:0}, " +
+                      $"DPI ×{dpiX:0.00}");
+
+        if (TryGetClientRect(out var r))
+            sb.AppendLine($"клиент LoL: {(r.Right - r.Left) / dpiX:0}×{(r.Bottom - r.Top) / dpiY:0} " +
+                          $"в ({r.Left / dpiX:0};{r.Top / dpiY:0}) → масштаб ×{ClientScale():0.00} " +
+                          $"(настройка «{s.ClientSize}»)");
+        else
+            sb.AppendLine($"клиент LoL: окно не найдено → масштаб ×{ClientScale():0.00} " +
+                          $"(настройка «{s.ClientSize}»)");
+
+        var view = _inTray ? "трей"
+                 : FullView.Visibility     == Visibility.Visible ? "драфт"
+                 : CompactScroll.Visibility == Visibility.Visible ? "компактный" : "панель";
+        sb.AppendLine($"окно: {ActualWidth:0}×{ActualHeight:0} в ({Left:0};{Top:0}), вид {view}, " +
+                      $"масштаб ×{_loggedScale:0.00}, поверх всех {(Topmost ? "да" : "нет")}, " +
+                      $"двигали руками {(_userMoved ? "да" : "нет")}");
+
+        // Настройки целиком, а не только изменённые: если человек уверен, что
+        // что-то выключил, а оно включено, это видно сразу.
+        var def = new AppSettings();
+        var parts = typeof(AppSettings).GetProperties()
+            .Where(pi => pi.CanRead && pi.CanWrite)
+            .Select(pi =>
+            {
+                var v = pi.GetValue(s);
+                return (Equals(v, pi.GetValue(def)) ? "" : "*") + pi.Name + "=" + Fmt(v);
+            }).ToList();
+
+        sb.AppendLine("настройки (* — изменена):");
+        for (int i = 0; i < parts.Count; i += 5)
+            sb.AppendLine("  " + string.Join("  ", parts.Skip(i).Take(5)));
+
+        return sb.ToString();
+    }
+
+    /// Насколько сильно вписывать окно в экран. В драфте окно широкое и по
+    /// договорённости может уходить за край — держим только шапку; панель
+    /// профиля узкая, ей уезжать незачем.
+    private void KeepReachable()
+    {
+        if (_lastDraft is not null || FullView.Visibility == Visibility.Visible) KeepHeaderOnScreen();
+        else ClampToScreen();
+    }
+
     /// Окну можно уходить за правый край — но не целиком: на экране должна
     /// оставаться шапка, иначе окно нечем схватить и вернуть.
     private void KeepHeaderOnScreen()
     {
         var wa = SystemParameters.WorkArea;
         const double GrabW = 220;   // столько шапки оставляем видимой
+        var (l0, t0) = (Left, Top);
         Left = Math.Max(wa.Left - Math.Max(0, (ActualWidth > 0 ? ActualWidth : Width) - GrabW),
                         Math.Min(Left, wa.Right - GrabW));
         Top  = Math.Max(wa.Top, Math.Min(Top, wa.Bottom - 40));
+        if (Math.Abs(l0 - Left) > 1 || Math.Abs(t0 - Top) > 1)
+            Log.Write($"подтянул шапку в экран: ({l0:0};{t0:0}) → ({Left:0};{Top:0})");
     }
 
     /// Полное вписывание в экран — для панели профиля: она узкая, ей уезжать
@@ -690,6 +780,7 @@ public partial class OverlayWindow : Window
         EnsureTray();
         if (userInitiated) _userHidden = true;
         if (_inTray) return;
+        Log.Write($"свернулся в трей ({(userInitiated ? "крестик" : "автоматически")})");
         _inTray = true;
         _tray!.Visible = true;
         Hide(); // тихо, без всплывающего уведомления
@@ -703,6 +794,7 @@ public partial class OverlayWindow : Window
         if (_userHidden && !force) return; // свёрнуто вручную — ждём действия пользователя
         _userHidden = false;
         if (!_inTray) return;
+        Log.Write($"вернулся из трея ({(force ? "вручную" : "автоматически")})");
         _inTray = false;
         if (_tray != null) _tray.Visible = false;
         Show();
@@ -718,6 +810,7 @@ public partial class OverlayWindow : Window
         _userMoved = true; // ручной ресайз — фиксируем положение пользователя
         MaxHeight  = double.PositiveInfinity;   // тянут вручную — потолок не мешаем
         SendMessage(Hwnd, 0x0112 /*WM_SYSCOMMAND*/, new IntPtr(0xF000 /*SC_SIZE*/ + (int)dir), IntPtr.Zero);
+        Log.Write($"окно растянули: {Width:0}×{Height:0} в ({Left:0};{Top:0})");
         e.Handled = true;
     }
 
@@ -766,6 +859,12 @@ public partial class OverlayWindow : Window
 
         // Чип языка: показываем текущий, меню — по клику.
         Loc.LanguageChanged += OnLanguageChanged;
+
+        // Журнал умеет спросить у окна, в каком состоянии всё было на момент
+        // копирования, — иначе присланный хвост событий читается вслепую.
+        Log.Snapshot = () => Dispatcher.CheckAccess()
+            ? BuildSnapshot()
+            : Dispatcher.Invoke(BuildSnapshot);
     }
 
     // ── Руны и билд ──────────────────────────────────────────────────────────
@@ -1911,6 +2010,7 @@ public partial class OverlayWindow : Window
     {
         _userMoved = true; // дальше окно стоит там, куда его поставил пользователь
         DragMove();
+        Log.Write($"окно перетащили в ({Left:0};{Top:0})");
     }
 
     private SettingsWindow? _settingsWin;
@@ -3195,7 +3295,7 @@ public partial class OverlayWindow : Window
         if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
-        ClampToScreen();
+        KeepReachable();
         ApplyScale();
     }
 
@@ -3267,7 +3367,12 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             if ((draft is null) != (_lastDraft is null))
-                Log.Write(draft is null ? "драфт закончился" : "драфт начался");
+                Log.Write(draft is null ? "драфт закончился"
+                    : $"драфт начался: роль {(draft.MyPosition is "" or null ? "?" : draft.MyPosition)}, " +
+                      $"свои {draft.MyTeam.Count(x => x.ChampionId > 0)}/{draft.MyTeam.Count}, " +
+                      $"враги {draft.TheirTeam.Count(x => x.ChampionId > 0)}/{draft.TheirTeam.Count}, " +
+                      $"{(draft.InBanPhase ? "фаза банов" : "фаза пиков")}" +
+                      $"{(draft.IsAram ? ", ARAM" : "")}, кандидатов {recs?.Count ?? 0}");
             if (engine != null) _engine = engine;
             // Подбор выключен настройкой: в драфте прячемся в трей и ничего не
             // считаем. Программа остаётся тем, ради чего её оставили, —
@@ -3536,7 +3641,7 @@ public partial class OverlayWindow : Window
         if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
-        ClampToScreen();
+        KeepReachable();
         ApplyScale();
     }
 
