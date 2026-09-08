@@ -210,6 +210,7 @@ public partial class OverlayWindow : Window
         Left = r.Right / dpiX;
         Top  = r.Top  / dpiY;
         LimitHeightToClient();
+        ClampToScreen();   // клиент у правого края — окно не должно уехать за экран
     }
 
     // Ready-экран растёт по контенту (SizeToContent.Height). Прокрутки внутри
@@ -238,6 +239,40 @@ public partial class OverlayWindow : Window
     // крупнее, иначе рядом с большим клиентом оверлей выглядит игрушечным.
     private static readonly (int Width, double Scale)[] ClientScales =
         [(1024, 0.84), (1280, 1.00), (1600, 1.18), (1920, 1.35)];
+
+    /// Масштаб содержимого: выбор человека × подгонка под клиент, но НЕ больше
+    /// того, что помещается в окно. Без верхней границы увеличенные карточки
+    /// вылезали за край окна и обрезались — три колонки драфта требуют ширины
+    /// FullW на единичном масштабе.
+    private void ApplyScale()
+    {
+        var scale = AppSettings.Current.FontScale * ClientScale();
+        var w = ActualWidth > 0 ? ActualWidth : Width;
+        if (FullView.Visibility == Visibility.Visible && w > 0)
+            scale = Math.Min(scale, w / FullW);
+        else if (w > 0)
+            scale = Math.Min(scale, w / IdleW);
+
+        RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
+            ? System.Windows.Media.Transform.Identity
+            : new ScaleTransform(scale, scale);
+    }
+
+    /// Не даём окну вылезти за край монитора: сдвигаем внутрь рабочей области, а
+    /// если и так не помещается — ужимаем. Иначе правая колонка и подсказки
+    /// уезжали за экран и просто не читались.
+    private void ClampToScreen()
+    {
+        var wa = SystemParameters.WorkArea;
+        var w = ActualWidth > 0 ? ActualWidth : Width;
+        var h = ActualHeight > 0 ? ActualHeight : Height;
+        if (double.IsNaN(w) || double.IsNaN(h) || w <= 0 || h <= 0) return;
+
+        if (w > wa.Width)  { Width  = w = wa.Width;  }
+        if (h > wa.Height) { Height = h = wa.Height; }
+        Left = Math.Max(wa.Left, Math.Min(Left, wa.Right  - w));
+        Top  = Math.Max(wa.Top,  Math.Min(Top,  wa.Bottom - h));
+    }
 
     /// Размер в пикселях с учётом подгонки под клиент: окно и содержимое должны
     /// расти и уменьшаться вместе, иначе появляются пустые поля по краям.
@@ -365,6 +400,7 @@ public partial class OverlayWindow : Window
         Height = Math.Max(MinH, chh);
         _settingSize = false;
         _placementApplied = true;
+        ClampToScreen();
     }
 
     // Привязка только при появлении и пока пользователь не двигал окно сам.
@@ -1910,11 +1946,7 @@ public partial class OverlayWindow : Window
 
         // Прозрачность, масштаб и «поверх всех» — свойства самого окна.
         Opacity = Math.Clamp(s.Opacity, 0.5, 1.0);
-        // Итоговый масштаб = выбор человека × подгонка под окно клиента.
-        var scale = s.FontScale * ClientScale();
-        RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
-            ? System.Windows.Media.Transform.Identity
-            : new ScaleTransform(scale, scale);
+        ApplyScale();
         if (s.AlwaysOnTop) Topmost = true;
 
         // Размер окна тоже пересчитываем: настройка «под клиент» меняет и его.
@@ -3121,6 +3153,7 @@ public partial class OverlayWindow : Window
         if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
+        ClampToScreen();
     }
 
     // Идёт программная установка размера (RestoreModeSize/OnToggle): такие
@@ -3135,6 +3168,8 @@ public partial class OverlayWindow : Window
     // RestoreModeSize и вернёт старый _savedFullW/_savedFullH, обнулив ресайз.
     private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        ApplyScale();   // окно стало уже/шире — содержимое подстраивается под него
+
         if (!_settingSize
             && _isFullMode
             && SizeToContent == SizeToContent.Manual         // не idle/компакт (там авто-высота)
@@ -3455,6 +3490,7 @@ public partial class OverlayWindow : Window
         if (_inTray) return; // во время игры окно скрыто в трее
         Show();
         AnchorIfNotMoved();
+        ClampToScreen();
     }
 
     // ── Фаза банов ─────────────────────────────────────────────────────────
