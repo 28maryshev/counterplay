@@ -233,8 +233,15 @@ public partial class OverlayWindow : Window
     // Разрешения из настроек клиента LoL → масштаб нашего окна. Опорное — 1920:
     // под него нарисован интерфейс. Ниже 0.8 не опускаемся: текст в карточках
     // становится нечитаемым раньше, чем окно перестаёт мешать.
+    // Опорное — 1280×720: самое ходовое окно клиента, под него и рисовался
+    // интерфейс. Дальше растём пропорционально: на 1920 всё должно быть заметно
+    // крупнее, иначе рядом с большим клиентом оверлей выглядит игрушечным.
     private static readonly (int Width, double Scale)[] ClientScales =
-        [(1024, 0.80), (1280, 0.86), (1600, 0.93), (1920, 1.00)];
+        [(1024, 0.84), (1280, 1.00), (1600, 1.18), (1920, 1.35)];
+
+    /// Размер в пикселях с учётом подгонки под клиент: окно и содержимое должны
+    /// расти и уменьшаться вместе, иначе появляются пустые поля по краям.
+    private double Scaled(double px) => px * ClientScale();
 
     /// Масштаб под окно клиента. "auto" — по фактической ширине окна LoL, иначе
     /// по выбранному в настройках разрешению.
@@ -660,10 +667,10 @@ public partial class OverlayWindow : Window
 
         // Стартуем в полном режиме с явными размерами
         SizeToContent = SizeToContent.Manual;
-        Width  = FullW;
-        Height = FullH;
-        MinWidth  = MinW;
-        MinHeight = MinH;
+        Width  = Scaled(FullW);
+        Height = Scaled(FullH);
+        MinWidth  = Scaled(MinW);
+        MinHeight = Scaled(MinH);
 
         Left = SystemParameters.PrimaryScreenWidth - FullW - 24;
         Top  = 60;
@@ -1910,6 +1917,10 @@ public partial class OverlayWindow : Window
             : new ScaleTransform(scale, scale);
         if (s.AlwaysOnTop) Topmost = true;
 
+        // Размер окна тоже пересчитываем: настройка «под клиент» меняет и его.
+        if (SizeToContent == SizeToContent.Height) Width = Scaled(IdleW);
+        else if (!_placementApplied) { MinWidth = Scaled(MinW); MinHeight = Scaled(MinH); }
+
         // Компактная карточка ранга: эмблема мельче, полосы прогресса нет.
         RankEmblem.Height = s.ReadyCompact ? 46 : 74;
         RankProgressTrack.Visibility = V(s.ReadyRank && !s.ReadyCompact);
@@ -3091,7 +3102,7 @@ public partial class OverlayWindow : Window
         SizeToContent = SizeToContent.Height; // высота по контенту
         MinWidth  = 0;
         MinHeight = 0;
-        Width     = IdleW;
+        Width     = Scaled(IdleW);
         LimitHeightToClient();   // но не выше окна клиента — остальное прокруткой
 
         // Драфт закончился — панель профиля возвращается к краю клиента, даже
@@ -3148,14 +3159,14 @@ public partial class OverlayWindow : Window
             _settingSize = true;
             SizeToContent = SizeToContent.Manual;
             MaxHeight     = double.PositiveInfinity;
-            MinHeight = MinH;
+            MinHeight = Scaled(MinH);
             // Размер уже задан раскладкой драфта — оставляем как есть. Иначе на
             // переходе «баны → пики» окно прыгало обратно к сохранённому размеру,
             // и раскладка выглядела так, будто у банов и пиков она разная.
             // MinWidth тоже не трогаем: он шире раскладки и растянул бы окно.
             if (!(_placementApplied && AppSettings.Current.DraftPlacement != "right"))
             {
-                MinWidth = MinW;
+                MinWidth = Scaled(MinW);
                 Width    = w;
                 Height   = h;
             }
