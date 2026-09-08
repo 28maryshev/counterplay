@@ -66,6 +66,44 @@ sealed class SettingsWindow : Window
         Content = Shell();
     }
 
+    // Код страны для флага. Язык и страна совпадают не всегда: португальский
+    // ведём по Бразилии (там аудитория), английский — по Великобритании,
+    // украинский — по Украине, а не по коду языка.
+    private static readonly Dictionary<string, string> FlagOf = new()
+    {
+        ["en"] = "GB", ["es"] = "ES", ["pt"] = "BR", ["de"] = "DE", ["fr"] = "FR",
+        ["it"] = "IT", ["pl"] = "PL", ["ru"] = "RU", ["uk"] = "UA", ["tr"] = "TR",
+        ["vi"] = "VN", ["th"] = "TH", ["ja"] = "JP", ["ko"] = "KR", ["zh"] = "CN",
+    };
+
+    /// Флаг эмодзи из двух «региональных индикаторов» (🇩🇪 = D + E).
+    private static string FlagEmoji(string code)
+    {
+        if (!FlagOf.TryGetValue(code, out var cc)) return "";
+        return string.Concat(cc.Select(ch => char.ConvertFromUtf32(0x1F1E6 + (ch - 'A'))));
+    }
+
+    /// Строка списка языков: флаг + родное название. Флаг — чтобы человек,
+    /// случайно переключившийся на незнакомый язык, нашёл свой по картинке,
+    /// а не по надписи, которую он не может прочитать.
+    private static UIElement LangRow(Loc.Lang l)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new TextBlock
+        {
+            Text = FlagEmoji(l.Code),
+            FontFamily = new FontFamily("Segoe UI Emoji"),
+            FontSize = 13, Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = l.Native, FontFamily = Font("UiFont"), FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        return row;
+    }
+
     private ContentControl _body = null!;
 
     /// Рамка окна в стиле программы: тёмный фон, золотая шапка, свой крестик.
@@ -144,7 +182,7 @@ sealed class SettingsWindow : Window
             FontFamily = Font("UiFont"), FontSize = 13, Cursor = Cursors.Hand
         };
         foreach (var l in Loc.Languages)
-            langs.Items.Add(new ComboBoxItem { Content = l.Native, Tag = l.Code, FontFamily = Font("UiFont") });
+            langs.Items.Add(new ComboBoxItem { Content = LangRow(l), Tag = l.Code });
         langs.SelectedIndex = Math.Max(0, Loc.Languages.ToList().FindIndex(l => l.Code == Loc.Current));
         langs.SelectionChanged += (_, _) =>
         {
