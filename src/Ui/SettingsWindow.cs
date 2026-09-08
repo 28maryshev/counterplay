@@ -13,6 +13,7 @@ using VerticalAlignment = System.Windows.VerticalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using System.Windows.Media.Imaging;
 
 namespace Counterplay;
 
@@ -76,11 +77,22 @@ sealed class SettingsWindow : Window
         ["vi"] = "VN", ["th"] = "TH", ["ja"] = "JP", ["ko"] = "KR", ["zh"] = "CN",
     };
 
-    /// Флаг эмодзи из двух «региональных индикаторов» (🇩🇪 = D + E).
-    private static string FlagEmoji(string code)
+    /// Флаг картинкой из ресурсов (assets/flags/de.png). Эмодзи-флаги не годятся:
+    /// Windows их не рисует — вместо флага показывает две буквы в рамке.
+    private static ImageSource? FlagImage(string code)
     {
-        if (!FlagOf.TryGetValue(code, out var cc)) return "";
-        return string.Concat(cc.Select(ch => char.ConvertFromUtf32(0x1F1E6 + (ch - 'A'))));
+        if (!FlagOf.TryGetValue(code, out var cc)) return null;
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri($"pack://application:,,,/assets/flags/{cc.ToLowerInvariant()}.png");
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch { return null; }   // ресурса нет — обойдёмся одним названием языка
     }
 
     /// Строка списка языков: флаг + родное название. Флаг — чтобы человек,
@@ -89,13 +101,16 @@ sealed class SettingsWindow : Window
     private static UIElement LangRow(Loc.Lang l)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        row.Children.Add(new TextBlock
-        {
-            Text = FlagEmoji(l.Code),
-            FontFamily = new FontFamily("Segoe UI Emoji"),
-            FontSize = 13, Margin = new Thickness(0, 0, 8, 0),
-            VerticalAlignment = VerticalAlignment.Center
-        });
+        if (FlagImage(l.Code) is { } flag)
+            row.Children.Add(new Border
+            {
+                Width = 20, Height = 14, CornerRadius = new CornerRadius(2),
+                ClipToBounds = true, Margin = new Thickness(0, 0, 9, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                Background = new ImageBrush(flag) { Stretch = Stretch.UniformToFill }
+            });
         row.Children.Add(new TextBlock
         {
             Text = l.Native, FontFamily = Font("UiFont"), FontSize = 13,

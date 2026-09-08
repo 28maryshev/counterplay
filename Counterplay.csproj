@@ -34,6 +34,7 @@
   <!-- Эмблемы рангов (Community Dragon, CDN Riot) — для трекера сессии -->
   <ItemGroup>
     <Resource Include="assets\ranks\*.png" />
+    <Resource Include="assets\flags\*.png" />
   </ItemGroup>
 
   <!-- Строки локализации интерфейса (en/ru/es/pt/de/fr/tr/ko) -->
