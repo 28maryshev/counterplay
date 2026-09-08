@@ -173,6 +173,17 @@ public sealed class AppSettings
     /// Принять отредактированную копию: сохранить и перерисовать оверлей.
     public static void Apply(AppSettings edited)
     {
+        // В журнал — ЧТО именно изменилось. Без этого по жалобе «стало криво»
+        // приходится гадать, какие настройки у человека стоят.
+        var before = Current;
+        var changes = typeof(AppSettings).GetProperties()
+            .Where(p => p.CanRead && p.CanWrite)
+            .Select(p => (p.Name, Old: p.GetValue(before), New: p.GetValue(edited)))
+            .Where(x => !Equals(x.Old, x.New))
+            .Select(x => $"{x.Name} {x.Old}→{x.New}")
+            .ToList();
+        if (changes.Count > 0) Log.Write("настройки: " + string.Join(", ", changes));
+
         _current = edited;
         Save();
     }

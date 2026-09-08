@@ -735,12 +735,21 @@
             </ItemsControl>
             </StackPanel>
 
-            <!-- «Сохранить для драфта»: только в тестовом режиме (включается кодом) -->
-            <Button x:Name="SaveForDraftBtn" Click="SaveForDraft_Click" Visibility="Collapsed"
-                    HorizontalAlignment="Center" Margin="0,8,0,0" Cursor="Hand"
-                    Background="#335A8AC8" BorderBrush="#5A8AC8" BorderThickness="1"
-                    Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
-                    FontWeight="Bold" Padding="12,4"/>
+            <!-- Тестовый режим: «Сохранить для драфта» + копирование журнала.
+                 Обе кнопки включаются кодом, в боевом режиме их нет. -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+              <Button x:Name="SaveForDraftBtn" Click="SaveForDraft_Click" Visibility="Collapsed"
+                      Cursor="Hand" Margin="0,0,6,0"
+                      Background="#335A8AC8" BorderBrush="#5A8AC8" BorderThickness="1"
+                      Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
+                      FontWeight="Bold" Padding="12,4"/>
+              <Button x:Name="CopyLogBtn" Click="CopyLog_Click" Visibility="Collapsed"
+                      Cursor="Hand" Content="📋 Логи"
+                      ToolTip="Скопировать последние 100 строк журнала в буфер обмена"
+                      Background="#33C89B3C" BorderBrush="#8A6D2F" BorderThickness="1"
+                      Foreground="#F5D77A" FontFamily="{StaticResource UiFont}" FontSize="11"
+                      FontWeight="Bold" Padding="12,4"/>
+            </StackPanel>
 
             <!-- Карусель советов (временно скрыта на время беты — вернём позже):
             <Border Margin="0,15,0,0" Width="282" Height="118" CornerRadius="7"

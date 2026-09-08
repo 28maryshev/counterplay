@@ -66,7 +66,28 @@ public partial class OverlayWindow : Window
     {
         SaveForDraftBtn.Content    = Loc.T("pool.saveForDraft");
         SaveForDraftBtn.Visibility = Visibility.Visible;
+        CopyLogBtn.Visibility      = Visibility.Visible;   // журнал — тоже только в тесте
     });
+
+    /// Копирует хвост журнала в буфер: человеку остаётся вставить его в переписку,
+    /// а мне — увидеть, что он менял и как программа на это отреагировала.
+    private void CopyLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(Log.Tail(100));
+            CopyLogBtn.Content = $"✓ {Log.Count} строк";
+        }
+        catch (Exception ex)
+        {
+            CopyLogBtn.Content = "буфер занят";
+            Log.Write($"копирование журнала не удалось: {ex.Message}");
+        }
+        // Через пару секунд возвращаем обычную подпись.
+        var back = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        back.Tick += (_, _) => { back.Stop(); CopyLogBtn.Content = "📋 Логи"; };
+        back.Start();
+    }
 
     // Запоминает выбранный режим/пул (Обычный/Пул/Дуо) для драфта и применяет его
     // к текущему подбору. Кратко подтверждает и возвращает подпись.
@@ -254,7 +275,15 @@ public partial class OverlayWindow : Window
         RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
             ? System.Windows.Media.Transform.Identity
             : new ScaleTransform(scale, scale);
+        if (Math.Abs(scale - _loggedScale) > 0.005)
+        {
+            Log.Write($"масштаб {scale:0.00} (окно {w:0}px, вид {(draftView ? "драфт" : "панель")}, " +
+                      $"клиент ×{ClientScale():0.00}, ручной ×{AppSettings.Current.FontScale:0.00})");
+            _loggedScale = scale;
+        }
     }
+
+    private double _loggedScale = -1;
 
     /// Не даём окну вылезти за край монитора: сдвигаем внутрь рабочей области, а
     /// если и так не помещается — ужимаем. Иначе правая колонка и подсказки
@@ -266,10 +295,14 @@ public partial class OverlayWindow : Window
         var h = ActualHeight > 0 ? ActualHeight : Height;
         if (double.IsNaN(w) || double.IsNaN(h) || w <= 0 || h <= 0) return;
 
+        var (l0, t0, w0, h0) = (Left, Top, w, h);
         if (w > wa.Width)  { Width  = w = wa.Width;  }
         if (h > wa.Height) { Height = h = wa.Height; }
         Left = Math.Max(wa.Left, Math.Min(Left, wa.Right  - w));
         Top  = Math.Max(wa.Top,  Math.Min(Top,  wa.Bottom - h));
+        if (Math.Abs(l0 - Left) > 1 || Math.Abs(t0 - Top) > 1 ||
+            Math.Abs(w0 - w) > 1 || Math.Abs(h0 - h) > 1)
+            Log.Write($"вписал в экран: было ({l0:0};{t0:0}) {w0:0}×{h0:0} → ({Left:0};{Top:0}) {w:0}×{h:0}");
     }
 
     /// Размер в пикселях с учётом подгонки под клиент: окно и содержимое должны
@@ -398,6 +431,7 @@ public partial class OverlayWindow : Window
         Height = Math.Max(MinH, chh);
         _settingSize = false;
         _placementApplied = true;
+        Log.Write($"раскладка «{mode}»: клиент {cw:0}×{chh:0}, окно {Width:0}×{Height:0} в ({Left:0};{Top:0})");
         ClampToScreen();
         ApplyScale();
     }
@@ -3223,6 +3257,8 @@ public partial class OverlayWindow : Window
     {
         Dispatcher.InvokeAsync(() =>
         {
+            if ((draft is null) != (_lastDraft is null))
+                Log.Write(draft is null ? "драфт закончился" : "драфт начался");
             if (engine != null) _engine = engine;
             // Подбор выключен настройкой: в драфте прячемся в трей и ничего не
             // считаем. Программа остаётся тем, ради чего её оставили, —
