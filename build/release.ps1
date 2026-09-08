@@ -53,13 +53,13 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
       $Version = $latest
       Write-Host "Feed for the latest published release: v$Version" -ForegroundColor Cyan
     } else {
-      # Разряды не растут бесконечно: после .9 переносим в следующий разряд,
-      # чтобы номер оставался читаемым (1.0.9 -> 1.1.0 -> ... -> 1.9.9 -> 2.0.0),
-      # а не превращался в 1.0.107.
+      # Патч двузначный: 1.3.9 -> 1.3.10 -> ... -> 1.3.15 -> ... -> 1.3.99, и
+      # только потом в следующий разряд. Минорный номер по-прежнему переносится
+      # после .9, чтобы версия не превращалась в 1.0.107, как было раньше.
       $v   = [version]$latest
       $maj = $v.Major; $min = $v.Minor; $pat = $v.Build + 1
-      if ($pat -gt 9) { $pat = 0; $min++ }
-      if ($min -gt 9) { $min = 0; $maj++ }
+      if ($pat -gt 99) { $pat = 0; $min++ }
+      if ($min -gt 9)  { $min = 0; $maj++ }
       $Version = "$maj.$min.$pat"
       Write-Host "Auto version: $Version (latest tag v$latest)" -ForegroundColor Cyan
     }
