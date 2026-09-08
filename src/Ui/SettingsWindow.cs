@@ -302,6 +302,11 @@ sealed class SettingsWindow : Window
             s.FontScale.ToString(System.Globalization.CultureInfo.InvariantCulture),
             v => { s.FontScale = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
                    MarkDirty(); }));
+        body.Children.Add(Choice(Loc.T("settings.clientSize"), Loc.T("settings.clientSizeHint"),
+            [("auto", Loc.T("settings.sizeAuto")), ("1024", "1024×576"), ("1280", "1280×720"),
+             ("1600", "1600×900"), ("1920", "1920×1080")],
+            s.ClientSize, v => { s.ClientSize = v; MarkDirty(); }));
+
         body.Children.Add(Row(Loc.T("settings.onTop"),   Loc.T("settings.onTopHint"),
             s.AlwaysOnTop,    v => { s.AlwaysOnTop = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.inGame"),  Loc.T("settings.inGameHint"),

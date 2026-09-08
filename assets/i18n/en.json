@@ -550,7 +550,10 @@
     "placeCenter": "Over the client, champion grid visible",
     "placeCenterHint": "Leaves the left half open — picks and champion selection",
     "placeRemember": "Where you left it",
-    "placeRememberHint": "Where the window stood at the end of the last draft. The first time, over the client with the champion grid visible"
+    "placeRememberHint": "Where the window stood at the end of the last draft. The first time, over the client with the champion grid visible",
+    "clientSize": "Match the client size",
+    "clientSizeHint": "Scales the window to the League client resolution. Auto reads the current one",
+    "sizeAuto": "Auto"
   },
   "chart": {
     "noRating": "Play a few ranked games — the rank chart fills in as LP changes."

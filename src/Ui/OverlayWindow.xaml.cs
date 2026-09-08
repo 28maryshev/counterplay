@@ -230,6 +230,29 @@ public partial class OverlayWindow : Window
         MaxHeight = Math.Max(MinH, max);
     }
 
+    // Разрешения из настроек клиента LoL → масштаб нашего окна. Опорное — 1920:
+    // под него нарисован интерфейс. Ниже 0.8 не опускаемся: текст в карточках
+    // становится нечитаемым раньше, чем окно перестаёт мешать.
+    private static readonly (int Width, double Scale)[] ClientScales =
+        [(1024, 0.80), (1280, 0.86), (1600, 0.93), (1920, 1.00)];
+
+    /// Масштаб под окно клиента. "auto" — по фактической ширине окна LoL, иначе
+    /// по выбранному в настройках разрешению.
+    private double ClientScale()
+    {
+        var pick = AppSettings.Current.ClientSize;
+        if (pick != "auto")
+            return int.TryParse(pick, out var w)
+                ? ClientScales.MinBy(x => Math.Abs(x.Width - w)).Scale : 1.0;
+
+        if (!TryGetClientRect(out var r)) return 1.0;   // клиента не видно — как есть
+        double dpiX = 1;
+        if (System.Windows.PresentationSource.FromVisual(this)?.CompositionTarget is { } ct)
+            dpiX = ct.TransformToDevice.M11;
+        var width = (r.Right - r.Left) / dpiX;
+        return ClientScales.MinBy(x => Math.Abs(x.Width - width)).Scale;
+    }
+
     // ── Раскладка окна на время драфта ────────────────────────────────────
     // Клиент у всех стоит по-разному: если он посреди экрана, оверлей справа от
     // него наполовину уезжает за край монитора, и окно приходится таскать руками
@@ -1880,9 +1903,11 @@ public partial class OverlayWindow : Window
 
         // Прозрачность, масштаб и «поверх всех» — свойства самого окна.
         Opacity = Math.Clamp(s.Opacity, 0.5, 1.0);
-        RootGrid.LayoutTransform = Math.Abs(s.FontScale - 1.0) < 0.01
+        // Итоговый масштаб = выбор человека × подгонка под окно клиента.
+        var scale = s.FontScale * ClientScale();
+        RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
             ? System.Windows.Media.Transform.Identity
-            : new ScaleTransform(s.FontScale, s.FontScale);
+            : new ScaleTransform(scale, scale);
         if (s.AlwaysOnTop) Topmost = true;
 
         // Компактная карточка ранга: эмблема мельче, полосы прогресса нет.
