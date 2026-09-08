@@ -191,7 +191,7 @@ class Program
 
         // Проверка обновлений при каждом запуске (только для установленной версии).
         await CheckForUpdatesAsync(overlay, ct);
-        StartUpdateWatcher(overlay, ct); // и дальше — раз в 4 часа (живём в трее сутками)
+        StartUpdateWatcher(overlay, ct); // и дальше — раз в час (живём в трее сутками)
 
         // Data Dragon + иконки грузим один раз при старте
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
@@ -640,7 +640,8 @@ class Program
         new Velopack.Sources.SimpleWebSource(
             "https://github.com/28maryshev/counterplay/releases/download/latest/");
 
-    // Фоновая проверка обновлений раз в 4 часа. С автозапуском программа висит в
+    // Фоновая проверка обновлений: первый заход через 10 минут, дальше раз в час.
+    // С автозапуском программа висит в
     // трее сутками — без этого она узнала бы о новой версии только при следующем
     // запуске Windows. Обновление НЕ перезапускает приложение на ходу (человек
     // может быть в драфте): скачиваем и применяем при выходе.
@@ -688,13 +689,23 @@ class Program
                     }
 
                     var info = await mgr.CheckForUpdatesAsync();
-                    if (info == null) continue;
+                    if (info == null) { Log.Write("обновлений нет (фоновая проверка)"); continue; }
+                    var v = info.TargetFullRelease?.Version.ToString() ?? "?";
+                    Log.Write($"фоновая проверка: есть версия {v}, качаю");
                     await mgr.DownloadUpdatesAsync(info);
                     // Применить при выходе, без перезапуска на ходу.
                     mgr.WaitExitThenApplyUpdates(info, silent: true, restart: false);
-                    overlay.ShowUpdateReady(info.TargetFullRelease?.Version.ToString() ?? "");
+                    Log.Write($"версия {v} скачана и встанет при следующем запуске");
+                    overlay.ShowUpdateReady(v);
                 }
-                catch { /* офлайн / лимит GitHub — попробуем на следующем круге */ }
+                catch (Exception ex)
+                {
+                    // Офлайн, лимит GitHub, битый фид — на следующем круге
+                    // попробуем снова. Но молчать нельзя: раньше сюда уходила
+                    // ЛЮБАЯ причина, по которой человек не получал обновление,
+                    // и по жалобе «не качается» смотреть было не на что.
+                    Log.Write($"фоновая проверка обновлений не удалась: {ex.Message}");
+                }
             }
         }, ct);
     }
@@ -718,8 +729,11 @@ class Program
             }
 
             overlay.ShowStatus(Loc.T("status.checkingUpdates"));
+            Log.Write($"проверяю обновления: сейчас {mgr.CurrentVersion}");
             var info = await mgr.CheckForUpdatesAsync();
-            if (info == null) return; // актуальная версия
+            if (info == null) { Log.Write("обновлений нет — версия актуальная"); return; }
+            Log.Write($"есть версия {info.TargetFullRelease?.Version}, качаю " +
+                      $"({(info.DeltasToTarget.Length > 0 ? "дельтой" : "целиком")})");
 
             // Загрузка обновления со строкой состояния и скоростью.
             var total = info.TargetFullRelease?.Size ?? 0L;
@@ -743,9 +757,15 @@ class Program
             // (тот самый «застрявший» хвост). Показываем неопределённую стадию.
             overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
             // Применяем и перезапускаемся в новую версию.
+            Log.Write("обновление скачано, применяю и перезапускаюсь");
             mgr.ApplyUpdatesAndRestart(info);
         }
-        catch { /* офлайн / нет релизов — работаем на текущей версии */ }
+        catch (Exception ex)
+        {
+            // Работаем на текущей версии. Причину пишем: «не обновляется» —
+            // самая частая жалоба, и без строки в журнале она неразбираема.
+            Log.Write($"обновление не удалось: {ex.GetType().Name} — {ex.Message}");
+        }
     }
 
     // Очередь текущего лобби из события геймфлоу: gameData.queue.id → наш ключ
