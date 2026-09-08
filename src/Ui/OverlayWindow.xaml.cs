@@ -270,7 +270,13 @@ public partial class OverlayWindow : Window
         var scale = AppSettings.Current.FontScale * ClientScale();
         var w = ActualWidth > 0 ? ActualWidth : Width;
         var draftView = _lastDraft is not null || FullView.Visibility == Visibility.Visible;
-        if (w > 0) scale = Math.Min(scale, w / (draftView ? FullW : IdleW));
+
+        // В драфте масштаб НЕ режем по ширине окна: окно само расширяется под
+        // нужный масштаб и при необходимости уходит за край экрана. Резать здесь
+        // значило бы делать шрифт мельче, чем в клиенте, ради того, чтобы всё
+        // влезло, — а именно этого мы и не хотим.
+        // Панель профиля — другое дело: она узкая и всегда целиком на экране.
+        if (!draftView && w > 0) scale = Math.Min(scale, w / IdleW);
 
         RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
             ? System.Windows.Media.Transform.Identity
@@ -285,9 +291,19 @@ public partial class OverlayWindow : Window
 
     private double _loggedScale = -1;
 
-    /// Не даём окну вылезти за край монитора: сдвигаем внутрь рабочей области, а
-    /// если и так не помещается — ужимаем. Иначе правая колонка и подсказки
-    /// уезжали за экран и просто не читались.
+    /// Окну можно уходить за правый край — но не целиком: на экране должна
+    /// оставаться шапка, иначе окно нечем схватить и вернуть.
+    private void KeepHeaderOnScreen()
+    {
+        var wa = SystemParameters.WorkArea;
+        const double GrabW = 220;   // столько шапки оставляем видимой
+        Left = Math.Max(wa.Left - Math.Max(0, (ActualWidth > 0 ? ActualWidth : Width) - GrabW),
+                        Math.Min(Left, wa.Right - GrabW));
+        Top  = Math.Max(wa.Top, Math.Min(Top, wa.Bottom - 40));
+    }
+
+    /// Полное вписывание в экран — для панели профиля: она узкая, ей уезжать
+    /// за край незачем.
     private void ClampToScreen()
     {
         var wa = SystemParameters.WorkArea;
@@ -405,21 +421,14 @@ public partial class OverlayWindow : Window
         // Левый край — там, где заканчивается открытая часть клиента.
         var x0 = cl + cw * keepLeft;
 
-        // Вправо окно НЕ сужаем под остаток клиента: если сдвинуть его сильно,
-        // от оверлея осталась бы полоска с обрезанными колонками. Вместо этого
-        // разрешаем выйти за правый край клиента — до края рабочей области.
-        var wa = SystemParameters.WorkArea;
-        var avail = Math.Max(1, wa.Right - x0);
-        // Хотим либо остаток клиента, либо привычную полную ширину — что больше.
-        var want = keepLeft > 0 ? Math.Max(cw - cw * keepLeft, MinW) : cw;
-
-        const double MinPlacedW = 700;   // уже этого три колонки не читаются
-        var w = Math.Min(want, avail);
-        if (w < MinPlacedW)
-        {
-            w  = Math.Min(MinPlacedW, wa.Width);
-            x0 = Math.Max(wa.Left, wa.Right - w);
-        }
+        // Ширину берём такую, чтобы содержимое поместилось ЦЕЛИКОМ на выбранном
+        // масштабе. За правый край экрана окно при этом выходить может — это
+        // осознанно: лучше пусть часть уедет (человек подвинет или у него монитор
+        // шире), чем всё ужмётся до нечитаемого. Раньше окно вписывалось в экран,
+        // а следом под его ширину ужимался масштаб — и шрифт становился мельче,
+        // чем в самом клиенте.
+        var needed = FullW * AppSettings.Current.FontScale * ClientScale();
+        var w = keepLeft > 0 ? Math.Max(needed, cw - cw * keepLeft) : Math.Max(needed, cw);
 
         _settingSize = true;
         SizeToContent = SizeToContent.Manual;   // иначе высота считается по контенту
@@ -431,8 +440,8 @@ public partial class OverlayWindow : Window
         Height = Math.Max(MinH, chh);
         _settingSize = false;
         _placementApplied = true;
+        KeepHeaderOnScreen();
         Log.Write($"раскладка «{mode}»: клиент {cw:0}×{chh:0}, окно {Width:0}×{Height:0} в ({Left:0};{Top:0})");
-        ClampToScreen();
         ApplyScale();
     }
 
