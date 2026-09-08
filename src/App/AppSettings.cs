@@ -26,7 +26,7 @@ public sealed class AppSettings
 
     /// Что рисовать на графике: "winrate" — процент побед, "rating" — движение
     /// ранга по дивизионам, "off" — только цифры без графика.
-    public string ChartMode { get; set; } = "winrate";
+    public string ChartMode { get; set; } = "rating";
 
     /// Окно графика в днях: 30 — текущая форма, 90 — тренд за сезон.
     public int ChartDays { get; set; } = 90;
@@ -145,7 +145,7 @@ public sealed class AppSettings
         FontScale  = double.IsFinite(FontScale) ? Math.Clamp(FontScale, 0.8, 1.5) : 1.0;
         DraftCount = Math.Clamp(DraftCount, 3, 12);
         if (ChartDays is not (30 or 90)) ChartDays = 90;
-        if (ChartMode is not ("winrate" or "rating" or "off")) ChartMode = "winrate";
+        if (ChartMode is not ("winrate" or "rating" or "off")) ChartMode = "rating";
         if (string.IsNullOrWhiteSpace(DefaultQueue)) DefaultQueue = "last";
         if (ClientSize is not ("auto" or "1024" or "1280" or "1600" or "1920")) ClientSize = "auto";
         if (DraftPlacement is not ("right" or "cover" or "allies" or "center" or "remember"))
