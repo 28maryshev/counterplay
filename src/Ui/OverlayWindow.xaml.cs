@@ -111,6 +111,12 @@ public partial class OverlayWindow : Window
     private readonly Dictionary<int, string> _enemyRoleOverrides = new();
     private static readonly string[] RoleCycle = ["", "top", "jungle", "middle", "bottom", "utility"];
 
+    /// Песочница (dotnet run test): клиента LoL рядом нет, а если он и запущен —
+    /// он к тесту не относится. В этом режиме окно живёт там, куда его поставил
+    /// человек: не прыгает к окну клиента в начале драфта и не уходит в трей,
+    /// когда клиент свёрнут или закрыт. Боевой путь этим флагом не затронут.
+    public bool SandboxMode { get; set; }
+
     // Привязка к окну клиента LoL: ставим один раз при появлении, дальше
     // окно свободно перетаскивается. Как только пользователь сдвинул вручную —
     // больше не привязываем (до нажатия кнопки-пина).
@@ -226,6 +232,7 @@ public partial class OverlayWindow : Window
     // (оверлей появляется справа от окна клиента, не перекрывая его).
     private void AnchorToClient()
     {
+        if (SandboxMode) return;
         if (!TryGetClientRect(out var r)) return;
 
         // Win32 отдаёт пиксели устройства; WPF Left/Top — в DIP. Учитываем DPI.
@@ -457,6 +464,27 @@ public partial class OverlayWindow : Window
     /// подвинули руками в этом же драфте.
     private void ApplyDraftPlacement()
     {
+        if (SandboxMode)
+        {
+            // В песочнице окно НЕ переезжает — но ширины ему хватить должно:
+            // три колонки драфта в узкой панели профиля не помещаются. Растим
+            // на месте,левый верхний угол не трогаем.
+            var need = FullW * AppSettings.Current.FontScale * ClientScale();
+            if (Width < need - 1)
+            {
+                _settingSize = true;
+                SizeToContent = SizeToContent.Manual;
+                MaxHeight = double.PositiveInfinity;
+                MinWidth = Math.Min(MinW, need);
+                Width = need;
+                _settingSize = false;
+                Log.Write($"песочница: расширил окно до {need:0}px, положение не трогаю");
+            }
+            _placementApplied = true;
+            ApplyScale();
+            return;
+        }
+
         if (_placementApplied) return;
         var mode = AppSettings.Current.DraftPlacement;
         if (mode == "right") { _placementApplied = true; AnchorIfNotMoved(); return; }
@@ -601,6 +629,7 @@ public partial class OverlayWindow : Window
 
     private void FollowClientWindow()
     {
+        if (SandboxMode) return;   // песочнице клиент не указ
         if (!TryFindClientWindow(out var h))
         {
             // Клиент закрыт. Если он уже был открыт в этой сессии (человек наигрался

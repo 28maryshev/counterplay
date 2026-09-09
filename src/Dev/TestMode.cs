@@ -53,6 +53,10 @@ static class TestMode
     public static async Task RunAsync(OverlayWindow overlay, bool emptyProfile, bool firstGame,
                                       bool fiveGames, CancellationToken ct)
     {
+        // Песочница не привязывается к окну клиента: даже если лига запущена,
+        // она к тесту отношения не имеет, а окно из-за неё прыгало и пряталось.
+        overlay.SandboxMode = true;
+
         // Та же подготовка, что в боевом режиме: статика, иконки, база.
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
         await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
@@ -255,6 +259,8 @@ static class TestMode
             if (panel is not null) { panel.SwitchingToLive = true; panel.Close(); }
             // Сбрасываем всё тестовое: фейковый профиль, превью чемпионов,
             // рекомендации и мок-хендлеры — дальше данные придут из клиента.
+            // Привязку к окну клиента возвращаем: в боевом режиме она нужна.
+            overlay.SandboxMode = false;
             overlay.SetEmptyProfilePreview(false);
             overlay.SetChampsPreview(null);
             overlay.ShowSession(null);
