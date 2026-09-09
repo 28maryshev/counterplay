@@ -171,42 +171,98 @@ public static class DataDb
         catch { return null; }
     }
 
+    // База качается КУСКАМИ по 16 МБ через Range-запросы, а не одним потоком.
+    //
+    // Одно длинное соединение к релизным ассетам GitHub режется примерно после
+    // первых 15–20 МБ: замер на 120 МБ дал 1,5 МБ/с, те же 120 МБ кусками —
+    // 19 МБ/с, разница в тринадцать раз. Причина снаружи и не в нашей власти
+    // (короткий запрос с любого смещения летит на полной скорости), поэтому
+    // просто не держим один поток открытым дольше нужного.
+    //
+    // Побочная выгода: обрыв связи больше не отправляет закачку в начало —
+    // готовые куски остаются на диске.
+    private const int ChunkSize = 16 * 1024 * 1024;
+
     private static async Task DownloadAsync(string url, string label, Action<string, double>? progress, CancellationToken ct)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        resp.EnsureSuccessStatusCode();
 
-        var total = resp.Content.Headers.ContentLength ?? 0;
-        var tmp   = LocalPath + ".tmp";
+        // Размер и поддержку Range узнаём одним лёгким запросом.
+        long total = 0;
+        bool ranges = false;
+        try
+        {
+            using var head = await http.SendAsync(
+                new HttpRequestMessage(HttpMethod.Head, url), ct);
+            head.EnsureSuccessStatusCode();
+            total  = head.Content.Headers.ContentLength ?? 0;
+            ranges = head.Headers.AcceptRanges.Contains("bytes");
+        }
+        catch { /* не ответил на HEAD — качаем одним потоком, как раньше */ }
 
-        var sw = Stopwatch.StartNew();
+        var tmp = LocalPath + ".tmp";
+        var sw  = Stopwatch.StartNew();
+        long done = 0;
         long lastBytes = 0;
         var  lastT = TimeSpan.Zero;
 
-        await using (var src = await resp.Content.ReadAsStreamAsync(ct))
+        void Report(long read, bool force = false)
+        {
+            var now = sw.Elapsed;
+            if (!force && (now - lastT).TotalSeconds < 0.2) return;
+            var dt   = (now - lastT).TotalSeconds;
+            var bps  = dt > 0 ? (read - lastBytes) / dt : 0;
+            var frac = total > 0 ? (double)read / total : 0;
+            lastBytes = read; lastT = now;
+            var pctTxt = total > 0 ? $" {frac * 100:0}%" : "";
+            progress?.Invoke($"{label}{pctTxt} · {FormatSpeed(bps)}", frac);
+        }
+
         await using (var dst = File.Create(tmp))
         {
             var buf = new byte[81920];
-            long read = 0;
-            int n;
-            while ((n = await src.ReadAsync(buf, ct)) > 0)
-            {
-                await dst.WriteAsync(buf.AsMemory(0, n), ct);
-                read += n;
 
-                var now = sw.Elapsed;
-                if ((now - lastT).TotalSeconds >= 0.2 || (total > 0 && read >= total))
+            if (!ranges || total <= ChunkSize)
+            {
+                // Сервер не умеет куски или файл и так маленький — один поток.
+                using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+                resp.EnsureSuccessStatusCode();
+                if (total == 0) total = resp.Content.Headers.ContentLength ?? 0;
+                await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                int n;
+                while ((n = await src.ReadAsync(buf, ct)) > 0)
                 {
-                    var dt   = (now - lastT).TotalSeconds;
-                    var bps  = dt > 0 ? (read - lastBytes) / dt : 0;
-                    var frac = total > 0 ? (double)read / total : 0;
-                    lastBytes = read; lastT = now;
-                    var pctTxt = total > 0 ? $" {frac * 100:0}%" : "";
-                    progress?.Invoke($"{label}{pctTxt} · {FormatSpeed(bps)}", frac);
+                    await dst.WriteAsync(buf.AsMemory(0, n), ct);
+                    done += n;
+                    Report(done);
+                }
+            }
+            else
+            {
+                for (long off = 0; off < total; off += ChunkSize)
+                {
+                    var last = Math.Min(off + ChunkSize, total) - 1;
+                    var req  = new HttpRequestMessage(HttpMethod.Get, url);
+                    req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(off, last);
+
+                    using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                    resp.EnsureSuccessStatusCode();
+                    await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                    int n;
+                    while ((n = await src.ReadAsync(buf, ct)) > 0)
+                    {
+                        await dst.WriteAsync(buf.AsMemory(0, n), ct);
+                        done += n;
+                        Report(done);
+                    }
                 }
             }
         }
+
+        Report(done, force: true);
+        Log.Write($"база скачана: {done / 1048576.0:0} МБ за {sw.Elapsed.TotalSeconds:0.0} с " +
+                  $"({FormatSpeed(done / Math.Max(0.001, sw.Elapsed.TotalSeconds))}, " +
+                  $"{(ranges && total > ChunkSize ? "кусками" : "одним потоком")})");
         File.Move(tmp, LocalPath, overwrite: true);
     }
 }
