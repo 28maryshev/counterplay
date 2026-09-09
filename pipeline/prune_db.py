@@ -14,6 +14,12 @@ prune_db.py — гигиена серверной базы. Держим тол�
 НЕ трогаем «длинный хвост» (пары с 1–2 играми): на живой базе они ещё набирают
 игры со следующими матчами. Хвост режется только в ПУБЛИКУЕМОЙ копии (publish_data).
 
+Удаляем МАЛЕНЬКИМИ ПОРЦИЯМИ с коммитом после каждой. В режиме WAL писатель у
+базы ровно один, и одна большая транзакция DELETE держит его столько, сколько
+идёт сама, — сбор в это время не может записать ни строки и падает с «database
+is locked». Окнами по WINDOW строк каждая транзакция живёт доли секунды, и
+сбор спокойно вклинивается между ними.
+
 VACUUM по умолчанию не делаем: он берёт эксклюзивную блокировку, а коллектор
 пишет почти всегда. Но без него файл не отдаёт место обратно — удалённые
 страницы лишь переиспользуются под новые вставки. Поэтому публикация зовёт нас
@@ -42,6 +48,10 @@ VACUUM = os.environ.get('PRUNE_VACUUM') == '1'
 # collect.py. Cron на хосте флага не ставит и остаётся безопасным при любой
 # версии контейнера.
 MATCH_PRUNE = os.environ.get('PRUNE_MATCHES') == '1'
+WINDOW = 50000        # сколько rowid просматриваем за одну транзакцию
+PAUSE = 0.02          # пауза между порциями — окно для записи коллектора
+RETRIES = 5           # попыток на окно, если база занята сбором
+BUDGET_S = 1800       # дольше получаса не работаем: остаток дочистится в следующий раз
 
 
 def pk(p):
@@ -77,6 +87,52 @@ def ensure_schema(con):
     con.execute('UPDATE processed_matches SET ts=? WHERE ts IS NULL', (now,))
 
 
+def delete_batched(con, table, where, params, deadline) -> int:
+    """Удаляет порциями, отпуская базу между ними. Возвращает число строк.
+
+    Идём ОКНАМИ ПО rowid, а не «первые N подходящих». Разница принципиальная:
+    patch стоит последним в первичном ключе, поиск по нему индексом не
+    поддержан, и запрос «дай 2000 строк со старым патчем» каждый раз сканирует
+    таблицу с начала — а по мере удаления начало пустеет, и каждая следующая
+    порция дороже предыдущей. Окно по rowid ограничивает работу заранее: один
+    проход по таблице кусками предсказуемого размера.
+
+    В WAL-режиме писатель у базы один, поэтому держать длинную транзакцию
+    нельзя — сбор в это время не сможет записать ни строки и упадёт с
+    «database is locked». Отсюда и коммит после каждого окна, и пауза.
+    """
+    top = con.execute(f'SELECT max(rowid) FROM {table}').fetchone()[0] or 0
+    total, lo = 0, 0
+    while lo <= top:
+        if time.time() > deadline:
+            print(f'  {table}: остановился по времени, удалено {total:,}', flush=True)
+            return total
+        hi = lo + WINDOW - 1
+        # Коллектор пишет почти непрерывно, и окно записи иногда не достаётся с
+        # первого раза. Это нормальная очередь, а не ошибка: ждём и пробуем
+        # снова. Падать здесь нельзя — уборка бросила бы работу на середине, а
+        # база продолжила бы расти.
+        for attempt in range(RETRIES):
+            try:
+                cur = con.execute(
+                    f'DELETE FROM {table} WHERE rowid BETWEEN ? AND ? AND {where}',
+                    (lo, hi, *params))
+                con.commit()
+                break
+            except sqlite3.OperationalError as e:
+                if 'locked' not in str(e).lower():
+                    raise
+                time.sleep(2 * (attempt + 1))
+        else:
+            print(f'  {table}: база занята, отложил остаток до следующего раза '
+                  f'(удалено {total:,})', flush=True)
+            return total
+        total += cur.rowcount
+        lo = hi + 1
+        time.sleep(PAUSE)
+    return total
+
+
 def bump(con, key, n):
     """Копим число удалённых матчей: счётчик собранного показывается людям и
     не должен пойти назад из-за уборки (см. collect.db_total)."""
@@ -87,8 +143,10 @@ def bump(con, key, n):
 
 def main():
     before = size_mb()
+    deadline = time.time() + BUDGET_S
     con = sqlite3.connect(DB, timeout=120)
-    con.execute('PRAGMA busy_timeout=120000')
+    # Ждём базу недолго: наша работа не срочная, а сбор ждать не должен.
+    con.execute('PRAGMA busy_timeout=15000')
     ensure_schema(con)
 
     total = 0
@@ -97,45 +155,47 @@ def main():
     if len(patches) > KEEP_PATCHES:
         keep = patches[:KEEP_PATCHES]
         draft_keep = patches[:DRAFT_PATCHES]
-        print(f'патчи: {patches} | держим {keep} | drafts {draft_keep}')
+        print(f'патчи: {patches} | держим {keep} | drafts {draft_keep}', flush=True)
         for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
             cols = [c[1] for c in con.execute(f'PRAGMA table_info({t})')]
             if 'patch' not in cols:
                 continue
             kp = draft_keep if t == 'drafts' else keep
             ph = ','.join('?' * len(kp))
-            cur = con.execute(f'DELETE FROM {t} WHERE patch NOT IN ({ph})', kp)
-            if cur.rowcount:
-                print(f'  {t}: -{cur.rowcount:,}')
-                total += cur.rowcount
+            n = delete_batched(con, t, f'patch NOT IN ({ph})', kp, deadline)
+            if n:
+                print(f'  {t}: -{n:,}', flush=True)
+                total += n
     else:
-        print(f'патчей {len(patches)} <= {KEEP_PATCHES} — по патчам чистить нечего')
+        print(f'патчей {len(patches)} <= {KEEP_PATCHES} — по патчам чистить нечего', flush=True)
 
     now = int(time.time())
-    cur = con.execute('DELETE FROM seen_players WHERE ts < ?',
-                      (now - PLAYER_KEEP_DAYS * 86400,))
-    if cur.rowcount:
-        print(f'  seen_players: -{cur.rowcount:,}')
-        total += cur.rowcount
+    n = delete_batched(con, 'seen_players', 'ts < ?',
+                       (now - PLAYER_KEEP_DAYS * 86400,), deadline)
+    if n:
+        print(f'  seen_players: -{n:,}', flush=True)
+        total += n
 
-    cur = (con.execute('DELETE FROM processed_matches WHERE ts < ?',
-                       (now - MATCH_KEEP_DAYS * 86400,))
-           if MATCH_PRUNE else None)
-    if cur and cur.rowcount:
-        print(f'  processed_matches: -{cur.rowcount:,}')
-        bump(con, 'matches_pruned', cur.rowcount)
-        total += cur.rowcount
+    if MATCH_PRUNE:
+        n = delete_batched(con, 'processed_matches', 'ts < ?',
+                           (now - MATCH_KEEP_DAYS * 86400,), deadline)
+        if n:
+            print(f'  processed_matches: -{n:,}', flush=True)
+            bump(con, 'matches_pruned', n)
+            total += n
 
     con.commit()
-    # Свернуть WAL обратно в базу и обрезать журнал — иначе он раздувается на
-    # сотни МБ (большие DELETE + одновременные читатели).
-    con.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+    # Свернуть WAL обратно в базу: после множества удалений он разрастается на
+    # сотни МБ. TRUNCATE (обрезать файл журнала) требует, чтобы больше никто не
+    # читал базу, поэтому его зовём только вместе со сжатием — там сбор стоит.
+    # В обычном проходе достаточно PASSIVE: он не мешает никому.
+    con.execute(f"PRAGMA wal_checkpoint({'TRUNCATE' if VACUUM else 'PASSIVE'})")
 
     if VACUUM:
         print('сжимаю файл (VACUUM)…', flush=True)
         t0 = time.time()
         con.execute('VACUUM')
-        print(f'  готово за {time.time() - t0:.0f} с')
+        print(f'  готово за {time.time() - t0:.0f} с', flush=True)
     con.close()
 
     after = size_mb()
