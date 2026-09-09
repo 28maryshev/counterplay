@@ -43,7 +43,17 @@ TAG = 'data'
 ENGINE_TABLES = ['base_wr', 'matchup', 'synergy', 'botlane_matchup', 'champion_bans',
                  'champion_damage']
 BUCKETS = ['silver', 'gold', 'emerald', 'master']
-KEEP_PATCHES = 5     # сколько последних патчей класть (движок берёт из них 3 свежих)
+KEEP_PATCHES = 3     # движок считает по 2 свежим, третий нужен ему для «удержания»
+                     # нового патча (RecommendationEngine.PatchReady). Больше класть
+                     # незачем: замер показал, что четвёртый и пятый патчи — 38% веса
+                     # файла, до которых расчёт не доходит.
+
+# Парные таблицы, для которых кладём ещё и сводку по всем дивизионам.
+PAIR_KEYS = {
+    'matchup':         'champion_id, role, vs_champion_id',
+    'synergy':         'champion_id, role, ally_id, ally_role',
+    'botlane_matchup': 'champion_id, role, vs_champion_id, vs_role',
+}
 # «Длинный хвост»: пары с малым числом игр никогда не показываются — не кладём.
 # base_wr и champion_bans оставляем полностью (знаменатели пик/бан-рейта).
 PRUNE_MIN = {'matchup': 2, 'synergy': 2, 'botlane_matchup': 2}
@@ -84,6 +94,33 @@ def build_slim(full_path: Path, dest_path: Path, patches, bucket=None, matches=0
             conds.append('games>=?')
             params.append(PRUNE_MIN[t])
         dst.execute(f"INSERT INTO {t} SELECT * FROM src.{t} WHERE {' AND '.join(conds)}", params)
+    # Сводка пар по ВСЕМ дивизионам — приор для разреженных пар.
+    #
+    # Данные по парам «чемпион против чемпиона» тонкие: в своём бакете у половины
+    # пар меньше 15 игр, и движок обрезает такую дельту до пятой части. Соседние
+    # дивизионы про ту же пару кое-что знают, но в бакетной базе их просто нет.
+    # Кладём их одной строкой на пару (tier_bucket='all', patch='all'): по патчам
+    # разбивать смысла нет — это приор, а не источник меты, зато файл прибавляет
+    # не 108%, а 43% от парных таблиц.
+    #
+    # Метки 'all' выбраны так, чтобы старые сборки программы этих строк не увидели:
+    # каждый их запрос фильтрует и бакет, и патч по конкретным значениям.
+    if bucket:
+        for t, key in PAIR_KEYS.items():
+            cols = [c[1] for c in dst.execute(f'PRAGMA table_info({t})')]
+            if not cols:
+                continue
+            sel = ', '.join("'all'" if c in ('tier_bucket', 'patch')
+                            else f'SUM({c})' if c in ('games', 'wins') else c
+                            for c in cols)
+            conds = [f'patch IN ({ph})']
+            params = list(patches)
+            if t in PRUNE_MIN:
+                conds.append('games>=?')
+                params.append(PRUNE_MIN[t])
+            dst.execute(f"INSERT INTO {t} ({', '.join(cols)}) SELECT {sel} FROM src.{t} "
+                        f"WHERE {' AND '.join(conds)} GROUP BY {key}", params)
+
     # Служебные метаданные (число матчей, патчи, бакет).
     dst.execute('CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT)')
     dst.executemany('INSERT INTO db_meta VALUES (?,?)', [

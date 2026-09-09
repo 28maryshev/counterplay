@@ -39,6 +39,18 @@ public sealed class RecommendationEngine : IDisposable
     private const double BASE_CONF  = 250.0; // темпер базового WR по объёму выборки
     private const double MATCHUP_CONF = 50.0; // темпер парных матчапов: мало игр в паре → дельте нет доверия
 
+    // Приор по всем дивизионам для разреженных пар. В своём бакете у половины пар
+    // меньше 15 взвешенных игр, и темпер выше режет их дельту до ~22%. База везёт
+    // сводку той же пары по всем дивизионам (tier_bucket='all', patch='all') —
+    // подмешиваем её как POOL_PRIOR «псевдо-игр» с винрейтом сводки.
+    //
+    // Почему приором, а не сложением игр: у соседних эло та же пара играется иначе,
+    // и их объём не должен спорить со своим бакетом. Пара с 500 своими играми
+    // сдвинется на сотые доли процента, пара с нулём получит осмысленную оценку
+    // вместо молчания.
+    private const double POOL_PRIOR = 25.0;  // сколько «псевдо-игр» даёт сводка
+    private const double POOL_MIN   = 30.0;  // ниже этого сводка шумит сама
+
     // Взвешивание патчей по свежести: текущий патч — полный вес, предыдущие затухают.
     // Все агрегаты считают SUM(games*вес): мета следует за актуальным патчем, не
     // теряя объёма старых данных (эффективная выборка ≈76% от плоской суммы).
@@ -261,7 +273,8 @@ public sealed class RecommendationEngine : IDisposable
         try
         {
             var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT COALESCE(SUM(games),0) FROM botlane_matchup";
+            // Сводные строки пропускаем: это та же статистика второй раз.
+            cmd.CommandText = "SELECT COALESCE(SUM(games),0) FROM botlane_matchup WHERE patch <> 'all'";
             var r = cmd.ExecuteScalar();
             return r is null or DBNull ? 0 : Convert.ToDouble(r);
         }
@@ -318,7 +331,10 @@ public sealed class RecommendationEngine : IDisposable
             Console.WriteLine($"  [предупреждение] Нет данных для бакета '{tierBucket}' — использую '{effectiveBucket}'.");
         }
 
-        return new RecommendationEngine(db, effectiveBucket, [.. patches]);
+        var engine = new RecommendationEngine(db, effectiveBucket, [.. patches]);
+        Log.Write($"движок: бакет {effectiveBucket}, патчи {engine.PatchDisplay}, " +
+                  $"сводка по дивизионам {(engine.HasPool ? "есть" : "нет")}");
+        return engine;
     }
 
     // ── Политика удержания патча (синхронно с pipeline/freshness.py, bot/lib/freshness.js) ──
@@ -1522,6 +1538,54 @@ public sealed class RecommendationEngine : IDisposable
     }
 
     // Сырые (games, wins) матчапа — направленно: мой чемпион против vsId.
+    // Есть ли в базе сводка по дивизионам (старые базы её не знают).
+    private bool? _hasPool;
+    private bool HasPool
+    {
+        get
+        {
+            if (_hasPool is { } v) return v;
+            try
+            {
+                var c = _db.CreateCommand();
+                c.CommandText = "SELECT 1 FROM matchup WHERE tier_bucket='all' LIMIT 1";
+                _hasPool = c.ExecuteScalar() is not null;
+            }
+            catch { _hasPool = false; }
+            return _hasPool.Value;
+        }
+    }
+
+    // Сводка спрашивается по разу на пару за драфт, поэтому держим её в памяти:
+    // кандидатов до десяти, врагов до пяти, и каждый пересчёт лез бы в базу заново.
+    private readonly Dictionary<string, (double g, double w)> _poolCache = new();
+
+    private (double g, double w) PoolRow(string table, string where, params (string, object)[] args)
+    {
+        var key = table + "|" + string.Join(",", args.Select(a => a.Item2));
+        if (_poolCache.TryGetValue(key, out var hit)) return hit;
+        var res = (0.0, 0.0);
+        try
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = $@"SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM {table}
+                                 WHERE {where} AND tier_bucket='all' AND patch='all'";
+            foreach (var (n, v) in args) cmd.Parameters.AddWithValue(n, v);
+            res = RawAgg(cmd);
+        }
+        catch { /* нет сводки — работаем как раньше */ }
+        _poolCache[key] = res;
+        return res;
+    }
+
+    /// Подмешивает сводку по дивизионам к паре из своего бакета.
+    private (double g, double w) WithPool((double g, double w) own, (double g, double w) pool)
+    {
+        if (pool.g < POOL_MIN) return own;         // сводки нет или она сама мала
+        var rate = pool.w / pool.g;
+        return (own.g + POOL_PRIOR, own.w + POOL_PRIOR * rate);
+    }
+
     private (double g, double w) RawMatchup(int champId, string role, int vsId)
     {
         var cmd = _db.CreateCommand();
@@ -1536,7 +1600,11 @@ public sealed class RecommendationEngine : IDisposable
         cmd.Parameters.AddWithValue("@p1", _p1);
         cmd.Parameters.AddWithValue("@p2", _p2);
         cmd.Parameters.AddWithValue("@p3", _p3);
-        return RawAgg(cmd);
+        var own = RawAgg(cmd);
+        if (!HasPool) return own;
+        return WithPool(own, PoolRow("matchup",
+            "champion_id=@c AND role=@r AND vs_champion_id=@v",
+            ("@c", champId), ("@r", role), ("@v", vsId)));
     }
 
     // Кросс-ролевой матчап на боте: мой чемпион (role) против вражеского дуо-партнёра
@@ -1558,7 +1626,11 @@ public sealed class RecommendationEngine : IDisposable
             cmd.Parameters.AddWithValue("@p1", _p1);
             cmd.Parameters.AddWithValue("@p2", _p2);
             cmd.Parameters.AddWithValue("@p3", _p3);
-            return RawAgg(cmd);
+            var own = RawAgg(cmd);
+            if (!HasPool) return own;
+            return WithPool(own, PoolRow("botlane_matchup",
+                "champion_id=@c AND role=@r AND vs_champion_id=@v AND vs_role=@vr",
+                ("@c", champId), ("@r", role), ("@v", vsId), ("@vr", vsRole)));
         }
         catch { return (0, 0); }
     }
@@ -1587,7 +1659,14 @@ public sealed class RecommendationEngine : IDisposable
         cmd.Parameters.AddWithValue("@p1", _p1);
         cmd.Parameters.AddWithValue("@p2", _p2);
         cmd.Parameters.AddWithValue("@p3", _p3);
-        return RawAgg(cmd);
+        var own = RawAgg(cmd);
+        if (!HasPool) return own;
+        // Пара записана одной стороной — сводку берём в обе, как и сам запрос выше.
+        var a = PoolRow("synergy", "champion_id=@c AND role=@r AND ally_id=@a",
+                        ("@c", champId), ("@r", role), ("@a", allyId));
+        var b = PoolRow("synergy", "champion_id=@a AND ally_id=@c AND ally_role=@r",
+                        ("@a", allyId), ("@c", champId), ("@r", role));
+        return WithPool(own, (a.g + b.g, a.w + b.w));
     }
 
     // Синергия пары с ОБЕИМИ известными ролями (обе стороны записи). Точнее, чем
