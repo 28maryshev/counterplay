@@ -27,6 +27,7 @@ import json
 import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 import threading
 import time
@@ -205,6 +206,34 @@ def publish_db(session_total: int):
     except Exception as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но публикация упала: `{e}`')
         print(traceback.format_exc(), flush=True)
+    finally:
+        # Уборка идёт СРАЗУ ПОСЛЕ публикации — и по времени, и по смыслу. Сбор в
+        # этот момент стоит, значит можно сжать файл: VACUUM берёт эксклюзивную
+        # блокировку, посреди сбора его звать нельзя. А нужен он именно здесь —
+        # публикация копирует базу целиком, и место под копию должно быть.
+        prune_db()
+
+
+def prune_db():
+    """Чистка старых данных со сжатием файла. Ошибки глушим: не убравшаяся база
+    мешает жить позже, а упавший сбор — прямо сейчас."""
+    try:
+        before = os.path.getsize(DB_PATH) / 1048576
+        set_status(state='pruning')
+        env = {**os.environ, 'DB_PATH': DB_PATH, 'PRUNE_VACUUM': '1', 'PRUNE_MATCHES': '1'}
+        out = subprocess.run([sys.executable, str(Path(__file__).with_name('prune_db.py'))],
+                             env=env, capture_output=True, text=True, timeout=3600)
+        tail = (out.stdout or out.stderr or '').strip().splitlines()
+        after = os.path.getsize(DB_PATH) / 1048576
+        for line in tail:
+            print(f'[уборка] {line}', flush=True)
+        if before - after > 50:
+            free = disk()
+            notify(f'🧹 Уборка базы: {before:,.0f} → {after:,.0f} МБ '
+                   f'(освободилось {before - after:,.0f} МБ)'
+                   + (f' · свободно на диске {free[0]:.1f} ГБ' if free else ''))
+    except Exception as e:
+        print(f'[уборка] не удалась: {e}', flush=True)
 
 
 def main():

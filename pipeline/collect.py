@@ -120,7 +120,8 @@ def init_db(path: str) -> sqlite3.Connection:
         PRAGMA busy_timeout = 120000;
 
         CREATE TABLE IF NOT EXISTS processed_matches (
-            match_id TEXT PRIMARY KEY
+            match_id TEXT PRIMARY KEY,
+            ts       INTEGER          -- когда обработан; по нему чистит prune_db
         );
 
         -- Базовый винрейт чемпиона на роли
@@ -323,7 +324,9 @@ def is_processed(con: sqlite3.Connection, match_id: str) -> bool:
 
 
 def mark_processed(con: sqlite3.Connection, match_id: str):
-    con.execute('INSERT OR IGNORE INTO processed_matches VALUES (?)', (match_id,))
+    # ts нужен уборке (prune_db): по нему видно, что матч уже вне окна сбора.
+    con.execute("INSERT OR IGNORE INTO processed_matches (match_id, ts) "
+                "VALUES (?, strftime('%s','now'))", (match_id,))
 
 
 def upsert(con: sqlite3.Connection, table: str, key_cols: list, key_vals: list, win: bool):
@@ -821,8 +824,20 @@ SAT_MIN_NEW = 12  # < ~5% новых на окне → считаем бакет
 
 
 def db_total(con) -> int:
+    """Сколько матчей собрано всего. Уборка (prune_db) удаляет записи о старых
+    матчах — они уже не могут прийти повторно, — поэтому к живым строкам
+    прибавляем счётчик удалённых: иначе показанное людям число падало бы после
+    каждой чистки, будто часть работы пропала."""
     with DB_LOCK:
-        return con.execute('SELECT COUNT(*) FROM processed_matches').fetchone()[0]
+        n = con.execute('SELECT COUNT(*) FROM processed_matches').fetchone()[0]
+        try:
+            row = con.execute(
+                "SELECT value FROM prune_meta WHERE key='matches_pruned'").fetchone()
+            if row:
+                n += row[0]
+        except sqlite3.OperationalError:
+            pass    # уборка ещё ни разу не запускалась — таблицы нет
+        return n
 
 
 def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
