@@ -3845,6 +3845,25 @@ public partial class OverlayWindow : Window
             }
         }
 
+        // Свой пик — всегда в списке, даже если его нет среди кандидатов.
+        //
+        // Общий подбор отсеивает офф-мета связки (Там Кенч на боте и подобные):
+        // у них мало игр на роли, и в кандидаты они не проходят. Но человек уже
+        // ВЗЯЛ такого чемпиона — и оставался без единой цифры: ни матчапа против
+        // оппонента, ни синергии с командой. Считаем его отдельно, тем же
+        // движком через only-список: там порог кандидатов не применяется.
+        var myPickId = draft?.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
+        if (myPickId != 0 && draft != null && _engine != null
+            && !poolIds.Contains(myPickId) && recs.All(r => r.ChampionId != myPickId))
+        {
+            try
+            {
+                if (_engine.Recommend(draft, 1, [myPickId]).FirstOrDefault() is { } mineRec)
+                    recs = [mineRec, .. recs];
+            }
+            catch { /* нет данных по связке — покажем список как есть */ }
+        }
+
         // Сколько кандидатов приводят ровно эту причину — по ней и отсеиваем общие.
         var reasonFreq = new Dictionary<string, int>();
         foreach (var r in recs)
@@ -3910,6 +3929,21 @@ public partial class OverlayWindow : Window
         var allCards = new List<FullRecCard>();
         allCards.AddRange(poolCards);
         allCards.AddRange(generalCards);
+
+        // Выбранный чемпион — первым. Его показатели смотрят иначе, чем чужие:
+        // не «кого взять», а «что у меня против них и с ними», и искать свою
+        // карточку в середине списка неудобно. Ищем по id, а не по пометке
+        // IsMyPick: если чемпион пришёл из пула, пометки на карточке нет.
+        if (myPickId != 0)
+        {
+            var mineIdx = allCards.FindIndex(c => c.ChampionId == myPickId);
+            if (mineIdx > 0)
+            {
+                var mineCard = allCards[mineIdx];
+                allCards.RemoveAt(mineIdx);
+                allCards.Insert(0, mineCard);
+            }
+        }
         FullRecList.ItemsSource = allCards;
 
         ApplyScale();                                // масштаб под текущую ширину

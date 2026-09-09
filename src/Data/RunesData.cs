@@ -81,6 +81,10 @@ public static class RunesClient
         catch { _available = null; }
     }
 
+    /// Загрузился ли манифест. Отличает «связки нет в данных» от «мы вообще не
+    /// знаем, что есть на сервере» — снаружи это выглядит одинаково.
+    public static bool ManifestLoaded => UseMock || _available is not null;
+
     /// Есть ли данные по связке (иначе панель не показываем).
     public static bool Has(int champ, string role) =>
         UseMock || _available?.Contains($"{champ}-{role}") == true;

@@ -143,9 +143,20 @@ class Program
 
         // Роль: из драфта, иначе основная роль чемпиона (custom games/блайнд не
         // раскрывают позицию — но руны показать всё равно нужно).
-        var role = RunesClient.ResolveRole(champ, RecommendationEngine.LcuToDbRole(draft.MyPosition));
+        var wanted = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+        var role = RunesClient.ResolveRole(champ, wanted);
         if (role is null || !RunesClient.Has(champ, role))
         {
+            // «Не показывает руны» — жалоба, которую нельзя разобрать без этой
+            // строки: причин три (не загрузился манифест, роль не раскрыта,
+            // связки нет в данных), а внешне они выглядят одинаково — пустотой.
+            if (_runesMissLogged != champ)
+            {
+                _runesMissLogged = champ;
+                Log.Write($"руны не показаны: {DataDragon.Name(champ)}, роль «{wanted}» → " +
+                          $"{(role is null ? "связка не найдена" : $"«{role}» нет в данных")}, " +
+                          $"манифест {(RunesClient.ManifestLoaded ? "загружен" : "НЕ ЗАГРУЖЕН")}");
+            }
             overlay.HideRunes();
             return;
         }
@@ -156,8 +167,15 @@ class Program
         _runesShownFor = key;
 
         var stats = await RunesClient.GetAsync(champ, role, ct);
+        _runesMissLogged = 0;
+        Log.Write($"руны: {DataDragon.Name(champ)} на роли «{role}»" +
+                  (stats is null ? " — данные не пришли" : $", игр {stats.Games:N0}"));
         overlay.ShowRunes(stats, champ, DataDragon.Name(champ), role, opponent);
     }
+
+    // Чемпион, по которому уже написали «рун нет» — чтобы не повторяться каждый
+    // цикл чемп-селекта.
+    static int _runesMissLogged;
 
     // Имя события «покажи окно» — им второй экземпляр будит первый.
     const string ShowSignal = "Counterplay.ShowWindow";
