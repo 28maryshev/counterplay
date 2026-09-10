@@ -480,6 +480,20 @@ sealed class TestPanel : Window
         DockPanel.SetDock(_simBtn, Dock.Right);
         bottom.Children.Insert(0, _simBtn);
 
+        // Моментальный драфт: та же расстановка, что и у авто-драфта, но без
+        // ожидания ходов. Нужен, когда драфт — не предмет проверки, а декорация:
+        // снять видео, посмотреть связки, проверить вёрстку на полном составе.
+        var instant = new Button
+        {
+            Content = "⚡ Моментально", Width = 118,
+            Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 7, 0),
+            ToolTip = "Заполнить обе команды сразу. Уже выбранные чемпионы остаются на месте — "
+                    + "добираются только пустые слоты"
+        };
+        instant.Click += (_, _) => InstantDraft();
+        DockPanel.SetDock(instant, Dock.Right);
+        bottom.Children.Insert(0, instant);
+
         // Перемешать роли строк: порядок пика перестаёт совпадать с ролями.
         var shuffle = new Button
         {
@@ -863,6 +877,24 @@ sealed class TestPanel : Window
     {
         var name = DataDragon.Name(champId);
         if (_idByName.ContainsKey(name)) _ally[MeCell()].SelectedItem = name;
+    }
+
+    /// Заполняет обе команды разом. Что человек выбрал руками — не трогаем: чаще
+    /// всего половина состава уже набрана под конкретную сцену, и терять её ради
+    /// «полного» драфта незачем.
+    private void InstantDraft()
+    {
+        StopSim();          // тикающий авто-драфт тут только мешает
+        _ready = false;     // без перерисовки на каждый из десяти слотов
+        try
+        {
+            for (int cell = 0; cell < 10; cell++) AutoPick(cell);
+        }
+        finally
+        {
+            _ready = true;
+        }
+        Recompute();        // одна перерисовка на весь состав
     }
 
     // Случайный ещё не занятый чемпион в слот cell (0..4 свои, 5..9 враги),
