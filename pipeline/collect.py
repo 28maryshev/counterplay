@@ -47,11 +47,16 @@ REGION_MATCH = 'europe'  # MATCH-V5 (региональный роутинг) �
 
 # Платформа (League-V4/Summoner-V4) → регион (MATCH-V5).
 # Имя слева — то, что подаётся в --region.
+# Платформы Riot. Список живой: серверы сливают и переименовывают, а мёртвая
+# платформа тихо съедает время — её хост просто не резолвится, и каждый запрос
+# уходит в лестницу повторов (см. обработчик сети ниже).
+#   ph2 (Филиппины) и th2 (Таиланд) закрыты — игроки переехали на sg2;
+#   me1 (Ближний Восток) наоборот появился и раньше не собирался.
 PLATFORM_TO_REGIONAL = {
-    'euw1': 'europe', 'eun1': 'europe', 'tr1': 'europe', 'ru': 'europe',
+    'euw1': 'europe', 'eun1': 'europe', 'tr1': 'europe', 'ru': 'europe', 'me1': 'europe',
     'na1': 'americas', 'br1': 'americas', 'la1': 'americas', 'la2': 'americas',
     'kr': 'asia', 'jp1': 'asia',
-    'oc1': 'sea', 'ph2': 'sea', 'sg2': 'sea', 'th2': 'sea', 'tw2': 'sea', 'vn2': 'sea',
+    'oc1': 'sea', 'sg2': 'sea', 'tw2': 'sea', 'vn2': 'sea',
 }
 
 # ---------- Бакеты эло ----------
@@ -312,6 +317,18 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (champion_id, role, spells, tier_bucket, patch)
         );
     """)
+
+    # Досоздание колонок в уже существующих базах: CREATE TABLE IF NOT EXISTS
+    # трогает только новые файлы, а боевая база живёт с прошлых версий. Колонку
+    # ts (когда матч обработан) читает уборка prune_db — по ней она отличает
+    # записи, вышедшие из окна сбора, от свежих.
+    cols = [c[1] for c in con.execute('PRAGMA table_info(processed_matches)')]
+    if 'ts' not in cols:
+        con.execute('ALTER TABLE processed_matches ADD COLUMN ts INTEGER')
+        con.execute('CREATE INDEX IF NOT EXISTS idx_pm_ts ON processed_matches(ts)')
+        con.execute("UPDATE processed_matches SET ts = strftime('%s','now') WHERE ts IS NULL")
+        print('[схема] добавил processed_matches.ts', flush=True)
+
     con.commit()
     return con
 
@@ -688,14 +705,21 @@ def api_call(fn, *args, **kwargs):
                 print(f'  [ApiError {code}] {e}', flush=True)
                 return None
         except (requests.exceptions.RequestException, ConnectionError, OSError) as e:
-            # Обрыв соединения / таймаут / DNS — НЕ роняем автономный прогон,
+            # Хост не резолвится — это не «связь моргнула», а закрытая платформа
+            # (Riot сливает серверы: так ушли ph2 и th2). Повторять бессмысленно:
+            # лестница из шести пауз — это 105 секунд на каждый запрос в пустоту.
+            if 'Name or service not known' in str(e) or 'Temporary failure in name resolution' in str(e):
+                print(f'  [сеть] хост «{host}» не существует — регион пропущен', flush=True)
+                return None
+            # Обрыв соединения / таймаут — НЕ роняем автономный прогон,
             # а ждём и повторяем с нарастающей паузой; после серии неудач — пропуск.
             net_retries += 1
             if net_retries > 6:
                 print(f'  [сеть] не восстановилось ({type(e).__name__}) — пропускаю запрос', flush=True)
                 return None
             wait = min(60, 5 * net_retries)
-            print(f'  [сеть] {type(e).__name__}: повтор через {wait}s (попытка {net_retries})', flush=True)
+            print(f'  [сеть] {type(e).__name__}: {str(e)[:120]} — '
+                  f'повтор через {wait}s (попытка {net_retries})', flush=True)
             time.sleep(wait)
 
 

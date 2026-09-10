@@ -33,11 +33,26 @@ param(
   # full package (plus a delta) there, so the folder grows without bound; older
   # ones are on GitHub anyway. Velopack needs the PREVIOUS full package to build
   # the next delta, so keep at least 2. Use 0 to disable the cleanup.
-  [int]$KeepReleases = 3
+  [int]$KeepReleases = 3,
+  # Пропустить проверку заметок на внутреннюю лексику (build/check-notes.ps1).
+  # Ставить осознанно: патчноут читает игрок, а не разработчик.
+  [switch]$AllowInternal
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
+
+# Заметки, написанные руками, проверяем СРАЗУ — до сборки и заливки: незачем
+# гонять семь минут, чтобы упереться в текст, который всё равно переписывать.
+# Автоген из коммитов не трогаем: там технический язык — сознательное решение,
+# сабджект коммита и есть строка ченджлога.
+if (-not $AllowInternal) {
+  $checker = Join-Path $PSScriptRoot "check-notes.ps1"
+  if (Test-Path $checker) {
+    if ($Notes)      { & $checker -Text $Notes }
+    if ($Highlights) { & $checker -Text $Highlights }
+  }
+}
 
 $repo = "https://github.com/28maryshev/counterplay"
 
