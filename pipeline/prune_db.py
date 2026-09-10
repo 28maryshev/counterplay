@@ -152,10 +152,17 @@ def main():
     total = 0
     patches = sorted({r[0] for r in con.execute('SELECT DISTINCT patch FROM base_wr') if r[0]},
                      key=pk, reverse=True)
-    if len(patches) > KEEP_PATCHES:
-        keep = patches[:KEEP_PATCHES]
-        draft_keep = patches[:DRAFT_PATCHES]
-        print(f'патчи: {patches} | держим {keep} | drafts {draft_keep}', flush=True)
+    # Список патчей берём из base_wr — она маленькая, и в ней патч появляется
+    # первым. А вот РЕШЕНИЕ «чистить или нет» по ней принимать нельзя: прошлый
+    # проход мог оборваться (нехватка времени, занятая база, перезапуск), успев
+    # вычистить base_wr и не дойдя до больших таблиц. Тогда база выглядит
+    # чистой, хотя гигабайты старых патчей лежат в matchup и synergy — и ни один
+    # следующий проход к ним уже не вернётся. Поэтому проходим по КАЖДОЙ таблице
+    # всегда: где чистить нечего, DELETE отработает вхолостую и ничего не стоит.
+    keep = patches[:KEEP_PATCHES]
+    draft_keep = patches[:DRAFT_PATCHES]
+    print(f'патчи: {patches} | держим {keep} | drafts {draft_keep}', flush=True)
+    if keep:
         for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
             cols = [c[1] for c in con.execute(f'PRAGMA table_info({t})')]
             if 'patch' not in cols:
@@ -166,8 +173,6 @@ def main():
             if n:
                 print(f'  {t}: -{n:,}', flush=True)
                 total += n
-    else:
-        print(f'патчей {len(patches)} <= {KEEP_PATCHES} — по патчам чистить нечего', flush=True)
 
     now = int(time.time())
     n = delete_batched(con, 'seen_players', 'ts < ?',
@@ -195,7 +200,20 @@ def main():
         print('сжимаю файл (VACUUM)…', flush=True)
         t0 = time.time()
         con.execute('VACUUM')
-        print(f'  готово за {time.time() - t0:.0f} с', flush=True)
+        print(f'  пересобрал за {time.time() - t0:.0f} с', flush=True)
+        # И ОБЯЗАТЕЛЬНО свернуть журнал ПОСЛЕ сжатия.
+        #
+        # В режиме WAL VACUUM пишет пересобранную базу не в сам файл, а в журнал.
+        # Без этого шага место не возвращается вообще: файл остаётся прежним, а
+        # рядом вырастает журнал размером со всю базу — однажды он добрался до
+        # 4,8 ГБ при базе в 5,5 ГБ, то есть занял вдвое больше, чем должен был
+        # освободить.
+        t0 = time.time()
+        r = con.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
+        busy = r and r[0] != 0
+        print(f'  журнал свёрнут за {time.time() - t0:.0f} с'
+              + (' — НЕ ПОЛНОСТЬЮ: базу кто-то читает, место вернётся позже' if busy else ''),
+              flush=True)
     con.close()
 
     after = size_mb()
