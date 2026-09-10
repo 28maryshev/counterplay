@@ -179,7 +179,9 @@
     "combos": "팀 콤보",
     "enemyCombos": "적 콤보",
     "damage": "피해 구성",
-    "trueDmg": "고정 {0}%"
+    "trueDmg": "고정 {0}%",
+    "needAp": "⚠ 마법 피해 부족",
+    "needAd": "⚠ 물리 피해 부족"
   },
   "tip": {
     "pin": "클라이언트 오른쪽 가장자리에 고정",

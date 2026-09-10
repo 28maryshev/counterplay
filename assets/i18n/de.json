@@ -179,7 +179,9 @@
     "combos": "TEAM-COMBOS",
     "enemyCombos": "GEGNER-COMBOS",
     "damage": "Schadensmix",
-    "trueDmg": "Absolut {0}%"
+    "trueDmg": "Absolut {0}%",
+    "needAp": "⚠ zu wenig magischer Schaden",
+    "needAd": "⚠ zu wenig physischer Schaden"
   },
   "tip": {
     "pin": "Am rechten Rand des Clients anheften",

@@ -179,7 +179,9 @@
     "combos": "COMBOS DO TIME",
     "enemyCombos": "COMBOS INIMIGOS",
     "damage": "Dano",
-    "trueDmg": "Puro {0}%"
+    "trueDmg": "Puro {0}%",
+    "needAp": "⚠ falta dano mágico",
+    "needAd": "⚠ falta dano físico"
   },
   "tip": {
     "pin": "Fixar na borda direita do cliente",

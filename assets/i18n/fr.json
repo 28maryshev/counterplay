@@ -16,7 +16,9 @@
     "combos": "COMBOS D'ÉQUIPE",
     "enemyCombos": "COMBOS ENNEMIS",
     "damage": "Répartition",
-    "trueDmg": "Brut {0}%"
+    "trueDmg": "Brut {0}%",
+    "needAp": "⚠ manque de dégâts magiques",
+    "needAd": "⚠ manque de dégâts physiques"
   },
   "tray": {
     "autostart": "Démarrer avec Windows",

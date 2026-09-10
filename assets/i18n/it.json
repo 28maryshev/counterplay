@@ -22,7 +22,9 @@
     "combos": "COMBO DI SQUADRA",
     "enemyCombos": "COMBO NEMICHE",
     "damage": "Danni",
-    "trueDmg": "Puro {0}%"
+    "trueDmg": "Puro {0}%",
+    "needAp": "⚠ manca danno magico",
+    "needAd": "⚠ manca danno fisico"
   },
   "ready": {
     "beta": "Counterplay migliora ogni giorno. Un bug o un'idea? Scrivici dal Supporto",

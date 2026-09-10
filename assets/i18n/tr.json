@@ -136,7 +136,9 @@
     "combos": "TAKIM KOMBOLARI",
     "enemyCombos": "DÜŞMAN KOMBOLARI",
     "damage": "Hasar dağılımı",
-    "trueDmg": "Saf {0}%"
+    "trueDmg": "Saf {0}%",
+    "needAp": "⚠ büyü hasarı eksik",
+    "needAd": "⚠ fiziksel hasar eksik"
   },
   "tip": {
     "pin": "İstemcinin sağ kenarına sabitle",

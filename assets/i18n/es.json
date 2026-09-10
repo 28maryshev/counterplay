@@ -33,7 +33,9 @@
     "combos": "COMBOS DEL EQUIPO",
     "enemyCombos": "COMBOS ENEMIGOS",
     "damage": "Daño",
-    "trueDmg": "Puro {0}%"
+    "trueDmg": "Puro {0}%",
+    "needAp": "⚠ falta daño mágico",
+    "needAd": "⚠ falta daño físico"
   },
   "tip": {
     "pin": "Anclar al borde derecho del cliente",

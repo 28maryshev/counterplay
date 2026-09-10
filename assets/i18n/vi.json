@@ -22,7 +22,9 @@
     "combos": "COMBO ĐỘI",
     "enemyCombos": "COMBO ĐỊCH",
     "damage": "Sát thương",
-    "trueDmg": "Chuẩn {0}%"
+    "trueDmg": "Chuẩn {0}%",
+    "needAp": "⚠ thiếu sát thương phép",
+    "needAd": "⚠ thiếu sát thương vật lý"
   },
   "ready": {
     "beta": "Counterplay cải thiện mỗi ngày. Thấy lỗi hay có ý tưởng? Nhắn qua Hỗ trợ",
