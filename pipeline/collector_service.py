@@ -203,6 +203,7 @@ def publish_db(session_total: int):
                f'тонкая {info.get("slim_mb", "?")}МБ'
                + (f'\nПо эло: {bsizes}' if bsizes else ''))
         set_status(state='published', version=info['version'], patch=info['patch'])
+        request_site_update(info['patch'])
     except Exception as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но публикация упала: `{e}`')
         print(traceback.format_exc(), flush=True)
@@ -212,6 +213,20 @@ def publish_db(session_total: int):
         # блокировку, посреди сбора его звать нельзя. А нужен он именно здесь —
         # публикация копирует базу целиком, и место под копию должно быть.
         prune_db()
+
+
+def request_site_update(patch: str):
+    """Просит хост обновить данные сайта: тир-лист, контрпики и руны.
+
+    Сам контейнер этого не делает — ему для этого понадобился бы ключ от сервера
+    сайта. Вместо этого оставляем отметку в общем каталоге control, а сторож на
+    хосте (site_watch.sh, раз в 5 минут) её видит и запускает выкладку. Раньше
+    выгрузки обновлялись руками, и сайт месяц показывал прошлый патч."""
+    try:
+        (CONTROL / 'site-publish').write_text(patch, encoding='utf-8')
+        print(f'сайт: отметка на обновление данных (патч {patch})', flush=True)
+    except Exception as e:
+        print(f'сайт: не удалось оставить отметку — {e}', flush=True)
 
 
 def prune_db():
