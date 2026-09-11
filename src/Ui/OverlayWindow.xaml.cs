@@ -990,7 +990,7 @@ public partial class OverlayWindow : Window
 
     /// Строка сборки: винрейт/игры слева, 6 слотов, кнопка экспорта. Выбранная — золотом.
     public sealed record BuildRowVm(
-        int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip,
+        int Index, IReadOnlyList<SlotVm> Slots, string ExportText,
         string WrText, Brush WrBrush, string GamesText,
         Brush RowBg, Brush RowStroke,
         string Reason, Visibility ReasonVis,
@@ -1123,15 +1123,6 @@ public partial class OverlayWindow : Window
                 Index: i,
                 Slots: slots,
                 ExportText: Loc.T("runes.export"),
-                // У подбора нет своего винрейта: такой набор целиком никто не
-                // играл. Показывать чужой процент — врать, поэтому вместо него
-                // подпись и причина.
-                Tip: isAi
-                    ? Loc.T("runes.aiTipHead") + "\n" + reason
-                    : reason.Length > 0
-                        ? Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games))
-                          + "\n" + reason
-                        : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
                 WrText: isAi ? Loc.T("runes.aiBuild") : b.Winrate.ToString("0.0") + "%",
                 WrBrush: isAi ? AiBrush : WinrateBrush(b.Winrate),
                 GamesText: isAi ? Loc.T("runes.aiUnder") : FormatGames(b.Games),
@@ -1141,7 +1132,12 @@ public partial class OverlayWindow : Window
                 ReasonVis: reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                 WrVis: isAi ? Visibility.Collapsed : Visibility.Visible,
                 AiVis: isAi ? Visibility.Visible : Visibility.Collapsed,
-                TipHead: Loc.T("runes.aiTipHead")));
+                // Заголовок подсказки. У подбора нет своего винрейта: такой
+                // набор целиком никто не играл, и чужой процент был бы враньём —
+                // вместо него подпись о том, откуда набор взялся.
+                TipHead: isAi
+                    ? Loc.T("runes.aiTipHead")
+                    : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games))));
         }
 
         BuildList.ItemsSource = rows;
@@ -1202,13 +1198,12 @@ public partial class OverlayWindow : Window
         fade.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, full));
         fade.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
 
-        // На вспышке свет белый: синее так и осталось бы частью палитры панели,
-        // а белое читается как «здесь только что появилось». Пока гаснет —
-        // остывает обратно в наш синий.
+        // Вспышка ледяная-синяя, а не белая: белое читалось как засветка экрана,
+        // синее — как наш свет. Пока гаснет, синий густеет и уходит в глубокий.
         var heat = new ColorAnimationUsingKeyFrames();
-        heat.KeyFrames.Add(new LinearColorKeyFrame(Colors.White, peak));
-        heat.KeyFrames.Add(new LinearColorKeyFrame(Colors.White, full));
-        heat.KeyFrames.Add(new SplineColorKeyFrame(Color.FromRgb(0x36, 0xD6, 0xE7), end, Ease()));
+        heat.KeyFrames.Add(new LinearColorKeyFrame(Color.FromRgb(0x8C, 0xE6, 0xFF), peak));
+        heat.KeyFrames.Add(new LinearColorKeyFrame(Color.FromRgb(0x8C, 0xE6, 0xFF), full));
+        heat.KeyFrames.Add(new SplineColorKeyFrame(Color.FromRgb(0x1E, 0x8F, 0xE8), end, Ease()));
         // Эффект снимаем после вспышки: висящий DropShadow дорог при перерисовке
         // и слегка размывает иконки предметов.
         fade.Completed += (_, _) => row.Effect = null;

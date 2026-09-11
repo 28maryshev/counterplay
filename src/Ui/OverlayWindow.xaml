@@ -1983,7 +1983,23 @@
                                 Background="{Binding RowBg}"
                                 BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}"
-                                ToolTip="{Binding Tip}">
+                                ToolTipService.ShowDuration="30000">
+                        <!-- Подсказка строки — ровно та же, что у знака вопроса:
+                             заголовок и причины. Системная подсказка одной строкой
+                             выглядела чужой рядом с нашей. -->
+                        <Border.ToolTip>
+                          <ToolTip Style="{StaticResource HintTip}">
+                            <StackPanel MaxWidth="270">
+                              <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
+                                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                                         FontWeight="Bold" Foreground="#F0D48A"/>
+                              <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
+                                         Visibility="{Binding ReasonVis}" Margin="0,5,0,0"
+                                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                                         LineHeight="16" Foreground="#D7DEE6"/>
+                            </StackPanel>
+                          </ToolTip>
+                        </Border.ToolTip>
                         <!-- Правое выравнивание группы; при нехватке ширины сжимается
                              колонка предметов (обрезка СПРАВА — ситуативные уходят
                              первыми, кор-предметы в начале ряда остаются видны),
