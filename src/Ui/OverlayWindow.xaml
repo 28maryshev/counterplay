@@ -1976,22 +1976,39 @@
                             <!-- Фиксированная ширина, а не Auto: у подбора подпись
                                  длиннее числа игр, и на узком окне ряды предметов
                                  начинались с разного места. -->
-                            <ColumnDefinition Width="62"/>     <!-- WR + игры  -->
+                            <ColumnDefinition Width="70"/>     <!-- WR + игры / знак подбора -->
                             <ColumnDefinition Width="*"/>      <!-- слоты (сжимаемые) -->
                             <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
                           </Grid.ColumnDefinitions>
 
-                          <!-- Винрейт и число игр: прижаты к краю первого предмета -->
-                          <StackPanel Grid.Column="0" VerticalAlignment="Center"
-                                      HorizontalAlignment="Stretch" Margin="0,0,7,0">
-                            <TextBlock Text="{Binding WrText}" TextAlignment="Right"
-                                       FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
-                                       Foreground="{Binding WrBrush}"/>
-                            <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
-                                       TextTrimming="CharacterEllipsis"
-                                       FontFamily="{StaticResource UiFont}" FontSize="9"
-                                       Foreground="#6A8296"/>
-                          </StackPanel>
+                          <!-- Слева: у обычной сборки винрейт и число игр, у подбора —
+                               фирменный знак. Подбор — это наша работа, а не цифра
+                               из статистики, и подписан он так же, как кнопка пика. -->
+                          <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,7,0">
+                            <StackPanel Visibility="{Binding WrVis}">
+                              <TextBlock Text="{Binding WrText}" TextAlignment="Right"
+                                         FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
+                                         Foreground="{Binding WrBrush}"/>
+                              <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
+                                         TextTrimming="CharacterEllipsis"
+                                         FontFamily="{StaticResource UiFont}" FontSize="9"
+                                         Foreground="#6A8296"/>
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding AiVis}" HorizontalAlignment="Right">
+                              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Image Source="{StaticResource BrandMark}" Width="12" Height="12"
+                                       VerticalAlignment="Center" Margin="0,0,3,0"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                           FontWeight="Bold" VerticalAlignment="Center">
+                                  <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/>
+                                </TextBlock>
+                              </StackPanel>
+                              <TextBlock Text="AI" TextAlignment="Right" Margin="0,1,0,0"
+                                         FontFamily="{StaticResource DisplayFont}" FontSize="12"
+                                         FontWeight="Bold" Foreground="#36D6E7"/>
+                            </StackPanel>
+                          </Grid>
 
                           <!-- Только слоты. Причина подбора живёт в подсказке всей
                                строки: подписью она раздвигала ряд предметов, а

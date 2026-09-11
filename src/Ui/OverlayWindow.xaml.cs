@@ -992,7 +992,8 @@ public partial class OverlayWindow : Window
         int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip,
         string WrText, Brush WrBrush, string GamesText,
         Brush RowBg, Brush RowStroke,
-        string Reason, Visibility ReasonVis);
+        string Reason, Visibility ReasonVis,
+        Visibility WrVis, Visibility AiVis);
 
     private static readonly Brush AiBrush    = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
@@ -1128,7 +1129,9 @@ public partial class OverlayWindow : Window
                 RowBg: selected ? RowOn : RowOff,
                 RowStroke: selected ? RowOnEdge : RowOffEdge,
                 Reason: reason,
-                ReasonVis: reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed));
+                ReasonVis: reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+                WrVis: isAi ? Visibility.Collapsed : Visibility.Visible,
+                AiVis: isAi ? Visibility.Visible : Visibility.Collapsed));
         }
 
         BuildList.ItemsSource = rows;
