@@ -57,7 +57,8 @@ public static class BuildAdvisor
         "Warwick", "Camille", "Galio", "Neeko", "Zac", "Poppy", "Taric",
     };
 
-    /// Щиты, которые съедают наш урон, — против них берут разрушение щитов.
+    /// Щиты в умениях. Дополняет тег «shield» движка — там отмечены не все, а
+    /// разрушение щитов имеет смысл считать по обоим спискам сразу.
     private static readonly HashSet<string> Shielders = new(StringComparer.OrdinalIgnoreCase)
     {
         "Lulu", "Karma", "Janna", "Orianna", "Seraphine", "Ivern", "Milio",
@@ -101,7 +102,8 @@ public static class BuildAdvisor
         magic /= dmgSum;
 
         // ── Чем этот состав неудобен ──────────────────────────────────────
-        int heal = 0, cc = 0, shield = 0, tanks = 0;
+        int heal = 0, cc = 0, tanks = 0;
+        double shield = 0;
         foreach (var e in enemies)
         {
             var dd = DataDragon.DdId(e);
@@ -109,8 +111,15 @@ public static class BuildAdvisor
             {
                 if (Healers.Contains(dd)) heal++;
                 if (HardCc.Contains(dd)) cc++;
-                if (Shielders.Contains(dd)) shield++;
             }
+
+            // Щит бывает не только в умениях. Бойцы вроде Олафа берут Стеракса
+            // или Шилдбоу, и щит там не меньше — а режется он тем же предметом.
+            // Считаем их за половину: покупают такое не все и не всегда, а вот
+            // энчантер со щитом в умениях даёт его гарантированно.
+            if (Shielders.Contains(dd) || ChampionTags.Has(e, "shield")) shield += 1;
+            else if (DataDragon.ClassTags(e).Contains("Fighter")) shield += 0.5;
+
             if (DataDragon.ClassTags(e).Contains("Tank")) tanks++;
         }
 
@@ -137,7 +146,8 @@ public static class BuildAdvisor
         else if (heal == 1) pressure.Add(new Need("antiheal", 1.0, Loc.T("build.vsHeal", heal)));
         if (tanks >= 2)
             pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.5, Loc.T("build.vsTank", tanks)));
-        if (shield >= 2) pressure.Add(new Need("antishield", 1.0, Loc.T("build.vsShield", shield)));
+        if (shield >= 2)
+            pressure.Add(new Need("antishield", 1.0, Loc.T("build.vsShield", Math.Round(shield))));
 
         // Стиль состава. Он говорит не про тип урона, а про то, КАК по тебе
         // попадают, и на это есть свои ответы: против прыжка — стазис или
