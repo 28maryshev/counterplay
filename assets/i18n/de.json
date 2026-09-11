@@ -585,6 +585,8 @@
     "vsFront": "Kampf durch ihre Front",
     "vsLongCc": "lange Kontrolle ({0})",
     "vsAuto": "Auto-Angriffs-Schaden ({0})",
+    "teamAp": "{0}% eures Schadens ist magisch — sie kaufen Magieresistenz",
+    "teamAd": "{0}% eures Schadens ist physisch — sie kaufen Rüstung",
     "vsBurst": "Assassinen im Team ({0})",
     "selfHeal": "verstärkt deine Heilung",
     "allyMage": "starker Magier im Team",

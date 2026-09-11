@@ -585,6 +585,8 @@
     "vsFront": "luta contra a linha da frente",
     "vsLongCc": "controlo longo ({0})",
     "vsAuto": "dano de ataques básicos ({0})",
+    "teamAp": "{0}% do dano do time é mágico — eles vão subir resistência mágica",
+    "teamAd": "{0}% do dano do time é físico — eles vão subir armadura",
     "vsBurst": "assassinos no time deles ({0})",
     "selfHeal": "amplia sua cura",
     "allyMage": "um mago forte na equipa",

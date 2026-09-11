@@ -240,6 +240,31 @@ public static class BuildAdvisor
                 pressure.Add(new Need("allyAttack", 0.9, Loc.T("build.allyCarry"), false));
         }
 
+        // Свой состав решает покупку не меньше вражеского. Если почти весь урон
+        // команды одного типа, враг оденется именно против него: против магов
+        // возьмут магзащиту, против физического — броню, и тем охотнее, чем
+        // очевиднее перекос. Пробивание тогда возвращает то, что они себе
+        // добавили, и стоит дороже лишних цифр урона.
+        double teamPhys = 0, teamMagic = 0;
+        foreach (var mate in allies)
+        {
+            var share = damageShare(mate);
+            if (share is { } s && s.Phys + s.Magic > 0) { teamPhys += s.Phys; teamMagic += s.Magic; }
+            else if (DataDragon.IsApChampion(mate)) teamMagic += 0.7;
+            else teamPhys += 0.7;
+        }
+        var teamSum = teamPhys + teamMagic;
+        if (teamSum > 0)
+        {
+            // Порог высокий: при 60/40 враг всё равно берёт обе защиты, и
+            // пробивание не окупается. Перекос начинается дальше.
+            var same = (iAmMagic ? teamMagic : teamPhys) / teamSum;
+            if (same >= 0.65)
+                pressure.Add(new Need(iAmMagic ? "penMagic" : "penArmor", 1.0,
+                                      Loc.T(iAmMagic ? "build.teamAp" : "build.teamAd", Pct(same)),
+                                      false));
+        }
+
         // Стиль состава. Он говорит не про тип урона, а про то, КАК по тебе
         // попадают, и на это есть свои ответы: против прыжка — стазис или
         // воскрешение (успеть пережить взрыв), против дальнего размена и подлова
@@ -488,6 +513,13 @@ public static class BuildAdvisor
                             || (f.TargetHealth && !f.Magical),
             "magicpen"   => (f.MagicPen && f.PercentPen) || f.ShredsMr
                             || (f.TargetHealth && f.Magical),
+            // Против НАБРАННЫХ резистов работает только пробивание: урон от
+            // здоровья цели их не обходит — он тоже режется бронёй и магзащитой.
+            // Ботинки с пробиванием считаем: они занимают место прежней обуви,
+            // а не слот под предмет.
+            "penArmor"   => (f.ArmorPen && f.PercentPen) || f.ShredsArmor,
+            "penMagic"   => (f.MagicPen && f.PercentPen) || f.ShredsMr
+                            || (f.Boots && f.MagicPen),
             "antishield" => f.AntiShield,
             // Пережить наскок можно двумя способами: выпасть из боя (стазис,
             // воскрешение) или получить щит на низком здоровье. Второе — ответ

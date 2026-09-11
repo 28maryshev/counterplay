@@ -585,6 +585,8 @@
     "vsFront": "walka przez ich front",
     "vsLongCc": "długa kontrola ({0})",
     "vsAuto": "obrażenia z ataków ({0})",
+    "teamAp": "{0}% waszych obrażeń to magia — kupią odporność na magię",
+    "teamAd": "{0}% waszych obrażeń to fizyczne — kupią pancerz",
     "vsBurst": "zabójcy w ich drużynie ({0})",
     "selfHeal": "wzmacnia twoje leczenie",
     "allyMage": "silny mag w drużynie",

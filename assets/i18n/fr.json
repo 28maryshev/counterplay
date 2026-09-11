@@ -585,6 +585,8 @@
     "vsFront": "combat face à leur front",
     "vsLongCc": "contrôle long ({0})",
     "vsAuto": "dégâts d'attaques de base ({0})",
+    "teamAp": "{0}% de vos dégâts sont magiques — ils prendront de la RM",
+    "teamAd": "{0}% de vos dégâts sont physiques — ils prendront de l'armure",
     "vsBurst": "assassins dans leur équipe ({0})",
     "selfHeal": "amplifie tes soins",
     "allyMage": "un mage puissant dans ton équipe",

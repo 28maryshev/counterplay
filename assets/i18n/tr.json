@@ -585,6 +585,8 @@
     "vsFront": "ön saflarıyla savaş",
     "vsLongCc": "uzun kontrol ({0})",
     "vsAuto": "temel saldırı hasarı ({0})",
+    "teamAp": "hasarınızın %{0}'i büyü — büyü direnci alacaklar",
+    "teamAd": "hasarınızın %{0}'i fiziksel — zırh alacaklar",
     "vsBurst": "takımlarında suikastçı ({0})",
     "selfHeal": "iyileşmeni güçlendirir",
     "allyMage": "takımda güçlü bir büyücü",

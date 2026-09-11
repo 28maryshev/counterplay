@@ -585,6 +585,8 @@
     "vsFront": "they fight front to back",
     "vsLongCc": "long crowd control ({0})",
     "vsAuto": "auto-attack damage ({0})",
+    "teamAp": "your team is {0}% magic damage — they will stack MR",
+    "teamAd": "your team is {0}% physical damage — they will stack armor",
     "vsBurst": "assassins on their team ({0})",
     "selfHeal": "boosts your healing",
     "allyMage": "a strong mage on your team",

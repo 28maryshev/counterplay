@@ -585,6 +585,8 @@
     "vsFront": "đánh xuyên tuyến đầu",
     "vsLongCc": "khống chế dài ({0})",
     "vsAuto": "sát thương đánh thường ({0})",
+    "teamAp": "{0}% sát thương đội là phép — họ sẽ lên kháng phép",
+    "teamAd": "{0}% sát thương đội là vật lý — họ sẽ lên giáp",
     "vsBurst": "sát thủ bên họ ({0})",
     "selfHeal": "tăng hồi máu của bạn",
     "allyMage": "đội có pháp sư mạnh",
