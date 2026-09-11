@@ -370,7 +370,9 @@
     "altBlock": "状況対応",
     "startBlock": "開始アイテム",
     "compBlock": "コンポーネント",
-    "appliedSpells": "ルーンとサモナースペルを適用しました"
+    "appliedSpells": "ルーンとサモナースペルを適用しました",
+    "aiBuild": "AI",
+    "aiUnder": "この編成向け"
   },
   "pick": {
     "confirm": "{0} を選択",
@@ -565,5 +567,14 @@
     "question": "Counterplay を終了しますか？チャンピオン選択の監視を停止します。",
     "yes": "終了",
     "no": "キャンセル"
+  },
+  "build": {
+    "vsPhys": "物理ダメージ対策 ({0}%)",
+    "vsMagic": "魔法ダメージ対策 ({0}%)",
+    "vsMixed": "ダメージが混合",
+    "vsCc": "CCが多い ({0})",
+    "vsHeal": "敵の回復 ({0})",
+    "vsTank": "硬い相手 ({0})",
+    "vsShield": "シールド ({0})"
   }
 }

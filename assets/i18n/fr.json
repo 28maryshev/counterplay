@@ -305,7 +305,9 @@
     "altBlock": "Situationnel",
     "startBlock": "Objets de départ",
     "compBlock": "Composants",
-    "appliedSpells": "Runes et sorts d'invocateur appliqués"
+    "appliedSpells": "Runes et sorts d'invocateur appliqués",
+    "aiBuild": "IA",
+    "aiUnder": "pour cette compo"
   },
   "pick": {
     "confirm": "Choisir {0}",
@@ -565,5 +567,14 @@
     "question": "Fermer Counterplay ? Il ne suivra plus la sélection des champions.",
     "yes": "Quitter",
     "no": "Annuler"
+  },
+  "build": {
+    "vsPhys": "contre dégâts physiques ({0}%)",
+    "vsMagic": "contre dégâts magiques ({0}%)",
+    "vsMixed": "dégâts mixtes",
+    "vsCc": "beaucoup de contrôle ({0})",
+    "vsHeal": "soins ennemis ({0})",
+    "vsTank": "cibles résistantes ({0})",
+    "vsShield": "boucliers ({0})"
   }
 }

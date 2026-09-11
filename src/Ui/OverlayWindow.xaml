@@ -1988,7 +1988,10 @@
                                        Foreground="#6A8296"/>
                           </StackPanel>
 
+                          <!-- Слоты, а под ними — причина подбора (только у сборок
+                               под состав врагов; у обычных строка скрыта). -->
                           <Border Grid.Column="1" ClipToBounds="True">
+                            <StackPanel VerticalAlignment="Center">
                             <ItemsControl ItemsSource="{Binding Slots}"
                                           HorizontalAlignment="Left" VerticalAlignment="Center">
                               <ItemsControl.ItemsPanel>
@@ -2007,6 +2010,11 @@
                                 </DataTemplate>
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <TextBlock Text="{Binding Reason}" Visibility="{Binding ReasonVis}"
+                                       Margin="1,2,0,0" TextTrimming="CharacterEllipsis"
+                                       FontFamily="{StaticResource UiFont}" FontSize="9"
+                                       Foreground="#8FB6C6"/>
+                            </StackPanel>
                           </Border>
 
                           <Border Grid.Column="2" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"

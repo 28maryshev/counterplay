@@ -370,7 +370,9 @@
     "altBlock": "Situazionale",
     "startBlock": "Oggetti iniziali",
     "compBlock": "Componenti",
-    "appliedSpells": "Rune e incantesimi applicati"
+    "appliedSpells": "Rune e incantesimi applicati",
+    "aiBuild": "IA",
+    "aiUnder": "per questa comp"
   },
   "pick": {
     "confirm": "Scegli {0}",
@@ -565,5 +567,14 @@
     "question": "Chiudere Counterplay? Smetterà di seguire la selezione campioni.",
     "yes": "Esci",
     "no": "Annulla"
+  },
+  "build": {
+    "vsPhys": "contro danno fisico ({0}%)",
+    "vsMagic": "contro danno magico ({0}%)",
+    "vsMixed": "danno misto",
+    "vsCc": "molto controllo ({0})",
+    "vsHeal": "cure nemiche ({0})",
+    "vsTank": "bersagli resistenti ({0})",
+    "vsShield": "scudi ({0})"
   }
 }

@@ -319,7 +319,9 @@
     "altBlock": "Situacional",
     "startBlock": "Objetos iniciales",
     "compBlock": "Componentes",
-    "appliedSpells": "Runas y hechizos aplicados"
+    "appliedSpells": "Runas y hechizos aplicados",
+    "aiBuild": "IA",
+    "aiUnder": "para esta comp"
   },
   "pick": {
     "confirm": "Elegir {0}",
@@ -565,5 +567,14 @@
     "question": "¿Cerrar Counterplay? Dejará de seguir la selección de campeones.",
     "yes": "Salir",
     "no": "Cancelar"
+  },
+  "build": {
+    "vsPhys": "contra daño físico ({0}%)",
+    "vsMagic": "contra daño mágico ({0}%)",
+    "vsMixed": "daño mixto",
+    "vsCc": "mucho control ({0})",
+    "vsHeal": "curación enemiga ({0})",
+    "vsTank": "objetivos resistentes ({0})",
+    "vsShield": "escudos ({0})"
   }
 }

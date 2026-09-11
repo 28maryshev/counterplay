@@ -91,7 +91,9 @@
     "altBlock": "Duruma bağlı",
     "startBlock": "Başlangıç eşyaları",
     "compBlock": "Bileşenler",
-    "appliedSpells": "Rünler ve sihirdar büyüleri uygulandı"
+    "appliedSpells": "Rünler ve sihirdar büyüleri uygulandı",
+    "aiBuild": "YZ",
+    "aiUnder": "bu kadroya göre"
   },
   "pick": {
     "confirm": "{0} seç",
@@ -565,5 +567,14 @@
     "question": "Counterplay kapatılsın mı? Şampiyon seçimini izlemeyi bırakacak.",
     "yes": "Çık",
     "no": "İptal"
+  },
+  "build": {
+    "vsPhys": "fiziksel hasara karşı ({0}%)",
+    "vsMagic": "büyü hasarına karşı ({0}%)",
+    "vsMixed": "hasar karışık",
+    "vsCc": "çok fazla kontrol ({0})",
+    "vsHeal": "düşman iyileşmesi ({0})",
+    "vsTank": "dayanıklı hedefler ({0})",
+    "vsShield": "kalkanlar ({0})"
   }
 }

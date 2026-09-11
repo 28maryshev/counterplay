@@ -370,7 +370,9 @@
     "altBlock": "Tùy tình huống",
     "startBlock": "Trang bị khởi đầu",
     "compBlock": "Thành phần",
-    "appliedSpells": "Đã áp dụng ngọc và phép bổ trợ"
+    "appliedSpells": "Đã áp dụng ngọc và phép bổ trợ",
+    "aiBuild": "AI",
+    "aiUnder": "theo đội hình này"
   },
   "pick": {
     "confirm": "Chọn {0}",
@@ -565,5 +567,14 @@
     "question": "Đóng Counterplay? Ứng dụng sẽ ngừng theo dõi lượt chọn tướng.",
     "yes": "Thoát",
     "no": "Hủy"
+  },
+  "build": {
+    "vsPhys": "chống sát thương vật lý ({0}%)",
+    "vsMagic": "chống sát thương phép ({0}%)",
+    "vsMixed": "sát thương hỗn hợp",
+    "vsCc": "nhiều khống chế ({0})",
+    "vsHeal": "địch hồi máu ({0})",
+    "vsTank": "mục tiêu trâu ({0})",
+    "vsShield": "lá chắn ({0})"
   }
 }

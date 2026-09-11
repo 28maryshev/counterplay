@@ -370,7 +370,9 @@
     "altBlock": "情境装备",
     "startBlock": "起始装备",
     "compBlock": "组件",
-    "appliedSpells": "符文和召唤师技能已应用"
+    "appliedSpells": "符文和召唤师技能已应用",
+    "aiBuild": "AI",
+    "aiUnder": "针对该阵容"
   },
   "pick": {
     "confirm": "选择 {0}",
@@ -565,5 +567,14 @@
     "question": "关闭 Counterplay？将不再监测选人阶段。",
     "yes": "退出",
     "no": "取消"
+  },
+  "build": {
+    "vsPhys": "应对物理伤害 ({0}%)",
+    "vsMagic": "应对魔法伤害 ({0}%)",
+    "vsMixed": "伤害混合",
+    "vsCc": "控制很多 ({0})",
+    "vsHeal": "敌方治疗 ({0})",
+    "vsTank": "目标坦度高 ({0})",
+    "vsShield": "护盾 ({0})"
   }
 }

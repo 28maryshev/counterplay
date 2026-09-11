@@ -370,7 +370,9 @@
     "altBlock": "Sytuacyjne",
     "startBlock": "Przedmioty startowe",
     "compBlock": "Składniki",
-    "appliedSpells": "Runy i czary przywoływacza zastosowane"
+    "appliedSpells": "Runy i czary przywoływacza zastosowane",
+    "aiBuild": "AI",
+    "aiUnder": "pod ten skład"
   },
   "pick": {
     "confirm": "Wybierz {0}",
@@ -565,5 +567,14 @@
     "question": "Zamknąć Counterplay? Program przestanie śledzić draft.",
     "yes": "Wyjdź",
     "no": "Anuluj"
+  },
+  "build": {
+    "vsPhys": "przeciw obrażeniom fizycznym ({0}%)",
+    "vsMagic": "przeciw obrażeniom magicznym ({0}%)",
+    "vsMixed": "obrażenia mieszane",
+    "vsCc": "dużo kontroli ({0})",
+    "vsHeal": "leczenie wroga ({0})",
+    "vsTank": "twarde cele ({0})",
+    "vsShield": "tarcze ({0})"
   }
 }

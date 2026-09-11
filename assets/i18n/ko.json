@@ -91,7 +91,9 @@
     "altBlock": "상황",
     "startBlock": "시작 아이템",
     "compBlock": "구성 요소",
-    "appliedSpells": "룬과 소환사 주문이 적용됨"
+    "appliedSpells": "룬과 소환사 주문이 적용됨",
+    "aiBuild": "AI",
+    "aiUnder": "이 조합 대응"
   },
   "pick": {
     "confirm": "{0} 선택",
@@ -565,5 +567,14 @@
     "question": "Counterplay를 종료할까요? 챔피언 선택 감지가 중단됩니다.",
     "yes": "종료",
     "no": "취소"
+  },
+  "build": {
+    "vsPhys": "물리 피해 대비 ({0}%)",
+    "vsMagic": "마법 피해 대비 ({0}%)",
+    "vsMixed": "피해가 혼합",
+    "vsCc": "군중 제어 많음 ({0})",
+    "vsHeal": "적 회복 ({0})",
+    "vsTank": "단단한 대상 ({0})",
+    "vsShield": "보호막 ({0})"
   }
 }

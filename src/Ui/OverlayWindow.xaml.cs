@@ -991,8 +991,10 @@ public partial class OverlayWindow : Window
     public sealed record BuildRowVm(
         int Index, IReadOnlyList<SlotVm> Slots, string ExportText, string Tip,
         string WrText, Brush WrBrush, string GamesText,
-        Brush RowBg, Brush RowStroke);
+        Brush RowBg, Brush RowStroke,
+        string Reason, Visibility ReasonVis);
 
+    private static readonly Brush AiBrush    = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
     private static readonly Brush AltStroke  = new SolidColorBrush(Color.FromArgb(0x55, 0x55, 0x70, 0x89));
 
@@ -1004,6 +1006,12 @@ public partial class OverlayWindow : Window
 
     private int _buildSelected = -1;   // -1 = ничего не выбрано
 
+    // Что показано в панели сейчас: обычные сборки либо подбор под состав врагов.
+    // Экспорт и выделение работают с этим списком, а не со всем, что пришло с
+    // сервера, — иначе кнопка отправляла бы в клиент не ту сборку, что на экране.
+    private List<BuildData> _shownBuilds = [];
+    private List<string> _buildReasons = [];
+
     private void RenderBuilds(ChampStats stats)
     {
         if (stats.Builds.Count == 0)
@@ -1012,10 +1020,41 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        var rows = new List<BuildRowVm>();
-        for (int i = 0; i < stats.Builds.Count; i++)
+        // Подбор под врагов считаем, только когда известны ВСЕ пятеро: пятый пик
+        // способен перевернуть решение — один лечащийся терпим, двое требуют
+        // среза лечения.
+        var enemies = _lastDraft?.TheirTeam
+            .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
+        var adapted = enemies.Count >= 5 && _engine is not null
+            ? BuildAdvisor.Adapt(stats, stats.Builds[0], enemies, id => _engine.DamageShare(id))
+            : [];
+
+        _shownBuilds = [];
+        _buildReasons = [];
+        if (adapted.Count > 0)
         {
-            var b = stats.Builds[i];
+            // Первой — самая ходовая сборка: как собирают вообще, без оглядки на
+            // соперника. Ниже — ответы этому составу.
+            _shownBuilds.Add(stats.Builds[0]);
+            _buildReasons.Add("");
+            foreach (var a in adapted.Take(2))
+            {
+                _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
+                _buildReasons.Add(string.Join(" · ", a.Reasons));
+            }
+        }
+        else
+        {
+            _shownBuilds.AddRange(stats.Builds);
+            foreach (var _ in stats.Builds) _buildReasons.Add("");
+        }
+
+        var rows = new List<BuildRowVm>();
+        for (int i = 0; i < _shownBuilds.Count; i++)
+        {
+            var b = _shownBuilds[i];
+            var reason = _buildReasons[i];
+            var isAi = reason.Length > 0;
             var slots = new List<SlotVm>();
 
             // CORE — набор, который реально играли вместе (у него и винрейт).
@@ -1041,12 +1080,17 @@ public partial class OverlayWindow : Window
                 Index: i,
                 Slots: slots,
                 ExportText: Loc.T("runes.export"),
-                Tip: Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
-                WrText: b.Winrate.ToString("0.0") + "%",
-                WrBrush: WinrateBrush(b.Winrate),
-                GamesText: FormatGames(b.Games),
+                // У подбора нет своего винрейта: такой набор целиком никто не
+                // играл. Показывать чужой процент — врать, поэтому вместо него
+                // подпись и причина.
+                Tip: isAi ? reason : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
+                WrText: isAi ? Loc.T("runes.aiBuild") : b.Winrate.ToString("0.0") + "%",
+                WrBrush: isAi ? AiBrush : WinrateBrush(b.Winrate),
+                GamesText: isAi ? Loc.T("runes.aiUnder") : FormatGames(b.Games),
                 RowBg: selected ? RowOn : RowOff,
-                RowStroke: selected ? RowOnEdge : RowOffEdge));
+                RowStroke: selected ? RowOnEdge : RowOffEdge,
+                Reason: reason,
+                ReasonVis: isAi ? Visibility.Visible : Visibility.Collapsed));
         }
 
         BuildList.ItemsSource = rows;
@@ -1258,7 +1302,7 @@ public partial class OverlayWindow : Window
         e.Handled = true;
         if (ExportBuildHandler is null || _runeStats is null) return;
         if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
-        if (idx < 0 || idx >= _runeStats.Builds.Count) return;
+        if (idx < 0 || idx >= _shownBuilds.Count) return;
 
         // Экспортируемая сборка становится выбранной — видно, что именно уехало.
         _buildSelected = idx;
@@ -1270,7 +1314,7 @@ public partial class OverlayWindow : Window
 
         // Три части набора: core (ключевые предметы этой сборки), полный билд из
         // 6 слотов и ситуативные — всё, что ещё часто берут на чемпионе.
-        var b = _runeStats.Builds[idx];
+        var b = _shownBuilds[idx];
         var core = b.Core.Count > 0 ? b.Core : b.Items.Take(2).ToList();
         var full = b.Items;
         var situational = _runeStats.Builds

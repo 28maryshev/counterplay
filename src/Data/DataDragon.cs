@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace Counterplay;
 
@@ -75,6 +75,11 @@ public static class DataDragon
     }
 
     /// Классовые теги чемпиона из Data Dragon (Fighter/Tank/Mage/Assassin/Marksman/Support).
+    /// Английский идентификатор чемпиона («Soraka», «JarvanIV») — по нему сверяются
+    /// списки черт, которых нет в данных Riot (лечение, контроль, щиты).
+    public static string DdId(int id) =>
+        _champions is not null && _champions.TryGetValue(id, out var info) ? info.DdId : "";
+
     public static string[] ClassTags(int id) =>
         _champions is not null && _champions.TryGetValue(id, out var info) ? info.Tags : [];
 

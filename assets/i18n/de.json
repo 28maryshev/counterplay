@@ -91,7 +91,9 @@
     "altBlock": "Situativ",
     "startBlock": "Startitems",
     "compBlock": "Komponenten",
-    "appliedSpells": "Runen & Beschwörerzauber übernommen"
+    "appliedSpells": "Runen & Beschwörerzauber übernommen",
+    "aiBuild": "KI",
+    "aiUnder": "für dieses Team"
   },
   "pick": {
     "confirm": "{0} wählen",
@@ -565,5 +567,14 @@
     "question": "Counterplay schließen? Die Championauswahl wird dann nicht mehr überwacht.",
     "yes": "Beenden",
     "no": "Abbrechen"
+  },
+  "build": {
+    "vsPhys": "gegen physischen Schaden ({0}%)",
+    "vsMagic": "gegen magischen Schaden ({0}%)",
+    "vsMixed": "gemischter Schaden",
+    "vsCc": "viel Kontrolle ({0})",
+    "vsHeal": "gegnerische Heilung ({0})",
+    "vsTank": "zähe Ziele ({0})",
+    "vsShield": "Schilde ({0})"
   }
 }

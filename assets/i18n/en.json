@@ -18,7 +18,9 @@
     "startBlock": "Starting items",
     "exportedToSets": "Build added to ITEM SETS in the shop",
     "compBlock": "Components",
-    "appliedSpells": "Runes & summoner spells applied"
+    "appliedSpells": "Runes & summoner spells applied",
+    "aiBuild": "AI",
+    "aiUnder": "for this comp"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
@@ -565,5 +567,14 @@
     "question": "Close Counterplay? It will stop watching champion select.",
     "yes": "Quit",
     "no": "Cancel"
+  },
+  "build": {
+    "vsPhys": "vs physical damage ({0}%)",
+    "vsMagic": "vs magic damage ({0}%)",
+    "vsMixed": "damage is mixed",
+    "vsCc": "heavy crowd control ({0})",
+    "vsHeal": "enemy healing ({0})",
+    "vsTank": "tanky targets ({0})",
+    "vsShield": "shields ({0})"
   }
 }

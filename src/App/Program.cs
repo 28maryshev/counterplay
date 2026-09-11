@@ -225,6 +225,9 @@ class Program
         // включится сама, когда наберётся выборка.
         await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
         await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
+        // Что предмет даёт (броня, магзащита, срез лечения, пробивание) — на
+        // этом строится подбор сборки под состав врагов.
+        await ItemFacts.LoadAsync(ct);
         await RunesClient.LoadManifestAsync(ct);
 
         // Гарантируем наличие data.db. Качаем базу только СВОЕГО эло (~50 МБ) по

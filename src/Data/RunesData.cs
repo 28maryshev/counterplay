@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 
@@ -21,6 +21,9 @@ public sealed record RuneChoice(
 /// Сборка: 6 слотов. Core — предметы, которые реально играли ВМЕСТЕ (у них и
 /// винрейт); остальные — ходовые докупки, которыми набор добит до шести.
 /// </summary>
+/// Ходовой предмет чемпиона на этой роли — из чего подбирается ответ составу.
+public sealed record ItemStat(int Id, int Games, double Winrate);
+
 public sealed record BuildData(
     IReadOnlyList<int> Items, IReadOnlyList<int> Core, int Games, double Winrate,
     IReadOnlyList<int> Spells);
@@ -30,7 +33,8 @@ public sealed record ChampStats(
     int ChampionId, string Role, string Patch, int Games,
     IReadOnlyList<RuneChoice> Keystones,
     IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> Vs,
-    IReadOnlyList<BuildData> Builds);   // до 3 вариантов сборки, у каждого свой экспорт
+    IReadOnlyList<BuildData> Builds,    // до 3 вариантов сборки, у каждого свой экспорт
+    IReadOnlyList<ItemStat> Items);     // ходовые предметы чемпиона — материал для подбора под врагов
 
 /// <summary>
 /// Клиент статистики рун/билдов. Данные лежат на сервере готовыми JSON
@@ -181,7 +185,13 @@ public static class RunesClient
             new([3047, 6672, 3153, 3031, 3026, 6333], [3047, 6672, 3153], 940,  W(52.1), [4, 12]),
             new([3006, 6675, 3036, 3095, 3072, 6676], [3006, 6675, 3036], 610,  W(51.4), [4, 12]),
         };
-        return new ChampStats(champ, role, "16.13", 9530, list, vs, builds);
+        // Ходовые предметы для песочницы: те же, что в сборках выше, — чтобы
+        // подбор под состав было на чём проверить без сети.
+        var mockItems = new[] { 3006, 3031, 6673, 3072, 3036, 3026, 3047, 6672, 3153,
+                                3033, 3075, 3111, 3156, 3161, 6676, 3095, 6333, 3165 }
+            .Select((id, i) => new ItemStat(id, 900 - i * 40, W(52.0 - i * 0.1)))
+            .ToList();
+        return new ChampStats(champ, role, "16.13", 9530, list, vs, builds, mockItems);
     }
 
     /// Разбор JSON сервера (формат — pipeline/export_runes.py).
@@ -238,12 +248,20 @@ public static class RunesClient
                 spells))
             .ToList();
 
+        var items = r.TryGetProperty("items", out var itemsEl)
+            ? itemsEl.EnumerateArray()
+                .Select(i => new ItemStat(i.GetProperty("id").GetInt32(),
+                                          i.GetProperty("games").GetInt32(),
+                                          i.GetProperty("wr").GetDouble()))
+                .ToList()
+            : [];
+
         return new ChampStats(
             r.GetProperty("champion").GetInt32(),
             r.GetProperty("role").GetString()!,
             r.GetProperty("patches")[0].GetString()!,
             r.GetProperty("games").GetInt32(),
-            keystones, vs, builds);
+            keystones, vs, builds, items);
     }
 
     /// <summary>
