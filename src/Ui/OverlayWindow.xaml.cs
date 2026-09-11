@@ -2023,6 +2023,9 @@ public partial class OverlayWindow : Window
     private static readonly SolidColorBrush BetaFillAlert  = new(Color.FromArgb(0x18, 0xFF, 0x5A, 0x4D));
     private static readonly SolidColorBrush BetaFillNormal = new(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
 
+    private DispatcherTimer? _noticeRotate;
+    private int _noticeIndex;
+
     private void StartNoticeWatch()
     {
         Notice.LoadCached();   // показать сохранённое до того, как ответит сеть
@@ -2037,12 +2040,47 @@ public partial class OverlayWindow : Window
 
     private async Task RefreshNoticeAsync()
     {
-        if (await Notice.RefreshAsync()) await Dispatcher.InvokeAsync(ApplyNotice);
+        if (!await Notice.RefreshAsync()) return;
+        await Dispatcher.InvokeAsync(() =>
+        {
+            _noticeIndex = 0;   // набор сменился — показываем с начала
+            ApplyNotice();
+        });
+    }
+
+    // Сообщений может быть несколько: показываем по одному, сменяя по таймеру.
+    // Одно сообщение — таймер не нужен, пусть висит.
+    private int _noticeCount = -1;
+
+    private void RestartNoticeRotation(int count)
+    {
+        // Перерисовка идёт и по тику таймера — заводить его заново каждый раз
+        // незачем, иначе отсчёт сбрасывается сам о себя.
+        if (count == _noticeCount) return;
+        _noticeCount = count;
+
+        _noticeRotate?.Stop();
+        if (count < 2) { _noticeRotate = null; return; }
+
+        _noticeRotate = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(Notice.RotateSeconds)
+        };
+        _noticeRotate.Tick += (_, _) =>
+        {
+            _noticeIndex++;
+            ApplyNotice();
+        };
+        _noticeRotate.Start();
     }
 
     private void ApplyNotice()
     {
-        var n = Notice.Current();
+        var list = Notice.Active();
+        if (list.Count == 0) _noticeIndex = 0;
+        var n = list.Count == 0 ? null : list[_noticeIndex % list.Count];
+        RestartNoticeRotation(list.Count);
+
         var alert = n?.Kind == "alert";
 
         // Нет сообщения — обычный текст «пишите в поддержку».
