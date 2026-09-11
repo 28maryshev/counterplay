@@ -2085,7 +2085,12 @@ public partial class OverlayWindow : Window
 
         // Нет сообщения — обычный текст «пишите в поддержку».
         BetaText.Text = n?.Text ?? Loc.T("ready.beta");
-        BetaBadge.Text = alert ? "!" : "BETA";
+        // Одного восклицательного знака мало — предупреждение должно бросаться в
+        // глаза: слово целиком и по треугольнику с каждой стороны.
+        BetaBadge.Text = alert ? Loc.T("ready.alert") : "BETA";
+        BetaBadge.FontSize = alert ? 17 : 21;
+        BetaWarnLeft.Visibility = BetaWarnRight.Visibility =
+            alert ? Visibility.Visible : Visibility.Collapsed;
         BetaBadge.Foreground = alert ? BetaAlertBrush : BetaGoldBrush;
         BetaGlow.Color = alert ? Color.FromRgb(0xFF, 0x5A, 0x4D) : Color.FromRgb(0xFF, 0xD7, 0x5A);
         BetaCard.BorderBrush = alert ? BetaCardAlert : BetaCardGold;

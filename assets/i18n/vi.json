@@ -36,7 +36,8 @@
     "f3head": "Riêng cho bạn.",
     "f3body": " Tính đến độ thành thạo — ưu tiên tướng quen tay, không khắc chế mù.",
     "updateReady": "Phiên bản mới {0} — khởi động lại Counterplay",
-    "draftOff": "Gợi ý chọn tướng đang tắt — cửa sổ sẽ không hiện khi chọn tướng. Bạn có thể bật lại trong Cài đặt."
+    "draftOff": "Gợi ý chọn tướng đang tắt — cửa sổ sẽ không hiện khi chọn tướng. Bạn có thể bật lại trong Cài đặt.",
+    "alert": "CHÚ Ý"
   },
   "tip": {
     "pin": "Ghim vào mép phải của client",

@@ -19,7 +19,8 @@
     "f3head": "Adaptado a ti.",
     "f3body": " Tiene en cuenta tu maestría — primero tus campeones de confianza, sin contra-picks a ciegas.",
     "updateReady": "Nueva versión {0} — reinicia Counterplay",
-    "draftOff": "Las sugerencias de pick están desactivadas — la ventana no aparecerá en el draft. Puedes volver a activarlas en Ajustes."
+    "draftOff": "Las sugerencias de pick están desactivadas — la ventana no aparecerá en el draft. Puedes volver a activarlas en Ajustes.",
+    "alert": "ATENCIÓN"
   },
   "metric": {
     "base": "Winrate este parche",

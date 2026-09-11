@@ -57,7 +57,8 @@
     "f3head": "Tuned to you.",
     "f3body": " Factors in your mastery — comfort champions first, no blind counter-picks.",
     "updateReady": "New version {0} — restart Counterplay",
-    "draftOff": "Pick suggestions are off — the window stays hidden during champion select. You can turn them back on in Settings."
+    "draftOff": "Pick suggestions are off — the window stays hidden during champion select. You can turn them back on in Settings.",
+    "alert": "ATTENTION"
   },
   "tip": {
     "pin": "Pin to the right edge of the client",

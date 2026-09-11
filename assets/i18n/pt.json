@@ -19,7 +19,8 @@
     "f3head": "Ajustado para você.",
     "f3body": " Considera sua maestria — prioriza campeões de conforto, sem counter-picks às cegas.",
     "updateReady": "Nova versão {0} — reinicie o Counterplay",
-    "draftOff": "As sugestões de pick estão desativadas — a janela não aparece no draft. Você pode reativá-las nas Configurações."
+    "draftOff": "As sugestões de pick estão desativadas — a janela não aparece no draft. Você pode reativá-las nas Configurações.",
+    "alert": "ATENÇÃO"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

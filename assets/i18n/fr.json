@@ -35,7 +35,8 @@
     "f3head": "Adapté à toi.",
     "f3body": " Prend en compte ta maîtrise — priorité à tes champions de confort, pas de counter-pick à l'aveugle.",
     "updateReady": "Nouvelle version {0} — redémarre Counterplay",
-    "draftOff": "Les suggestions de pick sont désactivées — la fenêtre reste cachée au draft. Tu peux les réactiver dans les Réglages."
+    "draftOff": "Les suggestions de pick sont désactivées — la fenêtre reste cachée au draft. Tu peux les réactiver dans les Réglages.",
+    "alert": "ATTENTION"
   },
   "tip": {
     "pin": "Épingler au bord droit du client",

@@ -797,14 +797,37 @@
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
                     Padding="13,10">
               <StackPanel>
-                <TextBlock x:Name="BetaBadge" Text="BETA" HorizontalAlignment="Center"
-                           FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
-                           Foreground="#FFE066" Margin="0,0,0,7">
-                  <TextBlock.Effect>
-                    <DropShadowEffect x:Name="BetaGlow" Color="#FFD75A" ShadowDepth="0"
-                                      BlurRadius="16" Opacity="0.95"/>
-                  </TextBlock.Effect>
-                </TextBlock>
+                <!-- Заголовок плашки: обычно золотое «BETA», у сообщения о
+                     неполадке — слово «ВНИМАНИЕ» между двумя треугольниками.
+                     Треугольник нарисован вектором, а не символом шрифта: у
+                     системных шрифтов такого знака может не оказаться, и вместо
+                     предупреждения игрок увидел бы пустой квадрат. -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,7">
+                  <Grid x:Name="BetaWarnLeft" Width="21" Height="19" Margin="0,0,8,0"
+                        VerticalAlignment="Center" Visibility="Collapsed">
+                    <Path Data="M10.5,0.8 L20.4,18 L0.6,18 Z" Fill="#FF4438"
+                          Stroke="#FFE8E6" StrokeThickness="1.3" StrokeLineJoin="Round"/>
+                    <TextBlock Text="!" Foreground="#FFFFFF" FontFamily="{StaticResource UiFont}"
+                               FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Margin="0,4,0,0"/>
+                  </Grid>
+                  <TextBlock x:Name="BetaBadge" Text="BETA" VerticalAlignment="Center"
+                             FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
+                             Foreground="#FFE066">
+                    <TextBlock.Effect>
+                      <DropShadowEffect x:Name="BetaGlow" Color="#FFD75A" ShadowDepth="0"
+                                        BlurRadius="16" Opacity="0.95"/>
+                    </TextBlock.Effect>
+                  </TextBlock>
+                  <Grid x:Name="BetaWarnRight" Width="21" Height="19" Margin="8,0,0,0"
+                        VerticalAlignment="Center" Visibility="Collapsed">
+                    <Path Data="M10.5,0.8 L20.4,18 L0.6,18 Z" Fill="#FF4438"
+                          Stroke="#FFE8E6" StrokeThickness="1.3" StrokeLineJoin="Round"/>
+                    <TextBlock Text="!" Foreground="#FFFFFF" FontFamily="{StaticResource UiFont}"
+                               FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Margin="0,4,0,0"/>
+                  </Grid>
+                </StackPanel>
                 <TextBlock x:Name="BetaText" Text="{loc:T ready.beta}"
                            FontFamily="{StaticResource UiFont}" FontSize="12"
                            Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"

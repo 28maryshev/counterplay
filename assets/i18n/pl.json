@@ -36,7 +36,8 @@
     "f3head": "Dopasowane do ciebie.",
     "f3body": " Uwzględnia twoje mastery — najpierw komfortowe postacie, żadnych ślepych kontr-picków.",
     "updateReady": "Nowa wersja {0} — uruchom Counterplay ponownie",
-    "draftOff": "Podpowiedzi do picków są wyłączone — w drafcie okno się nie pojawi. Możesz je włączyć w ustawieniach."
+    "draftOff": "Podpowiedzi do picków są wyłączone — w drafcie okno się nie pojawi. Możesz je włączyć w ustawieniach.",
+    "alert": "UWAGA"
   },
   "tip": {
     "pin": "Przypnij do prawej krawędzi klienta",

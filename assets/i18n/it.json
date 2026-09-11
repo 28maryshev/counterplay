@@ -36,7 +36,8 @@
     "f3head": "Su misura per te.",
     "f3body": " Considera la tua maestria — prima i campioni comfort, niente counter-pick alla cieca.",
     "updateReady": "Nuova versione {0} — riavvia Counterplay",
-    "draftOff": "I consigli sui pick sono disattivati — nel draft la finestra non compare. Puoi riattivarli nelle Impostazioni."
+    "draftOff": "I consigli sui pick sono disattivati — nel draft la finestra non compare. Puoi riattivarli nelle Impostazioni.",
+    "alert": "ATTENZIONE"
   },
   "tip": {
     "pin": "Aggancia al bordo destro del client",

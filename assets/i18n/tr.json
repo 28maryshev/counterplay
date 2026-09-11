@@ -19,7 +19,8 @@
     "f3head": "Sana özel ayarlandı.",
     "f3body": " Ustalığını hesaba katar — önce konfor şampiyonların, kör kontr-pick yok.",
     "updateReady": "Yeni sürüm {0} — Counterplay'i yeniden başlat",
-    "draftOff": "Şampiyon önerileri kapalı — şampiyon seçiminde pencere açılmaz. Ayarlar'dan tekrar açabilirsin."
+    "draftOff": "Şampiyon önerileri kapalı — şampiyon seçiminde pencere açılmaz. Ayarlar'dan tekrar açabilirsin.",
+    "alert": "DİKKAT"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

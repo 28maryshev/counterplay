@@ -19,7 +19,8 @@
     "f3head": "Auf dich abgestimmt.",
     "f3body": " Berücksichtigt deine Mastery — Comfort-Champions zuerst, keine blinden Konterpicks.",
     "updateReady": "Neue Version {0} — starte Counterplay neu",
-    "draftOff": "Pick-Vorschläge sind aus — das Fenster bleibt in der Championauswahl ausgeblendet. Du kannst sie in den Einstellungen wieder einschalten."
+    "draftOff": "Pick-Vorschläge sind aus — das Fenster bleibt in der Championauswahl ausgeblendet. Du kannst sie in den Einstellungen wieder einschalten.",
+    "alert": "ACHTUNG"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",
