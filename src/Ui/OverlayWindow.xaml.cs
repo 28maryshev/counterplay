@@ -969,6 +969,7 @@ public partial class OverlayWindow : Window
             _runeChoices = RunesClient.Choices(stats, opponentId);
             _runeSelected = 0;
             _buildSelected = -1;   // новый чемпион — прошлый выбор сборки не в счёт
+            _aiGlowFor = 0;        // и подсветку подбора показываем заново
             RenderRuneOptions(opponentId);
 
             ApplyRunesText.Text = Loc.T("runes.apply");
@@ -1016,6 +1017,10 @@ public partial class OverlayWindow : Window
     // подбор неотличим от обычной сборки: разница бывает в один предмет.
     private List<HashSet<int>> _buildChanged = [];
     private List<bool> _buildIsAi = [];
+    // Для какого чемпиона уже показали вспышку подбора. Строка перерисовывается
+    // на каждый ховер и выбор, а вспышка — событие «сборка появилась», и мигать
+    // на каждую перерисовку она не должна.
+    private int _aiGlowFor;
 
     private void RenderBuilds(ChampStats stats)
     {
@@ -1141,6 +1146,52 @@ public partial class OverlayWindow : Window
 
         BuildList.ItemsSource = rows;
         BuildList.Visibility = Visibility.Visible;
+
+        // Подбор появился — коротко подсвечиваем строку, чтобы её заметили: она
+        // возникает в момент, когда человек смотрит на список чемпионов, а не на
+        // панель сборок.
+        if (adapted.Count > 0 && _aiGlowFor != stats.ChampionId)
+        {
+            _aiGlowFor = stats.ChampionId;
+            // Контейнеры строк создаются на следующем проходе разметки — до него
+            // подсвечивать нечего.
+            Dispatcher.BeginInvoke(new Action(GlowAiRow), DispatcherPriority.Loaded);
+        }
+    }
+
+    /// Вспышка вокруг строки подбора: синее свечение резко нарастает и гаснет,
+    /// после чего эффект снимается совсем — постоянная подсветка отвлекала бы от
+    /// самой сборки.
+    private void GlowAiRow()
+    {
+        // Подбор всегда идёт второй строкой: первая — обычная, самая ходовая.
+        if (BuildList.ItemContainerGenerator.ContainerFromIndex(1) is not UIElement row) return;
+
+        var glow = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = Color.FromRgb(0x36, 0xD6, 0xE7),
+            ShadowDepth = 0,
+            BlurRadius = 0,
+            Opacity = 0,
+        };
+        row.Effect = glow;
+
+        var rise = new DoubleAnimation(0, 26, TimeSpan.FromSeconds(0.22))
+        {
+            AutoReverse = true,
+            DecelerationRatio = 0.6,
+        };
+        var fade = new DoubleAnimation(0, 0.95, TimeSpan.FromSeconds(0.22))
+        {
+            AutoReverse = true,
+            DecelerationRatio = 0.6,
+        };
+        // Эффект снимаем после вспышки: висящий DropShadow дорог при перерисовке
+        // и слегка размывает иконки предметов.
+        fade.Completed += (_, _) => row.Effect = null;
+
+        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, rise);
+        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, fade);
     }
 
     /// Клик по строке сборки — выбор (подсветка золотом), без экспорта.
