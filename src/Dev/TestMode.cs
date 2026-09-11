@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -79,6 +79,10 @@ static class TestMode
         RunesClient.UseMock = true;
         await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
         await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
+        // Свойства предметов (броня, магзащита, срез лечения, пробивание) — на
+        // них держится подбор сборки под состав врагов. Без этого шага панель в
+        // песочнице показывала обычные сборки и проверить подбор было нельзя.
+        await ItemFacts.LoadAsync(ct);
         await RunesClient.LoadManifestAsync(ct);
 
         // Импорт в клиент из теста не делаем (клиента может не быть) —
