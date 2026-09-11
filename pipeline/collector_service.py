@@ -1,4 +1,4 @@
-"""
+﻿"""
 collector_service.py — демон сбора на сервере.
 
 Работает бесконечно и ждёт ключ, который присылают из Discord (`/collect`).
@@ -269,19 +269,29 @@ def main():
           flush=True)
     notify('🚀 Коллектор запущен и ждёт ключ.')
 
+    last_key = None
     while True:
         key = wait_for_key()
         # base_matches — точка отсчёта для «+N за текущий ключ» в heartbeat.
         set_status(state='collecting', regions=regions, buckets=buckets,
                    base_matches=db_matches())
-        print('Ключ получен — старт сбора.', flush=True)
-        notify('▶️ Ключ принят, сбор пошёл (регионы параллельно).')
+        if key != last_key:
+            print('Ключ получен — старт сбора.', flush=True)
+            notify('▶️ Ключ принят, сбор пошёл (регионы параллельно).')
+            last_key = key
+        else:
+            print('Следующий круг тем же ключом.', flush=True)
         try:
             got = collect.run_continuous(key, DB_PATH, regions, buckets, DAYS, 0)
-            # Круг пройден до конца — публикуем и ждём следующий ключ/запуск.
+            # Круг пройден до конца. Ключ живёт сутки, а круг — часы: выбрасывать
+            # ещё живой ключ и ждать человека значит стоять без дела полдня.
+            # Публикуем и идём на следующий круг тем же ключом; уберёт его ветка
+            # KeyExpired, когда Riot откажет.
             publish_db(got or 0)
-            drop_key(key)
             set_status(state='idle', collected=got or 0)
+            if not got:
+                # Свежих матчей не нашлось — не крутим круги вхолостую.
+                time.sleep(600)
         except DiskLow as e:
             # Место кончилось: публикуем собранное (на это запаса хватает — порог
             # ×1.5 от базы именно для этого) и ждём, пока освободят. Ключ НЕ
