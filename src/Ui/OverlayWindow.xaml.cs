@@ -1180,20 +1180,26 @@ public partial class OverlayWindow : Window
         // Удар вспышки — меньше десятой доли секунды: глаз воспринимает такое
         // как «появилось разом», а не как выехавшую анимацию.
         var flash = TimeSpan.FromSeconds(0.08);
-        var decay = TimeSpan.FromSeconds(1.5);
-        var end = KeyTime.FromTimeSpan(flash + decay);
+        // Короткая полка на пике: свет держится на полной яркости ещё мгновение
+        // и оттого читается ярче — мгновенный пик глаз сглаживает и теряет.
+        var hold = TimeSpan.FromSeconds(0.12);
+        var decay = TimeSpan.FromSeconds(3.0);
         var peak = KeyTime.FromTimeSpan(flash);
+        var full = KeyTime.FromTimeSpan(flash + hold);
+        var end = KeyTime.FromTimeSpan(flash + hold + decay);
 
         // Затухание неравномерное: сначала свет спадает быстро, потом долго
         // тлеет. Равномерное гасло бы как выключаемая лампа — заметно и скучно.
         static KeySpline Ease() => new(0.0, 0.7, 0.2, 1.0);
 
         var rise = new DoubleAnimationUsingKeyFrames();
-        rise.KeyFrames.Add(new LinearDoubleKeyFrame(34, peak));
+        rise.KeyFrames.Add(new LinearDoubleKeyFrame(46, peak));
+        rise.KeyFrames.Add(new LinearDoubleKeyFrame(46, full));
         rise.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
 
         var fade = new DoubleAnimationUsingKeyFrames();
         fade.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, peak));
+        fade.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, full));
         fade.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
 
         // На вспышке свет белый: синее так и осталось бы частью палитры панели,
@@ -1201,6 +1207,7 @@ public partial class OverlayWindow : Window
         // остывает обратно в наш синий.
         var heat = new ColorAnimationUsingKeyFrames();
         heat.KeyFrames.Add(new LinearColorKeyFrame(Colors.White, peak));
+        heat.KeyFrames.Add(new LinearColorKeyFrame(Colors.White, full));
         heat.KeyFrames.Add(new SplineColorKeyFrame(Color.FromRgb(0x36, 0xD6, 0xE7), end, Ease()));
         // Эффект снимаем после вспышки: висящий DropShadow дорог при перерисовке
         // и слегка размывает иконки предметов.
