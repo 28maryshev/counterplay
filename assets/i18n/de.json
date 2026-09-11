@@ -582,6 +582,7 @@
     "vsShield": "Schilde ({0})",
     "vsDive": "sie springen dich an",
     "vsPoke": "Poke und Picks",
-    "vsFront": "Kampf durch ihre Front"
+    "vsFront": "Kampf durch ihre Front",
+    "vsLongCc": "lange Kontrolle ({0})"
   }
 }

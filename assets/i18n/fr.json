@@ -582,6 +582,7 @@
     "vsShield": "boucliers ({0})",
     "vsDive": "ils te sautent dessus",
     "vsPoke": "poke et prises",
-    "vsFront": "combat face à leur front"
+    "vsFront": "combat face à leur front",
+    "vsLongCc": "contrôle long ({0})"
   }
 }

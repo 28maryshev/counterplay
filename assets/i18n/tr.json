@@ -582,6 +582,7 @@
     "vsShield": "kalkanlar ({0})",
     "vsDive": "üstüne atlıyorlar",
     "vsPoke": "uzaktan yıpratma ve yakalama",
-    "vsFront": "ön saflarıyla savaş"
+    "vsFront": "ön saflarıyla savaş",
+    "vsLongCc": "uzun kontrol ({0})"
   }
 }

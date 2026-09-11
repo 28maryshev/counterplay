@@ -582,6 +582,7 @@
     "vsShield": "护盾 ({0})",
     "vsDive": "他们会突进",
     "vsPoke": "消耗与抓单",
-    "vsFront": "穿透前排的团战"
+    "vsFront": "穿透前排的团战",
+    "vsLongCc": "长控制 ({0})"
   }
 }

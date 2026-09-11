@@ -582,6 +582,7 @@
     "vsShield": "scudi ({0})",
     "vsDive": "ti saltano addosso",
     "vsPoke": "poke e prese",
-    "vsFront": "scontro contro la loro prima linea"
+    "vsFront": "scontro contro la loro prima linea",
+    "vsLongCc": "controllo lungo ({0})"
   }
 }

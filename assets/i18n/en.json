@@ -582,6 +582,7 @@
     "vsShield": "shields ({0})",
     "vsDive": "they dive you (dive comp)",
     "vsPoke": "they poke and pick (poke comp)",
-    "vsFront": "they fight front to back"
+    "vsFront": "they fight front to back",
+    "vsLongCc": "long crowd control ({0})"
   }
 }

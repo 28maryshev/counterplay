@@ -26,6 +26,7 @@ public static class ItemFacts
         bool AntiShield,   // режет щиты
         bool Stasis,       // стазис или воскрешение — пережить прыжок и взрыв
         bool SpellShield,  // щит от одного умения — против размена и подлова
+        bool Cleanse,      // снимает контроль: с себя (Ртутные) или с союзника (Микаэль)
         bool Lifesteal,    // вампиризм/омнивамп — свой отхил
         bool Boots,
         bool PureTank,     // только здоровье и сопротивления: ни ауры, ни актива,
@@ -126,6 +127,10 @@ public static class ItemFacts
                     // Щит от умения — ответ на подлов и дальний размен: ловят
                     // одним заклинанием, и оно не проходит.
                     SpellShield: Says("Spell Shield", "Spellshield"),
+                    // Формулировка у Riot единая: «Remove all crowd control».
+                    // Под неё попадают и Микаэль, и Ртутные, и Скимитар.
+                    Cleanse: Regex.IsMatch(desc, @"remove[sd]?\s+all\s+crowd\s+control",
+                                           RegexOptions.IgnoreCase),
                     Lifesteal: tags.Contains("LifeSteal") || tags.Contains("SpellVamp")
                                || Says("Omnivamp", "Life Steal"),
                     Boots: isBoots,

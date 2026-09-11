@@ -582,6 +582,7 @@
     "vsShield": "シールド ({0})",
     "vsDive": "飛び込んでくる編成",
     "vsPoke": "ポークとピック",
-    "vsFront": "前衛越しの戦い"
+    "vsFront": "前衛越しの戦い",
+    "vsLongCc": "長いCC ({0})"
   }
 }

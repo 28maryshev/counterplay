@@ -582,6 +582,7 @@
     "vsShield": "escudos ({0})",
     "vsDive": "saltam em cima de ti",
     "vsPoke": "poke e capturas",
-    "vsFront": "luta contra a linha da frente"
+    "vsFront": "luta contra a linha da frente",
+    "vsLongCc": "controlo longo ({0})"
   }
 }

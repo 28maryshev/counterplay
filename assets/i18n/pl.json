@@ -582,6 +582,7 @@
     "vsShield": "tarcze ({0})",
     "vsDive": "wskakują na ciebie",
     "vsPoke": "poke i łapanie",
-    "vsFront": "walka przez ich front"
+    "vsFront": "walka przez ich front",
+    "vsLongCc": "długa kontrola ({0})"
   }
 }

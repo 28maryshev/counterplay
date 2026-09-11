@@ -68,6 +68,18 @@ public static class BuildAdvisor
 
     // Defense — пережить их урон, Pressure — пробить их. В сборке участвуют и то
     // и другое: игрок покупает один набор, а не два.
+    /// Долгий контроль по ОДНОЙ цели: провокация Раммуса, связывание Морганы,
+    /// страх Фиддлстикса, подавление Малзахара. От такого не спасает стойкость —
+    /// она сокращает длительность, но не отменяет; нужен предмет, который снимет
+    /// контроль (Микаэль на поддержке, Ртутные на остальных).
+    private static readonly HashSet<string> LongCc = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Rammus", "Morgana", "FiddleSticks", "Malzahar", "Warwick", "Skarner",
+        "Urgot", "Shen", "Ahri", "Evelynn", "Elise", "Varus", "Jhin", "Ashe",
+        "Sion", "Zoe", "Lissandra", "Veigar", "Cassiopeia", "Swain", "Nami",
+        "Thresh", "Neeko", "Twisted Fate", "TwistedFate", "Amumu",
+    };
+
     private sealed record Need(string Kind, double Weight, string Reason, bool Defense);
 
     /// <summary>
@@ -104,7 +116,7 @@ public static class BuildAdvisor
         magic /= dmgSum;
 
         // ── Чем этот состав неудобен ──────────────────────────────────────
-        int heal = 0, cc = 0, tanks = 0;
+        int heal = 0, cc = 0, tanks = 0, longCc = 0;
         double shield = 0;
         foreach (var e in enemies)
         {
@@ -113,6 +125,7 @@ public static class BuildAdvisor
             {
                 if (Healers.Contains(dd)) heal++;
                 if (HardCc.Contains(dd)) cc++;
+                if (LongCc.Contains(dd)) longCc++;
             }
 
             // Щит бывает не только в умениях. Бойцы вроде Олафа берут Стеракса
@@ -142,6 +155,10 @@ public static class BuildAdvisor
             defense.Add(new Need("mr", magic, Loc.T("build.vsMixed"), true));
         }
         if (cc >= 3) defense.Add(new Need("tenacity", 1.0, Loc.T("build.vsCc", cc), true));
+        // Хватит и одного такого врага: провокация или подавление выключают из
+        // драки целиком, и сокращать их на треть бессмысленно — нужно снимать.
+        if (longCc >= 1)
+            defense.Add(new Need("cleanse", 1.4, Loc.T("build.vsLongCc", longCc), true));
 
         var pressure = new List<Need>();
         if (heal >= 2) pressure.Add(new Need("antiheal", 2.0, Loc.T("build.vsHeal", heal), false));
@@ -395,6 +412,7 @@ public static class BuildAdvisor
             "antishield" => f.AntiShield,
             "stasis"     => f.Stasis,
             "spellshield" => f.SpellShield,
+            "cleanse"    => f.Cleanse,
             _            => false,
         };
     }
