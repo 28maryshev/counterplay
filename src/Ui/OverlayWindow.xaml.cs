@@ -1029,9 +1029,10 @@ public partial class OverlayWindow : Window
         // среза лечения.
         var enemies = _lastDraft?.TheirTeam
             .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
-        var adapted = enemies.Count >= 5 && _engine is not null
+        var advice = enemies.Count >= 5 && _engine is not null
             ? BuildAdvisor.Adapt(stats, stats.Builds[0], enemies, id => _engine.DamageShare(id))
-            : [];
+            : new BuildAdvisor.Advice([], []);
+        var adapted = advice.Builds;
 
         _shownBuilds = [];
         _buildReasons = [];
@@ -1064,8 +1065,12 @@ public partial class OverlayWindow : Window
             }
             // Состав известен целиком, а менять нечего: стандартная сборка уже
             // отвечает этим врагам. Молчать нельзя — это выглядит как поломка.
+            // Не просто «менять нечего», а что именно состав требует и почему
+            // это уже куплено: вывод должен быть виден, иначе читается как отказ.
             if (enemies.Count >= 5 && _buildReasons.Count > 0)
-                _buildReasons[0] = Loc.T("runes.aiCovered");
+                _buildReasons[0] = advice.Covered.Count > 0
+                    ? Loc.T("runes.aiCovered") + ": " + string.Join(" · ", advice.Covered)
+                    : Loc.T("runes.aiCovered");
         }
 
         var rows = new List<BuildRowVm>();

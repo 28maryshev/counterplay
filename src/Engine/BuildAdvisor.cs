@@ -25,6 +25,13 @@ public static class BuildAdvisor
         IReadOnlyList<int> Changed,        // что добавлено против стандартной сборки
         IReadOnlyList<string> Reasons);
 
+    /// Ответ целиком: варианты под состав и то, что стандартная сборка закрывает
+    /// сама. Второе нужно показать: «менять нечего» без объяснения выглядит как
+    /// отказ, а не как вывод.
+    public sealed record Advice(
+        IReadOnlyList<Adapted> Builds,
+        IReadOnlyList<string> Covered);
+
     // ── Черты, которых нет в данных Riot ──────────────────────────────────
     //
     // Доли урона и классы чемпионов берём из матчей и Data Dragon, а «много
@@ -65,11 +72,12 @@ public static class BuildAdvisor
     /// нечего предложить: у чемпиона нет подходящих предметов в его же практике
     /// или состав не требует поправок.
     /// </summary>
-    public static IReadOnlyList<Adapted> Adapt(
+    public static Advice Adapt(
         ChampStats stats, BuildData baseBuild, IReadOnlyList<int> enemies,
         Func<int, (double Phys, double Magic, double True)?> damageShare)
     {
-        if (!ItemFacts.Loaded || stats.Items.Count == 0 || enemies.Count == 0) return [];
+        if (!ItemFacts.Loaded || stats.Items.Count == 0 || enemies.Count == 0)
+            return new Advice([], []);
 
         // ── Каким уроном нас будут бить ───────────────────────────────────
         double phys = 0, magic = 0;
@@ -88,7 +96,7 @@ public static class BuildAdvisor
             }
         }
         var dmgSum = phys + magic;
-        if (dmgSum <= 0) return [];
+        if (dmgSum <= 0) return new Advice([], []);
         phys /= dmgSum;
         magic /= dmgSum;
 
@@ -132,11 +140,12 @@ public static class BuildAdvisor
         if (shield >= 2) pressure.Add(new Need("antishield", 1.0, Loc.T("build.vsShield", shield)));
 
         var res = new List<Adapted>();
-        var d1 = Compose(stats, baseBuild, defense, phys, magic);
+        var covered = new List<string>();
+        var d1 = Compose(stats, baseBuild, defense, phys, magic, covered);
         if (d1 is not null) res.Add(d1);
-        var p1 = Compose(stats, baseBuild, pressure, phys, magic, avoid: d1?.Changed);
+        var p1 = Compose(stats, baseBuild, pressure, phys, magic, covered, d1?.Changed);
         if (p1 is not null) res.Add(p1);
-        return res;
+        return new Advice(res, covered);
     }
 
     private static string Pct(double share) => $"{share * 100:F0}";
@@ -148,14 +157,15 @@ public static class BuildAdvisor
     {
         var f = ItemFacts.Of(itemId);
         if (f is null || f.Boots) return false;   // ботинки нужны всегда
-        if (magic >= 0.6 && f.Armor >= 30 && f.MagicResist < 20) return true;
-        if (phys  >= 0.6 && f.MagicResist >= 30 && f.Armor < 20) return true;
+        if (magic >= 0.55 && f.Armor >= 30 && f.MagicResist < 20) return true;
+        if (phys  >= 0.55 && f.MagicResist >= 30 && f.Armor < 20) return true;
         return false;
     }
 
     /// Собирает вариант: база, в которой слоты заменены на ответы составу.
     private static Adapted? Compose(ChampStats stats, BuildData baseBuild,
                                     List<Need> needs, double phys, double magic,
+                                    List<string> covered,
                                     IReadOnlyList<int>? avoid = null)
     {
         if (needs.Count == 0) return null;
@@ -167,8 +177,14 @@ public static class BuildAdvisor
 
         foreach (var need in needs.OrderByDescending(n => n.Weight))
         {
-            // Уже закрыто стандартной сборкой — не тратим слот второй раз.
-            if (items.Any(i => Answers(i, need.Kind))) continue;
+            // Уже закрыто стандартной сборкой — слот второй раз не тратим, но
+            // запоминаем: игроку важно видеть, что состав разобран, а ответ на
+            // него уже куплен.
+            if (items.Any(i => Answers(i, need.Kind)))
+            {
+                if (!covered.Contains(need.Reason)) covered.Add(need.Reason);
+                continue;
+            }
 
             var pick = stats.Items
                 .Where(i => !items.Contains(i.Id) && (avoid is null || !avoid.Contains(i.Id)))
