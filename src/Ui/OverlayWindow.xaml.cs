@@ -2291,8 +2291,7 @@ public partial class OverlayWindow : Window
         // «BETA» — короткая метка и остаётся крупной. Слово-заголовок сообщения
         // длиннее («Обновление»), и в том же размере оно давит текст под собой.
         BetaBadge.FontSize = alert ? 17 : n is null ? 21 : 15;
-        BetaWarnLeft.Visibility = BetaWarnRight.Visibility =
-            alert ? Visibility.Visible : Visibility.Collapsed;
+        SetNoticeMark(alert ? "alert" : n?.Head ?? "");
         BetaBadge.Foreground = alert ? BetaAlertBrush : BetaGoldBrush;
         BetaGlow.Color = alert ? Color.FromRgb(0xFF, 0x5A, 0x4D) : Color.FromRgb(0xFF, 0xD7, 0x5A);
         BetaCard.BorderBrush = alert ? BetaCardAlert : BetaCardGold;
@@ -2301,6 +2300,72 @@ public partial class OverlayWindow : Window
         var link = n?.Link ?? "https://counterplays.com/support";
         BetaLink.NavigateUri = new Uri(link);
         BetaLinkText.Text = link.Replace("https://", "").TrimEnd('/');
+    }
+
+    /// Знак по бокам заголовка плашки — свой у каждого вида сообщения. Слово
+    /// между двумя значками читается как метка, а не как случайная строка: так
+    /// уже сделано у неполадки, и остальным заголовкам это нужно не меньше.
+    ///
+    /// Геометрии нарисованы в коробке 21×19 — той же, что у треугольника
+    /// неполадки, — и векторами, а не символами шрифта: нужного знака в
+    /// системном шрифте может не оказаться, и вместо метки игрок увидел бы
+    /// пустой квадрат. «BETA» в списке нет намеренно: это не сообщение, а
+    /// состояние программы, и знаков ему не нужно.
+    private static readonly Dictionary<string, (string Data, string Fill, string Stroke, bool Bang)>
+        NoticeMarks = new()
+        {
+            // Неполадка — красный треугольник с восклицательным знаком.
+            ["alert"] = ("M10.5,0.8 L20.4,18 L0.6,18 Z", "#FF4438", "#FFE8E6", true),
+            // Важное — тот же знак, но синий: важное не равно поломке, и цвет
+            // тревоги на нём обесценивал бы саму тревогу.
+            ["important"] = ("M10.5,0.8 L20.4,18 L0.6,18 Z", "#3A7BD5", "#CFE4FF", true),
+            // Новинка — искра.
+            ["new"] = ("M10.5,0.5 L12.7,7.3 L19.5,9.5 L12.7,11.7 L10.5,18.5 "
+                       + "L8.3,11.7 L1.5,9.5 L8.3,7.3 Z", "#FFE066", "#FFF4C0", false),
+            // Совет — лампочка: колба и цоколь двумя фигурами.
+            ["tip"] = ("M10.5,1.2 C6.8,1.2 3.9,4.1 3.9,7.6 C3.9,10.1 5.4,11.8 6.5,13.2 "
+                       + "L6.5,15 L14.5,15 L14.5,13.2 C15.6,11.8 17.1,10.1 17.1,7.6 "
+                       + "C17.1,4.1 14.2,1.2 10.5,1.2 Z M7.3,16.3 L13.7,16.3 L13.7,18 L7.3,18 Z",
+                       "#36D6E7", "#BFF3F9", false),
+            // Обновление — стрелка вверх: версия растёт, а не скачивается.
+            ["update"] = ("M10.5,1.2 L16.8,9.2 L12.3,9.2 L12.3,17.6 L8.7,17.6 L8.7,9.2 L4.2,9.2 Z",
+                          "#36D6E7", "#BFF3F9", false),
+        };
+
+    private static readonly Dictionary<string, Brush> MarkBrushes = new();
+    private static readonly Dictionary<string, Geometry> MarkShapes = new();
+
+    private static Brush MarkBrush(string hex)
+    {
+        if (MarkBrushes.TryGetValue(hex, out var b)) return b;
+        var brush = new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(hex)!);
+        brush.Freeze();
+        return MarkBrushes[hex] = brush;
+    }
+
+    private static Geometry MarkShape(string data)
+    {
+        if (MarkShapes.TryGetValue(data, out var g)) return g;
+        var geo = Geometry.Parse(data);
+        geo.Freeze();
+        return MarkShapes[data] = geo;
+    }
+
+    private void SetNoticeMark(string key)
+    {
+        if (!NoticeMarks.TryGetValue(key, out var m))
+        {
+            BetaWarnLeft.Visibility = BetaWarnRight.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        BetaMarkLeft.Data = BetaMarkRight.Data = MarkShape(m.Data);
+        BetaMarkLeft.Fill = BetaMarkRight.Fill = MarkBrush(m.Fill);
+        BetaMarkLeft.Stroke = BetaMarkRight.Stroke = MarkBrush(m.Stroke);
+        // Восклицательный знак живёт внутри треугольника — у искры и лампы его нет.
+        BetaBangLeft.Visibility = BetaBangRight.Visibility =
+            m.Bang ? Visibility.Visible : Visibility.Collapsed;
+        BetaWarnLeft.Visibility = BetaWarnRight.Visibility = Visibility.Visible;
     }
 
     private void OnLanguageChanged()
