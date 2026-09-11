@@ -132,18 +132,31 @@ public static class BuildAdvisor
         if (shield >= 2) pressure.Add(new Need("antishield", 1.0, Loc.T("build.vsShield", shield)));
 
         var res = new List<Adapted>();
-        var d1 = Compose(stats, baseBuild, defense);
+        var d1 = Compose(stats, baseBuild, defense, phys, magic);
         if (d1 is not null) res.Add(d1);
-        var p1 = Compose(stats, baseBuild, pressure, avoid: d1?.Changed);
+        var p1 = Compose(stats, baseBuild, pressure, phys, magic, avoid: d1?.Changed);
         if (p1 is not null) res.Add(p1);
         return res;
     }
 
     private static string Pct(double share) => $"{share * 100:F0}";
 
-    /// Собирает вариант: база, в которой некорневые слоты заменены на ответы.
+    /// Предмет, который в этом матче почти ничего не даёт: броня против команды,
+    /// бьющей магией, и наоборот. Именно такие слоты и надо освобождать — иначе
+    /// ответ приписывается в конец, а мёртвая защита остаётся в сборке.
+    private static bool Wasted(int itemId, double phys, double magic)
+    {
+        var f = ItemFacts.Of(itemId);
+        if (f is null || f.Boots) return false;   // ботинки нужны всегда
+        if (magic >= 0.6 && f.Armor >= 30 && f.MagicResist < 20) return true;
+        if (phys  >= 0.6 && f.MagicResist >= 30 && f.Armor < 20) return true;
+        return false;
+    }
+
+    /// Собирает вариант: база, в которой слоты заменены на ответы составу.
     private static Adapted? Compose(ChampStats stats, BuildData baseBuild,
-                                    List<Need> needs, IReadOnlyList<int>? avoid = null)
+                                    List<Need> needs, double phys, double magic,
+                                    IReadOnlyList<int>? avoid = null)
     {
         if (needs.Count == 0) return null;
 
@@ -171,14 +184,41 @@ public static class BuildAdvisor
                 .FirstOrDefault();
             if (pick is null) continue;
 
-            // Меняем последний НЕкорневой слот: ядро сборки трогать нельзя, на нём
-            // держится сам чемпион.
-            var slot = items.FindLastIndex(i => !core.Contains(i) && !added.Contains(i));
+            // Куда ставить. Сначала — на место предмета, который против этого
+            // состава бесполезен: броня против магов не станет полезнее оттого,
+            // что её часто берут. Такой слот освобождаем даже в ядре — держать в
+            // нём мёртвую защиту и есть та ошибка, которую мы исправляем.
+            var slot = items.FindIndex(i => !added.Contains(i) && Wasted(i, phys, magic));
+            // Иначе — последний некорневой: ядро держит самого чемпиона.
+            if (slot < 0)
+                slot = items.FindLastIndex(i => !core.Contains(i) && !added.Contains(i));
             if (slot < 0) break;
 
             items[slot] = pick.Id;
             added.Add(pick.Id);
             reasons.Add(need.Reason);
+        }
+
+        // Бывает, что нужное в сборке уже есть (магзащита куплена), а бесполезное
+        // всё равно занимает слот — как броня против команды, бьющей магией.
+        // Меняем её на лучший подходящий предмет этого чемпиона: слот, который
+        // ничего не даёт, дороже любой перестановки.
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (added.Contains(items[i]) || !Wasted(items[i], phys, magic)) continue;
+
+            var better = stats.Items
+                .Where(x => !items.Contains(x.Id) && !Wasted(x.Id, phys, magic)
+                            && (avoid is null || !avoid.Contains(x.Id)))
+                .Where(x => ItemFacts.Of(x.Id) is { Boots: false })
+                .OrderByDescending(x => 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0))
+                .FirstOrDefault();
+            if (better is null) continue;
+
+            items[i] = better.Id;
+            added.Add(better.Id);
+            var why = magic >= 0.6 ? Loc.T("build.vsMagic", Pct(magic)) : Loc.T("build.vsPhys", Pct(phys));
+            if (!reasons.Contains(why)) reasons.Add(why);
         }
 
         return added.Count == 0 ? null : new Adapted(items, added, reasons);
