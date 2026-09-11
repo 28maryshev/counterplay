@@ -372,7 +372,8 @@
     "compBlock": "Thành phần",
     "appliedSpells": "Đã áp dụng ngọc và phép bổ trợ",
     "aiBuild": "AI",
-    "aiUnder": "theo đội hình này"
+    "aiUnder": "theo đội hình này",
+    "aiCovered": "build phổ biến đã phù hợp với đội hình này"
   },
   "pick": {
     "confirm": "Chọn {0}",

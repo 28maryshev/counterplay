@@ -307,7 +307,8 @@
     "compBlock": "Composants",
     "appliedSpells": "Runes et sorts d'invocateur appliqués",
     "aiBuild": "IA",
-    "aiUnder": "pour cette compo"
+    "aiUnder": "pour cette compo",
+    "aiCovered": "la build classique répond déjà à cette compo"
   },
   "pick": {
     "confirm": "Choisir {0}",

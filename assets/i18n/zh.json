@@ -372,7 +372,8 @@
     "compBlock": "组件",
     "appliedSpells": "符文和召唤师技能已应用",
     "aiBuild": "AI",
-    "aiUnder": "针对该阵容"
+    "aiUnder": "针对该阵容",
+    "aiCovered": "常规出装已能应对该阵容"
   },
   "pick": {
     "confirm": "选择 {0}",

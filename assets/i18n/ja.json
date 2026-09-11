@@ -372,7 +372,8 @@
     "compBlock": "コンポーネント",
     "appliedSpells": "ルーンとサモナースペルを適用しました",
     "aiBuild": "AI",
-    "aiUnder": "この編成向け"
+    "aiUnder": "この編成向け",
+    "aiCovered": "標準ビルドでこの編成に対応できる"
   },
   "pick": {
     "confirm": "{0} を選択",

@@ -372,7 +372,8 @@
     "compBlock": "Składniki",
     "appliedSpells": "Runy i czary przywoływacza zastosowane",
     "aiBuild": "AI",
-    "aiUnder": "pod ten skład"
+    "aiUnder": "pod ten skład",
+    "aiCovered": "standardowy build już odpowiada temu składowi"
   },
   "pick": {
     "confirm": "Wybierz {0}",

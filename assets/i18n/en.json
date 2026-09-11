@@ -20,7 +20,8 @@
     "compBlock": "Components",
     "appliedSpells": "Runes & summoner spells applied",
     "aiBuild": "AI",
-    "aiUnder": "for this comp"
+    "aiUnder": "for this comp",
+    "aiCovered": "the popular build already answers this comp"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

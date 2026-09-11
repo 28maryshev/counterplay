@@ -93,7 +93,8 @@
     "compBlock": "Bileşenler",
     "appliedSpells": "Rünler ve sihirdar büyüleri uygulandı",
     "aiBuild": "YZ",
-    "aiUnder": "bu kadroya göre"
+    "aiUnder": "bu kadroya göre",
+    "aiCovered": "standart build bu kadroya zaten uygun"
   },
   "pick": {
     "confirm": "{0} seç",

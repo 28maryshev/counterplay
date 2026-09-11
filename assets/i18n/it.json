@@ -372,7 +372,8 @@
     "compBlock": "Componenti",
     "appliedSpells": "Rune e incantesimi applicati",
     "aiBuild": "IA",
-    "aiUnder": "per questa comp"
+    "aiUnder": "per questa comp",
+    "aiCovered": "la build standard risponde già a questa comp"
   },
   "pick": {
     "confirm": "Scegli {0}",

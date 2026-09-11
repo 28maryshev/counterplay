@@ -162,8 +162,11 @@ public static class RunesClient
         // бесполезна — на ней не видно ни разницы между чемпионами, ни того, как
         // панель ведёт себя на самом деле.
         var tags = DataDragon.ClassTags(champ);
-        var style = DataDragon.IsApChampion(champ) ? "ap"
-                  : tags.Contains("Tank") || tags.Contains("Support") ? "tank"
+        // Класс важнее оценки урона: у Riot в описании Браума «магии» больше, чем
+        // «атаки», и проверка на мага утаскивала танка-саппорта в набор с Кометой
+        // и Аери. Сначала смотрим, кто он по роли, и только потом — чем бьёт.
+        var style = tags.Contains("Tank") || tags.Contains("Support") ? "tank"
+                  : DataDragon.IsApChampion(champ) ? "ap"
                   : "ad";
 
         var list = style switch
@@ -215,7 +218,21 @@ public static class RunesClient
         // Порядок полки — свой у каждого чемпиона. Иначе все маги в песочнице
         // получают одну и ту же сборку, и подбор под состав выглядит поломанным:
         // разница между строками есть, а между чемпионами нет.
-        itemPool = itemPool.OrderBy(x => (x * 7 + champ * 13) % 101).ToArray();
+        //
+        // Ситуативные предметы (магзащита, броня, срез лечения, пробивание)
+        // уводим в хвост: в боевых данных стандартная сборка редко содержит их
+        // все сразу, а если они попадают в первые шесть слотов, подбору просто
+        // нечего добавить — он молчит, и кажется, что он сломан.
+        bool Situational(int id)
+        {
+            var f = ItemFacts.Of(id);
+            return f is not null && (f.AntiHeal || f.PercentPen || f.Tenacity
+                                     || f.Armor >= 30 || f.MagicResist >= 30);
+        }
+        itemPool = itemPool
+            .OrderBy(Situational)
+            .ThenBy(x => (x * 7 + champ * 13) % 101)
+            .ToArray();
 
         var core3 = new Func<int, int[]>(shift => itemPool.Skip(shift).Take(6).ToArray());
         var builds = new List<BuildData>

@@ -93,7 +93,8 @@
     "compBlock": "Componentes",
     "appliedSpells": "Runas e feitiços aplicados",
     "aiBuild": "IA",
-    "aiUnder": "para esta comp"
+    "aiUnder": "para esta comp",
+    "aiCovered": "a build padrão já responde a esta comp"
   },
   "pick": {
     "confirm": "Escolher {0}",

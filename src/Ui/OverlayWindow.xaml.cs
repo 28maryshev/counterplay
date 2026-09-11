@@ -1014,6 +1014,7 @@ public partial class OverlayWindow : Window
     // Что именно заменено под состав врагов — эти слоты подсвечиваем, иначе
     // подбор неотличим от обычной сборки: разница бывает в один предмет.
     private List<HashSet<int>> _buildChanged = [];
+    private List<bool> _buildIsAi = [];
 
     private void RenderBuilds(ChampStats stats)
     {
@@ -1035,6 +1036,7 @@ public partial class OverlayWindow : Window
         _shownBuilds = [];
         _buildReasons = [];
         _buildChanged = [];
+        _buildIsAi = [];
         if (adapted.Count > 0)
         {
             // Первой — самая ходовая сборка: как собирают вообще, без оглядки на
@@ -1042,17 +1044,28 @@ public partial class OverlayWindow : Window
             _shownBuilds.Add(stats.Builds[0]);
             _buildReasons.Add("");
             _buildChanged.Add([]);
+            _buildIsAi.Add(false);
             foreach (var a in adapted.Take(2))
             {
                 _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
                 _buildReasons.Add(string.Join(" · ", a.Reasons));
                 _buildChanged.Add([.. a.Changed]);
+                _buildIsAi.Add(true);
             }
         }
         else
         {
             _shownBuilds.AddRange(stats.Builds);
-            foreach (var _ in stats.Builds) { _buildReasons.Add(""); _buildChanged.Add([]); }
+            foreach (var _ in stats.Builds)
+            {
+                _buildReasons.Add("");
+                _buildChanged.Add([]);
+                _buildIsAi.Add(false);
+            }
+            // Состав известен целиком, а менять нечего: стандартная сборка уже
+            // отвечает этим врагам. Молчать нельзя — это выглядит как поломка.
+            if (enemies.Count >= 5 && _buildReasons.Count > 0)
+                _buildReasons[0] = Loc.T("runes.aiCovered");
         }
 
         var rows = new List<BuildRowVm>();
@@ -1061,7 +1074,7 @@ public partial class OverlayWindow : Window
             var b = _shownBuilds[i];
             var reason = _buildReasons[i];
             var changed = _buildChanged[i];
-            var isAi = reason.Length > 0;
+            var isAi = _buildIsAi[i];
             var slots = new List<SlotVm>();
 
             // CORE — набор, который реально играли вместе (у него и винрейт).
@@ -1101,7 +1114,7 @@ public partial class OverlayWindow : Window
                 RowBg: selected ? RowOn : RowOff,
                 RowStroke: selected ? RowOnEdge : RowOffEdge,
                 Reason: reason,
-                ReasonVis: isAi ? Visibility.Visible : Visibility.Collapsed));
+                ReasonVis: reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed));
         }
 
         BuildList.ItemsSource = rows;
