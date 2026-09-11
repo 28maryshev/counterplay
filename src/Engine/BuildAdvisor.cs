@@ -66,7 +66,9 @@ public static class BuildAdvisor
         "Lux", "Yasuo", "Sett", "Rakan",
     };
 
-    private sealed record Need(string Kind, double Weight, string Reason);
+    // Defense — пережить их урон, Pressure — пробить их. В сборке участвуют и то
+    // и другое: игрок покупает один набор, а не два.
+    private sealed record Need(string Kind, double Weight, string Reason, bool Defense);
 
     /// <summary>
     /// Два варианта под состав врагов: «защита» и «давление». Пустой список —
@@ -131,23 +133,25 @@ public static class BuildAdvisor
         var defense = new List<Need>();
         // Порог 55%: ниже него состав смешанный, и одна защита погоды не сделает.
         if (phys >= 0.55)
-            defense.Add(new Need("armor", phys, Loc.T("build.vsPhys", Pct(phys))));
+            defense.Add(new Need("armor", phys, Loc.T("build.vsPhys", Pct(phys)), true));
         if (magic >= 0.55)
-            defense.Add(new Need("mr", magic, Loc.T("build.vsMagic", Pct(magic))));
+            defense.Add(new Need("mr", magic, Loc.T("build.vsMagic", Pct(magic)), true));
         if (phys is >= 0.4 and < 0.55 && magic is >= 0.4 and < 0.55)
         {
-            defense.Add(new Need("armor", phys, Loc.T("build.vsMixed")));
-            defense.Add(new Need("mr", magic, Loc.T("build.vsMixed")));
+            defense.Add(new Need("armor", phys, Loc.T("build.vsMixed"), true));
+            defense.Add(new Need("mr", magic, Loc.T("build.vsMixed"), true));
         }
-        if (cc >= 3) defense.Add(new Need("tenacity", 1.0, Loc.T("build.vsCc", cc)));
+        if (cc >= 3) defense.Add(new Need("tenacity", 1.0, Loc.T("build.vsCc", cc), true));
 
         var pressure = new List<Need>();
-        if (heal >= 2) pressure.Add(new Need("antiheal", 2.0, Loc.T("build.vsHeal", heal)));
-        else if (heal == 1) pressure.Add(new Need("antiheal", 1.0, Loc.T("build.vsHeal", heal)));
+        if (heal >= 2) pressure.Add(new Need("antiheal", 2.0, Loc.T("build.vsHeal", heal), false));
+        else if (heal == 1) pressure.Add(new Need("antiheal", 1.0, Loc.T("build.vsHeal", heal), false));
         if (tanks >= 2)
-            pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.5, Loc.T("build.vsTank", tanks)));
+            pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.5,
+                                  Loc.T("build.vsTank", tanks), false));
         if (shield >= 2)
-            pressure.Add(new Need("antishield", 1.0, Loc.T("build.vsShield", Math.Round(shield))));
+            pressure.Add(new Need("antishield", 1.0,
+                                  Loc.T("build.vsShield", Math.Round(shield)), false));
 
         // Стиль состава. Он говорит не про тип урона, а про то, КАК по тебе
         // попадают, и на это есть свои ответы: против прыжка — стазис или
@@ -156,24 +160,43 @@ public static class BuildAdvisor
         switch (ChampionTraits.DominantStyle(enemies))
         {
             case ChampionTraits.Arch.Dive:
-                defense.Add(new Need("stasis", 1.3, Loc.T("build.vsDive")));
+                defense.Add(new Need("stasis", 1.3, Loc.T("build.vsDive"), true));
                 break;
             case ChampionTraits.Arch.PickPoke:
-                defense.Add(new Need("spellshield", 1.1, Loc.T("build.vsPoke")));
+                defense.Add(new Need("spellshield", 1.1, Loc.T("build.vsPoke"), true));
                 break;
             case ChampionTraits.Arch.FrontToBack:
                 pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.2,
-                                      Loc.T("build.vsFront")));
+                                      Loc.T("build.vsFront"), false));
                 break;
         }
 
 
-        var res = new List<Adapted>();
+        // Обе задачи — в ОДНОЙ сборке: игрок покупает один набор предметов, и
+        // разносить «против физического урона» и «враг лечится» по разным
+        // строкам значит заставлять его выбирать между двумя половинами ответа.
+        //
+        // Второй вариант отличается не набором задач, а порядком: сначала
+        // выжить или сначала пробить. Часто он даёт другие предметы; если тот же
+        // самый — второй строки просто не будет.
+        var all = defense.Concat(pressure).ToList();
+        if (all.Count == 0) return new Advice([], []);
+
         var covered = new List<string>();
-        var d1 = Compose(stats, baseBuild, defense, phys, magic, covered);
-        if (d1 is not null) res.Add(d1);
-        var p1 = Compose(stats, baseBuild, pressure, phys, magic, covered, d1?.Changed);
-        if (p1 is not null) res.Add(p1);
+        var safeFirst = all
+            .OrderByDescending(n => n.Weight + (n.Defense ? 0.6 : 0)).ToList();
+        var damageFirst = all
+            .OrderByDescending(n => n.Weight + (n.Defense ? 0 : 0.6)).ToList();
+
+        var res = new List<Adapted>();
+        var a = Compose(stats, baseBuild, safeFirst, phys, magic, covered);
+        if (a is not null) res.Add(a);
+
+        var b = Compose(stats, baseBuild, damageFirst, phys, magic, []);
+        // Тот же набор предметов — второй строки не нужно: две одинаковые
+        // сборки выглядят как ошибка, а не как выбор.
+        if (b is not null && (a is null || !b.Items.SequenceEqual(a.Items))) res.Add(b);
+
         return new Advice(res, covered);
     }
 
@@ -204,7 +227,8 @@ public static class BuildAdvisor
         var added = new List<int>();
         var reasons = new List<string>();
 
-        foreach (var need in needs.OrderByDescending(n => n.Weight))
+        // Порядок важен: он и отличает «сначала выжить» от «сначала пробить».
+        foreach (var need in needs)
         {
             // Уже закрыто стандартной сборкой — слот второй раз не тратим, но
             // запоминаем: игроку важно видеть, что состав разобран, а ответ на
@@ -257,6 +281,7 @@ public static class BuildAdvisor
             added.Add(pick.Id);
             reasons.Add(need.Reason);
 
+
             // Порядок покупки важен не меньше самого предмета. Срез лечения,
             // купленный шестым, не спасает от лечения в первых же драках — его
             // берут сразу, часто даже недостроенным. Защиту тоже двигаем вперёд,
@@ -278,6 +303,10 @@ public static class BuildAdvisor
                     items.Insert(Math.Min(target, items.Count), moved);
                 }
             }
+
+            // Больше трёх замен — это уже не «сборка с поправкой на врага», а
+            // другой билд: в такой игрок себя не узнает и не поверит ему.
+            if (added.Count >= 3) break;
         }
 
         // Бывает, что нужное в сборке уже есть (магзащита куплена), а бесполезное
