@@ -1159,9 +1159,10 @@ public partial class OverlayWindow : Window
         }
     }
 
-    /// Вспышка вокруг строки подбора: синее свечение резко нарастает и гаснет,
-    /// после чего эффект снимается совсем — постоянная подсветка отвлекала бы от
-    /// самой сборки.
+    /// Вспышка вокруг строки подбора: свет вспыхивает белым почти мгновенно, а
+    /// дальше медленно остывает в синий и гаснет — как настоящая вспышка, у
+    /// которой резкий удар и длинный хвост. Эффект снимается совсем: постоянная
+    /// подсветка отвлекала бы от самой сборки.
     private void GlowAiRow()
     {
         // Подбор всегда идёт второй строкой: первая — обычная, самая ходовая.
@@ -1176,26 +1177,31 @@ public partial class OverlayWindow : Window
         };
         row.Effect = glow;
 
-        var half = TimeSpan.FromSeconds(0.35);
+        // Удар вспышки — меньше десятой доли секунды: глаз воспринимает такое
+        // как «появилось разом», а не как выехавшую анимацию.
+        var flash = TimeSpan.FromSeconds(0.08);
+        var decay = TimeSpan.FromSeconds(1.5);
+        var end = KeyTime.FromTimeSpan(flash + decay);
+        var peak = KeyTime.FromTimeSpan(flash);
 
-        var rise = new DoubleAnimation(0, 30, half)
-        {
-            AutoReverse = true,
-            DecelerationRatio = 0.6,
-        };
-        var fade = new DoubleAnimation(0, 1.0, half)
-        {
-            AutoReverse = true,
-            DecelerationRatio = 0.6,
-        };
-        // На пике свечение выбеливается: синее так и осталось бы частью палитры
-        // панели, а белая вспышка читается как «здесь только что появилось».
-        var heat = new ColorAnimation(
-            Color.FromRgb(0x36, 0xD6, 0xE7), Colors.White, half)
-        {
-            AutoReverse = true,
-            DecelerationRatio = 0.6,
-        };
+        // Затухание неравномерное: сначала свет спадает быстро, потом долго
+        // тлеет. Равномерное гасло бы как выключаемая лампа — заметно и скучно.
+        static KeySpline Ease() => new(0.0, 0.7, 0.2, 1.0);
+
+        var rise = new DoubleAnimationUsingKeyFrames();
+        rise.KeyFrames.Add(new LinearDoubleKeyFrame(34, peak));
+        rise.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
+
+        var fade = new DoubleAnimationUsingKeyFrames();
+        fade.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, peak));
+        fade.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
+
+        // На вспышке свет белый: синее так и осталось бы частью палитры панели,
+        // а белое читается как «здесь только что появилось». Пока гаснет —
+        // остывает обратно в наш синий.
+        var heat = new ColorAnimationUsingKeyFrames();
+        heat.KeyFrames.Add(new LinearColorKeyFrame(Colors.White, peak));
+        heat.KeyFrames.Add(new SplineColorKeyFrame(Color.FromRgb(0x36, 0xD6, 0xE7), end, Ease()));
         // Эффект снимаем после вспышки: висящий DropShadow дорог при перерисовке
         // и слегка размывает иконки предметов.
         fade.Completed += (_, _) => row.Effect = null;
