@@ -1046,7 +1046,10 @@ public partial class OverlayWindow : Window
             _buildReasons.Add("");
             _buildChanged.Add([]);
             _buildIsAi.Add(false);
-            foreach (var a in adapted.Take(2))
+            // Показываем ОДНУ сборку под состав, а не набор вариантов: игрок
+            // покупает один набор предметов, и выбор из двух «умных» сборок
+            // перекладывает на него ту работу, ради которой всё и затевалось.
+            foreach (var a in adapted.Take(1))
             {
                 _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
                 _buildReasons.Add(string.Join(" · ", a.Reasons));

@@ -331,6 +331,22 @@ public static class BuildAdvisor
             if (!reasons.Contains(why)) reasons.Add(why);
         }
 
+        // Последняя проверка: ботинки в сборке одни. Вторая пара может прийти из
+        // самой выгрузки — она добивает набор до шести слотов ходовыми
+        // предметами и не знает, что обувь не складывается.
+        var boots = items.Where(i => ItemFacts.Of(i) is { Boots: true }).ToList();
+        for (var extra = 1; extra < boots.Count; extra++)
+        {
+            var idx = items.LastIndexOf(boots[extra]);
+            var repl = stats.Items
+                .Where(x => !items.Contains(x.Id) && ItemFacts.Of(x.Id) is { Boots: false })
+                .Where(x => !Wasted(x.Id, phys, magic))
+                .OrderByDescending(x => 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0))
+                .FirstOrDefault();
+            if (repl is null) break;
+            items[idx] = repl.Id;
+        }
+
         return added.Count == 0 ? null : new Adapted(items, added, reasons);
     }
 

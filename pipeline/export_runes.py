@@ -39,6 +39,30 @@ PATCH_WINDOW     = 2     # сколько последних патчей агр
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
 
 
+def load_boots() -> set[int]:
+    """Идентификаторы обуви — по метке Boots в данных Riot.
+
+    Запасной список нужен на случай, когда сети нет: без него добивка снова
+    начнёт ставить в сборку две пары сапог, а это заметнее любой неточности.
+    """
+    fallback = {1001, 3006, 3009, 3020, 3047, 3111, 3117, 3158, 2422, 3013}
+    try:
+        import urllib.request
+        ver = json.load(urllib.request.urlopen(
+            'https://ddragon.leagueoflegends.com/api/versions.json', timeout=15))[0]
+        data = json.load(urllib.request.urlopen(
+            f'https://ddragon.leagueoflegends.com/cdn/{ver}/data/en_US/item.json',
+            timeout=20))['data']
+        ids = {int(k) for k, v in data.items() if 'Boots' in v.get('tags', [])}
+        return ids or fallback
+    except Exception as e:
+        print(f'обувь: список не загрузился ({e}) — беру запасной', flush=True)
+        return fallback
+
+
+BOOTS = load_boots()
+
+
 def wr(games: int, wins: int) -> float:
     """Сглаженный винрейт в процентах: мало игр → ближе к 50%."""
     return 100.0 * (wins + K / 2) / (games + K)
@@ -203,12 +227,20 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     # минимум две замены. Проверено на синтетике: с порогом 2 в тройку попадали
     # сборки, отличавшиеся одним предметом.
     def fill_to_six(core: set) -> list[int]:
+        # Обувь в сборке одна. Добивка шла по популярности и спокойно ставила
+        # рядом вторую пару — в панели это выглядело как совет купить двое сапог.
         ids = sorted(core)
+        has_boots = any(i in BOOTS for i in ids)
         for extra in popular:
             if len(ids) >= 6:
                 break
-            if extra not in ids:
-                ids.append(extra)
+            if extra in ids:
+                continue
+            if extra in BOOTS:
+                if has_boots:
+                    continue
+                has_boots = True
+            ids.append(extra)
         return ids
 
     MIN_DIFF = 4
