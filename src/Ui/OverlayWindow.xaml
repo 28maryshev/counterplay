@@ -797,21 +797,24 @@
                     Background="#14FFFFFF" BorderBrush="#33C89B3C" BorderThickness="1"
                     Padding="13,10">
               <StackPanel>
-                <TextBlock Text="BETA" HorizontalAlignment="Center"
+                <TextBlock x:Name="BetaBadge" Text="BETA" HorizontalAlignment="Center"
                            FontFamily="{StaticResource DisplayFont}" FontSize="21" FontWeight="Bold"
                            Foreground="#FFE066" Margin="0,0,0,7">
                   <TextBlock.Effect>
-                    <DropShadowEffect Color="#FFD75A" ShadowDepth="0" BlurRadius="16" Opacity="0.95"/>
+                    <DropShadowEffect x:Name="BetaGlow" Color="#FFD75A" ShadowDepth="0"
+                                      BlurRadius="16" Opacity="0.95"/>
                   </TextBlock.Effect>
                 </TextBlock>
-                <TextBlock Text="{loc:T ready.beta}" FontFamily="{StaticResource UiFont}" FontSize="12"
+                <TextBlock x:Name="BetaText" Text="{loc:T ready.beta}"
+                           FontFamily="{StaticResource UiFont}" FontSize="12"
                            Foreground="#D7DEE6" TextWrapping="Wrap" LineHeight="16"
                            TextAlignment="Center"/>
-                <TextBlock TextAlignment="Center" Margin="0,4,0,0"
+                <TextBlock x:Name="BetaLinkLine" TextAlignment="Center" Margin="0,4,0,0"
                            FontFamily="{StaticResource UiFont}" FontSize="12">
-                  <Hyperlink NavigateUri="https://counterplays.com/support"
+                  <Hyperlink x:Name="BetaLink" NavigateUri="https://counterplays.com/support"
                              RequestNavigate="OpenLink" Foreground="#36D6E7"
-                             TextDecorations="Underline" Cursor="Hand">counterplays.com/support</Hyperlink>
+                             TextDecorations="Underline" Cursor="Hand"><Run x:Name="BetaLinkText"
+                             Text="counterplays.com/support"/></Hyperlink>
                 </TextBlock>
               </StackPanel>
             </Border>

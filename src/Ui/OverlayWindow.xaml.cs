@@ -899,6 +899,10 @@ public partial class OverlayWindow : Window
         // Чип языка: показываем текущий, меню — по клику.
         Loc.LanguageChanged += OnLanguageChanged;
 
+        // Сообщение с сайта на плашке «BETA»: показываем сохранённое сразу и
+        // спрашиваем сайт — так новость доходит без обновления программы.
+        StartNoticeWatch();
+
         // Журнал умеет спросить у окна, в каком состоянии всё было на момент
         // копирования, — иначе присланный хвост событий читается вслепую.
         Log.Snapshot = () => Dispatcher.CheckAccess()
@@ -2005,6 +2009,55 @@ public partial class OverlayWindow : Window
     // Клик по чипу языка — выпадающий список в стиле выбора очереди.
 
     // Язык сменился: обновляем UI сразу, имена чемпионов — после дозагрузки Data Dragon.
+    // ── Сообщение с сайта на плашке «BETA» ────────────────────────────────
+    //
+    // Плашка — единственное место, где мы можем сказать игроку что-то прямо в
+    // программе. Текст лежит на сайте: если встал сбор или вышел патч, человек
+    // узнает об этом, не обновляя программу.
+    private DispatcherTimer? _noticeTimer;
+
+    private static readonly SolidColorBrush BetaGoldBrush  = new(Color.FromRgb(0xFF, 0xE0, 0x66));
+    private static readonly SolidColorBrush BetaAlertBrush = new(Color.FromRgb(0xFF, 0x6A, 0x5D));
+    private static readonly SolidColorBrush BetaCardGold   = new(Color.FromArgb(0x33, 0xC8, 0x9B, 0x3C));
+    private static readonly SolidColorBrush BetaCardAlert  = new(Color.FromArgb(0x66, 0xFF, 0x5A, 0x4D));
+    private static readonly SolidColorBrush BetaFillAlert  = new(Color.FromArgb(0x18, 0xFF, 0x5A, 0x4D));
+    private static readonly SolidColorBrush BetaFillNormal = new(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
+
+    private void StartNoticeWatch()
+    {
+        Notice.LoadCached();   // показать сохранённое до того, как ответит сеть
+        ApplyNotice();
+        _ = RefreshNoticeAsync();
+
+        // Полчаса: сообщение — не срочный сигнал, а запросов иначе набежит много.
+        _noticeTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(30) };
+        _noticeTimer.Tick += async (_, _) => await RefreshNoticeAsync();
+        _noticeTimer.Start();
+    }
+
+    private async Task RefreshNoticeAsync()
+    {
+        if (await Notice.RefreshAsync()) await Dispatcher.InvokeAsync(ApplyNotice);
+    }
+
+    private void ApplyNotice()
+    {
+        var n = Notice.Current();
+        var alert = n?.Kind == "alert";
+
+        // Нет сообщения — обычный текст «пишите в поддержку».
+        BetaText.Text = n?.Text ?? Loc.T("ready.beta");
+        BetaBadge.Text = alert ? "!" : "BETA";
+        BetaBadge.Foreground = alert ? BetaAlertBrush : BetaGoldBrush;
+        BetaGlow.Color = alert ? Color.FromRgb(0xFF, 0x5A, 0x4D) : Color.FromRgb(0xFF, 0xD7, 0x5A);
+        BetaCard.BorderBrush = alert ? BetaCardAlert : BetaCardGold;
+        BetaCard.Background  = alert ? BetaFillAlert : BetaFillNormal;
+
+        var link = n?.Link ?? "https://counterplays.com/support";
+        BetaLink.NavigateUri = new Uri(link);
+        BetaLinkText.Text = link.Replace("https://", "").TrimEnd('/');
+    }
+
     private void OnLanguageChanged()
     {
         _tierCols = null;             // роли/тултипы тир-листа под новую локаль
@@ -2026,6 +2079,7 @@ public partial class OverlayWindow : Window
         // (ранг/W-L/подсказка) — перелокализуем из сохранённого сырья.
         ApplyReadyText();
         ShowSession(_session);
+        ApplyNotice();                // текст сообщения — под новый язык
 
         _ = ReloadNamesAsync();       // имена чемпионов под новую локаль
     }
