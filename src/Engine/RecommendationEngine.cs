@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 
 namespace Counterplay;
 
@@ -1091,12 +1091,23 @@ public sealed class RecommendationEngine : IDisposable
         // не будучи чьей-то персональной топ-контрой. Считаем по всем показанным
         // пикам сразу — один бан снимает проблему всей команде.
         var teamPicks = protectees.Select(p => p.Id).Distinct().ToList();
-        foreach (var (c, (threat, covered)) in TeamThreats(teamPicks))
+
+        // В счёте участвует весь показанный пул, включая прошлые наведения, — так
+        // бан выбирается точнее. А в подписи называем только то, что игрок видит
+        // на экране прямо сейчас: иначе «бьёт 5 твоих пиков» при двух пиках в
+        // окне выглядит выдумкой.
+        var onScreen = state.MyTeam
+            .Where(p => p.EffectiveChampionId != 0)
+            .Select(p => p.EffectiveChampionId)
+            .ToHashSet();
+
+        foreach (var (c, (threat, victims)) in TeamThreats(teamPicks))
         {
             if (taken.Contains(c)) continue;
             scores[c] = scores.GetValueOrDefault(c) + W_BAN_TEAM * threat;
-            if (threat >= 0.5)
-                AddReason(c, Loc.T("reason.teamThreat", covered));
+            var shown = victims.Count(onScreen.Contains);
+            if (threat >= 0.5 && shown >= 2)
+                AddReason(c, Loc.T("reason.teamThreat", shown));
         }
 
         // Бонус за ширину: кандидат, контрящий 2+ РАЗНЫХ наших чемпионов,
@@ -1723,9 +1734,13 @@ public sealed class RecommendationEngine : IDisposable
     /// Отличается от списка контрпиков конкретного игрока: чемпион может не быть
     /// топ-контрой ни для кого по отдельности, но стабильно обыгрывать всю
     /// команду — такой бан помогает всем сразу.
-    private Dictionary<int, (double Threat, int Covered)> TeamThreats(IReadOnlyCollection<int> allyIds)
+    // Возвращает по каждому кандидату: насколько он опасен нашей команде и КОГО
+    // именно из неё бьёт. Список нужен подписи: в счёт идут не только пики на
+    // экране, но и чемпионы, которых союзники наводили раньше, — писать про них
+    // «твои пики» нельзя, игрок их уже не видит.
+    private Dictionary<int, (double Threat, List<int> Victims)> TeamThreats(IReadOnlyCollection<int> allyIds)
     {
-        var res = new Dictionary<int, (double, int)>();
+        var res = new Dictionary<int, (double, List<int>)>();
         if (allyIds.Count < 2) return res;   // «командная» угроза начинается с двоих
         try
         {
@@ -1736,6 +1751,7 @@ public sealed class RecommendationEngine : IDisposable
             cmd.CommandText = $@"
                 SELECT champion_id,
                        COUNT(DISTINCT vs_champion_id) AS n,
+                       GROUP_CONCAT(DISTINCT vs_champion_id) AS victims,
                        SUM(games*{PW}) AS g,
                        SUM(wins*{PW})  AS w
                 FROM   matchup
@@ -1751,8 +1767,12 @@ public sealed class RecommendationEngine : IDisposable
             {
                 var id = rd.GetInt32(0);
                 var n  = rd.GetInt32(1);
-                var g  = Convert.ToDouble(rd.GetValue(2));
-                var w  = Convert.ToDouble(rd.GetValue(3));
+                var victims = (rd.GetValue(2) as string ?? "")
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => int.TryParse(x, out var v) ? v : 0)
+                    .Where(x => x > 0).ToList();
+                var g  = Convert.ToDouble(rd.GetValue(3));
+                var w  = Convert.ToDouble(rd.GetValue(4));
 
                 // Чистая угроза: WR против наших минус собственный средний WR —
                 // иначе наверх лезли бы просто сильные чемпионы патча.
@@ -1762,7 +1782,7 @@ public sealed class RecommendationEngine : IDisposable
                 if (threat <= 0) continue;
 
                 // Масштабируем по охвату: бьёт троих — весомее, чем двоих.
-                res[id] = (threat * n / allyIds.Count, n);
+                res[id] = (threat * n / allyIds.Count, victims);
             }
         }
         catch { /* нет данных — фактор молчит */ }
