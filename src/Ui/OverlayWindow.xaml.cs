@@ -1176,12 +1176,22 @@ public partial class OverlayWindow : Window
         };
         row.Effect = glow;
 
-        var rise = new DoubleAnimation(0, 26, TimeSpan.FromSeconds(0.22))
+        var half = TimeSpan.FromSeconds(0.35);
+
+        var rise = new DoubleAnimation(0, 30, half)
         {
             AutoReverse = true,
             DecelerationRatio = 0.6,
         };
-        var fade = new DoubleAnimation(0, 0.95, TimeSpan.FromSeconds(0.22))
+        var fade = new DoubleAnimation(0, 1.0, half)
+        {
+            AutoReverse = true,
+            DecelerationRatio = 0.6,
+        };
+        // На пике свечение выбеливается: синее так и осталось бы частью палитры
+        // панели, а белая вспышка читается как «здесь только что появилось».
+        var heat = new ColorAnimation(
+            Color.FromRgb(0x36, 0xD6, 0xE7), Colors.White, half)
         {
             AutoReverse = true,
             DecelerationRatio = 0.6,
@@ -1192,6 +1202,7 @@ public partial class OverlayWindow : Window
 
         glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, rise);
         glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, fade);
+        glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.ColorProperty, heat);
     }
 
     /// Клик по строке сборки — выбор (подсветка золотом), без экспорта.
