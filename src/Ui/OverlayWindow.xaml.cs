@@ -5010,9 +5010,11 @@ public sealed class FullRecCard
     // Толщина рамки у ВСЕХ карточек одинаковая (1.5): разная толщина сдвигала
     // содержимое выбранной карточки на 1px — ряды «плыли» относительно соседних.
     public bool         IsSelected { get; init; }
-    // Пик из пула игрока — более синий фон и тонкая синяя рамка (см. FromPool).
-    public string       CardBg     => FromPool ? "#22315C8A" : IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
-    public string       CardBorder => FromPool ? "#5A8AC8" : IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
+    // Пик из пула игрока — синяя плашка, но БЕЗ рамки: обведённой показывается
+    // выбранная карточка, и вторая обводка рядом читалась как второй выбор.
+    // Синего в заливке за неё чуть больше — иначе без рамки плашка теряется.
+    public string       CardBg     => FromPool ? "#30315C8A" : IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
+    public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
 
     // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».
     public bool         NotOwned      { get; init; }
