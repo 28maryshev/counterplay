@@ -179,9 +179,15 @@ public static class BuildAdvisor
         {
             if (ally == stats.ChampionId) continue;
             var tags = DataDragon.ClassTags(ally);
-            var dmg = damageShare(ally);
-            var mage = tags.Contains("Mage") || (dmg is { } share && share.Magic >= 0.6);
+
+            // «Маг» — это основная роль, а не второй тег. У Смолдера, Серафины и
+            // многих стрелков с саппортами Mage стоит довеском, и по нему команда
+            // получала предмет для мага там, где мага нет вовсе.
+            //
+            // Доли урона тут тоже не помощники: Джакс бьёт магией, но силу умений
+            // не покупает — усиливать его этим предметом бессмысленно.
             var carry = tags.Contains("Marksman") || ChampionTags.Has(ally, "hypercarry");
+            var mage = tags.Contains("Mage") && !carry && !tags.Contains("Support");
 
             if (mage && pressure.All(n => n.Kind != "allyPower"))
                 pressure.Add(new Need("allyPower", 0.9, Loc.T("build.allyMage"), false));
