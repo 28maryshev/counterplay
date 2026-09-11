@@ -1976,7 +1976,9 @@
                             <!-- Фиксированная ширина, а не Auto: у подбора подпись
                                  длиннее числа игр, и на узком окне ряды предметов
                                  начинались с разного места. -->
-                            <ColumnDefinition Width="76"/>     <!-- WR + игры / знак подбора -->
+                            <!-- Хватает и знаку с подписью, и проценту: у́же — и лого
+                                 обрезается, ши́ре — ряд предметов уезжает вправо. -->
+                            <ColumnDefinition Width="86"/>     <!-- WR + игры / знак подбора -->
                             <ColumnDefinition Width="*"/>      <!-- слоты (сжимаемые) -->
                             <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
                           </Grid.ColumnDefinitions>
@@ -1994,15 +1996,21 @@
                                          FontFamily="{StaticResource UiFont}" FontSize="9"
                                          Foreground="#6A8296"/>
                             </StackPanel>
-                            <StackPanel Visibility="{Binding AiVis}" Orientation="Horizontal"
-                                        HorizontalAlignment="Right" VerticalAlignment="Center">
-                              <Image Source="{StaticResource BrandMark}" Width="11" Height="11"
-                                     VerticalAlignment="Center" Margin="0,0,3,0"
-                                     RenderOptions.BitmapScalingMode="HighQuality"/>
-                              <TextBlock FontFamily="{StaticResource UiFont}" FontSize="8.5"
-                                         FontWeight="Bold" VerticalAlignment="Center">
-                                <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/><Run Text=" AI" Foreground="#F0D48A"/>
-                              </TextBlock>
+                            <StackPanel Visibility="{Binding AiVis}" HorizontalAlignment="Right"
+                                        VerticalAlignment="Center">
+                              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Image Source="{StaticResource BrandMark}" Width="11" Height="11"
+                                       VerticalAlignment="Center" Margin="0,0,3,0"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                           FontWeight="Bold" VerticalAlignment="Center">
+                                  <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/><Run Text=" AI" Foreground="#36D6E7"/>
+                                </TextBlock>
+                              </StackPanel>
+                              <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
+                                         TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
+                                         FontFamily="{StaticResource UiFont}" FontSize="9"
+                                         Foreground="#6A8296"/>
                             </StackPanel>
                           </Grid>
 
