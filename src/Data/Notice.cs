@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Text.Json;
 
 namespace Counterplay;
@@ -73,9 +73,11 @@ public static class Notice
         if (!e.TryGetProperty("text", out var texts) || texts.ValueKind != JsonValueKind.Object)
             return null;
 
-        // Русский интерфейс — русский текст, остальные — английский. Пустое поле
-        // не показываем: лучше текст на другом языке, чем пустая плашка.
-        var order = Loc.Current == "ru" ? new[] { "ru", "en" } : new[] { "en", "ru" };
+        // Сначала — язык интерфейса: сообщения переводятся на все языки
+        // программы. Нет перевода (старое сообщение или перевод не сделали) —
+        // английский, затем русский. Пустое поле пропускаем: лучше текст на
+        // другом языке, чем пустая плашка.
+        var order = new[] { Loc.Current, "en", "ru" }.Distinct().ToArray();
         var text = order
             .Select(k => texts.TryGetProperty(k, out var v) ? v.GetString() : null)
             .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
