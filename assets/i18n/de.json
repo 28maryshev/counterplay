@@ -185,7 +185,9 @@
     "damage": "Schadensmix",
     "trueDmg": "Absolut {0}%",
     "needAp": "⚠ zu wenig magischer Schaden",
-    "needAd": "⚠ zu wenig physischer Schaden"
+    "needAd": "⚠ zu wenig physischer Schaden",
+    "enemyAd": "Rüstung kontert sie",
+    "enemyAp": "Magieresistenz kontert sie"
   },
   "tip": {
     "pin": "Am rechten Rand des Clients anheften",

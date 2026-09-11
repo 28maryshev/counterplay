@@ -28,6 +28,9 @@ public static class ItemFacts
         bool SpellShield,  // щит от одного умения — против размена и подлова
         bool Lifesteal,    // вампиризм/омнивамп — свой отхил
         bool Boots,
+        bool PureTank,     // только здоровье и сопротивления: ни ауры, ни актива,
+                           // ни ускорения умений — такое покупают танки и бойцы,
+                           // а не маги с энчантерами
         int Gold);
 
     private static Dictionary<int, Fact> _facts = new();
@@ -126,6 +129,18 @@ public static class ItemFacts
                     Lifesteal: tags.Contains("LifeSteal") || tags.Contains("SpellVamp")
                                || Says("Omnivamp", "Life Steal"),
                     Boots: isBoots,
+                    // Отличает Jak'Sho (чистая броня и магзащита) от Locket и
+                    // Knight's Vow: у последних есть аура, актив и ускорение
+                    // умений — их и берут на поддержке.
+                    PureTank: (Stat("FlatArmorMod") > 0 || Stat("FlatSpellBlockMod") > 0
+                               || Stat("FlatHPPoolMod") > 0)
+                              && !isBoots
+                              && !tags.Intersect(new[]
+                                 {
+                                     "Aura", "Active", "AbilityHaste", "CooldownReduction",
+                                     "SpellDamage", "Damage", "AttackSpeed", "CriticalStrike",
+                                     "LifeSteal", "SpellVamp", "ManaRegen",
+                                 }).Any(),
                     Gold: gold);
             }
 

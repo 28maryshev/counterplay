@@ -24,7 +24,9 @@
     "damage": "ダメージ構成",
     "trueDmg": "確定 {0}%",
     "needAp": "⚠ 魔法ダメージ不足",
-    "needAd": "⚠ 物理ダメージ不足"
+    "needAd": "⚠ 物理ダメージ不足",
+    "enemyAd": "アーマーで止まる",
+    "enemyAp": "魔法防御で止まる"
   },
   "ready": {
     "beta": "Counterplay は毎日改善されています。バグや提案はサポートまで",

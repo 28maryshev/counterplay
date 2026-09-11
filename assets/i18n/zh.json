@@ -24,7 +24,9 @@
     "damage": "伤害构成",
     "trueDmg": "真实 {0}%",
     "needAp": "⚠ 缺少法术伤害",
-    "needAd": "⚠ 缺少物理伤害"
+    "needAd": "⚠ 缺少物理伤害",
+    "enemyAd": "护甲能克制",
+    "enemyAp": "魔抗能克制"
   },
   "ready": {
     "beta": "Counterplay 每天都在改进。发现问题或有建议？请通过网站支持联系我们：",

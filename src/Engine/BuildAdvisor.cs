@@ -239,9 +239,30 @@ public static class BuildAdvisor
                 continue;
             }
 
+            // Порог популярности: в выгрузку попадает всё, что набрало 40 игр, и
+            // без отсечки в ответ пролезала экзотика — предмет, который на этом
+            // чемпионе берут раз в сотню игр. Совет должен оставаться тем, что
+            // на нём действительно собирают.
+            // Считаем долю не от игр чемпиона, а от его САМОГО ходового предмета:
+            // списки предметов собираются по другой выборке, и процент от игр
+            // чемпиона отсекал вообще всё.
+            var topGames = stats.Items.Max(i => i.Games);
+            var minGames = Math.Max(40, topGames * 0.02);
+
+            // Чистый танковый предмет предлагаем только тем, кто его носит.
+            // Иначе энчантеру прилетает Jak'Sho: в выгрузке он есть (кто-то
+            // собрал), но советовать такое нельзя.
+            var myTags = DataDragon.ClassTags(stats.ChampionId);
+            var iAmBeefy = myTags.Contains("Tank") || myTags.Contains("Fighter");
+
             var pick = stats.Items
                 .Where(i => !items.Contains(i.Id) && (avoid is null || !avoid.Contains(i.Id)))
                 .Where(i => Answers(i.Id, need.Kind))
+                .Where(i => i.Games >= minGames)
+                .Where(i => iAmBeefy || ItemFacts.Of(i.Id) is not { PureTank: true })
+                // И не проигрывающий: отклонение от 50% приглушаем объёмом, иначе
+                // редкий предмет с плохим винрейтом выглядит хуже, чем он есть.
+                .Where(i => 50 + (i.Winrate - 50) * i.Games / (i.Games + 100.0) >= 49.5)
                 // Среди подходящих берём тот, что чаще ВЫИГРЫВАЕТ на этом
                 // чемпионе. Сырой винрейт брать нельзя: предмет с 60% на полусотне
                 // игр — это чаще всего выбор тех, кто и так выигрывал. Поэтому
@@ -279,7 +300,7 @@ public static class BuildAdvisor
 
             items[slot] = pick.Id;
             added.Add(pick.Id);
-            reasons.Add(need.Reason);
+            if (!reasons.Contains(need.Reason)) reasons.Add(need.Reason);
 
 
             // Порядок покупки важен не меньше самого предмета. Срез лечения,
@@ -321,6 +342,10 @@ public static class BuildAdvisor
                 .Where(x => !items.Contains(x.Id) && !Wasted(x.Id, phys, magic)
                             && (avoid is null || !avoid.Contains(x.Id)))
                 .Where(x => ItemFacts.Of(x.Id) is { Boots: false })
+                .Where(x => x.Games >= Math.Max(40, stats.Items.Max(i => i.Games) * 0.02))
+                .Where(x => DataDragon.ClassTags(stats.ChampionId).Contains("Tank")
+                            || DataDragon.ClassTags(stats.ChampionId).Contains("Fighter")
+                            || ItemFacts.Of(x.Id) is not { PureTank: true })
                 .OrderByDescending(x => 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0))
                 .FirstOrDefault();
             if (better is null) continue;

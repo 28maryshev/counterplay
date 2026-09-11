@@ -142,7 +142,9 @@
     "damage": "Hasar dağılımı",
     "trueDmg": "Saf {0}%",
     "needAp": "⚠ büyü hasarı eksik",
-    "needAd": "⚠ fiziksel hasar eksik"
+    "needAd": "⚠ fiziksel hasar eksik",
+    "enemyAd": "zırh onları durdurur",
+    "enemyAp": "büyü direnci onları durdurur"
   },
   "tip": {
     "pin": "İstemcinin sağ kenarına sabitle",

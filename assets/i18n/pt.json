@@ -185,7 +185,9 @@
     "damage": "Dano",
     "trueDmg": "Puro {0}%",
     "needAp": "⚠ falta dano mágico",
-    "needAd": "⚠ falta dano físico"
+    "needAd": "⚠ falta dano físico",
+    "enemyAd": "a armadura trava-os",
+    "enemyAp": "a resistência mágica trava-os"
   },
   "tip": {
     "pin": "Fixar na borda direita do cliente",

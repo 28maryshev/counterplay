@@ -24,7 +24,9 @@
     "damage": "Sát thương",
     "trueDmg": "Chuẩn {0}%",
     "needAp": "⚠ thiếu sát thương phép",
-    "needAd": "⚠ thiếu sát thương vật lý"
+    "needAd": "⚠ thiếu sát thương vật lý",
+    "enemyAd": "giáp khắc chế họ",
+    "enemyAp": "kháng phép khắc chế họ"
   },
   "ready": {
     "beta": "Counterplay cải thiện mỗi ngày. Thấy lỗi hay có ý tưởng? Nhắn qua Hỗ trợ",

@@ -18,7 +18,9 @@
     "damage": "Répartition",
     "trueDmg": "Brut {0}%",
     "needAp": "⚠ manque de dégâts magiques",
-    "needAd": "⚠ manque de dégâts physiques"
+    "needAd": "⚠ manque de dégâts physiques",
+    "enemyAd": "l’armure les arrête",
+    "enemyAp": "la résistance magique les arrête"
   },
   "tray": {
     "autostart": "Démarrer avec Windows",

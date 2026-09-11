@@ -24,7 +24,9 @@
     "damage": "Danni",
     "trueDmg": "Puro {0}%",
     "needAp": "⚠ manca danno magico",
-    "needAd": "⚠ manca danno fisico"
+    "needAd": "⚠ manca danno fisico",
+    "enemyAd": "l’armatura li ferma",
+    "enemyAp": "la resistenza magica li ferma"
   },
   "ready": {
     "beta": "Counterplay migliora ogni giorno. Un bug o un'idea? Scrivici dal Supporto",

@@ -48,7 +48,9 @@
     "damage": "Damage mix",
     "trueDmg": "True {0}%",
     "needAp": "⚠ needs magic damage",
-    "needAd": "⚠ needs physical damage"
+    "needAd": "⚠ needs physical damage",
+    "enemyAd": "armour answers them",
+    "enemyAp": "magic resist answers them"
   },
   "ready": {
     "beta": "Counterplay improves every day. Found a bug or have an idea? Tell us via Support",

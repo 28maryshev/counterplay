@@ -2990,7 +2990,6 @@ public partial class OverlayWindow : Window
     private const int    DMG_WARN_PICKS = 3;
     private const double DMG_WARN_SHARE = 70.0;
 
-    private bool _dmgWarnBlinking;
 
     /// Мигание полосы урона. Включаем и выключаем ровно один раз на переход:
     /// перезапуск анимации на каждой перерисовке сбивал бы её фазу, и полоса
@@ -2998,29 +2997,43 @@ public partial class OverlayWindow : Window
     private void SetDamageWarning(Border bar, TextBlock warn, string? text)
     {
         var on = text is not null;
-        if (on == _dmgWarnBlinking && warn.Text == (text ?? "")) return;
-        _dmgWarnBlinking = on;
+        // Состояние читаем с самой подписи: полос теперь две, и общий флаг на обе
+        // гасил мигание у второй.
+        if (on == (warn.Visibility == Visibility.Visible) && warn.Text == (text ?? "")) return;
 
         warn.Text = text ?? "";
         warn.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
 
         if (on)
+        {
+            // Мигание должно ловиться боковым зрением: человек смотрит на список
+            // рекомендаций, а не на полосу. Прежние 0,3 и 0,7 с читались как
+            // «что-то там дышит» — провал глубже и ритм быстрее.
             bar.BeginAnimation(OpacityProperty, new DoubleAnimation
             {
-                From = 1.0, To = 0.3, Duration = TimeSpan.FromSeconds(0.7),
+                From = 1.0, To = 0.12, Duration = TimeSpan.FromSeconds(0.45),
                 AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
             });
+            // Подпись мигает вместе с полосой: в противофазе это рябило бы.
+            warn.BeginAnimation(OpacityProperty, new DoubleAnimation
+            {
+                From = 1.0, To = 0.25, Duration = TimeSpan.FromSeconds(0.45),
+                AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
+            });
+        }
         else
         {
             bar.BeginAnimation(OpacityProperty, null);
             bar.Opacity = 1.0;
+            warn.BeginAnimation(OpacityProperty, null);
+            warn.Opacity = 1.0;
         }
     }
 
     private void RenderDamageMix(IReadOnlyList<int> champIds, UIElement panel,
         ColumnDefinition adCol, ColumnDefinition apCol, ColumnDefinition truCol,
         TextBlock adText, TextBlock apText, TextBlock truText,
-        Border? bar = null, TextBlock? warn = null)
+        Border? bar = null, TextBlock? warn = null, bool ally = true)
     {
         var (ad, ap, tru) = DamageMix(champIds);
         if (ad + ap + tru <= 0 || !AppSettings.Current.DraftDamage)
@@ -3044,19 +3057,20 @@ public partial class OverlayWindow : Window
         // Чистый урон мал/отсутствует — не занимаем место подписью.
         truText.Visibility = tru >= 0.5 ? Visibility.Visible : Visibility.Collapsed;
 
-        // Предупреждение о перекосе — только для СВОЕЙ команды (у неё есть bar):
-        // у врагов перекос это не беда, а подсказка, что им можно закрыться одним
-        // предметом, и мигать по этому поводу незачем.
+        // Перекос важен у обеих команд, но вывод из него разный.
         //
-        // Пишем не «перекос», а чего команде НЕ ХВАТАЕТ: на этапе драфта это
-        // единственное, что человек может исправить своим пиком.
+        // У своей пишем, чего НЕ ХВАТАЕТ: на этапе драфта это единственное, что
+        // человек может исправить своим пиком. У врагов — чем ЗАКРЫТЬСЯ: состав,
+        // бьющий одним типом урона, останавливается одним предметом.
         if (bar is not null && warn is not null)
         {
             string? text = null;
             if (champIds.Count >= DMG_WARN_PICKS)
             {
-                if (ad >= DMG_WARN_SHARE)      text = Loc.T("team.needAp");
-                else if (ap >= DMG_WARN_SHARE) text = Loc.T("team.needAd");
+                if (ad >= DMG_WARN_SHARE)
+                    text = Loc.T(ally ? "team.needAp" : "team.enemyAd");
+                else if (ap >= DMG_WARN_SHARE)
+                    text = Loc.T(ally ? "team.needAd" : "team.enemyAp");
             }
             SetDamageWarning(bar, warn, text);
         }
@@ -4385,7 +4399,8 @@ public partial class OverlayWindow : Window
                         MyDmgAdText,    MyDmgApText,    MyDmgTrueText,
                         MyDmgBar, MyDmgWarn);
         RenderDamageMix(enemyIds, EnemyDmgPanel, EnemyDmgAdCol, EnemyDmgApCol, EnemyDmgTrueCol,
-                        EnemyDmgAdText, EnemyDmgApText, EnemyDmgTrueText);
+                        EnemyDmgAdText, EnemyDmgApText, EnemyDmgTrueText,
+                        EnemyDmgBar, EnemyDmgWarn, ally: false);
 
         var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
         var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);

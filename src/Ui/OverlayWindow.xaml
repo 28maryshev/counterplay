@@ -2050,10 +2050,17 @@
             <!-- Баланс урона команды врага -->
             <StackPanel DockPanel.Dock="Bottom" x:Name="EnemyDmgPanel" Visibility="Collapsed"
                         Margin="0,10,0,0">
-              <TextBlock Text="{loc:T team.damage}"
-                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
-                         Foreground="#C08080" Margin="0,0,0,4"/>
-              <Border Height="9" CornerRadius="4" Background="#22FFFFFF" ClipToBounds="True">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="{loc:T team.damage}"
+                           FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                           Foreground="#C08080"/>
+                <!-- Чем закрываться от их урона. Как и у своей команды, только
+                     вывод обратный: не «чего не хватает нам», а «что купить». -->
+                <TextBlock x:Name="EnemyDmgWarn" Visibility="Collapsed" Margin="8,0,0,0"
+                           FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                           Foreground="#F5C24A"/>
+              </StackPanel>
+              <Border x:Name="EnemyDmgBar" Height="9" CornerRadius="4" Background="#22FFFFFF" ClipToBounds="True">
                 <Grid>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="EnemyDmgAdCol"/>

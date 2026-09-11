@@ -24,7 +24,9 @@
     "damage": "Obrażenia",
     "trueDmg": "Nieusuwalne {0}%",
     "needAp": "⚠ brakuje obrażeń magicznych",
-    "needAd": "⚠ brakuje obrażeń fizycznych"
+    "needAd": "⚠ brakuje obrażeń fizycznych",
+    "enemyAd": "pancerz ich zatrzyma",
+    "enemyAp": "odporność na magię ich zatrzyma"
   },
   "ready": {
     "beta": "Counterplay staje się lepszy każdego dnia. Błąd lub pomysł? Napisz przez Wsparcie",
