@@ -993,7 +993,7 @@ public partial class OverlayWindow : Window
         string WrText, Brush WrBrush, string GamesText,
         Brush RowBg, Brush RowStroke,
         string Reason, Visibility ReasonVis,
-        Visibility WrVis, Visibility AiVis);
+        Visibility WrVis, Visibility AiVis, string TipHead);
 
     private static readonly Brush AiBrush    = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
@@ -1131,7 +1131,8 @@ public partial class OverlayWindow : Window
                 Reason: reason,
                 ReasonVis: reason.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                 WrVis: isAi ? Visibility.Collapsed : Visibility.Visible,
-                AiVis: isAi ? Visibility.Visible : Visibility.Collapsed));
+                AiVis: isAi ? Visibility.Visible : Visibility.Collapsed,
+                TipHead: Loc.T("runes.aiTipHead")));
         }
 
         BuildList.ItemsSource = rows;

@@ -151,6 +151,23 @@
     <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
          Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
          а не смыканием дуг. Левая половина синяя, правая красная. -->
+    <!-- Подсказка в фирменном виде: системная плашка с жёлтым фоном выбивается
+         из окна, поэтому у объяснений свой шаблон — как у панелей приложения. -->
+    <Style x:Key="HintTip" TargetType="ToolTip">
+      <Setter Property="Foreground" Value="#D7DEE6"/>
+      <Setter Property="HasDropShadow" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToolTip">
+            <Border Background="#F2141C28" BorderBrush="#4436D6E7" BorderThickness="1"
+                    CornerRadius="8" Padding="11,9">
+              <ContentPresenter/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <DrawingImage x:Key="BrandMark">
       <DrawingImage.Drawing>
         <DrawingGroup>
@@ -2007,10 +2024,38 @@
                                   <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/><Run Text=" AI" Foreground="#36D6E7"/>
                                 </TextBlock>
                               </StackPanel>
-                              <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
-                                         TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
-                                         FontFamily="{StaticResource UiFont}" FontSize="9"
-                                         Foreground="#6A8296"/>
+                              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                          Margin="0,1,0,0">
+                                <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
+                                           TextTrimming="CharacterEllipsis"
+                                           FontFamily="{StaticResource UiFont}" FontSize="9"
+                                           VerticalAlignment="Center" Foreground="#6A8296"/>
+                                <!-- Почему выбран именно такой набор. Причины живут здесь,
+                                     а не подписью под предметами: строкой они раздвигали
+                                     ряд, а панель и так узкая. -->
+                                <Border Width="13" Height="13" CornerRadius="7" Margin="4,0,0,0"
+                                        Background="#2236D6E7" BorderBrush="#5536D6E7"
+                                        BorderThickness="1" Cursor="Help"
+                                        ToolTipService.InitialShowDelay="120"
+                                        ToolTipService.ShowDuration="30000">
+                                  <TextBlock Text="?" FontFamily="{StaticResource UiFont}"
+                                             FontSize="9" FontWeight="Bold" Foreground="#36D6E7"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                  <Border.ToolTip>
+                                    <ToolTip Style="{StaticResource HintTip}">
+                                      <StackPanel MaxWidth="270">
+                                        <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
+                                                   FontFamily="{StaticResource UiFont}" FontSize="11"
+                                                   FontWeight="Bold" Foreground="#F0D48A"
+                                                   Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
+                                                   FontFamily="{StaticResource UiFont}" FontSize="11"
+                                                   LineHeight="16" Foreground="#D7DEE6"/>
+                                      </StackPanel>
+                                    </ToolTip>
+                                  </Border.ToolTip>
+                                </Border>
+                              </StackPanel>
                             </StackPanel>
                           </Grid>
 
