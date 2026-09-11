@@ -598,7 +598,8 @@
       "new": "Neu",
       "important": "Wichtig",
       "tip": "Tipp",
-      "update": "Update"
+      "update": "Update",
+      "question": "Frage"
     }
   }
 }

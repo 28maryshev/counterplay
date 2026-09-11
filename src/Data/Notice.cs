@@ -90,7 +90,8 @@ public static class Notice
         // Незнакомый ключ переводить нечем, поэтому проверяем по списку: иначе
         // на плашке оказалось бы служебное «notice.head.что-то».
         var head = e.TryGetProperty("head", out var h) ? h.GetString() ?? "beta" : "beta";
-        if (head is not ("beta" or "new" or "important" or "tip" or "update")) head = "beta";
+        if (head is not ("beta" or "new" or "important" or "tip" or "update" or "question"))
+            head = "beta";
 
         return new Item(text!.Trim(), string.IsNullOrWhiteSpace(link) ? null : link, kind, head);
     }

@@ -2311,25 +2311,29 @@ public partial class OverlayWindow : Window
     /// системном шрифте может не оказаться, и вместо метки игрок увидел бы
     /// пустой квадрат. «BETA» в списке нет намеренно: это не сообщение, а
     /// состояние программы, и знаков ему не нужно.
-    private static readonly Dictionary<string, (string Data, string Fill, string Stroke, bool Bang)>
+    private static readonly Dictionary<string,
+        (string Data, string Fill, string Stroke, string Glyph, double GlyphTop)>
         NoticeMarks = new()
         {
             // Неполадка — красный треугольник с восклицательным знаком.
-            ["alert"] = ("M10.5,0.8 L20.4,18 L0.6,18 Z", "#FF4438", "#FFE8E6", true),
+            ["alert"] = ("M10.5,0.8 L20.4,18 L0.6,18 Z", "#FF4438", "#FFE8E6", "!", 4),
             // Важное — тот же знак, но синий: важное не равно поломке, и цвет
             // тревоги на нём обесценивал бы саму тревогу.
-            ["important"] = ("M10.5,0.8 L20.4,18 L0.6,18 Z", "#3A7BD5", "#CFE4FF", true),
+            ["important"] = ("M10.5,0.8 L20.4,18 L0.6,18 Z", "#3A7BD5", "#CFE4FF", "!", 4),
             // Новинка — искра.
             ["new"] = ("M10.5,0.5 L12.7,7.3 L19.5,9.5 L12.7,11.7 L10.5,18.5 "
-                       + "L8.3,11.7 L1.5,9.5 L8.3,7.3 Z", "#FFE066", "#FFF4C0", false),
+                       + "L8.3,11.7 L1.5,9.5 L8.3,7.3 Z", "#FFE066", "#FFF4C0", "", 0),
             // Совет — лампочка: колба и цоколь двумя фигурами.
             ["tip"] = ("M10.5,1.2 C6.8,1.2 3.9,4.1 3.9,7.6 C3.9,10.1 5.4,11.8 6.5,13.2 "
                        + "L6.5,15 L14.5,15 L14.5,13.2 C15.6,11.8 17.1,10.1 17.1,7.6 "
                        + "C17.1,4.1 14.2,1.2 10.5,1.2 Z M7.3,16.3 L13.7,16.3 L13.7,18 L7.3,18 Z",
-                       "#36D6E7", "#BFF3F9", false),
+                       "#36D6E7", "#BFF3F9", "", 0),
+            // Вопрос — круг со знаком вопроса: спрашиваем игроков, а не сообщаем им.
+            ["question"] = ("M2.1,9.5 A8.4,8.4 0 1 0 18.9,9.5 A8.4,8.4 0 1 0 2.1,9.5 Z",
+                            "#36D6E7", "#BFF3F9", "?", 0),
             // Обновление — стрелка вверх: версия растёт, а не скачивается.
             ["update"] = ("M10.5,1.2 L16.8,9.2 L12.3,9.2 L12.3,17.6 L8.7,17.6 L8.7,9.2 L4.2,9.2 Z",
-                          "#36D6E7", "#BFF3F9", false),
+                          "#36D6E7", "#BFF3F9", "", 0),
         };
 
     private static readonly Dictionary<string, Brush> MarkBrushes = new();
@@ -2362,9 +2366,12 @@ public partial class OverlayWindow : Window
         BetaMarkLeft.Data = BetaMarkRight.Data = MarkShape(m.Data);
         BetaMarkLeft.Fill = BetaMarkRight.Fill = MarkBrush(m.Fill);
         BetaMarkLeft.Stroke = BetaMarkRight.Stroke = MarkBrush(m.Stroke);
-        // Восклицательный знак живёт внутри треугольника — у искры и лампы его нет.
+        // Знак внутри фигуры: восклицательный у треугольника, вопросительный у
+        // круга. У искры, лампы и стрелки его нет — фигура говорит сама.
+        BetaBangLeft.Text = BetaBangRight.Text = m.Glyph;
+        BetaBangLeft.Margin = BetaBangRight.Margin = new Thickness(0, m.GlyphTop, 0, 0);
         BetaBangLeft.Visibility = BetaBangRight.Visibility =
-            m.Bang ? Visibility.Visible : Visibility.Collapsed;
+            m.Glyph.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         BetaWarnLeft.Visibility = BetaWarnRight.Visibility = Visibility.Visible;
     }
 
