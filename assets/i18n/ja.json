@@ -584,5 +584,14 @@
     "vsPoke": "ポークとピック",
     "vsFront": "前衛越しの戦い",
     "vsLongCc": "長いCC ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "新着",
+      "important": "重要",
+      "tip": "ヒント",
+      "update": "アップデート"
+    }
   }
 }

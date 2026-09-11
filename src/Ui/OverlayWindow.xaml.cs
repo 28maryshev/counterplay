@@ -2169,7 +2169,12 @@ public partial class OverlayWindow : Window
         BetaText.Text = n?.Text ?? Loc.T("ready.beta");
         // Одного восклицательного знака мало — предупреждение должно бросаться в
         // глаза: слово целиком и по треугольнику с каждой стороны.
-        BetaBadge.Text = alert ? Loc.T("ready.alert") : "BETA";
+        // Заголовок плашки: у неполадки всегда «ВНИМАНИЕ», у обычного сообщения —
+        // тот, что выбрали при отправке (новое, важно, совет, обновление). Без
+        // сообщения остаётся «BETA», как было.
+        BetaBadge.Text = alert
+            ? Loc.T("ready.alert")
+            : n is null ? "BETA" : Loc.T("notice.head." + n.Head);
         BetaBadge.FontSize = alert ? 17 : 21;
         BetaWarnLeft.Visibility = BetaWarnRight.Visibility =
             alert ? Visibility.Visible : Visibility.Collapsed;

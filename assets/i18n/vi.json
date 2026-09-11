@@ -584,5 +584,14 @@
     "vsPoke": "quấy rối và bắt lẻ",
     "vsFront": "đánh xuyên tuyến đầu",
     "vsLongCc": "khống chế dài ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "MỚI",
+      "important": "QUAN TRỌNG",
+      "tip": "MẸO",
+      "update": "CẬP NHẬT"
+    }
   }
 }

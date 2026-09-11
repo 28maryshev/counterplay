@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Text.Json;
 
 namespace Counterplay;
@@ -24,7 +24,7 @@ public static class Notice
 
     /// Готовое к показу сообщение: текст на языке интерфейса, ссылка (если есть)
     /// и вид — "info" (обычная плашка) или "alert" (красная, о неполадке).
-    public sealed record Item(string Text, string? Link, string Kind);
+    public sealed record Item(string Text, string? Link, string Kind, string Head);
 
     private static JsonDocument? _doc;
 
@@ -84,8 +84,13 @@ public static class Notice
         var link = e.TryGetProperty("link", out var l) && l.ValueKind == JsonValueKind.String
             ? l.GetString() : null;
         var kind = e.TryGetProperty("kind", out var k) && k.GetString() == "alert" ? "alert" : "info";
+        // Заголовок приходит ключом — слово подставляем на языке интерфейса.
+        // Незнакомый ключ переводить нечем, поэтому проверяем по списку: иначе
+        // на плашке оказалось бы служебное «notice.head.что-то».
+        var head = e.TryGetProperty("head", out var h) ? h.GetString() ?? "beta" : "beta";
+        if (head is not ("beta" or "new" or "important" or "tip" or "update")) head = "beta";
 
-        return new Item(text!.Trim(), string.IsNullOrWhiteSpace(link) ? null : link, kind);
+        return new Item(text!.Trim(), string.IsNullOrWhiteSpace(link) ? null : link, kind, head);
     }
 
     /// Читает сохранённый ответ — чтобы плашка была заполнена ещё до сети.
@@ -133,7 +138,7 @@ public static class Notice
 
     // Чем отличается один набор сообщений от другого — чтобы зря не перерисовывать.
     private static string Signature() =>
-        string.Join("¦", Active().Select(i => $"{i.Kind}|{i.Text}|{i.Link}"));
+        string.Join("¦", Active().Select(i => $"{i.Kind}|{i.Head}|{i.Text}|{i.Link}"));
 
     private static void Parse(string json)
     {

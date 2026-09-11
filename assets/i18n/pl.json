@@ -584,5 +584,14 @@
     "vsPoke": "poke i łapanie",
     "vsFront": "walka przez ich front",
     "vsLongCc": "długa kontrola ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "NOWE",
+      "important": "WAŻNE",
+      "tip": "PORADA",
+      "update": "AKTUALIZACJA"
+    }
   }
 }

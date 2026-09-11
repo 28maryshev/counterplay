@@ -584,5 +584,14 @@
     "vsPoke": "Poke und Picks",
     "vsFront": "Kampf durch ihre Front",
     "vsLongCc": "lange Kontrolle ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "NEU",
+      "important": "WICHTIG",
+      "tip": "TIPP",
+      "update": "UPDATE"
+    }
   }
 }

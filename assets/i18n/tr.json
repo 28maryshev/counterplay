@@ -584,5 +584,14 @@
     "vsPoke": "uzaktan yıpratma ve yakalama",
     "vsFront": "ön saflarıyla savaş",
     "vsLongCc": "uzun kontrol ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "YENİ",
+      "important": "ÖNEMLİ",
+      "tip": "İPUCU",
+      "update": "GÜNCELLEME"
+    }
   }
 }

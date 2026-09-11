@@ -584,5 +584,14 @@
     "vsPoke": "消耗与抓单",
     "vsFront": "穿透前排的团战",
     "vsLongCc": "长控制 ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "新",
+      "important": "重要",
+      "tip": "提示",
+      "update": "更新"
+    }
   }
 }

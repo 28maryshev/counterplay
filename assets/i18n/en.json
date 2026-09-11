@@ -584,5 +584,14 @@
     "vsPoke": "they poke and pick (poke comp)",
     "vsFront": "they fight front to back",
     "vsLongCc": "long crowd control ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "NEW",
+      "important": "IMPORTANT",
+      "tip": "TIP",
+      "update": "UPDATE"
+    }
   }
 }

@@ -584,5 +584,14 @@
     "vsPoke": "poke y capturas",
     "vsFront": "pelea contra su línea frontal",
     "vsLongCc": "control largo ({0})"
+  },
+  "notice": {
+    "head": {
+      "beta": "BETA",
+      "new": "NUEVO",
+      "important": "IMPORTANTE",
+      "tip": "CONSEJO",
+      "update": "ACTUALIZACIÓN"
+    }
   }
 }
