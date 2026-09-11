@@ -584,16 +584,19 @@
     "vsPoke": "they poke and pick (poke comp)",
     "vsFront": "they fight front to back",
     "vsLongCc": "long crowd control ({0})",
+    "vsAuto": "auto-attack damage ({0})",
+    "vsBurst": "assassins on their team ({0})",
+    "selfHeal": "boosts your healing",
     "allyMage": "a strong mage on your team",
     "allyCarry": "an auto-attack carry on your team"
   },
   "notice": {
     "head": {
       "beta": "BETA",
-      "new": "NEW",
-      "important": "IMPORTANT",
-      "tip": "TIP",
-      "update": "UPDATE"
+      "new": "New",
+      "important": "Important",
+      "tip": "Tip",
+      "update": "Update"
     }
   }
 }

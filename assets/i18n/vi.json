@@ -584,16 +584,19 @@
     "vsPoke": "quấy rối và bắt lẻ",
     "vsFront": "đánh xuyên tuyến đầu",
     "vsLongCc": "khống chế dài ({0})",
+    "vsAuto": "sát thương đánh thường ({0})",
+    "vsBurst": "sát thủ bên họ ({0})",
+    "selfHeal": "tăng hồi máu của bạn",
     "allyMage": "đội có pháp sư mạnh",
     "allyCarry": "đội có carry đánh thường"
   },
   "notice": {
     "head": {
       "beta": "BETA",
-      "new": "MỚI",
-      "important": "QUAN TRỌNG",
-      "tip": "MẸO",
-      "update": "CẬP NHẬT"
+      "new": "Mới",
+      "important": "Quan trọng",
+      "tip": "Mẹo",
+      "update": "Cập nhật"
     }
   }
 }

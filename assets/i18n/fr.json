@@ -584,16 +584,19 @@
     "vsPoke": "poke et prises",
     "vsFront": "combat face à leur front",
     "vsLongCc": "contrôle long ({0})",
+    "vsAuto": "dégâts d'attaques de base ({0})",
+    "vsBurst": "assassins dans leur équipe ({0})",
+    "selfHeal": "amplifie tes soins",
     "allyMage": "un mage puissant dans ton équipe",
     "allyCarry": "un carry aux auto-attaques"
   },
   "notice": {
     "head": {
       "beta": "BETA",
-      "new": "NOUVEAU",
-      "important": "IMPORTANT",
-      "tip": "ASTUCE",
-      "update": "MISE À JOUR"
+      "new": "Nouveau",
+      "important": "Important",
+      "tip": "Astuce",
+      "update": "Mise à jour"
     }
   }
 }

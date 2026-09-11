@@ -584,16 +584,19 @@
     "vsPoke": "uzaktan yıpratma ve yakalama",
     "vsFront": "ön saflarıyla savaş",
     "vsLongCc": "uzun kontrol ({0})",
+    "vsAuto": "temel saldırı hasarı ({0})",
+    "vsBurst": "takımlarında suikastçı ({0})",
+    "selfHeal": "iyileşmeni güçlendirir",
     "allyMage": "takımda güçlü bir büyücü",
     "allyCarry": "otomatik saldırı carry’si"
   },
   "notice": {
     "head": {
       "beta": "BETA",
-      "new": "YENİ",
-      "important": "ÖNEMLİ",
-      "tip": "İPUCU",
-      "update": "GÜNCELLEME"
+      "new": "Yeni",
+      "important": "Önemli",
+      "tip": "İpucu",
+      "update": "Güncelleme"
     }
   }
 }

@@ -584,16 +584,19 @@
     "vsPoke": "Poke und Picks",
     "vsFront": "Kampf durch ihre Front",
     "vsLongCc": "lange Kontrolle ({0})",
+    "vsAuto": "Auto-Angriffs-Schaden ({0})",
+    "vsBurst": "Assassinen im Team ({0})",
+    "selfHeal": "verstärkt deine Heilung",
     "allyMage": "starker Magier im Team",
     "allyCarry": "Auto-Attack-Carry im Team"
   },
   "notice": {
     "head": {
       "beta": "BETA",
-      "new": "NEU",
-      "important": "WICHTIG",
-      "tip": "TIPP",
-      "update": "UPDATE"
+      "new": "Neu",
+      "important": "Wichtig",
+      "tip": "Tipp",
+      "update": "Update"
     }
   }
 }

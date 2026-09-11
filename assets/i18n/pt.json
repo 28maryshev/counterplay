@@ -584,16 +584,19 @@
     "vsPoke": "poke e capturas",
     "vsFront": "luta contra a linha da frente",
     "vsLongCc": "controlo longo ({0})",
+    "vsAuto": "dano de ataques básicos ({0})",
+    "vsBurst": "assassinos no time deles ({0})",
+    "selfHeal": "amplia sua cura",
     "allyMage": "um mago forte na equipa",
     "allyCarry": "um carry de ataques básicos"
   },
   "notice": {
     "head": {
       "beta": "BETA",
-      "new": "NOVO",
-      "important": "IMPORTANTE",
-      "tip": "DICA",
-      "update": "ATUALIZAÇÃO"
+      "new": "Novo",
+      "important": "Importante",
+      "tip": "Dica",
+      "update": "Atualização"
     }
   }
 }

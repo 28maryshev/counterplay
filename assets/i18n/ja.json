@@ -584,6 +584,9 @@
     "vsPoke": "ポークとピック",
     "vsFront": "前衛越しの戦い",
     "vsLongCc": "長いCC ({0})",
+    "vsAuto": "通常攻撃が主体 ({0})",
+    "vsBurst": "相手にアサシン ({0})",
+    "selfHeal": "自分の回復を強化",
     "allyMage": "味方に強力なメイジ",
     "allyCarry": "味方に通常攻撃キャリー"
   },

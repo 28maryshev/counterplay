@@ -2245,7 +2245,9 @@ public partial class OverlayWindow : Window
         BetaBadge.Text = alert
             ? Loc.T("ready.alert")
             : n is null ? "BETA" : Loc.T("notice.head." + n.Head);
-        BetaBadge.FontSize = alert ? 17 : 21;
+        // «BETA» — короткая метка и остаётся крупной. Слово-заголовок сообщения
+        // длиннее («Обновление»), и в том же размере оно давит текст под собой.
+        BetaBadge.FontSize = alert ? 17 : n is null ? 21 : 15;
         BetaWarnLeft.Visibility = BetaWarnRight.Visibility =
             alert ? Visibility.Visible : Visibility.Collapsed;
         BetaBadge.Foreground = alert ? BetaAlertBrush : BetaGoldBrush;

@@ -30,6 +30,19 @@ public static class ItemFacts
         bool BuffsAllyAttack,  // хил или щит даёт союзнику скорость атаки (Ardent)
         bool BuffsAllyPower,   // хил или щит даёт союзнику силу умений (Staff of Flowing Water)
         bool Lifesteal,    // вампиризм/омнивамп — свой отхил
+        bool TargetHealth, // урон считается от здоровья ЦЕЛИ (Кинжал, Кракен, Лиандри):
+                           // против набравших здоровье работает не хуже процентного
+                           // пробивания, а у стрелка часто это единственный ответ
+        bool ShredsArmor,  // сбивает броню цели (Чёрный тесак)
+        bool ShredsMr,     // сбивает сопротивление магии цели (Проклятие, Злобность)
+        bool Lifeline,     // щит на низком здоровье (Стеракс, Пасть, Щитолом) —
+                           // пережить наскок и взрыв там, где нет стазиса
+        bool SelfHealAmp,  // усиливает лечение НА СЕБЕ (Лик духа)
+        bool AutoDefense,  // меньше урона от автоатак: от критов (Омен Рандуина)
+                           // или от ударов вообще (Стальные набойки)
+        bool SlowsAttack,  // сбивает скорость атаки вокруг (Ледяное сердце)
+        bool Magical,      // предмет с силой умений: по нему понятно, каким уроном
+                           // бьёт то, что от него зависит
         bool Boots,
         bool PureTank,     // только здоровье и сопротивления: ни ауры, ни актива,
                            // ни ускорения умений — такое покупают танки и бойцы,
@@ -44,6 +57,33 @@ public static class ItemFacts
         var i = desc.IndexOf("an ally", StringComparison.OrdinalIgnoreCase);
         if (i < 0) return false;
         return desc[i..].Contains(what, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// Урон, который считается от здоровья ЦЕЛИ: процент максимального, текущего
+    /// или недостающего. Riot пишет это двумя способами — «2% max Health magic
+    /// damage» и «damage … increased based on their missing Health», — поэтому
+    /// смотрим и вперёд, и назад, но в пределах предложения.
+    ///
+    /// Слово «your» всё отменяет: «6% of your max Health» у Сердца титана — это
+    /// про своё здоровье, а не про чужое, и против толстой цели не помогает.
+    private static bool TargetHealthDamage(string desc)
+    {
+        foreach (Match m in Regex.Matches(
+                     desc, @"(max|maximum|current|missing)\s+Health[^.]{0,40}damage",
+                     RegexOptions.IgnoreCase))
+        {
+            var before = desc[Math.Max(0, m.Index - 14)..m.Index];
+            if (!before.Contains("your", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+
+        foreach (Match m in Regex.Matches(
+                     desc, @"damage[^.]{0,60}based on[^.]{0,25}(max|maximum|current|missing)\s+Health",
+                     RegexOptions.IgnoreCase))
+        {
+            if (!m.Value.Contains("your", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+
+        return false;
     }
 
     private static Dictionary<int, Fact> _facts = new();
@@ -151,6 +191,26 @@ public static class ItemFacts
                     BuffsAllyPower: !AllyBuff(desc, "Attack Speed") && AllyBuff(desc, "Ability Power"),
                     Lifesteal: tags.Contains("LifeSteal") || tags.Contains("SpellVamp")
                                || Says("Omnivamp", "Life Steal"),
+                    TargetHealth: TargetHealthDamage(desc),
+                    // Сбитая броня работает как пробивание, только достаётся всей
+                    // команде: «reduces the target's Armor by 6%».
+                    ShredsArmor: Regex.IsMatch(desc, @"reduc\w*[^.]{0,40}?\bArmor\b",
+                                               RegexOptions.IgnoreCase),
+                    ShredsMr: Regex.IsMatch(desc, @"reduc\w*[^.]{0,40}?Magic Resist",
+                                            RegexOptions.IgnoreCase),
+                    // Название механики у Riot одно на все такие предметы.
+                    Lifeline: desc.Contains("Lifeline", StringComparison.OrdinalIgnoreCase),
+                    // Именно «на тебе»: предметы энчантера усиливают то, что ты
+                    // даёшь другим, а Лик духа — то, чем лечишься сам.
+                    SelfHealAmp: Regex.IsMatch(desc, @"Heals? and Shields? on you are increased",
+                                               RegexOptions.IgnoreCase),
+                    // Набойки режут урон любых атак, Омен — только критов;
+                    // против команды на автоатаках работает и то и другое.
+                    AutoDefense: Says("damage from Critical Strikes",
+                                      "incoming damage from Attacks"),
+                    SlowsAttack: Regex.IsMatch(desc, @"reduc\w*[^.]{0,30}?Attack Speed",
+                                               RegexOptions.IgnoreCase),
+                    Magical: Stat("FlatMagicDamageMod") > 0,
                     Boots: isBoots,
                     // Отличает Jak'Sho (чистая броня и магзащита) от Locket и
                     // Knight's Vow: у последних есть аура, актив и ускорение

@@ -14,6 +14,16 @@ namespace Counterplay;
 /// врага, щиты, толстые цели, долгий контроль. Дальше берут предмет, который
 /// закрывает главное.
 ///
+/// Важно, что «много физического урона» — ещё не вся задача. Гайды разбирают
+/// её тоньше, и эти случаи разобраны здесь тоже:
+///   • двое на автоатаках — постоянный ДПС в упор, против него берут не броню
+///     вообще, а предметы против критов и скорости атаки;
+///   • двое убийц — тебя пытаются убрать за секунду, и спасает не защита, а
+///     стазис или щит на низком здоровье (у бойца и стрелка стазиса нет);
+///   • толстая цель — это не только процентное пробивание: урон от здоровья
+///     цели и сбитая броня закрывают ту же задачу, а часто только они и есть;
+///   • свой отхил — повод выбрать ту защиту, которая его усиливает.
+///
 /// Важное ограничение: выбираем ТОЛЬКО из предметов, которые на этом чемпионе
 /// реально собирают (данные из матчей). Иначе легко выдать броню на чемпиона,
 /// который её не носит, — совет, который сразу видно как машинный.
@@ -117,7 +127,7 @@ public static class BuildAdvisor
         magic /= dmgSum;
 
         // ── Чем этот состав неудобен ──────────────────────────────────────
-        int heal = 0, cc = 0, tanks = 0, longCc = 0;
+        int heal = 0, cc = 0, tanks = 0, longCc = 0, autos = 0, burst = 0;
         double shield = 0;
         foreach (var e in enemies)
         {
@@ -128,6 +138,18 @@ public static class BuildAdvisor
                 if (HardCc.Contains(dd)) cc++;
                 if (LongCc.Contains(dd)) longCc++;
             }
+
+            // Кто бьёт автоатаками. Их урон растёт со временем и режется не так,
+            // как разовый удар: против него берут не просто броню, а предметы
+            // против критов и скорости атаки.
+            if (DataDragon.ClassTags(e).Contains("Marksman") || ChampionTags.Has(e, "hypercarry"))
+                autos++;
+
+            // Кто убивает с наскока. Убийцы и те, кто прыгает с бёрстом: против
+            // них помогает не броня (её не хватит), а то, что даёт пережить
+            // первые секунды, — стазис или щит на низком здоровье.
+            if (DataDragon.ClassTags(e).Contains("Assassin")
+                || (ChampionTags.Has(e, "burst") && ChampionTags.Has(e, "dive"))) burst++;
 
             // Щит бывает не только в умениях. Бойцы вроде Олафа берут Стеракса
             // или Шилдбоу, и щит там не меньше — а режется он тем же предметом.
@@ -155,11 +177,34 @@ public static class BuildAdvisor
             defense.Add(new Need("armor", phys, Loc.T("build.vsMixed"), true));
             defense.Add(new Need("mr", magic, Loc.T("build.vsMixed"), true));
         }
-        if (cc >= 3) defense.Add(new Need("tenacity", 1.0, Loc.T("build.vsCc", cc), true));
+        // В ближнем бою контроль решает: пока тебя держат, ты стоишь вплотную и
+        // получаешь всё. Поэтому бойцу и танку стойкость нужна уже от двух таких
+        // врагов, а тому, кто бьёт издалека, — от трёх.
+        var myClass = DataDragon.ClassTags(stats.ChampionId);
+        var brawler = myClass.Contains("Tank") || myClass.Contains("Fighter");
+        var close = brawler || myClass.Contains("Assassin");
+        if (cc >= (close ? 2 : 3))
+            defense.Add(new Need("tenacity", 1.0, Loc.T("build.vsCc", cc), true));
         // Хватит и одного такого врага: провокация или подавление выключают из
         // драки целиком, и сокращать их на треть бессмысленно — нужно снимать.
         if (longCc >= 1)
             defense.Add(new Need("cleanse", 1.4, Loc.T("build.vsLongCc", longCc), true));
+
+        // Двое и больше на автоатаках — задача не про «много физического урона»,
+        // а про постоянный ДПС в упор: он не кончается после одного размена.
+        // Ответ на него отдельный: меньше урона от ударов и критов, сбитая
+        // скорость атаки вокруг. Нужен он не только танку — набойки берут все.
+        if (autos >= 2 && phys >= 0.5)
+            defense.Add(new Need("autoattack", 1.1, Loc.T("build.vsAuto", autos), true));
+
+        // Свой отхил — повод выбрать ту защиту, которая его усиливает: для
+        // чемпиона, который живёт лечением, это больше, чем лишние цифры.
+        var myDd = DataDragon.DdId(stats.ChampionId);
+        var iHeal = (myDd.Length > 0 && Healers.Contains(myDd))
+                    || ChampionTags.Has(stats.ChampionId, "heal")
+                    || ChampionTags.Has(stats.ChampionId, "sustain");
+        if (iHeal && magic >= 0.4)
+            defense.Add(new Need("healamp", 1.0, Loc.T("build.selfHeal"), true));
 
         var pressure = new List<Need>();
         if (heal >= 2) pressure.Add(new Need("antiheal", 2.0, Loc.T("build.vsHeal", heal), false));
@@ -202,10 +247,10 @@ public static class BuildAdvisor
         switch (ChampionTraits.DominantStyle(enemies))
         {
             case ChampionTraits.Arch.Dive:
-                defense.Add(new Need("stasis", 1.3, Loc.T("build.vsDive"), true));
+                defense.Add(new Need("survive", 1.3, Loc.T("build.vsDive"), true));
                 break;
             case ChampionTraits.Arch.PickPoke:
-                defense.Add(new Need("spellshield", 1.1, Loc.T("build.vsPoke"), true));
+                defense.Add(new Need("poke", 1.1, Loc.T("build.vsPoke"), true));
                 break;
             case ChampionTraits.Arch.FrontToBack:
                 pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.2,
@@ -213,6 +258,11 @@ public static class BuildAdvisor
                 break;
         }
 
+        // Двое убийц — это про наскок, даже если по голосованию состав вышел не
+        // «дайвом»: одного прыжка хватает, чтобы тебя убрали до первой драки.
+        // Если стиль уже дал ту же задачу, второй раз её не ставим.
+        if (burst >= 2 && defense.All(n => n.Kind != "survive"))
+            defense.Add(new Need("survive", 1.2, Loc.T("build.vsBurst", burst), true));
 
         // Обе задачи — в ОДНОЙ сборке: игрок покупает один набор предметов, и
         // разносить «против физического урона» и «враг лечится» по разным
@@ -430,13 +480,24 @@ public static class BuildAdvisor
             "mr"         => f.MagicResist >= 30 || (f.Boots && f.MagicResist >= 15),
             "tenacity"   => f.Tenacity,
             "antiheal"   => f.AntiHeal,
-            // Против толстых целей работает процентное пробивание и урон по
-            // запасу здоровья; летальность бьёт хрупких и здесь бесполезна.
-            "armorpen"   => f.ArmorPen && f.PercentPen,
-            "magicpen"   => f.MagicPen && f.PercentPen,
+            // Против толстых целей работает процентное пробивание, сбитая защита
+            // и урон, считающийся от здоровья цели; летальность бьёт хрупких и
+            // здесь бесполезна. Тип урона у предмета берём по силе умений: у
+            // мага и стрелка ответ на танка разный, хотя задача одна.
+            "armorpen"   => (f.ArmorPen && f.PercentPen) || f.ShredsArmor
+                            || (f.TargetHealth && !f.Magical),
+            "magicpen"   => (f.MagicPen && f.PercentPen) || f.ShredsMr
+                            || (f.TargetHealth && f.Magical),
             "antishield" => f.AntiShield,
-            "stasis"     => f.Stasis,
-            "spellshield" => f.SpellShield,
+            // Пережить наскок можно двумя способами: выпасть из боя (стазис,
+            // воскрешение) или получить щит на низком здоровье. Второе — ответ
+            // бойцов и стрелков, у которых стазиса нет и не будет.
+            "survive"    => f.Stasis || f.Lifeline,
+            // Против размена на дистанции — не пропустить ключевое умение или
+            // отхиливать размен обратно; и то и другое ломает их план.
+            "poke"       => f.SpellShield || f.Lifesteal,
+            "autoattack" => f.AutoDefense || f.SlowsAttack,
+            "healamp"    => f.SelfHealAmp,
             "cleanse"    => f.Cleanse,
             "allyPower"  => f.BuffsAllyPower,
             "allyAttack" => f.BuffsAllyAttack,
