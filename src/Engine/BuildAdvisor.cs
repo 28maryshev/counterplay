@@ -160,9 +160,14 @@ public static class BuildAdvisor
             var pick = stats.Items
                 .Where(i => !items.Contains(i.Id) && (avoid is null || !avoid.Contains(i.Id)))
                 .Where(i => Answers(i.Id, need.Kind))
-                // Среди подходящих берём самый ходовой у этого чемпиона: он и
-                // проверен практикой, и не ломает привычный порядок закупки.
-                .OrderByDescending(i => i.Games)
+                // Среди подходящих берём тот, что чаще ВЫИГРЫВАЕТ на этом
+                // чемпионе. Сырой винрейт брать нельзя: предмет с 60% на полусотне
+                // игр — это чаще всего выбор тех, кто и так выигрывал. Поэтому
+                // отклонение от 50% приглушается объёмом выборки, как и везде в
+                // движке: на 700 играх оно засчитывается почти целиком, на 60 —
+                // примерно на треть.
+                .OrderByDescending(i => 50 + (i.Winrate - 50) * i.Games / (i.Games + 100.0))
+                .ThenByDescending(i => i.Games)
                 .FirstOrDefault();
             if (pick is null) continue;
 
