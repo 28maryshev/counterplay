@@ -1973,18 +1973,22 @@
                              а винрейт и кнопка экспорта не прячутся никогда. -->
                         <Grid HorizontalAlignment="Right">
                           <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>   <!-- WR + игры  -->
+                            <!-- Фиксированная ширина, а не Auto: у подбора подпись
+                                 длиннее числа игр, и на узком окне ряды предметов
+                                 начинались с разного места. -->
+                            <ColumnDefinition Width="62"/>     <!-- WR + игры  -->
                             <ColumnDefinition Width="*"/>      <!-- слоты (сжимаемые) -->
                             <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
                           </Grid.ColumnDefinitions>
 
                           <!-- Винрейт и число игр: прижаты к краю первого предмета -->
                           <StackPanel Grid.Column="0" VerticalAlignment="Center"
-                                      HorizontalAlignment="Right" Margin="0,0,7,0">
+                                      HorizontalAlignment="Stretch" Margin="0,0,7,0">
                             <TextBlock Text="{Binding WrText}" TextAlignment="Right"
                                        FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                                        Foreground="{Binding WrBrush}"/>
                             <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
+                                       TextTrimming="CharacterEllipsis"
                                        FontFamily="{StaticResource UiFont}" FontSize="9"
                                        Foreground="#6A8296"/>
                           </StackPanel>
