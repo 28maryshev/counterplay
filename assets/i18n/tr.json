@@ -94,7 +94,8 @@
     "appliedSpells": "Rünler ve sihirdar büyüleri uygulandı",
     "aiBuild": "YZ",
     "aiUnder": "bu kadroya göre",
-    "aiCovered": "standart build bu kadroya zaten uygun"
+    "aiCovered": "standart build bu kadroya zaten uygun",
+    "aiTipHead": "Bu rakip kadroya göre seçildi"
   },
   "pick": {
     "confirm": "{0} seç",

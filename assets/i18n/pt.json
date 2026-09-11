@@ -94,7 +94,8 @@
     "appliedSpells": "Runas e feitiços aplicados",
     "aiBuild": "IA",
     "aiUnder": "para esta comp",
-    "aiCovered": "a build padrão já responde a esta comp"
+    "aiCovered": "a build padrão já responde a esta comp",
+    "aiTipHead": "Escolhido para esta comp inimiga"
   },
   "pick": {
     "confirm": "Escolher {0}",

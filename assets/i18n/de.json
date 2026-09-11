@@ -94,7 +94,8 @@
     "appliedSpells": "Runen & Beschwörerzauber übernommen",
     "aiBuild": "KI",
     "aiUnder": "für dieses Team",
-    "aiCovered": "der Standardbuild passt bereits zu diesem Team"
+    "aiCovered": "der Standardbuild passt bereits zu diesem Team",
+    "aiTipHead": "Für dieses gegnerische Team gewählt"
   },
   "pick": {
     "confirm": "{0} wählen",

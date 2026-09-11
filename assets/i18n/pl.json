@@ -375,7 +375,8 @@
     "appliedSpells": "Runy i czary przywoływacza zastosowane",
     "aiBuild": "AI",
     "aiUnder": "pod ten skład",
-    "aiCovered": "standardowy build już odpowiada temu składowi"
+    "aiCovered": "standardowy build już odpowiada temu składowi",
+    "aiTipHead": "Dobrane pod skład przeciwnika"
   },
   "pick": {
     "confirm": "Wybierz {0}",

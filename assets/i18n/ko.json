@@ -94,7 +94,8 @@
     "appliedSpells": "룬과 소환사 주문이 적용됨",
     "aiBuild": "AI",
     "aiUnder": "이 조합 대응",
-    "aiCovered": "기본 빌드로 이 조합에 대응 가능"
+    "aiCovered": "기본 빌드로 이 조합에 대응 가능",
+    "aiTipHead": "상대 조합에 맞춘 선택"
   },
   "pick": {
     "confirm": "{0} 선택",

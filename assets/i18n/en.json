@@ -21,7 +21,8 @@
     "appliedSpells": "Runes & summoner spells applied",
     "aiBuild": "AI",
     "aiUnder": "for this comp",
-    "aiCovered": "the popular build already answers this comp"
+    "aiCovered": "the popular build already answers this comp",
+    "aiTipHead": "Picked for this enemy team"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

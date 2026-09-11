@@ -310,7 +310,8 @@
     "appliedSpells": "Runes et sorts d'invocateur appliqués",
     "aiBuild": "IA",
     "aiUnder": "pour cette compo",
-    "aiCovered": "la build classique répond déjà à cette compo"
+    "aiCovered": "la build classique répond déjà à cette compo",
+    "aiTipHead": "Choisi pour cette compo adverse"
   },
   "pick": {
     "confirm": "Choisir {0}",

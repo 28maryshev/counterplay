@@ -1052,7 +1052,7 @@ public partial class OverlayWindow : Window
             foreach (var a in adapted.Take(1))
             {
                 _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
-                _buildReasons.Add(string.Join(" · ", a.Reasons));
+                _buildReasons.Add(string.Join("\n", a.Reasons.Select(r => "• " + r)));
                 _buildChanged.Add([.. a.Changed]);
                 _buildIsAi.Add(true);
             }
@@ -1072,7 +1072,8 @@ public partial class OverlayWindow : Window
             // это уже куплено: вывод должен быть виден, иначе читается как отказ.
             if (enemies.Count >= 5 && _buildReasons.Count > 0)
                 _buildReasons[0] = advice.Covered.Count > 0
-                    ? Loc.T("runes.aiCovered") + ": " + string.Join(" · ", advice.Covered)
+                    ? Loc.T("runes.aiCovered") + "\n"
+                      + string.Join("\n", advice.Covered.Select(c => "• " + c))
                     : Loc.T("runes.aiCovered");
         }
 
@@ -1115,7 +1116,12 @@ public partial class OverlayWindow : Window
                 // У подбора нет своего винрейта: такой набор целиком никто не
                 // играл. Показывать чужой процент — врать, поэтому вместо него
                 // подпись и причина.
-                Tip: isAi ? reason : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
+                Tip: isAi
+                    ? Loc.T("runes.aiTipHead") + "\n" + reason
+                    : reason.Length > 0
+                        ? Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games))
+                          + "\n" + reason
+                        : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
                 WrText: isAi ? Loc.T("runes.aiBuild") : b.Winrate.ToString("0.0") + "%",
                 WrBrush: isAi ? AiBrush : WinrateBrush(b.Winrate),
                 GamesText: isAi ? Loc.T("runes.aiUnder") : FormatGames(b.Games),

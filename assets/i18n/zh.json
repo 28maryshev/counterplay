@@ -375,7 +375,8 @@
     "appliedSpells": "符文和召唤师技能已应用",
     "aiBuild": "AI",
     "aiUnder": "针对该阵容",
-    "aiCovered": "常规出装已能应对该阵容"
+    "aiCovered": "常规出装已能应对该阵容",
+    "aiTipHead": "针对敌方阵容选择"
   },
   "pick": {
     "confirm": "选择 {0}",
