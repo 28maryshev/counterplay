@@ -576,6 +576,9 @@
     "vsCc": "dużo kontroli ({0})",
     "vsHeal": "leczenie wroga ({0})",
     "vsTank": "twarde cele ({0})",
-    "vsShield": "tarcze ({0})"
+    "vsShield": "tarcze ({0})",
+    "vsDive": "wskakują na ciebie",
+    "vsPoke": "poke i łapanie",
+    "vsFront": "walka przez ich front"
   }
 }

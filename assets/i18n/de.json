@@ -576,6 +576,9 @@
     "vsCc": "viel Kontrolle ({0})",
     "vsHeal": "gegnerische Heilung ({0})",
     "vsTank": "zähe Ziele ({0})",
-    "vsShield": "Schilde ({0})"
+    "vsShield": "Schilde ({0})",
+    "vsDive": "sie springen dich an",
+    "vsPoke": "Poke und Picks",
+    "vsFront": "Kampf durch ihre Front"
   }
 }

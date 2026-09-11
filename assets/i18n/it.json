@@ -576,6 +576,9 @@
     "vsCc": "molto controllo ({0})",
     "vsHeal": "cure nemiche ({0})",
     "vsTank": "bersagli resistenti ({0})",
-    "vsShield": "scudi ({0})"
+    "vsShield": "scudi ({0})",
+    "vsDive": "ti saltano addosso",
+    "vsPoke": "poke e prese",
+    "vsFront": "scontro contro la loro prima linea"
   }
 }

@@ -576,6 +576,9 @@
     "vsCc": "beaucoup de contrôle ({0})",
     "vsHeal": "soins ennemis ({0})",
     "vsTank": "cibles résistantes ({0})",
-    "vsShield": "boucliers ({0})"
+    "vsShield": "boucliers ({0})",
+    "vsDive": "ils te sautent dessus",
+    "vsPoke": "poke et prises",
+    "vsFront": "combat face à leur front"
   }
 }

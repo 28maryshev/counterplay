@@ -139,6 +139,25 @@ public static class BuildAdvisor
             pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.5, Loc.T("build.vsTank", tanks)));
         if (shield >= 2) pressure.Add(new Need("antishield", 1.0, Loc.T("build.vsShield", shield)));
 
+        // Стиль состава. Он говорит не про тип урона, а про то, КАК по тебе
+        // попадают, и на это есть свои ответы: против прыжка — стазис или
+        // воскрешение (успеть пережить взрыв), против дальнего размена и подлова
+        // — щит от одного умения, против фронта — процентное пробивание.
+        switch (ChampionTraits.DominantStyle(enemies))
+        {
+            case ChampionTraits.Arch.Dive:
+                defense.Add(new Need("stasis", 1.3, Loc.T("build.vsDive")));
+                break;
+            case ChampionTraits.Arch.PickPoke:
+                defense.Add(new Need("spellshield", 1.1, Loc.T("build.vsPoke")));
+                break;
+            case ChampionTraits.Arch.FrontToBack:
+                pressure.Add(new Need(iAmMagic ? "magicpen" : "armorpen", 1.2,
+                                      Loc.T("build.vsFront")));
+                break;
+        }
+
+
         var res = new List<Adapted>();
         var covered = new List<string>();
         var d1 = Compose(stats, baseBuild, defense, phys, magic, covered);
@@ -294,6 +313,8 @@ public static class BuildAdvisor
             "armorpen"   => f.ArmorPen && f.PercentPen,
             "magicpen"   => f.MagicPen && f.PercentPen,
             "antishield" => f.AntiShield,
+            "stasis"     => f.Stasis,
+            "spellshield" => f.SpellShield,
             _            => false,
         };
     }

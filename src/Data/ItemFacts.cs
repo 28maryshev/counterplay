@@ -24,6 +24,8 @@ public static class ItemFacts
                            // именно оно работает против набравших броню и HP,
                            // тогда как летальность — против хрупких целей
         bool AntiShield,   // режет щиты
+        bool Stasis,       // стазис или воскрешение — пережить прыжок и взрыв
+        bool SpellShield,  // щит от одного умения — против размена и подлова
         bool Lifesteal,    // вампиризм/омнивамп — свой отхил
         bool Boots,
         int Gold);
@@ -115,6 +117,12 @@ public static class ItemFacts
                     MagicPen: tags.Contains("MagicPenetration") || Says("Magic Penetration"),
                     PercentPen: pctPen,
                     AntiShield: Says("Shield Reaver", "shields", "shielding") && Says("reduc", "-50%"),
+                    // Часовые Жони и Ангел-хранитель отвечают на одно и то же:
+                    // тебя догнали и пытаются взорвать.
+                    Stasis: Says("Stasis", "revive", "resurrect"),
+                    // Щит от умения — ответ на подлов и дальний размен: ловят
+                    // одним заклинанием, и оно не проходит.
+                    SpellShield: Says("Spell Shield", "Spellshield"),
                     Lifesteal: tags.Contains("LifeSteal") || tags.Contains("SpellVamp")
                                || Says("Omnivamp", "Life Steal"),
                     Boots: isBoots,

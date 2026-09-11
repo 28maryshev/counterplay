@@ -576,6 +576,9 @@
     "vsCc": "mucho control ({0})",
     "vsHeal": "curación enemiga ({0})",
     "vsTank": "objetivos resistentes ({0})",
-    "vsShield": "escudos ({0})"
+    "vsShield": "escudos ({0})",
+    "vsDive": "te saltan encima",
+    "vsPoke": "poke y capturas",
+    "vsFront": "pelea contra su línea frontal"
   }
 }

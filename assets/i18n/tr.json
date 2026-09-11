@@ -576,6 +576,9 @@
     "vsCc": "çok fazla kontrol ({0})",
     "vsHeal": "düşman iyileşmesi ({0})",
     "vsTank": "dayanıklı hedefler ({0})",
-    "vsShield": "kalkanlar ({0})"
+    "vsShield": "kalkanlar ({0})",
+    "vsDive": "üstüne atlıyorlar",
+    "vsPoke": "uzaktan yıpratma ve yakalama",
+    "vsFront": "ön saflarıyla savaş"
   }
 }

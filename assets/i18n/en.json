@@ -576,6 +576,9 @@
     "vsCc": "heavy crowd control ({0})",
     "vsHeal": "enemy healing ({0})",
     "vsTank": "tanky targets ({0})",
-    "vsShield": "shields ({0})"
+    "vsShield": "shields ({0})",
+    "vsDive": "they dive you (dive comp)",
+    "vsPoke": "they poke and pick (poke comp)",
+    "vsFront": "they fight front to back"
   }
 }
