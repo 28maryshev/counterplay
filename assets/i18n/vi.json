@@ -583,7 +583,9 @@
     "vsDive": "họ lao vào bạn",
     "vsPoke": "quấy rối và bắt lẻ",
     "vsFront": "đánh xuyên tuyến đầu",
-    "vsLongCc": "khống chế dài ({0})"
+    "vsLongCc": "khống chế dài ({0})",
+    "allyMage": "đội có pháp sư mạnh",
+    "allyCarry": "đội có carry đánh thường"
   },
   "notice": {
     "head": {

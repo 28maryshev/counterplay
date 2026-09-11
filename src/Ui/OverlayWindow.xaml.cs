@@ -1030,8 +1030,12 @@ public partial class OverlayWindow : Window
         // среза лечения.
         var enemies = _lastDraft?.TheirTeam
             .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
+        // Своя команда — для предметов поддержки: кого усиливать, зависит от того,
+        // кто рядом.
+        var allies = _lastDraft?.MyTeam
+            .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
         var advice = enemies.Count >= 5 && _engine is not null
-            ? BuildAdvisor.Adapt(stats, stats.Builds[0], enemies, id => _engine.DamageShare(id))
+            ? BuildAdvisor.Adapt(stats, stats.Builds[0], enemies, allies, id => _engine.DamageShare(id))
             : new BuildAdvisor.Advice([], []);
         var adapted = advice.Builds;
 

@@ -583,7 +583,9 @@
     "vsDive": "they dive you (dive comp)",
     "vsPoke": "they poke and pick (poke comp)",
     "vsFront": "they fight front to back",
-    "vsLongCc": "long crowd control ({0})"
+    "vsLongCc": "long crowd control ({0})",
+    "allyMage": "a strong mage on your team",
+    "allyCarry": "an auto-attack carry on your team"
   },
   "notice": {
     "head": {

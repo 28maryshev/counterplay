@@ -583,7 +583,9 @@
     "vsDive": "wskakują na ciebie",
     "vsPoke": "poke i łapanie",
     "vsFront": "walka przez ich front",
-    "vsLongCc": "długa kontrola ({0})"
+    "vsLongCc": "długa kontrola ({0})",
+    "allyMage": "silny mag w drużynie",
+    "allyCarry": "carry na autoatakach"
   },
   "notice": {
     "head": {

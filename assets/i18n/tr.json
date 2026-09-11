@@ -583,7 +583,9 @@
     "vsDive": "üstüne atlıyorlar",
     "vsPoke": "uzaktan yıpratma ve yakalama",
     "vsFront": "ön saflarıyla savaş",
-    "vsLongCc": "uzun kontrol ({0})"
+    "vsLongCc": "uzun kontrol ({0})",
+    "allyMage": "takımda güçlü bir büyücü",
+    "allyCarry": "otomatik saldırı carry’si"
   },
   "notice": {
     "head": {

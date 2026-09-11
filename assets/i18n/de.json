@@ -583,7 +583,9 @@
     "vsDive": "sie springen dich an",
     "vsPoke": "Poke und Picks",
     "vsFront": "Kampf durch ihre Front",
-    "vsLongCc": "lange Kontrolle ({0})"
+    "vsLongCc": "lange Kontrolle ({0})",
+    "allyMage": "starker Magier im Team",
+    "allyCarry": "Auto-Attack-Carry im Team"
   },
   "notice": {
     "head": {

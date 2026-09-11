@@ -27,12 +27,24 @@ public static class ItemFacts
         bool Stasis,       // стазис или воскрешение — пережить прыжок и взрыв
         bool SpellShield,  // щит от одного умения — против размена и подлова
         bool Cleanse,      // снимает контроль: с себя (Ртутные) или с союзника (Микаэль)
+        bool BuffsAllyAttack,  // хил или щит даёт союзнику скорость атаки (Ardent)
+        bool BuffsAllyPower,   // хил или щит даёт союзнику силу умений (Staff of Flowing Water)
         bool Lifesteal,    // вампиризм/омнивамп — свой отхил
         bool Boots,
         bool PureTank,     // только здоровье и сопротивления: ни ауры, ни актива,
                            // ни ускорения умений — такое покупают танки и бойцы,
                            // а не маги с энчантерами
         int Gold);
+
+    // Что предмет даёт СОЮЗНИКУ после хила или щита. Ищем в куске описания после
+    // фразы про хил/щит: сами характеристики предмета перечислены выше и сбили бы
+    // проверку — сила умений есть у обоих.
+    private static bool AllyBuff(string desc, string what)
+    {
+        var i = desc.IndexOf("an ally", StringComparison.OrdinalIgnoreCase);
+        if (i < 0) return false;
+        return desc[i..].Contains(what, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static Dictionary<int, Fact> _facts = new();
     private static string? _loadedVersion;
@@ -131,6 +143,12 @@ public static class ItemFacts
                     // Под неё попадают и Микаэль, и Ртутные, и Скимитар.
                     Cleanse: Regex.IsMatch(desc, @"remove[sd]?\s+all\s+crowd\s+control",
                                            RegexOptions.IgnoreCase),
+                    // Предметы энчантера отличаются не статами, а тем, ЧТО они
+                    // дают союзнику после хила или щита: Ardent — скорость атаки,
+                    // Staff of Flowing Water — силу умений. Смотрим текст после
+                    // общей для них фразы.
+                    BuffsAllyAttack: AllyBuff(desc, "Attack Speed"),
+                    BuffsAllyPower: !AllyBuff(desc, "Attack Speed") && AllyBuff(desc, "Ability Power"),
                     Lifesteal: tags.Contains("LifeSteal") || tags.Contains("SpellVamp")
                                || Says("Omnivamp", "Life Steal"),
                     Boots: isBoots,

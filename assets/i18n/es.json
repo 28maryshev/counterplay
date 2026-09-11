@@ -583,7 +583,9 @@
     "vsDive": "te saltan encima",
     "vsPoke": "poke y capturas",
     "vsFront": "pelea contra su línea frontal",
-    "vsLongCc": "control largo ({0})"
+    "vsLongCc": "control largo ({0})",
+    "allyMage": "mago fuerte en tu equipo",
+    "allyCarry": "carry de autoataques en tu equipo"
   },
   "notice": {
     "head": {

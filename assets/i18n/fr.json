@@ -583,7 +583,9 @@
     "vsDive": "ils te sautent dessus",
     "vsPoke": "poke et prises",
     "vsFront": "combat face à leur front",
-    "vsLongCc": "contrôle long ({0})"
+    "vsLongCc": "contrôle long ({0})",
+    "allyMage": "un mage puissant dans ton équipe",
+    "allyCarry": "un carry aux auto-attaques"
   },
   "notice": {
     "head": {

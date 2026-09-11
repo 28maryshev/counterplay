@@ -583,7 +583,9 @@
     "vsDive": "飛び込んでくる編成",
     "vsPoke": "ポークとピック",
     "vsFront": "前衛越しの戦い",
-    "vsLongCc": "長いCC ({0})"
+    "vsLongCc": "長いCC ({0})",
+    "allyMage": "味方に強力なメイジ",
+    "allyCarry": "味方に通常攻撃キャリー"
   },
   "notice": {
     "head": {

@@ -89,6 +89,7 @@ public static class BuildAdvisor
     /// </summary>
     public static Advice Adapt(
         ChampStats stats, BuildData baseBuild, IReadOnlyList<int> enemies,
+        IReadOnlyList<int> allies,
         Func<int, (double Phys, double Magic, double True)?> damageShare)
     {
         if (!ItemFacts.Loaded || stats.Items.Count == 0 || enemies.Count == 0)
@@ -169,6 +170,24 @@ public static class BuildAdvisor
         if (shield >= 2)
             pressure.Add(new Need("antishield", 1.0,
                                   Loc.T("build.vsShield", Math.Round(shield)), false));
+
+        // Своя команда тоже решает покупку — у поддержки особенно. Есть кому
+        // усиливать: магу пригодится сила умений от щита, керри на автоатаках —
+        // скорость атаки. Предметы эти есть только у энчантеров, поэтому лишнего
+        // никому не предложат: выбор всё равно идёт из того, что чемпион собирает.
+        foreach (var ally in allies)
+        {
+            if (ally == stats.ChampionId) continue;
+            var tags = DataDragon.ClassTags(ally);
+            var dmg = damageShare(ally);
+            var mage = tags.Contains("Mage") || (dmg is { } share && share.Magic >= 0.6);
+            var carry = tags.Contains("Marksman") || ChampionTags.Has(ally, "hypercarry");
+
+            if (mage && pressure.All(n => n.Kind != "allyPower"))
+                pressure.Add(new Need("allyPower", 0.9, Loc.T("build.allyMage"), false));
+            if (carry && pressure.All(n => n.Kind != "allyAttack"))
+                pressure.Add(new Need("allyAttack", 0.9, Loc.T("build.allyCarry"), false));
+        }
 
         // Стиль состава. Он говорит не про тип урона, а про то, КАК по тебе
         // попадают, и на это есть свои ответы: против прыжка — стазис или
@@ -413,6 +432,8 @@ public static class BuildAdvisor
             "stasis"     => f.Stasis,
             "spellshield" => f.SpellShield,
             "cleanse"    => f.Cleanse,
+            "allyPower"  => f.BuffsAllyPower,
+            "allyAttack" => f.BuffsAllyAttack,
             _            => false,
         };
     }
