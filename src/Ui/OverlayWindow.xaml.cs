@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -1193,8 +1193,8 @@ public partial class OverlayWindow : Window
         static KeySpline Ease() => new(0.0, 0.7, 0.2, 1.0);
 
         var rise = new DoubleAnimationUsingKeyFrames();
-        rise.KeyFrames.Add(new LinearDoubleKeyFrame(46, peak));
-        rise.KeyFrames.Add(new LinearDoubleKeyFrame(46, full));
+        rise.KeyFrames.Add(new LinearDoubleKeyFrame(80, peak));
+        rise.KeyFrames.Add(new LinearDoubleKeyFrame(80, full));
         rise.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
 
         var fade = new DoubleAnimationUsingKeyFrames();
