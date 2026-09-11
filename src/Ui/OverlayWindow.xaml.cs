@@ -1011,6 +1011,9 @@ public partial class OverlayWindow : Window
     // сервера, — иначе кнопка отправляла бы в клиент не ту сборку, что на экране.
     private List<BuildData> _shownBuilds = [];
     private List<string> _buildReasons = [];
+    // Что именно заменено под состав врагов — эти слоты подсвечиваем, иначе
+    // подбор неотличим от обычной сборки: разница бывает в один предмет.
+    private List<HashSet<int>> _buildChanged = [];
 
     private void RenderBuilds(ChampStats stats)
     {
@@ -1031,22 +1034,25 @@ public partial class OverlayWindow : Window
 
         _shownBuilds = [];
         _buildReasons = [];
+        _buildChanged = [];
         if (adapted.Count > 0)
         {
             // Первой — самая ходовая сборка: как собирают вообще, без оглядки на
             // соперника. Ниже — ответы этому составу.
             _shownBuilds.Add(stats.Builds[0]);
             _buildReasons.Add("");
+            _buildChanged.Add([]);
             foreach (var a in adapted.Take(2))
             {
                 _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
                 _buildReasons.Add(string.Join(" · ", a.Reasons));
+                _buildChanged.Add([.. a.Changed]);
             }
         }
         else
         {
             _shownBuilds.AddRange(stats.Builds);
-            foreach (var _ in stats.Builds) _buildReasons.Add("");
+            foreach (var _ in stats.Builds) { _buildReasons.Add(""); _buildChanged.Add([]); }
         }
 
         var rows = new List<BuildRowVm>();
@@ -1054,22 +1060,27 @@ public partial class OverlayWindow : Window
         {
             var b = _shownBuilds[i];
             var reason = _buildReasons[i];
+            var changed = _buildChanged[i];
             var isAi = reason.Length > 0;
             var slots = new List<SlotVm>();
 
             // CORE — набор, который реально играли вместе (у него и винрейт).
             // Остальные слоты — ходовые докупки, которыми сборка добита до шести.
             var core = b.Core.Count > 0 ? b.Core.ToHashSet() : b.Items.Take(3).ToHashSet();
-            var ordered = b.Items.Where(core.Contains).Concat(b.Items.Where(x => !core.Contains(x)));
+            var ordered = isAi
+                ? b.Items.AsEnumerable()          // подбор показываем как есть, порядком закупки
+                : b.Items.Where(core.Contains).Concat(b.Items.Where(x => !core.Contains(x)));
             foreach (var id in ordered.Take(6))
             {
                 var isCore = core.Contains(id);
+                var swapped = changed.Contains(id);
                 slots.Add(new SlotVm(
                     ItemIcons.GetOrLoad(id),
-                    ItemIcons.NameOf(id) + (isCore ? $" · {Loc.T("runes.core")}" : ""),
-                    isCore ? CoreStroke : AltStroke,
-                    new Thickness(isCore ? 1.5 : 1),
-                    isCore ? 1.0 : 0.85));
+                    ItemIcons.NameOf(id)
+                        + (swapped ? $" · {Loc.T("runes.aiUnder")}" : isCore ? $" · {Loc.T("runes.core")}" : ""),
+                    swapped ? AiBrush : isCore ? CoreStroke : AltStroke,
+                    new Thickness(swapped ? 2 : isCore ? 1.5 : 1),
+                    swapped || isCore ? 1.0 : 0.85));
             }
             // Добиваем до 6 слотов пустыми рамками — сетка ровная.
             while (slots.Count < 6)

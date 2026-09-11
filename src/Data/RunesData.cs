@@ -212,6 +212,11 @@ public static class RunesClient
             _      => new[] { 3006, 3031, 6673, 3072, 3036, 3026, 3047, 6672, 3153,
                               3033, 3095, 3156, 3161, 6676, 3143, 3139 },
         };
+        // Порядок полки — свой у каждого чемпиона. Иначе все маги в песочнице
+        // получают одну и ту же сборку, и подбор под состав выглядит поломанным:
+        // разница между строками есть, а между чемпионами нет.
+        itemPool = itemPool.OrderBy(x => (x * 7 + champ * 13) % 101).ToArray();
+
         var core3 = new Func<int, int[]>(shift => itemPool.Skip(shift).Take(6).ToArray());
         var builds = new List<BuildData>
         {
