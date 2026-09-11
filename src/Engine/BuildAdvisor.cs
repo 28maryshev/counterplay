@@ -200,19 +200,55 @@ public static class BuildAdvisor
                 .FirstOrDefault();
             if (pick is null) continue;
 
-            // Куда ставить. Сначала — на место предмета, который против этого
-            // состава бесполезен: броня против магов не станет полезнее оттого,
-            // что её часто берут. Такой слот освобождаем даже в ядре — держать в
-            // нём мёртвую защиту и есть та ошибка, которую мы исправляем.
-            var slot = items.FindIndex(i => !added.Contains(i) && Wasted(i, phys, magic));
-            // Иначе — последний некорневой: ядро держит самого чемпиона.
-            if (slot < 0)
-                slot = items.FindLastIndex(i => !core.Contains(i) && !added.Contains(i));
+            // Ботинки в сборке одни: если ответ — обувь, она занимает место
+            // прежней пары, а не добавляется второй. Иначе в сборке оказывалось
+            // двое сапог — сразу видно, что советовала машина.
+            var picked = ItemFacts.Of(pick.Id);
+            int slot;
+            if (picked is { Boots: true })
+            {
+                slot = items.FindIndex(i => ItemFacts.Of(i) is { Boots: true });
+            }
+            else
+            {
+                // Сначала — на место предмета, который против этого состава
+                // бесполезен: броня против магов не станет полезнее оттого, что
+                // её часто берут. Такой слот освобождаем даже в ядре — держать в
+                // нём мёртвую защиту и есть та ошибка, которую мы исправляем.
+                slot = items.FindIndex(i => !added.Contains(i) && Wasted(i, phys, magic)
+                                            && ItemFacts.Of(i) is not { Boots: true });
+                // Иначе — последний некорневой: ядро держит самого чемпиона.
+                if (slot < 0)
+                    slot = items.FindLastIndex(i => !core.Contains(i) && !added.Contains(i)
+                                                    && ItemFacts.Of(i) is not { Boots: true });
+            }
             if (slot < 0) break;
 
             items[slot] = pick.Id;
             added.Add(pick.Id);
             reasons.Add(need.Reason);
+
+            // Порядок покупки важен не меньше самого предмета. Срез лечения,
+            // купленный шестым, не спасает от лечения в первых же драках — его
+            // берут сразу, часто даже недостроенным. Защиту тоже двигаем вперёд,
+            // но мягче: без своего урона она не выигрывает.
+            //
+            // Ботинки не трогаем: они и так на своём месте в порядке закупки.
+            if (picked is not { Boots: true })
+            {
+                var target = need.Kind switch
+                {
+                    "antiheal" => 1,
+                    "armor" or "mr" => 2,
+                    _ => -1,
+                };
+                if (target >= 0 && slot > target)
+                {
+                    var moved = items[slot];
+                    items.RemoveAt(slot);
+                    items.Insert(Math.Min(target, items.Count), moved);
+                }
+            }
         }
 
         // Бывает, что нужное в сборке уже есть (магзащита куплена), а бесполезное
