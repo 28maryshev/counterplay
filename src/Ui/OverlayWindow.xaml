@@ -1976,6 +1976,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
+                       <Grid>
                         <!-- Клик по строке выбирает сборку: она подсвечивается
                              золотом, и видно, какую именно отправишь в клиент. -->
                         <Border Margin="0,0,0,3" Padding="4,2" CornerRadius="6" Cursor="Hand"
@@ -2103,13 +2104,25 @@
                                   Cursor="Hand" VerticalAlignment="Center"
                                   Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
-                                  ToolTip="{Binding Tip}">
+                                  ToolTip="{Binding TipHead}">
                             <TextBlock Text="{Binding ExportText}"
                                        FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                                        Foreground="#F0D48A"/>
                           </Border>
                         </Grid>
                         </Border>
+
+                        <!-- Кольцо вспышки. Свет идёт от собственной обводки, а не
+                             от иконок сборки: у строки прозрачный фон, и свечение,
+                             построенное по её содержимому, расходилось жидким.
+                             Обводка сплошная — вспышка от неё яркая и ровная.
+                             Живёт только у подбора и по умолчанию невидима; всё
+                             остальное делает анимация. -->
+                        <Border x:Name="AiGlowRing" CornerRadius="7" Margin="-2,-2,-2,1"
+                                Background="Transparent" BorderBrush="#8CE6FF" BorderThickness="2"
+                                Opacity="0" IsHitTestVisible="False"
+                                Visibility="{Binding AiVis}"/>
+                       </Grid>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>

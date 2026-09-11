@@ -1164,6 +1164,24 @@ public partial class OverlayWindow : Window
         // Подбор всегда идёт второй строкой: первая — обычная, самая ходовая.
         if (BuildList.ItemContainerGenerator.ContainerFromIndex(1) is not UIElement row) return;
 
+        // Кольцо из шаблона строки. Свет от него куда плотнее, чем от содержимого:
+        // у строки прозрачный фон, и свечение, построенное по иконкам, выходило
+        // жидким при большом радиусе.
+        Border? ring = null;
+        if (row is ContentPresenter cp)
+        {
+            cp.ApplyTemplate();
+            ring = cp.ContentTemplate?.FindName("AiGlowRing", cp) as Border;
+        }
+        var ringGlow = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = Color.FromRgb(0x8C, 0xE6, 0xFF),
+            ShadowDepth = 0,
+            BlurRadius = 0,
+            Opacity = 0,
+        };
+        if (ring is not null) ring.Effect = ringGlow;
+
         var glow = new System.Windows.Media.Effects.DropShadowEffect
         {
             Color = Color.FromRgb(0x36, 0xD6, 0xE7),
@@ -1204,13 +1222,30 @@ public partial class OverlayWindow : Window
         heat.KeyFrames.Add(new LinearColorKeyFrame(Color.FromRgb(0x8C, 0xE6, 0xFF), peak));
         heat.KeyFrames.Add(new LinearColorKeyFrame(Color.FromRgb(0x8C, 0xE6, 0xFF), full));
         heat.KeyFrames.Add(new SplineColorKeyFrame(Color.FromRgb(0x1E, 0x8F, 0xE8), end, Ease()));
-        // Эффект снимаем после вспышки: висящий DropShadow дорог при перерисовке
+        // Сама обводка тоже вспыхивает и гаснет: она и даёт ту плотность света,
+        // которой не хватало halo.
+        var edge = new DoubleAnimationUsingKeyFrames();
+        edge.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, peak));
+        edge.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, full));
+        edge.KeyFrames.Add(new SplineDoubleKeyFrame(0, end, Ease()));
+
+        // Эффекты снимаем после вспышки: висящий DropShadow дорог при перерисовке
         // и слегка размывает иконки предметов.
-        fade.Completed += (_, _) => row.Effect = null;
+        fade.Completed += (_, _) =>
+        {
+            row.Effect = null;
+            if (ring is not null) ring.Effect = null;
+        };
 
         glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, rise);
         glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, fade);
         glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.ColorProperty, heat);
+
+        if (ring is null) return;
+        ring.BeginAnimation(UIElement.OpacityProperty, edge);
+        ringGlow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, rise.Clone());
+        ringGlow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, fade.Clone());
+        ringGlow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.ColorProperty, heat.Clone());
     }
 
     /// Клик по строке сборки — выбор (подсветка золотом), без экспорта.
