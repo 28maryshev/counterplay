@@ -4,8 +4,9 @@
 //
 // Версии часто выходят пачкой: правка, за ней ещё одна, и к моменту проверки их
 // три. Раньше пост доставался только последней, а остальные пропадали — хотя
-// игрок их всё равно установил. Теперь заметки всех пропущенных складываются в
-// один список: человек видит, что изменилось за всё время с прошлого анонса.
+// игрок их всё равно установил. Теперь берём всё, что вышло с прошлого анонса,
+// и сводим в один короткий итог: простая склейка списков уравнивала мелкую
+// правку с большой работой, и крупное терялось среди частностей.
 const { COLORS, embed } = require('../lib/embeds');
 const { kvGet, kvSet } = require('../db/botDb');
 const logger = require('../lib/logger');
@@ -13,6 +14,9 @@ const logger = require('../lib/logger');
 const KV_KEY = 'last_announced_app_release';
 const RELEASES_URL = 'https://api.github.com/repos/28maryshev/counterplay/releases?per_page=15';
 const RELEASES_PAGE = 'https://github.com/28maryshev/counterplay/releases';
+
+const SUMMARY_API = 'https://api.anthropic.com/v1/messages';
+const SUMMARY_MODEL = 'claude-sonnet-5';
 
 // Больше в описание эмбеда всё равно не влезет с запасом на хвост про загрузку.
 const LIMIT = 3500;
@@ -44,6 +48,90 @@ function lines(release) {
     .filter((s) => s.trim().length > 0);
 }
 
+/**
+ * Свести заметки нескольких версий в короткий итог: главное первым, мелочь
+ * сжата или отброшена.
+ *
+ * Нет ключа или запрос не прошёл — возвращаем null, и анонс уходит склейкой:
+ * длинный список лучше, чем молчание.
+ */
+async function summarise(posted) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+
+  const source = posted.map((r) => `${r.tag_name}:\n${lines(r).join('\n')}`).join('\n\n');
+
+  const prompt = [
+    'Below are the release notes of several versions of Counterplay,',
+    'a draft assistant for League of Legends, released one after another.',
+    'Write a single announcement covering all of them.',
+    '',
+    source,
+    '',
+    'Rules:',
+    '- put the biggest change first; a one-line fix must not take as much room as a feature;',
+    '- merge entries about the same thing into one line;',
+    '- drop what a player cannot notice in the app;',
+    '- at most 5 bullets, one sentence each, each starting with "- ";',
+    '- keep the plain, factual voice of the source: no marketing, no exclamation marks;',
+    '- English, no heading, bullets only.',
+    '',
+    'Answer with the bullet list and nothing else.'
+  ].join('\n');
+
+  try {
+    const res = await fetch(SUMMARY_API, {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: SUMMARY_MODEL,
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      signal: AbortSignal.timeout(45000)
+    });
+    if (!res.ok) {
+      logger.warn(`releaseWatch: summary -> ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    const text = (data.content || [])
+      .filter((c) => c.type === 'text')
+      .map((c) => c.text || '')
+      .join('')
+      .trim();
+
+    // Берём только строки списка: пояснения вокруг нам не нужны.
+    const bullets = text
+      .split('\n')
+      .map((s) => s.trim())
+      .filter((s) => s.startsWith('- '));
+    return bullets.length > 0 ? bullets.join('\n') : null;
+  } catch (e) {
+    logger.warn(`releaseWatch: summary failed — ${e.message}`);
+    return null;
+  }
+}
+
+/** Склейка заметок без повторов — запасной путь, когда итог получить не вышло. */
+function merge(posted) {
+  const seen = new Set();
+  const body = [];
+  for (const r of posted) {
+    for (const line of lines(r)) {
+      const key = line.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      body.push(line);
+    }
+  }
+  return body.join('\n');
+}
+
 async function run(ctx, { force = false } = {}) {
   const releases = await fetchReleases();
   if (releases.length === 0) {
@@ -66,20 +154,13 @@ async function run(ctx, { force = false } = {}) {
   const missed = last ? releases.filter((r) => cmpVer(r.tag_name, last) > 0) : [];
   const posted = missed.length > 0 ? missed : [latest];
 
-  const seen = new Set();
-  const body = [];
-  for (const r of posted) {
-    for (const line of lines(r)) {
-      // Одна и та же строка могла попасть в соседние релизы — повторять её в
-      // общем списке незачем.
-      const key = line.trim().toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      body.push(line);
-    }
-  }
+  // Одна версия — её заметки и есть анонс, сводить нечего и незачем платить за
+  // запрос. Несколько — итог.
+  let notes = posted.length > 1 ? await summarise(posted) : null;
+  const summarised = notes !== null;
+  if (!summarised) notes = merge(posted);
+  notes = (notes || '').trim();
 
-  let notes = body.join('\n').trim();
   if (notes.length > LIMIT) {
     // Режем по границе слова, а не посреди него, и честно говорим, что это не всё.
     notes =
@@ -104,11 +185,11 @@ async function run(ctx, { force = false } = {}) {
   await channel.send({ embeds: [e] });
   kvSet(KV_KEY, version);
   logger.info(
-    `releaseWatch: announced ${version}` +
+    `releaseWatch: announced ${version}${summarised ? ' (summarised)' : ''}` +
       (posted.length > 1
         ? ` (+${posted.length - 1} missed: ${posted.map((r) => r.tag_name).join(', ')})`
         : '')
   );
 }
 
-module.exports = { run };
+module.exports = { run, summarise };
