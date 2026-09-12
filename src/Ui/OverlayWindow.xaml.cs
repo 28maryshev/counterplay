@@ -3056,7 +3056,14 @@ public partial class OverlayWindow : Window
                 }
                 else
                 {
+                    // Снимаем анимацию — и обязательно опускаем флаг. Иначе так:
+                    // очки изменились, анимация пошла, а следом пришло обычное
+                    // обновление с теми же очками и остановило её. Completed у
+                    // снятой анимации не вызывается, флаг оставался поднятым — и
+                    // штриховка с засечками замирали до перезапуска программы,
+                    // хотя полоса продолжала двигаться.
                     BeginAnimation(LpProgressProperty, null);
+                    _lpMoving = false;
                     RankLpText.Text = $"{v.Lp} LP";
                     _rankPct = v.ProgressPct;
                 }
@@ -3478,6 +3485,7 @@ public partial class OverlayWindow : Window
     }
 
     private bool _lpMoving;       // полоса сейчас едет к новому значению
+    private DateTime _lpMoveStart; // когда поехала — предохранитель от зависшего флага
     private int _rankAbs;         // ранг в сквозной шкале: тир + дивизион + очки
     private int? _lpShown;        // сколько очков показано сейчас; null — ещё ничего
     private double _pctShown;     // и то же самое в процентах шкалы
@@ -3507,6 +3515,7 @@ public partial class OverlayWindow : Window
     private void AnimateRankCross(bool up, bool newLeague, ImageSource? emblem, string rankLine,
                                   Brush rankBrush, int toLp, double toPct)
     {
+        _lpMoving = false;
         var edge = up ? 100.0 : 0.0;
         var start = up ? 0.0 : 100.0;
 
@@ -3523,6 +3532,7 @@ public partial class OverlayWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
         };
         _lpMoving = true;
+        _lpMoveStart = DateTime.UtcNow;
         first.Completed += (_, _) =>
         {
             // Перелом: новый ранг на месте, старая шкала закончилась.
@@ -3853,6 +3863,9 @@ public partial class OverlayWindow : Window
     /// Запускает перещёлкивание цифр и доезд полосы.
     private void AnimateLp(int fromLp, int toLp, double fromPct, double toPct)
     {
+        // Предыдущая анимация, если она ещё идёт, обрывается новой — и её
+        // Completed не сработает. Флаг поднимет заново эта же анимация ниже.
+        _lpMoving = false;
         _lpFrom = fromLp; _lpTo = toLp;
         _pctFrom = fromPct; _pctTo = toPct;
 
@@ -3863,6 +3876,7 @@ public partial class OverlayWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
         };
         _lpMoving = true;
+        _lpMoveStart = DateTime.UtcNow;
         move.Completed += (_, _) =>
         {
             _lpMoving = false;
@@ -3925,7 +3939,12 @@ public partial class OverlayWindow : Window
         // Пока полоса едет, штриховку и засечки не трогаем: они показывали
         // ПРОШЛЫЙ прогноз, и полоса на глазах входит в него — это и есть
         // «предсказание сбылось». Новый прогноз появится, когда она доедет.
-        if (_lpMoving) return;
+        //
+        // Предохранитель по времени: самая долгая анимация — переход между лигами,
+        // около двух секунд. Если флаг поднят дольше четырёх, что-то оборвало
+        // анимацию, и ждать её окончания бессмысленно — рисуем прогноз.
+        if (_lpMoving && DateTime.UtcNow - _lpMoveStart < TimeSpan.FromSeconds(4)) return;
+        _lpMoving = false;
 
         RankTicks.Children.Clear();
         // Нечего показывать: нет ширины, нет своих дельт или тир без дивизионов
