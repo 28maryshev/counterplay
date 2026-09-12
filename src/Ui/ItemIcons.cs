@@ -63,6 +63,11 @@ public static class ItemIcons
     private static Dictionary<int, string> _descs = new();
     // Сырая разметка описания: из неё делается раскрашенная подсказка.
     private static Dictionary<int, string> _raw = new();
+    // Она же по-английски. Нужна, чтобы опознать характеристику и поставить
+    // рядом нужный значок: «50 силы умений» — это просто текст, а вот в
+    // английской строке того же номера видно, что это Ability Power. Порядок
+    // строк у Riot одинаков во всех языках.
+    private static Dictionary<int, string> _rawEn = new();
     // Цена: столько же во всех языках, поэтому берём заодно с названиями.
     private static Dictionary<int, int> _cost = new();
     private static Dictionary<int, int[]> _from = new();   // id → прямые компоненты
@@ -104,10 +109,31 @@ public static class ItemIcons
             _names = map;
             _descs = descs;
             _raw = raw;
+            _rawEn = locale == "en_US" ? raw : await LoadEnglishAsync(http, ct);
             _cost = cost;
             _from = from;
         }
         catch { _names = new Dictionary<int, string>(); }
+    }
+
+    /// Английские описания — только ради опознания характеристик. Не загрузились
+    /// (нет сети) — значки просто не появятся, текст останется на месте.
+    private static async Task<Dictionary<int, string>> LoadEnglishAsync(
+        HttpClient http, CancellationToken ct)
+    {
+        try
+        {
+            var json = await http.GetStringAsync(
+                $"https://ddragon.leagueoflegends.com/cdn/{DataDragon.Version}/data/en_US/item.json", ct);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var map = new Dictionary<int, string>();
+            foreach (var it in doc.RootElement.GetProperty("data").EnumerateObject())
+                if (int.TryParse(it.Name, out var id)
+                    && it.Value.TryGetProperty("description", out var d))
+                    map[id] = d.GetString() ?? "";
+            return map;
+        }
+        catch { return new Dictionary<int, string>(); }
     }
 
     public static string NameOf(int id) => _names?.GetValueOrDefault(id) ?? $"#{id}";
@@ -118,7 +144,7 @@ public static class ItemIcons
 
     /// Описание кусками с цветом — для подсказки при наведении.
     public static IReadOnlyList<ItemDesc.Part> DescPartsOf(int id) =>
-        ItemDesc.Parse(_raw.GetValueOrDefault(id, ""));
+        ItemDesc.Parse(_raw.GetValueOrDefault(id, ""), _rawEn.GetValueOrDefault(id, ""));
 
     /// Цена предмета. 0 — неизвестна (или предмет бесплатный).
     public static int CostOf(int id) => _cost.GetValueOrDefault(id, 0);
