@@ -16,7 +16,9 @@ param(
   [switch]$Quiet
 )
 
-if ($Path -and (Test-Path $Path)) { $Text = Get-Content -Raw $Path }
+# Кодировку указываем явно: Windows PowerShell читает файл без BOM как ANSI,
+# и тире с кавычками превращаются в «вЂ”» — прямо в патчноуте у игрока.
+if ($Path -and (Test-Path $Path)) { $Text = Get-Content -Raw -Encoding UTF8 $Path }
 if (-not $Text) { return }
 
 # Слова, которых в патчноуте быть не должно. Ключ — что увидит игрок: если он

@@ -20,6 +20,10 @@ param(
   # update description). Empty = auto-generate from commits since the last tag.
   #   .\build\release.ps1 -Upload -Notes "Rune & build panel, faster updates"
   [string]$Notes = "",
+  # Заметки файлом. Так надёжнее, чем строкой из консоли: файл читается как UTF-8
+  # явно, и тире с кавычками не превращаются в «вЂ”» по дороге к игроку.
+  #   ./build/release.ps1 -Upload -NotesPath notes.txt
+  [string]$NotesPath = "",
   # Prose "Highlights" block prepended to the notes — a human summary of a big
   # feature that the commit list can't convey. Also read from
   # build/RELEASE_HIGHLIGHTS.txt (gitignored) if that file exists (consumed once).
@@ -46,6 +50,11 @@ Set-Location (Join-Path $PSScriptRoot "..")
 # гонять семь минут, чтобы упереться в текст, который всё равно переписывать.
 # Автоген из коммитов не трогаем: там технический язык — сознательное решение,
 # сабджект коммита и есть строка ченджлога.
+if ($NotesPath) {
+  if (-not (Test-Path $NotesPath)) { throw "Файл заметок не найден: $NotesPath" }
+  $Notes = Get-Content -Raw -Encoding UTF8 $NotesPath
+}
+
 if (-not $AllowInternal) {
   $checker = Join-Path $PSScriptRoot "check-notes.ps1"
   if (Test-Path $checker) {
