@@ -2091,7 +2091,7 @@
                         <!-- Клик по строке выбирает сборку: она подсвечивается
                              золотом, и видно, какую именно отправишь в клиент. -->
                         <Border Margin="0,0,0,3" Padding="4,2" CornerRadius="6" Cursor="Hand"
-                                VerticalAlignment="Stretch"
+                                VerticalAlignment="Stretch" Opacity="{Binding RowOpacity}"
                                 Background="{Binding RowBg}"
                                 BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
                                 MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}"
@@ -2162,6 +2162,7 @@
                                      а не подписью под предметами: строкой они раздвигали
                                      ряд, а панель и так узкая. -->
                                 <Border Width="13" Height="13" CornerRadius="7" Margin="4,0,0,0"
+                                        Visibility="{Binding HintVis}"
                                         Background="#2236D6E7" BorderBrush="#5536D6E7"
                                         BorderThickness="1" Cursor="Help"
                                         ToolTipService.InitialShowDelay="120"
@@ -2213,6 +2214,7 @@
 
                           <Border Grid.Column="2" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
                                   Cursor="Hand" VerticalAlignment="Center"
+                                  Visibility="{Binding ExportVis}"
                                   Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
                                   ToolTip="{Binding TipHead}">
@@ -2232,7 +2234,7 @@
                         <Border x:Name="AiGlowRing" CornerRadius="7" Margin="-2,-2,-2,1"
                                 Background="Transparent" BorderBrush="#8CE6FF" BorderThickness="2"
                                 Opacity="0" IsHitTestVisible="False"
-                                Visibility="{Binding AiVis}"/>
+                                Visibility="{Binding HintVis}"/>
                        </Grid>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>

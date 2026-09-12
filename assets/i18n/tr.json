@@ -100,6 +100,7 @@
     "aiBuild": "YZ",
     "aiUnder": "bu kadroya göre",
     "aiCovered": "standart build bu kadroya zaten uygun",
+    "aiSoon": "Beş rakip de belli olunca görünür",
     "aiTipHead": "Bu rakip kadroya göre seçildi"
   },
   "pick": {

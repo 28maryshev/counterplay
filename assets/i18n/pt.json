@@ -100,6 +100,7 @@
     "aiBuild": "IA",
     "aiUnder": "para esta comp",
     "aiCovered": "a build padrão já responde a esta comp",
+    "aiSoon": "Aparece quando os cinco inimigos forem conhecidos",
     "aiTipHead": "Escolhido para esta comp inimiga"
   },
   "pick": {

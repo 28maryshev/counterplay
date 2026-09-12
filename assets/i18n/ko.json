@@ -100,6 +100,7 @@
     "aiBuild": "AI",
     "aiUnder": "이 조합 대응",
     "aiCovered": "기본 빌드로 이 조합에 대응 가능",
+    "aiSoon": "상대 5명이 모두 정해지면 표시됩니다",
     "aiTipHead": "상대 조합에 맞춘 선택"
   },
   "pick": {

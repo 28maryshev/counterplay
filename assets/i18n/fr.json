@@ -316,6 +316,7 @@
     "aiBuild": "IA",
     "aiUnder": "pour cette compo",
     "aiCovered": "la build classique répond déjà à cette compo",
+    "aiSoon": "Apparaît une fois les cinq ennemis connus",
     "aiTipHead": "Choisi pour cette compo adverse"
   },
   "pick": {

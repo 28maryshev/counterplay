@@ -381,6 +381,7 @@
     "aiBuild": "AI",
     "aiUnder": "この編成向け",
     "aiCovered": "標準ビルドでこの編成に対応できる",
+    "aiSoon": "敵5人が確定すると表示されます",
     "aiTipHead": "相手編成に合わせた選択"
   },
   "pick": {

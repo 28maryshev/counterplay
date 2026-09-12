@@ -381,6 +381,7 @@
     "aiBuild": "AI",
     "aiUnder": "theo đội hình này",
     "aiCovered": "build phổ biến đã phù hợp với đội hình này",
+    "aiSoon": "Xuất hiện khi biết đủ năm đối thủ",
     "aiTipHead": "Chọn theo đội hình địch"
   },
   "pick": {

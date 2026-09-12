@@ -100,6 +100,7 @@
     "aiBuild": "KI",
     "aiUnder": "für dieses Team",
     "aiCovered": "der Standardbuild passt bereits zu diesem Team",
+    "aiSoon": "Erscheint, sobald alle fünf Gegner feststehen",
     "aiTipHead": "Für dieses gegnerische Team gewählt"
   },
   "pick": {

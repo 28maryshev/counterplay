@@ -381,6 +381,7 @@
     "aiBuild": "AI",
     "aiUnder": "针对该阵容",
     "aiCovered": "常规出装已能应对该阵容",
+    "aiSoon": "五名对手确定后显示",
     "aiTipHead": "针对敌方阵容选择"
   },
   "pick": {

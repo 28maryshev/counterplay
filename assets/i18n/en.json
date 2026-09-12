@@ -22,6 +22,7 @@
     "aiBuild": "AI",
     "aiUnder": "for this comp",
     "aiCovered": "the popular build already answers this comp",
+    "aiSoon": "The pick appears once all five enemies are locked",
     "aiTipHead": "Picked for this enemy team"
   },
   "tips": [

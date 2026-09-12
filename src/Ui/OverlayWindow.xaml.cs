@@ -994,7 +994,10 @@ public partial class OverlayWindow : Window
         string WrText, Brush WrBrush, string GamesText,
         Brush RowBg, Brush RowStroke,
         string Reason, Visibility ReasonVis,
-        Visibility WrVis, Visibility AiVis, string TipHead);
+        Visibility WrVis, Visibility AiVis, string TipHead,
+        // Пустое место под будущий подбор: блёклая строка без кнопки и без
+        // знака вопроса — показывать там нечего, пока подбор не появился.
+        Visibility ExportVis, Visibility HintVis, double RowOpacity);
 
     private static readonly Brush AiBrush    = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
@@ -1044,48 +1047,37 @@ public partial class OverlayWindow : Window
             : new BuildAdvisor.Advice([], []);
         var adapted = advice.Builds;
 
-        _shownBuilds = [];
-        _buildReasons = [];
-        _buildChanged = [];
-        _buildIsAi = [];
-        if (adapted.Count > 0)
+        // Строк всегда ДВЕ: ходовая сборка и подбор под врагов. Раньше их было
+        // то две, то три — сколько сборок пришло с сервера, столько и рисовали, —
+        // и панель прыгала по высоте, стоило навести на другого чемпиона. Вторая
+        // строка до появления подбора стоит блёклым пустым местом: видно, что там
+        // что-то будет.
+        _shownBuilds = [stats.Builds[0]];
+        _buildReasons = [""];
+        _buildChanged = [[]];
+        _buildIsAi = [false];
+
+        // Показываем ОДНУ сборку под состав, а не набор вариантов: игрок покупает
+        // один набор предметов, и выбор из двух «умных» сборок перекладывает на
+        // него ту работу, ради которой всё и затевалось.
+        foreach (var a in adapted.Take(1))
         {
-            // Первой — самая ходовая сборка: как собирают вообще, без оглядки на
-            // соперника. Ниже — ответы этому составу.
-            _shownBuilds.Add(stats.Builds[0]);
-            _buildReasons.Add("");
-            _buildChanged.Add([]);
-            _buildIsAi.Add(false);
-            // Показываем ОДНУ сборку под состав, а не набор вариантов: игрок
-            // покупает один набор предметов, и выбор из двух «умных» сборок
-            // перекладывает на него ту работу, ради которой всё и затевалось.
-            foreach (var a in adapted.Take(1))
-            {
-                _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
-                _buildReasons.Add(string.Join("\n", a.Reasons.Select(r => "• " + r)));
-                _buildChanged.Add([.. a.Changed]);
-                _buildIsAi.Add(true);
-            }
+            _shownBuilds.Add(stats.Builds[0] with { Items = a.Items });
+            _buildReasons.Add(string.Join("\n", a.Reasons.Select(r => "• " + r)));
+            _buildChanged.Add([.. a.Changed]);
+            _buildIsAi.Add(true);
         }
-        else
-        {
-            _shownBuilds.AddRange(stats.Builds);
-            foreach (var _ in stats.Builds)
-            {
-                _buildReasons.Add("");
-                _buildChanged.Add([]);
-                _buildIsAi.Add(false);
-            }
-            // Состав известен целиком, а менять нечего: стандартная сборка уже
-            // отвечает этим врагам. Молчать нельзя — это выглядит как поломка.
-            // Не просто «менять нечего», а что именно состав требует и почему
-            // это уже куплено: вывод должен быть виден, иначе читается как отказ.
-            if (enemies.Count >= 5 && _buildReasons.Count > 0)
-                _buildReasons[0] = advice.Covered.Count > 0
-                    ? Loc.T("runes.aiCovered") + "\n"
-                      + string.Join("\n", advice.Covered.Select(c => "• " + c))
-                    : Loc.T("runes.aiCovered");
-        }
+
+        // Что сказать во второй строке, пока подбора нет. Состав известен
+        // целиком, а менять нечего — так и говорим: молчание выглядит как
+        // поломка. И не просто «менять нечего», а что именно состав требует и
+        // почему это уже куплено, иначе читается как отказ.
+        var ghostTip = enemies.Count >= 5
+            ? (advice.Covered.Count > 0
+                ? Loc.T("runes.aiCovered") + "\n"
+                  + string.Join("\n", advice.Covered.Select(c => "• " + c))
+                : Loc.T("runes.aiCovered"))
+            : Loc.T("runes.aiSoon");
 
         var rows = new List<BuildRowVm>();
         for (int i = 0; i < _shownBuilds.Count; i++)
@@ -1137,7 +1129,38 @@ public partial class OverlayWindow : Window
                 // вместо него подпись о том, откуда набор взялся.
                 TipHead: isAi
                     ? Loc.T("runes.aiTipHead")
-                    : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games))));
+                    : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
+                ExportVis: Visibility.Visible,
+                HintVis: isAi ? Visibility.Visible : Visibility.Collapsed,
+                RowOpacity: 1.0));
+        }
+
+        // Подбора пока нет — вторую строку занимает его блёклый след: шесть
+        // пустых рамок и наш знак. Так панель не меняет высоту, когда подбор
+        // появляется, и заранее видно, где он будет.
+        if (rows.Count == 1)
+        {
+            var empty = new List<SlotVm>();
+            for (var k = 0; k < 6; k++)
+                empty.Add(new SlotVm(null, "", AltStroke, new Thickness(1), 1.0));
+
+            rows.Add(new BuildRowVm(
+                Index: -1,                      // не выбирается и не экспортируется
+                Slots: empty,
+                ExportText: "",
+                WrText: Loc.T("runes.aiBuild"),
+                WrBrush: AiBrush,
+                GamesText: Loc.T("runes.aiUnder"),
+                RowBg: RowOff,
+                RowStroke: RowOffEdge,
+                Reason: "",
+                ReasonVis: Visibility.Collapsed,
+                WrVis: Visibility.Collapsed,
+                AiVis: Visibility.Visible,
+                TipHead: ghostTip,
+                ExportVis: Visibility.Collapsed,
+                HintVis: Visibility.Collapsed,
+                RowOpacity: 0.38));
         }
 
         BuildList.ItemsSource = rows;
@@ -1253,6 +1276,8 @@ public partial class OverlayWindow : Window
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
         if (_runeStats is null) return;
+        // Пустое место под будущий подбор выбирать нечего.
+        if (idx < 0 || idx >= _shownBuilds.Count) return;
         _buildSelected = idx;
         RenderBuilds(_runeStats);
         e.Handled = true;

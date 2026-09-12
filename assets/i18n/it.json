@@ -381,6 +381,7 @@
     "aiBuild": "IA",
     "aiUnder": "per questa comp",
     "aiCovered": "la build standard risponde già a questa comp",
+    "aiSoon": "Compare quando tutti e cinque i nemici sono noti",
     "aiTipHead": "Scelto per questa comp nemica"
   },
   "pick": {

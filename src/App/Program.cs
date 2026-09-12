@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -36,7 +36,14 @@ class Program
         // трее — второй запуск (клик по ярлыку) плодил бы второй оверлей и мешал
         // обновлению (Velopack держит блокировку папки). Вместо этого будим тот,
         // что уже работает, и выходим.
-        using var single = new Mutex(initiallyOwned: true, "Counterplay.SingleInstance", out var isFirst);
+        // У песочницы свой замок: иначе она молча выходила, когда открыта боевая
+        // программа, и вместо неё разворачивалось уже запущенное окно. Смотреть
+        // на изменения рядом с настоящим окном — обычное дело при разработке.
+        var sandbox = args.Contains("test") || args.Contains("--test");
+        using var single = new Mutex(
+            initiallyOwned: true,
+            sandbox ? "Counterplay.SingleInstance.Test" : "Counterplay.SingleInstance",
+            out var isFirst);
         if (!isFirst)
         {
             try
