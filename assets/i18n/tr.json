@@ -37,6 +37,11 @@
     "yourPick": "YOUR PICK",
     "notOwned": "Sahip değilsin"
   },
+  "rank": {
+    "winGives": "Galibiyet ~{0} LP verir",
+    "toPromo": "yükselmeye kalan maç: {0}",
+    "toDemote": "düşmeye kalan maç: {0}"
+  },
   "session": {
     "needGames": "Counterplay açıkken birkaç maç oyna — maç başına LP ve galibiyet grafiği dolacaktır.",
     "wl": "G:{0} - M:{1}",

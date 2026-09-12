@@ -318,6 +318,11 @@
     "yourPick": "LỰA CHỌN CỦA BẠN",
     "notOwned": "Chưa sở hữu"
   },
+  "rank": {
+    "winGives": "Một trận thắng cho ~{0} LP",
+    "toPromo": "số trận để thăng hạng: {0}",
+    "toDemote": "số trận để rớt hạng: {0}"
+  },
   "session": {
     "needGames": "Chơi vài trận khi Counterplay đang chạy — LP mỗi trận và biểu đồ tỉ lệ thắng sẽ được cập nhật.",
     "wl": "T:{0} - B:{1}",

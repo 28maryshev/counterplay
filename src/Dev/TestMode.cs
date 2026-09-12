@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -215,13 +215,15 @@ static class TestMode
             climbLp += rndC.Next(0, 10) < 8 ? rndC.Next(16, 30) : -rndC.Next(10, 20);
             climb.Add(new(DateTime.Now.AddDays(-14).AddHours(i * 5.6), climbLp));
         }
-        climb.Add(new(DateTime.Now, 1663));
+        // Доводим до 72 LP: на этой отметке полоса показывает не только штриховку
+        // будущей победы, но и засечку — границу между двумя играми до повышения.
+        climb.Add(new(DateTime.Now, 1672));
         ClimbSession = new SessionTracker.SessionData(
             "TestSummoner", "solo",
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
-                    HasRank: true, Tier: "PLATINUM", Division: "I", Lp: 63, ProgressPct: 63,
+                    HasRank: true, Tier: "PLATINUM", Division: "I", Lp: 72, ProgressPct: 72,
                     Wins: 92, Losses: 61, Winrate: 60.1, Last5: last5,
                     WinrateHistory: hist, RatingHistory: climb),
             });
@@ -244,7 +246,9 @@ static class TestMode
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
-                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
+                    // 22 LP — нижний край шкалы: здесь полоса показывает засечки
+                    // в другую сторону, сколько поражений до понижения.
+                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 22, ProgressPct: 22,
                     Wins: 3, Losses: 2, Winrate: 60, Last5: five, WinrateHistory: fiveHist, RatingHistory: rating),
             });
 

@@ -318,6 +318,11 @@
     "yourPick": "あなたのピック",
     "notOwned": "未所持"
   },
+  "rank": {
+    "winGives": "勝利で約{0} LP",
+    "toPromo": "昇格まで{0}試合",
+    "toDemote": "降格まで{0}試合"
+  },
   "session": {
     "needGames": "Counterplay を起動したまま数試合プレイすると、試合ごとの LP と勝率グラフが埋まっていきます。",
     "wl": "{0}勝 {1}敗",

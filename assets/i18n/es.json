@@ -267,6 +267,11 @@
     "yourPick": "YOUR PICK",
     "notOwned": "No lo tienes"
   },
+  "rank": {
+    "winGives": "Una victoria da ~{0} PL",
+    "toPromo": "partidas para ascender: {0}",
+    "toDemote": "partidas para descender: {0}"
+  },
   "session": {
     "needGames": "Juega algunas partidas con Counterplay abierto: los LP por partida y la gráfica de winrate se irán llenando.",
     "wl": "V:{0} - D:{1}",

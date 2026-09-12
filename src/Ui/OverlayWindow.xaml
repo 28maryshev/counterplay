@@ -13,6 +13,27 @@
         KeyDown="OnKeyDown">
 
   <Window.Resources>
+    <!-- Штриховка «ещё не набранных» очков на полосе LP: косые полоски в цвет
+         самой полосы, но вполовину прозрачные. Готовой кисти для штриховки в
+         WPF нет — рисуем плитку 6×6 из двух диагоналей и размножаем. -->
+    <DrawingBrush x:Key="LpGhostHatch" TileMode="Tile" Opacity="0.5"
+                  Viewport="0,0,6,6" ViewportUnits="Absolute"
+                  Viewbox="0,0,6,6" ViewboxUnits="Absolute">
+      <DrawingBrush.Drawing>
+        <GeometryDrawing>
+          <GeometryDrawing.Pen>
+            <Pen Brush="#36D6E7" Thickness="2"/>
+          </GeometryDrawing.Pen>
+          <GeometryDrawing.Geometry>
+            <GeometryGroup>
+              <LineGeometry StartPoint="-1,7" EndPoint="7,-1"/>
+              <LineGeometry StartPoint="-1,13" EndPoint="13,-1"/>
+            </GeometryGroup>
+          </GeometryDrawing.Geometry>
+        </GeometryDrawing>
+      </DrawingBrush.Drawing>
+    </DrawingBrush>
+
     <!-- Основной текст — Geist (встроен в сборку), как на сайте. Запасной Segoe UI. -->
     <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
     <!-- Заголовки/имена — тоже Geist, чтобы весь интерфейс был единым шрифтом. -->
@@ -622,18 +643,32 @@
               <Border x:Name="RankLpSkel" Grid.Column="1" Width="46" Height="13" CornerRadius="3"
                       VerticalAlignment="Bottom" Margin="0,0,0,4" Visibility="Collapsed"/>
             </Grid>
-            <!-- Полоса LP -->
+            <!-- Засечки над полосой: сколько игр осталось до перехода. Появляются
+                 только у краёв (близко к повышению или к понижению) — в середине
+                 шкалы считать нечего, а лишние чёрточки там только мешают. -->
+            <Canvas x:Name="RankTicks" Height="5" Margin="0,0,0,2" ClipToBounds="False"/>
+            <!-- Полоса LP. Поверх заполненной части — штриховка на ширину одной
+                 победы: сколько очков принесёт следующая игра. -->
             <Border x:Name="RankProgressTrack" Height="7" CornerRadius="4"
-                    Background="#22FFFFFF">
-              <Border x:Name="RankProgressFill" Width="0" Height="7" CornerRadius="4"
-                      HorizontalAlignment="Left">
-                <Border.Background>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#2E7DD1" Offset="0"/>
-                    <GradientStop Color="#36D6E7" Offset="1"/>
-                  </LinearGradientBrush>
-                </Border.Background>
-              </Border>
+                    Background="#22FFFFFF" ClipToBounds="True">
+              <Grid>
+                <Border x:Name="RankProgressFill" Width="0" Height="7" CornerRadius="4"
+                        HorizontalAlignment="Left">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                      <GradientStop Color="#2E7DD1" Offset="0"/>
+                      <GradientStop Color="#36D6E7" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <!-- Штриховка того же цвета, но полупрозрачная: это ещё не
+                     набранные очки, и выглядеть как набранные они не должны. -->
+                <!-- Слева край прямой: штриховка продолжает заполненную часть, и
+                     скруглённый край читался бы как разрыв между ними. -->
+                <Border x:Name="RankProgressGhost" Width="0" Height="7" CornerRadius="0,4,4,0"
+                        HorizontalAlignment="Left" Visibility="Collapsed"
+                        Background="{StaticResource LpGhostHatch}"/>
+              </Grid>
             </Border>
 
             <!-- Последние 5 игр: иконки во всю ширину бара + LP за игру -->

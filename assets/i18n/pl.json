@@ -318,6 +318,11 @@
     "yourPick": "TWÓJ PICK",
     "notOwned": "Brak bohatera"
   },
+  "rank": {
+    "winGives": "Wygrana daje ~{0} LP",
+    "toPromo": "gier do awansu: {0}",
+    "toDemote": "gier do spadku: {0}"
+  },
   "session": {
     "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",
     "wl": "W:{0} - P:{1}",

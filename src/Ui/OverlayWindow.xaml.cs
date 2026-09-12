@@ -2513,6 +2513,8 @@ public partial class OverlayWindow : Window
         // Компактная карточка ранга: эмблема мельче, полосы прогресса нет.
         RankEmblem.Height = s.ReadyCompact ? 46 : 74;
         RankProgressTrack.Visibility = V(s.ReadyRank && !s.ReadyCompact);
+        // Засечки живут вместе с полосой: без неё они висели бы в пустоте.
+        RankTicks.Visibility = V(s.ReadyRank && !s.ReadyCompact);
 
         // Команды местами: моя команда справа, враги слева.
         Grid.SetColumn(MyTeamPanel,    s.DraftMirror ? 2 : 0);
@@ -2887,6 +2889,8 @@ public partial class OverlayWindow : Window
             RankText.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
             RankLpText.Text = "";
             _rankPct = 0;
+            _lpWin = _lpLoss = 0;
+            _lpDivisioned = false;
             ApplyRankProgress();
             SessionHint.Text = Loc.T("session.needGames");
             SessionHint.Visibility = Visibility.Visible;
@@ -2911,6 +2915,11 @@ public partial class OverlayWindow : Window
             RankText.Foreground = TierBrush(v.Tier);
             RankLpText.Text = $"{v.Lp} LP";
             _rankPct = v.ProgressPct;
+            // Шкала «сто очков — дивизион» есть только ниже Мастера.
+            _lpDivisioned = v.Tier.ToUpperInvariant()
+                is not ("MASTER" or "GRANDMASTER" or "CHALLENGER");
+            _lpWin = AvgLp(v.Last5, win: true);
+            _lpLoss = AvgLp(v.Last5, win: false);
         }
         else
         {
@@ -2919,6 +2928,8 @@ public partial class OverlayWindow : Window
             RankText.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xED, 0xF3));
             RankLpText.Text = "";
             _rankPct = 0;
+            _lpWin = _lpLoss = 0;
+            _lpDivisioned = false;
         }
         ApplyRankProgress();
 
@@ -3278,10 +3289,109 @@ public partial class OverlayWindow : Window
     // ширине панели, поэтому фиксированное число пикселей здесь не годится.
     private double _rankPct;
 
+    // ── Что даст следующая игра ───────────────────────────────────────────
+    //
+    // Полоса показывает, где игрок сейчас. Но перед игрой важнее другое: хватит
+    // ли одной победы и сколько игр осталось до перехода. Поэтому поверх полосы
+    // идёт штриховка шириной в одну победу, а у краёв шкалы — засечки, которые
+    // делят остаток на игры.
+    //
+    // Прибавку берём из ЕГО последних игр, а не «примерно двадцать»: она зависит
+    // от рейтинга скрытого матчмейкинга, и чужое среднее здесь врёт.
+    private int _lpWin;          // средняя прибавка за победу; 0 — не знаем
+    private int _lpLoss;         // средняя потеря за поражение
+    private bool _lpDivisioned;  // тир с дивизионами: у Мастера+ шкала другая
+
+    private static readonly Brush LpTickBrush =
+        new SolidColorBrush(Color.FromArgb(0xCC, 0xBF, 0xF3, 0xF9));
+
+    /// Средняя величина изменения LP по последним играм. Ноль — не из чего
+    /// считать: пропущенные дельты бывают у первых игр после установки.
+    private static int AvgLp(IEnumerable<SessionTracker.RecentGame> games, bool win)
+    {
+        var vals = games
+            .Select(g => g.LpDelta ?? 0)
+            .Where(d => win ? d > 0 : d < 0)
+            .Select(Math.Abs)
+            .ToList();
+        return vals.Count == 0 ? 0 : (int)Math.Round(vals.Average());
+    }
+
+    private void AddLpTick(double x)
+    {
+        var tick = new Border
+        {
+            Width = 1.5,
+            Height = 5,
+            CornerRadius = new CornerRadius(1),
+            Background = LpTickBrush,
+        };
+        Canvas.SetLeft(tick, x - 0.75);
+        RankTicks.Children.Add(tick);
+    }
+
     private void ApplyRankProgress()
     {
         var w = RankProgressTrack.ActualWidth;
-        RankProgressFill.Width = w > 0 ? w * Math.Clamp(_rankPct, 0, 100) / 100.0 : 0;
+        var pct = Math.Clamp(_rankPct, 0, 100);
+        RankProgressFill.Width = w > 0 ? w * pct / 100.0 : 0;
+
+        RankTicks.Children.Clear();
+        // Нечего показывать: нет ширины, нет своих дельт или тир без дивизионов
+        // (у Мастера и выше сотня очков ничего не открывает).
+        if (w <= 0 || !_lpDivisioned || _lpWin <= 0)
+        {
+            RankProgressGhost.Visibility = Visibility.Collapsed;
+            RankProgressTrack.ToolTip = null;
+            return;
+        }
+
+        // Штриховка — ровно одна победа и не дальше конца шкалы.
+        var ghost = Math.Min(_lpWin, 100 - pct);
+        RankProgressGhost.Margin = new Thickness(w * pct / 100.0, 0, 0, 0);
+        RankProgressGhost.Width = Math.Max(0, w * ghost / 100.0);
+        RankProgressGhost.Visibility = ghost > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Засечки у краёв: сверху — сколько побед до повышения, снизу — сколько
+        // поражений до понижения. В середине шкалы их нет: там до перехода
+        // далеко, и чёрточки превратились бы в шум.
+        var up = pct >= 70;
+        var down = pct <= 30;
+        var step = up ? _lpWin : _lpLoss;
+        var left = up ? 100 - pct : pct;
+        var need = 0;
+
+        if ((up || down) && step > 0)
+        {
+            need = (int)Math.Ceiling(left / step);
+            // Рисуем ГРАНИЦЫ между играми: последняя граница — сам переход, её
+            // не рисуем, край полосы и есть она.
+            for (var k = 1; k < Math.Min(need, 7); k++)
+            {
+                var at = up ? pct + k * step : pct - k * step;
+                if (at is <= 0 or >= 100) break;
+                AddLpTick(w * at / 100.0);
+            }
+        }
+
+        // Подсказка словами: цифры на полосе не написать, а вопрос «сколько ещё
+        // игр» — первое, что приходит в голову при взгляде на неё.
+        var text = Loc.T("rank.winGives", _lpWin);
+        if (need > 0)
+            text += " · " + Loc.T(up ? "rank.toPromo" : "rank.toDemote", need);
+        RankProgressTrack.ToolTip = new System.Windows.Controls.ToolTip
+        {
+            Style = (Style)FindResource("HintTip"),
+            Content = new TextBlock
+            {
+                Text = text,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 240,
+                FontFamily = (FontFamily)FindResource("UiFont"),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+            },
+        };
     }
 
     // Цвет тира для полос графика рейтинга: тот же язык, что и эмблемы рангов.

@@ -343,6 +343,11 @@
     "yourPick": "YOUR PICK",
     "notOwned": "Not owned"
   },
+  "rank": {
+    "winGives": "A win gives ~{0} LP",
+    "toPromo": "games to promotion: {0}",
+    "toDemote": "games to demotion: {0}"
+  },
   "session": {
     "needGames": "Play a few games with Counterplay running — per-game LP and the winrate chart will fill in.",
     "wl": "W:{0} - L:{1}",

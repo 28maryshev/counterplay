@@ -37,6 +37,11 @@
     "yourPick": "YOUR PICK",
     "notOwned": "미보유"
   },
+  "rank": {
+    "winGives": "승리 시 약 {0} LP",
+    "toPromo": "승급까지 {0}판",
+    "toDemote": "강등까지 {0}판"
+  },
   "session": {
     "needGames": "Counterplay를 켠 채로 몇 판 플레이하세요 — 판당 LP와 승률 그래프가 채워집니다.",
     "wl": "{0}승 {1}패",

@@ -37,6 +37,11 @@
     "yourPick": "YOUR PICK",
     "notOwned": "Nicht besessen"
   },
+  "rank": {
+    "winGives": "Ein Sieg bringt ~{0} LP",
+    "toPromo": "Spiele bis Aufstieg: {0}",
+    "toDemote": "Spiele bis Abstieg: {0}"
+  },
   "session": {
     "needGames": "Spiele ein paar Spiele mit laufendem Counterplay – LP pro Spiel und der Winrate-Graph füllen sich.",
     "wl": "S:{0} - N:{1}",

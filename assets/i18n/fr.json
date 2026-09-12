@@ -253,6 +253,11 @@
     "dive": "Dive",
     "pickPoke": "Pick/poke"
   },
+  "rank": {
+    "winGives": "Une victoire donne ~{0} PL",
+    "toPromo": "parties avant promotion : {0}",
+    "toDemote": "parties avant rétrogradation : {0}"
+  },
   "session": {
     "needGames": "Joue quelques parties avec Counterplay lancé — les PL par partie et la courbe de winrate se rempliront.",
     "wl": "V:{0} - D:{1}",
