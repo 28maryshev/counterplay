@@ -32,11 +32,35 @@ public static class Telemetry
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
             if (Secret.Length > 0)
                 http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
-            var json = JsonSerializer.Serialize(new { installId = DeviceId(), version });
+            var json = JsonSerializer.Serialize(
+                new { installId = DeviceId(), version, installedAt = InstalledAt() });
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             await http.PostAsync(Url, content);
         }
         catch { /* телеметрия не критична — молчим */ }
+    }
+
+    /// Когда программа появилась на этом компьютере. Берём дату создания своей
+    /// папки в %APPDATA% — она заводится при первом запуске и переживает
+    /// обновления: для того, кто поставил Counterplay месяц назад, она месячной
+    /// давности, для нового — сегодняшняя.
+    ///
+    /// Нужно это серверу: после того как база телеметрии была потеряна, каждый
+    /// давний пользователь при следующем запуске выглядел как новая установка.
+    /// Отличить их по одному лишь идентификатору нельзя — знает об этом только
+    /// сама программа. Не получилось прочитать — не шлём ничего, сервер тогда
+    /// решит по-старому.
+    private static string? InstalledAt()
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Counterplay");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return Directory.GetCreationTimeUtc(dir).ToString("o");
+        }
+        catch { return null; }
     }
 
     // Стабильный обезличенный идентификатор устройства: хэш MAC; если MAC нет —
