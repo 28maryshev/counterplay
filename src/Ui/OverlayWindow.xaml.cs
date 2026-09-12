@@ -4826,10 +4826,37 @@ public partial class OverlayWindow : Window
 
     // ── Рендер ────────────────────────────────────────────────────────────
 
+    // Состав врагов, под который уже посчитан подбор предметов. Нужен, чтобы
+    // пересчитывать его при пике врага, а не на каждое событие драфта.
+    private string _buildsEnemySig = "";
+
+    /// Пересчитать сборки, если состав врагов изменился.
+    ///
+    /// Подбор считается при отрисовке панели сборок, а её перерисовывает ховер
+    /// или выбор строки — но не чужой пик. Из-за этого подбор, готовый уже на
+    /// пятом враге, появлялся только когда игрок трогал панель: у одного это
+    /// случилось за восемь секунд до начала матча.
+    private void RefreshBuildsForEnemies()
+    {
+        if (_runeStats is null || RunesBar.Visibility != Visibility.Visible) return;
+
+        var ids = (_lastDraft?.TheirTeam ?? [])
+            .Select(p => p.EffectiveChampionId).Where(x => x != 0).OrderBy(x => x);
+        var sig = string.Join(",", ids);
+        if (sig == _buildsEnemySig) return;
+
+        _buildsEnemySig = sig;
+        RenderBuilds(_runeStats);
+    }
+
     private void RenderCurrentState()
     {
         var recs  = _lastRecs;
         var draft = _lastDraft;
+
+        // Враг взял чемпиона — пересчитываем подбор сразу, не дожидаясь, пока
+        // игрок наведёт мышь на панель.
+        RefreshBuildsForEnemies();
 
         // Фаза банов: показываем рекомендуемые баны (в том же разделе, что и пики).
         if (draft?.InBanPhase == true)
