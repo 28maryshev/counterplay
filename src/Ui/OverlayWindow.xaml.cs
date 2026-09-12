@@ -3904,6 +3904,10 @@ public partial class OverlayWindow : Window
 
     private static readonly Brush LpTickBrush =
         new SolidColorBrush(Color.FromArgb(0xCC, 0xBF, 0xF3, 0xF9));
+    // Засечка самого перехода — ярче и выше остальных: это финиш, а не граница
+    // между играми.
+    private static readonly Brush LpEdgeTickBrush =
+        new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
 
     /// Средняя величина изменения LP по последним играм. Ноль — не из чего
     /// считать: пропущенные дельты бывают у первых игр после установки.
@@ -3917,16 +3921,18 @@ public partial class OverlayWindow : Window
         return vals.Count == 0 ? 0 : (int)Math.Round(vals.Average());
     }
 
-    private void AddLpTick(double x)
+    private void AddLpTick(double x, bool edge = false)
     {
         var tick = new Border
         {
-            Width = 1.5,
-            Height = 5,
+            Width = edge ? 2 : 1.5,
+            Height = edge ? 7 : 5,
             CornerRadius = new CornerRadius(1),
-            Background = LpTickBrush,
+            Background = edge ? LpEdgeTickBrush : LpTickBrush,
+            VerticalAlignment = VerticalAlignment.Bottom,
         };
-        Canvas.SetLeft(tick, x - 0.75);
+        Canvas.SetLeft(tick, x - (edge ? 1 : 0.75));
+        Canvas.SetBottom(tick, 0);
         RankTicks.Children.Add(tick);
     }
 
@@ -4022,16 +4028,19 @@ public partial class OverlayWindow : Window
         // превратились бы в шум.
         var need = up ? winsTo : down ? lossesTo : 0;
 
-        if (need > 1 && step > 0)
+        if (need > 0 && step > 0)
         {
-            // Рисуем ГРАНИЦЫ между играми: последняя граница — сам переход, её
-            // не рисуем, край полосы и есть она.
+            // Границы между играми.
             for (var k = 1; k < need; k++)
             {
                 var at = up ? pct + k * step : pct - k * step;
                 if (at is <= 0 or >= 100) break;
                 AddLpTick(w * at / 100.0);
             }
+            // И сам переход — конец шкалы. Без него не видно, где линия
+            // кончается: штриховка сливается с дорожкой, и последний отрезок
+            // выглядит уходящим в никуда.
+            AddLpTick(up ? w : 0, edge: true);
         }
 
         // Подсказка словами: цифры на полосе не написать, а вопрос «сколько ещё
