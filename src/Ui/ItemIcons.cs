@@ -61,6 +61,10 @@ public static class ItemIcons
     // по одной иконке не вспомнить, что даёт Кинжал павшего короля, а сборка из
     // шести незнакомых значков ничего не объясняет.
     private static Dictionary<int, string> _descs = new();
+    // Сырая разметка описания: из неё делается раскрашенная подсказка.
+    private static Dictionary<int, string> _raw = new();
+    // Цена: столько же во всех языках, поэтому берём заодно с названиями.
+    private static Dictionary<int, int> _cost = new();
     private static Dictionary<int, int[]> _from = new();   // id → прямые компоненты
 
     private static string? _namesLocale;
@@ -77,13 +81,21 @@ public static class ItemIcons
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             var map = new Dictionary<int, string>();
             var descs = new Dictionary<int, string>();
+            var raw = new Dictionary<int, string>();
+            var cost = new Dictionary<int, int>();
             var from = new Dictionary<int, int[]>();
             foreach (var it in doc.RootElement.GetProperty("data").EnumerateObject())
             {
                 if (!int.TryParse(it.Name, out var id)) continue;
                 if (it.Value.TryGetProperty("name", out var n)) map[id] = n.GetString() ?? "";
                 if (it.Value.TryGetProperty("description", out var d))
-                    descs[id] = CleanDesc(d.GetString() ?? "");
+                {
+                    raw[id] = d.GetString() ?? "";
+                    descs[id] = CleanDesc(raw[id]);
+                }
+                if (it.Value.TryGetProperty("gold", out var g)
+                    && g.TryGetProperty("total", out var tot) && tot.TryGetInt32(out var price))
+                    cost[id] = price;
                 if (it.Value.TryGetProperty("from", out var f) && f.ValueKind == JsonValueKind.Array)
                     from[id] = f.EnumerateArray()
                                 .Select(x => int.TryParse(x.GetString(), out var c) ? c : 0)
@@ -91,6 +103,8 @@ public static class ItemIcons
             }
             _names = map;
             _descs = descs;
+            _raw = raw;
+            _cost = cost;
             _from = from;
         }
         catch { _names = new Dictionary<int, string>(); }
@@ -102,11 +116,13 @@ public static class ItemIcons
     /// загрузились): подсказка тогда покажет одно название.
     public static string DescOf(int id) => _descs.GetValueOrDefault(id, "");
 
-    /// Riot отдаёт описание разметкой: «<stats>45 <attention>Сила умений</attention>
-    /// </stats><passive>Освящение</passive><br>Лечение союзника…». Переводим её в
-    /// обычный текст: характеристики отдельной строкой, каждое свойство с новой,
-    /// а сказку про происхождение предмета выбрасываем — в подсказке она только
-    /// занимает место.
+    /// Описание кусками с цветом — для подсказки при наведении.
+    public static IReadOnlyList<ItemDesc.Part> DescPartsOf(int id) =>
+        ItemDesc.Parse(_raw.GetValueOrDefault(id, ""));
+
+    /// Цена предмета. 0 — неизвестна (или предмет бесплатный).
+    public static int CostOf(int id) => _cost.GetValueOrDefault(id, 0);
+
     /// Riot отдаёт описание разметкой: «&lt;stats&gt;45 Сила умений&lt;/stats&gt;
     /// &lt;passive&gt;Освящение&lt;/passive&gt;&lt;br&gt;Лечение союзника…». Переводим её в
     /// обычный текст: характеристики отдельной строкой, каждое свойство с новой,

@@ -988,9 +988,13 @@ public partial class OverlayWindow : Window
     /// Слот предмета: CORE выделен золотой рамкой, ситуативные — тусклой.
     public sealed record SlotVm(ImageSource? Icon, string Tip, Brush Stroke, Thickness Thickness, double Dim)
     {
-        /// Что предмет делает — текстом с Data Dragon, на языке игрока.
-        public string Desc { get; init; } = "";
-        public Visibility DescVis => Desc.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        /// Что предмет делает — кусками с цветом, как в клиенте.
+        public IReadOnlyList<ItemDesc.Part> DescParts { get; init; } = [];
+        public Visibility DescVis => DescParts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        /// Цена: столько же во всех языках, поэтому просто число.
+        public int Cost { get; init; }
+        public string CostText => Cost > 0 ? Cost.ToString("N0") : "";
+        public Visibility CostVis => Cost > 0 ? Visibility.Visible : Visibility.Collapsed;
         /// У пустых рамок подсказки нет: показывать в ней нечего.
         public bool HasTip => Tip.Length > 0;
     }
@@ -1122,7 +1126,8 @@ public partial class OverlayWindow : Window
                     new Thickness(swapped ? 2 : isCore ? 1.5 : 1),
                     swapped || isCore ? 1.0 : 0.85)
                 {
-                    Desc = ItemIcons.DescOf(id),
+                    DescParts = ItemIcons.DescPartsOf(id),
+                    Cost = ItemIcons.CostOf(id),
                 });
             }
             // Добиваем до 6 слотов пустыми рамками — сетка ровная.

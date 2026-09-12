@@ -2226,14 +2226,46 @@
                                           ToolTipService.ShowDuration="30000">
                                     <Border.ToolTip>
                                       <ToolTip Style="{StaticResource HintTip}">
-                                        <StackPanel MaxWidth="280">
-                                          <TextBlock Text="{Binding Tip}" TextWrapping="Wrap"
-                                                     FontFamily="{StaticResource UiFont}" FontSize="11"
-                                                     FontWeight="Bold" Foreground="#F0D48A"/>
-                                          <TextBlock Text="{Binding Desc}" TextWrapping="Wrap"
-                                                     Visibility="{Binding DescVis}" Margin="0,5,0,0"
+                                        <StackPanel MaxWidth="300">
+                                          <!-- Шапка как в клиенте: иконка, название,
+                                               цена с монетой справа. -->
+                                          <Grid>
+                                            <Grid.ColumnDefinitions>
+                                              <ColumnDefinition Width="Auto"/>
+                                              <ColumnDefinition Width="*"/>
+                                              <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="30" Height="30" CornerRadius="5"
+                                                    BorderBrush="#55557089" BorderThickness="1"
+                                                    ClipToBounds="True" VerticalAlignment="Top">
+                                              <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                                                     RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{Binding Tip}" TextWrapping="Wrap"
+                                                       Margin="8,1,8,0" VerticalAlignment="Center"
+                                                       FontFamily="{StaticResource UiFont}" FontSize="11"
+                                                       FontWeight="Bold" Foreground="#F0D48A"/>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                        VerticalAlignment="Center"
+                                                        Visibility="{Binding CostVis}">
+                                              <Ellipse Width="10" Height="10" Fill="#F0C24B"
+                                                       Stroke="#8A6A1E" StrokeThickness="1"
+                                                       VerticalAlignment="Center"/>
+                                              <TextBlock Text="{Binding CostText}" Margin="4,0,0,0"
+                                                         VerticalAlignment="Center"
+                                                         FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                         FontWeight="Bold" Foreground="#F0C24B"/>
+                                            </StackPanel>
+                                          </Grid>
+                                          <!-- Разделитель: характеристики отделены от
+                                               названия так же, как в клиенте. -->
+                                          <Border Height="1" Background="#33557089" Margin="0,7,0,0"
+                                                  Visibility="{Binding DescVis}"/>
+                                          <TextBlock TextWrapping="Wrap" Margin="0,6,0,0"
+                                                     Visibility="{Binding DescVis}"
+                                                     loc:InlineText.Parts="{Binding DescParts}"
                                                      FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                     LineHeight="14" Foreground="#9FB3C8"/>
+                                                     LineHeight="15" Foreground="#9FB3C8"/>
                                         </StackPanel>
                                       </ToolTip>
                                     </Border.ToolTip>
