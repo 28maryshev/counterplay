@@ -151,10 +151,12 @@ static class TestMode
 
         // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
         // с кнопками режимов пула (в бою данные приходят из клиента).
+        // Список идёт от свежей игры к старой. Первой стоит поражение — на этом
+        // сценарии видно, как низ шкалы горит красным.
         var last5 = new List<SessionTracker.RecentGame>
         {
-            new(86, true, 22), new(103, false, -18), new(238, true, 20),
-            new(51, true, 19), new(99, false, -21),
+            new(103, false, -21), new(86, true, 22), new(103, false, -18),
+            new(238, true, 20), new(51, true, 19),
         };
         // Три месяца истории: иначе переключатель окна графика (30/90 дней)
         // нечем проверить — на 14 точках оба варианта выглядят одинаково.
@@ -173,13 +175,15 @@ static class TestMode
             lpAbs += rndLp.Next(0, 10) < 6 ? rndLp.Next(12, 24) : -rndLp.Next(10, 22);
             rating.Add(new(DateTime.Now.AddDays(-92 + i), lpAbs));
         }
-        rating.Add(new(DateTime.Now, 2047));   // эмеральд II, 47 LP — как в карточке
+        rating.Add(new(DateTime.Now, 2073));   // эмеральд II, 73 LP — как в карточке
         var fakeSession = new SessionTracker.SessionData(
             "TestSummoner", "solo",
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
-                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
+                    // 73 LP при проигранной последней игре: верх шкалы красным
+                    // не горит — там речь о том, что можно набрать, а не потерять.
+                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 73, ProgressPct: 73,
                     Wins: 63, Losses: 55, Winrate: 53.4, Last5: last5, WinrateHistory: hist, RatingHistory: rating),
             });
 
@@ -191,7 +195,9 @@ static class TestMode
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
-                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 47, ProgressPct: 47,
+                    // Лига ВЫШЕ основного профиля: переключение сюда показывает
+                    // переход в новую лигу — сборку знака из двух половин.
+                    HasRank: true, Tier: "DIAMOND", Division: "IV", Lp: 12, ProgressPct: 12,
                     // W/L и винрейт ранговой очереди приходят из клиента, а не
                     // копятся программой: человек ставит её посреди сезона и
                     // сразу видит свои 64–56.
@@ -203,7 +209,7 @@ static class TestMode
                         new(DateTime.Now.AddHours(-2), 53.3),
                         new(DateTime.Now, 53.7)],
                     // Одна игра — и на графике рейтинга ровно одна точка.
-                    RatingHistory: [new(DateTime.Now, 2047)]),
+                    RatingHistory: [new(DateTime.Now, 2412)]),
             });
         FullSession = fakeSession;
 
@@ -215,15 +221,15 @@ static class TestMode
             climbLp += rndC.Next(0, 10) < 8 ? rndC.Next(16, 30) : -rndC.Next(10, 20);
             climb.Add(new(DateTime.Now.AddDays(-14).AddHours(i * 5.6), climbLp));
         }
-        // Доводим до 72 LP: на этой отметке полоса показывает не только штриховку
+        // Доводим до 73 LP: на этой отметке полоса показывает не только штриховку
         // будущей победы, но и засечку — границу между двумя играми до повышения.
-        climb.Add(new(DateTime.Now, 1672));
+        climb.Add(new(DateTime.Now, 1673));
         ClimbSession = new SessionTracker.SessionData(
             "TestSummoner", "solo",
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
-                    HasRank: true, Tier: "PLATINUM", Division: "I", Lp: 72, ProgressPct: 72,
+                    HasRank: true, Tier: "PLATINUM", Division: "I", Lp: 73, ProgressPct: 73,
                     Wins: 92, Losses: 61, Winrate: 60.1, Last5: last5,
                     WinrateHistory: hist, RatingHistory: climb),
             });
@@ -246,9 +252,10 @@ static class TestMode
             new Dictionary<string, SessionTracker.QueueView>
             {
                 ["solo"] = new SessionTracker.QueueView(
-                    // 22 LP — нижний край шкалы: здесь полоса показывает засечки
-                    // в другую сторону, сколько поражений до понижения.
-                    HasRank: true, Tier: "EMERALD", Division: "II", Lp: 22, ProgressPct: 22,
+                    // Лига НИЖЕ основного профиля: переключение сюда показывает
+                    // падение в прошлую лигу — знак просто выезжает снизу.
+                    // 22 LP заодно держат нижний край шкалы с засечками.
+                    HasRank: true, Tier: "PLATINUM", Division: "IV", Lp: 22, ProgressPct: 22,
                     Wins: 3, Losses: 2, Winrate: 60, Last5: five, WinrateHistory: fiveHist, RatingHistory: rating),
             });
 

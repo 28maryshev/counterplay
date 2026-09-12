@@ -34,6 +34,11 @@
       </DrawingBrush.Drawing>
     </DrawingBrush>
 
+    <!-- Очки, которые можно потерять: не штриховка, а цвет. Они УЖЕ набраны,
+         поэтому полоса остаётся сплошной — меняется только её оттенок, и сразу
+         видно, какая часть уйдёт с поражением. -->
+    <SolidColorBrush x:Key="LpRiskFill" Color="#E8503F"/>
+
     <!-- Основной текст — Geist (встроен в сборку), как на сайте. Запасной Segoe UI. -->
     <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
     <!-- Заголовки/имена — тоже Geist, чтобы весь интерфейс был единым шрифтом. -->
@@ -590,9 +595,63 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
+              <!-- Эмблема умеет вспыхивать при смене дивизиона: масштаб и свечение
+                   задаются кодом, здесь только место под них. -->
               <Image x:Name="RankEmblem" Grid.Column="0" Height="74" HorizontalAlignment="Left"
                      Margin="-6,0,0,-4" Stretch="Uniform" Visibility="Collapsed"
-                     RenderOptions.BitmapScalingMode="HighQuality"/>
+                     RenderOptions.BitmapScalingMode="HighQuality"
+                     RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                  <TransformGroup>
+                    <ScaleTransform x:Name="RankEmblemScale" ScaleX="1" ScaleY="1"/>
+                    <TranslateTransform x:Name="RankEmblemMove"/>
+                  </TransformGroup>
+                </Image.RenderTransform>
+              </Image>
+              <!-- Сборка эмблемы при переходе в НОВУЮ ЛИГУ. Новый знак приезжает
+                   сверху двумя половинами и сваривается посередине: луч, вспышка
+                   и короткий скачок размера. Обе половины — одна и та же
+                   картинка, разрезанная пополам обрезкой (задаётся в коде: она
+                   зависит от того, какой ширины вышла эмблема). -->
+              <Grid x:Name="RankWeld" Grid.Column="0" Height="74" HorizontalAlignment="Left"
+                    Margin="-6,0,0,-4" Visibility="Collapsed" IsHitTestVisible="False"
+                    RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                  <ScaleTransform x:Name="RankWeldScale" ScaleX="1" ScaleY="1"/>
+                </Grid.RenderTransform>
+                <Image x:Name="RankHalfLeft" Height="74" Stretch="Uniform"
+                       HorizontalAlignment="Left" RenderOptions.BitmapScalingMode="HighQuality">
+                  <Image.RenderTransform>
+                    <TranslateTransform x:Name="RankHalfLeftMove"/>
+                  </Image.RenderTransform>
+                </Image>
+                <Image x:Name="RankHalfRight" Height="74" Stretch="Uniform"
+                       HorizontalAlignment="Left" RenderOptions.BitmapScalingMode="HighQuality">
+                  <Image.RenderTransform>
+                    <TranslateTransform x:Name="RankHalfRightMove"/>
+                  </Image.RenderTransform>
+                </Image>
+                <!-- Шов: вертикальный луч, яркий в середине и сходящий на нет к
+                     краям. Ставится по центру эмблемы кодом. -->
+                <Border x:Name="RankWeldBeam" Width="14" HorizontalAlignment="Left"
+                        Opacity="0" RenderTransformOrigin="0.5,0.5">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                      <GradientStop Color="#00FFFFFF" Offset="0"/>
+                      <GradientStop Color="#FFFFFFFF" Offset="0.5"/>
+                      <GradientStop Color="#00FFFFFF" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                  <Border.RenderTransform>
+                    <ScaleTransform x:Name="RankWeldBeamScale" ScaleX="1" ScaleY="0.2"/>
+                  </Border.RenderTransform>
+                  <Border.Effect>
+                    <DropShadowEffect x:Name="RankWeldGlow" Color="#FFF3C4" ShadowDepth="0"
+                                      BlurRadius="0" Opacity="0"/>
+                  </Border.Effect>
+                </Border>
+              </Grid>
+
               <!-- Скелетон эмблемы ранга -->
               <Border x:Name="EmblemSkel" Grid.Column="0" Width="62" Height="62" CornerRadius="10"
                       HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,0"
@@ -634,9 +693,17 @@
               <TextBlock x:Name="RankText" Grid.Column="0" Text="—"
                          FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"
                          Foreground="#E6EDF3" VerticalAlignment="Bottom"/>
+              <!-- Пока цифры перещёлкиваются, надпись подрастает. Точка отсчёта —
+                   правый край: слева от неё название ранга, и растягиваться туда
+                   надписи некуда. -->
               <TextBlock x:Name="RankLpText" Grid.Column="1" Text=""
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
-                         Foreground="#9FB3C8" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                         Foreground="#9FB3C8" VerticalAlignment="Bottom" Margin="0,0,0,2"
+                         RenderTransformOrigin="1,0.5">
+                <TextBlock.RenderTransform>
+                  <ScaleTransform x:Name="RankLpScale" ScaleX="1" ScaleY="1"/>
+                </TextBlock.RenderTransform>
+              </TextBlock>
               <!-- Скелетоны ранга и LP (показываются, пока данных нет) -->
               <Border x:Name="RankSkel" Grid.Column="0" Width="132" Height="20" CornerRadius="4"
                       HorizontalAlignment="Left" VerticalAlignment="Bottom" Visibility="Collapsed"/>
@@ -663,8 +730,12 @@
                 </Border>
                 <!-- Штриховка того же цвета, но полупрозрачная: это ещё не
                      набранные очки, и выглядеть как набранные они не должны. -->
-                <!-- Слева край прямой: штриховка продолжает заполненную часть, и
-                     скруглённый край читался бы как разрыв между ними. -->
+                <!-- Две штриховки: ближняя игра и следующая за ней. Вторая
+                     бледнее — она дальше и менее определённа. Край, примыкающий
+                     к соседней части, прямой: скруглённый читался бы как разрыв. -->
+                <Border x:Name="RankProgressGhost2" Width="0" Height="7" CornerRadius="0,4,4,0"
+                        HorizontalAlignment="Left" Visibility="Collapsed" Opacity="0.45"
+                        Background="{StaticResource LpGhostHatch}"/>
                 <Border x:Name="RankProgressGhost" Width="0" Height="7" CornerRadius="0,4,4,0"
                         HorizontalAlignment="Left" Visibility="Collapsed"
                         Background="{StaticResource LpGhostHatch}"/>
