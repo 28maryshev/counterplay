@@ -179,14 +179,32 @@ public static class ItemDesc
 
         var text = new List<Part>();
         var stack = new Stack<string>();
+        var written = new System.Text.StringBuilder();
+        var headers = new Stack<bool>();   // был ли открытый тег ЗАГОЛОВКОМ
         var i2 = 0;
 
         void Add(string s, string? tag)
         {
             if (s.Length == 0) return;
-            text.Add(new Part(System.Net.WebUtility.HtmlDecode(s),
+            var decoded = System.Net.WebUtility.HtmlDecode(s);
+            written.Append(decoded);
+            text.Add(new Part(decoded,
                               tag is null ? Plain : ColorOf(tag),
                               tag is "passive" or "active" or "rules"));
+        }
+
+        // Тег в начале строки открывает НОВОЕ свойство. Тем же тегом Riot
+        // помечает ссылку на свойство внутри предложения («…applies Squall to
+        // them»), и перенос строки там разрывал фразу пополам.
+        bool AtLineStart()
+        {
+            for (var k = written.Length - 1; k >= 0; k--)
+            {
+                var c = written[k];
+                if (c == '\n') return true;
+                if (!char.IsWhiteSpace(c)) return false;
+            }
+            return true;   // ещё ничего не написано
         }
 
         foreach (Match m in Regex.Matches(rest, "</?([a-zA-Z]+)[^>]*>"))
@@ -198,11 +216,18 @@ public static class ItemDesc
             if (m.Value.StartsWith("</"))
             {
                 if (stack.Count > 0) stack.Pop();
-                if (BreaksBefore(tag)) Add("\n", null);
+                // После заголовка — с новой строки. Но если у Riot там уже стоит
+                // перенос, своего не добавляем: между названием свойства и его
+                // описанием получалась пустая строка.
+                if (headers.Count > 0 && headers.Pop()
+                    && !(i2 < rest.Length && rest[i2] == '\n')) Add("\n", null);
             }
             else
             {
-                if (BreaksBefore(tag)) Add("\n\n", null);
+                var header = BreaksBefore(tag) && AtLineStart();
+                // Пустая строка перед заголовком — но только если выше что-то есть.
+                if (header && written.Length > 0) Add("\n", null);
+                headers.Push(header);
                 stack.Push(tag);
             }
         }
