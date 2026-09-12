@@ -2132,6 +2132,19 @@
                                фирменный знак. Подбор — это наша работа, а не цифра
                                из статистики, и подписан он так же, как кнопка пика. -->
                           <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,7,0">
+                            <!-- Пустое место под будущий подбор: те же две строки,
+                                 что у винрейта, только пустыми плашками. Без них
+                                 колонка схлопывалась, и ряды предметов у соседних
+                                 строк начинались с разных мест. -->
+                            <StackPanel Visibility="{Binding SkelVis}" HorizontalAlignment="Right">
+                              <Border Width="46" Height="13" CornerRadius="3"
+                                      Background="#12FFFFFF" BorderBrush="#33557089"
+                                      BorderThickness="1"/>
+                              <Border Width="30" Height="9" CornerRadius="3" Margin="0,3,0,0"
+                                      HorizontalAlignment="Right"
+                                      Background="#12FFFFFF" BorderBrush="#33557089"
+                                      BorderThickness="1"/>
+                            </StackPanel>
                             <StackPanel Visibility="{Binding WrVis}">
                               <TextBlock Text="{Binding WrText}" TextAlignment="Right"
                                          FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
@@ -2199,10 +2212,31 @@
                               </ItemsControl.ItemsPanel>
                               <ItemsControl.ItemTemplate>
                                 <DataTemplate>
+                                  <!-- Подсказка предмета — как у рун: название и что
+                                       он делает. По одной иконке не вспомнить, что
+                                       даёт предмет, а ряд из шести незнакомых
+                                       значков не объясняет ничего.
+                                       У пустых рамок подсказки нет — IsEnabled. -->
                                   <Border Width="26" Height="26" Margin="0,0,3,0" CornerRadius="4"
                                           BorderThickness="{Binding Thickness}"
                                           BorderBrush="{Binding Stroke}"
-                                          Background="#12FFFFFF" ToolTip="{Binding Tip}">
+                                          Background="#12FFFFFF"
+                                          ToolTipService.IsEnabled="{Binding HasTip}"
+                                          ToolTipService.InitialShowDelay="200"
+                                          ToolTipService.ShowDuration="30000">
+                                    <Border.ToolTip>
+                                      <ToolTip Style="{StaticResource HintTip}">
+                                        <StackPanel MaxWidth="280">
+                                          <TextBlock Text="{Binding Tip}" TextWrapping="Wrap"
+                                                     FontFamily="{StaticResource UiFont}" FontSize="11"
+                                                     FontWeight="Bold" Foreground="#F0D48A"/>
+                                          <TextBlock Text="{Binding Desc}" TextWrapping="Wrap"
+                                                     Visibility="{Binding DescVis}" Margin="0,5,0,0"
+                                                     FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                     LineHeight="14" Foreground="#9FB3C8"/>
+                                        </StackPanel>
+                                      </ToolTip>
+                                    </Border.ToolTip>
                                     <Image Source="{Binding Icon}" Stretch="UniformToFill"
                                            Opacity="{Binding Dim}"
                                            RenderOptions.BitmapScalingMode="HighQuality"/>
@@ -2212,15 +2246,27 @@
                             </ItemsControl>
                           </Border>
 
-                          <Border Grid.Column="2" Margin="8,0,0,0" Padding="10,7" CornerRadius="6"
+                          <!-- Кнопка экспорта. У пустой строки это она же — та же
+                                 рамка, те же отступы и тот же текст, только без
+                                 цвета: так место под кнопку совпадает с кнопкой
+                                 точно, а не на глаз. Подобранная числом плашка
+                                 сдвигала весь ряд предметов на несколько пикселей. -->
+                          <!-- Размер кнопки задан явно: 66×28. Раньше её меряли по
+                                 тексту, и «Export» против «Dışa aktar» давали разную
+                                 ширину — а вместе с ней разную ширину ряда предметов.
+                                 MinWidth, а не Width: длинному переводу есть куда
+                                 вырасти, но ниже этого кнопка не съёживается. -->
+                          <Border Grid.Column="2" Margin="8,0,0,0" MinWidth="66" Height="28"
+                                  Padding="9,0" CornerRadius="6"
                                   Cursor="Hand" VerticalAlignment="Center"
-                                  Visibility="{Binding ExportVis}"
-                                  Background="#22C89B3C" BorderBrush="#55C89B3C" BorderThickness="1.5"
+                                  Background="{Binding ExportBg}" BorderBrush="{Binding ExportStroke}"
+                                  BorderThickness="1.5"
                                   MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
                                   ToolTip="{Binding TipHead}">
                             <TextBlock Text="{Binding ExportText}"
                                        FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
-                                       Foreground="#F0D48A"/>
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{Binding ExportFg}"/>
                           </Border>
                         </Grid>
                         </Border>

@@ -986,7 +986,14 @@ public partial class OverlayWindow : Window
     // ── Сборки ───────────────────────────────────────────────────────────────
 
     /// Слот предмета: CORE выделен золотой рамкой, ситуативные — тусклой.
-    public sealed record SlotVm(ImageSource? Icon, string Tip, Brush Stroke, Thickness Thickness, double Dim);
+    public sealed record SlotVm(ImageSource? Icon, string Tip, Brush Stroke, Thickness Thickness, double Dim)
+    {
+        /// Что предмет делает — текстом с Data Dragon, на языке игрока.
+        public string Desc { get; init; } = "";
+        public Visibility DescVis => Desc.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        /// У пустых рамок подсказки нет: показывать в ней нечего.
+        public bool HasTip => Tip.Length > 0;
+    }
 
     /// Строка сборки: винрейт/игры слева, 6 слотов, кнопка экспорта. Выбранная — золотом.
     public sealed record BuildRowVm(
@@ -997,9 +1004,18 @@ public partial class OverlayWindow : Window
         Visibility WrVis, Visibility AiVis, string TipHead,
         // Пустое место под будущий подбор: блёклая строка без кнопки и без
         // знака вопроса — показывать там нечего, пока подбор не появился.
-        Visibility ExportVis, Visibility HintVis, double RowOpacity);
+        Visibility HintVis, double RowOpacity, Visibility SkelVis,
+        Brush ExportBg, Brush ExportStroke, Brush ExportFg);
 
     private static readonly Brush AiBrush    = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
+    // Кнопка экспорта в двух видах: золотая у настоящей сборки и пустая рамка на
+    // месте будущего подбора.
+    private static readonly Brush ExportFill = new SolidColorBrush(Color.FromArgb(0x22, 0xC8, 0x9B, 0x3C));
+    private static readonly Brush ExportEdge = new SolidColorBrush(Color.FromArgb(0x55, 0xC8, 0x9B, 0x3C));
+    private static readonly Brush ExportText = new SolidColorBrush(Color.FromRgb(0xF0, 0xD4, 0x8A));
+    private static readonly Brush SkelFill   = new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF));
+    private static readonly Brush SkelEdge   = new SolidColorBrush(Color.FromArgb(0x33, 0x55, 0x70, 0x89));
+    private static readonly Brush Transparent = new SolidColorBrush(Colors.Transparent);
     private static readonly Brush CoreStroke = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C));
     private static readonly Brush AltStroke  = new SolidColorBrush(Color.FromArgb(0x55, 0x55, 0x70, 0x89));
 
@@ -1104,7 +1120,10 @@ public partial class OverlayWindow : Window
                         + (swapped ? $" · {Loc.T("runes.aiUnder")}" : isCore ? $" · {Loc.T("runes.core")}" : ""),
                     swapped ? AiBrush : isCore ? CoreStroke : AltStroke,
                     new Thickness(swapped ? 2 : isCore ? 1.5 : 1),
-                    swapped || isCore ? 1.0 : 0.85));
+                    swapped || isCore ? 1.0 : 0.85)
+                {
+                    Desc = ItemIcons.DescOf(id),
+                });
             }
             // Добиваем до 6 слотов пустыми рамками — сетка ровная.
             while (slots.Count < 6)
@@ -1130,9 +1149,10 @@ public partial class OverlayWindow : Window
                 TipHead: isAi
                     ? Loc.T("runes.aiTipHead")
                     : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
-                ExportVis: Visibility.Visible,
                 HintVis: isAi ? Visibility.Visible : Visibility.Collapsed,
-                RowOpacity: 1.0));
+                RowOpacity: 1.0,
+                SkelVis: Visibility.Collapsed,
+                ExportBg: ExportFill, ExportStroke: ExportEdge, ExportFg: ExportText));
         }
 
         // Подбора пока нет — вторую строку занимает его блёклый след: шесть
@@ -1148,19 +1168,24 @@ public partial class OverlayWindow : Window
                 Index: -1,                      // не выбирается и не экспортируется
                 Slots: empty,
                 ExportText: "",
-                WrText: Loc.T("runes.aiBuild"),
+                // Ни знака, ни подписей: место под подбор — это пустое место, а
+                // не выключенный подбор. Знак и подпись появятся вместе с ним.
+                WrText: "",
                 WrBrush: AiBrush,
-                GamesText: Loc.T("runes.aiUnder"),
+                GamesText: "",
                 RowBg: RowOff,
                 RowStroke: RowOffEdge,
                 Reason: "",
                 ReasonVis: Visibility.Collapsed,
                 WrVis: Visibility.Collapsed,
-                AiVis: Visibility.Visible,
+                AiVis: Visibility.Collapsed,
                 TipHead: ghostTip,
-                ExportVis: Visibility.Collapsed,
                 HintVis: Visibility.Collapsed,
-                RowOpacity: 0.38));
+                RowOpacity: 0.38,
+                SkelVis: Visibility.Visible,
+                // Та же кнопка, только пустая: текст прозрачный, чтобы ширина
+                // осталась кнопочной.
+                ExportBg: SkelFill, ExportStroke: SkelEdge, ExportFg: Transparent));
         }
 
         BuildList.ItemsSource = rows;

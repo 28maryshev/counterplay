@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -56,6 +57,10 @@ public static class ItemIcons
 
     // Названия предметов + карта компонентов (из чего собирается). Грузим один раз.
     private static Dictionary<int, string>? _names;
+    // Что предмет делает — текстом, на языке игрока. Для подсказки при наведении:
+    // по одной иконке не вспомнить, что даёт Кинжал павшего короля, а сборка из
+    // шести незнакомых значков ничего не объясняет.
+    private static Dictionary<int, string> _descs = new();
     private static Dictionary<int, int[]> _from = new();   // id → прямые компоненты
 
     private static string? _namesLocale;
@@ -71,23 +76,60 @@ public static class ItemIcons
                 $"https://ddragon.leagueoflegends.com/cdn/{DataDragon.Version}/data/{locale}/item.json", ct);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             var map = new Dictionary<int, string>();
+            var descs = new Dictionary<int, string>();
             var from = new Dictionary<int, int[]>();
             foreach (var it in doc.RootElement.GetProperty("data").EnumerateObject())
             {
                 if (!int.TryParse(it.Name, out var id)) continue;
                 if (it.Value.TryGetProperty("name", out var n)) map[id] = n.GetString() ?? "";
+                if (it.Value.TryGetProperty("description", out var d))
+                    descs[id] = CleanDesc(d.GetString() ?? "");
                 if (it.Value.TryGetProperty("from", out var f) && f.ValueKind == JsonValueKind.Array)
                     from[id] = f.EnumerateArray()
                                 .Select(x => int.TryParse(x.GetString(), out var c) ? c : 0)
                                 .Where(c => c > 0).ToArray();
             }
             _names = map;
+            _descs = descs;
             _from = from;
         }
         catch { _names = new Dictionary<int, string>(); }
     }
 
     public static string NameOf(int id) => _names?.GetValueOrDefault(id) ?? $"#{id}";
+
+    /// Описание предмета на языке игрока. Пусто — описания нет (или ещё не
+    /// загрузились): подсказка тогда покажет одно название.
+    public static string DescOf(int id) => _descs.GetValueOrDefault(id, "");
+
+    /// Riot отдаёт описание разметкой: «<stats>45 <attention>Сила умений</attention>
+    /// </stats><passive>Освящение</passive><br>Лечение союзника…». Переводим её в
+    /// обычный текст: характеристики отдельной строкой, каждое свойство с новой,
+    /// а сказку про происхождение предмета выбрасываем — в подсказке она только
+    /// занимает место.
+    /// Riot отдаёт описание разметкой: «&lt;stats&gt;45 Сила умений&lt;/stats&gt;
+    /// &lt;passive&gt;Освящение&lt;/passive&gt;&lt;br&gt;Лечение союзника…». Переводим её в
+    /// обычный текст: характеристики отдельной строкой, каждое свойство с новой,
+    /// а сказку про происхождение предмета выбрасываем — в подсказке она только
+    /// занимает место.
+    private static string CleanDesc(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "";
+
+        var s = Regex.Replace(raw, "<flavorText>.*?</flavorText>", "",
+                              RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
+        // Начало блока — с новой строки: иначе характеристики и свойства
+        // сливаются в одно предложение.
+        s = Regex.Replace(s, "<(stats|passive|active|rules)>", "\n", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, "<[^>]+>", " ");
+        s = System.Net.WebUtility.HtmlDecode(s);
+        // Пробелов от разметки много, и без чистки текст выглядит рваным.
+        s = Regex.Replace(s, @"[ \t]+", " ");
+        s = Regex.Replace(s, @" ?\n ?", "\n");
+        s = Regex.Replace(s, @"\n{3,}", "\n\n");
+        return s.Trim();
+    }
 
     /// <summary>
     /// Предмет со всеми компонентами по порядку сборки: базовые → готовый.
