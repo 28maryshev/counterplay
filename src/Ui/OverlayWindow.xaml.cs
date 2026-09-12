@@ -2297,9 +2297,23 @@ public partial class OverlayWindow : Window
         BetaCard.BorderBrush = alert ? BetaCardAlert : BetaCardGold;
         BetaCard.Background  = alert ? BetaFillAlert : BetaFillNormal;
 
-        var link = n?.Link ?? "https://counterplays.com/support";
-        BetaLink.NavigateUri = new Uri(link);
-        BetaLinkText.Text = link.Replace("https://", "").TrimEnd('/');
+        // Ссылка — только та, что задана у сообщения. Раньше вместо пустой
+        // подставлялась поддержка: новость про Discord заканчивалась строкой
+        // «counterplays.com/support», и человек шёл не туда, куда зовут.
+        //
+        // Без сообщения плашка своя, про бету, и просьба писать в поддержку в
+        // ней и живёт — там ссылка остаётся.
+        var link = n is null ? "https://counterplays.com/support" : n.Link;
+        if (string.IsNullOrWhiteSpace(link))
+        {
+            BetaLinkLine.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            BetaLinkLine.Visibility = Visibility.Visible;
+            BetaLink.NavigateUri = new Uri(link);
+            BetaLinkText.Text = link.Replace("https://", "").TrimEnd('/');
+        }
     }
 
     /// Знак по бокам заголовка плашки — свой у каждого вида сообщения. Слово
