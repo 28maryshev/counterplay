@@ -1,82 +1,73 @@
 # Counterplay
 
-Windows desktop app that gives champion pick recommendations during the draft phase of League of Legends. Reads the current draft state from the League Client (LCU API) and suggests picks based on win rates, counter-matchup data, and team synergy.
+Counterplay is a Windows application for League of Legends that helps you choose
+a champion during champion select. It reads the draft from the game client as it
+happens and shows which picks work best against the enemy team and alongside your
+own, together with the build, runes, summoner spells and skill order for the pick
+you settle on.
 
-> Not affiliated with or endorsed by Riot Games.
+Website: [counterplays.com](https://counterplays.com)
+
+> Counterplay isn't endorsed by Riot Games and doesn't reflect the views or
+> opinions of Riot Games or anyone officially involved in producing or managing
+> Riot Games properties. League of Legends and Riot Games are trademarks or
+> registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
 
 ## What it does
 
-- Connects to the League client automatically when it's running
-- Detects your role, your teammates' picks, and enemy picks in real time
-- Suggests the best picks for your role based on:
-  - Base win rate for the patch
-  - Counter-matchup score against your lane opponent (highest weight)
-  - Average matchup score against the rest of the enemy team
-  - Synergy with your teammates
-- Shows a brief reason for each recommendation
-- Works during champion select only — no in-game overlay or assistance
-- Enemy summoner names are hidden in Ranked Solo/Duo (shown as Enemy 1, Enemy 2, etc.)
+- Recognises champion select automatically while the client is running
+- Reads your assigned role, your team's picks and the enemy picks as they happen
+- Ranks the champions available to you for the role you are playing, weighing the
+  matchup against your lane opponent most heavily, then the rest of the enemy
+  team, then how well the pick fits your own team
+- Gives a short reason for every recommendation, so the advice can be judged
+  rather than taken on faith
+- Shows the build, runes, summoner spells and skill order for the champion you
+  are about to lock in, and can send the rune page to the client in one click
+- Tracks your rank over a session and shows what the next game is worth
+- Adapts to your champion pool, so the advice stays inside what you actually play
+- Speaks English and Russian
 
-## Structure
+## What it deliberately does not do
 
-```
-Counterplay/
-├── src/                  # C# application (.NET 8, WPF)
-│   ├── App/              # entry point, autostart, settings
-│   ├── Client/           # League Client (LCU) — connection, draft parsing, rune import
-│   ├── Engine/           # pick scoring: matchups, synergy, champion traits, pools
-│   ├── Data/             # stats database, Data Dragon, session tracking, telemetry
-│   ├── Ui/               # overlay window, pool settings, icons, localization
-│   └── Dev/              # sandboxes for testing without a live client
-├── assets/               # fonts, icons, i18n strings (embedded into the build)
-├── pipeline/             # Python: match collection and stat aggregation
-│   ├── collect.py        # fetches matches via MATCH-V5 into SQLite
-│   ├── publish_data.py   # publishes the slim database as a GitHub release
-│   └── export_*.py       # exports for the website (draft, tier list, runes)
-├── bot/                  # Discord bot: meta radar, data freshness, release notes
-├── build/                # release scripts (Velopack installer, data publishing)
-└── docs/                 # design notes and specifications
-```
+These limits come from Riot's rules for third-party applications, and the
+application is built around them rather than against them.
 
-## Running the C# app
+- Advice appears **only during champion select**. Once the game starts, the
+  overlay stops advising — there is no in-game assistance of any kind.
+- Nothing is read from the game's memory or process. The application talks only
+  to the official client API on your own machine.
+- In Ranked Solo/Duo, enemy summoner names are never shown — opponents appear as
+  Enemy 1, Enemy 2 and so on.
+- No account credentials are asked for, stored or transmitted. The application
+  cannot log in, queue, play or act on your behalf.
 
-Requires .NET 8 and a running League of Legends client.
+## Requirements
 
-```
-cd C:\Counterplay
-dotnet run
-```
+- Windows 10 or 11
+- League of Legends installed, with the client running
 
-The app reads the lockfile from the default League install path. To use a custom path:
+## Install
 
-```
-dotnet run -- "D:\path\to\lockfile"
-```
+Download the latest installer from the
+[Releases](https://github.com/28maryshev/counterplay/releases) page and run it.
+Updates are delivered automatically; statistics refresh on their own as each
+patch settles.
 
-It will print draft state and recommendations to the console as you go through champion select.
+## Statistics
 
-## Testing without a live client
+Recommendations are computed from ranked matches collected through Riot's public
+match API and aggregated by champion, role, rank and patch. Individual matches
+are not retained — only the aggregate counts the recommendations are built from.
+Numbers are recalculated as a patch matures, and the application holds back a new
+patch until there is enough of it to say anything meaningful.
 
-```
-dotnet run test
-```
+## Support
 
-Opens a sandbox where you place picks and bans by hand and watch the recommendations react — the same engine and the same database as in a real draft, no League client needed.
+Questions, bug reports and suggestions: [counterplays.com](https://counterplays.com).
 
-## Building the stats database
+## License
 
-Requires Python 3 and a Riot API key.
-
-```
-cd pipeline
-pip install riotwatcher
-python collect.py --key YOUR_API_KEY --region euw1 --tier emerald --games 5000
-```
-
-This pulls ranked matches from MATCH-V5, aggregates win rates, counter-matchups, and synergy stats into `data.db`. Raw match data is not stored — only aggregated counts per champion/role/patch.
-
-## Tech
-
-- C# / .NET 8 — LCU integration, recommendation engine, future WPF overlay
-- Python — offline data pipeline (riotwatcher, SQLite)
-- Riot APIs used: match-v5, league-v4, summoner-v4, Data Dragon
+Proprietary. Copyright © 2026 Counterplay. All rights reserved. See
+[LICENSE](LICENSE) — the source is published for transparency, not for reuse:
+copying, modification, redistribution and derivative works are not permitted.
