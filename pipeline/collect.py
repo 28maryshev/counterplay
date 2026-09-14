@@ -30,7 +30,7 @@ import sqlite3
 import threading
 import time
 import sys
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests  # зависимость riotwatcher — для перехвата сетевых обрывов
@@ -101,6 +101,12 @@ CROSS_ROLES = {r: tuple(x for x in _ALL_ROLES if x != r) for r in _ALL_ROLES}
 # минимум 1.2 с. 1.25 с (~48 req/min) — у потолка, но с запасом на джиттер/429.
 # Меняется флагом --delay (опускать ниже 1.2 рискованно: пойдут 429).
 RATE_DELAY = 1.25
+
+# Таймаут одного запроса к Riot (секунды). Без него requests ждёт ответа вечно:
+# зависший сокет морозил поток региона, а вместе с ним и весь круг — демон стоял
+# сутками, не публикуя базу и не прося новый ключ. Оборвавшийся запрос куда
+# дешевле: api_call его просто повторит.
+REQUEST_TIMEOUT = 30
 
 
 # ---------- База данных ----------
@@ -934,7 +940,7 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     COMPLETED_ITEMS = load_completed_items()  # без него предметы не собираем
     _db_file = db_path                        # для check_disk
 
-    watcher = LolWatcher(api_key)
+    watcher = LolWatcher(api_key, timeout=REQUEST_TIMEOUT)
     con     = init_db(db_path)
     start_time = int((datetime.datetime.now(datetime.timezone.utc)
                       - datetime.timedelta(days=days)).timestamp())
@@ -988,8 +994,16 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
         with ThreadPoolExecutor(max_workers=len(regions),
                                 thread_name_prefix='region') as pool:
             futures = [pool.submit(run_region, r) for r in regions]
-            for f in futures:
-                f.result()   # пробрасываем исключения потоков
+            try:
+                # as_completed, а не порядок списка: упавший регион должен дойти
+                # до нас сразу. Иначе мы висели на futures[0] до его конца, а
+                # выход из `with` досиживал и остальные потоки — stop ставится
+                # ниже, в обработчике, и до него они успевали добить диск.
+                for f in as_completed(futures):
+                    f.result()   # пробрасываем исключения потоков
+            except BaseException:
+                stop.set()       # гасим соседей ДО того, как пул начнёт их ждать
+                raise
         if stop.is_set():
             print(f'\nДостигнут общий лимит {cap}.', flush=True)
         else:
@@ -1052,7 +1066,7 @@ def verify_parse(api_key: str):
     global COMPLETED_ITEMS
     COMPLETED_ITEMS = load_completed_items()
 
-    watcher = LolWatcher(api_key)
+    watcher = LolWatcher(api_key, timeout=REQUEST_TIMEOUT)
     league = api_call(watcher.league.challenger_by_queue, 'euw1', 'RANKED_SOLO_5x5')
     entry = (league or {}).get('entries', [{}])[0]
     puuid = entry.get('puuid')

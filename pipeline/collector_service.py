@@ -10,6 +10,11 @@ Dev-ключ живёт 24 ч, поэтому истечение ключа — 
 ловим 401/403, база уже сохранена, пишем в Discord «пришли новый ключ» и снова
 ждём. Никакого простоя данных: собранное до момента протухания опубликовано.
 
+Порядок здесь важнее, чем кажется: сначала просим ключ, потом публикуем. Пока
+было наоборот, залипшая заливка (в requests не стоял таймаут) вешала весь цикл —
+демон сутки стоял, не выложив базу и не сказав ни слова. Теперь у публикации
+есть свой потолок времени, и цикл переживает её зависание.
+
 Файлы в CONTROL_DIR (общий том с ботом):
     key      — Riot API-ключ (пишет бот; сервис удаляет после протухания)
     status   — JSON со статусом для `/collect status`
@@ -21,6 +26,7 @@ Dev-ключ живёт 24 ч, поэтому истечение ключа — 
     GITHUB_TOKEN     для публикации базы (без него — только сбор)
     REGIONS/BUCKETS  что собирать (по умолчанию all)
     COLLECT_DAYS     окно матчей в днях (по умолчанию 30)
+    PUBLISH_TIMEOUT  потолок времени на публикацию, сек (по умолчанию 5400)
 """
 
 import json
@@ -50,6 +56,11 @@ DAYS = int(os.environ.get('COLLECT_DAYS', '30'))
 KEY_FILE = CONTROL / 'key'
 STATUS_FILE = CONTROL / 'status'
 POLL = 15  # секунд между проверками файла ключа
+# Потолок времени на публикацию. Это не «сколько она обычно идёт» (снимок плюс
+# шесть заливок могут занять и полчаса), а «когда считать, что она уже не
+# закончится»: демон живёт на сервере без присмотра, и одна залипшая заливка
+# однажды заморозила весь цикл — база не выложена, новый ключ не запрошен.
+PUBLISH_TIMEOUT = int(os.environ.get('PUBLISH_TIMEOUT', '5400'))
 
 
 def notify(text: str):
@@ -181,21 +192,92 @@ def wait_for_key() -> str:
         time.sleep(POLL)
 
 
+# Ссылка на поток публикации: по ней видно, не завис ли прошлый заход.
+_publishing: threading.Thread | None = None
+
+
+def publish_dir() -> Path:
+    """Рабочая папка публикации. Снимок (~1 ГБ) и тонкие базы строятся здесь, на
+    ТОМЕ (диск), а не в /tmp контейнера — там tmpfs мал."""
+    return Path(DB_PATH).parent / 'publtmp'
+
+
+def clear_publish_dir():
+    """Сносит остатки прошлых публикаций.
+
+    Обычно tempfile убирает за собой сам, но прерванная публикация — упавшая,
+    зависшая, убитая рестартом контейнера — оставляет там снимок базы и пять
+    тонких: полтора гигабайта за раз. Два таких хвоста, и сбор встаёт по DiskLow,
+    хотя удалить надо всего лишь мусор.
+    """
+    freed = 0
+    try:
+        for item in publish_dir().iterdir():
+            if item.is_dir():
+                freed += sum(f.stat().st_size for f in item.rglob('*') if f.is_file())
+                shutil.rmtree(item, ignore_errors=True)
+            else:
+                freed += item.stat().st_size
+                item.unlink(missing_ok=True)
+    except FileNotFoundError:
+        return
+    except Exception as e:
+        print(f'[уборка] остатки публикации не убрались: {e}', flush=True)
+    if freed:
+        print(f'[уборка] снесены остатки прошлой публикации: {freed / 1e6:.0f} МБ',
+              flush=True)
+
+
+def run_with_deadline(fn, seconds: int):
+    """Выполняет fn в отдельном потоке и сдаётся, если тот не уложился в срок.
+
+    Убить зависший поток в Python нельзя, но он демонский: цикл сбора поедет
+    дальше, а собранное никуда не денется — выложим следующим кругом. Раньше на
+    этом месте стоял обычный вызов, и одна залипшая заливка вешала демона насмерть.
+    """
+    global _publishing
+    box: dict = {}
+
+    def runner():
+        try:
+            box['ok'] = fn()
+        except BaseException as e:     # пробросим в вызывающий поток как есть
+            box['err'] = e
+
+    t = threading.Thread(target=runner, daemon=True, name='publish')
+    _publishing = t
+    t.start()
+    t.join(seconds)
+    if t.is_alive():
+        limit = f'{seconds // 60} мин' if seconds >= 60 else f'{seconds} с'
+        raise TimeoutError(f'публикация идёт дольше {limit} — бросаю ждать')
+    if 'err' in box:
+        raise box['err']
+    return box['ok']
+
+
 def publish_db(session_total: int):
     if not GH_TOKEN:
         notify(f'✅ Круг сбора завершён: +{session_total} матчей. '
                '(Автопубликация выключена — нет GITHUB_TOKEN.)')
         return
+    if _publishing is not None and _publishing.is_alive():
+        # Прошлая публикация ещё не отпустила. Второй заход заливал бы те же
+        # имена ассетов вперемешку с ней — в релизе оказался бы манифест от
+        # одной базы и файлы от другой.
+        notify('⏭ Прошлая публикация ещё идёт — эту пропускаю, '
+               'база выложится следующим кругом.')
+        return
     try:
         set_status(state='publishing')
         notify(f'📦 Круг завершён (+{session_total}) — публикую базу. '
                'Это несколько минут; сбор продолжится сразу после неё.')
-        # Снапшот (~1 ГБ) + тонкие побакетные базы строятся во временной папке.
-        # Кладём её на ТОМ (диск), а не в /tmp контейнера (там tmpfs мал).
-        tmp = Path(DB_PATH).parent / 'publtmp'
+        clear_publish_dir()            # хвосты прошлого захода — до, а не после
+        tmp = publish_dir()
         tmp.mkdir(exist_ok=True)
         os.environ['TMPDIR'] = str(tmp)
-        info = publish_data.publish(DB_PATH, GH_TOKEN)
+        info = run_with_deadline(lambda: publish_data.publish(DB_PATH, GH_TOKEN),
+                                 PUBLISH_TIMEOUT)
         buckets = info.get('buckets', {})
         bsizes = ' · '.join(f'{b} {buckets[b]["size_mb"]}МБ' for b in buckets)
         notify(f'📦 База обновлена в проде: +{session_total} матчей за круг · '
@@ -212,7 +294,10 @@ def publish_db(session_total: int):
         # этот момент стоит, значит можно сжать файл: VACUUM берёт эксклюзивную
         # блокировку, посреди сбора его звать нельзя. А нужен он именно здесь —
         # публикация копирует базу целиком, и место под копию должно быть.
-        prune_db()
+        # Не уложившаяся в срок публикация — исключение: она всё ещё держит базу
+        # открытой, и VACUUM в этот момент только упрётся в блокировку.
+        if _publishing is None or not _publishing.is_alive():
+            prune_db()
 
 
 def request_site_update(patch: str):
@@ -260,6 +345,8 @@ def main():
     # Демон: статус остаётся свежим всё время сбора, а не только на переходах фаз.
     threading.Thread(target=_heartbeat_loop, daemon=True).start()
     collect.COMPLETED_ITEMS = collect.load_completed_items()
+    # Перезапуск посреди публикации оставляет на томе снимок базы и тонкие копии.
+    clear_publish_dir()
 
     regions = collect._parse_list(os.environ.get('REGIONS', 'all'),
                                   collect.REGION_PRIORITY, '--region')
@@ -313,14 +400,20 @@ def main():
                     continue
             notify(f'✅ Место освободилось — продолжаю сбор.\n{matches_line()}')
         except KeyExpired as e:
-            # Штатно: база уже сохранена внутри run_continuous. Публикуем всё,
-            # что успели, чистим ключ и ждём новый.
+            # Штатно: база уже сохранена внутри run_continuous.
+            #
+            # Просьба о новом ключе идёт ПЕРЕД публикацией, а не после. Публикация
+            # занимает минуты, и всё это время человек не знал, что от него ждут
+            # ключ; а когда она однажды залипла на заливке, не узнал вовсе —
+            # демон молча простоял сутки. Сбор без ключа всё равно не продолжить,
+            # так что пусть новый ключ едет навстречу выкладке.
             drop_key(key)
             got = getattr(e, 'collected', 0) or 0
-            publish_db(got)
-            notify(f'⌛ Ключ истёк — за этот ключ собрано **+{got}** матчей.\n'
-                   f'{matches_line()}\nПришли новый: `/collect key:RGAPI-…`')
             set_status(state='key_expired', collected=got)
+            notify(f'⌛ Ключ истёк — за этот ключ собрано **+{got}** матчей.\n'
+                   f'{matches_line()}\nПришли новый: `/collect key:RGAPI-…` — '
+                   f'собранное сейчас публикую.')
+            publish_db(got)
         except Exception as e:
             print(traceback.format_exc(), flush=True)
             notify(f'❌ Сбор упал: `{type(e).__name__}: {e}`. Перезапущусь через минуту.')

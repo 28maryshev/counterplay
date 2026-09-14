@@ -27,6 +27,7 @@ import os
 import sqlite3
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -38,6 +39,15 @@ REPO = os.environ.get('GITHUB_REPO', '28maryshev/counterplay')
 API = 'https://api.github.com'
 UPLOADS = 'https://uploads.github.com'
 TAG = 'data'
+
+# Таймауты (соединение, тишина в сокете) и повторы. Без них requests ждёт вечно:
+# залипшая заливка со стороны GitHub вешала публикацию НАСОВСЕМ, а с ней и весь
+# цикл коллектора — база не выкладывалась, новый ключ не запрашивался, и понять
+# это можно было, только зайдя на сервер. Таймаут считается по бездействию, а не
+# по всей заливке, так что медленный, но живой канал не обрывается.
+TIMEOUT = (15, 120)
+UPLOAD_TIMEOUT = (15, 300)
+RETRIES = 3
 
 # Таблицы, которые реально читает движок программы (RecommendationEngine.cs).
 ENGINE_TABLES = ['base_wr', 'matchup', 'synergy', 'botlane_matchup', 'champion_bans',
@@ -159,8 +169,45 @@ def _session(token: str) -> requests.Session:
     return s
 
 
+def _checked(r: requests.Response) -> requests.Response:
+    r.raise_for_status()
+    return r
+
+
+def _soft(r: requests.Response) -> requests.Response:
+    """Ответ как есть, но 5xx превращаем в исключение — их вызывающий разбирать
+    не должен, их должен повторить _retry."""
+    if r.status_code >= 500:
+        r.raise_for_status()
+    return r
+
+
+def _retry(what: str, fn):
+    """Повтор сетевой операции. Обрыв, таймаут и 5xx у GitHub — обычное дело на
+    заливке сотен мегабайт; терять из-за них готовую базу и ждать следующего
+    круга незачем. Ответы 4xx повторять бессмысленно — пробрасываем сразу."""
+    last = ''
+    for attempt in range(1, RETRIES + 1):
+        try:
+            return fn()
+        except (requests.Timeout, requests.ConnectionError) as e:
+            last = f'{type(e).__name__}: {str(e)[:120]}'
+        except requests.HTTPError as e:
+            code = e.response.status_code if e.response is not None else 0
+            if code < 500:
+                raise
+            last = f'HTTP {code}'
+        if attempt == RETRIES:
+            raise RuntimeError(f'{what}: не вышло за {RETRIES} попытки ({last})')
+        wait = 15 * attempt
+        print(f'[публикация] {what} — {last}; повтор через {wait}s '
+              f'(попытка {attempt} из {RETRIES})', flush=True)
+        time.sleep(wait)
+
+
 def ensure_release(s: requests.Session) -> int:
-    r = s.get(f'{API}/repos/{REPO}/releases/tags/{TAG}')
+    r = _retry('чтение релиза',
+               lambda: _soft(s.get(f'{API}/repos/{REPO}/releases/tags/{TAG}', timeout=TIMEOUT)))
     if r.status_code == 200:
         return r.json()['id']
     if r.status_code in (401, 403):
@@ -172,10 +219,11 @@ def ensure_release(s: requests.Session) -> int:
 
     # Релиза нет — создаём. 422 здесь означает «уже существует» (гонка или тег
     # есть, а GET его не отдал): не падаем, а перечитываем релиз по тегу.
-    r = s.post(f'{API}/repos/{REPO}/releases', json={
-        'tag_name': TAG, 'name': 'Data', 'body': 'Central database, updated each patch'})
+    r = _retry('создание релиза', lambda: _soft(s.post(f'{API}/repos/{REPO}/releases', json={
+        'tag_name': TAG, 'name': 'Data', 'body': 'Central database, updated each patch'},
+        timeout=TIMEOUT)))
     if r.status_code == 422:
-        again = s.get(f'{API}/repos/{REPO}/releases/tags/{TAG}')
+        again = s.get(f'{API}/repos/{REPO}/releases/tags/{TAG}', timeout=TIMEOUT)
         if again.status_code == 200:
             return again.json()['id']
         raise RuntimeError(f'Релиз {TAG} не создать и не прочитать: {r.text[:200]}')
@@ -183,18 +231,34 @@ def ensure_release(s: requests.Session) -> int:
     return r.json()['id']
 
 
-def upload_asset(s: requests.Session, release_id: int, path: Path, name: str):
-    """Заливает ассет, снося прежний с тем же именем (--clobber у gh)."""
-    r = s.get(f'{API}/repos/{REPO}/releases/{release_id}/assets')
-    r.raise_for_status()
+def _asset_id(s: requests.Session, release_id: int, name: str):
+    r = _checked(s.get(f'{API}/repos/{REPO}/releases/{release_id}/assets', timeout=TIMEOUT))
     for a in r.json():
         if a['name'] == name:
-            s.delete(f'{API}/repos/{REPO}/releases/assets/{a["id"]}').raise_for_status()
-    with open(path, 'rb') as f:
-        r = s.post(f'{UPLOADS}/repos/{REPO}/releases/{release_id}/assets',
-                   params={'name': name},
-                   headers={'Content-Type': 'application/octet-stream'}, data=f)
-    r.raise_for_status()
+            return a['id']
+    return None
+
+
+def upload_asset(s: requests.Session, release_id: int, path: Path, name: str):
+    """Заливает ассет, снося прежний с тем же именем (--clobber у gh).
+
+    Снос делается на КАЖДОЙ попытке: после оборванной заливки в релизе остаётся
+    огрызок с этим же именем, и на повтор GitHub отвечает 422 «уже существует» —
+    то есть первая же сетевая икота хоронила бы всю публикацию.
+    """
+    def send():
+        aid = _asset_id(s, release_id, name)
+        if aid is not None:
+            _checked(s.delete(f'{API}/repos/{REPO}/releases/assets/{aid}', timeout=TIMEOUT))
+        with open(path, 'rb') as f:
+            return _checked(s.post(f'{UPLOADS}/repos/{REPO}/releases/{release_id}/assets',
+                                   params={'name': name},
+                                   headers={'Content-Type': 'application/octet-stream'},
+                                   data=f, timeout=UPLOAD_TIMEOUT))
+
+    mb = round(path.stat().st_size / 1e6, 1)
+    print(f'[публикация] заливаю {name} ({mb} МБ)…', flush=True)
+    _retry(f'заливка {name}', send)
 
 
 def publish(db_path: str, token: str) -> dict:
