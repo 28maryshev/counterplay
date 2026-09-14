@@ -14,6 +14,13 @@ services:
       - ./secrets:/secrets:ro
     environment:
       CONTROL_DIR: /control
+    # Логи контейнера иначе растут без предела (у самого бота ротация есть,
+    # у docker — нет). Держим последние 30 МБ.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     # Снапшот базы (~143 МБ) + discord.js: 300 МБ было мало, бот падал в цикл
     # перезапуска. 512 МБ — с запасом; на сервере ~330 МБ свободно.
     mem_limit: 512m

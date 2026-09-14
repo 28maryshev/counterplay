@@ -33,6 +33,25 @@ notify() {
 exec 9>"$HOME/.backup-collector.lock"
 flock -n 9 || { log "уже выполняется — выхожу"; exit 0; }
 
+# Чистка старых копий висит на выходе из скрипта, а не последней строкой удачного
+# пути. Раньше было наоборот, и любой сбой выгрузки — а он-то и случается, когда
+# на диске тесно, — уносил с собой и уборку: копии копились неделями, пока место
+# не кончалось совсем.
+prune() {  # $1 — каталог в бакете, $2 — сколько копий оставить
+  rclone lsf --dirs-only "r2:$BUCKET/$1" 2>/dev/null | sort | head -n -"$2" | while read -r d; do
+    log "  удаляю старую копию $1$d"
+    rclone purge "r2:$BUCKET/$1$d" || true
+  done || true
+}
+PRUNED=0
+prune_all() {
+  if [ "$PRUNED" = 1 ]; then return 0; fi
+  PRUNED=1
+  prune "collector/daily/"  "$KEEP_DAILY"
+  prune "collector/weekly/" "$KEEP_WEEKLY"
+}
+trap 'rc=$?; prune_all; rm -rf "$TMP"; exit $rc' EXIT
+
 log "── бэкап коллектора $DAY ──"
 
 # Снимок живой базы. Просто скопировать файл нельзя: коллектор пишет в неё
@@ -90,14 +109,7 @@ for f in "$TMP"/*; do
   log "  $n — $((local_size/1048576)) МБ, сверено"
 done
 
-prune() {
-  rclone lsf --dirs-only "r2:$BUCKET/$1" 2>/dev/null | sort | head -n -"$2" | while read -r d; do
-    log "  удаляю старую копию $1$d"
-    rclone purge "r2:$BUCKET/$1$d" || true
-  done
-}
-prune "collector/daily/"  "$KEEP_DAILY"
-prune "collector/weekly/" "$KEEP_WEEKLY"
+prune_all    # обычный путь: сразу после выгрузки, до подсчёта объёма
 
 total=$(rclone size --json "r2:$BUCKET" 2>/dev/null \
         | python3 -c 'import json,sys; print(round(json.load(sys.stdin)["bytes"]/1048576,1))' 2>/dev/null || echo '?')

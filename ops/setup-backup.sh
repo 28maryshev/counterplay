@@ -10,6 +10,8 @@
 #   BACKUP_PASSPHRASE=... DISCORD_WEBHOOK=... \
 #   bash setup-backup.sh site        # на сервере сайта
 #   bash setup-backup.sh collector   # на сервере коллектора
+#
+# Рядом со скриптом бэкапа заводит и уборку места (cleanup.sh), если он залит.
 set -euo pipefail
 
 ROLE="${1:-}"
@@ -73,11 +75,24 @@ SCRIPT="$HOME/backup-$ROLE.sh"
 chmod +x "$SCRIPT"
 MIN=$([ "$ROLE" = site ] && echo "17 3" || echo "47 3")
 LINE="$MIN * * * . \$HOME/.backup.env && $SCRIPT >> \$HOME/backup.log 2>&1"
+
+# Уборка места — отдельной задачей, часом позже: копии к этому моменту уже уехали,
+# и всё, что осталось на диске (слои docker, логи, хвосты публикаций), можно
+# сносить смело. Без неё диск набивается за пару недель, и первым встаёт сбор.
+CLEAN="$HOME/cleanup.sh"
+CLEAN_MIN=$([ "$ROLE" = site ] && echo "17 4" || echo "47 4")
+
 # Пустого расписания grep не находит и возвращает «ничего не нашёл» — для set -e
 # это ошибка, из-за которой установка молча обрывалась. Гасим явно.
 CT=$(mktemp)
-crontab -l 2>/dev/null | grep -v "backup-$ROLE.sh" > "$CT" || true
+crontab -l 2>/dev/null | grep -v -e "backup-$ROLE.sh" -e "cleanup.sh" > "$CT" || true
 echo "$LINE" >> "$CT"
+if [ -f "$CLEAN" ]; then
+  chmod +x "$CLEAN"
+  echo "$CLEAN_MIN * * * . \$HOME/.backup.env && $CLEAN $ROLE >> \$HOME/backup.log 2>&1" >> "$CT"
+else
+  echo "внимание: нет $CLEAN — уборка места не заведена (залей ops/cleanup.sh)"
+fi
 crontab "$CT"
 rm -f "$CT"
 echo "расписание:"; crontab -l | tail -2
