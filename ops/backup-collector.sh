@@ -11,6 +11,9 @@ set -euo pipefail
 BUCKET="${R2_BUCKET:-counterplay-backups}"
 COL_DIR="$HOME/counterplay-collector"
 BOT_DIR="$HOME/counterplay-bot"
+# Рабочий журнал приезжает сюда с машины разработки (ops/journal-push.sh). В git
+# его нет намеренно, так что до отправки он существует в одном экземпляре.
+JOURNAL_DIR="$HOME/journal"
 KEEP_DAILY="${KEEP_DAILY:-5}"      # база большая — суточных копий держим меньше
 KEEP_WEEKLY="${KEEP_WEEKLY:-4}"
 # Бесплатный тариф R2 — 10 ГБ на всё. Счёт копий (KEEP_*) сам по себе места не
@@ -121,6 +124,25 @@ gzip -6 "$TMP/data.db"   # -9 на 250 МБ греет процессор мин
 if [ -f "$BOT_DIR/data/bot.db" ]; then
   snapshot "$BOT_DIR/data/bot.db" "$TMP/bot.db" || fail "не снялся снимок базы бота"
   gzip -9 "$TMP/bot.db"
+fi
+
+# Журнал эксплуатации: простои, ключи, публикации, уборки. Файл крошечный, а
+# восстановить его неоткуда — это единственная история того, как система себя
+# вела. Именно по такой истории 14.09 удалось понять, что коллектор встал за
+# сутки до того, как это заметили.
+if [ -f "$COL_DIR/data/ops.db" ]; then
+  snapshot "$COL_DIR/data/ops.db" "$TMP/ops.db" || fail "не снялся снимок журнала эксплуатации"
+  gzip -9 "$TMP/ops.db"
+fi
+
+# Рабочий журнал — прозой, про решения и причины. Шифруем: внутри внутренняя
+# кухня, а бакет хоть и закрытый, но лишний слой здесь ничего не стоит.
+if [ -d "$JOURNAL_DIR" ]; then
+  tar czf "$TMP/journal.tar.gz" -C "$HOME" journal || fail "не собрался архив рабочего журнала"
+  if [ -n "${BACKUP_PASSPHRASE:-}" ]; then
+    openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$TMP/journal.tar.gz" -out "$TMP/journal.enc" -pass env:BACKUP_PASSPHRASE || fail "не зашифровался рабочий журнал"
+    rm -f "$TMP/journal.tar.gz"
+  fi
 fi
 
 # Настройки обеих служб — в одном зашифрованном архиве.

@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import collect  # noqa: E402  (наш модуль сбора)
 from collect import KeyExpired, DiskLow  # noqa: E402
 import publish_data  # noqa: E402
+import ops_log  # noqa: E402  (журнал эксплуатации)
 
 CONTROL = Path(os.environ.get('CONTROL_DIR', '/control'))
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).with_name('data.db')))
@@ -121,6 +122,9 @@ def matches_line() -> str:
 # на старте (совпадало с засеянным из релиза, потому и выглядело «опубликованным»).
 # Теперь фоновый поток переписывает файл раз в HEARTBEAT секунд со свежим счётчиком.
 HEARTBEAT = 30
+# Как часто класть снимок в ops.db. Чаще незачем: снимок отвечает на вопрос
+# «двигался ли сбор», а не «сколько ровно матчей было в 14:07».
+SAMPLE_EVERY = 600
 _state: dict = {'state': 'starting'}
 _state_lock = threading.Lock()
 
@@ -143,19 +147,34 @@ def _write_status():
         STATUS_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
     except Exception:
         pass
+    return data
 
 
 def set_status(**fields):
     with _state_lock:
+        prev = _state.get('state')
         _state.clear()
         _state.update(fields)
-    _write_status()
+    data = _write_status()
+    # Смена фазы — событие, а не снимок: по этим строкам потом видно, когда
+    # именно демон перешёл в публикацию, сколько простоял в ожидании ключа и так
+    # далее. Одинаковые состояния подряд не пишем, иначе журнал заплывёт.
+    if fields.get('state') != prev:
+        ops_log.record('state', state=fields.get('state'), matches=data.get('matches'),
+                       db_mb=data.get('db_mb'), disk_free_gb=data.get('disk_free_gb'))
 
 
 def _heartbeat_loop():
+    last_sample = 0.0
     while True:
         time.sleep(HEARTBEAT)
-        _write_status()
+        data = _write_status()
+        now = time.monotonic()
+        if now - last_sample >= SAMPLE_EVERY:
+            last_sample = now
+            ops_log.record('sample', state=data.get('state'), matches=data.get('matches'),
+                           db_mb=data.get('db_mb'), disk_free_gb=data.get('disk_free_gb'),
+                           this_key=data.get('this_key'))
 
 
 def read_key() -> str | None:
@@ -285,10 +304,16 @@ def publish_db(session_total: int):
                f'тонкая {info.get("slim_mb", "?")}МБ'
                + (f'\nПо эло: {bsizes}' if bsizes else ''))
         set_status(state='published', version=info['version'], patch=info['patch'])
+        ops_log.record('publish', state='published', matches=db_matches(), db_mb=db_size_mb(),
+                       patch=info['patch'], version=info['version'],
+                       slim_mb=info.get('slim_mb'),
+                       buckets={b: buckets[b]['size_mb'] for b in buckets},
+                       collected=session_total)
         request_site_update(info['patch'])
     except Exception as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но публикация упала: `{e}`')
         print(traceback.format_exc(), flush=True)
+        ops_log.record('publish_failed', error=str(e)[:200], collected=session_total)
     finally:
         # Уборка идёт СРАЗУ ПОСЛЕ публикации — и по времени, и по смыслу. Сбор в
         # этот момент стоит, значит можно сжать файл: VACUUM берёт эксклюзивную
@@ -327,6 +352,9 @@ def prune_db():
         after = os.path.getsize(DB_PATH) / 1048576
         for line in tail:
             print(f'[уборка] {line}', flush=True)
+        ops_log.record('prune', db_mb=round(after, 1),
+                       before_mb=round(before, 1), after_mb=round(after, 1))
+        ops_log.prune()          # заодно подрезаем старые снимки в ops.db
         if before - after > 50:
             free = disk()
             notify(f'🧹 Уборка базы: {before:,.0f} → {after:,.0f} МБ '
@@ -345,6 +373,8 @@ def main():
     # Демон: статус остаётся свежим всё время сбора, а не только на переходах фаз.
     threading.Thread(target=_heartbeat_loop, daemon=True).start()
     collect.COMPLETED_ITEMS = collect.load_completed_items()
+    ops_log.setup(DB_PATH)
+    ops_log.record('start', matches=db_matches(), db_mb=db_size_mb())
     # Перезапуск посреди публикации оставляет на томе снимок базы и тонкие копии.
     clear_publish_dir()
 
@@ -365,6 +395,7 @@ def main():
         if key != last_key:
             print('Ключ получен — старт сбора.', flush=True)
             notify('▶️ Ключ принят, сбор пошёл (регионы параллельно).')
+            ops_log.record('key_accepted', matches=db_matches())
             last_key = key
         else:
             print('Следующий круг тем же ключом.', flush=True)
@@ -390,6 +421,8 @@ def main():
                    f'За этот ключ собрано +{got}.\n{matches_line()}\n'
                    f'Собранное опубликовано. Освободи место — сбор продолжится сам.')
             set_status(state='disk_full', collected=got)
+            ops_log.record('disk_low', collected=got, matches=db_matches(),
+                           free_mb=e.free_mb, need_mb=e.need_mb)
             # Ждём места. Ключ на руках, так что как освободится — сразу в бой.
             while True:
                 time.sleep(60)
@@ -410,6 +443,7 @@ def main():
             drop_key(key)
             got = getattr(e, 'collected', 0) or 0
             set_status(state='key_expired', collected=got)
+            ops_log.record('key_expired', collected=got, matches=db_matches())
             notify(f'⌛ Ключ истёк — за этот ключ собрано **+{got}** матчей.\n'
                    f'{matches_line()}\nПришли новый: `/collect key:RGAPI-…` — '
                    f'собранное сейчас публикую.')
