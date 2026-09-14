@@ -20,7 +20,8 @@ esac
 LOG="$HOME/backup.log"
 LOG_MAX_MB="${LOG_MAX_MB:-20}"          # лог больше этого — срезаем хвостом
 LOG_KEEP_LINES="${LOG_KEEP_LINES:-2000}"
-KEEP_IMAGES_H="${KEEP_IMAGES_H:-168}"   # слои docker старше недели не нужны
+KEEP_IMAGES_H="${KEEP_IMAGES_H:-168}"   # образы старше недели не нужны
+KEEP_CACHE_GB="${KEEP_CACHE_GB:-2}"     # кэш сборки: ограничиваем объёмом, не возрастом
 STALE_PUBLISH_MIN="${STALE_PUBLISH_MIN:-180}"  # дольше этого публикация не живёт
 LOW_FREE_GB="${LOW_FREE_GB:-3}"         # ниже — зовём человека
 
@@ -61,11 +62,17 @@ for f in "$HOME"/counterplay-*/logs/*.log; do
 done
 
 # 2. Docker. Главный едок на маленьком VPS: каждая пересборка оставляет прошлый
-#    образ и кэш слоёв. Неделю держим (есть на что откатиться), старше — сносим.
+#    образ и кэш слоёв.
+#
+#    Образы держим неделю — на них откатываются. А вот кэшу сборки возраст не
+#    важен вовсе: откатиться на него нельзя, он лишь ускоряет следующую сборку.
+#    Сначала здесь стоял одинаковый недельный фильтр на то и другое — и первый же
+#    прогон на сервере сайта освободил ровно ноль при девяти гигабайтах кэша,
+#    потому что весь он был моложе недели. Поэтому кэш режем по объёму.
 if command -v docker > /dev/null; then
   docker container prune -f --filter "until=24h" > /dev/null 2>&1 || true
   img=$(docker image prune -af --filter "until=${KEEP_IMAGES_H}h" 2>/dev/null | tail -1)
-  bld=$(docker builder prune -af --filter "until=${KEEP_IMAGES_H}h" 2>/dev/null | tail -1)
+  bld=$(docker builder prune -af --keep-storage "${KEEP_CACHE_GB}GB" 2>/dev/null | tail -1)
   log "  docker образы: ${img:-нечего чистить}"
   log "  docker кэш сборки: ${bld:-нечего чистить}"
 fi
