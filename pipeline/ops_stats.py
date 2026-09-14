@@ -37,6 +37,12 @@ def dur(seconds):
     return f'{h} ч {m:02d} мин' if h else f'{m} мин'
 
 
+def num(n):
+    """Разряды пробелами. Отдельной функцией, а не .replace по готовой строке:
+    так однажды уже затёрлись запятые, разделявшие сами предложения."""
+    return f'{int(n):,}'.replace(',', ' ')
+
+
 def detail(row):
     try:
         return json.loads(row) if row else {}
@@ -110,8 +116,7 @@ def main():
             if r[1] == 'key_accepted':
                 print(f'   {ts_str(r[0])}  принят')
             else:
-                print(f'   {ts_str(r[0])}  истёк, собрано за него +{d.get("collected", 0):,}'
-                      .replace(',', ' '))
+                print(f'   {ts_str(r[0])}  истёк, собрано за него +{num(d.get("collected", 0))}')
         print()
 
     # --- Публикации ---
@@ -151,9 +156,9 @@ def main():
     if len(with_m) >= 2:
         first, last = with_m[0], with_m[-1]
         days = max((last[0] - first[0]) / 86400, 0.01)
-        print(f'Матчей в базе: {first[3]:,} → {last[3]:,} '
-              f'(+{last[3] - first[3]:,}, ~{(last[3] - first[3]) / days:,.0f} в сутки)'
-              .replace(',', ' '))
+        grew = last[3] - first[3]
+        print(f'Матчей в базе: {num(first[3])} → {num(last[3])} '
+              f'(+{num(grew)}, ~{num(round(grew / days))} в сутки)')
     with_s = [r for r in rows if r[4] is not None]
     if len(with_s) >= 2:
         print(f'Файл базы: {with_s[0][4]:.0f} → {with_s[-1][4]:.0f} МБ')
