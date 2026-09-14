@@ -13,6 +13,13 @@ COL_DIR="$HOME/counterplay-collector"
 BOT_DIR="$HOME/counterplay-bot"
 KEEP_DAILY="${KEEP_DAILY:-5}"      # база большая — суточных копий держим меньше
 KEEP_WEEKLY="${KEEP_WEEKLY:-4}"
+# Бесплатный тариф R2 — 10 ГБ на всё. Счёт копий (KEEP_*) сам по себе места не
+# гарантирует: база коллектора растёт, и девять копий по 140 МБ однажды станут
+# девятью по 800. Поэтому есть второй предохранитель — по занятому объёму.
+R2_LIMIT_MB="${R2_LIMIT_MB:-10240}"
+R2_SOFT_PCT="${R2_SOFT_PCT:-75}"   # выше этой доли начинаем срезать лишние копии
+MIN_DAILY="${MIN_DAILY:-2}"        # ниже не опускаемся никогда: остаться без
+MIN_WEEKLY="${MIN_WEEKLY:-2}"      # копий хуже, чем с тесным хранилищем
 LOG="$HOME/backup.log"
 
 DAY=$(date -u +%F)
@@ -43,12 +50,48 @@ prune() {  # $1 — каталог в бакете, $2 — сколько коп
     rclone purge "r2:$BUCKET/$1$d" || true
   done || true
 }
+bucket_mb() {
+  rclone size --json "r2:$BUCKET" 2>/dev/null | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["bytes"]/1048576))' 2>/dev/null || echo 0
+}
+
+# Удаляет самую старую копию в каталоге, если их больше минимума. Возвращает 1,
+# когда резать уже нечего — по этому признаку сторож понимает, что упёрся.
+drop_oldest() {  # $1 — каталог, $2 — сколько копий оставить в любом случае
+  dirs=$(rclone lsf --dirs-only "r2:$BUCKET/$1" 2>/dev/null | sort)
+  n=$(printf '%s' "$dirs" | grep -c . || true)
+  if [ "${n:-0}" -le "$2" ]; then return 1; fi
+  oldest=$(printf '%s' "$dirs" | head -1)
+  log "  тесно в хранилище — удаляю $1$oldest"
+  rclone purge "r2:$BUCKET/$1$oldest" || return 1
+}
+
+# Второй предохранитель: держит бакет в пределах бесплатных 10 ГБ, даже когда
+# счёт копий формально соблюдён. Сначала срезает суточные (их много), потом
+# недельные; до последних двух и тех и других дело не доходит никогда.
+enforce_quota() {
+  soft=$(( R2_LIMIT_MB * R2_SOFT_PCT / 100 ))
+  used=$(bucket_mb)
+  if [ "$used" -le "$soft" ]; then return 0; fi
+  notify "⚠️ Хранилище копий занято на $(( used * 100 / R2_LIMIT_MB ))% ($used МБ из $R2_LIMIT_MB МБ). Срезаю самые старые копии."
+  while [ "$used" -gt "$soft" ]; do
+    if ! drop_oldest "collector/daily/" "$MIN_DAILY"; then
+      if ! drop_oldest "collector/weekly/" "$MIN_WEEKLY"; then
+        notify "🛑 В хранилище $used МБ, а резать больше нечего: остались последние $MIN_DAILY суточных и $MIN_WEEKLY недельных копий. Дальше — руками."
+        return 1
+      fi
+    fi
+    used=$(bucket_mb)
+  done
+  log "  после подрезки по объёму: $used МБ"
+}
+
 PRUNED=0
 prune_all() {
   if [ "$PRUNED" = 1 ]; then return 0; fi
   PRUNED=1
   prune "collector/daily/"  "$KEEP_DAILY"
   prune "collector/weekly/" "$KEEP_WEEKLY"
+  enforce_quota || true
 }
 trap 'rc=$?; prune_all; rm -rf "$TMP"; exit $rc' EXIT
 
@@ -111,7 +154,7 @@ done
 
 prune_all    # обычный путь: сразу после выгрузки, до подсчёта объёма
 
-total=$(rclone size --json "r2:$BUCKET" 2>/dev/null \
-        | python3 -c 'import json,sys; print(round(json.load(sys.stdin)["bytes"]/1048576,1))' 2>/dev/null || echo '?')
-log "готово. занято в хранилище: $total МБ"
-notify "💾 Бэкап коллектора за $DAY готов (в хранилище $total МБ)"
+total=$(bucket_mb)
+pct=$(( total * 100 / R2_LIMIT_MB ))
+log "готово. занято в хранилище: $total МБ из $R2_LIMIT_MB ($pct%)"
+notify "💾 Бэкап коллектора за $DAY готов. Хранилище: $total МБ из $(( R2_LIMIT_MB / 1024 )) ГБ ($pct%)."
