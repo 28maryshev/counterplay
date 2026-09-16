@@ -144,7 +144,12 @@ class Program
 
     public static async Task UpdateRunesAsync(OverlayWindow overlay, DraftState? draft, CancellationToken ct)
     {
-        var champ = draft?.Me?.EffectiveChampionId ?? 0;
+        // Только залоченный чемпион, не наведённый. Раньше руны и сборка
+        // появлялись уже по ховеру, и это сбивало: подсказки на экране, а пик
+        // ещё не сделан — человек считал, что чемпион уже взят, и терял ход.
+        // Кнопка подтверждения при этом работает по ховеру, как и раньше:
+        // навёл — подтвердил — увидел сборку.
+        var champ = draft?.Me?.ChampionId ?? 0;
         if (draft is null || champ == 0 || draft.IsAram)
         {
             _runesShownFor = "";
