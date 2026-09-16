@@ -10,6 +10,7 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         MouseLeftButtonDown="OnDrag"
+        PreviewMouseLeftButtonDown="OnAnyClick"
         KeyDown="OnKeyDown">
 
   <Window.Resources>

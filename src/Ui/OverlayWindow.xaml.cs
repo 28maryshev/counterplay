@@ -1944,10 +1944,11 @@ public partial class OverlayWindow : Window
         e.Handled = true;
         // Кнопка на экране, а нажатие не делает ничего — разбирать такое вслепую
         // нельзя: причин у молчаливого выхода три, и снаружи они неразличимы.
-        if (LockHandler is null || _pickHoverId <= 0 || _pickBusy)
+        var champ = PickTarget;
+        if (LockHandler is null || champ <= 0 || _pickBusy)
         {
             Log.Write($"пик: нажатие вхолостую (клиент={(LockHandler is null ? "нет" : "есть")}, " +
-                      $"чемпион={_pickHoverId}, занято={_pickBusy})");
+                      $"чемпион={champ}, занято={_pickBusy})");
             return;
         }
         if (_lastDraft is null || !_lastDraft.MyPickInProgress)
@@ -1964,7 +1965,7 @@ public partial class OverlayWindow : Window
         {
             PickText.Text = Loc.T("pick.locking");
             _pickMsgUntil = DateTime.UtcNow.AddSeconds(2);
-            var code = await LockHandler(_pickHoverId);
+            var code = await LockHandler(champ);
             if (code is < 200 or >= 300)
             {
                 // Ошибка «липнет» на 4 секунды — иначе её мгновенно затрёт
@@ -1986,17 +1987,30 @@ public partial class OverlayWindow : Window
 
     // Показ/скрытие плашки выбора: видна только когда мой ход пикать и есть
     // наведённый кликом чемпион. Иконку/имя берём из выбранного.
+    /// <summary>
+    /// Чемпион, которого подтвердит кнопка: выбранный кликом у нас, иначе тот,
+    /// что игрок навёл в самом клиенте.
+    ///
+    /// Второе здесь не для полноты. Руны и сборка показываются уже по ховеру —
+    /// хоть нашему, хоть клиентскому, — и когда чемпиона выбирали привычным
+    /// способом, прямо в клиенте, получалось нелепое: подсказки на экране есть,
+    /// а подтвердить их нечем, кнопки нет.
+    /// </summary>
+    private int PickTarget =>
+        _pickHoverId > 0 ? _pickHoverId : _lastDraft?.Me?.EffectiveChampionId ?? 0;
+
     private void UpdatePickBar()
     {
         var draft = _lastDraft;
+        var champ = PickTarget;
         bool canPick = HoverHandler != null && LockHandler != null
-                       && draft is { MyPickInProgress: true } && _pickHoverId > 0;
+                       && draft is { MyPickInProgress: true } && champ > 0;
         if (!canPick) { PickBar.Visibility = Visibility.Collapsed; return; }
 
-        PickIcon.Source = IconCache.Get(_pickHoverId);
+        PickIcon.Source = IconCache.Get(champ);
         // Пока показывается ошибка/статус — не затираем текст обычной подписью.
         if (DateTime.UtcNow >= _pickMsgUntil)
-            PickText.Text = Loc.T("pick.confirm", DataDragon.Name(_pickHoverId));
+            PickText.Text = Loc.T("pick.confirm", DataDragon.Name(champ));
         PickBar.Visibility = Visibility.Visible;
     }
 
@@ -2514,6 +2528,22 @@ public partial class OverlayWindow : Window
         }
         catch { /* офлайн — имена обновятся при следующей загрузке */ }
     }
+
+    // Каждое нажатие, дошедшее до окна, и то, на чём оно оказалось.
+    //
+    // Нужно для жалоб вида «нажимаю, а ничего»: без этой записи нельзя отличить
+    // три совершенно разных случая — клик не дошёл до окна вовсе, дошёл, но мимо
+    // кнопки, или дошёл до кнопки, а та отказалась работать. Preview идёт сверху
+    // вниз, поэтому видит нажатие раньше всех, кто может его перехватить.
+    private void OnAnyClick(object sender, MouseButtonEventArgs e)
+    {
+        var p = e.GetPosition(this);
+        var el = e.OriginalSource as FrameworkElement;
+        var name = string.IsNullOrEmpty(el?.Name) ? e.OriginalSource?.GetType().Name ?? "?" : el!.Name;
+        Log.Write($"клик ({p.X:0};{p.Y:0}) → {name}; пик {Vis(PickBar)}, бан {Vis(BanBar)}");
+    }
+
+    private static string Vis(UIElement el) => el.Visibility == Visibility.Visible ? "виден" : "скрыт";
 
     private void OnDrag(object sender, MouseButtonEventArgs e)
     {
@@ -4878,6 +4908,18 @@ public partial class OverlayWindow : Window
     {
         var recs  = _lastRecs;
         var draft = _lastDraft;
+
+        // Плашки подтверждения пересчитываем на каждом снимке драфта, а не
+        // только в ответ на клик по нашей карточке.
+        //
+        // Раньше их показывал ровно один путь — клик. А кнопка требует, чтобы
+        // ход уже наступил. Кто выбирал чемпиона заранее (нормальное поведение:
+        // навёл, посмотрел руны, ждёшь очереди) попадал в ловушку: на момент
+        // клика хода ещё нет — плашки нет; ход наступает — а перерисовать её
+        // некому. Снаружи это и есть «кнопка не работает»: жмёшь туда, где её
+        // нет. Помогало только повторное нажатие по карточке уже в свой ход.
+        UpdatePickBar();
+        UpdateBanBar();
 
         // Враг взял чемпиона — пересчитываем подбор сразу, не дожидаясь, пока
         // игрок наведёт мышь на панель.
