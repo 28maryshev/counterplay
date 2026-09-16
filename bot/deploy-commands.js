@@ -7,7 +7,7 @@ if (!config.token || !config.clientId || !config.guildId) {
   process.exit(1);
 }
 
-const commands = ['pool', 'counter', 'matchup', 'admin', 'collect', 'patch'].map(
+const commands = ['pool', 'counter', 'matchup', 'admin', 'collect', 'patch', 'changes'].map(
   (name) => require(`./commands/${name}`).data.toJSON()
 );
 

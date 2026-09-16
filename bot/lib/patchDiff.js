@@ -635,12 +635,38 @@ function render(report) {
   section('Summoner spells', sums);
 
   if (!lines.length) return ['No Summoner’s Rift changes between these patches.'];
-  return lines;
+  // Между разделами хватает одной пустой строки: свою добавляет и абзац про
+  // предмет, и сам раздел, а две подряд Discord показывает заметным провалом.
+  return lines.filter((line, i) => line.trim() || (lines[i - 1] || '').trim());
+}
+
+/**
+ * Сводка кусками под ограничение Discord на длину сообщения. Строку пополам не
+ * режем: «cooldown: 12/11/10/9/8 →» на границе сообщения читалось бы как
+ * оборванное число. Раздел, который не влез целиком, просто продолжается в
+ * следующем куске.
+ */
+function paginate(lines, limit = 3800) {
+  const pages = [];
+  let cur = '';
+  for (const raw of lines) {
+    const line =
+      raw.length > limit ? raw.slice(0, limit - 1).replace(/\s+\S*$/, '') + '…' : raw;
+    if (cur && cur.length + 1 + line.length > limit) {
+      pages.push(cur.trim());
+      cur = '';
+    }
+    if (!cur && !line.trim()) continue; // пустая строка в начале куска ни к чему
+    cur = cur ? `${cur}\n${line}` : line;
+  }
+  if (cur.trim()) pages.push(cur.trim());
+  return pages;
 }
 
 module.exports = {
   diff,
   render,
+  paginate,
   resolvePair,
   sweepCache,
   // наружу — для тестов и для будущих потребителей сводки

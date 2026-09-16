@@ -21,7 +21,7 @@ const client = new Client({
 });
 
 const commands = new Collection();
-for (const name of ['pool', 'counter', 'matchup', 'admin', 'collect', 'patch']) {
+for (const name of ['pool', 'counter', 'matchup', 'admin', 'collect', 'patch', 'changes']) {
   const mod = require(`./commands/${name}`);
   commands.set(mod.data.name, mod);
 }

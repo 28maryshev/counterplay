@@ -10,7 +10,8 @@ process.env.CLIENT_ID = process.env.CLIENT_ID || 'offline';
 process.env.GUILD_ID = process.env.GUILD_ID || 'offline';
 
 const assert = require('assert');
-const { render, _internal: pd } = require('../lib/patchDiff');
+const { render, paginate, _internal: pd } = require('../lib/patchDiff');
+const { displayPatch, dataPatch } = require('../lib/patch');
 
 let passed = 0;
 function check(name, fn) {
@@ -266,6 +267,46 @@ check('пустая сводка так и говорит', () => {
   const empty = { changed: [], added: [], removed: [] };
   const text = render({ items: empty, champions: empty, runes: empty, summoners: empty }).join('\n');
   assert.ok(text.includes('No Summoner'), text);
+});
+
+check('двух пустых строк подряд в сводке не бывает', () => {
+  const empty = { changed: [], added: [], removed: [] };
+  const lines = render({
+    items: { changed: [{ id: '1', name: 'A', gold: { from: 1, to: 2 } }], added: [], removed: [] },
+    champions: { changed: [{ id: 'B', name: 'B', stats: [], spells: [], text: [] }], added: [], removed: [] },
+    runes: empty,
+    summoners: empty
+  });
+  assert.ok(!lines.some((l, i) => !l.trim() && !(lines[i - 1] || 'x').trim()), lines.join('|'));
+});
+
+// ─── постинг в Discord ──────────────────────────────────────────────────────
+
+section('Постинг');
+
+check('сводка режется по строкам, а не посреди числа', () => {
+  const lines = Array.from({ length: 40 }, (_, i) => `• cooldown: 12/11/10/9/8 → 13/12/11/10/${i}`);
+  const pages = paginate(lines, 300);
+  assert.ok(pages.length > 1, 'должно получиться несколько кусков');
+  for (const p of pages) {
+    assert.ok(p.length <= 300, `кусок ${p.length} символов`);
+    for (const l of p.split('\n')) assert.ok(lines.includes(l), `строка разорвана: ${l}`);
+  }
+  assert.strictEqual(pages.join('\n').split('\n').length, lines.length, 'строки не должны теряться');
+});
+
+check('слишком длинная строка обрезается, а не роняет пост', () => {
+  const [page] = paginate(['x'.repeat(50) + ' tail'], 20);
+  assert.ok(page.length <= 20, page);
+  assert.ok(page.endsWith('…'), page);
+});
+
+check('номер патча ходит в обе стороны', () => {
+  // Игрок видит «26.18», данные Riot называют тот же патч «16.18».
+  assert.strictEqual(displayPatch('16.18'), '26.18');
+  assert.strictEqual(dataPatch('26.18'), '16.18');
+  assert.strictEqual(dataPatch('16.18'), '16.18', 'номер в виде данных принимаем как есть');
+  assert.strictEqual(dataPatch('чепуха'), null);
 });
 
 console.log(`\n${passed} проверок пройдено${process.exitCode ? ', есть падения' : ''}`);

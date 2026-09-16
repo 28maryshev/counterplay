@@ -9,4 +9,16 @@ function displayPatch(patch) {
   return m ? `${Number(m[1]) + 10}.${m[2]}` : String(patch ?? '');
 }
 
-module.exports = {displayPatch};
+// Обратный перевод: игрок называет патч так, как видит его в клиенте («26.18»),
+// а искать данные надо по номеру Riot API («16.18»). Номер в виде данных
+// принимаем как есть — так его не нужно объяснять, и ошибиться нельзя.
+// Порог 26 верен, пока линия данных до него не доросла; на это есть ещё лет
+// десять.
+function dataPatch(patch) {
+  const m = /^(\d+)\.(\d+)/.exec(String(patch ?? '').trim());
+  if (!m) return null;
+  const major = Number(m[1]);
+  return `${major >= 26 ? major - 10 : major}.${m[2]}`;
+}
+
+module.exports = {displayPatch, dataPatch};
