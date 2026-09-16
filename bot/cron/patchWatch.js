@@ -9,6 +9,7 @@ const { COLORS, embed } = require('../lib/embeds');
 const { kvGet, kvSet } = require('../db/botDb');
 const freshness = require('../lib/freshness');
 const patchDiff = require('../lib/patchDiff');
+const patchContext = require('../lib/patchContext');
 const logger = require('../lib/logger');
 const {displayPatch: dp} = require('../lib/patch');
 
@@ -138,6 +139,40 @@ async function announceChanges(ctx, chId, official, lastOfficial, force) {
   logger.info(
     `patchWatch: changes ${report.from} → ${report.to} posted (${report.total} change(s), ${shown.length} message(s))`
   );
+
+  // Пояснения из патчноута — отдельным сообщением и уже после цифр: это
+  // пересказ, и стоять рядом с измерениями он не должен. Не вышло — молчим,
+  // сводка и без них полная.
+  await postNotes(ctx, channel, report);
+}
+
+/** Что сравнение сочло изменённым — подсказка модели, куда смотреть. */
+function focusOf(report) {
+  return [
+    ...report.items.changed.map((e) => e.name),
+    ...report.items.added.map((e) => e.name),
+    ...report.champions.added.map((e) => e.name),
+    // Чемпионы, у которых тронуты умения: правка одной базовой характеристики
+    // редко стоит объяснения, переработка — всегда.
+    ...report.champions.changed.filter((e) => e.spells.length || e.text.length).map((e) => e.name)
+  ];
+}
+
+async function postNotes(ctx, channel, report) {
+  const patch = dp(report.to);
+  const notes = await patchContext.forPatch(ctx, { patch, focus: focusOf(report) });
+  if (!notes) return;
+
+  const e = embed(COLORS.gold)
+    .setTitle(`📰 Patch ${patch} in Riot’s own words`)
+    .setDescription(notes.lines.map((l) => `• ${l}`).join('\n'))
+    // Свою подпись здесь ставить нельзя: этот блок пришёл не из нашей базы, и
+    // выдавать его за наши данные — ровно то, чего мы не делаем.
+    .setFooter({ text: 'Retold from the official patch notes — not measured like the list above.' });
+  if (notes.sources.length) e.setURL(notes.sources[0].url);
+
+  await channel.send({ embeds: [e] });
+  logger.info(`patchWatch: patch notes context posted (${notes.lines.length} line(s))`);
 }
 
 module.exports = { run };

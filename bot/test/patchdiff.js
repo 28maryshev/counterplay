@@ -8,6 +8,9 @@
 process.env.DISCORD_TOKEN = process.env.DISCORD_TOKEN || 'offline';
 process.env.CLIENT_ID = process.env.CLIENT_ID || 'offline';
 process.env.GUILD_ID = process.env.GUILD_ID || 'offline';
+// Своя база на время прогона: проверки не должны трогать рабочую bot.db.
+process.env.BOT_DB_PATH =
+  process.env.BOT_DB_PATH || require('path').join(require('os').tmpdir(), 'counterplay-test-bot.db');
 
 const assert = require('assert');
 const { render, paginate, _internal: pd } = require('../lib/patchDiff');
@@ -307,6 +310,104 @@ check('номер патча ходит в обе стороны', () => {
   assert.strictEqual(dataPatch('26.18'), '16.18');
   assert.strictEqual(dataPatch('16.18'), '16.18', 'номер в виде данных принимаем как есть');
   assert.strictEqual(dataPatch('чепуха'), null);
+});
+
+// ─── пояснения из патчноута ─────────────────────────────────────────────────
+
+section('Пересказ патчноута');
+
+const { _internal: pc } = require('../lib/patchContext');
+
+check('строка с числом не проходит', () => {
+  // Цифры у нас измеренные. Число из пересказа может быть верным, но отличить
+  // верное от выдуманного игрок не сможет, а мы обещаем ему обратное.
+  const kept = pc.keepSafeLines('- Aurora got a mid-scope update\n- Grievous Wounds now cuts healing by 40%', '26.18');
+  assert.deepStrictEqual(kept, ['Aurora got a mid-scope update']);
+});
+
+check('номер патча числом не считается', () => {
+  assert.deepStrictEqual(pc.keepSafeLines('- Patch 26.18 reworks the jungle', '26.18'), [
+    'Patch 26.18 reworks the jungle'
+  ]);
+});
+
+check('NONE означает «пояснений нет»', () => {
+  assert.deepStrictEqual(pc.keepSafeLines('NONE', '26.18'), []);
+});
+
+check('больше трёх строк не берём', () => {
+  const many = Array.from({ length: 8 }, (_, i) => `- change number ${'x'.repeat(i + 1)}`).join('\n');
+  assert.strictEqual(pc.keepSafeLines(many, '26.18').length, 3);
+});
+
+check('маркеры списка снимаются', () => {
+  assert.deepStrictEqual(pc.keepSafeLines('• the jungle works differently now', '26.18'), [
+    'the jungle works differently now'
+  ]);
+});
+
+check('ход мысли без маркера за ответ не принимается', () => {
+  // Модель иногда не выдерживает форму: «All value tweaks… NONE». Без этого
+  // правила такая строка ушла бы игроку как пояснение к патчу.
+  const messy = 'All value tweaks, no functional change. Now check the item.NONE';
+  assert.deepStrictEqual(pc.keepSafeLines(messy, '26.18'), []);
+});
+
+check('отдельные режимы в пояснения не попадают', () => {
+  // Настоящие ответы по 26.16 и 26.18: в патчноуте режимам отводят много места,
+  // и пересказ охотно брал оттуда — а сводка выше строго про Ущелье.
+  const real = [
+    '- League Classic mode debuts on the map, reviving old-version kits for champions.',
+    "- Arena's Bravery mode returns as a standing weekly event.",
+    '- The Support Role Quest no longer grants bonus progress for champion combat.'
+  ].join('\n');
+  assert.deepStrictEqual(pc.keepSafeLines(real, '26.16'), [
+    'The Support Role Quest no longer grants bonus progress for champion combat.'
+  ]);
+});
+
+check('слово внутри другого слова за режим не принимается', () => {
+  assert.deepStrictEqual(pc.keepSafeLines('- Turf control around the drake pit works differently now.', '26.18'), [
+    'Turf control around the drake pit works differently now.'
+  ]);
+});
+
+check('косметика и разговор о самом патчноуте отсекаются', () => {
+  // Обе строки — настоящие ответы модели по патчу 26.18.
+  const real = [
+    '- This update reworks how Classic Skin Chromas are sold by folding them into base skins.',
+    '- No Mordekaiser or Lulu changes appear anywhere in these patch notes.',
+    '- The support quest no longer grants bonus progress for champion combat.'
+  ].join('\n');
+  assert.deepStrictEqual(pc.keepSafeLines(real, '26.18'), [
+    'The support quest no longer grants bonus progress for champion combat.'
+  ]);
+});
+
+check('запрос читает патчноут Riot по прямому адресу', () => {
+  const p = pc.buildPrompt('26.18', ['Ekko']);
+  assert.ok(p.includes('leagueoflegends.com/en-us/news/game-updates/'), p.slice(0, 200));
+  assert.ok(p.includes('patch-26-18-notes'), 'адрес должен собираться из номера патча');
+  assert.ok(/NO NUMBERS/.test(p), 'запрет чисел должен быть в запросе');
+});
+
+// ─── деньги на API ──────────────────────────────────────────────────────────
+
+section('Счёт API');
+
+const anthropic = require('../lib/anthropic');
+
+check('пустой счёт опознаётся по ответу API', () => {
+  const real =
+    '{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Claude API. Please go to Plans & Billing to upgrade or purchase credits."}}';
+  assert.strictEqual(anthropic.isBillingProblem(400, real), true);
+  assert.strictEqual(anthropic.isBillingProblem(402, 'payment required'), true);
+});
+
+check('обычная ошибка за отказ по деньгам не выдаётся', () => {
+  assert.strictEqual(anthropic.isBillingProblem(400, '{"error":{"message":"max_tokens is too large"}}'), false);
+  assert.strictEqual(anthropic.isBillingProblem(429, 'rate limit exceeded'), false);
+  assert.strictEqual(anthropic.isBillingProblem(500, 'internal'), false);
 });
 
 console.log(`\n${passed} проверок пройдено${process.exitCode ? ', есть падения' : ''}`);

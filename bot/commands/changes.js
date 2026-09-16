@@ -11,6 +11,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { COLORS, embed } = require('../lib/embeds');
 const patchDiff = require('../lib/patchDiff');
+const patchContext = require('../lib/patchContext');
 const logger = require('../lib/logger');
 const { displayPatch: dp, dataPatch } = require('../lib/patch');
 
@@ -26,9 +27,14 @@ module.exports = {
     )
     .addStringOption((o) =>
       o.setName('from').setDescription('Compare against this patch instead of the previous one')
+    )
+    // По умолчанию выключено: за пояснениями идёт запрос с поиском, он и
+    // медленный, и платный, а список изменений полон и без него.
+    .addBooleanOption((o) =>
+      o.setName('notes').setDescription('Also add context from the official patch notes (slower)')
     ),
 
-  async execute(interaction) {
+  async execute(interaction, ctx) {
     await interaction.deferReply();
 
     const asked = { to: interaction.options.getString('patch'), from: interaction.options.getString('from') };
@@ -72,5 +78,38 @@ module.exports = {
       if (i === 0) await interaction.editReply({ embeds: [e] });
       else await interaction.followUp({ embeds: [e] });
     }
+
+    if (!interaction.options.getBoolean('notes')) return;
+
+    // Пересказ патчноута — отдельным сообщением, со своей подписью и ссылкой на
+    // источник. В одном списке с измеренными числами ему не место.
+    //
+    // Новый запрос стоит денег, поэтому по команде его делает только владелец;
+    // остальным отдаётся уже сохранённое. Для текущего патча оно там и есть —
+    // его кладёт пост при выходе патча.
+    const mayFetch = (ctx && ctx.config ? ctx.config.adminIds : []).includes(interaction.user.id);
+    const notes = await patchContext.forPatch(ctx, {
+      patch: dp(report.to),
+      allowFetch: mayFetch,
+      focus: [
+        ...report.items.changed.map((e) => e.name),
+        ...report.champions.changed.filter((e) => e.spells.length || e.text.length).map((e) => e.name)
+      ]
+    });
+    if (!notes) {
+      await interaction.followUp({
+        content: mayFetch
+          ? 'No patch-note context this time — the numbers above are unaffected.'
+          : 'Patch-note context is only kept for patches the bot has announced — the numbers above are the full picture either way.',
+        ephemeral: true
+      });
+      return;
+    }
+    const e = embed(COLORS.gold)
+      .setTitle(`📰 Patch ${dp(report.to)} in Riot’s own words`)
+      .setDescription(notes.lines.map((l) => `• ${l}`).join('\n'))
+      .setFooter({ text: 'Retold from the official patch notes — not measured like the list above.' });
+    if (notes.sources.length) e.setURL(notes.sources[0].url);
+    await interaction.followUp({ embeds: [e] });
   }
 };
