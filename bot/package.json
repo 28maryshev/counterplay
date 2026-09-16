@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "deploy-commands": "node deploy-commands.js",
-    "offline-test": "node test/offline.js"
+    "offline-test": "node test/offline.js",
+    "patchdiff": "node lib/patchDiff.js",
+    "patchdiff-test": "node test/patchdiff.js"
   },
   "engines": {
     "node": ">=20"
