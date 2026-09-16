@@ -30,6 +30,9 @@ public sealed class LcuEventSocket : IAsyncDisposable
         // защиту от «полуоткрытого» сокета даёт таймаут приёма в ReadEventsAsync.
         _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
 
+        // Новое соединение — новое чтение: задел от прошлого сокета уже мёртв.
+        _pendingRead = null;
+
         await _ws.ConnectAsync(_creds.WsUri, ct);
 
         // WAMP: [5, topic] = SUBSCRIBE. Подписываемся на все события, фильтруем по uri ниже.
@@ -43,11 +46,24 @@ public sealed class LcuEventSocket : IAsyncDisposable
     }
 
     // Тишина в сокете — ещё НЕ обрыв: сидя в лобби, клиент может не слать
-    // событий сколько угодно (раньше это считалось смертью соединения, и
-    // программа каждые полторы минуты переподключалась и лезла за базой).
-    // По истечении этого срока пробуем ПИСАТЬ в сокет: живое соединение примет
-    // отправку, мёртвое бросит исключение — вот это и есть обрыв.
+    // событий сколько угодно. По истечении этого срока пробуем ПИСАТЬ в сокет:
+    // живое соединение примет отправку, мёртвое бросит исключение — вот это и
+    // есть обрыв.
     private const int RecvTimeoutSec = 60;
+
+    // Начатое, но ещё не завершённое чтение. Живёт МЕЖДУ проходами цикла — и это
+    // здесь главное.
+    //
+    // Раньше таймаут тишины делался отменой самого чтения. Но отмена операции
+    // WebSocket в .NET не «прекращает ожидание», а РВЁТ соединение: сокет уходит
+    // в Aborted, и следующая отправка гарантированно падает. То есть программа
+    // сама убивала связь каждую минуту тишины, объявляла «соединение потеряно» и
+    // переподключалась — в лобби это повторялось раз в пару минут.
+    //
+    // Поэтому чтение больше не отменяем. Ждём его вместе с таймером: сработал
+    // таймер — проверяем сокет отправкой, а чтение остаётся висеть и дождётся
+    // своего события.
+    private Task<WebSocketReceiveResult>? _pendingRead;
 
     public async IAsyncEnumerable<LcuEvent> ReadEventsAsync([EnumeratorCancellation] CancellationToken ct)
     {
@@ -61,24 +77,28 @@ public sealed class LcuEventSocket : IAsyncDisposable
             bool silent = false;      // истёк таймаут приёма — сокет проверим отправкой
             while (!endOfMessage)
             {
-                WebSocketReceiveResult result;
-                try
+                // Буфер отдаём одному чтению за раз: пока оно не завершилось,
+                // трогать буфер нельзя.
+                _pendingRead ??= _ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+
+                // Таймер снимаем сразу, как только чтение вернулось: события
+                // идут часто, и брошенные таймеры копились бы сотнями.
+                using var tickCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var tick = Task.Delay(TimeSpan.FromSeconds(RecvTimeoutSec), tickCts.Token);
+                var done = await Task.WhenAny(_pendingRead, tick);
+                tickCts.Cancel();
+                if (done != _pendingRead)
                 {
-                    // Таймаут на каждый приём: linked-токен отменяется либо по ct
-                    // (выход), либо по времени (мёртвый сокет). try без yield —
-                    // корректно для итератора.
-                    using var recvCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    recvCts.CancelAfter(TimeSpan.FromSeconds(RecvTimeoutSec));
-                    result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), recvCts.Token);
-                }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                {
-                    // Не наша отмена, а таймаут приёма: событий давно не было.
-                    // Само по себе это нормально (тихое лобби) — проверяем сокет
-                    // отправкой ниже, а пока прерываем чтение этого сообщения.
+                    // Событий давно не было. Само по себе это нормально (тихое
+                    // лобби) — проверяем сокет отправкой ниже, а чтение пусть
+                    // ждёт дальше.
                     silent = true;
                     break;
                 }
+
+                var result = await _pendingRead;   // исключения отсюда — настоящий обрыв
+                _pendingRead = null;
+
                 if (result.MessageType == WebSocketMessageType.Close)
                     yield break;
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));

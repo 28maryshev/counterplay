@@ -246,16 +246,25 @@ class Program
         await DataDb.EnsureAsync(storedBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
         DataDb.SelfClean();
 
-        // Внешний цикл — переподключение при перезапуске клиента
+        // Внешний цикл — переподключение при перезапуске клиента.
+        //
+        // Первую попытку после обрыва делаем МОЛЧА: клиент почти всегда на месте,
+        // и мигать «соединение потеряно» из-за секундной заминки незачем. Если и
+        // вторая не удалась — тогда говорим, значит дело серьёзнее.
+        var quiet = false;
         while (!ct.IsCancellationRequested)
         {
-            overlay.SetLcuReady(false); // не подключены — авто-возврат из трея подавлен
-            overlay.ShowStatus(Loc.T("status.waitingClient"));
+            if (!quiet)
+            {
+                overlay.SetLcuReady(false); // не подключены — авто-возврат из трея подавлен
+                overlay.ShowStatus(Loc.T("status.waitingClient"));
+            }
             var creds = await LockfileReader.WaitForAsync(lockfilePath, ct);
 
             try
             {
                 await RunSessionAsync(overlay, creds, ct);
+                quiet = false;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -267,8 +276,18 @@ class Program
             {
                 // Клиент закрылся (WebSocket оборван без рукопожатия), lockfile устарел
                 // или сеть моргнула — НЕ падаем, ждём клиент снова.
-                overlay.ShowStatus(Loc.T("status.connLost"));
-                try { await Task.Delay(3000, ct); } catch (OperationCanceledException) { return; }
+                if (quiet)
+                {
+                    // Вторая неудача подряд — значит не заминка.
+                    quiet = false;
+                    overlay.ShowStatus(Loc.T("status.connLost"));
+                    try { await Task.Delay(3000, ct); } catch (OperationCanceledException) { return; }
+                }
+                else
+                {
+                    quiet = true;
+                    try { await Task.Delay(700, ct); } catch (OperationCanceledException) { return; }
+                }
             }
         }
     }
