@@ -58,7 +58,7 @@ async function run(ctx, { force = false } = {}) {
 
   if (!msgs.length && force)
     msgs.push(
-      `Live **${s.official}** · our DB **${s.db && s.db.newest}** (${s.db && s.db.ready ? 'ready' : 'filling'}) · site ${s.published.site} · program ${s.published.program} · runes ${s.published.runes}.`
+      `Live **${dp(s.official)}** · our DB **${dp(s.db && s.db.newest)}** (${s.db && s.db.ready ? 'ready' : 'filling'}) · site ${dp(s.published.site)} · program ${dp(s.published.program)} · runes ${dp(s.published.runes)}.`
     );
 
   const chId = ctx.config.channels.announcements;
@@ -91,12 +91,17 @@ async function announceChanges(ctx, chId, official, lastOfficial, force) {
   const done = kvGet(KV_DIFF);
   if (done === official && !force) return;
 
-  const from = done || lastOfficial;
-  // Сравнивать не с чем — первый прогон с этой функцией. Запоминаем патч молча,
-  // сводка уйдёт со следующим.
+  let from = done || lastOfficial;
   if (!from || freshness.cmpPatch(from, official) >= 0) {
-    kvSet(KV_DIFF, official);
-    return;
+    if (!force) {
+      // Сравнивать не с чем — первый прогон с этой функцией. Запоминаем патч
+      // молча, сводка уйдёт со следующим.
+      kvSet(KV_DIFF, official);
+      return;
+    }
+    // Показ по требованию: сравниваем с предыдущим патчем, его подберёт сам
+    // patchDiff. Иначе проверить сводку можно было бы только дождавшись патча.
+    from = undefined;
   }
 
   let report;
