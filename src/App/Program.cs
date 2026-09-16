@@ -57,6 +57,12 @@ class Program
 
         Loc.Init(); // язык интерфейса: сохранённый выбор → язык Windows → English
 
+        // Шапку файла журнала пишет первая же запись, а первая запись случается
+        // уже при создании окна — значит версию и режим надо знать до него.
+        // Иначе в присланном журнале не видно, о какой сборке речь.
+        Log.Mode = sandbox ? "тестовый" : "боевой";
+        Log.Version = CurrentVersion();
+
         // Автозапуск с Windows: включаем при первом старте новой версии и один раз
         // сообщаем об этом в панели (молча прописываться в автозагрузку — дурной тон).
         var autostartNotice = Autostart.ApplyOnStartup();
@@ -80,20 +86,12 @@ class Program
         // Повторный запуск (клик по ярлыку, пока мы в трее) — разворачиваем окно.
         StartShowSignalListener(overlay, cts.Token);
 
-        // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.
-        var testMode = args.Contains("test") || args.Contains("--test");
-        Log.Mode = testMode ? "тестовый" : "боевой";
-        // Версию узнаём здесь, а не позже при настройке окна: шапка файла журнала
-        // пишется первой же записью, и к тому моменту она уже должна быть известна —
-        // иначе в присланном журнале не видно, о какой сборке речь.
-        Log.Version = CurrentVersion();
-
         var lcuTask = Task.Run(async () =>
         {
             try
             {
                 // «test empty» — сразу скелетон-вид (профиль без единой игры).
-                if (testMode)
+                if (sandbox)   // песочница-драфт без клиента LoL
                 {
                     await TestMode.RunAsync(overlay, args.Contains("empty"), args.Contains("firstgame"),
                                             args.Contains("fivegames"), cts.Token);
