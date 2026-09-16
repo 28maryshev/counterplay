@@ -140,7 +140,16 @@ public sealed class LcuHttpClient : IDisposable
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
         };
 
-        _http = new HttpClient(handler) { BaseAddress = new Uri(creds.HttpBase) };
+        // Таймаут: по умолчанию у HttpClient сто секунд, а здесь разговор идёт с
+        // соседним процессом на localhost — столько ждать не от чего. Цена
+        // длинного ожидания видна на кнопке выбора: пока запрос висит, нажатие
+        // считается «уже идёт» и кнопка не отвечает, то есть зависший вызов
+        // глушил бы её почти на весь драфт.
+        _http = new HttpClient(handler)
+        {
+            BaseAddress = new Uri(creds.HttpBase),
+            Timeout = TimeSpan.FromSeconds(20)
+        };
 
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"riot:{creds.Password}"));
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", token);

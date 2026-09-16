@@ -1942,30 +1942,46 @@ public partial class OverlayWindow : Window
     private async void PickConfirm_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (LockHandler is null || _pickHoverId <= 0 || _pickBusy) return;
+        // Кнопка на экране, а нажатие не делает ничего — разбирать такое вслепую
+        // нельзя: причин у молчаливого выхода три, и снаружи они неразличимы.
+        if (LockHandler is null || _pickHoverId <= 0 || _pickBusy)
+        {
+            Log.Write($"пик: нажатие вхолостую (клиент={(LockHandler is null ? "нет" : "есть")}, " +
+                      $"чемпион={_pickHoverId}, занято={_pickBusy})");
+            return;
+        }
         if (_lastDraft is null || !_lastDraft.MyPickInProgress)
         {
             // Не мой ход — говорим об этом, а не молчим.
             PickText.Text = Loc.T("pick.failed");
             _pickMsgUntil = DateTime.UtcNow.AddSeconds(3);
+            Log.Write("пик: не мой ход");
             return;
         }
 
         _pickBusy = true;
-        PickText.Text = Loc.T("pick.locking");
-        _pickMsgUntil = DateTime.UtcNow.AddSeconds(2);
-        var code = await LockHandler(_pickHoverId);
-        _pickBusy = false;
-        if (code is < 200 or >= 300)
+        try
         {
-            // Ошибка «липнет» на 4 секунды — иначе её мгновенно затрёт
-            // перерисовка от очередного события сессии.
-            PickText.Text = $"{Loc.T("pick.failed")} ({code})";
-            _pickMsgUntil = DateTime.UtcNow.AddSeconds(4);
-            return;
+            PickText.Text = Loc.T("pick.locking");
+            _pickMsgUntil = DateTime.UtcNow.AddSeconds(2);
+            var code = await LockHandler(_pickHoverId);
+            if (code is < 200 or >= 300)
+            {
+                // Ошибка «липнет» на 4 секунды — иначе её мгновенно затрёт
+                // перерисовка от очередного события сессии.
+                PickText.Text = $"{Loc.T("pick.failed")} ({code})";
+                _pickMsgUntil = DateTime.UtcNow.AddSeconds(4);
+                return;
+            }
+            // Успех: клиент сам обновит сессию, карточки исчезнут — прячем плашку.
+            PickBar.Visibility = Visibility.Collapsed;
         }
-        // Успех: клиент сам обновит сессию, карточки исчезнут — прячем плашку.
-        PickBar.Visibility = Visibility.Collapsed;
+        finally
+        {
+            // Через finally: сорвись запрос с исключением — флаг остался бы
+            // поднятым, и кнопка молчала бы до перезапуска программы.
+            _pickBusy = false;
+        }
     }
 
     // Показ/скрытие плашки выбора: видна только когда мой ход пикать и есть
@@ -2012,25 +2028,34 @@ public partial class OverlayWindow : Window
     private async void BanConfirm_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (BanLockHandler is null || _banHoverId <= 0 || _banBusy) return;
+        if (BanLockHandler is null || _banHoverId <= 0 || _banBusy)
+        {
+            Log.Write($"бан: нажатие вхолостую (клиент={(BanLockHandler is null ? "нет" : "есть")}, " +
+                      $"чемпион={_banHoverId}, занято={_banBusy})");
+            return;
+        }
         if (_lastDraft is null || !_lastDraft.MyBanInProgress)
         {
             BanText.Text = Loc.T("ban.failed");
             _banMsgUntil = DateTime.UtcNow.AddSeconds(3);
+            Log.Write("бан: не мой ход");
             return;
         }
         _banBusy = true;
-        BanText.Text = Loc.T("ban.banning");
-        _banMsgUntil = DateTime.UtcNow.AddSeconds(2);
-        var code = await BanLockHandler(_banHoverId);
-        _banBusy = false;
-        if (code is < 200 or >= 300)
+        try
         {
-            BanText.Text = $"{Loc.T("ban.failed")} ({code})";
-            _banMsgUntil = DateTime.UtcNow.AddSeconds(4);
-            return;
+            BanText.Text = Loc.T("ban.banning");
+            _banMsgUntil = DateTime.UtcNow.AddSeconds(2);
+            var code = await BanLockHandler(_banHoverId);
+            if (code is < 200 or >= 300)
+            {
+                BanText.Text = $"{Loc.T("ban.failed")} ({code})";
+                _banMsgUntil = DateTime.UtcNow.AddSeconds(4);
+                return;
+            }
+            BanBar.Visibility = Visibility.Collapsed;
         }
-        BanBar.Visibility = Visibility.Collapsed;
+        finally { _banBusy = false; }   // см. пик: иначе одна осечка глушит кнопку
     }
 
     // Ещё можно навести этого чемпиона? Забанённые и уже залоченные кем-то —

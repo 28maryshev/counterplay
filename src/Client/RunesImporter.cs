@@ -94,15 +94,20 @@ public static class RunesImporter
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
     {
         // id действия начинается с 0 (кастомки!) — «нет действия» это -1.
-        if (actionId < 0 || championId <= 0) return 0;
+        if (actionId < 0 || championId <= 0)
+        {
+            Log.Write($"навожу: нечего (действие={actionId}, чемпион={championId})");
+            return 0;
+        }
         try
         {
             // championId без completed — только наведение (пик не завершаем).
             var payload = JsonSerializer.Serialize(new { championId });
-            var (s, _) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", payload, ct);
+            var (s, b) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", payload, ct);
+            if (s is < 200 or >= 300) Log.Write($"навожу: действие {actionId} → {s}: {Trim(b)}");
             return s;
         }
-        catch { return 0; }
+        catch (Exception ex) { Log.Write($"навожу: сорвалось — {ex.Message}"); return 0; }
     }
 
     /// <summary>
@@ -113,7 +118,11 @@ public static class RunesImporter
         LcuHttpClient http, int actionId, int championId, CancellationToken ct)
     {
         // id действия начинается с 0 (кастомки!) — «нет действия» это -1.
-        if (actionId < 0 || championId <= 0) return 0;
+        if (actionId < 0 || championId <= 0)
+        {
+            Log.Write($"лочу: нечего (действие={actionId}, чемпион={championId})");
+            return 0;
+        }
         try
         {
             // Сначала наводим (на случай если ещё не наведён).
@@ -123,17 +132,20 @@ public static class RunesImporter
             // Способ 1: PATCH completed=true (работает в большинстве версий клиента).
             var done = JsonSerializer.Serialize(new { championId, completed = true });
             var (s1, b1) = await http.PatchAsync($"/lol-champ-select/v1/session/actions/{actionId}", done, ct);
-            if (s1 is >= 200 and < 300) return s1;
-            Console.WriteLine($"[pick] PATCH completed=true → {s1}: {Trim(b1)}");
+            if (s1 is >= 200 and < 300)
+            {
+                Log.Write($"лочу: действие {actionId}, чемпион {championId} → {s1}");
+                return s1;
+            }
+            Log.Write($"лочу: PATCH completed=true → {s1}: {Trim(b1)}");
 
             // Способ 2: POST .../complete с championId в теле.
             var (s2, b2) = await http.PostAsync(
                 $"/lol-champ-select/v1/session/actions/{actionId}/complete", hover, ct);
-            if (s2 is < 200 or >= 300)
-                Console.WriteLine($"[pick] POST /complete → {s2}: {Trim(b2)}");
+            Log.Write($"лочу: POST /complete → {s2}{(s2 is >= 200 and < 300 ? "" : ": " + Trim(b2))}");
             return s2;
         }
-        catch (Exception ex) { Console.WriteLine($"[pick] lock exception: {ex.Message}"); return 0; }
+        catch (Exception ex) { Log.Write($"лочу: сорвалось — {ex.Message}"); return 0; }
     }
 
     private static string Trim(string s) => s.Length > 200 ? s[..200] : s;

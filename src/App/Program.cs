@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -83,6 +83,10 @@ class Program
         // Тестовый режим (dotnet run test): песочница-драфт без клиента LoL.
         var testMode = args.Contains("test") || args.Contains("--test");
         Log.Mode = testMode ? "тестовый" : "боевой";
+        // Версию узнаём здесь, а не позже при настройке окна: шапка файла журнала
+        // пишется первой же записью, и к тому моменту она уже должна быть известна —
+        // иначе в присланном журнале не видно, о какой сборке речь.
+        Log.Version = CurrentVersion();
 
         var lcuTask = Task.Run(async () =>
         {
@@ -211,8 +215,7 @@ class Program
         // подсовывал бы «--autostart» вместо пути к lockfile.
         var lockfilePath = args.FirstOrDefault(a => !a.StartsWith('-'));
 
-        overlay.SetVersion(CurrentVersion());
-        Log.Version = CurrentVersion();
+        overlay.SetVersion(Log.Version);
 
         // Проверка обновлений при каждом запуске (только для установленной версии).
         await CheckForUpdatesAsync(overlay, ct);
