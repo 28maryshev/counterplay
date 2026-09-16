@@ -15,12 +15,37 @@ public static class ItemIcons
     private static readonly int[] Ids = [3111, 3165, 3075, 3143, 3110, 3065, 2504];
     private static readonly Dictionary<int, ImageSource> _icons = new();
 
+    // Картинки кэшируем ПО ПАТЧУ: Riot их перерисовывает, а кэш по одному id
+    // держал бы прошлую картинку вечно.
+    private static string CacheDir() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Counterplay", "items", DataDragon.Version);
+
+    /// Чистит картинки прошлых патчей — их больше никто не попросит.
+    private static void SweepOldCaches()
+    {
+        try
+        {
+            var root = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Counterplay", "items");
+            if (!Directory.Exists(root)) return;
+            foreach (var dir in Directory.GetDirectories(root))
+                if (Path.GetFileName(dir) != DataDragon.Version)
+                    try { Directory.Delete(dir, recursive: true); } catch { }
+            // То, что лежало в корне до разделения по патчам.
+            foreach (var old in Directory.GetFiles(root, "*.png"))
+                try { File.Delete(old); } catch { }
+        }
+        catch { /* не убралось — место копеечное */ }
+    }
+
     public static async Task PreloadAsync(CancellationToken ct)
     {
         var ver = DataDragon.Version;
-        var cacheDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "items");
+        var cacheDir = CacheDir();
         try { Directory.CreateDirectory(cacheDir); } catch { }
+        SweepOldCaches();
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         foreach (var id in Ids)
@@ -73,11 +98,17 @@ public static class ItemIcons
     private static Dictionary<int, int[]> _from = new();   // id → прямые компоненты
 
     private static string? _namesLocale;
+    private static string? _namesVersion;
 
+    /// Названия, описания и ЦЕНЫ предметов. Перечитываем и при смене языка, и
+    /// при выходе патча: Riot правит цены и характеристики вместе с балансом,
+    /// и показывать прошлые — врать игроку.
     public static async Task LoadNamesAsync(string locale, CancellationToken ct)
     {
-        if (_namesLocale == locale && _names is not null) return;
+        if (_namesLocale == locale && _namesVersion == DataDragon.Version && _names is not null)
+            return;
         _namesLocale = locale;
+        _namesVersion = DataDragon.Version;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
@@ -201,8 +232,7 @@ public static class ItemIcons
         if (_icons.TryGetValue(id, out var cached)) return cached;
         try
         {
-            var cacheDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "items");
+            var cacheDir = CacheDir();
             Directory.CreateDirectory(cacheDir);
             var path = Path.Combine(cacheDir, $"{id}.png");
 

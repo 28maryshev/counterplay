@@ -24,28 +24,55 @@ public static class RuneIcons
         return System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
     }
 
+    /// Удаляет картинки прошлых патчей: их больше никто не попросит.
+    private static void SweepOldCaches()
+    {
+        try
+        {
+            var root = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Counterplay", "runes");
+            if (!Directory.Exists(root)) return;
+            foreach (var dir in Directory.GetDirectories(root))
+                if (Path.GetFileName(dir) != _loadedVersion)
+                    try { Directory.Delete(dir, recursive: true); } catch { }
+            // Картинки, лежавшие в корне до разделения по патчам.
+            foreach (var old in Directory.GetFiles(root, "*.png"))
+                try { File.Delete(old); } catch { }
+        }
+        catch { /* не убралось — не беда, место копеечное */ }
+    }
+
     private static readonly Dictionary<int, RuneInfo> Runes = new();
     private static readonly Dictionary<int, string> StyleNames = new();
     private static readonly Dictionary<int, BitmapImage> Cache = new();
 
+    // Картинки кэшируем ПО ПАТЧУ: Riot их перерисовывает, и кэш без номера
+    // патча держал бы старую картинку вечно. Папки прошлых патчей подчищаются
+    // при загрузке — иначе они копились бы каждые две недели.
     private static string CacheDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Counterplay", "runes");
+        "Counterplay", "runes", _loadedVersion ?? "0");
 
     private static string? _loadedLocale;
+    private static string? _loadedVersion;
 
-    /// Загрузить справочник рун. Повторный вызов с другой локалью перезагружает
-    /// названия и описания (смена языка в программе).
+    /// Загрузить справочник рун. Повторный вызов с другой локалью или после
+    /// выхода патча перезагружает названия и описания: Riot правит их вместе с
+    /// балансом, и держать прошлый текст — врать игроку.
     public static async Task LoadAsync(string locale, CancellationToken ct)
     {
-        if (_loadedLocale == locale && Runes.Count > 0) return;
+        if (_loadedLocale == locale && _loadedVersion == DataDragon.Version && Runes.Count > 0)
+            return;
         _loadedLocale = locale;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-            var version = (await http.GetStringAsync(
-                "https://ddragon.leagueoflegends.com/api/versions.json", ct))
-                .Trim('[', ']').Split(',')[0].Trim('"', ' ');
+            // Номер патча берём общий, а не спрашиваем его ещё раз: он уже
+            // получен при старте и обновляется вместе с остальными данными.
+            var version = DataDragon.Version;
+            _loadedVersion = version;
+            SweepOldCaches();
 
             var json = await http.GetStringAsync(
                 $"https://ddragon.leagueoflegends.com/cdn/{version}/data/{locale}/runesReforged.json", ct);

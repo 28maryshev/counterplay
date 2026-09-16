@@ -237,6 +237,8 @@ class Program
         await ItemFacts.LoadAsync(ct);
         await RunesClient.LoadManifestAsync(ct);
 
+        StartPatchWatcher(overlay, ct);   // цены, характеристики и руны — с выходом патча
+
         // Гарантируем наличие data.db. Качаем базу только СВОЕГО эло (~50 МБ) по
         // сохранённому с прошлого запуска рангу. На ПЕРВОМ запуске ранг ещё
         // неизвестен → берём дефолтный бакет (emerald, ~57 МБ), а НЕ общую базу
@@ -290,6 +292,49 @@ class Program
                 }
             }
         }
+    }
+
+    /// Следит за выходом патча и перечитывает справочники Riot.
+    ///
+    /// Цены, характеристики предметов и описания рун Riot правит вместе с
+    /// балансом. Раньше они брались один раз при старте: программа живёт в трее
+    /// сутками, и после выхода патча она продолжала показывать прошлые числа —
+    /// пока человек её не перезапустит.
+    ///
+    /// Проверка дешёвая (один маленький файл с номерами версий) и редкая: патчи
+    /// выходят раз в две недели, спешить некуда.
+    private static void StartPatchWatcher(OverlayWindow overlay, CancellationToken ct)
+    {
+        _ = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try { await Task.Delay(TimeSpan.FromHours(3), ct); }
+                catch (OperationCanceledException) { return; }
+
+                try
+                {
+                    var was = DataDragon.Version;
+                    // LoadAsync сам перечитает номер версии из versions.json.
+                    await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
+                    if (DataDragon.Version == was) continue;
+
+                    Log.Write($"патч сменился: {was} → {DataDragon.Version}, обновляю справочники");
+                    // Каждый из них сверяется с номером патча сам и перечитает
+                    // только то, что устарело.
+                    await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+                    await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
+                    await ItemIcons.PreloadAsync(ct);
+                    await ItemFacts.LoadAsync(ct);
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex)
+                {
+                    // Сети нет или Data Dragon прилёг — попробуем через три часа.
+                    Log.Write($"проверка патча не удалась: {ex.Message}");
+                }
+            }
+        }, ct);
     }
 
     // Бакеты, за которыми уже ходили в этом запуске: одна попытка на бакет.
