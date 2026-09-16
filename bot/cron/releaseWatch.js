@@ -9,13 +9,13 @@
 // правку с большой работой, и крупное терялось среди частностей.
 const { COLORS, embed } = require('../lib/embeds');
 const { kvGet, kvSet } = require('../db/botDb');
+const anthropic = require('../lib/anthropic');
 const logger = require('../lib/logger');
 
 const KV_KEY = 'last_announced_app_release';
 const RELEASES_URL = 'https://api.github.com/repos/28maryshev/counterplay/releases?per_page=15';
 const RELEASES_PAGE = 'https://github.com/28maryshev/counterplay/releases';
 
-const SUMMARY_API = 'https://api.anthropic.com/v1/messages';
 const SUMMARY_MODEL = 'claude-sonnet-5';
 
 // Больше в описание эмбеда всё равно не влезет с запасом на хвост про загрузку.
@@ -52,13 +52,11 @@ function lines(release) {
  * Свести заметки нескольких версий в короткий итог: главное первым, мелочь
  * сжата или отброшена.
  *
- * Нет ключа или запрос не прошёл — возвращаем null, и анонс уходит склейкой:
- * длинный список лучше, чем молчание.
+ * Нет ключа, кончились деньги или запрос не прошёл — возвращаем null, и анонс
+ * уходит склейкой: длинный список лучше, чем молчание. Про пустой счёт владельцу
+ * скажут отдельно (lib/anthropic.js), молча мы не замолкаем.
  */
-async function summarise(posted) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
-
+async function summarise(ctx, posted) {
   const source = posted.map((r) => `${r.tag_name}:\n${lines(r).join('\n')}`).join('\n\n');
 
   const prompt = [
@@ -79,42 +77,21 @@ async function summarise(posted) {
     'Answer with the bullet list and nothing else.'
   ].join('\n');
 
-  try {
-    const res = await fetch(SUMMARY_API, {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: SUMMARY_MODEL,
-        max_tokens: 1200,
-        messages: [{ role: 'user', content: prompt }]
-      }),
-      signal: AbortSignal.timeout(45000)
-    });
-    if (!res.ok) {
-      logger.warn(`releaseWatch: summary -> ${res.status}`);
-      return null;
-    }
-    const data = await res.json();
-    const text = (data.content || [])
-      .filter((c) => c.type === 'text')
-      .map((c) => c.text || '')
-      .join('')
-      .trim();
+  const r = await anthropic.ask(ctx, {
+    prompt,
+    model: SUMMARY_MODEL,
+    maxTokens: 1200,
+    timeoutMs: 45000,
+    label: 'release summary'
+  });
+  if (!r.ok) return null;
 
-    // Берём только строки списка: пояснения вокруг нам не нужны.
-    const bullets = text
-      .split('\n')
-      .map((s) => s.trim())
-      .filter((s) => s.startsWith('- '));
-    return bullets.length > 0 ? bullets.join('\n') : null;
-  } catch (e) {
-    logger.warn(`releaseWatch: summary failed — ${e.message}`);
-    return null;
-  }
+  // Берём только строки списка: пояснения вокруг нам не нужны.
+  const bullets = r.text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s.startsWith('- '));
+  return bullets.length > 0 ? bullets.join('\n') : null;
 }
 
 /** Склейка заметок без повторов — запасной путь, когда итог получить не вышло. */
@@ -156,7 +133,7 @@ async function run(ctx, { force = false } = {}) {
 
   // Одна версия — её заметки и есть анонс, сводить нечего и незачем платить за
   // запрос. Несколько — итог.
-  let notes = posted.length > 1 ? await summarise(posted) : null;
+  let notes = posted.length > 1 ? await summarise(ctx, posted) : null;
   const summarised = notes !== null;
   if (!summarised) notes = merge(posted);
   notes = (notes || '').trim();

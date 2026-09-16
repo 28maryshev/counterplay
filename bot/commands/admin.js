@@ -4,6 +4,7 @@ const dl = require('../db/dataLayer');
 const dataSync = require('../lib/dataSync');
 const { db, kvGet } = require('../db/botDb');
 const { COLORS, embed } = require('../lib/embeds');
+const anthropic = require('../lib/anthropic');
 
 const startedAt = Date.now();
 
@@ -45,11 +46,15 @@ module.exports = {
       const lastRadar = db.prepare('SELECT date, type FROM radar_log ORDER BY rowid DESC LIMIT 1').get();
       const activeDuel = db.prepare('SELECT id, date, revealed FROM duels ORDER BY id DESC LIMIT 1').get();
       const uptimeMin = Math.round((Date.now() - startedAt) / 60000);
+      // Состояние счёта API: без этой строки бот молча терял бы сводки, и
+      // понять это можно было бы только по логам.
+      const api = anthropic.billingState();
       const e = embed(COLORS.blue).setTitle('🤖 Bot status').setDescription(
         `${dataInfo}\n\n` +
           `last radar: ${lastRadar ? `${lastRadar.date} (${lastRadar.type})` : '—'}\n` +
           `last duel: ${activeDuel ? `#${activeDuel.id} on ${activeDuel.date} (${activeDuel.revealed ? 'revealed' : 'open'})` : '—'}\n` +
           `last seen patch: ${kvGet('last_seen_patch') ?? '—'}\n` +
+          `model API: ${api.ok ? 'ok' : `**${api.reason}**${api.since ? ` since ${api.since}` : ''}`}\n` +
           `uptime: ${Math.floor(uptimeMin / 60)}h ${uptimeMin % 60}m · rss ${(process.memoryUsage().rss / 1e6).toFixed(0)} MB`
       );
       await interaction.editReply({ embeds: [e] });
