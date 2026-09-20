@@ -498,9 +498,29 @@ def post_text(found: dict, patch_to: str) -> str | None:
     return '\n'.join(parts)
 
 
+def send_via_bot(text: str, title: str) -> None:
+    """Отправить от имени бота — через `ops/post-radar.sh`.
+
+    Токен бота лежит в его `.env` на сервере и оттуда не уезжает: туда уходит
+    только текст, а Discord дёргает уже сам сервер. Отдельный веб-хук заводить
+    не нужно — бот в этот канал и так пишет.
+    """
+    import subprocess
+
+    script = Path(__file__).resolve().parent.parent / 'ops' / 'post-radar.sh'
+    if not script.exists():
+        raise SystemExit(f'нет {script} — отправить нечем')
+    try:
+        r = subprocess.run(['bash', str(script)], input=text.encode('utf-8'),
+                           env={**os.environ, 'RADAR_TITLE': title})
+    except FileNotFoundError:
+        raise SystemExit('нет bash — либо поставь его, либо шли веб-хуком: --webhook <url>')
+    if r.returncode != 0:
+        raise SystemExit(f'отправка не прошла (код {r.returncode})')
+
+
 def send_post(webhook: str, text: str, patch_to: str, display_patch: str) -> None:
-    """Отправка веб-хуком: искалка работает на локальной машине, а бот живёт на
-    сервере — достучаться до канала иначе нечем."""
+    """Отправка веб-хуком — запасной путь, если до сервера не достучаться."""
     import urllib.error
 
     payload = {
@@ -567,7 +587,7 @@ def main():
     ap.add_argument('--preview', action='store_true', help='показать текст поста, не отправляя')
     ap.add_argument('--post', action='store_true', help='отправить пост в Discord')
     ap.add_argument('--webhook', default=os.environ.get('META_RADAR_WEBHOOK', ''),
-                    help='веб-хук канала (или переменная META_RADAR_WEBHOOK)')
+                    help='слать веб-хуком вместо отправки от имени бота')
     args = ap.parse_args()
 
     if not os.path.exists(args.db):
@@ -610,10 +630,11 @@ def main():
         print(f'📡 META RADAR — Patch {shown}')
         print(text)
         if args.post:
-            if not args.webhook:
-                raise SystemExit('нет веб-хука: --webhook <url> или META_RADAR_WEBHOOK')
             print()
-            send_post(args.webhook, text, pb, shown)
+            if args.webhook:
+                send_post(args.webhook, text, pb, shown)
+            else:
+                send_via_bot(text, f'📡 META RADAR — Patch {shown}')
         else:
             print()
             print('(это предпросмотр — отправить: тот же запуск с --post)')
