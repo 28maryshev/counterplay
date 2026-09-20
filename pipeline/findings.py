@@ -62,6 +62,17 @@ MIN_WR_MOVE = 2.0       # пунктов винрейта
 MIN_BUILD_ITEMS = 4     # набор короче — обрывок игры, а не сборка
 MIN_BUILD_SHARE = 1.0   # % игр чемпиона
 COHERENT_MIN = 4        # у скольких чемпионов сдвиг должен повториться
+MIN_ALT_SHARE = 10.0    # % игр у «другого варианта», иначе это удел одиночек
+
+# Чемпиона, которого играют двумя разными сборками, сравнивать сам с собой
+# нельзя. Град клинков на Шако — руна под AD, Магическая комета — под AP: это не
+# два варианта одного, а два разных Шако, да ещё и разные группы игроков.
+# Отличаем по тому, чем чемпион наносит урон: если ни физический, ни магический
+# не преобладает — популяция расщеплена, и сравнивать в ней нечего.
+#   Шако (лес)   физ 36% / маг 49%  → расщеплён, пропускаем
+#   Ли Син (лес) физ 78% / маг 13%  → одна сборка
+#   Зерат (мид)  физ  2% / маг 96%  → одна сборка
+SPLIT_LOW, SPLIT_HIGH = 25.0, 75.0   # доля физического урона среди phys+magic
 
 CACHE = Path(__file__).with_name('.ddragon-names.json')
 
@@ -96,12 +107,17 @@ def z_prop(n1: int, k1: int, n2: int, k2: int) -> float:
 # ── Имена ───────────────────────────────────────────────────────────────────
 
 def load_names() -> dict:
-    """Имена чемпионов, предметов и рун. Кладём рядом со скриптом: сеть нужна
-    один раз, а без имён находки нечитаемы («предмет 6610» никому ничего не
-    говорит)."""
+    """Имена чемпионов, предметов и рун — на двух языках.
+
+    Русский нужен на экране: искалку читает человек, и «предмет 6610» ему ничего
+    не говорит. Английский нужен для поста: в канале #meta-radar бот говорит
+    по-английски, и один русский пост среди них выглядел бы чужим.
+    """
     if CACHE.exists():
         try:
-            return json.loads(CACHE.read_text(encoding='utf-8'))
+            cached = json.loads(CACHE.read_text(encoding='utf-8'))
+            if 'ru' in cached and 'en' in cached:
+                return cached
         except Exception:
             pass
 
@@ -109,30 +125,39 @@ def load_names() -> dict:
         with urllib.request.urlopen(url, timeout=20) as r:
             return json.load(r)
 
-    names = {'champions': {}, 'items': {}, 'runes': {}}
+    out = {}
     try:
         ver = get('https://ddragon.leagueoflegends.com/api/versions.json')[0]
-        base = f'https://ddragon.leagueoflegends.com/cdn/{ver}/data/ru_RU'
-        for c in get(f'{base}/champion.json')['data'].values():
-            names['champions'][c['key']] = c['name']
-        for k, v in get(f'{base}/item.json')['data'].items():
-            names['items'][k] = v['name']
-        for tree in get(f'{base}/runesReforged.json'):
-            for slot in tree['slots']:
-                for r in slot['runes']:
-                    names['runes'][str(r['id'])] = r['name']
-        CACHE.write_text(json.dumps(names, ensure_ascii=False), encoding='utf-8')
+        for lang, locale in (('ru', 'ru_RU'), ('en', 'en_US')):
+            base = f'https://ddragon.leagueoflegends.com/cdn/{ver}/data/{locale}'
+            names = {'champions': {}, 'items': {}, 'runes': {}}
+            for c in get(f'{base}/champion.json')['data'].values():
+                names['champions'][c['key']] = c['name']
+            for k, v in get(f'{base}/item.json')['data'].items():
+                names['items'][k] = v['name']
+            for tree in get(f'{base}/runesReforged.json'):
+                for slot in tree['slots']:
+                    for r in slot['runes']:
+                        names['runes'][str(r['id'])] = r['name']
+            out[lang] = names
+        CACHE.write_text(json.dumps(out, ensure_ascii=False), encoding='utf-8')
     except Exception as e:
         print(f'имена не загрузились ({e}) — покажу идентификаторы', flush=True)
-    return names
+        out.setdefault('ru', {'champions': {}, 'items': {}, 'runes': {}})
+        out.setdefault('en', out['ru'])
+    return out
 
 
-ROLE_RU = {'top': 'топ', 'jungle': 'лес', 'mid': 'мид', 'adc': 'адк', 'support': 'саппорт'}
+ROLES = {
+    'ru': {'top': 'топ', 'jungle': 'лес', 'mid': 'мид', 'adc': 'адк', 'support': 'саппорт'},
+    'en': {'top': 'top', 'jungle': 'jungle', 'mid': 'mid', 'adc': 'ADC', 'support': 'support'},
+}
 
 
 class Names:
-    def __init__(self, d):
-        self.d = d
+    def __init__(self, d, lang='ru'):
+        self.lang = lang
+        self.d = d[lang]
 
     def champ(self, cid):
         return self.d['champions'].get(str(cid), f'#{cid}')
@@ -144,7 +169,7 @@ class Names:
         return self.d['runes'].get(str(rid), f'#{rid}')
 
     def who(self, cid, role):
-        return f'{self.champ(cid)} ({ROLE_RU.get(role, role)})'
+        return f'{self.champ(cid)} ({ROLES[self.lang].get(role, role)})'
 
 
 # ── Данные ──────────────────────────────────────────────────────────────────
@@ -190,6 +215,18 @@ class Data:
             cell[0] += g
             cell[1] += w
 
+        # Чем чемпион бьёт: по этому видно, играют ли его одной сборкой.
+        # Чистый урон не учитываем — он одинаков при любой сборке.
+        self.damage = {}
+        try:
+            for cid, role, p, m in db.execute(
+                    f'SELECT champion_id, role, SUM(phys), SUM(magic) FROM champion_damage '
+                    f'WHERE {where} AND patch=? GROUP BY 1,2', (*args, self.b)):
+                if (p or 0) + (m or 0) > 0:
+                    self.damage[(cid, role)] = 100.0 * p / (p + m)
+        except sqlite3.OperationalError:
+            pass   # старая выжимка без champion_damage — работаем без проверки
+
         # Сборки: нужны и сами наборы, и «обычный» винрейт для каждой длины.
         self.builds = defaultdict(lambda: [0, 0])
         self.strata = defaultdict(lambda: [0, 0])
@@ -208,6 +245,18 @@ class Data:
             st[1] += w
             self.builds_total[(cid, role, patch)] += g
 
+    def one_build(self, cid, role) -> bool:
+        """Играют ли этого чемпиона одной сборкой.
+
+        Нет данных об уроне — считаем, что да: пропустить настоящую находку
+        хуже, чем показать её с оговоркой. Зато там, где расщепление ВИДНО,
+        сравнения не делаем вовсе.
+        """
+        share = self.damage.get((cid, role))
+        if share is None:
+            return True
+        return share <= SPLIT_LOW or share >= SPLIT_HIGH
+
     def pairs(self):
         """Все связки чемпион+роль, живые в обоих патчах."""
         out = set()
@@ -219,7 +268,7 @@ class Data:
 
 # ── Находки ─────────────────────────────────────────────────────────────────
 
-def share_shifts(d: Data, table: str, nm: Names, kind: str) -> list[dict]:
+def share_shifts(d: Data, table: str, nms: dict, kind: str) -> list[dict]:
     """Что стали брать заметно чаще или реже — предметы или руны."""
     src = d.items if table == 'items' else d.keystones
     out = []
@@ -243,21 +292,27 @@ def share_shifts(d: Data, table: str, nm: Names, kind: str) -> list[dict]:
         z = z_prop(pa, ga, pb, gb)
         if abs(z) < MIN_Z:
             continue
-        name = nm.item(thing) if table == 'items' else nm.rune(thing)
+        def line(n, lang):
+            what = n.item(thing) if table == 'items' else n.rune(thing)
+            if lang == 'ru':
+                return (f'{n.who(cid, role)} · {what}: собирают {sa:.0f}% → {sb:.0f}% игр '
+                        f'(винрейт {wr(ga, wa):.1f}% → {wr(gb, wb):.1f}%, '
+                        f'{num(ga)} и {num(gb)} игр)')
+            return (f'{n.who(cid, role)} · {what}: built in {sa:.0f}% → {sb:.0f}% of games '
+                    f'(win rate {wr(ga, wa):.1f}% → {wr(gb, wb):.1f}%, '
+                    f'{num(ga)} and {num(gb)} games)')
+
         out.append({
             'kind': kind, 'champion': cid, 'role': role, 'id': thing,
             'share_from': round(sa, 1), 'share_to': round(sb, 1),
             'wr_from': round(wr(ga, wa), 1), 'wr_to': round(wr(gb, wb), 1),
             'games_from': ga, 'games_to': gb, 'z': round(z, 1),
-            'text': (f'{nm.who(cid, role)} · {name}: собирают '
-                     f'{sa:.0f}% → {sb:.0f}% игр '
-                     f'(винрейт {wr(ga, wa):.1f}% → {wr(gb, wb):.1f}%, '
-                     f'{num(ga)} и {num(gb)} игр)'),
+            'text': line(nms['ru'], 'ru'), 'text_en': line(nms['en'], 'en'),
         })
     return out
 
 
-def build_edges(d: Data, nm: Names) -> list[dict]:
+def build_edges(d: Data, nms: dict) -> list[dict]:
     """Сборки, которые заметно обгоняют или отстают от своего же уровня.
 
     Сравниваем ТОЛЬКО с играми той же длины — иначе меряли бы, кто дольше прожил.
@@ -265,6 +320,10 @@ def build_edges(d: Data, nm: Names) -> list[dict]:
     out = []
     for (cid, role, ids, patch), (g, w) in d.builds.items():
         if patch != d.b or len(ids) < MIN_BUILD_ITEMS or g < MIN_GAMES:
+            continue
+        # У расщеплённого чемпиона «прочие сборки той же длины» — это сборки
+        # другого билда, и разница между ними ничего не говорит о предметах.
+        if not d.one_build(cid, role):
             continue
         total = d.builds_total.get((cid, role, patch), 0)
         if not total or 100.0 * g / total < MIN_BUILD_SHARE:
@@ -282,19 +341,27 @@ def build_edges(d: Data, nm: Names) -> list[dict]:
         z = z_prop(rest_g, rest_w, g, w)
         if abs(z) < MIN_Z:
             continue
+        def line(n, lang):
+            items = ' + '.join(n.item(i) for i in ids)
+            if lang == 'ru':
+                return (f'{n.who(cid, role)} · {items}: {wr(g, w):.1f}% против '
+                        f'{wr(rest_g, rest_w):.1f}% у прочих сборок той же длины '
+                        f'({delta:+.1f}, {num(g)} игр)')
+            return (f'{n.who(cid, role)} · {items}: {wr(g, w):.1f}% vs '
+                    f'{wr(rest_g, rest_w):.1f}% for other builds of the same length '
+                    f'({delta:+.1f}, {num(g)} games)')
+
         out.append({
             'kind': 'build', 'champion': cid, 'role': role, 'items': list(ids),
             'wr': round(wr(g, w), 1), 'level': round(wr(rest_g, rest_w), 1),
             'delta': round(delta, 1), 'games': g, 'share': round(100.0 * g / total, 1),
             'z': round(z, 1),
-            'text': (f'{nm.who(cid, role)} · {" + ".join(nm.item(i) for i in ids)}: '
-                     f'{wr(g, w):.1f}% против {wr(rest_g, rest_w):.1f}% у прочих сборок '
-                     f'той же длины ({delta:+.1f}, {num(g)} игр)'),
+            'text': line(nms['ru'], 'ru'), 'text_en': line(nms['en'], 'en'),
         })
     return out
 
 
-def popular_worse(d: Data, nm: Names) -> list[dict]:
+def popular_worse(d: Data, nms: dict) -> list[dict]:
     """Самый ходовой выбор руны заметно хуже другого — самая полезная находка.
 
     Руны берём, а не сборки: кейстоун выбирают ДО игры, достраивать его не надо,
@@ -309,9 +376,19 @@ def popular_worse(d: Data, nm: Names) -> list[dict]:
     for (cid, role), rows in by_pair.items():
         if len(rows) < 2:
             continue
+        # Чемпион, которого играют двумя сборками, сравнивается сам с собой
+        # некорректно: разойдутся не руны, а сборки и сами игроки.
+        if not d.one_build(cid, role):
+            continue
         rows.sort(key=lambda r: -r[1])
         top_ks, top_g, top_w = rows[0]
-        best = max(rows[1:], key=lambda r: wr(r[1], r[2]))
+        total = d.parsed.get((cid, role, d.b), 0) or 1
+        # Вариант должен быть реальным выбором, а не уделом одиночек: у редкой
+        # руны играют те, кто её специально изучил, и винрейт это подхватывает.
+        alts = [r for r in rows[1:] if 100.0 * r[1] / total >= MIN_ALT_SHARE]
+        if not alts:
+            continue
+        best = max(alts, key=lambda r: wr(r[1], r[2]))
         ks, g, w = best
         delta = wr(g, w) - wr(top_g, top_w)
         if delta < MIN_WR_MOVE:
@@ -319,22 +396,28 @@ def popular_worse(d: Data, nm: Names) -> list[dict]:
         z = z_prop(top_g, top_w, g, w)
         if z < MIN_Z:
             continue
-        total = d.parsed.get((cid, role, d.b), 0) or 1
+        def line(n, lang):
+            share = 100.0 * top_g / total
+            if lang == 'ru':
+                return (f'{n.who(cid, role)} · чаще всего берут {n.rune(top_ks)} '
+                        f'({share:.0f}% игр, винрейт {wr(top_g, top_w):.1f}%), '
+                        f'а {n.rune(ks)} даёт {wr(g, w):.1f}% ({delta:+.1f}, {num(g)} игр)')
+            return (f'{n.who(cid, role)} · most take {n.rune(top_ks)} '
+                    f'({share:.0f}% of games, {wr(top_g, top_w):.1f}%), '
+                    f'while {n.rune(ks)} gives {wr(g, w):.1f}% ({delta:+.1f}, {num(g)} games)')
+
         out.append({
             'kind': 'popular_worse', 'champion': cid, 'role': role,
             'popular': top_ks, 'better': ks,
             'wr_popular': round(wr(top_g, top_w), 1), 'wr_better': round(wr(g, w), 1),
             'delta': round(delta, 1), 'games_popular': top_g, 'games_better': g,
             'z': round(z, 1),
-            'text': (f'{nm.who(cid, role)} · чаще всего берут {nm.rune(top_ks)} '
-                     f'({100.0 * top_g / total:.0f}% игр, винрейт {wr(top_g, top_w):.1f}%), '
-                     f'а {nm.rune(ks)} даёт {wr(g, w):.1f}% '
-                     f'({delta:+.1f}, {num(g)} игр)'),
+            'text': line(nms['ru'], 'ru'), 'text_en': line(nms['en'], 'en'),
         })
     return out
 
 
-def coherent(shifts: list[dict], nm: Names, what: str) -> list[dict]:
+def coherent(shifts: list[dict], nms: dict, what: str) -> list[dict]:
     """Одно и то же случилось у многих чемпионов разом.
 
     Самый надёжный вид находки: у одного чемпиона сдвиг может быть случайностью,
@@ -351,23 +434,102 @@ def coherent(shifts: list[dict], nm: Names, what: str) -> list[dict]:
         if len(group) < COHERENT_MIN:
             continue
         group.sort(key=lambda s: -abs(s['share_to'] - s['share_from']))
-        name = nm.item(thing) if what == 'items' else nm.rune(thing)
-        who = ', '.join(nm.champ(s['champion']) for s in group[:6])
         moves = [abs(s['share_to'] - s['share_from']) for s in group]
+
+        def line(n, lang):
+            name = n.item(thing) if what == 'items' else n.rune(thing)
+            who = ', '.join(n.champ(s['champion']) for s in group[:6])
+            more = (' и др.' if lang == 'ru' else ' and more') if len(group) > 6 else ''
+            if lang == 'ru':
+                verb = 'стали брать чаще' if direction > 0 else 'уходят'
+                return (f'{name}: {verb} сразу у {len(group)} связок — {who}{more} '
+                        f'(сдвиг {min(moves):.0f}–{max(moves):.0f} пунктов)')
+            verb = 'picked up' if direction > 0 else 'dropped'
+            return (f'{name}: {verb} across {len(group)} champion-role pairs at once — '
+                    f'{who}{more} (shift of {min(moves):.0f}–{max(moves):.0f} points)')
+
         out.append({
             'kind': 'coherent', 'id': thing, 'what': what,
             'direction': 'up' if direction > 0 else 'down',
             'champions': [s['champion'] for s in group],
             'move_min': round(min(moves), 1), 'move_max': round(max(moves), 1),
-            'text': (f'{name}: {"стали брать чаще" if direction > 0 else "уходят"} '
-                     f'сразу у {len(group)} связок — {who}'
-                     f'{" и др." if len(group) > 6 else ""} '
-                     f'(сдвиг {min(moves):.0f}–{max(moves):.0f} пунктов)'),
+            'text': line(nms['ru'], 'ru'), 'text_en': line(nms['en'], 'en'),
         })
     return out
 
 
 # ── Вывод ───────────────────────────────────────────────────────────────────
+
+# ── Пост в Discord ──────────────────────────────────────────────────────────
+
+# Цвета как у остальных постов бота (bot/lib/embeds.js).
+COLOR_BLUE = 0x2E86C1
+FOOTER = 'From the Counterplay database • counterplays.com'
+
+
+def post_text(found: dict, patch_to: str) -> str | None:
+    """Готовый текст поста: только то, что интересно читателю.
+
+    Берём два самых понятных вида находок — смену меты, повторившуюся у
+    нескольких чемпионов, и случаи, когда популярный выбор проигрывает другому.
+    Остальное (отдельные сдвиги, сборки) остаётся материалом для разбора, но в
+    коротком посте только шумит.
+    """
+    parts = []
+
+    meta = (found.get('coherent_items') or [])[:2] + (found.get('coherent_runes') or [])[:1]
+    if meta:
+        parts.append('**The meta moved:**')
+        parts += [f'• {r["text_en"]}' for r in meta]
+
+    worse = (found.get('popular_worse') or [])[:3]
+    if worse:
+        if parts:
+            parts.append('')
+        parts.append('**The popular choice is not the best one:**')
+        parts += [f'• {r["text_en"]}' for r in worse]
+
+    if not parts:
+        return None
+
+    parts.append('')
+    parts.append('_Measured from collected matches. This is what happened, not why: '
+                 'players moved, and this is what the results did._')
+    return '\n'.join(parts)
+
+
+def send_post(webhook: str, text: str, patch_to: str, display_patch: str) -> None:
+    """Отправка веб-хуком: искалка работает на локальной машине, а бот живёт на
+    сервере — достучаться до канала иначе нечем."""
+    import urllib.error
+
+    payload = {
+        'embeds': [{
+            'title': f'📡 META RADAR — Patch {display_patch}',
+            'description': text[:4000],
+            'color': COLOR_BLUE,
+            'footer': {'text': FOOTER},
+        }]
+    }
+    req = urllib.request.Request(
+        webhook, data=json.dumps(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            print(f'отправлено, код {r.status}')
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f'Discord ответил {e.code}: {e.read()[:200].decode("utf-8", "replace")}')
+
+
+def display_patch(patch: str) -> str:
+    """Наружу патч называется так, как его видит игрок в клиенте: Riot ведёт две
+    линейки со сдвигом ровно в десять мажорных версий (16.18 → 26.18)."""
+    try:
+        major, minor = patch.split('.')[:2]
+        return f'{int(major) + 10}.{minor}'
+    except Exception:
+        return patch
+
 
 def report(found: dict, limit: int) -> None:
     order = [
@@ -399,6 +561,13 @@ def main():
     ap.add_argument('--to', dest='pb', default=None, help='патч «после»')
     ap.add_argument('--limit', type=int, default=8, help='сколько показывать в разделе')
     ap.add_argument('--json', action='store_true', help='машинный вывод')
+    # Пост в Discord не отправляется сам: сначала показываем, что уйдёт, и
+    # только по отдельной команде шлём. Находка — материал, а не готовый текст,
+    # и прочитать её глазами перед публикацией обязательно.
+    ap.add_argument('--preview', action='store_true', help='показать текст поста, не отправляя')
+    ap.add_argument('--post', action='store_true', help='отправить пост в Discord')
+    ap.add_argument('--webhook', default=os.environ.get('META_RADAR_WEBHOOK', ''),
+                    help='веб-хук канала (или переменная META_RADAR_WEBHOOK)')
     args = ap.parse_args()
 
     if not os.path.exists(args.db):
@@ -412,23 +581,42 @@ def main():
     if pa == pb:
         raise SystemExit(f'нужны два разных патча, в выжимке только {pb}')
 
-    nm = Names(load_names())
+    raw = load_names()
+    nms = {'ru': Names(raw, 'ru'), 'en': Names(raw, 'en')}
     d = Data(db, args.bucket, (pa, pb))
 
-    item_shifts = share_shifts(d, 'items', nm, 'item')
-    rune_shifts = share_shifts(d, 'runes', nm, 'rune')
+    item_shifts = share_shifts(d, 'items', nms, 'item')
+    rune_shifts = share_shifts(d, 'runes', nms, 'rune')
     found = {
-        'coherent_items': coherent(item_shifts, nm, 'items'),
-        'coherent_runes': coherent(rune_shifts, nm, 'runes'),
-        'popular_worse': sorted(popular_worse(d, nm), key=lambda r: -r['delta']),
+        'coherent_items': coherent(item_shifts, nms, 'items'),
+        'coherent_runes': coherent(rune_shifts, nms, 'runes'),
+        'popular_worse': sorted(popular_worse(d, nms), key=lambda r: -r['delta']),
         'items': sorted(item_shifts, key=lambda r: -abs(r['share_to'] - r['share_from'])),
         'runes': sorted(rune_shifts, key=lambda r: -abs(r['share_to'] - r['share_from'])),
-        'builds': sorted(build_edges(d, nm), key=lambda r: -abs(r['delta'])),
+        'builds': sorted(build_edges(d, nms), key=lambda r: -abs(r['delta'])),
     }
 
     if args.json:
         print(json.dumps({'from': pa, 'to': pb, 'bucket': args.bucket,
                           'findings': found}, ensure_ascii=False, indent=1))
+        return
+
+    if args.preview or args.post:
+        text = post_text(found, pb)
+        if not text:
+            print('Постить нечего: ни одна находка не прошла пороги.')
+            return
+        shown = display_patch(pb)
+        print(f'📡 META RADAR — Patch {shown}')
+        print(text)
+        if args.post:
+            if not args.webhook:
+                raise SystemExit('нет веб-хука: --webhook <url> или META_RADAR_WEBHOOK')
+            print()
+            send_post(args.webhook, text, pb, shown)
+        else:
+            print()
+            print('(это предпросмотр — отправить: тот же запуск с --post)')
         return
 
     print(f'Патчи {pa} → {pb}, эло {args.bucket}. '

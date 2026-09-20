@@ -38,7 +38,7 @@ import sqlite3, sys
 OUT = '/app/data/publtmp/slice.db'
 PATCHES = tuple(sys.argv[1:])
 TABLES = ('base_wr', 'keystone_wr', 'rune_page', 'keystone_matchup',
-          'item_wr', 'item_build', 'spell_wr')
+          'item_wr', 'item_build', 'spell_wr', 'champion_damage')
 src = sqlite3.connect('file:/app/data/data.db?mode=ro', uri=True)
 src.execute('ATTACH DATABASE ? AS out', (OUT,))
 ph = ','.join('?' * len(PATCHES))
