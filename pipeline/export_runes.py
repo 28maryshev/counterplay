@@ -34,6 +34,17 @@ MIN_VS_GAMES     = 40    # игр в матчапе, чтобы показыва
 MIN_BUILD        = 25    # игр на итоговый билд
 MIN_ITEM         = 40    # игр на отдельный предмет
 K                = 50.0  # сглаживание Лапласа (как в движке пиков)
+
+# ── Сборки: три правила против одной подмены ───────────────────────────────
+# Винрейт сборки почти целиком определяется тем, СКОЛЬКО предметов успели
+# достроить, а не тем, какие. У Бель'Вет набор из одного предмета даёт 25% побед,
+# из шести — 71%: проигрывающий сдаётся на двадцатой минуте, не дособрав. Пока
+# кандидаты сортировались по сырому винрейту, наверх поднималась не лучшая
+# сборка, а самая поздняя — и панель показывала Ли Сину 64% там, где сам он
+# выигрывает 49%.
+MIN_BUILD_ITEMS  = 4     # набор короче — это обрывок игры, а не сборка
+MIN_BUILD_SHARE  = 1.0   # % сборок чемпиона; иначе советуем экзотику на 400 игр
+K_DELTA          = 800.0 # ужатие разницы по объёму: 10 пунктов на 400 играх — случайность
 PATCH_WINDOW     = 2     # сколько последних патчей агрегируем
 
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
@@ -191,15 +202,55 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
         if deltas:
             vs[str(opp)] = {'games': opp_games, 'keystones': deltas}
 
-    # ── Предметы ──────────────────────────────────────────────────────────
-    items = [
-        {'id': i, 'games': g, 'wr': round(wr(g, w), 1)}
-        for i, g, w in q(con, f"""SELECT item_id, SUM(games) g, SUM(wins) w FROM item_wr
-                                  WHERE champion_id=? AND role=? AND patch IN ({ph})
-                                  GROUP BY item_id HAVING g >= ?
-                                  ORDER BY g DESC LIMIT 20""",
-                         [champ, role, *ps, MIN_ITEM])
-    ]
+    # ── Предметы и сборки ─────────────────────────────────────────────────
+    # Всё считается из одних и тех же строк: и «обычный» винрейт для каждой
+    # длины набора, и ожидаемый уровень каждого предмета.
+    raw_builds = []
+    strata_acc: dict[int, list[int]] = {}
+    builds_total = 0
+    for b, g, w in q(con, f"""SELECT items, SUM(games) g, SUM(wins) w FROM item_build
+                              WHERE champion_id=? AND role=? AND patch IN ({ph})
+                              GROUP BY items""", [champ, role, *ps]):
+        ids = [int(x) for x in b.split(',') if x]
+        if not ids:
+            continue
+        raw_builds.append((ids, g, w))
+        builds_total += g
+        cell = strata_acc.setdefault(len(ids), [0, 0])
+        cell[0] += g
+        cell[1] += w
+    strata = {n: wr(g, w) for n, (g, w) in strata_acc.items()}
+
+    champ_wr = wr(games, wins)
+
+    # Ожидаемый винрейт предмета — средний уровень тех сборок, в которых он
+    # встречается. Без этого поздний предмет всегда выглядел лучше раннего:
+    # до четвёртого предмета доживают в основном выигранные игры, и подбор под
+    # врагов честно выбирал «то, что покупают победители последним».
+    it_g, it_w, it_exp = defaultdict(int), defaultdict(int), defaultdict(float)
+    for ids, g, w in raw_builds:
+        level = strata.get(len(ids), 50.0)
+        for i in ids:
+            it_g[i] += g
+            it_w[i] += w
+            it_exp[i] += g * level
+
+    items = []
+    for i in sorted(it_g, key=lambda x: -it_g[x]):
+        g, w = it_g[i], it_w[i]
+        if g < MIN_ITEM:
+            continue
+        delta = (wr(g, w) - it_exp[i] / g) * (g / (g + K_DELTA))
+        items.append({
+            'id': i, 'games': g,
+            # Центрируем на 50, а не на винрейте чемпиона: движок отбирает
+            # предметы порогом около пятидесяти, и у чемпиона с 48% иначе
+            # отсеивались бы вообще все.
+            'wr': round(50.0 + delta, 1),
+            'delta': round(delta, 1),
+        })
+        if len(items) >= 20:
+            break
     # Сборки. Группировка идёт по ТОЧНОМУ набору предметов, а полные шестислотовые
     # сборки редки и разнообразны — самыми частыми наборами оказываются короткие
     # (люди заканчивают игру, не дособрав). Поэтому каждую сборку добиваем до 6
@@ -207,16 +258,19 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     # и в игровом магазине должен быть полный список, а не три иконки.
     popular = [i['id'] for i in items]   # уже отсортированы по числу игр
 
-    # Кандидаты: сглаженный винрейт уже учитывает объём (мало игр → ближе к 50%),
-    # поэтому сортировка по нему — это и есть баланс «сила + популярность».
+    # Кандидаты: только то, что действительно собирают, и оценка — насколько
+    # сборка лучше обычной игры ТОЙ ЖЕ длины, ужатая по объёму.
     cands = []
-    for b, g, w in q(con, f"""SELECT items, SUM(games) g, SUM(wins) w FROM item_build
-                              WHERE champion_id=? AND role=? AND patch IN ({ph})
-                              GROUP BY items HAVING g >= ?
-                              ORDER BY g DESC LIMIT 40""",
-                     [champ, role, *ps, MIN_BUILD]):
-        cands.append((set(int(x) for x in b.split(',')), g, w))
-    cands.sort(key=lambda c: wr(c[1], c[2]), reverse=True)
+    for ids, g, w in raw_builds:
+        if g < MIN_BUILD or len(ids) < MIN_BUILD_ITEMS:
+            continue
+        if not builds_total or 100.0 * g / builds_total < MIN_BUILD_SHARE:
+            continue
+        if len(ids) not in strata:
+            continue
+        delta = (wr(g, w) - strata[len(ids)]) * (g / (g + K_DELTA))
+        cands.append((set(ids), g, w, delta))
+    cands.sort(key=lambda c: c[3], reverse=True)
 
     # ВАРИАНТЫ ДОЛЖНЫ ОТЛИЧАТЬСЯ. Наборы группируются точным составом, поэтому
     # три лучших по винрейту легко окажутся почти одинаковыми — показывать такое
@@ -246,7 +300,7 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     MIN_DIFF = 4
     builds = []
     seen_full = []          # уже показанные наборы из 6 слотов
-    for core, g, w in cands:
+    for core, g, w, delta in cands:
         if len(builds) >= 3:
             break
         # Непохожесть проверяем и по CORE, и по ФИНАЛЬНОМУ набору: два разных core
@@ -263,7 +317,13 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
             'items': fill_to_six(core),
             'core': sorted(core),   # что реально играли вместе (у него и винрейт)
             'games': g,
-            'wr': round(wr(g, w), 1),
+            # wr остаётся абсолютным процентом: его читают и уже выпущенные
+            # версии программы, им нельзя подсунуть разницу вместо винрейта.
+            # Но считается он теперь от винрейта самого чемпиона — «с этой
+            # сборкой он играет вот так», а не «в этих играх побед было столько».
+            'wr': round(champ_wr + delta, 1),
+            # Разница отдельным полем: именно её честно показывать в панели.
+            'delta': round(delta, 1),
         })
     # Лучше показать одну-две честные сборки, чем три с дублем: если непохожих
     # меньше трёх — так и оставляем.
