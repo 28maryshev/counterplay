@@ -145,6 +145,10 @@ echo "cron_backup=$(crontab -l 2>/dev/null | grep -c backup-site.sh)"
 echo "cron_cleanup=$(crontab -l 2>/dev/null | grep -c cleanup.sh)"
 echo "backup_last=$(grep 'готово. занято' backup.log 2>/dev/null | tail -1 | cut -c1-10)"
 echo "draft_age=$(( $(date -u +%s) - $(stat -c %Y counterplay-site/data/draft/tiers.json 2>/dev/null || echo 0) ))"
+# Свой публичный адрес сервер называет сам: в репозитории его нет и быть не
+# должно, а для проверки «снаружи не пускает» он нужен.
+TOK=$(curl -s -m 5 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null)
+echo "public_ip=$(curl -s -m 5 -H "X-aws-ec2-metadata-token: $TOK" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)"
 REMOTE
 )
 
@@ -171,6 +175,41 @@ else
   if [ "$bl" = "$today" ] || { [ -n "$yday" ] && [ "$bl" = "$yday" ]; }; then ok "копия делалась: $bl"
   else bad "последняя удачная копия: ${bl:-нет записи}"; fi
 fi
+
+# ─────────────────────── связь между серверами ───────────────────────
+# Эти проверки — про дороги, которые рвутся МОЛЧА. Коллектор заливает свежие
+# данные на сайт по ssh; оборвётся эта дорога (сменился адрес, ужали правила в
+# группе безопасности) — никто не заметит, просто сайт начнёт тихо отставать от
+# базы. Именно так уже было: страницы месяц показывали прошлый патч.
+head2 "СВЯЗЬ МЕЖДУ СЕРВЕРАМИ"
+
+site_ip=$(val "$S" public_ip)
+
+# Коллектор → сайт. Ходит туда `publish_site.sh` после каждой публикации базы.
+link=$(ssh -o BatchMode=yes -o ConnectTimeout=20 "$COLLECTOR"   "ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=no    \$(grep -E '^SITE_SSH=' ~/counterplay-collector/.env | sed -E 's/^[^=]+=//; s/\"//g')    'echo alive' 2>/dev/null" 2>/dev/null)
+if [ "$link" = alive ]; then
+  ok "коллектор достаёт до сайта по ssh (этим путём едут данные)"
+else
+  bad "КОЛЛЕКТОР НЕ ДОСТАЁТ ДО САЙТА — выкладка данных встанет молча"
+fi
+
+# Адрес сайта известен публично (лежал в истории репозитория), поэтому прямой
+# вход должен быть закрыт: иначе Cloudflare обходится вместе с кэшем и защитой.
+if [ -n "$site_ip" ]; then
+  dcode=$(curl -s -o /dev/null -m 12 -w '%{http_code}' -H "Host: ${SITE_URL#https://}"           "http://$site_ip/" 2>/dev/null)
+  if [ "$dcode" = 000 ]; then
+    ok "прямой вход на сайт закрыт (только Cloudflare)"
+  else
+    bad "САЙТ ОТВЕЧАЕТ НАПРЯМУЮ ($dcode) — Cloudflare обходится, проверь группу безопасности"
+  fi
+else
+  warn "не узнал публичный адрес сайта — проверку прямого входа пропускаю"
+fi
+
+# А вот это обратная сторона той же медали: закрыли так, что и Cloudflare не
+# проходит. Запрос с меткой гарантированно уходит мимо кэша, до самого сервера.
+ocode=$(curl -sL -o /dev/null -m 25 -w '%{http_code}' "$SITE_URL/?hc=$$" 2>/dev/null)
+[ "$ocode" = 200 ] && ok "Cloudflare достаёт до сервера (запрос мимо кэша)"                    || bad "CLOUDFLARE НЕ ДОСТАЁТ ДО СЕРВЕРА ($ocode) — сверь правила с cloudflare.com/ips-v4"
 
 # ───────────────────────────── сайт снаружи ─────────────────────────────
 head2 "САЙТ СНАРУЖИ ($SITE_URL)"
