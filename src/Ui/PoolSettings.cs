@@ -368,12 +368,18 @@ sealed class PoolSettingsWindow : Window
         if (intoDuo && pool is not null)
         {
             if (!MyPoolPicker.Ask(this, a.Pools, name, out var mine)) return;
+            // Имя пары складываем из обоих: сначала мой пул, потом пул друга —
+            // по плитке сразу видно, из чего она собрана. Длину режем: имя на
+            // плитке переносится, а не обрезается, и длинное расползётся.
+            var pairName = mine is null ? name : $"{mine.Name} + {name}";
+            if (pairName.Length > 40) pairName = pairName[..40];
             duo = new DuoPool
             {
-                FriendName = name,
+                FriendName = pairName,
                 Friend     = CloneRoles(pool.ByRole),
                 Mine       = mine is null ? new() : CloneRoles(mine.ByRole),
             };
+            name = pairName;   // о нём же и сообщаем
             pool = null;
         }
 
