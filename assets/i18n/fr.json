@@ -479,6 +479,8 @@
     "saveFile": "Enregistrer dans un fichier",
     "pasteCodeHint": "Colle le code du pool que ton ami t'a envoyé.",
     "loadCode": "Charger depuis le code",
+    "pasteFromClipboard": "Coller",
+    "clipboardEmpty": "Le presse-papiers est vide : copie d'abord le code de ton ami",
     "openFile": "Ouvrir un fichier",
     "codeBad": "Cela ne ressemble pas à un code de pool",
     "importWhere": "Pool « {0} » — où le mettre ?",

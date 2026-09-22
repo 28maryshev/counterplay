@@ -479,6 +479,8 @@
     "saveFile": "Zapisz jako plik",
     "pasteCodeHint": "Wklej kod puli, który przysłał znajomy.",
     "loadCode": "Wczytaj z kodu",
+    "pasteFromClipboard": "Wklej",
+    "clipboardEmpty": "Schowek jest pusty — najpierw skopiuj kod od znajomego",
     "openFile": "Otwórz plik",
     "codeBad": "To nie wygląda na kod puli",
     "importWhere": "Pula „{0}” — gdzie ją umieścić?",

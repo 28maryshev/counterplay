@@ -479,6 +479,8 @@
     "saveFile": "Dosya olarak kaydet",
     "pasteCodeHint": "Arkadaşının gönderdiği havuz kodunu yapıştır.",
     "loadCode": "Koddan yükle",
+    "pasteFromClipboard": "Yapıştır",
+    "clipboardEmpty": "Pano boş — önce arkadaşının gönderdiği kodu kopyala",
     "openFile": "Dosya aç",
     "codeBad": "Bu bir havuz koduna benzemiyor",
     "importWhere": "“{0}” havuzu — nereye koyalım?",

@@ -479,6 +479,8 @@
     "saveFile": "Lưu thành tệp",
     "pasteCodeHint": "Dán mã pool mà bạn bè gửi cho bạn.",
     "loadCode": "Nạp từ mã",
+    "pasteFromClipboard": "Dán",
+    "clipboardEmpty": "Bảng tạm đang trống — hãy sao chép mã bạn bè gửi trước",
     "openFile": "Mở tệp",
     "codeBad": "Đây không giống mã pool",
     "importWhere": "Pool “{0}” — đặt vào đâu?",

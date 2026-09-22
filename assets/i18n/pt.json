@@ -479,6 +479,8 @@
     "saveFile": "Salvar como arquivo",
     "pasteCodeHint": "Cole o código do grupo que seu amigo enviou.",
     "loadCode": "Carregar do código",
+    "pasteFromClipboard": "Colar",
+    "clipboardEmpty": "A área de transferência está vazia: copie primeiro o código do seu amigo",
     "openFile": "Abrir um arquivo",
     "codeBad": "Isso não parece um código de grupo",
     "importWhere": "Grupo “{0}” — onde colocar?",

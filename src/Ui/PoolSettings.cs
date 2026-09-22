@@ -1875,10 +1875,43 @@ static class PoolShare
         var load = PoolUi.Btn(Loc.T("pool.loadCode"));
         load.HorizontalAlignment = HorizontalAlignment.Stretch;
         load.IsEnabled = false;
-        load.Margin = new Thickness(0, 0, 0, 12);
         // Кнопка оживает, только когда в поле что-то похожее на код: так видно,
         // что вставилось не то, ещё до нажатия.
         box.TextChanged += (_, _) => load.IsEnabled = PoolFile.LooksLikeCode(box.Text);
+
+        // Вставка из буфера отдельной кнопкой: код прилетает из мессенджера уже
+        // скопированным, и Ctrl+V в чужом окне вспоминают не все.
+        var paste = PoolUi.Btn(Loc.T("pool.pasteFromClipboard"));
+        paste.Click += (_, _) =>
+        {
+            try
+            {
+                var text = System.Windows.Clipboard.ContainsText() ? System.Windows.Clipboard.GetText() : "";
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    Confirm.Tell(dlg, Loc.T("pool.importFile"), Loc.T("pool.clipboardEmpty"));
+                    return;
+                }
+                box.Text = text.Trim();
+                box.Focus();
+                box.CaretIndex = box.Text.Length;
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"буфер обмена не прочитался: {ex.Message}");
+                Confirm.Tell(dlg, Loc.T("pool.importFile"), Loc.T("pool.clipboardEmpty"));
+            }
+        };
+
+        // Вставить слева, загрузить справа: слева то, что делают первым.
+        var row = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        paste.Margin = new Thickness(0, 0, 8, 0);
+        Grid.SetColumn(paste, 0);
+        Grid.SetColumn(load, 1);
+        row.Children.Add(paste);
+        row.Children.Add(load);
         load.Click += (_, _) =>
         {
             var json = PoolFile.FromCode(box.Text);
@@ -1891,7 +1924,7 @@ static class PoolShare
             added = true;
             dlg.Close();
         };
-        body.Children.Add(load);
+        body.Children.Add(row);
 
         var file = PoolUi.GoldBtn(Loc.T("pool.openFile"));
         file.Content = PoolUi.IconLabel("⭳", Loc.T("pool.openFile"));

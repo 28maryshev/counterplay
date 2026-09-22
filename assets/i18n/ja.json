@@ -479,6 +479,8 @@
     "saveFile": "ファイルとして保存",
     "pasteCodeHint": "フレンドから届いたプールのコードを貼り付けてください。",
     "loadCode": "コードから読み込む",
+    "pasteFromClipboard": "貼り付け",
+    "clipboardEmpty": "クリップボードが空です。まずフレンドのコードをコピーしてください",
     "openFile": "ファイルを開く",
     "codeBad": "プールのコードではないようです",
     "importWhere": "プール「{0}」をどこに入れますか？",

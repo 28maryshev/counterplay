@@ -479,6 +479,8 @@
     "saveFile": "保存为文件",
     "pasteCodeHint": "粘贴好友发来的英雄池代码。",
     "loadCode": "从代码导入",
+    "pasteFromClipboard": "粘贴",
+    "clipboardEmpty": "剪贴板是空的——请先复制好友发来的代码",
     "openFile": "打开文件",
     "codeBad": "这看起来不像英雄池代码",
     "importWhere": "英雄池“{0}”——放到哪里？",
