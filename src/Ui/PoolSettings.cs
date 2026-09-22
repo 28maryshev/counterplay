@@ -92,7 +92,9 @@ sealed class PoolSettingsWindow : Window
         decorated.Children.Add(DecorBackground());
         decorated.Children.Add(layout);
 
-        Content = PoolUi.Chrome(this, Title, decorated, resizable: true);
+        var chrome = PoolUi.Chrome(this, Title, decorated, resizable: true);
+        Content = chrome;
+        WindowScale.Apply(this, chrome, 820, 560, 700, 460);
         Refresh();
     }
 
@@ -696,7 +698,9 @@ sealed class PoolEditorWindow : Window
 
         root.Children.Add(new ScrollViewer { Content = _body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
 
-        Content = PoolUi.Chrome(this, Title, root, resizable: true);
+        var chrome = PoolUi.Chrome(this, Title, root, resizable: true);
+        Content = chrome;
+        WindowScale.Apply(this, chrome, 620, 560, 520, 380);
         RenderBody();
     }
 
@@ -1251,7 +1255,9 @@ sealed class ChampionPickerWindow : Window
         {
             Content = _root, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         });
-        Content = PoolUi.Chrome(this, Title, root, resizable: true);
+        var chrome = PoolUi.Chrome(this, Title, root, resizable: true);
+        Content = chrome;
+        WindowScale.Apply(this, chrome, 460, multi ? 560 : 520, 360, 320);
         _search.Focus();
         Render();
     }
@@ -1697,9 +1703,22 @@ static class PoolUi
     public static FrameworkElement Chrome(Window w, string title, FrameworkElement inner, bool resizable = false)
     {
         w.WindowStyle = WindowStyle.None;
-        // Рамки у окна своей, поэтому CanResize даёт только невидимую полосу по
-        // краям. Чтобы за неё было чем взяться — рисуем уголок в правом низу.
         w.ResizeMode = resizable ? ResizeMode.CanResize : ResizeMode.NoResize;
+
+        // WindowStyle.None + CanResize сам по себе оставляет сверху белую полосу:
+        // системная рамка никуда не девается, её просто нечем закрыть. WindowChrome
+        // убирает её целиком (GlassFrameThickness = 0), оставляя от системы только
+        // полосу захвата по краям — за неё и тянут. CaptionHeight = 0, иначе Windows
+        // считает верх окна заголовком и перехватывает наше перетаскивание.
+        if (resizable)
+            System.Windows.Shell.WindowChrome.SetWindowChrome(w, new System.Windows.Shell.WindowChrome
+            {
+                CaptionHeight = 0,
+                GlassFrameThickness = new Thickness(0),
+                ResizeBorderThickness = new Thickness(6),
+                CornerRadius = new CornerRadius(0),
+                UseAeroCaptionButtons = false,
+            });
 
         var root = new DockPanel();
         var bar = new Border { Height = 36, Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)) };
@@ -1744,7 +1763,8 @@ static class PoolUi
         };
     }
 
-    // Уголок в правом нижнем углу: тянут его — меняется размер окна. Считаем в
+    // Уголок в правом нижнем углу: за края тянуть можно, но их не видно —
+    // уголок показывает, что окно вообще растягивается. Считаем в
     // координатах окна (не экрана) — тогда одинаково работает при любом масштабе
     // экрана, а не только при 100%.
     private static FrameworkElement Grip(Window w)

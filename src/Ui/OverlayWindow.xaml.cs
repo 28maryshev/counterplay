@@ -424,7 +424,15 @@ public partial class OverlayWindow : Window
 
     /// Масштаб под окно клиента. "auto" — по фактической ширине окна LoL, иначе
     /// по выбранному в настройках разрешению.
-    private double ClientScale()
+    private double ClientScale() => ClientScaleFor(this);
+
+    /// <summary>
+    /// То же для окон ВНЕ оверлея (настройки пулов, редактор, выбор чемпионов):
+    /// человек выставил размер под клиент один раз, и он должен работать везде, а
+    /// не только на драфтовой панели. <paramref name="forDpi"/> нужен только чтобы
+    /// перевести пиксели Win32 в DIP; null — считаем, что DPI единичный.
+    /// </summary>
+    public static double ClientScaleFor(System.Windows.Media.Visual? forDpi)
     {
         var pick = AppSettings.Current.ClientSize;
         if (pick != "auto")
@@ -433,7 +441,8 @@ public partial class OverlayWindow : Window
 
         if (!TryGetClientRect(out var r)) return 1.0;   // клиента не видно — как есть
         double dpiX = 1;
-        if (System.Windows.PresentationSource.FromVisual(this)?.CompositionTarget is { } ct)
+        if (forDpi is not null &&
+            System.Windows.PresentationSource.FromVisual(forDpi)?.CompositionTarget is { } ct)
             dpiX = ct.TransformToDevice.M11;
         var width = (r.Right - r.Left) / dpiX;
         return ClientScales.MinBy(x => Math.Abs(x.Width - width)).Scale;
