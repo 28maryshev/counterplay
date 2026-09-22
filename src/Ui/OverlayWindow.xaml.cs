@@ -2756,6 +2756,31 @@ public partial class OverlayWindow : Window
         _poolSettings.Show();
     }
 
+    /// <summary>
+    /// Файл пула открыли двойным кликом в проводнике. Предлагаем загрузить его и
+    /// спрашиваем, куда — в личные пулы или половиной дуо.
+    ///
+    /// Владельцем диалогов берём открытые настройки, если они на экране: иначе
+    /// вопрос уехал бы ЗА них, и человек увидел бы застывшее окно.
+    /// </summary>
+    public void OpenPoolFile(string path)
+    {
+        try
+        {
+            // Диалогу нужен ПОКАЗАННЫЙ владелец: WPF не даёт назначить Owner окну,
+            // которое ещё ни разу не показывали. При запуске двойным кликом по файлу
+            // наш вызов вполне может обогнать первый показ оверлея.
+            if (!IsVisible) { RestoreFromTray(force: true); Show(); }
+            var owner = _poolSettings is { IsVisible: true } ? (Window)_poolSettings : this;
+            owner.Activate();
+            if (!PoolImport.Load(owner, path, null)) return;
+            UpdatePoolButtons();
+            RefreshPoolSlot();
+            _poolSettings?.ReloadPools();
+        }
+        catch (Exception ex) { Log.Write($"файл пула не открылся: {ex.Message}"); }
+    }
+
     /// Мои чемпионы за 30 дней — одна строка под кнопками пула на ready-экране.
     /// Показываем ровно столько, сколько влезает в ширину панели: строка не
     /// переносится и не растягивает окно (оно не должно быть выше клиента LoL).

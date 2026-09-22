@@ -44,10 +44,18 @@ class Program
             initiallyOwned: true,
             sandbox ? "Counterplay.SingleInstance.Test" : "Counterplay.SingleInstance",
             out var isFirst);
+        // Двойной клик по файлу пула: путь приходит аргументом.
+        var poolFile = args.FirstOrDefault(
+            a => a.EndsWith(FileAssoc.Extension, StringComparison.OrdinalIgnoreCase) && File.Exists(a));
+
         if (!isFirst)
         {
             try
             {
+                // Сигнал — голое событие, данных в нём нет. Путь передаём файлом:
+                // кладём ДО сигнала, иначе первый экземпляр проснётся и ничего
+                // не найдёт.
+                if (poolFile is not null) OpenRequest.Put(poolFile);
                 using var show = EventWaitHandle.OpenExisting(ShowSignal);
                 show.Set(); // существующий экземпляр развернётся из трея
             }
@@ -67,6 +75,11 @@ class Program
         // сообщаем об этом в панели (молча прописываться в автозагрузку — дурной тон).
         var autostartNotice = Autostart.ApplyOnStartup();
 
+        // Связка .cpool с программой: двойной клик по присланному файлу должен
+        // открывать импорт, а не блокнот. Проверяем на каждом старте — путь
+        // меняется при переустановке.
+        FileAssoc.EnsureRegistered();
+
         _ = Telemetry.PingAsync(); // анонимный пинг для статистики активных пользователей
 
         using var cts = new CancellationTokenSource();
@@ -85,6 +98,12 @@ class Program
 
         // Повторный запуск (клик по ярлыку, пока мы в трее) — разворачиваем окно.
         StartShowSignalListener(overlay, cts.Token);
+
+        // Программу запустили двойным кликом по файлу пула — предложим загрузить
+        // его, как только окно готово принимать диалоги.
+        if (poolFile is not null)
+            overlay.Dispatcher.BeginInvoke(new Action(() => overlay.OpenPoolFile(poolFile)),
+                                           System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
         var lcuTask = Task.Run(async () =>
         {
@@ -202,7 +221,11 @@ class Program
         {
             while (!ct.IsCancellationRequested)
             {
-                if (handle.WaitOne(500)) overlay.RestoreFromTray(force: true);
+                if (!handle.WaitOne(500)) continue;
+                overlay.RestoreFromTray(force: true);
+                // Второй запуск мог принести файл пула — забираем и открываем.
+                if (OpenRequest.Take() is { } file)
+                    overlay.Dispatcher.BeginInvoke(new Action(() => overlay.OpenPoolFile(file)));
             }
         })
         { IsBackground = true };
@@ -216,7 +239,11 @@ class Program
         // Путь к lockfile: первый НЕ-флаговый аргумент, иначе null → автопоиск
         // клиента. Флаги (--autostart и т.п.) пропускаем: иначе автозапуск
         // подсовывал бы «--autostart» вместо пути к lockfile.
-        var lockfilePath = args.FirstOrDefault(a => !a.StartsWith('-'));
+        // .cpool сюда попасть не должен: это файл пула, открытый двойным кликом,
+        // а не путь к lockfile. Иначе клиент по нему не находился бы и цикл
+        // заканчивался сразу после старта.
+        var lockfilePath = args.FirstOrDefault(
+            a => !a.StartsWith('-') && !a.EndsWith(FileAssoc.Extension, StringComparison.OrdinalIgnoreCase));
 
         overlay.SetVersion(Log.Version);
 

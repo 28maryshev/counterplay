@@ -302,6 +302,9 @@ sealed class PoolSettingsWindow : Window
         return grid;
     }
 
+    /// Перечитать списки (пул мог приехать файлом, пока окно открыто).
+    public void ReloadPools() => Refresh();
+
     private void Refresh()
     {
         RefreshWinrates();
@@ -375,62 +378,8 @@ sealed class PoolSettingsWindow : Window
             Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}|JSON (*.json)|*.json",
         };
         if (dlg.ShowDialog(this) != true) return;
-
-        string text;
-        try { text = File.ReadAllText(dlg.FileName); }
-        catch (Exception ex)
-        {
-            Log.Write($"пул не прочитался: {ex.Message}");
-            Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
-            return;
-        }
-
-        var (pool, duo) = PoolFile.Parse(text);
-        if (pool is null && duo is null)
-        {
-            Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
-            return;
-        }
-
-        // Безымянный пул выглядел бы пустой плиткой — подписываем именем файла.
-        var name = pool?.Name ?? duo!.FriendName;
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            name = Path.GetFileNameWithoutExtension(dlg.FileName);
-            if (pool is not null) pool.Name = name; else duo!.FriendName = name;
-        }
-
-        var a = PoolStore.Current();
-
-        // Личный пул друга, положенный в «Дуо»: он — половина друга, своя
-        // половина берётся из моего пула (какого — спрашиваем).
-        if (intoDuo && pool is not null)
-        {
-            if (!MyPoolPicker.Ask(this, a.Pools, name, out var mine)) return;
-            // Имя пары складываем из обоих: сначала мой пул, потом пул друга —
-            // по плитке сразу видно, из чего она собрана. Длину режем: имя на
-            // плитке переносится, а не обрезается, и длинное расползётся.
-            var pairName = mine is null ? name : $"{mine.Name} + {name}";
-            if (pairName.Length > 40) pairName = pairName[..40];
-            duo = new DuoPool
-            {
-                FriendName = pairName,
-                Friend     = CloneRoles(pool.ByRole),
-                Mine       = mine is null ? new() : CloneRoles(mine.ByRole),
-            };
-            name = pairName;   // о нём же и сообщаем
-            pool = null;
-        }
-
-        if (pool is not null) a.Pools.Add(pool); else a.DuoPools.Add(duo!);
-        PoolStore.Persist();
-        _onChange();
-        Refresh();
-        Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.imported", name));
+        if (PoolImport.Load(this, dlg.FileName, intoDuo)) { _onChange(); Refresh(); }
     }
-
-    private static Dictionary<string, List<int>> CloneRoles(Dictionary<string, List<int>> src) =>
-        src.ToDictionary(kv => kv.Key, kv => new List<int>(kv.Value));
 
     // Сделать пул активным (звёздочка). Повторный клик по активному — снять выбор
     // (возврат в обычный режим подбора).
@@ -1846,6 +1795,88 @@ static class PoolUi
 }
 
 /// <summary>
+/// Загрузка пула из файла — общая для плитки в настройках и для файла,
+/// открытого двойным кликом в проводнике.
+///
+/// Разница только в том, известно ли, КУДА класть. С плитки известно: на какую
+/// половину окна нажали, туда и кладём. Из проводника половины нет — про личный
+/// пул спрашиваем, дуо-файл кладём дуо-пулом без вопросов.
+/// </summary>
+static class PoolImport
+{
+    /// <param name="intoDuo">
+    /// true — в «Дуо», false — в «Пул», null — спросить (открыли файл снаружи).
+    /// </param>
+    /// <returns>true, если пул добавлен.</returns>
+    public static bool Load(Window owner, string path, bool? intoDuo)
+    {
+        string text;
+        try { text = File.ReadAllText(path); }
+        catch (Exception ex)
+        {
+            Log.Write($"пул не прочитался: {ex.Message}");
+            Confirm.Tell(owner, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
+            return false;
+        }
+
+        var (pool, duo) = PoolFile.Parse(text);
+        if (pool is null && duo is null)
+        {
+            Confirm.Tell(owner, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
+            return false;
+        }
+
+        // Безымянный пул выглядел бы пустой плиткой — подписываем именем файла.
+        var name = pool?.Name ?? duo!.FriendName;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = Path.GetFileNameWithoutExtension(path);
+            if (pool is not null) pool.Name = name; else duo!.FriendName = name;
+        }
+
+        var a = PoolStore.Current();
+
+        // Куда класть личный пул. Из проводника спрашиваем; отказ — ничего не делаем.
+        var toDuo = intoDuo;
+        if (pool is not null && toDuo is null)
+        {
+            var choice = Confirm.Pick(owner, Loc.T("pool.importFile"), Loc.T("pool.importWhere", name),
+                                      Loc.T("pool.importAsPool"), Loc.T("pool.importAsDuo"));
+            if (choice is null) return false;
+            toDuo = choice == 1;
+        }
+
+        // Личный пул друга, положенный в «Дуо»: он — половина друга, своя
+        // половина берётся из моего пула (какого — спрашиваем).
+        if (toDuo == true && pool is not null)
+        {
+            if (!MyPoolPicker.Ask(owner, a.Pools, name, out var mine)) return false;
+            // Имя пары складываем из обоих: сначала мой пул, потом пул друга —
+            // по плитке сразу видно, из чего она собрана. Длину режем: имя на
+            // плитке переносится, а не обрезается, и длинное расползётся.
+            var pairName = mine is null ? name : $"{mine.Name} + {name}";
+            if (pairName.Length > 40) pairName = pairName[..40];
+            duo = new DuoPool
+            {
+                FriendName = pairName,
+                Friend     = CloneRoles(pool.ByRole),
+                Mine       = mine is null ? new() : CloneRoles(mine.ByRole),
+            };
+            name = pairName;   // о нём же и сообщаем
+            pool = null;
+        }
+
+        if (pool is not null) a.Pools.Add(pool); else a.DuoPools.Add(duo!);
+        PoolStore.Persist();
+        Confirm.Tell(owner, Loc.T("pool.importFile"), Loc.T("pool.imported", name));
+        return true;
+    }
+
+    private static Dictionary<string, List<int>> CloneRoles(Dictionary<string, List<int>> src) =>
+        src.ToDictionary(kv => kv.Key, kv => new List<int>(kv.Value));
+}
+
+/// <summary>
 /// Выбор СВОЕЙ половины пары. Друг присылает свой личный пул — он становится
 /// половиной друга, а моя берётся из уже собранного мной пула: так дуо-пул
 /// складывается из двух личных, и никому не приходится набирать его заново.
@@ -1946,6 +1977,48 @@ static class Confirm
         dlg.Content = PoolUi.Chrome(dlg, title, sp);
         dlg.ShowDialog();
         return ok;
+    }
+
+    /// <summary>
+    /// Выбор из двух действий. Возвращает 0 или 1; null — передумали (кнопка
+    /// «Отмена» или крестик).
+    /// </summary>
+    public static int? Pick(Window owner, string title, string message, string first, string second)
+    {
+        var dlg = new Window
+        {
+            Title = title, Width = 400, SizeToContent = SizeToContent.Height, Owner = owner,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new SolidColorBrush(PoolSettingsWindow.Bg)
+        };
+        PoolUi.Apply(dlg);
+        var sp = new StackPanel { Margin = new Thickness(16) };
+        sp.Children.Add(new TextBlock
+        {
+            Text = message, Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+            TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 18, Margin = new Thickness(0, 0, 0, 12)
+        });
+
+        int? picked = null;
+        foreach (var (text, index) in new[] { (first, 0), (second, 1) })
+        {
+            var b = PoolUi.Btn(text);
+            b.HorizontalAlignment = HorizontalAlignment.Stretch;
+            b.Margin = new Thickness(0, 0, 0, 6);
+            var self = index;
+            b.Click += (_, _) => { picked = self; dlg.Close(); };
+            sp.Children.Add(b);
+        }
+
+        var cancel = PoolUi.Btn(Loc.T("pool.cancel"));
+        cancel.HorizontalAlignment = HorizontalAlignment.Right;
+        cancel.Margin = new Thickness(0, 6, 0, 0);
+        cancel.Click += (_, _) => dlg.Close();
+        sp.Children.Add(cancel);
+
+        dlg.Content = PoolUi.Chrome(dlg, title, sp);
+        dlg.ShowDialog();
+        return picked;
     }
 
     /// <summary>Сообщение с одной кнопкой: «получилось» / «файл не подошёл».</summary>
