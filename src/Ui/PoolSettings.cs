@@ -302,22 +302,25 @@ sealed class PoolSettingsWindow : Window
         var b = new Border
         {
             Width = 118, Height = 96, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 10, 10),
-            Background = new SolidColorBrush(Color.FromArgb(0x10, 0xC9, 0xD2, 0xDC)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)), BorderThickness = new Thickness(1),
+            // Золото — в пару к кнопке «Экспорт» в редакторе: обмен пулами
+            // читается как одно дело и не теряется рядом с синей «+».
+            Background = new SolidColorBrush(Color.FromArgb(0x1E, 0xC8, 0xAA, 0x6E)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xC8, 0xAA, 0x6E)), BorderThickness = new Thickness(1),
             Cursor = System.Windows.Input.Cursors.Hand,
             ToolTip = Loc.T("pool.importFile"),
         };
         var sp = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         sp.Children.Add(new TextBlock
         {
-            Text = "⭳", FontSize = 26, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            Text = "⭳", FontSize = 26, FontFamily = PoolUi.SymbolFont,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xAA, 0x6E)),
             HorizontalAlignment = HorizontalAlignment.Center
         });
         sp.Children.Add(new TextBlock
         {
             Text = Loc.T("pool.importFile"), FontSize = 10, TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center, Margin = new Thickness(6, 2, 6, 0),
-            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2))
+            Foreground = new SolidColorBrush(Color.FromRgb(0xEB, 0xD6, 0xA8))
         });
         b.Child = sp;
         b.MouseLeftButtonUp += (_, _) => ImportFromFile();
@@ -583,7 +586,11 @@ sealed class PoolEditorWindow : Window
         _nameBox.TextChanged += (_, _) => { _name = _nameBox.Text; _dirty = true; };
 
         var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var export = ActionBtn(Loc.T("pool.export"));
+        // Экспорт — золотом и с отбивкой: это действие не по ходу формы, а в
+        // сторону, и среди трёх одинаковых тёмных кнопок его не находили глазами.
+        var export = PoolUi.GoldBtn(Loc.T("pool.export"));
+        export.Content = PoolUi.IconLabel("⭱", Loc.T("pool.export"));
+        export.Margin = new Thickness(0, 0, 16, 0);
         export.Click += (_, _) => Export();
         btns.Children.Add(export);
         var back = ActionBtn(Loc.T("pool.back"));
@@ -1118,9 +1125,19 @@ sealed class ChampionPickerWindow : Window
                 Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 10, 0, 0)
             };
-            var cancel = new Button { Content = Loc.T("pool.cancel"), Margin = new Thickness(0, 0, 8, 0), MinWidth = 90 };
+            // Кнопки — общим тёмным стилем окна (PoolUi), «Добавить» синим акцентом,
+            // как «Сохранить» в редакторе: иначе внизу висели две светлые системные.
+            var cancel = PoolUi.Btn(Loc.T("pool.cancel"));
+            cancel.Margin = new Thickness(0, 0, 8, 0);
+            cancel.MinWidth = 90;
             cancel.Click += (_, _) => { DialogResult = false; Close(); };
-            _addBtn = new Button { MinWidth = 120, IsDefault = true };
+            _addBtn = PoolUi.Btn("");
+            _addBtn.MinWidth = 120;
+            _addBtn.IsDefault = true;
+            _addBtn.FontWeight = FontWeights.Bold;
+            _addBtn.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+            _addBtn.BorderBrush = new SolidColorBrush(PoolSettingsWindow.Blue);
+            _addBtn.Foreground = Brushes.White;
             _addBtn.Click += (_, _) =>
             {
                 Results.AddRange(_picked);
@@ -1299,6 +1316,7 @@ static class PoolUi
 {
     private static ResourceDictionary? _rd;
     public static Style ButtonStyle { get; private set; } = null!;
+    public static Style GoldStyle   { get; private set; } = null!;
     public static DataTemplate RoleItemTemplate { get { Ensure(); return _roleItem!; } }
     private static DataTemplate? _roleItem;
 
@@ -1327,6 +1345,42 @@ static class PoolUi
             </Trigger>
             <Trigger Property='IsPressed' Value='True'>
               <Setter TargetName='b' Property='Background' Value='#2C445F'/>
+            </Trigger>
+            <Trigger Property='IsEnabled' Value='False'>
+              <Setter Property='Opacity' Value='0.5'/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Кнопка-акцент, золото hextech. Для действия, которое стоит В СТОРОНЕ от
+       хода формы (выгрузить пул файлом), — среди одинаковых тёмных кнопок
+       «Назад/Сброс/Сохранить» такую не находили глазами. -->
+  <Style x:Key='CpButtonGold' TargetType='Button'>
+    <Setter Property='Foreground' Value='#EBD6A8'/>
+    <Setter Property='Background' Value='#2A2418'/>
+    <Setter Property='BorderBrush' Value='#C8AA6E'/>
+    <Setter Property='BorderThickness' Value='1'/>
+    <Setter Property='Padding' Value='12,5'/>
+    <Setter Property='Cursor' Value='Hand'/>
+    <Setter Property='SnapsToDevicePixels' Value='True'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='Button'>
+          <Border x:Name='b' CornerRadius='5' Background='{TemplateBinding Background}'
+                  BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='{TemplateBinding BorderThickness}'>
+            <ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center' Margin='{TemplateBinding Padding}'/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property='IsMouseOver' Value='True'>
+              <Setter TargetName='b' Property='Background' Value='#3B3220'/>
+              <Setter TargetName='b' Property='BorderBrush' Value='#E4C98A'/>
+              <Setter Property='Foreground' Value='#F6E8C6'/>
+            </Trigger>
+            <Trigger Property='IsPressed' Value='True'>
+              <Setter TargetName='b' Property='Background' Value='#4A3E27'/>
             </Trigger>
             <Trigger Property='IsEnabled' Value='False'>
               <Setter Property='Opacity' Value='0.5'/>
@@ -1513,6 +1567,7 @@ static class PoolUi
         if (_rd != null) return;
         _rd = (ResourceDictionary)System.Windows.Markup.XamlReader.Parse(Xaml);
         ButtonStyle = (Style)_rd["CpButton"];
+        GoldStyle   = (Style)_rd["CpButtonGold"];
         _roleItem   = (DataTemplate)_rd["RoleItem"];
     }
 
@@ -1524,6 +1579,23 @@ static class PoolUi
     }
 
     public static Button Btn(string text) { Ensure(); return new Button { Content = text, Style = ButtonStyle }; }
+
+    /// Кнопка-акцент золотом — для действия в сторону от хода формы.
+    public static Button GoldBtn(string text) { Ensure(); return new Button { Content = text, Style = GoldStyle }; }
+
+    // Стрелки ⭱/⭳ есть ровно в одном системном шрифте (Segoe UI Symbol), а
+    // интерфейс набран Geist — просим шрифт для значка явно, чтобы не зависеть
+    // от того, как система подберёт замену.
+    public static readonly System.Windows.Media.FontFamily SymbolFont = new("Segoe UI Symbol, Segoe UI");
+
+    /// Значок + подпись одной строкой: значок своим шрифтом, текст — шрифтом окна.
+    public static FrameworkElement IconLabel(string glyph, string text)
+    {
+        var t = new TextBlock();
+        t.Inlines.Add(new System.Windows.Documents.Run(glyph + "  ") { FontFamily = SymbolFont, FontSize = 13 });
+        t.Inlines.Add(new System.Windows.Documents.Run(text));
+        return t;
+    }
 
     // Кастомная тёмная верхушка окна: заголовок + крестик, перетаскивание, рамка.
     public static FrameworkElement Chrome(Window w, string title, FrameworkElement inner)
