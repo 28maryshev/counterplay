@@ -7,7 +7,7 @@ namespace Counterplay;
 /// <summary>
 /// Пулы чемпионов пользователя: «ТВОЙ ПУЛ ПРОТИВ ВРАГОВ». Пул — несколько
 /// чемпионов на каждую роль; движок всегда предлагает ЛУЧШЕГО из активного пула
-/// (см. RecommendationEngine.BestFromPool), даже если он не попал в общий топ.
+/// (см. RecommendationEngine.TopFromPool), даже если он не попал в общий топ.
 /// Хранится по аккаунту (ключ — puuid), с возможностью импорта пулов другого
 /// аккаунта, открытого на этом же ПК. Файл: %APPDATA%\Counterplay\pools.json.
 /// </summary>
@@ -33,8 +33,9 @@ public sealed class DuoPool
     public List<int> MineForRole(string role)   => Mine.TryGetValue(role, out var l) ? l : [];
     public List<int> FriendForRole(string role) => Friend.TryGetValue(role, out var l) ? l : [];
 
-    // Manual = фиксированные связки (без автоподбора): я всегда играю Mine, друг —
-    // Friend. Можно задать НЕСКОЛЬКО пар. Иначе пара подбирается движком (BestDuoPairs).
+    // Manual = фиксированные связки: я всегда играю Mine, друг — Friend. Можно
+    // задать НЕСКОЛЬКО пар. Иначе (авто) подсказка ждёт, пока напарник возьмёт
+    // чемпиона из своей половины, и подбирает под него мой пик.
     public bool Manual { get; set; }
     public List<ManualDuoPair> ManualPairs { get; set; } = [];
 }
