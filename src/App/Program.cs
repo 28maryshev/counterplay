@@ -416,7 +416,7 @@ class Program
         PoolStore.SetAccount(poolPuuid, poolName);
 
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
-        overlay.ApplyRunesHandler  = (page, name) => RunesImporter.ApplyRunesAsync(http, page, name, ct);
+        overlay.ApplyRunesHandler  = (page, id, name) => RunesImporter.ApplyRunesAsync(http, page, id, name, ct);
         overlay.ApplySpellsHandler = spells => RunesImporter.ApplySpellsAsync(http, spells, ct);
         overlay.ExportBuildHandler = (core, full, alt, role, id, name) =>
             RunesImporter.ExportItemSetAsync(http, core, full, alt, role, id, name, ct);

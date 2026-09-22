@@ -919,7 +919,7 @@ public partial class OverlayWindow : Window
     private string _runeChampName = "";
 
     /// Функция импорта в клиент. Ставится из Program (в тестовом режиме — null).
-    public Func<RunePage, string, Task<bool>>? ApplyRunesHandler { get; set; }
+    public Func<RunePage, int, string, Task<bool>>? ApplyRunesHandler { get; set; }
     /// (core, полный билд, ситуативные, role, championId, имя) → успех.
     public Func<IReadOnlyList<int>, IReadOnlyList<int>, IReadOnlyList<int>, string, int, string, Task<bool>>? ExportBuildHandler { get; set; }
     /// Выставить саммонер-спеллы (пара id) — вызывается вместе с рунами.
@@ -1483,7 +1483,7 @@ public partial class OverlayWindow : Window
         RunesStatus.Foreground = MuteBrush;
         RunesStatus.Visibility = Visibility.Visible;
 
-        var ok = await ApplyRunesHandler(page, _runeChampName);
+        var ok = await ApplyRunesHandler(page, _runeChampId, _runeChampName);
 
         // Вместе с рунами выставляем и саммонер-спеллы (пара из статистики;
         // привычный слот Флеша сохраняет импортёр). Спеллы берём из выбранной

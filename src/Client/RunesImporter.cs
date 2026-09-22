@@ -18,7 +18,7 @@ public static class RunesImporter
 
     /// <summary>Применить страницу рун. true — получилось.</summary>
     public static async Task<bool> ApplyRunesAsync(
-        LcuHttpClient http, RunePage page, string championName, CancellationToken ct)
+        LcuHttpClient http, RunePage page, int championId, string championName, CancellationToken ct)
     {
         try
         {
@@ -70,10 +70,19 @@ public static class RunesImporter
 
             // Порядок важен: 4 основных (первый — кейстоун), 2 вторичных, 3 осколка.
             var selected = page.Perks.Concat(page.Secondary).Concat(page.Shards).ToArray();
+
+            // Имя чемпиона и название руны спрашиваем у клиента: страницу видно
+            // в его окне рун, и на его языке. Своё берётся из языка программы, а
+            // они совпадают не всегда — в английском клиенте заводилась страница
+            // «Моргана - Казнь электричеством - Counterplay».
+            var champ = await ClientChampionNameAsync(http, championId, ct) ?? championName;
+            var keystone = await ClientPerkNameAsync(http, page.Perks[0], ct)
+                           ?? RuneIcons.NameOf(page.Perks[0]);
+
             var payload = JsonSerializer.Serialize(new
             {
                 // Подпись: персонаж — название кейстоуна — Counterplay.
-                name = $"{championName} - {RuneIcons.NameOf(page.Perks[0])} - {PageMark}",
+                name = $"{champ} - {keystone} - {PageMark}",
                 primaryStyleId = page.Primary,
                 subStyleId = page.Sub,
                 selectedPerkIds = selected,
@@ -214,6 +223,73 @@ public static class RunesImporter
     /// 3) CORE — готовые предметы сборки;
     /// 4) ситуативные — что ещё часто берут на чемпионе.
     /// </summary>
+    // Язык клиента LoL. Спрашиваем один раз за запуск: сменить его можно только
+    // с перезапуском самого клиента, а вместе с ним перезапустимся и мы.
+    private static string? _clientLang;
+    private static bool _clientLangAsked;
+
+    private static async Task<string?> ClientLanguageAsync(LcuHttpClient http, CancellationToken ct)
+    {
+        if (_clientLangAsked) return _clientLang;
+        _clientLangAsked = true;
+        try
+        {
+            var (s, body) = await http.GetAsync("/riotclient/region-locale", ct);
+            if (s != 200) return null;
+            using var doc = JsonDocument.Parse(body);
+            var locale = doc.RootElement.TryGetProperty("locale", out var l) ? l.GetString() : null;
+            _clientLang = Loc.FromClientLocale(locale);   // "en_GB" → "en"
+            Log.Write($"язык клиента: {locale ?? "?"} → {_clientLang ?? "наш"}");
+        }
+        catch { /* не ответил — подпишем на языке программы, как раньше */ }
+        return _clientLang;
+    }
+
+    // Названия рун от клиента. Список маленький (сотня), берём целиком и один
+    // раз: страница рун подписывается на каждый импорт, дёргать клиент каждый
+    // раз незачем.
+    private static Dictionary<int, string>? _clientPerks;
+
+    private static async Task<string?> ClientPerkNameAsync(
+        LcuHttpClient http, int perkId, CancellationToken ct)
+    {
+        if (_clientPerks is null)
+        {
+            _clientPerks = new Dictionary<int, string>();
+            try
+            {
+                var (s, body) = await http.GetAsync("/lol-game-data/assets/v1/perks.json", ct);
+                if (s == 200)
+                {
+                    using var doc = JsonDocument.Parse(body);
+                    foreach (var p in doc.RootElement.EnumerateArray())
+                        if (p.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number
+                            && p.TryGetProperty("name", out var n) && n.GetString() is { Length: > 0 } nm)
+                            _clientPerks[id.GetInt32()] = nm;
+                }
+            }
+            catch { /* не ответил — подпишем своим названием, как раньше */ }
+        }
+        return _clientPerks.TryGetValue(perkId, out var name) ? name : null;
+    }
+
+    /// Имя чемпиона так, как его называет сам клиент. null — не ответил.
+    private static async Task<string?> ClientChampionNameAsync(
+        LcuHttpClient http, int championId, CancellationToken ct)
+    {
+        if (championId <= 0) return null;
+        try
+        {
+            var (s, body) = await http.GetAsync(
+                $"/lol-game-data/assets/v1/champions/{championId}.json", ct);
+            if (s != 200) return null;
+            using var doc = JsonDocument.Parse(body);
+            var name = doc.RootElement.TryGetProperty("name", out var n) ? n.GetString() : null;
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+        catch { return null; }
+    }
+
     public static async Task<bool> ExportItemSetAsync(
         LcuHttpClient http, IReadOnlyList<int> core, IReadOnlyList<int> full,
         IReadOnlyList<int> situational, string role, int championId, string championName,
@@ -265,13 +341,21 @@ public static class RunesImporter
             // CORE и ситуативные — только готовые предметы, без компонентов.
             var alt = situational.Distinct().ToList();
 
+            // Подписи набора читает человек в магазине КЛИЕНТА, поэтому язык
+            // берём у клиента, а не у нашего окна: они совпадают не всегда.
+            var lang = await ClientLanguageAsync(http, ct);
             var blocks = new List<object>
             {
-                Block(Loc.T("runes.startBlock"), StartItems(role)),
+                Block(Loc.TIn(lang, "runes.startBlock"), StartItems(role)),
             };
-            if (compSeq.Count > 0) blocks.Add(Block(Loc.T("runes.compBlock"), compSeq));
-            if (full.Count > 0)    blocks.Add(Block(Loc.T("runes.coreBlock"), full));
-            if (alt.Count > 0)     blocks.Add(Block(Loc.T("runes.altBlock"), alt));
+            if (compSeq.Count > 0) blocks.Add(Block(Loc.TIn(lang, "runes.compBlock"), compSeq));
+            if (full.Count > 0)    blocks.Add(Block(Loc.TIn(lang, "runes.coreBlock"), full));
+            if (alt.Count > 0)     blocks.Add(Block(Loc.TIn(lang, "runes.altBlock"), alt));
+
+            // Имя чемпиона спрашиваем у самого клиента: он знает его на своём
+            // языке точно, а наше берётся из языка программы — в английском
+            // клиенте набор назывался «Моргана - Counterplay».
+            championName = await ClientChampionNameAsync(http, championId, ct) ?? championName;
 
             var mySet = new
             {

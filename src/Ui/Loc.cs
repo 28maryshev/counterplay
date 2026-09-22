@@ -103,6 +103,34 @@ public static class Loc
 
     public static string T(string key, params object[] args) => string.Format(T(key), args);
 
+    /// <summary>
+    /// Строка на ЗАДАННОМ языке, а не на языке нашего окна.
+    ///
+    /// Нужна для того, что программа кладёт внутрь клиента LoL: набор предметов
+    /// подписан заголовками, и читает их человек в магазине клиента, а не у нас.
+    /// Язык клиента и язык программы совпадают не всегда — у английского клиента
+    /// вполне может стоять русская программа, и тогда среди «RECOMMENDED» и
+    /// «ALL ITEMS» появлялись «Кор-предметы».
+    /// </summary>
+    public static string TIn(string? code, string key)
+    {
+        if (string.IsNullOrEmpty(code) || code == Current) return T(key);
+        JsonDocument? doc;
+        lock (_docs)
+        {
+            if (!_docs.TryGetValue(code, out doc))
+            {
+                doc = LoadDoc(code);
+                _docs[code] = doc;   // неудачу тоже помним: не дёргать сборку на каждый вызов
+            }
+        }
+        if (doc is not null && Resolve(doc.RootElement, key) is {ValueKind: JsonValueKind.String} v)
+            return v.GetString()!;
+        return T(key);
+    }
+
+    private static readonly Dictionary<string, JsonDocument?> _docs = new();
+
     /// Массив строк по ключу (например, советы).
     public static string[] TArray(string key)
     {
