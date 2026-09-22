@@ -617,7 +617,9 @@ sealed class PoolEditorWindow : Window
         DockPanel.SetDock(btns, Dock.Right);
         top.Children.Add(btns);
 
-        var nameWrap = new StackPanel();
+        // Отступ справа: поле имени тянется на всю оставшуюся ширину и иначе
+        // упирается прямо в «Экспорт».
+        var nameWrap = new StackPanel { Margin = new Thickness(0, 0, 18, 0) };
         nameWrap.Children.Add(new TextBlock
         {
             Text = _duo ? Loc.T("pool.friendName") : Loc.T("pool.name"),
