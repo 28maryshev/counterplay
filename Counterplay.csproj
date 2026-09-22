@@ -15,6 +15,13 @@
     <ApplicationIcon Condition="Exists('assets\logo.ico')">assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- Папка проверок собирается отдельным проектом (tests/PoolBias): если не
+       исключить, её Main попадает в приложение вторым входом. -->
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+  </ItemGroup>
+
   <!-- Логотип кладём рядом с приложением для окна/трея (если есть) -->
   <ItemGroup Condition="Exists('assets\logo.ico')">
     <None Include="assets\logo.ico">
