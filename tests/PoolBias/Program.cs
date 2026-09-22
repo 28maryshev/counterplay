@@ -25,6 +25,9 @@ internal static class Program
 
     private static int _fails;
 
+    /// Множитель, с которым собран движок (см. DUO_MATE_MULT).
+    private const double DuoMateMultInCode = 1.5;
+
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -166,6 +169,9 @@ internal static class Program
         // ── наигранность: пул НЕ складывается с мастерством, а берёт максимум ──
         MasteryCheck(engine);
 
+        // ── надбавка за напарника по дуо-пулу ──────────────────────────────
+        MateUpliftSweep(engine, rnd, DuoMateMultInCode);
+
         Report("прибавка к оценке за пул",        bonuses);
         Report("прибавка к оценке за дуо-пул",    duoBonuses);
         Report("разрыв между соседями в топ-10",  gaps);
@@ -305,6 +311,106 @@ internal static class Program
                   $"{baseline[mateId].Score:F2} → {withFriend[mateId].Score:F2}");
         }
         finally { engine.Mastery = bak; }
+    }
+
+    /// <summary>
+    /// Развёртка по силе надбавки за напарника.
+    ///
+    /// Меряем ДВА состояния одного драфта: союзник просто союзник и он же —
+    /// половина активного дуо-пула. Разница целиком линейна по множителю (в
+    /// оценку входит одно слагаемое (k−1)·дельта_напарника), поэтому одного замера
+    /// хватает, чтобы точно посчитать ЛЮБОЕ k — без пересборки на каждый вариант.
+    /// </summary>
+    private static void MateUpliftSweep(RecommendationEngine engine, Random rnd, double built)
+    {
+        // Замеренные драфты: для каждого — оценки без надбавки и прирост при built.
+        var cases = new List<(List<int> Pool, Dictionary<int, double> Base, Dictionary<int, double> Gain)>();
+
+        foreach (var (dbRole, lcuRole) in Roles)
+        {
+            var ids = Scored(engine, Draft(lcuRole, [], []), dbRole, null, false).Values
+                      .OrderByDescending(r => r.Score).Select(r => r.ChampionId).ToList();
+            if (ids.Count < 20) continue;
+
+            for (var n = 0; n < 40; n++)
+            {
+                var enemies = Pick(rnd, ids, 5);
+                var left    = ids.Except(enemies).ToList();
+                var mate    = Pick(rnd, left, 1);
+                if (mate.Count == 0) continue;
+                var allies  = new List<int> { mate[0] };
+                allies.AddRange(Pick(rnd, left.Except(mate).ToList(), 3));
+                var state   = Draft(lcuRole, allies, enemies);
+                var pool    = Pick(rnd, ids.Except(enemies).Except(allies).ToList(), PoolSize);
+                if (pool.Count < PoolSize) continue;
+
+                var a = PoolStore.Current();
+                a.Pools.Clear(); a.DuoPools.Clear();
+                a.DuoPools.Add(new DuoPool { Id = "t", FriendName = "t",
+                                             Mine = new() { [dbRole] = [.. pool] } });
+                a.ActiveKind = PoolKind.Duo; a.ActiveId = "t";
+                var without = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+
+                a.DuoPools[0].Friend = new() { [dbRole] = [mate[0]] };
+                var with = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+
+                var gain = without.Keys.ToDictionary(id => id, id => with[id] - without[id]);
+                cases.Add((pool, without, gain));
+            }
+        }
+
+        if (cases.Count == 0) { Console.WriteLine("надбавка: нет сценариев"); return; }
+
+        // Что даёт СОБРАННЫЙ движок — замер, а не пересчёт. Строка таблицы с тем же
+        // k должна совпасть с ней: иначе в коде стоит не тот множитель, которым
+        // развёртка считает всё остальное.
+        var measured = cases.SelectMany(c => c.Pool.Select(id => c.Gain[id])).ToList();
+        Report($"замерено на сборке (k={built:F1})", measured);
+
+        Console.WriteLine();
+        Console.WriteLine($"НАДБАВКА ЗА НАПАРНИКА — что даёт каждый множитель ({cases.Count} драфтов)");
+        Console.WriteLine($"  {"k",-5} {"медиана",8} {"10%",8} {"90%",8}   "
+                          + $"{"|сдвиг|",7} {"90%",5}   {"сменился",9} {"сменился",9}");
+        Console.WriteLine($"  {"",-5} {"очки",8} {"",8} {"",8}   "
+                          + $"{"мест",7} {"",5}   {"пик пула",9} {"общий №1",9}");
+
+        var builtRow = new List<double>();
+        foreach (var k in new[] { 1.0, 1.3, 1.5, 1.7, 2.0, 2.5, 3.0 })
+        {
+            var f = (k - 1.0) / (built - 1.0);      // доля замеренного прироста
+            var pts   = new List<double>();
+            var moves = new List<double>();
+            int flipPool = 0, flipTop = 0;
+
+            foreach (var (pool, base_, gain) in cases)
+            {
+                double At(int id) => base_[id] + gain[id] * f;
+                int RankAt(int id) => base_.Keys.Count(o => At(o) > At(id)) + 1;
+
+                foreach (var id in pool)
+                {
+                    pts.Add(gain[id] * f);
+                    var rBase = base_.Keys.Count(o => base_[o] > base_[id]) + 1;
+                    moves.Add(Math.Abs(rBase - RankAt(id)));
+                }
+                if (pool.MaxBy(id => base_[id]) != pool.MaxBy(At)) flipPool++;
+                if (base_.Keys.MaxBy(id => base_[id]) != base_.Keys.MaxBy(At)) flipTop++;
+            }
+
+            if (Math.Abs(k - built) < 1e-9) builtRow = pts;
+            var sp = pts.OrderBy(x => x).ToList();
+            var sm = moves.OrderBy(x => x).ToList();
+            Console.WriteLine($"  {k,-5:F1} {Median(pts),8:F2} {sp[(int)(0.1 * (sp.Count - 1))],8:F2} "
+                              + $"{sp[(int)(0.9 * (sp.Count - 1))],8:F2}   "
+                              + $"{Median(moves),7:F1} {sm[(int)(0.9 * (sm.Count - 1))],5:F0}   "
+                              + $"{100.0 * flipPool / cases.Count,8:F0}% {100.0 * flipTop / cases.Count,8:F0}%");
+        }
+        Console.WriteLine("  (надбавка двусторонняя: плохую связку она так же усиливает в минус)");
+        Console.WriteLine();
+        Check($"в коде стоит множитель {built:F1}, а не другой",
+              Math.Abs(Median(measured) - Median(builtRow)) < 1e-9,
+              $"замер {Median(measured):F2} против строки {Median(builtRow):F2}");
+        Console.WriteLine();
     }
 
     private static DraftState Draft(string lcuRole, List<int> allies, List<int> enemies)

@@ -75,6 +75,19 @@ public sealed class RecommendationEngine : IDisposable
     // Основной канал для прочих врагов — кросс-ролевые матчапы (W_CROSS).
     private const double W_OTHER   = 0.6;
     private const double W_SYNERGY = 1.2;
+    // Напарник по дуо-пулу — не случайный союзник. Таблицы синергии собраны по
+    // НЕсогласованному соло-кью и занижают связку, которую играют осознанно: пара
+    // созванивается, размены и заходы у неё получаются чаще. Поэтому вклад
+    // напарника в синергию считаем с множителем.
+    //
+    // 1.5 — величина выбранная, а не измеренная: проверить её по данным нельзя,
+    // в матчах Riot нет отметки, кто был в пати. Выбрана по замеру (tests/PoolBias):
+    // на ней хвосты прибавки ±2.5 очка — около четырёх шагов между соседями в
+    // топ-10, и общий лидер меняется в каждом пятом драфте. На 2.0 и выше лидер
+    // меняется в 42–58% — синергия начинает перебивать контрпик, а этого мы
+    // избегаем и в W_SYN_MAX. Надбавка ДВУСТОРОННЯЯ: плохую связку она так же
+    // уводит вниз, и это половина её пользы.
+    private const double DUO_MATE_MULT = 1.5;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
     // Личный винрейт игрока на чемпионе (соло+флекс+нормалы, ARAM не в счёт).
     // Вес небольшой и намеренно ниже мета-факторов: это подсказка «у тебя на нём
@@ -491,6 +504,16 @@ public sealed class RecommendationEngine : IDisposable
             .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
 
+        // Напарник по активному дуо-пулу: союзник, взявший чемпиона из половины
+        // друга (в ручном режиме — из любой фикс-связки). Правило то же, по
+        // которому оверлей решает, показывать ли дуо-карточки. Не взял — 0, и
+        // никакой надбавки нет.
+        var activeDuo = PoolStore.ActiveDuo();
+        var mateId = activeDuo == null ? 0 : allyData.Select(a => a.Id).FirstOrDefault(id =>
+            activeDuo.Manual
+                ? activeDuo.ManualPairs.Any(p => p.Mine == id || p.Friend == id)
+                : activeDuo.Friend.Values.Any(l => l.Contains(id)));
+
         // Бот — это 2v2: при адк/саппорте контрим и вражеского дуо-партнёра.
         // Пример: вражеский Эзреаль (адк) контрит Блицкранга (саппорт) — он сблинкуется
         // с хука, поэтому Блиц получит штраф против такого бота.
@@ -605,6 +628,17 @@ public sealed class RecommendationEngine : IDisposable
                 var synConf  = synGames / (synGames + CONF_GAMES);
                 var synDelta = synRaw.Count > 0 && synGames > 0
                     ? (Delta(synGames, synRaw.Sum(x => x.W), K_PAIR) - rawBase) * synConf : 0.0;
+
+                // Надбавка за напарника: его связка со мной весит больше, чем связка
+                // со случайным союзником. Кладём в ТУ ЖЕ полосу синергии, а не в скор
+                // отдельным слагаемым, — иначе оценка росла бы, а объяснение в
+                // карточке осталось прежним. Дельта напарника уже сглажена по объёму
+                // выборки (PureVs), второй раз не темперим.
+                if (mateId != 0)
+                {
+                    var mate = synByAlly.FirstOrDefault(x => x.Id == mateId);
+                    if (mate.Id != 0) synDelta += (DUO_MATE_MULT - 1.0) * mate.Delta;
+                }
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
