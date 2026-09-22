@@ -794,9 +794,13 @@ sealed class PoolEditorWindow : Window
             // Квадратная «+» того же размера, что иконка — не пропадает.
             chips.Children.Add(PlusChamp(() =>
             {
-                var pick = new ChampionPickerWindow(_names, _idByName, list, _engine) { Owner = this };
-                if (pick.ShowDialog() == true && pick.Result > 0 && !list.Contains(pick.Result))
-                { list.Add(pick.Result); _dirty = true; RefreshChips(); }
+                // Пул набирают пачкой, поэтому здесь выбор множественный.
+                var pick = new ChampionPickerWindow(_names, _idByName, list, _engine, multi: true) { Owner = this };
+                if (pick.ShowDialog() != true) return;
+                var added = 0;
+                foreach (var id in pick.Results)
+                    if (!list.Contains(id)) { list.Add(id); added++; }
+                if (added > 0) { _dirty = true; RefreshChips(); }
             }));
         }
         RefreshChips();
@@ -961,23 +965,36 @@ sealed class RoleOption
     public string Role { get; init; } = "";
 }
 
-/// <summary>Выбор чемпиона: поиск сверху + общий список. Клик — выбрать.</summary>
+/// <summary>
+/// Выбор чемпиона: поиск сверху + список, разложенный по ролям.
+///
+/// Два режима. Одиночный (дуо-партнёр): клик — выбрал и закрыл. Множественный
+/// (пул роли): клик отмечает, окно не закрывается, внизу кнопка «Добавить (N)».
+/// Пул набирают пачкой — закрывать окно после каждого чемпиона значило
+/// открывать его заново пятнадцать раз подряд.
+/// </summary>
 sealed class ChampionPickerWindow : Window
 {
     public int Result;
+    /// Отмеченные в множественном режиме, в порядке нажатия.
+    public List<int> Results { get; } = new();
+
     private readonly Dictionary<string, int> _idByName;
     private readonly HashSet<int> _exclude;
     private readonly List<string> _names;
     private readonly RecommendationEngine? _engine;   // для группировки по частой роли
     private readonly StackPanel _root = new();        // секции ролей сверху вниз
     private readonly TextBox _search = new() { FontSize = 13 };
+    private readonly bool _multi;
+    private readonly List<int> _picked = new();       // отмеченные, порядок важен
+    private readonly Button? _addBtn;
 
     public ChampionPickerWindow(List<string> names, Dictionary<string, int> idByName, IEnumerable<int> exclude,
-                                RecommendationEngine? engine = null)
+                                RecommendationEngine? engine = null, bool multi = false)
     {
-        _names = names; _idByName = idByName; _exclude = [.. exclude]; _engine = engine;
+        _names = names; _idByName = idByName; _exclude = [.. exclude]; _engine = engine; _multi = multi;
         Title  = Loc.T("pool.pickChamp");
-        Width  = 460; Height = 520;
+        Width  = 460; Height = multi ? 560 : 520;   // в множественном внизу кнопки
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         PoolUi.Apply(this);
@@ -986,6 +1003,30 @@ sealed class ChampionPickerWindow : Window
         _search.TextChanged += (_, _) => Render();
         DockPanel.SetDock(_search, Dock.Top);
         root.Children.Add(_search);
+
+        if (multi)
+        {
+            var bar = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            var cancel = new Button { Content = Loc.T("pool.cancel"), Margin = new Thickness(0, 0, 8, 0), MinWidth = 90 };
+            cancel.Click += (_, _) => { DialogResult = false; Close(); };
+            _addBtn = new Button { MinWidth = 120, IsDefault = true };
+            _addBtn.Click += (_, _) =>
+            {
+                Results.AddRange(_picked);
+                DialogResult = true;
+                Close();
+            };
+            bar.Children.Add(cancel);
+            bar.Children.Add(_addBtn);
+            DockPanel.SetDock(bar, Dock.Bottom);
+            root.Children.Add(bar);
+            UpdateAddButton();
+        }
+
         root.Children.Add(new ScrollViewer
         {
             Content = _root, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
@@ -993,6 +1034,14 @@ sealed class ChampionPickerWindow : Window
         Content = PoolUi.Chrome(this, Title, root);
         _search.Focus();
         Render();
+    }
+
+    // Пока никого не отметили — добавлять нечего, и кнопка это показывает.
+    private void UpdateAddButton()
+    {
+        if (_addBtn is null) return;
+        _addBtn.Content = Loc.T("pool.addSelected", _picked.Count);
+        _addBtn.IsEnabled = _picked.Count > 0;
     }
 
     private void Render()
@@ -1057,17 +1106,28 @@ sealed class ChampionPickerWindow : Window
         return row;
     }
 
-    // Плитка чемпиона: иконка + имя, клик — выбрать.
+    // Плитка чемпиона: иконка + имя. В одиночном режиме клик выбирает и
+    // закрывает окно, в множественном — отмечает и оставляет открытым.
     private FrameworkElement ChampTile(string name)
     {
         var id = _idByName[name];
+        bool marked = _multi && _picked.Contains(id);
+
         var b = new Border
         {
             Width = 74, Height = 92, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 6, 6),
-            Background = new SolidColorBrush(Color.FromRgb(0x16, 0x20, 0x2C)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4A)), BorderThickness = new Thickness(1),
+            // Отмеченный подсвечен золотом — тем же, которым в этих окнах
+            // помечается всё активное.
+            Background = new SolidColorBrush(marked
+                ? Color.FromArgb(0x22, 0xC8, 0x9B, 0x3C)
+                : Color.FromRgb(0x16, 0x20, 0x2C)),
+            BorderBrush = new SolidColorBrush(marked
+                ? Color.FromRgb(0xC8, 0x9B, 0x3C)
+                : Color.FromRgb(0x2A, 0x3A, 0x4A)),
+            BorderThickness = new Thickness(marked ? 2 : 1),
             Cursor = System.Windows.Input.Cursors.Hand
         };
+
         var sp = new StackPanel { Margin = new Thickness(4) };
         if (IconCache.Get(id) is { } src)
             sp.Children.Add(new Border { Width = 48, Height = 48, CornerRadius = new CornerRadius(24),
@@ -1075,8 +1135,54 @@ sealed class ChampionPickerWindow : Window
                 Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill } });
         sp.Children.Add(new TextBlock { Text = name, Foreground = Brushes.White, FontSize = 10,
             TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) });
-        b.Child = sp;
-        b.MouseLeftButtonUp += (_, _) => { Result = id; DialogResult = true; Close(); };
+
+        if (!_multi)
+        {
+            b.Child = sp;
+            b.MouseLeftButtonUp += (_, _) => { Result = id; DialogResult = true; Close(); };
+            return b;
+        }
+
+        // Галочка в углу: одной подсветки мало — по ней не поймёшь, отмечено
+        // это или просто наведена мышь.
+        var check = new Border
+        {
+            Width = 18, Height = 18, CornerRadius = new CornerRadius(9),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 2, 0),
+            Background = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C)),
+            Visibility = marked ? Visibility.Visible : Visibility.Collapsed,
+            Child = new TextBlock
+            {
+                Text = "✓", FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(PoolSettingsWindow.Bg),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        var cell = new Grid();
+        cell.Children.Add(sp);
+        cell.Children.Add(check);
+        b.Child = cell;
+
+        // Перекрашиваем саму плитку, а не перерисовываем список: перестройка
+        // сбрасывала бы прокрутку, и отметив кого-нибудь внизу, человек каждый
+        // раз улетал бы к началу.
+        b.MouseLeftButtonUp += (_, _) =>
+        {
+            bool now = !_picked.Remove(id);
+            if (now) _picked.Add(id);
+
+            b.Background = new SolidColorBrush(now
+                ? Color.FromArgb(0x22, 0xC8, 0x9B, 0x3C)
+                : Color.FromRgb(0x16, 0x20, 0x2C));
+            b.BorderBrush = new SolidColorBrush(now
+                ? Color.FromRgb(0xC8, 0x9B, 0x3C)
+                : Color.FromRgb(0x2A, 0x3A, 0x4A));
+            b.BorderThickness = new Thickness(now ? 2 : 1);
+            check.Visibility = now ? Visibility.Visible : Visibility.Collapsed;
+            UpdateAddButton();
+        };
         return b;
     }
 }

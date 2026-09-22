@@ -457,7 +457,9 @@
     "wrNormal": "Il tuo winrate in normale: {0}% su {1} partite",
     "myWinrates": "Il tuo winrate per campione · ultimi {0} giorni",
     "myWinratesEmpty": "Ancora nessuna partita: gioca con Counterplay avviato e qui compariranno i tuoi winrate.",
-    "myChamps30d": "Winrate · ultimi 30 giorni"
+    "myChamps30d": "Winrate · ultimi 30 giorni",
+    "addSelected": "Aggiungi ({0})",
+    "cancel": "Annulla"
   },
   "phaseState": {
     "none": "Pronto",

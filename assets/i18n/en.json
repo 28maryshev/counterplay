@@ -457,7 +457,9 @@
     "wrNormal": "Your normal-game win rate: {0}% over {1} games",
     "myWinrates": "Your win rate by champion · last {0} days",
     "myWinratesEmpty": "No games recorded yet — play with Counterplay running and your win rates will show up here.",
-    "myChamps30d": "Winrate · last 30 days"
+    "myChamps30d": "Winrate · last 30 days",
+    "addSelected": "Add ({0})",
+    "cancel": "Cancel"
   },
   "phaseState": {
     "none": "Ready",

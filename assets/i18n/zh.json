@@ -457,7 +457,9 @@
     "wrNormal": "你的匹配胜率：{1} 场 {0}%",
     "myWinrates": "你各英雄的胜率 · 最近 {0} 天",
     "myWinratesEmpty": "暂无对局记录——开着 Counterplay 游玩后，这里会显示你的胜率。",
-    "myChamps30d": "胜率 · 近30天"
+    "myChamps30d": "胜率 · 近30天",
+    "addSelected": "添加 ({0})",
+    "cancel": "取消"
   },
   "phaseState": {
     "none": "就绪",
