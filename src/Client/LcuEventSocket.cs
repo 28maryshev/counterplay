@@ -133,9 +133,14 @@ public sealed class LcuEventSocket : IAsyncDisposable
     // URI, на которые реагирует потребитель (см. Program.RunSessionAsync).
     // current-summoner нужен, чтобы смену аккаунта в клиенте заметить сразу, а
     // не на следующем тике фонового обновления (до минуты ожидания).
+    //
+    // ВАЖНО: добавил ветку в Program — добавь тему и сюда. Забытое лобби стоило
+    // целой поломки: состав пати читался только при запуске, и программа считала
+    // напарником случайного союзника с чемпионом из пула друга.
     private static bool IsRelevant(string text) =>
         text.Contains("/lol-champ-select/v1/session",     StringComparison.Ordinal) ||
         text.Contains("/lol-gameflow/v1/session",         StringComparison.Ordinal) ||
+        text.Contains("/lol-lobby/v2/lobby",              StringComparison.Ordinal) ||
         text.Contains("/lol-summoner/v1/current-summoner", StringComparison.Ordinal);
 
     // Формат события: [8, "OnJsonApiEvent", { data, eventType, uri }]

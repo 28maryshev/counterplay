@@ -58,10 +58,12 @@ internal static class Program
               Party.MateChampion(draft, duo) == 0, $"{Party.MateChampion(draft, duo)}");
 
         // ── 3. Про пати ничего не знаем (запустились посреди драфта) ────────
+        // Раньше тут работал откат по чемпиону — он-то и выдавал чужого человека
+        // за напарника. Теперь молчим: неверная пара хуже отсутствующей.
         Forget();
         draft = Draft((RandomId, FriendPoolChamp));
-        Check("без сведений о пати работает старое правило — по чемпиону",
-              Party.MateChampion(draft, duo) == FriendPoolChamp, $"{Party.MateChampion(draft, duo)}");
+        Check("без сведений о пати пару НЕ предлагаем",
+              Party.MateChampion(draft, duo) == 0, $"{Party.MateChampion(draft, duo)}");
 
         // ── 4. Разбор чемп-селекта доносит, кто есть кто ────────────────────
         var parsed = ChampSelectParser.Parse(Session());
@@ -79,6 +81,17 @@ internal static class Program
             [], [], [], null, "utility", null, false, false, [], false, -1, false, [], -1, -1, false);
         Check("напарник узнаётся и по одному puuid",
               Party.MateChampion(noId, duo) == FriendPoolChamp, $"{Party.MateChampion(noId, duo)}");
+
+        // ── 6. Ник клиент дал не всегда, а пати всё равно непустая ─────────
+        Forget();
+        Party.Update(Json($$"""
+            {"localMember":{"summonerId":{{MeId}}},
+             "members":[{"summonerId":{{MeId}}},{"summonerId":{{FriendId}}}]}
+            """));
+        draft = Draft((FriendId, OffPoolChamp));
+        Check("пати без ников всё равно опознаётся",
+              Party.Known && Party.MateChampion(draft, duo) == OffPoolChamp,
+              $"{Party.MateChampion(draft, duo)}");
 
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: напарник определяется верно" : $"ИТОГ: провалено — {_fails}");

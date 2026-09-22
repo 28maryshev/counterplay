@@ -69,10 +69,14 @@ public static class Party
         Puuids.Clear(); foreach (var x in puuids) Puuids.Add(x);
         Names = names;
         Known = true;
+        // Считаем по ИДЕНТИФИКАТОРАМ, а не по никам: клиент отдаёт ник не всегда,
+        // и запись «играю один» появлялась при непустой пати — в разборе жалобы
+        // это уводило в сторону.
         if (changed)
-            Log.Write(names.Count == 0
+            Log.Write(Ids.Count == 0 && Puuids.Count == 0
                 ? "пати: играю один"
-                : $"пати: {string.Join(", ", names)} ({Ids.Count} id, {Puuids.Count} puuid)");
+                : $"пати: {(names.Count > 0 ? string.Join(", ", names) : "без имён")} "
+                  + $"({Ids.Count} id, {Puuids.Count} puuid)");
     }
 
     /// Этот союзник — мой сопартиец?
@@ -83,10 +87,15 @@ public static class Party
     /// <summary>
     /// Чемпион напарника по дуо-пулу — 0, если напарника в драфте нет.
     ///
-    /// Сперва ищем ЧЕЛОВЕКА из пати: неважно, из пула он взял чемпиона или нет —
-    /// играем-то мы всё равно с ним. Если про пати ничего не известно (программу
-    /// запустили посреди драфта), откатываемся на старое правило — союзник с
-    /// чемпионом из половины друга.
+    /// Ищем только ЧЕЛОВЕКА из пати: неважно, из пула он взял чемпиона или нет —
+    /// играем-то мы всё равно с ним.
+    ///
+    /// Отката «а вдруг вон тот союзник с чемпионом из половины друга» больше нет.
+    /// Он существовал на случай «программу запустили посреди драфта», но именно
+    /// он и выдавал чужого человека за напарника: у друга широкий пул, кто-то
+    /// взял оттуда чемпиона — и пара строилась вокруг постороннего. Промолчать
+    /// честнее, чем угадать неверно; в драфт без сведений о пати мы теперь просто
+    /// не предлагаем пару.
     /// </summary>
     public static int MateChampion(DraftState state, DuoPool? duo)
     {
@@ -98,15 +107,8 @@ public static class Party
         if (mate is not null)
             return Logged(mate.EffectiveChampionId, $"напарник по пати, роль {Role(mate)}");
 
-        // Пати известна, напарника в команде нет — пары нет. Именно так и должно
-        // быть, когда дуо-пул забыли выключить перед соло-очередью.
-        if (Known) return Logged(0, allies.Count > 0 ? "в команде никого из пати" : "");
-
-        var byPool = allies.Select(p => p.EffectiveChampionId).FirstOrDefault(id =>
-            duo.Manual
-                ? duo.ManualPairs.Any(p => p.Mine == id || p.Friend == id)
-                : duo.Friend.Values.Any(l => l.Contains(id)));
-        return Logged(byPool, byPool != 0 ? "по чемпиону из пула (состав пати неизвестен)" : "");
+        if (allies.Count == 0) return Logged(0, "");
+        return Logged(0, Known ? "в команде никого из пати" : "состав пати неизвестен — пару не предлагаю");
     }
 
     private static string Role(DraftPlayer p) => p.Position.Length > 0 ? p.Position : "не раскрыта";

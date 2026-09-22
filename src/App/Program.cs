@@ -582,13 +582,17 @@ class Program
 
         // Состав пати на момент запуска: событие о лобби придёт только когда оно
         // изменится, а программу вполне могли включить с уже собранным лобби.
-        try
+        async Task RefreshPartyAsync()
         {
-            var (code, body) = await http.GetAsync("/lol-lobby/v2/lobby", ct);
-            if (code == 200)
-                Party.Update(System.Text.Json.JsonDocument.Parse(body).RootElement);
+            try
+            {
+                var (code, body) = await http.GetAsync("/lol-lobby/v2/lobby", ct);
+                if (code == 200)
+                    Party.Update(System.Text.Json.JsonDocument.Parse(body).RootElement);
+            }
+            catch { /* лобби нет или клиент занят — узнаем из события */ }
         }
-        catch { /* лобби нет или клиент занят — узнаем из события */ }
+        await RefreshPartyAsync();
 
         await using var socket = new LcuEventSocket(creds);
         await socket.ConnectAsync(ct);
@@ -619,6 +623,12 @@ class Program
 
                 case "/lol-gameflow/v1/session":
                     var phase = PhaseOf(ev.Data);
+                    // Программу могли запустить, когда лобби уже собрано: события
+                    // о нём тогда не будет, а начальный опрос пришёлся на момент
+                    // без лобби. Пока состав неизвестен — переспрашиваем на каждой
+                    // смене фазы, это один лёгкий запрос к локальному клиенту.
+                    if (!Party.Known && phase is "Lobby" or "Matchmaking" or "ReadyCheck" or "ChampSelect")
+                        await RefreshPartyAsync();
                     // Очередь лобби сменилась → подставляем режим пула, запомненный
                     // для НЕЁ (соло-дуо не переезжает во флекс, и наоборот).
                     if (QueueKeyOf(ev.Data) is { } qk && PoolStore.SetQueue(qk))
