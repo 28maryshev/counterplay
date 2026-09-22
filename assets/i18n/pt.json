@@ -452,7 +452,16 @@
     "selected": "Em uso agora — clique para desativar",
     "sectionTitle": "Pool de campeões",
     "helpLabel": "Como funciona",
-    "help": "Os pools de campeões são seus próprios conjuntos de campeões por rota. Quando um pool está ativo, o Counterplay sempre destaca a melhor escolha dele contra os inimigos atuais — assim você joga com campeões que realmente domina. Pools de dupla são para você e um amigo: quando seu parceiro pega um campeão do pool, você recebe as escolhas que melhor combinam com ele. Adicione um pool com o bloco +, marque o ativo clicando na sua estrela e alterne entre Normal / Pool / Dupla na tela de pronto.",
+    "help": "Os grupos de campeões são os seus próprios conjuntos por função. Com um grupo ativo, o Counterplay sempre destaca a melhor escolha contra os inimigos do momento, para você jogar com campeões que realmente conhece. Os grupos de dupla são para você e um amigo: quando o parceiro pega um campeão do grupo, você recebe as escolhas que melhor combinam com ele.",
+    "howAdd": "Como adicionar um grupo",
+    "helpSteps": [
+      "“+” na seção “Grupo”: dê um nome e adicione campeões por função.",
+      "“Salvar” — o bloco aparece na lista. Clique na estrela para ativar o grupo.",
+      "Alterne entre Normal / Grupo / Dupla na tela de prontidão.",
+      "Para dupla, “+” na seção “Dupla”: ali ficam dois conjuntos, o seu e o do parceiro.",
+      "“Exportar” no editor entrega o grupo como arquivo; seu amigo carrega pelo bloco “Importar um grupo”.",
+      "O grupo pessoal de um amigo carregado em “Dupla” vira a metade dele; a sua você escolhe entre os seus."
+    ],
     "wrRanked": "Seu winrate na ranqueada (solo/flex): {0}% em {1} partidas",
     "wrNormal": "Seu winrate em normais: {0}% em {1} partidas",
     "myWinrates": "Seu winrate por campeão · últimos {0} dias",

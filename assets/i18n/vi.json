@@ -452,7 +452,16 @@
     "selected": "Đang dùng — nhấp để tắt",
     "sectionTitle": "Pool tướng",
     "helpLabel": "Cách hoạt động",
-    "help": "Pool tướng là bộ tướng riêng của bạn cho từng vị trí. Khi bật một pool, Counterplay luôn làm nổi bật lựa chọn tốt nhất từ pool đó trước đối thủ hiện tại — để bạn chơi những tướng mình thực sự thành thạo. Pool đôi dành cho bạn và một người bạn: khi đồng đội chọn một tướng trong pool, bạn nhận được các lựa chọn kết hợp tốt nhất với tướng đó. Thêm pool bằng ô +, đánh dấu pool đang dùng bằng cách bấm vào ngôi sao, và chuyển giữa Thường / Pool / Đôi ở màn hình sẵn sàng.",
+    "help": "Pool tướng là bộ tướng của riêng bạn cho từng vị trí. Khi bật một pool, Counterplay luôn làm nổi bật lựa chọn tốt nhất trong đó trước dàn địch hiện tại — để bạn chơi những tướng mình thực sự thạo. Pool duo dành cho bạn và một người bạn: khi đồng đội lấy tướng trong pool, bạn nhận được các lựa chọn ăn ý nhất với tướng đó.",
+    "howAdd": "Cách thêm một pool",
+    "helpSteps": [
+      "Nhấn “+” ở mục “Pool”: đặt tên và thêm tướng theo từng vị trí.",
+      "Nhấn “Lưu” — thẻ sẽ hiện trong danh sách. Bấm ngôi sao để bật pool.",
+      "Chuyển Thường / Pool / Duo ở màn hình sẵn sàng.",
+      "Với duo, nhấn “+” ở mục “Duo”: nơi đó có hai bộ, của bạn và của đồng đội.",
+      "“Xuất” trong trình chỉnh sửa đưa pool thành tệp; bạn của bạn nạp bằng thẻ “Nhập pool”.",
+      "Pool cá nhân của bạn bè nạp vào “Duo” sẽ thành nửa của họ — nửa của bạn chọn từ pool của mình."
+    ],
     "wrRanked": "Tỉ lệ thắng xếp hạng (đơn/linh hoạt): {0}% qua {1} trận",
     "wrNormal": "Tỉ lệ thắng thường: {0}% qua {1} trận",
     "myWinrates": "Tỉ lệ thắng theo tướng · {0} ngày gần nhất",

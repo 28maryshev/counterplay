@@ -452,7 +452,16 @@
     "selected": "Aktualnie używana — kliknij, aby wyłączyć",
     "sectionTitle": "Pula bohaterów",
     "helpLabel": "Jak to działa",
-    "help": "Pule bohaterów to twoje własne zestawy bohaterów na każdą rolę. Gdy pula jest aktywna, Counterplay zawsze wyróżnia z niej najlepszy wybór przeciw obecnym przeciwnikom — dzięki temu grasz bohaterami, których naprawdę znasz. Pule duo są dla ciebie i znajomego: gdy partner weźmie bohatera z puli, dostajesz wybory, które najlepiej z nim współgrają. Dodaj pulę kafelkiem +, oznacz aktywną klikając jej gwiazdkę i przełączaj Normalny / Pula / Duo na ekranie gotowości.",
+    "help": "Pule mistrzów to twoje własne zestawy mistrzów na każdą rolę. Gdy pula jest włączona, Counterplay zawsze podświetla najlepszy wybór z niej przeciwko obecnym przeciwnikom — żebyś grał mistrzami, których naprawdę znasz. Pule duo są dla ciebie i znajomego: gdy partner bierze mistrza z puli, dostajesz wybory, które najlepiej z nim współgrają.",
+    "howAdd": "Jak dodać pulę",
+    "helpSteps": [
+      "„+” w sekcji „Pula”: nazwij zestaw i dodaj mistrzów według ról.",
+      "„Zapisz” — kafelek pojawi się na liście. Kliknięcie gwiazdki włącza pulę.",
+      "Tryb Zwykły / Pula / Duo przełączasz na ekranie gotowości.",
+      "Dla duo — „+” w sekcji „Duo”: są tam dwa zestawy, twój i partnera.",
+      "„Eksport” w edytorze oddaje pulę plikiem; znajomy wczyta ją kafelkiem „Wczytaj pulę”.",
+      "Osobista pula znajomego wczytana do „Duo” staje się jego połową — swoją wybierasz spośród własnych."
+    ],
     "wrRanked": "Twój winrate w rankedzie (solo/flex): {0}% z {1} gier",
     "wrNormal": "Twój winrate w normalach: {0}% z {1} gier",
     "myWinrates": "Twój winrate wg bohatera · ostatnie {0} dni",

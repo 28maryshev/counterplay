@@ -452,7 +452,16 @@
     "selected": "En uso ahora — haz clic para desactivar",
     "sectionTitle": "Pool de campeones",
     "helpLabel": "Cómo funciona",
-    "help": "Los pools de campeones son tus propios conjuntos de campeones por rol. Cuando un pool está activo, Counterplay siempre resalta la mejor elección de él contra los enemigos actuales, para que juegues con campeones que de verdad dominas. Los pools de dúo son para ti y un amigo: cuando tu compañero elige un campeón del pool, obtienes las selecciones que mejor combinan con él. Añade un pool con la casilla +, marca el activo pulsando su estrella y cambia entre Normal / Pool / Dúo en la pantalla de preparación.",
+    "help": "Los grupos de campeones son tus propios conjuntos por rol. Con un grupo activo, Counterplay siempre resalta la mejor elección contra los enemigos actuales, para que juegues con campeones que de verdad conoces. Los grupos de dúo son para ti y un amigo: cuando tu compañero toma un campeón del grupo, recibes las elecciones que mejor combinan con él.",
+    "howAdd": "Cómo añadir un grupo",
+    "helpSteps": [
+      "«+» en la sección «Grupo»: ponle nombre y añade campeones por rol.",
+      "«Guardar»: la ficha aparece en la lista. Haz clic en su estrella para activarlo.",
+      "Cambia entre Normal / Grupo / Dúo en la pantalla de preparación.",
+      "Para un dúo, «+» en la sección «Dúo»: allí hay dos conjuntos, el tuyo y el de tu compañero.",
+      "«Exportar» en el editor entrega el grupo como archivo; tu amigo lo carga con la ficha «Importar un grupo».",
+      "El grupo personal de un amigo cargado en «Dúo» pasa a ser su mitad; la tuya la eliges entre tus grupos."
+    ],
     "wrRanked": "Tu winrate en clasificatoria (solo/flex): {0}% en {1} partidas",
     "wrNormal": "Tu winrate en normales: {0}% en {1} partidas",
     "myWinrates": "Tu winrate por campeón · últimos {0} días",

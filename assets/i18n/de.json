@@ -452,7 +452,16 @@
     "selected": "Aktuell in Verwendung — zum Ausschalten klicken",
     "sectionTitle": "Champion-Pool",
     "helpLabel": "So funktioniert's",
-    "help": "Champion-Pools sind deine eigenen Champion-Sets pro Rolle. Ist ein Pool aktiv, hebt Counterplay immer den besten Pick daraus gegen die aktuellen Gegner hervor — so bleibst du bei Champions, die du wirklich spielst. Duo-Pools sind für dich und einen Freund: nimmt dein Partner einen Champion aus dem Pool, bekommst du die Picks, die am besten dazu passen. Füge einen Pool mit der +-Kachel hinzu, markiere den aktiven per Klick auf den Stern und wechsle Normal / Pool / Duo im Bereitschaftsbildschirm.",
+    "help": "Champion-Pools sind deine eigenen Champion-Sets pro Rolle. Ist ein Pool aktiv, hebt Counterplay immer den besten Pick daraus gegen die aktuellen Gegner hervor — damit du auf Champions bleibst, die du wirklich kennst. Duo-Pools sind für dich und einen Freund: Nimmt dein Partner einen Champion aus dem Pool, bekommst du die Picks, die am besten dazu passen.",
+    "howAdd": "So legst du einen Pool an",
+    "helpSteps": [
+      "„+“ im Bereich „Pool“: Set benennen und Champions nach Rollen hinzufügen.",
+      "„Speichern“ — die Kachel erscheint in der Liste. Ein Klick auf den Stern aktiviert den Pool.",
+      "Normal / Pool / Duo schaltest du im Bereitschaftsbildschirm um.",
+      "Für ein Duo „+“ im Bereich „Duo“: dort liegen zwei Sets, deins und das deines Partners.",
+      "„Export“ im Editor gibt den Pool als Datei heraus; dein Freund lädt sie über die Kachel „Pool laden“.",
+      "Der persönliche Pool eines Freundes, in „Duo“ geladen, wird seine Hälfte — deine wählst du aus deinen Pools."
+    ],
     "wrRanked": "Deine Ranked-Winrate (Solo/Flex): {0}% über {1} Spiele",
     "wrNormal": "Deine Winrate in Normal: {0}% über {1} Spiele",
     "myWinrates": "Deine Winrate nach Champion · letzte {0} Tage",

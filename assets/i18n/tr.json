@@ -452,7 +452,16 @@
     "selected": "Şu anda kullanımda — kapatmak için tıkla",
     "sectionTitle": "Şampiyon havuzu",
     "helpLabel": "Nasıl çalışır",
-    "help": "Şampiyon havuzları, her rol için kendi şampiyon setlerindir. Bir havuz açıkken Counterplay, mevcut düşmanlara karşı içindeki en iyi seçimi her zaman öne çıkarır — böylece gerçekten oynadığın şampiyonlarda kalırsın. Düo havuzları sen ve bir arkadaşın içindir: partnerin havuzdan bir şampiyon aldığında, onunla en iyi eşleşen seçimleri alırsın. + karesiyle havuz ekle, yıldızına tıklayarak aktif olanı işaretle ve hazır ekranında Normal / Havuz / Düo arasında geçiş yap.",
+    "help": "Şampiyon havuzları, her rol için kendi şampiyon setlerindir. Bir havuz açıkken Counterplay, o anki rakiplere karşı havuzdaki en iyi seçimi hep öne çıkarır — gerçekten bildiğin şampiyonlarla oynayasın diye. İkili havuzlar sen ve bir arkadaşın için: partnerin havuzdan bir şampiyon aldığında, onunla en iyi uyuşan seçimleri alırsın.",
+    "howAdd": "Havuz nasıl eklenir",
+    "helpSteps": [
+      "“Havuz” bölümündeki “+”: sete ad ver ve şampiyonları rollere göre ekle.",
+      "“Kaydet” — kart listede belirir. Yıldıza tıklamak havuzu açar.",
+      "Normal / Havuz / İkili geçişini hazır ekranında yaparsın.",
+      "İkili için “İkili” bölümündeki “+”: orada iki set var, seninki ve partnerininki.",
+      "Düzenleyicideki “Dışa aktar” havuzu dosya olarak verir; arkadaşın “Havuz içe aktar” kartıyla yükler.",
+      "“İkili”ye yüklenen bir arkadaşın kişisel havuzu onun yarısı olur — seninkini kendi havuzlarından seçersin."
+    ],
     "wrRanked": "Dereceli kazanma oranın (solo/esnek): {1} maçta %{0}",
     "wrNormal": "Normal maç kazanma oranın: {1} maçta %{0}",
     "myWinrates": "Şampiyon bazında kazanma oranın · son {0} gün",

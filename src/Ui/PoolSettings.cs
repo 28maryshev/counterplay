@@ -65,12 +65,20 @@ sealed class PoolSettingsWindow : Window
 
         grid.Children.Add(Area(Loc.T("pool.duo"), _duoArea, duo: true, 2));
 
-        // Низ окна: мой винрейт по чемпионам + «?». Пулы занимают верх, здесь
-        // остаётся пустое место — показываем в нём, на ком реально идёт игра.
+        // Низ окна: «?» с инструкцией, черта, а под ней — мой винрейт по
+        // чемпионам. Пулы занимают верх, здесь остаётся пустое место — показываем
+        // в нём, на ком реально идёт игра. Подсказка выше винрейтов: она про то,
+        // ради чего окно открыли, а винрейты — справка на посмотреть.
         var bottom = new DockPanel { Margin = new Thickness(16, 0, 16, 10) };
         var help = HelpBadge();
-        DockPanel.SetDock(help, Dock.Bottom);
+        DockPanel.SetDock(help, Dock.Top);
         bottom.Children.Add(help);
+        var hr = new Border
+        {
+            Height = 1, Background = new SolidColorBrush(Line), Margin = new Thickness(0, 0, 0, 10)
+        };
+        DockPanel.SetDock(hr, Dock.Top);
+        bottom.Children.Add(hr);
         bottom.Children.Add(_wrStrip);
 
         var layout = new DockPanel();
@@ -169,14 +177,42 @@ sealed class PoolSettingsWindow : Window
     // Иконка «?» внизу: при наведении — пояснение, что такое пулы и зачем.
     private static FrameworkElement HelpBadge()
     {
-        var tipText = new TextBlock
+        var body = new StackPanel { MaxWidth = 340 };
+        body.Children.Add(new TextBlock
         {
-            Text = Loc.T("pool.help"), TextWrapping = TextWrapping.Wrap, MaxWidth = 340,
+            Text = Loc.T("pool.help"), TextWrapping = TextWrapping.Wrap,
             Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)), FontSize = 12, LineHeight = 18
-        };
+        });
+
+        // Ниже — как пул завести, по шагам. Одним абзацем это не читалось:
+        // человек открывает подсказку именно чтобы понять, куда нажимать.
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.howAdd"), Foreground = new SolidColorBrush(Blue),
+            FontSize = 11, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 6)
+        });
+        var steps = Loc.TArray("pool.helpSteps");
+        for (var i = 0; i < steps.Length; i++)
+        {
+            var line = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var num = new TextBlock
+            {
+                Text = (i + 1) + ".", Width = 16, Foreground = new SolidColorBrush(Blue),
+                FontSize = 12, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Top
+            };
+            DockPanel.SetDock(num, Dock.Left);
+            line.Children.Add(num);
+            line.Children.Add(new TextBlock
+            {
+                Text = steps[i], TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6))
+            });
+            body.Children.Add(line);
+        }
+
         var tip = new System.Windows.Controls.ToolTip
         {
-            Content = tipText, Padding = new Thickness(12, 10, 12, 10),
+            Content = body, Padding = new Thickness(12, 10, 12, 10),
             Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)), BorderThickness = new Thickness(1)
         };
@@ -184,7 +220,7 @@ sealed class PoolSettingsWindow : Window
         var row = new StackPanel
         {
             Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20, 0, 0, 14),
+            VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 0, 10),
             Cursor = System.Windows.Input.Cursors.Hand, Background = Brushes.Transparent, ToolTip = tip
         };
         System.Windows.Controls.ToolTipService.SetShowDuration(row, 60000);
