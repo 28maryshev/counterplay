@@ -111,6 +111,16 @@ public static class SessionTracker
         public string SelectedQueue { get; set; } = "solo";
         public bool QueueChosen { get; set; }
         public long LastGameId { get; set; }
+        /// <summary>
+        /// Номера уже засчитанных игр. Раньше хватало одного «последнего»
+        /// номера: считалось, что новая игра — это та, у которой номер больше.
+        /// Оказалось, номера НЕ растут со временем. 22.09 игра, начатая в 10:27,
+        /// получила номер 7991423371, а предыдущая, в 09:51, — 7991430692:
+        /// победа просто не засчиталась, и перезапуск не помогал, потому что
+        /// отметка лежит на диске. Поэтому помним сами номера, а порядок берём
+        /// по времени начала игры.
+        /// </summary>
+        public List<long> SeenGames { get; set; } = new();
         public Dictionary<string, QueueLog> Queues { get; set; } = new();
         // Последний успешный снимок рангов: LCU после рестарта/обновления может
         // не ответить — панель всё равно рендерится из кэша, а не пустой.
@@ -483,27 +493,52 @@ public static class SessionTracker
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        // 4) Новые игры (по gameId) — раскладываем по журналам очередей.
-        //    Первый запуск: журнал не наполняем задним числом, только ставим отметку.
+        // 4) Новые игры — те, чьих номеров мы ещё не видели. Порядок берём по
+        //    времени начала: номера игр по времени не упорядочены (см. SeenGames).
+        //    Первый запуск: журнал не наполняем задним числом, только запоминаем,
+        //    что всё это уже было.
         var appended = new Dictionary<string, GameLog>(); // очередь → последняя добавленная игра
-        if (acc.LastGameId == 0)
+        var seen = new HashSet<long>(acc.SeenGames);
+
+        if (seen.Count == 0)
         {
-            acc.LastGameId = history.Count > 0 ? history.Max(h => h.GameId) : 0;
+            // Переход со старого формата, где помнился один номер. Считаем
+            // виденным всё, что началось не позже последней записи в журнале:
+            // так и дубли не появятся, и игра, потерянная из-за номеров, всё-таки
+            // догонится. Пустой журнал (первый запуск) — виденным считаем всё.
+            long lastLogged = acc.Queues.Values
+                .SelectMany(q => q.Games)
+                .Select(g => g.Ts)
+                .DefaultIfEmpty(0)
+                .Max();
+            bool fresh = acc.LastGameId == 0 && lastLogged == 0;
+            foreach (var h in history)
+                if (fresh || h.CreatedSec <= 0 || h.CreatedSec <= lastLogged)
+                    seen.Add(h.GameId);
         }
-        else
+
+        foreach (var h in history.Where(h => !seen.Contains(h.GameId)).OrderBy(h => h.CreatedSec))
         {
-            foreach (var h in history.Where(h => h.GameId > acc.LastGameId).OrderBy(h => h.GameId))
-            {
-                var q = GetQueue(acc, h.Queue);
-                var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win };
-                q.Games.Add(log);
-                // Журнал держим на весь сезон: 3000 игр на очередь хватает даже
-                // самым активным; страховка от бесконечного роста файла.
-                if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
-                appended[h.Queue] = log;
-                acc.LastGameId = Math.Max(acc.LastGameId, h.GameId);
-            }
+            var q = GetQueue(acc, h.Queue);
+            var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win };
+            q.Games.Add(log);
+            // Журнал держим на весь сезон: 3000 игр на очередь хватает даже
+            // самым активным; страховка от бесконечного роста файла.
+            if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
+            appended[h.Queue] = log;
+            seen.Add(h.GameId);
         }
+
+        // Помним столько, сколько отдаёт история (20 игр), с запасом на случай
+        // если LCU вернёт больше обычного. Бесконечно копить незачем: игра,
+        // выпавшая из истории, второй раз оттуда не придёт.
+        acc.SeenGames = history.Select(h => h.GameId)
+                               .Concat(seen)
+                               .Distinct()
+                               .Take(100)
+                               .ToList();
+        if (history.Count > 0)
+            acc.LastGameId = Math.Max(acc.LastGameId, history.Max(h => h.GameId));
 
         // 4b) Пустые журналы добиваем ПРОШЛЫМИ играми из истории лаунчера:
         //     первый запуск или очередь, в которую раньше не играли с программой.
@@ -512,8 +547,12 @@ public static class SessionTracker
         {
             var q = GetQueue(acc, key);
             if (q.Games.Count > 0) continue;
-            var past = history.Where(h => h.Queue == key && h.GameId <= acc.LastGameId)
-                              .OrderBy(h => h.GameId).ToList();
+            // Журнал этой очереди пуст — значит ни одна её игра ещё не записана,
+            // и берём из истории все. По времени начала, а не по номеру: номера
+            // не упорядочены (см. SeenGames), и «прошлые» игры ложились бы
+            // вперемешку.
+            var past = history.Where(h => h.Queue == key)
+                              .OrderBy(h => h.CreatedSec).ToList();
             int wins = 0;
             for (int i = 0; i < past.Count; i++)
             {
