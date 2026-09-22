@@ -6,7 +6,7 @@ const logger = require('./lib/logger');
 const dataSync = require('./lib/dataSync');
 const champs = require('./lib/champions');
 const dl = require('./db/dataLayer');
-require('./db/botDb'); // применить схему bot.db при старте
+const { kvGet, kvSet } = require('./db/botDb'); // схема bot.db применяется при загрузке модуля
 
 if (config.missing.length) {
   logger.error(`Missing required .env vars: ${config.missing.join(', ')}`);
@@ -31,6 +31,25 @@ const ctx = { client, config, logger, commands };
 for (const name of ['interactionCreate', 'threadCreate']) {
   const ev = require(`./events/${name}`);
   client.on(ev.name, (...args) => ev.execute(ctx, ...args));
+}
+
+// Реже, чем раз в сутки. Крон вида '0 12 */3 * *' считает дни МЕСЯЦА: 1, 4, 7…
+// 31 — и на стыке месяцев даёт разрыв в сутки вместо трёх. Плюс перезапуск
+// контейнера в неудачную минуту просто съедал бы выпуск. Поэтому будим задачу
+// ежедневно, а частоту держим по отметке о прошлом запуске.
+function everyDays(days, key, fn) {
+  return async (ctx) => {
+    const kvKey = `cadence_${key}`;
+    const last = Number(kvGet(kvKey) || 0);
+    // Допуск в два часа. Отметка ставится по ОКОНЧАНИИ работы, а крон будит
+    // задачу ровно через N суток после прошлого ПРОБУЖДЕНИЯ — то есть всегда чуть
+    // раньше отметки. Без запаса выпуск промахивался бы мимо окна и уезжал на
+    // сутки, а перезапуски копили бы этот сдвиг. Разбудить второй раз за день
+    // допуск не может: крон срабатывает раз в сутки.
+    if (Date.now() < last + days * 864e5 - 2 * 3600e3) return;
+    await fn(ctx);
+    kvSet(kvKey, String(Date.now()));
+  };
 }
 
 // Cron-джоб с защитой: ошибка одной функции не роняет процесс.
@@ -60,8 +79,13 @@ async function main() {
       if (!id) logger.warn(`channel ${key} not configured — the feature is disabled`);
 
     const tz = { timezone: 'Etc/UTC' };
-    cron.schedule('0 10 * * *', job('metaRadar', 'metaRadar', require('./cron/metaRadar').run), tz);
-    cron.schedule('0 12 * * *', job('duelPost', 'draftDuels', require('./cron/duelPost').run), tz);
+    // Радар — раз в двое суток, дуэли — раз в трое: ежедневная лента была
+    // слишком плотной для канала. Разгадка ходит следом за задачей: она сама
+    // ищет неразгаданную дуэль, поэтому в дни без задачи просто молчит.
+    cron.schedule('0 10 * * *',
+      job('metaRadar', 'metaRadar', everyDays(2, 'metaRadar', require('./cron/metaRadar').run)), tz);
+    cron.schedule('0 12 * * *',
+      job('duelPost', 'draftDuels', everyDays(3, 'duelPost', require('./cron/duelPost').run)), tz);
     cron.schedule('0 22 * * *', job('duelReveal', 'draftDuels', require('./cron/duelReveal').run), tz);
     cron.schedule('0 20 * * 0', job('weeklyBoard', 'draftDuels', require('./cron/weeklyBoard').run), tz);
     cron.schedule('15 * * * *', job('dataSync', null, () => dataSync.sync()), tz);
@@ -75,7 +99,7 @@ async function main() {
     cron.schedule('0 0 * * *', job('installsDaily', 'installs', require('./cron/installsDaily').run), {
       timezone: 'Europe/Kyiv'
     });
-    logger.info('cron scheduled (UTC): radar 10:00, duel 12:00, reveal 22:00, board Sun 20:00, sync+releases+patch hourly; installs summary at 00:00 Europe/Kyiv (live feed is pushed by the site)');
+    logger.info('cron scheduled (UTC): radar 10:00 every 2 days, duel 12:00 every 3 days, reveal 22:00, board Sun 20:00, sync+releases+patch hourly; installs summary at 00:00 Europe/Kyiv (live feed is pushed by the site)');
   });
 
   await client.login(config.token);

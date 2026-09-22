@@ -20,7 +20,9 @@ async function run(ctx) {
     .prepare('SELECT * FROM duels WHERE revealed = 0 ORDER BY id DESC LIMIT 1')
     .get();
   if (!duel) {
-    logger.warn('duelReveal: no unrevealed duel — skipping');
+    // Не сбой: задача выходит раз в трое суток, и в остальные дни разгадывать
+    // нечего. Поэтому info, а не warn — иначе в логе постоянный «тревожный» шум.
+    logger.info('duelReveal: no unrevealed duel — nothing to reveal today');
     return;
   }
   db.prepare('UPDATE duels SET revealed = 1 WHERE id = ?').run(duel.id); // голоса закрыты
