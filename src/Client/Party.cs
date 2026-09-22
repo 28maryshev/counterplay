@@ -1,0 +1,132 @@
+using System.Text.Json;
+
+namespace Counterplay;
+
+/// <summary>
+/// Кто со мной в пати — по ЧЕЛОВЕКУ, а не по чемпиону.
+///
+/// Дуо-пул раньше опознавал напарника так: союзник взял чемпиона из половины
+/// друга — значит, это друг. У друга с широким пулом это ломалось: случайный
+/// союзник брал оттуда чемпиона, и программа строила пару вокруг чужого
+/// человека.
+///
+/// Состав пати клиент показывает в лобби. Запоминаем его и в драфте сверяем
+/// союзников по summonerId (а если его нет — по puuid).
+///
+/// Сознательно НЕ забываем состав, когда лобби закрывается: оно исчезает как раз
+/// при переходе в чемп-селект, то есть ровно тогда, когда напарник и нужен.
+/// Состав заменяется следующим увиденным лобби.
+/// </summary>
+public static class Party
+{
+    private static readonly HashSet<long>   Ids    = [];
+    private static readonly HashSet<string> Puuids = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Лобби мы хотя бы раз видели. Отличает «в пати никого» (играю один — и
+    /// напарника быть не должно) от «мы ничего не знаем» (программу запустили
+    /// посреди драфта — тогда работает старое правило по чемпиону).
+    /// </summary>
+    public static bool Known { get; private set; }
+
+    /// Ники сопартийцев — для журнала и показа в настройках.
+    public static IReadOnlyList<string> Names { get; private set; } = [];
+
+    /// <summary>Разобрать ответ <c>/lol-lobby/v2/lobby</c>. Себя исключаем.</summary>
+    public static void Update(JsonElement lobby)
+    {
+        if (lobby.ValueKind != JsonValueKind.Object) return;
+        if (!lobby.TryGetProperty("members", out var members) || members.ValueKind != JsonValueKind.Array) return;
+
+        // Себя узнаём по localMember: сравнивать с текущим призывателем не нужно,
+        // клиент уже сказал, кто здесь мы.
+        long   myId    = 0;
+        string myPuuid = "";
+        if (lobby.TryGetProperty("localMember", out var me) && me.ValueKind == JsonValueKind.Object)
+        {
+            myId    = Long(me, "summonerId");
+            myPuuid = Str(me, "puuid");
+        }
+
+        var ids = new HashSet<long>();
+        var puuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var names = new List<string>();
+        foreach (var m in members.EnumerateArray())
+        {
+            var id    = Long(m, "summonerId");
+            var puuid = Str(m, "puuid");
+            if ((myId != 0 && id == myId) || (myPuuid.Length > 0 && puuid == myPuuid)) continue;
+            if (id != 0) ids.Add(id);
+            if (puuid.Length > 0) puuids.Add(puuid);
+            var name = Str(m, "gameName");
+            if (name.Length == 0) name = Str(m, "summonerName");
+            var tag = Str(m, "tagLine");
+            if (name.Length > 0) names.Add(tag.Length > 0 ? $"{name}#{tag}" : name);
+        }
+
+        var changed = !ids.SetEquals(Ids) || !puuids.SetEquals(Puuids) || !Known;
+        Ids.Clear();    foreach (var x in ids) Ids.Add(x);
+        Puuids.Clear(); foreach (var x in puuids) Puuids.Add(x);
+        Names = names;
+        Known = true;
+        if (changed)
+            Log.Write(names.Count == 0
+                ? "пати: играю один"
+                : $"пати: {string.Join(", ", names)} ({Ids.Count} id, {Puuids.Count} puuid)");
+    }
+
+    /// Этот союзник — мой сопартиец?
+    public static bool IsMate(DraftPlayer p) =>
+        (p.SummonerId != 0 && Ids.Contains(p.SummonerId))
+        || (p.Puuid.Length > 0 && Puuids.Contains(p.Puuid));
+
+    /// <summary>
+    /// Чемпион напарника по дуо-пулу — 0, если напарника в драфте нет.
+    ///
+    /// Сперва ищем ЧЕЛОВЕКА из пати: неважно, из пула он взял чемпиона или нет —
+    /// играем-то мы всё равно с ним. Если про пати ничего не известно (программу
+    /// запустили посреди драфта), откатываемся на старое правило — союзник с
+    /// чемпионом из половины друга.
+    /// </summary>
+    public static int MateChampion(DraftState state, DuoPool? duo)
+    {
+        if (duo is null) return Logged(0, "");
+
+        var allies = state.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0).ToList();
+
+        var mate = allies.FirstOrDefault(IsMate);
+        if (mate is not null)
+            return Logged(mate.EffectiveChampionId, $"напарник по пати, роль {Role(mate)}");
+
+        // Пати известна, напарника в команде нет — пары нет. Именно так и должно
+        // быть, когда дуо-пул забыли выключить перед соло-очередью.
+        if (Known) return Logged(0, allies.Count > 0 ? "в команде никого из пати" : "");
+
+        var byPool = allies.Select(p => p.EffectiveChampionId).FirstOrDefault(id =>
+            duo.Manual
+                ? duo.ManualPairs.Any(p => p.Mine == id || p.Friend == id)
+                : duo.Friend.Values.Any(l => l.Contains(id)));
+        return Logged(byPool, byPool != 0 ? "по чемпиону из пула (состав пати неизвестен)" : "");
+    }
+
+    private static string Role(DraftPlayer p) => p.Position.Length > 0 ? p.Position : "не раскрыта";
+
+    // Пишем в журнал только при СМЕНЕ напарника: метод зовётся на каждый пересчёт
+    // рекомендаций, а это десятки раз за драфт.
+    private static int _lastLogged = -1;
+
+    private static int Logged(int champId, string why)
+    {
+        if (champId == _lastLogged) return champId;
+        _lastLogged = champId;
+        if (why.Length > 0)
+            Log.Write($"дуо: {(champId != 0 ? $"чемпион напарника {champId} — {why}" : why)}");
+        return champId;
+    }
+
+    private static long Long(JsonElement o, string name) =>
+        o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var l) ? l : 0;
+
+    private static string Str(JsonElement o, string name) =>
+        o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+}

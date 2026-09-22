@@ -580,6 +580,16 @@ class Program
             }
         }, ct);
 
+        // Состав пати на момент запуска: событие о лобби придёт только когда оно
+        // изменится, а программу вполне могли включить с уже собранным лобби.
+        try
+        {
+            var (code, body) = await http.GetAsync("/lol-lobby/v2/lobby", ct);
+            if (code == 200)
+                Party.Update(System.Text.Json.JsonDocument.Parse(body).RootElement);
+        }
+        catch { /* лобби нет или клиент занят — узнаем из события */ }
+
         await using var socket = new LcuEventSocket(creds);
         await socket.ConnectAsync(ct);
 
@@ -597,6 +607,14 @@ class Program
             {
                 case "/lol-summoner/v1/current-summoner":
                     await ReloadAccountAsync();
+                    break;
+
+                // Состав пати: кто со мной в лобби. Нужен, чтобы в драфте узнать
+                // напарника по человеку. Delete (лобби закрылось) пропускаем —
+                // оно исчезает при переходе в чемп-селект, то есть ровно тогда,
+                // когда напарник и нужен.
+                case "/lol-lobby/v2/lobby":
+                    if (ev.EventType != "Delete") Party.Update(ev.Data);
                     break;
 
                 case "/lol-gameflow/v1/session":

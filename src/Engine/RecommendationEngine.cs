@@ -504,15 +504,10 @@ public sealed class RecommendationEngine : IDisposable
             .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
 
-        // Напарник по активному дуо-пулу: союзник, взявший чемпиона из половины
-        // друга (в ручном режиме — из любой фикс-связки). Правило то же, по
-        // которому оверлей решает, показывать ли дуо-карточки. Не взял — 0, и
-        // никакой надбавки нет.
-        var activeDuo = PoolStore.ActiveDuo();
-        var mateId = activeDuo == null ? 0 : allyData.Select(a => a.Id).FirstOrDefault(id =>
-            activeDuo.Manual
-                ? activeDuo.ManualPairs.Any(p => p.Mine == id || p.Friend == id)
-                : activeDuo.Friend.Values.Any(l => l.Contains(id)));
+        // Напарник по активному дуо-пулу — ЧЕЛОВЕК из моей пати (см. Party).
+        // По чемпиону его больше не ищем: у друга с широким пулом случайный
+        // союзник, взявший оттуда чемпиона, сходил за напарника.
+        var mateId = Party.MateChampion(state, PoolStore.ActiveDuo());
 
         // Бот — это 2v2: при адк/саппорте контрим и вражеского дуо-партнёра.
         // Пример: вражеский Эзреаль (адк) контрит Блицкранга (саппорт) — он сблинкуется

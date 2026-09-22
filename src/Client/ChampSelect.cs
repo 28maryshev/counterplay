@@ -8,7 +8,12 @@ public sealed record DraftPlayer(
     int ChampionId,    // 0 = ещё не залочен
     int PickIntentId,  // наведённый (ховер) чемпион; 0 = нет
     string Position,   // top/jungle/middle/bottom/utility, "" = роль не раскрыта
-    bool IsLocalPlayer)
+    bool IsLocalPlayer,
+    // Кто это за человек. Нужно, чтобы узнать напарника по пати, а не по тому,
+    // что он взял чемпиона из пула друга (см. Party). У врагов в соло/дуо эти
+    // поля клиент прячет — там они пустые, и это нормально.
+    long SummonerId = 0,
+    string Puuid = "")
 {
     // Чемпион для рекомендаций: залоченный, иначе наведённый (ховер).
     // Позволяет пересчитывать пик ещё на этапе наведения, до лока.
@@ -206,10 +211,15 @@ public static class ChampSelectParser
                 ChampionId: GetInt(p, "championId"),
                 PickIntentId: GetInt(p, "championPickIntent"),
                 Position: GetStr(p, "assignedPosition"),
-                IsLocalPlayer: localCell >= 0 && cell == localCell));
+                IsLocalPlayer: localCell >= 0 && cell == localCell,
+                SummonerId: GetLong(p, "summonerId"),
+                Puuid: GetStr(p, "puuid")));
         }
         return list;
     }
+
+    private static long GetLong(JsonElement o, string name) =>
+        o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var l) ? l : 0;
 
     private static (List<int> Mine, List<int> Theirs) ParseBans(JsonElement session)
     {
