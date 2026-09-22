@@ -2628,9 +2628,9 @@
              варианты страниц рун (кнопки), справа — экспорт билда в клиент. -->
         <!-- ── Дисклеймер (полный обязательный текст Riot) + версия ──── -->
         <StackPanel Grid.Row="3">
-          <TextBlock
+          <TextBlock x:Name="Disclaimer"
                    Text="Counterplay isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc."
-                   Foreground="#33708090" FontFamily="{StaticResource UiFont}" FontSize="9"
+                   Foreground="#33708090" FontFamily="{StaticResource UiFont}" FontSize="7.5"
                    TextWrapping="Wrap" TextAlignment="Center"
                    HorizontalAlignment="Stretch" Margin="16,6,16,2"/>
           <!-- Версия программы; при готовом обновлении текст меняется и мигает -->

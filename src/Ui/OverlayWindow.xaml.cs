@@ -273,6 +273,9 @@ public partial class OverlayWindow : Window
     // Опорное — 1280×720: самое ходовое окно клиента, под него и рисовался
     // интерфейс. Дальше растём пропорционально: на 1920 всё должно быть заметно
     // крупнее, иначе рядом с большим клиентом оверлей выглядит игрушечным.
+    // Базовый кегль обязательного текста Riot (в XAML стоит он же).
+    private const double DisclaimerBase = 7.5;
+
     private static readonly (int Width, double Scale)[] ClientScales =
         [(1024, 0.84), (1280, 1.00), (1600, 1.18), (1920, 1.35)];
 
@@ -296,6 +299,13 @@ public partial class OverlayWindow : Window
         RootGrid.LayoutTransform = Math.Abs(scale - 1.0) < 0.01
             ? System.Windows.Media.Transform.Identity
             : new ScaleTransform(scale, scale);
+
+        // Обязательный текст Riot растёт вместе со всем остальным, и на крупном
+        // клиенте занимал заметную часть панели. Он мелкий по смыслу: его надо
+        // показать, а не читать. Растём вдвое медленнее общего масштаба — на
+        // маленьком окне размер прежний, на большом текст не разъезжается.
+        // Совсем зафиксировать нельзя: при ×1.5 он стал бы нечитаемым.
+        Disclaimer.FontSize = DisclaimerBase * (1 + (Math.Max(1.0, scale) - 1) * 0.5) / Math.Max(1.0, scale);
         if (Math.Abs(scale - _loggedScale) > 0.005)
         {
             Log.Write($"масштаб {scale:0.00} (окно {w:0}px, вид {(draftView ? "драфт" : "панель")}, " +
