@@ -2699,6 +2699,36 @@ public partial class OverlayWindow : Window
     // перестал бы вычитываться, буфер клиента переполнялся бы и клиент зависал
     // («reconnect», игра не стартует). Никогда не делать здесь блокирующий вызов.
 
+    /// <summary>
+    /// Драфт кончился: ушли в игру, дроджнули или кто-то вышел из очереди.
+    ///
+    /// Раньше здесь просто показывали «ждём следующий драфт», и окно на этом
+    /// застревало: при дродже клиент сообщает о новой фазе РАНЬШЕ, чем удаляет
+    /// чемп-селект, — экран готовности успевал появиться, а потом его затирал
+    /// статус. Человек видел «ждём драфт», пока клиент уже искал игру.
+    ///
+    /// Заодно гасим плашку «пикаешь раньше врагов»: она про конкретный драфт и
+    /// живёт в шапке, поэтому смена вида её не убирала и она оставалась висеть.
+    /// </summary>
+    public void DraftEnded() =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            PickHint.Visibility = Visibility.Collapsed;
+
+            var phase = _readyPhaseRaw ?? _phaseRaw;
+            var inGame = phase is "GameStart" or "InProgress" or "Reconnect";
+            if (!string.IsNullOrEmpty(phase) && !inGame)
+            {
+                ShowReadyPhase(phase);
+                return;
+            }
+            IdleStatusText.Text = Loc.T("status.waitNextDraft");
+            DlBar.Visibility = Visibility.Collapsed;
+            PulseAnim(false);
+            SetLoadingMode();
+            ShowIdle();
+        });
+
     public void ShowStatus(string msg) =>
         Dispatcher.InvokeAsync(() =>
         {
@@ -4999,6 +5029,9 @@ public partial class OverlayWindow : Window
 
         if (recs == null || recs.Count == 0)
         {
+            // Плашка про порядок пика живёт в шапке, вне переключаемых видов, —
+            // без этого она оставалась висеть над экраном ожидания.
+            PickHint.Visibility = Visibility.Collapsed;
             IdleStatusText.Text = Loc.T("status.waitDraft");
             ShowIdle();
             return;

@@ -670,7 +670,9 @@ class Program
                         // GameStart оставит скрытым). Иначе при входе в игру окно всплывёт.
                         hideCts?.Cancel(); hideCts = null;
                         overlay.UpdateRecommendations(null, null);
-                        overlay.ShowStatus(Loc.T("status.waitNextDraft")); // подавится, если в трее
+                        // Не просто статус: окно должно вернуться на экран готовности
+                        // той фазы, в которой клиент уже находится (см. DraftEnded).
+                        overlay.DraftEnded(); // подавится, если в трее
                         lastHash = "";
                         draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
