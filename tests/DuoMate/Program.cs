@@ -27,6 +27,7 @@ internal static class Program
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
+        Log.FileDisabled = true;   // не сорить в журнал игрока
 
         // ── 1. Играем вдвоём: друг в пати ───────────────────────────────────
         Party.Update(Lobby(MeId, FriendId));

@@ -16,6 +16,7 @@ internal static class Program
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
+        Log.FileDisabled = true;   // не сорить в журнал игрока
 
         // ── обычный пул ────────────────────────────────────────────────────
         var pool = new ChampPool

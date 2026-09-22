@@ -26,8 +26,16 @@ public static class Log
     private static string? _file;
     private static bool _fileReady;
 
+    /// <summary>
+    /// Не писать в файл. Ставят проверки из <c>tests/</c>: они гоняют настоящий
+    /// движок, и их строки попадали в журнал ИГРОКА — в разборе настоящей жалобы
+    /// приходилось отличать боевые записи от тестовых.
+    /// </summary>
+    public static bool FileDisabled { get; set; }
+
     private static string? FilePath()
     {
+        if (FileDisabled) return null;
         if (_fileReady) return _file;
         _fileReady = true;
         try

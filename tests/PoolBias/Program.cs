@@ -31,6 +31,7 @@ internal static class Program
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
+        Log.FileDisabled = true;   // не сорить в журнал игрока
 
         var dbPath = FindDb();
         if (dbPath is null)
