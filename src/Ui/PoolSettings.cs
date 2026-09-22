@@ -275,7 +275,7 @@ sealed class PoolSettingsWindow : Window
                 () => EditPool(p), () => DeletePool(p), () => Select(PoolKind.Pool, p.Id), champs));
         }
         _poolArea.Children.Add(PlusTile(() => EditPool(null)));
-        _poolArea.Children.Add(ImportTile());
+        _poolArea.Children.Add(ImportTile(intoDuo: false));
 
         _duoArea.Children.Clear();
         foreach (var d in a.DuoPools)
@@ -291,13 +291,14 @@ sealed class PoolSettingsWindow : Window
                 Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto")));
         }
         _duoArea.Children.Add(PlusTile(() => EditDuo(null)));
-        _duoArea.Children.Add(ImportTile());
+        _duoArea.Children.Add(ImportTile(intoDuo: true));
     }
 
-    // Плитка загрузки пула из файла. Стоит в обеих половинах, но разбирается по
-    // самому файлу: в нём написано, обычный это пул или дуо, и он ложится туда,
-    // куда положено, независимо от того, на какую плитку нажали.
-    private FrameworkElement ImportTile()
+    // Плитка загрузки пула из файла. Стоит в обеих половинах, и половина важна:
+    // ЛИЧНЫЙ пул друга, загруженный в «Дуо», становится ЕГО половиной пары, а
+    // свою мы берём из уже собранного своего пула. Готовый дуо-файл ложится
+    // дуо-пулом всегда — что бы ни нажали.
+    private FrameworkElement ImportTile(bool intoDuo)
     {
         var b = new Border
         {
@@ -323,11 +324,11 @@ sealed class PoolSettingsWindow : Window
             Foreground = new SolidColorBrush(Color.FromRgb(0xEB, 0xD6, 0xA8))
         });
         b.Child = sp;
-        b.MouseLeftButtonUp += (_, _) => ImportFromFile();
+        b.MouseLeftButtonUp += (_, _) => ImportFromFile(intoDuo);
         return b;
     }
 
-    private void ImportFromFile()
+    private void ImportFromFile(bool intoDuo)
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
@@ -361,12 +362,30 @@ sealed class PoolSettingsWindow : Window
         }
 
         var a = PoolStore.Current();
+
+        // Личный пул друга, положенный в «Дуо»: он — половина друга, своя
+        // половина берётся из моего пула (какого — спрашиваем).
+        if (intoDuo && pool is not null)
+        {
+            if (!MyPoolPicker.Ask(this, a.Pools, name, out var mine)) return;
+            duo = new DuoPool
+            {
+                FriendName = name,
+                Friend     = CloneRoles(pool.ByRole),
+                Mine       = mine is null ? new() : CloneRoles(mine.ByRole),
+            };
+            pool = null;
+        }
+
         if (pool is not null) a.Pools.Add(pool); else a.DuoPools.Add(duo!);
         PoolStore.Persist();
         _onChange();
         Refresh();
         Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.imported", name));
     }
+
+    private static Dictionary<string, List<int>> CloneRoles(Dictionary<string, List<int>> src) =>
+        src.ToDictionary(kv => kv.Key, kv => new List<int>(kv.Value));
 
     // Сделать пул активным (звёздочка). Повторный клик по активному — снять выбор
     // (возврат в обычный режим подбора).
@@ -1688,6 +1707,73 @@ static class PoolUi
         t.Triggers.Add(tr);
         s.Setters.Add(new Setter(System.Windows.Controls.Control.TemplateProperty, t));
         return s;
+    }
+}
+
+/// <summary>
+/// Выбор СВОЕЙ половины пары. Друг присылает свой личный пул — он становится
+/// половиной друга, а моя берётся из уже собранного мной пула: так дуо-пул
+/// складывается из двух личных, и никому не приходится набирать его заново.
+/// </summary>
+static class MyPoolPicker
+{
+    /// <summary>
+    /// false — передумали (ничего не создаём). true и <paramref name="picked"/>
+    /// null — свою половину заполнят позже, в редакторе.
+    /// </summary>
+    public static bool Ask(Window owner, IReadOnlyList<ChampPool> mine, string friendName, out ChampPool? picked)
+    {
+        picked = null;
+        if (mine.Count == 0) return true;   // выбирать не из чего — спрашивать не о чем
+
+        var dlg = new Window
+        {
+            Title = Loc.T("pool.pickMineTitle"), Width = 380, SizeToContent = SizeToContent.Height, Owner = owner,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new SolidColorBrush(PoolSettingsWindow.Bg)
+        };
+        PoolUi.Apply(dlg);
+
+        var sp = new StackPanel { Margin = new Thickness(16) };
+        sp.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.pickMineHint", friendName),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+            TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 18, Margin = new Thickness(0, 0, 0, 12)
+        });
+
+        ChampPool? chosen = null;
+        var ok = false;
+        foreach (var p in mine)
+        {
+            // Число чемпионов — цифрой: подписи не нужны, а два пула с похожими
+            // именами так различимы.
+            var count = p.ByRole.Values.SelectMany(l => l).Count(id => id != 0);
+            var b = PoolUi.Btn($"{p.Name}  ·  {count}");
+            b.HorizontalAlignment = HorizontalAlignment.Stretch;
+            b.Margin = new Thickness(0, 0, 0, 6);
+            var self = p;
+            b.Click += (_, _) => { chosen = self; ok = true; dlg.Close(); };
+            sp.Children.Add(b);
+        }
+
+        var btns = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        var later = PoolUi.Btn(Loc.T("pool.later"));
+        later.Margin = new Thickness(0, 0, 8, 0);
+        later.Click += (_, _) => { ok = true; dlg.Close(); };
+        var cancel = PoolUi.Btn(Loc.T("pool.cancel"));
+        cancel.Click += (_, _) => dlg.Close();
+        btns.Children.Add(later); btns.Children.Add(cancel);
+        sp.Children.Add(btns);
+
+        dlg.Content = PoolUi.Chrome(dlg, dlg.Title, sp);
+        dlg.ShowDialog();
+        picked = chosen;
+        return ok;
     }
 }
 

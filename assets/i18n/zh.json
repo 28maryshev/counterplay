@@ -464,7 +464,10 @@
     "importFile": "导入池",
     "importBad": "文件不匹配——不是 Counterplay 的文件，或已损坏",
     "imported": "已导入池“{0}”",
-    "exportBad": "文件未能保存——请选择其他文件夹后重试"
+    "exportBad": "文件未能保存——请选择其他文件夹后重试",
+    "pickMineTitle": "双人组合中你的一半",
+    "pickMineHint": "“{0}”将成为好友的一半。选择你这边的池，或稍后再填。",
+    "later": "稍后再填"
   },
   "phaseState": {
     "none": "就绪",

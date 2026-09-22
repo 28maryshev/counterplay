@@ -464,7 +464,10 @@
     "importFile": "Importer un pool",
     "importBad": "Le fichier ne convient pas : il n'est pas de Counterplay ou il est endommagé",
     "imported": "Pool « {0} » importé",
-    "exportBad": "Le fichier n'a pas pu être enregistré : choisis un autre dossier et réessaie"
+    "exportBad": "Le fichier n'a pas pu être enregistré : choisis un autre dossier et réessaie",
+    "pickMineTitle": "Ta moitié du duo",
+    "pickMineHint": "« {0} » devient la moitié de ton ami. Choisis ton pool pour ce duo, ou remplis-le plus tard.",
+    "later": "Remplir plus tard"
   },
   "phaseState": {
     "none": "Prêt",

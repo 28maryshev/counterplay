@@ -464,7 +464,10 @@
     "importFile": "Wczytaj pulę",
     "importBad": "Plik nie pasuje — nie pochodzi z Counterplay albo jest uszkodzony",
     "imported": "Pula „{0}” wczytana",
-    "exportBad": "Nie udało się zapisać pliku — wybierz inny folder i spróbuj ponownie"
+    "exportBad": "Nie udało się zapisać pliku — wybierz inny folder i spróbuj ponownie",
+    "pickMineTitle": "Twoja połowa duo",
+    "pickMineHint": "„{0}” zostaje połową znajomego. Wybierz swoją pulę do tego duo albo uzupełnij ją później.",
+    "later": "Uzupełnię później"
   },
   "phaseState": {
     "none": "Gotowe",

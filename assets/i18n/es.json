@@ -464,7 +464,10 @@
     "importFile": "Importar un grupo",
     "importBad": "El archivo no sirve: no es de Counterplay o está dañado",
     "imported": "Grupo «{0}» importado",
-    "exportBad": "No se pudo guardar el archivo: elige otra carpeta e inténtalo de nuevo"
+    "exportBad": "No se pudo guardar el archivo: elige otra carpeta e inténtalo de nuevo",
+    "pickMineTitle": "Tu mitad del dúo",
+    "pickMineHint": "«{0}» será la mitad de tu amigo. Elige tu grupo para este dúo o complétalo más tarde.",
+    "later": "Rellenar después"
   },
   "phaseState": {
     "none": "Listo",

@@ -464,7 +464,10 @@
     "importFile": "풀 불러오기",
     "importBad": "파일이 맞지 않습니다. Counterplay의 파일이 아니거나 손상되었습니다",
     "imported": "풀 “{0}”을(를) 불러왔습니다",
-    "exportBad": "파일을 저장하지 못했습니다. 다른 폴더를 선택해 다시 시도하세요"
+    "exportBad": "파일을 저장하지 못했습니다. 다른 폴더를 선택해 다시 시도하세요",
+    "pickMineTitle": "듀오에서 내 쪽",
+    "pickMineHint": "“{0}”은(는) 친구 쪽이 됩니다. 내 쪽 풀을 고르거나 나중에 채우세요.",
+    "later": "나중에 채우기"
   },
   "phaseState": {
     "none": "대기 중",

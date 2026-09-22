@@ -464,7 +464,10 @@
     "importFile": "Nhập pool",
     "importBad": "Tệp không phù hợp — không phải của Counterplay hoặc đã hỏng",
     "imported": "Đã nhập pool “{0}”",
-    "exportBad": "Không lưu được tệp — hãy chọn thư mục khác và thử lại"
+    "exportBad": "Không lưu được tệp — hãy chọn thư mục khác và thử lại",
+    "pickMineTitle": "Nửa của bạn trong duo",
+    "pickMineHint": "“{0}” sẽ là nửa của bạn bè. Chọn pool của bạn cho duo này, hoặc điền sau.",
+    "later": "Điền sau"
   },
   "phaseState": {
     "none": "Sẵn sàng",
