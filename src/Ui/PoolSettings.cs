@@ -46,6 +46,7 @@ sealed class PoolSettingsWindow : Window
         _engine   = engine;
         Title  = Loc.T("pool.settings");
         Width  = 820; Height = 560;
+        MinWidth = 700; MinHeight = 460;
         Background = new SolidColorBrush(Bg);
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         PoolUi.Apply(this);
@@ -91,7 +92,7 @@ sealed class PoolSettingsWindow : Window
         decorated.Children.Add(DecorBackground());
         decorated.Children.Add(layout);
 
-        Content = PoolUi.Chrome(this, Title, decorated);
+        Content = PoolUi.Chrome(this, Title, decorated, resizable: true);
         Refresh();
     }
 
@@ -638,6 +639,7 @@ sealed class PoolEditorWindow : Window
 
         Title  = _duo ? Loc.T("pool.duo") : Loc.T("pool.pool");
         Width  = 620; Height = 560;
+        MinWidth = 520; MinHeight = 380;
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         PoolUi.Apply(this);
@@ -694,7 +696,7 @@ sealed class PoolEditorWindow : Window
 
         root.Children.Add(new ScrollViewer { Content = _body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
 
-        Content = PoolUi.Chrome(this, Title, root);
+        Content = PoolUi.Chrome(this, Title, root, resizable: true);
         RenderBody();
     }
 
@@ -1203,6 +1205,7 @@ sealed class ChampionPickerWindow : Window
         _names = names; _idByName = idByName; _exclude = [.. exclude]; _engine = engine; _multi = multi;
         Title  = Loc.T("pool.pickChamp");
         Width  = 460; Height = multi ? 560 : 520;   // в множественном внизу кнопки
+        MinWidth = 360; MinHeight = 320;
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         PoolUi.Apply(this);
@@ -1248,7 +1251,7 @@ sealed class ChampionPickerWindow : Window
         {
             Content = _root, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         });
-        Content = PoolUi.Chrome(this, Title, root);
+        Content = PoolUi.Chrome(this, Title, root, resizable: true);
         _search.Focus();
         Render();
     }
@@ -1691,10 +1694,12 @@ static class PoolUi
     }
 
     // Кастомная тёмная верхушка окна: заголовок + крестик, перетаскивание, рамка.
-    public static FrameworkElement Chrome(Window w, string title, FrameworkElement inner)
+    public static FrameworkElement Chrome(Window w, string title, FrameworkElement inner, bool resizable = false)
     {
         w.WindowStyle = WindowStyle.None;
-        w.ResizeMode = ResizeMode.NoResize;
+        // Рамки у окна своей, поэтому CanResize даёт только невидимую полосу по
+        // краям. Чтобы за неё было чем взяться — рисуем уголок в правом низу.
+        w.ResizeMode = resizable ? ResizeMode.CanResize : ResizeMode.NoResize;
 
         var root = new DockPanel();
         var bar = new Border { Height = 36, Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)) };
@@ -1723,11 +1728,59 @@ static class PoolUi
         root.Children.Add(bar);
         root.Children.Add(inner);
 
+        FrameworkElement body = root;
+        if (resizable)
+        {
+            var layers = new Grid();
+            layers.Children.Add(root);
+            layers.Children.Add(Grip(w));
+            body = layers;
+        }
+
         return new Border
         {
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4A)), BorderThickness = new Thickness(1),
-            Child = root
+            Child = body
         };
+    }
+
+    // Уголок в правом нижнем углу: тянут его — меняется размер окна. Считаем в
+    // координатах окна (не экрана) — тогда одинаково работает при любом масштабе
+    // экрана, а не только при 100%.
+    private static FrameworkElement Grip(Window w)
+    {
+        var grip = new Canvas
+        {
+            Width = 15, Height = 15, Background = Brushes.Transparent,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
+            Cursor = System.Windows.Input.Cursors.SizeNWSE
+        };
+        var ink = new SolidColorBrush(Color.FromRgb(0x6B, 0x80, 0x96));
+        for (var i = 0; i < 3; i++)
+        {
+            var o = 3.5 + i * 3.5;
+            grip.Children.Add(new System.Windows.Shapes.Line
+            { X1 = 13.5, Y1 = o, X2 = o, Y2 = 13.5, Stroke = ink, StrokeThickness = 1.2 });
+        }
+
+        var dragging = false;
+        double dx = 0, dy = 0;   // сколько от курсора до края окна — чтобы край не прыгал под курсор
+        grip.MouseLeftButtonDown += (_, e) =>
+        {
+            var p = e.GetPosition(w);
+            dx = w.ActualWidth - p.X; dy = w.ActualHeight - p.Y;
+            dragging = grip.CaptureMouse();
+            e.Handled = true;
+        };
+        grip.MouseMove += (_, e) =>
+        {
+            if (!dragging) return;
+            var p = e.GetPosition(w);
+            w.Width  = Math.Max(w.MinWidth,  p.X + dx);
+            w.Height = Math.Max(w.MinHeight, p.Y + dy);
+        };
+        grip.MouseLeftButtonUp += (_, _) => { dragging = false; grip.ReleaseMouseCapture(); };
+        return grip;
     }
 
     // Крестик закрытия: прозрачный, красный при наведении.
