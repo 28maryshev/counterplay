@@ -474,6 +474,8 @@
     "importBad": "El archivo no sirve: no es de Counterplay o está dañado",
     "imported": "Grupo «{0}» importado",
     "exportBad": "No se pudo guardar el archivo: elige otra carpeta e inténtalo de nuevo",
+    "exportEmpty": "Este grupo está vacío: añade campeones primero, o tu amigo no tendrá nada que cargar.",
+    "exported": "Guardado: {0}",
     "pickMineTitle": "Tu mitad del dúo",
     "pickMineHint": "«{0}» será la mitad de tu amigo. Elige tu grupo para este dúo o complétalo más tarde.",
     "later": "Rellenar después"

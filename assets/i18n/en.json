@@ -474,6 +474,8 @@
     "importBad": "That file did not fit — it is not from Counterplay, or it is damaged",
     "imported": "Pool “{0}” imported",
     "exportBad": "The file could not be saved — pick another folder and try again",
+    "exportEmpty": "This pool is empty — add champions first, or there is nothing for your friend to load.",
+    "exported": "Saved: {0}",
     "pickMineTitle": "Your half of the duo",
     "pickMineHint": "“{0}” becomes your friend's half. Pick the pool you take — or fill it in later.",
     "later": "Fill in later"

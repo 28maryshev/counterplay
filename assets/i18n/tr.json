@@ -474,6 +474,8 @@
     "importBad": "Dosya uymadı — Counterplay dosyası değil ya da bozuk",
     "imported": "“{0}” havuzu içe aktarıldı",
     "exportBad": "Dosya kaydedilemedi — başka bir klasör seçip yeniden dene",
+    "exportEmpty": "Bu havuz boş — önce şampiyon ekle, yoksa arkadaşının yükleyeceği bir şey olmaz.",
+    "exported": "Kaydedildi: {0}",
     "pickMineTitle": "İkilideki senin yarın",
     "pickMineHint": "“{0}” arkadaşının yarısı olur. Bu ikili için kendi havuzunu seç ya da sonra doldur.",
     "later": "Sonra doldur"

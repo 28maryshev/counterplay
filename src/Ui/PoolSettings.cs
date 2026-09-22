@@ -1066,6 +1066,19 @@ sealed class PoolEditorWindow : Window
     // и объяснять ему разницу между показанным и записанным незачем.
     private void Export()
     {
+        // Пустой пул отдавать нельзя: файл запишется, а загрузить его не выйдет —
+        // на той стороне он отвергается как «ничего внутри». Раньше программа
+        // молча сохраняла пустоту, и человек узнавал об этом только от друга.
+        var hasChamps = _duo
+            ? _mine.Values.Concat(_friend.Values).Any(l => l.Any(id => id != 0))
+              || _manualPairs.Any(p => p.Mine != 0 || p.Friend != 0)
+            : _mine.Values.Any(l => l.Any(id => id != 0));
+        if (!hasChamps)
+        {
+            Confirm.Tell(this, Loc.T("pool.export"), Loc.T("pool.exportEmpty"));
+            return;
+        }
+
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             FileName = PoolFile.SuggestName(_name),
@@ -1084,7 +1097,14 @@ sealed class PoolEditorWindow : Window
             })
             : PoolFile.Export(new ChampPool { Name = _name, ByRole = Clone(_mine) });
 
-        try { File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8); }
+        try
+        {
+            File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8);
+            // Раньше после сохранения не происходило ВИДИМО ничего, и это было не
+            // отличить от сбоя — тем более что поверх успевал мелькнуть системный
+            // вопрос «файл уже есть, заменить?».
+            Confirm.Tell(this, Loc.T("pool.export"), Loc.T("pool.exported", Path.GetFileName(dlg.FileName)));
+        }
         catch (Exception ex)
         {
             Log.Write($"пул не выгрузился: {ex.Message}");

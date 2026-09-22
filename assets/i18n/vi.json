@@ -474,6 +474,8 @@
     "importBad": "Tệp không phù hợp — không phải của Counterplay hoặc đã hỏng",
     "imported": "Đã nhập pool “{0}”",
     "exportBad": "Không lưu được tệp — hãy chọn thư mục khác và thử lại",
+    "exportEmpty": "Pool này đang trống — hãy thêm tướng trước, nếu không bạn của bạn chẳng có gì để nạp.",
+    "exported": "Đã lưu: {0}",
     "pickMineTitle": "Nửa của bạn trong duo",
     "pickMineHint": "“{0}” sẽ là nửa của bạn bè. Chọn pool của bạn cho duo này, hoặc điền sau.",
     "later": "Điền sau"

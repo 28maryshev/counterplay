@@ -474,6 +474,8 @@
     "importBad": "Plik nie pasuje — nie pochodzi z Counterplay albo jest uszkodzony",
     "imported": "Pula „{0}” wczytana",
     "exportBad": "Nie udało się zapisać pliku — wybierz inny folder i spróbuj ponownie",
+    "exportEmpty": "Ta pula jest pusta — najpierw dodaj mistrzów, inaczej znajomy nie będzie miał czego wczytać.",
+    "exported": "Zapisano: {0}",
     "pickMineTitle": "Twoja połowa duo",
     "pickMineHint": "„{0}” zostaje połową znajomego. Wybierz swoją pulę do tego duo albo uzupełnij ją później.",
     "later": "Uzupełnię później"
