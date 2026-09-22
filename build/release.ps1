@@ -170,7 +170,7 @@ if ($Upload) {
       # In the Discord announcement players only care about the app itself.
       # Commits that touched ONLY internal files (test sandbox, data pipeline,
       # Discord bot, build scripts, docs) are left out of the release notes.
-      $internal = '^(pipeline/|bot/|build/|docs/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|src/Dev/)'
+      $internal = '^(pipeline/|bot/|build/|docs/|tests/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|src/Dev/)'
 
       # Group commits by FEATURE = the "Area:" prefix before the first colon
       # (e.g. "Duo pool", "Pool settings", "Damage mix"). A big feature made of
