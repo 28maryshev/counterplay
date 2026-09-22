@@ -459,7 +459,12 @@
     "myWinratesEmpty": "Aucune partie enregistrée — jouez avec Counterplay lancé et vos winrates apparaîtront ici.",
     "myChamps30d": "Winrate · 30 derniers jours",
     "addSelected": "Ajouter ({0})",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "export": "Exporter",
+    "importFile": "Importer un pool",
+    "importBad": "Le fichier ne convient pas : il n'est pas de Counterplay ou il est endommagé",
+    "imported": "Pool « {0} » importé",
+    "exportBad": "Le fichier n'a pas pu être enregistré : choisis un autre dossier et réessaie"
   },
   "phaseState": {
     "none": "Prêt",

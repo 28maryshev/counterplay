@@ -459,7 +459,12 @@
     "myWinratesEmpty": "まだ試合がありません。Counterplay を起動したままプレイすると、ここに勝率が表示されます。",
     "myChamps30d": "勝率 · 直近30日",
     "addSelected": "追加 ({0})",
-    "cancel": "キャンセル"
+    "cancel": "キャンセル",
+    "export": "エクスポート",
+    "importFile": "プールを読み込む",
+    "importBad": "ファイルが合いません。Counterplay のものではないか、壊れています",
+    "imported": "プール「{0}」を読み込みました",
+    "exportBad": "ファイルを保存できませんでした。別のフォルダーを選んでもう一度お試しください"
   },
   "phaseState": {
     "none": "待機中",

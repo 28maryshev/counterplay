@@ -459,7 +459,12 @@
     "myWinratesEmpty": "아직 기록된 게임이 없습니다 — Counterplay를 켠 채로 플레이하면 승률이 여기에 표시됩니다.",
     "myChamps30d": "승률 · 최근 30일",
     "addSelected": "추가 ({0})",
-    "cancel": "취소"
+    "cancel": "취소",
+    "export": "내보내기",
+    "importFile": "풀 불러오기",
+    "importBad": "파일이 맞지 않습니다. Counterplay의 파일이 아니거나 손상되었습니다",
+    "imported": "풀 “{0}”을(를) 불러왔습니다",
+    "exportBad": "파일을 저장하지 못했습니다. 다른 폴더를 선택해 다시 시도하세요"
   },
   "phaseState": {
     "none": "대기 중",

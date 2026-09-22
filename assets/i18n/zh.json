@@ -459,7 +459,12 @@
     "myWinratesEmpty": "暂无对局记录——开着 Counterplay 游玩后，这里会显示你的胜率。",
     "myChamps30d": "胜率 · 近30天",
     "addSelected": "添加 ({0})",
-    "cancel": "取消"
+    "cancel": "取消",
+    "export": "导出",
+    "importFile": "导入池",
+    "importBad": "文件不匹配——不是 Counterplay 的文件，或已损坏",
+    "imported": "已导入池“{0}”",
+    "exportBad": "文件未能保存——请选择其他文件夹后重试"
   },
   "phaseState": {
     "none": "就绪",

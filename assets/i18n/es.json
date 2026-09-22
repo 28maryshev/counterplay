@@ -459,7 +459,12 @@
     "myWinratesEmpty": "Aún no hay partidas: juega con Counterplay abierto y aquí aparecerán tus winrates.",
     "myChamps30d": "Winrate · últimos 30 días",
     "addSelected": "Añadir ({0})",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "export": "Exportar",
+    "importFile": "Importar un grupo",
+    "importBad": "El archivo no sirve: no es de Counterplay o está dañado",
+    "imported": "Grupo «{0}» importado",
+    "exportBad": "No se pudo guardar el archivo: elige otra carpeta e inténtalo de nuevo"
   },
   "phaseState": {
     "none": "Listo",

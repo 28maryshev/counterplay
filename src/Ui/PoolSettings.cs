@@ -275,6 +275,7 @@ sealed class PoolSettingsWindow : Window
                 () => EditPool(p), () => DeletePool(p), () => Select(PoolKind.Pool, p.Id), champs));
         }
         _poolArea.Children.Add(PlusTile(() => EditPool(null)));
+        _poolArea.Children.Add(ImportTile());
 
         _duoArea.Children.Clear();
         foreach (var d in a.DuoPools)
@@ -290,6 +291,78 @@ sealed class PoolSettingsWindow : Window
                 Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto")));
         }
         _duoArea.Children.Add(PlusTile(() => EditDuo(null)));
+        _duoArea.Children.Add(ImportTile());
+    }
+
+    // Плитка загрузки пула из файла. Стоит в обеих половинах, но разбирается по
+    // самому файлу: в нём написано, обычный это пул или дуо, и он ложится туда,
+    // куда положено, независимо от того, на какую плитку нажали.
+    private FrameworkElement ImportTile()
+    {
+        var b = new Border
+        {
+            Width = 118, Height = 96, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 10, 10),
+            Background = new SolidColorBrush(Color.FromArgb(0x10, 0xC9, 0xD2, 0xDC)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)), BorderThickness = new Thickness(1),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = Loc.T("pool.importFile"),
+        };
+        var sp = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        sp.Children.Add(new TextBlock
+        {
+            Text = "⭳", FontSize = 26, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        sp.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.importFile"), FontSize = 10, TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center, Margin = new Thickness(6, 2, 6, 0),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2))
+        });
+        b.Child = sp;
+        b.MouseLeftButtonUp += (_, _) => ImportFromFile();
+        return b;
+    }
+
+    private void ImportFromFile()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            DefaultExt = PoolFile.Extension,
+            Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}|JSON (*.json)|*.json",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        string text;
+        try { text = File.ReadAllText(dlg.FileName); }
+        catch (Exception ex)
+        {
+            Log.Write($"пул не прочитался: {ex.Message}");
+            Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
+            return;
+        }
+
+        var (pool, duo) = PoolFile.Parse(text);
+        if (pool is null && duo is null)
+        {
+            Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
+            return;
+        }
+
+        // Безымянный пул выглядел бы пустой плиткой — подписываем именем файла.
+        var name = pool?.Name ?? duo!.FriendName;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = Path.GetFileNameWithoutExtension(dlg.FileName);
+            if (pool is not null) pool.Name = name; else duo!.FriendName = name;
+        }
+
+        var a = PoolStore.Current();
+        if (pool is not null) a.Pools.Add(pool); else a.DuoPools.Add(duo!);
+        PoolStore.Persist();
+        _onChange();
+        Refresh();
+        Confirm.Tell(this, Loc.T("pool.importFile"), Loc.T("pool.imported", name));
     }
 
     // Сделать пул активным (звёздочка). Повторный клик по активному — снять выбор
@@ -510,6 +583,9 @@ sealed class PoolEditorWindow : Window
         _nameBox.TextChanged += (_, _) => { _name = _nameBox.Text; _dirty = true; };
 
         var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var export = ActionBtn(Loc.T("pool.export"));
+        export.Click += (_, _) => Export();
+        btns.Children.Add(export);
         var back = ActionBtn(Loc.T("pool.back"));
         back.Click += (_, _) => Back();
         var reset = ActionBtn(Loc.T("pool.reset"));
@@ -892,6 +968,37 @@ sealed class PoolEditorWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         b.MouseLeftButtonUp += (_, _) => add();
         return b;
+    }
+
+    // Выгрузить пул в файл — чтобы отдать напарнику. Выгружаем то, что сейчас
+    // НА ЭКРАНЕ, вместе с несохранёнными правками: человек отдаёт то, что видит,
+    // и объяснять ему разницу между показанным и записанным незачем.
+    private void Export()
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = PoolFile.SuggestName(_name),
+            DefaultExt = PoolFile.Extension,
+            Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        var json = _duo
+            ? PoolFile.Export(new DuoPool
+            {
+                FriendName = _name, Mine = Clone(_mine), Friend = Clone(_friend),
+                Manual = _manual,
+                // Пустые заготовки связок наружу не отдаём — как и при сохранении.
+                ManualPairs = _manualPairs.Where(p => p.Mine != 0 || p.Friend != 0).ToList(),
+            })
+            : PoolFile.Export(new ChampPool { Name = _name, ByRole = Clone(_mine) });
+
+        try { File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8); }
+        catch (Exception ex)
+        {
+            Log.Write($"пул не выгрузился: {ex.Message}");
+            Confirm.Tell(this, Loc.T("pool.export"), Loc.T("pool.exportBad"));
+        }
     }
 
     // ── Действия (с подтверждением) ──────────────────────────────────────────
@@ -1514,5 +1621,29 @@ static class Confirm
         dlg.Content = PoolUi.Chrome(dlg, title, sp);
         dlg.ShowDialog();
         return ok;
+    }
+
+    /// <summary>Сообщение с одной кнопкой: «получилось» / «файл не подошёл».</summary>
+    public static void Tell(Window owner, string title, string message)
+    {
+        var dlg = new Window
+        {
+            Title = title, Width = 380, SizeToContent = SizeToContent.Height, Owner = owner,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new SolidColorBrush(PoolSettingsWindow.Bg)
+        };
+        PoolUi.Apply(dlg);
+        var sp = new StackPanel { Margin = new Thickness(16) };
+        sp.Children.Add(new TextBlock
+        {
+            Text = message, Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+            TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 18, Margin = new Thickness(0, 0, 0, 14)
+        });
+        var ok = PoolUi.Btn(Loc.T("pool.close"));
+        ok.HorizontalAlignment = HorizontalAlignment.Right;
+        ok.Click += (_, _) => dlg.Close();
+        sp.Children.Add(ok);
+        dlg.Content = PoolUi.Chrome(dlg, title, sp);
+        dlg.ShowDialog();
     }
 }

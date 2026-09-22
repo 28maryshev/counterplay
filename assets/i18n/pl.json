@@ -459,7 +459,12 @@
     "myWinratesEmpty": "Brak zapisanych gier — zagraj z uruchomionym Counterplay, a winrate pojawi się tutaj.",
     "myChamps30d": "Winrate · ostatnie 30 dni",
     "addSelected": "Dodaj ({0})",
-    "cancel": "Anuluj"
+    "cancel": "Anuluj",
+    "export": "Eksport",
+    "importFile": "Wczytaj pulę",
+    "importBad": "Plik nie pasuje — nie pochodzi z Counterplay albo jest uszkodzony",
+    "imported": "Pula „{0}” wczytana",
+    "exportBad": "Nie udało się zapisać pliku — wybierz inny folder i spróbuj ponownie"
   },
   "phaseState": {
     "none": "Gotowe",
