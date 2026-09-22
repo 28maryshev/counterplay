@@ -372,13 +372,7 @@ sealed class PoolSettingsWindow : Window
 
     private void ImportFromFile(bool intoDuo)
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog
-        {
-            DefaultExt = PoolFile.Extension,
-            Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}|JSON (*.json)|*.json",
-        };
-        if (dlg.ShowDialog(this) != true) return;
-        if (PoolImport.Load(this, dlg.FileName, intoDuo)) { _onChange(); Refresh(); }
+        if (PoolShare.Receive(this, intoDuo)) { _onChange(); Refresh(); }
     }
 
     // Сделать пул активным (звёздочка). Повторный клик по активному — снять выбор
@@ -1028,14 +1022,6 @@ sealed class PoolEditorWindow : Window
             return;
         }
 
-        var dlg = new Microsoft.Win32.SaveFileDialog
-        {
-            FileName = PoolFile.SuggestName(_name),
-            DefaultExt = PoolFile.Extension,
-            Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}",
-        };
-        if (dlg.ShowDialog(this) != true) return;
-
         var json = _duo
             ? PoolFile.Export(new DuoPool
             {
@@ -1046,19 +1032,9 @@ sealed class PoolEditorWindow : Window
             })
             : PoolFile.Export(new ChampPool { Name = _name, ByRole = Clone(_mine) });
 
-        try
-        {
-            File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8);
-            // Раньше после сохранения не происходило ВИДИМО ничего, и это было не
-            // отличить от сбоя — тем более что поверх успевал мелькнуть системный
-            // вопрос «файл уже есть, заменить?».
-            Confirm.Tell(this, Loc.T("pool.export"), Loc.T("pool.exported", Path.GetFileName(dlg.FileName)));
-        }
-        catch (Exception ex)
-        {
-            Log.Write($"пул не выгрузился: {ex.Message}");
-            Confirm.Tell(this, Loc.T("pool.export"), Loc.T("pool.exportBad"));
-        }
+        // Сначала код: строку можно просто кинуть в мессенджер, а файл нужен не
+        // всегда — он теперь за кнопкой в том же окне.
+        PoolShare.Show(this, json, PoolFile.SuggestName(_name));
     }
 
     // Окно выбора чемпионов — тоже не модальное (чтобы окна под ним двигались),
@@ -1795,6 +1771,207 @@ static class PoolUi
 }
 
 /// <summary>
+/// Обмен пулом: код строкой или файл.
+///
+/// Файл удобен не везде — в мессенджере проще кинуть строку. Поэтому «Экспорт»
+/// открывает окно с готовым кодом (клик по полю — в буфер обмена), а файл
+/// остаётся кнопкой в том же окне. На приёме всё зеркально: поле для кода и
+/// кнопка «открыть файл».
+/// </summary>
+static class PoolShare
+{
+    /// <summary>Окно отдачи: код сверху, файл снизу.</summary>
+    public static void Show(Window owner, string json, string suggestedFile)
+    {
+        var code = PoolFile.ToCode(json);
+
+        var dlg = Frame(owner, Loc.T("pool.export"), out var body);
+
+        body.Children.Add(Hint(Loc.T("pool.shareCodeHint")));
+
+        // Поле с кодом. Только на чтение: править код руками незачем, а вот
+        // случайно затереть — легко.
+        var box = new TextBox
+        {
+            Text = code, IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
+            Height = 92, FontSize = 11, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            // Код длинный, и целиком он не нужен: показываем начало, остальное
+            // уезжает за край. Копируется всё равно весь.
+            VerticalContentAlignment = VerticalAlignment.Top,
+        };
+
+        // Подсказка посередине поля — она же сообщает об успехе.
+        var tip = new TextBlock
+        {
+            Text = Loc.T("pool.copyCode"), FontSize = 12, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xEB, 0xD6, 0xA8)),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            TextAlignment = TextAlignment.Center, IsHitTestVisible = false, Opacity = 0,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            { Color = Colors.Black, BlurRadius = 8, ShadowDepth = 0, Opacity = 1 },
+        };
+        var veil = new Border
+        {
+            // Плотная: при 0xCC код просвечивал сквозь подсказку и мешал её читать.
+            Background = new SolidColorBrush(Color.FromArgb(0xF2, 0x0F, 0x18, 0x22)),
+            CornerRadius = new CornerRadius(5), IsHitTestVisible = false, Opacity = 0,
+        };
+
+        var stack = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        stack.Children.Add(box);
+        stack.Children.Add(veil);
+        stack.Children.Add(tip);
+        body.Children.Add(stack);
+
+        box.MouseEnter += (_, _) => { veil.Opacity = 1; tip.Opacity = 1; };
+        box.MouseLeave += (_, _) =>
+        {
+            veil.Opacity = 0; tip.Opacity = 0;
+            tip.Text = Loc.T("pool.copyCode");   // вернуть подсказку к исходной
+        };
+        box.PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            e.Handled = true;                    // не даём ставить курсор в текст
+            try
+            {
+                System.Windows.Clipboard.SetText(code);
+                tip.Text = Loc.T("pool.codeCopied");
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"код пула не скопировался: {ex.Message}");
+                tip.Text = Loc.T("pool.codeCopyBad");
+            }
+        };
+
+        var file = PoolUi.GoldBtn(Loc.T("pool.saveFile"));
+        file.Content = PoolUi.IconLabel("⭱", Loc.T("pool.saveFile"));
+        file.HorizontalAlignment = HorizontalAlignment.Stretch;
+        file.Click += (_, _) => { if (SaveToFile(dlg, json, suggestedFile)) dlg.Close(); };
+        body.Children.Add(file);
+
+        body.Children.Add(CloseRow(dlg));
+        dlg.ShowDialog();
+    }
+
+    /// <summary>Окно приёма: поле для кода или кнопка «открыть файл».</summary>
+    /// <returns>true, если пул добавлен.</returns>
+    public static bool Receive(Window owner, bool intoDuo)
+    {
+        var added = false;
+        var dlg = Frame(owner, Loc.T("pool.importFile"), out var body);
+
+        body.Children.Add(Hint(Loc.T("pool.pasteCodeHint")));
+
+        var box = new TextBox
+        {
+            Text = "", TextWrapping = TextWrapping.Wrap, Height = 92, FontSize = 11,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        body.Children.Add(box);
+
+        var load = PoolUi.Btn(Loc.T("pool.loadCode"));
+        load.HorizontalAlignment = HorizontalAlignment.Stretch;
+        load.IsEnabled = false;
+        load.Margin = new Thickness(0, 0, 0, 12);
+        // Кнопка оживает, только когда в поле что-то похожее на код: так видно,
+        // что вставилось не то, ещё до нажатия.
+        box.TextChanged += (_, _) => load.IsEnabled = PoolFile.LooksLikeCode(box.Text);
+        load.Click += (_, _) =>
+        {
+            var json = PoolFile.FromCode(box.Text);
+            if (json is null)
+            {
+                Confirm.Tell(dlg, Loc.T("pool.importFile"), Loc.T("pool.codeBad"));
+                return;
+            }
+            if (!PoolImport.Apply(dlg, json, intoDuo, null)) return;
+            added = true;
+            dlg.Close();
+        };
+        body.Children.Add(load);
+
+        var file = PoolUi.GoldBtn(Loc.T("pool.openFile"));
+        file.Content = PoolUi.IconLabel("⭳", Loc.T("pool.openFile"));
+        file.HorizontalAlignment = HorizontalAlignment.Stretch;
+        file.Click += (_, _) =>
+        {
+            var open = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = PoolFile.Extension,
+                Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}|JSON (*.json)|*.json",
+            };
+            if (open.ShowDialog(dlg) != true) return;
+            if (!PoolImport.Load(dlg, open.FileName, intoDuo)) return;
+            added = true;
+            dlg.Close();
+        };
+        body.Children.Add(file);
+
+        body.Children.Add(CloseRow(dlg));
+        dlg.ShowDialog();
+        return added;
+    }
+
+    // ── общая обвязка окон ────────────────────────────────────────────────
+
+    private static Window Frame(Window owner, string title, out StackPanel body)
+    {
+        var dlg = new Window
+        {
+            Title = title, Width = 420, SizeToContent = SizeToContent.Height, Owner = owner,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new SolidColorBrush(PoolSettingsWindow.Bg),
+        };
+        PoolUi.Apply(dlg);
+        body = new StackPanel { Margin = new Thickness(16) };
+        dlg.Content = PoolUi.Chrome(dlg, title, body);
+        return dlg;
+    }
+
+    private static FrameworkElement Hint(string text) => new TextBlock
+    {
+        Text = text, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+        TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
+        Margin = new Thickness(0, 0, 0, 8),
+    };
+
+    private static FrameworkElement CloseRow(Window dlg)
+    {
+        var close = PoolUi.Btn(Loc.T("pool.close"));
+        close.HorizontalAlignment = HorizontalAlignment.Right;
+        close.Margin = new Thickness(0, 10, 0, 0);
+        close.Click += (_, _) => dlg.Close();
+        return close;
+    }
+
+    private static bool SaveToFile(Window owner, string json, string suggestedFile)
+    {
+        var save = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = suggestedFile,
+            DefaultExt = PoolFile.Extension,
+            Filter = $"Counterplay (*{PoolFile.Extension})|*{PoolFile.Extension}",
+        };
+        if (save.ShowDialog(owner) != true) return false;
+        try
+        {
+            File.WriteAllText(save.FileName, json, System.Text.Encoding.UTF8);
+            Confirm.Tell(owner, Loc.T("pool.export"), Loc.T("pool.exported", Path.GetFileName(save.FileName)));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"пул не выгрузился: {ex.Message}");
+            Confirm.Tell(owner, Loc.T("pool.export"), Loc.T("pool.exportBad"));
+            return false;
+        }
+    }
+}
+
+/// <summary>
 /// Загрузка пула из файла — общая для плитки в настройках и для файла,
 /// открытого двойным кликом в проводнике.
 ///
@@ -1818,7 +1995,16 @@ static class PoolImport
             Confirm.Tell(owner, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
             return false;
         }
+        return Apply(owner, text, intoDuo, Path.GetFileNameWithoutExtension(path));
+    }
 
+    /// <summary>
+    /// Разобрать и положить готовый JSON — пришёл он из файла или из кода.
+    /// <paramref name="fallbackName"/> подставляется безымянному пулу (имя файла);
+    /// у кода имени файла нет, поэтому null.
+    /// </summary>
+    public static bool Apply(Window owner, string text, bool? intoDuo, string? fallbackName)
+    {
         var (pool, duo) = PoolFile.Parse(text);
         if (pool is null && duo is null)
         {
@@ -1826,11 +2012,11 @@ static class PoolImport
             return false;
         }
 
-        // Безымянный пул выглядел бы пустой плиткой — подписываем именем файла.
+        // Безымянный пул выглядел бы пустой плиткой — подписываем чем есть.
         var name = pool?.Name ?? duo!.FriendName;
         if (string.IsNullOrWhiteSpace(name))
         {
-            name = Path.GetFileNameWithoutExtension(path);
+            name = string.IsNullOrWhiteSpace(fallbackName) ? Loc.T("pool.pool") : fallbackName!;
             if (pool is not null) pool.Name = name; else duo!.FriendName = name;
         }
 

@@ -1,4 +1,6 @@
 using System.IO;
+using System.IO.Compression;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
@@ -15,6 +17,10 @@ namespace Counterplay;
 ///
 /// Свой Id при загрузке НЕ переносится — пулу выдаётся новый. Иначе повторная
 /// загрузка того же файла затирала бы уже имеющийся пул, а не добавляла второй.
+///
+/// Тот же пул умеет ездить СТРОКОЙ (<see cref="ToCode"/>): файл удобно передать
+/// не везде, а строку можно просто кинуть в мессенджер. Строка — это тот же JSON,
+/// сжатый и переведённый в base64, с пометкой в начале.
 /// </summary>
 public static class PoolFile
 {
@@ -123,6 +129,59 @@ public static class PoolFile
         }
         return outp;
     }
+
+    // ── Код передачи: тот же пул одной строкой ──────────────────────────────
+
+    /// Пометка в начале кода: по ней отличаем свою строку от случайного текста
+    /// и оставляем себе путь к следующей версии формата.
+    private const string CodePrefix = "CP1-";
+
+    /// <summary>
+    /// Строка для передачи в мессенджере. JSON сжимаем: в нём много повторов
+    /// («top», «jungle», скобки), и без сжатия код выходил втрое длиннее — такой
+    /// в сообщение уже не хочется класть.
+    /// </summary>
+    public static string ToCode(string json)
+    {
+        var raw = Encoding.UTF8.GetBytes(json);
+        using var packed = new MemoryStream();
+        using (var gz = new GZipStream(packed, CompressionLevel.Optimal, leaveOpen: true))
+            gz.Write(raw, 0, raw.Length);
+        return CodePrefix + Convert.ToBase64String(packed.ToArray());
+    }
+
+    /// <summary>
+    /// Обратно в JSON. null — строка не наша или испорчена по дороге.
+    ///
+    /// Пробелы и переводы строк выкидываем: мессенджеры ломают длинные строки
+    /// переносами, а человек копирует «с запасом», захватывая соседние пробелы.
+    /// </summary>
+    public static string? FromCode(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return null;
+        var clean = new string(code.Where(c => !char.IsWhiteSpace(c)).ToArray());
+
+        // Код могли прислать с приписками вокруг — берём от пометки и до конца.
+        var at = clean.IndexOf(CodePrefix, StringComparison.OrdinalIgnoreCase);
+        if (at < 0) return null;
+        clean = clean[(at + CodePrefix.Length)..];
+
+        try
+        {
+            var packed = Convert.FromBase64String(clean);
+            using var input = new MemoryStream(packed);
+            using var gz = new GZipStream(input, CompressionMode.Decompress);
+            using var outp = new MemoryStream();
+            gz.CopyTo(outp);
+            // Мусор, распаковавшийся во что попало, отсеет уже Parse.
+            return Encoding.UTF8.GetString(outp.ToArray());
+        }
+        catch { return null; }
+    }
+
+    /// Похоже ли это вообще на код пула (для подсветки поля ввода).
+    public static bool LooksLikeCode(string? text) =>
+        text is not null && text.Contains(CodePrefix, StringComparison.OrdinalIgnoreCase);
 
     /// Имя файла из названия пула: «supports» → «supports.cpool». Пустое или
     /// состоящее из запрещённых символов — заменяем, иначе диалог сохранения
