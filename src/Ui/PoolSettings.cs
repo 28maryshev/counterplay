@@ -484,18 +484,25 @@ sealed class PoolSettingsWindow : Window
         return b;
     }
 
-    private void EditPool(ChampPool? existing)
-    {
-        var win = new PoolEditorWindow(existing, duo: false, _engine) { Owner = this };
-        if (win.ShowDialog() == true) _onChange();
-        Refresh();
-    }
+    private void EditPool(ChampPool? existing) => OpenEditor(new PoolEditorWindow(existing, duo: false, _engine));
+    private void EditDuo(DuoPool? existing)     => OpenEditor(new PoolEditorWindow(existing, duo: true,  _engine));
 
-    private void EditDuo(DuoPool? existing)
+    // Редактор открывается НЕ модально — иначе настройки под ним нельзя даже
+    // отодвинуть в сторону. Открыт один за раз: два окна на один и тот же пул
+    // писали бы поверх друг друга.
+    private PoolEditorWindow? _editor;
+
+    private void OpenEditor(PoolEditorWindow win)
     {
-        var win = new PoolEditorWindow(existing, duo: true, _engine) { Owner = this };
-        if (win.ShowDialog() == true) _onChange();
-        Refresh();
+        if (_editor is { IsVisible: true }) { _editor.Activate(); return; }
+        _editor = win;
+        win.Owner = this;
+        win.Closed += (_, _) =>
+        {
+            if (win.Saved) _onChange();
+            if (IsVisible) Refresh();   // закрылись вместе с настройками — обновлять нечего
+        };
+        win.Show();
     }
 
     private void DeletePool(ChampPool p)
@@ -512,9 +519,16 @@ sealed class PoolSettingsWindow : Window
 }
 
 /// <summary>Редактор одного пула (обычного или дуо). Работает на КОПИИ — Назад/Сброс
-/// не трогают исходные данные, пока не нажали Сохранить (с подтверждением).</summary>
+/// не трогают исходные данные, пока не нажали Сохранить (с подтверждением).
+///
+/// Окно НЕ модальное: модальное запирает всё приложение, и настройки под ним
+/// нельзя было даже отодвинуть, чтобы заглянуть в то, что оно закрыло. Отсюда
+/// собственный флаг «сохранили» вместо DialogResult — он есть только у диалога.</summary>
 sealed class PoolEditorWindow : Window
 {
+    /// Нажали «Сохранить» (для владельца — обновить кнопки/слот пула).
+    public bool Saved { get; private set; }
+
     private readonly bool _duo;
     private readonly RecommendationEngine? _engine;
     private readonly ChampPool? _srcPool;
@@ -799,11 +813,9 @@ sealed class PoolEditorWindow : Window
         var zero = new Thickness(0);
         FrameworkElement tile = id != 0
             ? ChampIcon(id, () => setChamp(0), DuoSlot, zero)
-            : PlusChamp(() =>
-              {
-                  var pick = new ChampionPickerWindow(_names, _idByName, Array.Empty<int>(), _engine) { Owner = this };
-                  if (pick.ShowDialog() == true && pick.Result > 0) setChamp(pick.Result);
-              }, DuoSlot, zero);
+            : PlusChamp(() => OpenPicker(
+                  new ChampionPickerWindow(_names, _idByName, Array.Empty<int>(), _engine),
+                  pick => { if (pick.Result > 0) setChamp(pick.Result); }), DuoSlot, zero);
         wrap.Children.Add(tile);
         if (id != 0 && setRole != null) wrap.Children.Add(RoleCombo(role, setRole));
         return wrap;
@@ -875,16 +887,19 @@ sealed class PoolEditorWindow : Window
             foreach (var id in list.ToList())
                 chips.Children.Add(ChampWithWr(id, () => { list.Remove(id); _dirty = true; RefreshChips(); }));
             // Квадратная «+» того же размера, что иконка — не пропадает.
-            chips.Children.Add(PlusChamp(() =>
-            {
-                // Пул набирают пачкой, поэтому здесь выбор множественный.
-                var pick = new ChampionPickerWindow(_names, _idByName, list, _engine, multi: true) { Owner = this };
-                if (pick.ShowDialog() != true) return;
-                var added = 0;
-                foreach (var id in pick.Results)
-                    if (!list.Contains(id)) { list.Add(id); added++; }
-                if (added > 0) { _dirty = true; RefreshChips(); }
-            }));
+            // Пул набирают пачкой, поэтому здесь выбор множественный.
+            chips.Children.Add(PlusChamp(() => OpenPicker(
+                new ChampionPickerWindow(_names, _idByName, list, _engine, multi: true),
+                pick =>
+                {
+                    var added = 0;
+                    foreach (var id in pick.Results)
+                        if (!list.Contains(id)) { list.Add(id); added++; }
+                    // Перерисовываем всё тело, а не одну строку: пока окно выбора
+                    // было открыто, редактор могли перерисовать, и та строка уже
+                    // не та, что на экране.
+                    if (added > 0) { _dirty = true; RenderBody(); }
+                })));
         }
         RefreshChips();
         return row;
@@ -1008,11 +1023,24 @@ sealed class PoolEditorWindow : Window
         }
     }
 
+    // Окно выбора чемпионов — тоже не модальное (чтобы окна под ним двигались),
+    // и потому открыто одно за раз, а результат читаем после закрытия.
+    private ChampionPickerWindow? _picker;
+
+    private void OpenPicker(ChampionPickerWindow win, Action<ChampionPickerWindow> done)
+    {
+        if (_picker is { IsVisible: true }) { _picker.Activate(); return; }
+        _picker = win;
+        win.Owner = this;
+        win.Closed += (_, _) => { if (IsVisible) done(win); };
+        win.Show();
+    }
+
     // ── Действия (с подтверждением) ──────────────────────────────────────────
     private void Back()
     {
         if (_dirty && !Confirm.Ask(this, Loc.T("pool.back"), Loc.T("pool.confirmBack"))) return;
-        DialogResult = false; Close();
+        Close();
     }
 
     private void Reset()
@@ -1039,17 +1067,20 @@ sealed class PoolEditorWindow : Window
             d.ManualPairs = _manualPairs.Where(p => p.Mine != 0 || p.Friend != 0)
                                         .Select(p => new ManualDuoPair { Mine = p.Mine, MineRole = p.MineRole,
                                                                          Friend = p.Friend, FriendRole = p.FriendRole }).ToList();
-            if (_srcDuo == null) a.DuoPools.Add(d);
+            // Не только новый: окно больше не модальное, и пул могли удалить из
+            // списка, пока он открыт здесь. Сохранение возвращает его на место.
+            if (!a.DuoPools.Contains(d)) a.DuoPools.Add(d);
         }
         else
         {
             var p = _srcPool ?? new ChampPool();
             p.Name  = _name;
             p.ByRole = Clone(_mine);
-            if (_srcPool == null) a.Pools.Add(p);
+            if (!a.Pools.Contains(p)) a.Pools.Add(p);
         }
         PoolStore.Persist();
-        DialogResult = true; Close();
+        Saved = true;
+        Close();
     }
 
     private static Dictionary<string, List<int>> Clone(Dictionary<string, List<int>> src) =>
@@ -1130,7 +1161,7 @@ sealed class ChampionPickerWindow : Window
             var cancel = PoolUi.Btn(Loc.T("pool.cancel"));
             cancel.Margin = new Thickness(0, 0, 8, 0);
             cancel.MinWidth = 90;
-            cancel.Click += (_, _) => { DialogResult = false; Close(); };
+            cancel.Click += (_, _) => Close();
             _addBtn = PoolUi.Btn("");
             _addBtn.MinWidth = 120;
             _addBtn.IsDefault = true;
@@ -1140,8 +1171,7 @@ sealed class ChampionPickerWindow : Window
             _addBtn.Foreground = Brushes.White;
             _addBtn.Click += (_, _) =>
             {
-                Results.AddRange(_picked);
-                DialogResult = true;
+                Results.AddRange(_picked);   // пусто = отменили или закрыли крестиком
                 Close();
             };
             bar.Children.Add(cancel);
@@ -1263,7 +1293,7 @@ sealed class ChampionPickerWindow : Window
         if (!_multi)
         {
             b.Child = sp;
-            b.MouseLeftButtonUp += (_, _) => { Result = id; DialogResult = true; Close(); };
+            b.MouseLeftButtonUp += (_, _) => { Result = id; Close(); };
             return b;
         }
 
