@@ -245,8 +245,12 @@ internal static class Program
         return Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r);
     }
 
-    /// Наигранный чемпион уже получает «комфорт» по мастерству. Пул не должен
-    /// добавляться сверху — иначе мейн из пула улетал бы вверх дважды.
+    /// <summary>
+    /// Наигранность и дуо. Проверяем три вещи сразу:
+    ///  • «комфорт» по мастерству не складывается с флором пула — берётся максимум;
+    ///  • в дуо-пуле всё ровно так же, как в обычном (и для новичка, и для мейна);
+    ///  • половина ДРУГА никакой прибавки не получает — это не мои кандидаты.
+    /// </summary>
     private static void MasteryCheck(RecommendationEngine engine)
     {
         var state = Draft("utility", [], []);
@@ -254,19 +258,51 @@ internal static class Program
                     .OrderByDescending(r => r.Score).ToList();
         if (plain.Count < 20) { Console.WriteLine("наигранность: мало кандидатов — пропускаю"); return; }
 
-        var main = plain[15].ChampionId;                       // кандидат из середины
-        var bak  = engine.Mastery;
+        var main   = plain[15].ChampionId;   // на нём будет мастерство
+        var plain2 = plain[16].ChampionId;   // а этот без мастерства
+        var mateId = plain[17].ChampionId;   // половина друга
+        var bak    = engine.Mastery;
         try
         {
             engine.Mastery = new Dictionary<int, long> { [main] = 400_000 };   // глубокий мейн
-            var masteryOnly = Scored(engine, state, "support", null, false)[main];
-            var both = Scored(engine, state, "support", [main], duo: false)[main];
+            var baseline = Scored(engine, state, "support", null, false);
 
-            Console.WriteLine($"наигранность: комфорт мейна {masteryOnly.ComfortDelta:F2}, "
-                              + $"он же в пуле {both.ComfortDelta:F2}");
+            var poolMain = Scored(engine, state, "support", [main], duo: false)[main];
+            var duoMain  = Scored(engine, state, "support", [main], duo: true)[main];
+            var poolNew  = Scored(engine, state, "support", [plain2], duo: false)[plain2];
+            var duoNew   = Scored(engine, state, "support", [plain2], duo: true)[plain2];
+
+            Console.WriteLine($"наигранность: комфорт мейна {baseline[main].ComfortDelta:F2}, "
+                              + $"он же в пуле {poolMain.ComfortDelta:F2}, в дуо {duoMain.ComfortDelta:F2}");
+            Console.WriteLine($"без наигранности: вне пула {baseline[plain2].ComfortDelta:F2}, "
+                              + $"в пуле {poolNew.ComfortDelta:F2}, в дуо {duoNew.ComfortDelta:F2}");
+
             Check("пул не добавляется поверх наигранности",
-                  Math.Abs(both.ComfortDelta - masteryOnly.ComfortDelta) < 1e-9,
-                  $"{masteryOnly.ComfortDelta:F2} → {both.ComfortDelta:F2}");
+                  Math.Abs(poolMain.ComfortDelta - baseline[main].ComfortDelta) < 1e-9,
+                  $"{baseline[main].ComfortDelta:F2} → {poolMain.ComfortDelta:F2}");
+            Check("дуо усиливает мейна так же, как обычный пул",
+                  Math.Abs(duoMain.ComfortDelta - poolMain.ComfortDelta) < 1e-9, "");
+            Check("дуо усиливает ненаигранного так же, как обычный пул",
+                  Math.Abs(duoNew.ComfortDelta - poolNew.ComfortDelta) < 1e-9,
+                  $"{poolNew.ComfortDelta:F2} и {duoNew.ComfortDelta:F2}");
+
+            // Половина друга: кладём чемпиона ТОЛЬКО в набор друга.
+            var a = PoolStore.Current();
+            a.Pools.Clear(); a.DuoPools.Clear();
+            a.DuoPools.Add(new DuoPool
+            {
+                Id = "t", FriendName = "t",
+                Mine   = new() { ["support"] = [plain2] },
+                Friend = new() { ["support"] = [mateId] },
+            });
+            a.ActiveKind = PoolKind.Duo; a.ActiveId = "t";
+            var withFriend = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r);
+
+            Console.WriteLine($"половина друга: комфорт {withFriend[mateId].ComfortDelta:F2} "
+                              + $"(вне пула было {baseline[mateId].ComfortDelta:F2})");
+            Check("чемпион из половины ДРУГА прибавки не получает",
+                  Math.Abs(withFriend[mateId].Score - baseline[mateId].Score) < 1e-9,
+                  $"{baseline[mateId].Score:F2} → {withFriend[mateId].Score:F2}");
         }
         finally { engine.Mastery = bak; }
     }
