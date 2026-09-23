@@ -51,6 +51,12 @@ echo "cron_backup=$(crontab -l 2>/dev/null | grep -c backup-collector.sh)"
 echo "cron_watch=$(crontab -l 2>/dev/null | grep -c site_watch.sh)"
 echo "cron_cleanup=$(crontab -l 2>/dev/null | grep -c cleanup.sh)"
 echo "backup_last=$(grep 'готово. занято' backup.log 2>/dev/null | tail -1 | cut -c1-10)"
+# Сторож патчей: что он помнит. Цикл патча начинается с него, и молчащий сторож
+# внешне неотличим от «патча не было».
+echo "patch_seen=$(docker exec counterplay-bot node -e '
+  const { kvGet } = require("/app/db/botDb");
+  process.stdout.write([kvGet("patchwatch_last_official"), kvGet("patchwatch_last_ready")].join("/"));
+' 2>/dev/null)"
 # Простой: последние снимки журнала эксплуатации. Если счётчик не двигался, а
 # состояние collecting — сбор встал, сколько бы бодро ни выглядел статус.
 python3 - <<'PY' 2>/dev/null
@@ -102,6 +108,21 @@ else
   [ "$(val "$R" key_present)" = 1 ] && ok "ключ Riot на месте" \
     || { [ "$st" = waiting_key ] && warn "ключа нет — демон ждёт новый (/collect key:…)" \
          || ok "ключа нет (и не нужен: $st)"; }
+
+  # Сторож патчей. Номер у Riot берём сами — так проверка не зависит от бота.
+  seen=$(val "$R" patch_seen)
+  live=$(curl -fsS --max-time 10 https://ddragon.leagueoflegends.com/api/versions.json 2>/dev/null \
+         | sed -n 's/^\[\"\([0-9]*\.[0-9]*\)\..*/\1/p' | head -1)
+  seen_official=${seen%%/*}
+  if [ -z "$seen_official" ] || [ "$seen_official" = null ]; then
+    warn "сторож патчей ничего не помнит — первый прогон ещё не случился"
+  elif [ -z "$live" ]; then
+    warn "Data Dragon не ответил — номер патча не проверить"
+  elif [ "$seen_official" = "$live" ]; then
+    ok "патч: у Riot $live, сторож знает (готов: ${seen#*/})"
+  else
+    warn "патч: у Riot $live, а сторож помнит $seen_official — объявление в течение часа (:45 UTC)"
+  fi
 
   free=$(val "$R" disk_free_gb)
   if   [ "${free:-0}" -lt 3 ]; then bad "диск: свободно ${free} ГБ — публикация не влезет"
