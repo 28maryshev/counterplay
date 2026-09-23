@@ -302,18 +302,24 @@ if ($Upload) {
   # Проверяем РЕЗУЛЬТАТ, а не код возврата: при той же неполадке с листингом gh
   # возвращает ошибку, хотя фид обновлён. Ложная тревога тут дороже пропуска —
   # из-за неё релиз выглядит сломанным и его начинают пересоздавать.
-  # Пробуем НЕСКОЛЬКО раз: заливка на стороне GitHub не мгновенна, и одно чтение
-  # сразу после неё — не доказательство. Первый выпуск с этой проверкой уронил
-  # релиз именно так: фид был верный, а прочитали его слишком рано.
+  # Проверяем через API, а не по ссылке на файл. Ссылка вида
+  # releases/download/latest/RELEASES ведёт через редирект на подписанный адрес,
+  # и ответ оттуда отдаётся из кэша: после замены файла там ещё минутами лежит
+  # ПРЕЖНЕЕ содержимое. Хвост-пустышка в адресе до того кэша не достаёт — на этом
+  # проверка дважды роняла исправный выпуск. API отдаёт файл без посредников.
+  $relId = $null
+  foreach ($pg in 1..4) {
+    $page = gh api "repos/28maryshev/counterplay/releases/$latestId/assets?per_page=100&page=$pg" 2>$null | ConvertFrom-Json
+    if (-not $page -or $page.Count -eq 0) { break }
+    $hit = $page | Where-Object { $_.name -eq "RELEASES" } | Select-Object -First 1
+    if ($hit) { $relId = $hit.id; break }
+  }
+
   $check = ""
   foreach ($try in 1..6) {
-    try {
-    # Хвост в адресе обязателен: ссылка на файл релиза отдаётся через кэш CDN, и
-    # сразу после замены оттуда ещё минуту приходит ПРЕЖНЕЕ содержимое. Без этого
-    # проверка ругалась бы на исправный фид.
-    $check = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
-        "https://github.com/28maryshev/counterplay/releases/download/latest/RELEASES?cb=$([guid]::NewGuid())").Content
-    } catch { }
+    if ($relId) {
+      $check = (gh api "repos/28maryshev/counterplay/releases/assets/$relId" -H "Accept: application/octet-stream" 2>$null) -join "`n"
+    }
     if ($check -match [regex]::Escape("Counterplay-$Version-full.nupkg")) { break }
     if ($try -lt 6) { Start-Sleep -Seconds 5 }
   }
