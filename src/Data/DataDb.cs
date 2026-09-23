@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
@@ -139,7 +140,24 @@ public static class DataDb
 
             var label = haveDb ? Loc.T("status.updatingDb") : Loc.T("status.downloadingDb");
             progress?.Invoke(label, 0);
-            await DownloadAsync(DataUrlFor(bucket), label, progress, ct);
+
+            // Сперва сжатая база: она втрое с лишним меньше (112 МБ против 32 у
+            // изумруда), а маршрут до GitHub из России гуляет от 0.4 до 6 МБ/с —
+            // на плохой минуте это разница между полуминутой и тремя.
+            // Распаковка занимает секунды и на фоне скачивания незаметна.
+            var url = DataUrlFor(bucket);
+            try
+            {
+                await DownloadAsync(url + ".gz", label, progress, ct, gzipped: true);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Сжатой нет (старый дата-релиз) или она не скачалась — берём
+                // обычную. Так обновление программы не зависит от того, успел ли
+                // пайплайн выложить новый файл.
+                Log.Write($"сжатая база не далась ({ex.Message}) — качаю обычную");
+                await DownloadAsync(url, label, progress, ct);
+            }
 
             if (wantedTag is not null)
                 await File.WriteAllTextAsync(LocalVersionPath, wantedTag, ct);
@@ -183,7 +201,8 @@ public static class DataDb
     // готовые куски остаются на диске.
     private const int ChunkSize = 16 * 1024 * 1024;
 
-    private static async Task DownloadAsync(string url, string label, Action<string, double>? progress, CancellationToken ct)
+    private static async Task DownloadAsync(string url, string label, Action<string, double>? progress,
+                                            CancellationToken ct, bool gzipped = false)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
@@ -262,7 +281,25 @@ public static class DataDb
         Report(done, force: true);
         Log.Write($"база скачана: {done / 1048576.0:0} МБ за {sw.Elapsed.TotalSeconds:0.0} с " +
                   $"({FormatSpeed(done / Math.Max(0.001, sw.Elapsed.TotalSeconds))}, " +
-                  $"{(ranges && total > ChunkSize ? "кусками" : "одним потоком")})");
+                  $"{(ranges && total > ChunkSize ? "кусками" : "одним потоком")}" +
+                  $"{(gzipped ? ", сжатая" : "")})");
+
+        if (gzipped)
+        {
+            // Распаковываем в СОСЕДНИЙ файл и только потом подменяем боевой: если
+            // архив побился по дороге, рабочая база останется прежней.
+            var raw = LocalPath + ".raw";
+            var unz = Stopwatch.StartNew();
+            await using (var src = File.OpenRead(tmp))
+            await using (var gz  = new GZipStream(src, CompressionMode.Decompress))
+            await using (var dst = File.Create(raw))
+                await gz.CopyToAsync(dst, ct);
+            File.Delete(tmp);
+            Log.Write($"база распакована: {new FileInfo(raw).Length / 1048576.0:0} МБ "
+                      + $"за {unz.Elapsed.TotalSeconds:0.0} с");
+            tmp = raw;
+        }
+
         File.Move(tmp, LocalPath, overwrite: true);
     }
 }

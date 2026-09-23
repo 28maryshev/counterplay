@@ -22,8 +22,10 @@ drafts/processed_matches и таблицы рун движку не нужны. 
 
 import argparse
 import hashlib
+import gzip
 import json
 import os
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -239,6 +241,36 @@ def _asset_id(s: requests.Session, release_id: int, name: str):
     return None
 
 
+def gzip_file(src: Path) -> Path:
+    """Сжать рядом, вернуть путь к архиву.
+
+    База сжимается в 3.5 раза (112 МБ изумруда -> 32 МБ), а маршрут до GitHub из
+    России гуляет от 0.4 до 6 МБ/с: на плохой минуте это разница между
+    полуминутой и тремя. Уровень 6 — обычный компромисс, 9 даёт единицы
+    процентов за втрое большее время.
+
+    mtime обнуляем: иначе каждый прогон давал бы новый архив при том же
+    содержимом, и GitHub заливал бы 32 МБ впустую.
+    """
+    dst = src.with_suffix(src.suffix + '.gz')
+    with open(src, 'rb') as fi, gzip.GzipFile(dst, 'wb', compresslevel=6, mtime=0) as fo:
+        shutil.copyfileobj(fi, fo, 1024 * 1024)
+    return dst
+
+
+def upload_gz(s: requests.Session, release_id: int, path: Path, name: str):
+    """Сжать, залить и СРАЗУ убрать архив.
+
+    На сервере коллектора памяти 256 МБ и место на диске на счету, а во временной
+    папке уже лежат полный снапшот, тонкая база и четыре побакетных.
+    """
+    gz = gzip_file(path)
+    try:
+        upload_asset(s, release_id, gz, name + '.gz')
+    finally:
+        gz.unlink(missing_ok=True)
+
+
 def upload_asset(s: requests.Session, release_id: int, path: Path, name: str):
     """Заливает ассет, снося прежний с тем же именем (--clobber у gh).
 
@@ -306,9 +338,14 @@ def publish(db_path: str, token: str) -> dict:
         # Заливка.
         s = _session(token)
         rid = ensure_release(s)
+        # Обычные файлы обязательны: по ним качают ВЫПУЩЕННЫЕ до сжатия версии
+        # программы. Сжатые кладём рядом — свежая программа берёт их, а если
+        # почему-то не вышло, откатывается на обычные.
         upload_asset(s, rid, slim, 'data.db')
+        upload_gz(s, rid, slim, 'data.db')
         for b, bf in bucket_files.items():
             upload_asset(s, rid, bf, f'data-{b}.db')
+            upload_gz(s, rid, bf, f'data-{b}.db')
         upload_asset(s, rid, vfile, 'data-version.json')
 
         manifest['slim_mb'] = round(slim.stat().st_size / 1e6, 1)
