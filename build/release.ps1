@@ -302,14 +302,21 @@ if ($Upload) {
   # Проверяем РЕЗУЛЬТАТ, а не код возврата: при той же неполадке с листингом gh
   # возвращает ошибку, хотя фид обновлён. Ложная тревога тут дороже пропуска —
   # из-за неё релиз выглядит сломанным и его начинают пересоздавать.
+  # Пробуем НЕСКОЛЬКО раз: заливка на стороне GitHub не мгновенна, и одно чтение
+  # сразу после неё — не доказательство. Первый выпуск с этой проверкой уронил
+  # релиз именно так: фид был верный, а прочитали его слишком рано.
   $check = ""
-  try {
+  foreach ($try in 1..6) {
+    try {
     # Хвост в адресе обязателен: ссылка на файл релиза отдаётся через кэш CDN, и
     # сразу после замены оттуда ещё минуту приходит ПРЕЖНЕЕ содержимое. Без этого
     # проверка ругалась бы на исправный фид.
     $check = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
-      "https://github.com/28maryshev/counterplay/releases/download/latest/RELEASES?cb=$([guid]::NewGuid())").Content
-  } catch { }
+        "https://github.com/28maryshev/counterplay/releases/download/latest/RELEASES?cb=$([guid]::NewGuid())").Content
+    } catch { }
+    if ($check -match [regex]::Escape("Counterplay-$Version-full.nupkg")) { break }
+    if ($try -lt 6) { Start-Sleep -Seconds 5 }
+  }
   if ($check -notmatch [regex]::Escape("Counterplay-$Version-full.nupkg")) {
     throw "the 'latest' feed does not advertise $Version - auto-update will not see it"
   }
