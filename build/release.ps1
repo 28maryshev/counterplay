@@ -278,6 +278,24 @@ if ($Upload) {
   $feed += @(Get-ChildItem "Releases" -File | Where-Object { $_.Name -like "Counterplay-$Version-*.nupkg" })
   if ($feed.Count -lt 2) { throw "feed files for v$Version not found (is the release published?)" }
 
+  # Старые файлы фида убираем ПО ИДЕНТИФИКАТОРУ, а не ключом --clobber. При той
+  # же неполадке со списком (объект релиза приходит без файлов) --clobber не
+  # находит, что удалять, и молча оставляет прежний RELEASES — фид продолжает
+  # обещать позапрошлую версию, а обновление её и ставит.
+  $latestId = gh api "repos/28maryshev/counterplay/releases/tags/latest" --jq ".id" 2>$null
+  if ($latestId) {
+    $names = @($feed.Name)
+    foreach ($pg in 1..4) {
+      $page = gh api "repos/28maryshev/counterplay/releases/$latestId/assets?per_page=100&page=$pg" 2>$null | ConvertFrom-Json
+      if (-not $page -or $page.Count -eq 0) { break }
+      foreach ($a in $page) {
+        if ($names -contains $a.name) {
+          gh api -X DELETE "repos/28maryshev/counterplay/releases/assets/$($a.id)" 2>$null | Out-Null
+        }
+      }
+    }
+  }
+
   gh release upload latest @($feed.FullName) --clobber 2>$null
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 
@@ -286,8 +304,11 @@ if ($Upload) {
   # из-за неё релиз выглядит сломанным и его начинают пересоздавать.
   $check = ""
   try {
+    # Хвост в адресе обязателен: ссылка на файл релиза отдаётся через кэш CDN, и
+    # сразу после замены оттуда ещё минуту приходит ПРЕЖНЕЕ содержимое. Без этого
+    # проверка ругалась бы на исправный фид.
     $check = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
-      "https://github.com/28maryshev/counterplay/releases/download/latest/RELEASES").Content
+      "https://github.com/28maryshev/counterplay/releases/download/latest/RELEASES?cb=$([guid]::NewGuid())").Content
   } catch { }
   if ($check -notmatch [regex]::Escape("Counterplay-$Version-full.nupkg")) {
     throw "the 'latest' feed does not advertise $Version - auto-update will not see it"
