@@ -312,7 +312,14 @@ public sealed class RecommendationEngine : IDisposable
         // первые дни нового патча рекомендации шумят. Держим предыдущий (полный)
         // патч, пока новый не покроет >= HOLD_FRACTION пар. Синхронно с
         // pipeline/freshness.py и ботом (bot/lib/freshness.js).
-        if (patches.Count >= 2 && !PatchReady(db, patches[0], patches[1]))
+        // Бакет, в котором можно мерить готовность патча. Побакетная база содержит
+        // ТОЛЬКО свой бакет, а проверка раньше всегда смотрела в «emerald» — и у
+        // всех, кроме изумруда, читала нули. Ноль у ПРОШЛОГО патча означает «делить
+        // не на что», то есть «новый готов», и удержание молча выключалось: движок
+        // брал только что вышедший патч, где данных ещё нет. У изумруда всё
+        // работало, поэтому беда всплыла, когда человек перешёл в золото.
+        var holdBucket = BucketWithData(db, tierBucket);
+        if (patches.Count >= 2 && !PatchReady(db, patches[0], patches[1], holdBucket))
             patches.RemoveAt(0);
         if (patches.Count > PATCH_WINDOW) patches = patches.Take(PATCH_WINDOW).ToList();
         if (patches.Count == 0) patches.Add("0.0");
@@ -338,7 +345,8 @@ public sealed class RecommendationEngine : IDisposable
 
         var engine = new RecommendationEngine(db, effectiveBucket, [.. patches]);
         Log.Write($"движок: бакет {effectiveBucket}, патчи {engine.PatchDisplay}, " +
-                  $"сводка по дивизионам {(engine.HasPool ? "есть" : "нет")}");
+                  $"сводка по дивизионам {(engine.HasPool ? "есть" : "нет")}, " +
+                  $"готовность мерили по «{holdBucket}»");
         return engine;
     }
 
@@ -347,8 +355,8 @@ public sealed class RecommendationEngine : IDisposable
     private const double HOLD_FRACTION = 0.7;    // доля пар прошлого патча, покрытых новым → «готов»
     private const string HOLD_BUCKET = "emerald"; // основной бакет для оценки готовности
 
-    // Сколько «чемпион+роль» в основном бакете набрали >= HOLD_MIN_GAMES игр на патче.
-    private static int PatchCoverage(SqliteConnection db, string patch)
+    // Сколько «чемпион+роль» в заданном бакете набрали >= HOLD_MIN_GAMES игр на патче.
+    private static int PatchCoverage(SqliteConnection db, string patch, string bucket)
     {
         var c = db.CreateCommand();
         c.CommandText = @"SELECT COUNT(*) FROM (
@@ -356,15 +364,33 @@ public sealed class RecommendationEngine : IDisposable
             WHERE patch=@p AND tier_bucket=@b
             GROUP BY champion_id, role HAVING SUM(games) >= @min)";
         c.Parameters.AddWithValue("@p", patch);
-        c.Parameters.AddWithValue("@b", HOLD_BUCKET);
+        c.Parameters.AddWithValue("@b", bucket);
         c.Parameters.AddWithValue("@min", HOLD_MIN_GAMES);
         return (int)(long)(c.ExecuteScalar() ?? 0L);
     }
 
-    // Готов ли новейший патч: покрывает ли >= HOLD_FRACTION пар предыдущего патча.
-    private static bool PatchReady(SqliteConnection db, string newest, string prev)
+    /// <summary>
+    /// Бакет, по которому МОЖНО судить о готовности патча в этом файле. Сперва
+    /// свой, затем любой из запасных, затем основной. Общая база содержит все
+    /// бакеты, побакетная — один: мерить надо тот, который есть.
+    /// </summary>
+    private static string BucketWithData(SqliteConnection db, string wanted)
     {
-        int cn = PatchCoverage(db, newest), cp = PatchCoverage(db, prev);
+        var c = db.CreateCommand();
+        c.CommandText = "SELECT COUNT(*) FROM base_wr WHERE tier_bucket=@b LIMIT 1";
+        c.Parameters.AddWithValue("@b", wanted);
+        foreach (var b in new[] { wanted }.Concat(BucketFallback).Append(HOLD_BUCKET))
+        {
+            c.Parameters["@b"].Value = b;
+            if ((long)(c.ExecuteScalar() ?? 0L) > 0) return b;
+        }
+        return HOLD_BUCKET;
+    }
+
+    // Готов ли новейший патч: покрывает ли >= HOLD_FRACTION пар предыдущего патча.
+    private static bool PatchReady(SqliteConnection db, string newest, string prev, string bucket)
+    {
+        int cn = PatchCoverage(db, newest, bucket), cp = PatchCoverage(db, prev, bucket);
         return cp <= 0 || (double)cn / cp >= HOLD_FRACTION;
     }
 
