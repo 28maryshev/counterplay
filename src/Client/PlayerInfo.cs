@@ -5,26 +5,39 @@ namespace Counterplay;
 public static class PlayerInfo
 {
     // Читает ранг текущего игрока из LCU и возвращает бакет для data.db.
-    public static async Task<string> GetTierBucketAsync(LcuHttpClient http, CancellationToken ct)
+    /// <summary>
+    /// Бакет данных по соло-рангу. **null — прочитать не вышло**, и это НЕ то же
+    /// самое, что «нет ранга».
+    ///
+    /// Раньше на любой осечке возвращался «изумруд». Клиент после запуска отдаёт
+    /// ранговую статистику не сразу, и мы принимали молчание за изумруд: качали
+    /// изумрудную базу (112 МБ), а через минуту, когда клиент отвечал по-честному,
+    /// — свою (81 МБ). Двести мегабайт вместо восьмидесяти и двойное ожидание.
+    ///
+    /// Настоящее отсутствие ранга (новый аккаунт, сброс сезона) — это УДАЧНОЕ
+    /// чтение с пустым тиром; на него по-прежнему отвечаем «изумруд» как
+    /// серединой шкалы.
+    /// </summary>
+    public static async Task<string?> GetTierBucketAsync(LcuHttpClient http, CancellationToken ct)
     {
         var (status, body) = await http.GetAsync("/lol-ranked/v1/current-ranked-stats", ct);
-        if (status != 200) return "emerald";
+        if (status != 200) return null;
 
         try
         {
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
 
-            if (!root.TryGetProperty("queueMap", out var queueMap)) return "emerald";
-            if (!queueMap.TryGetProperty("RANKED_SOLO_5x5", out var solo)) return "emerald";
-            if (!solo.TryGetProperty("tier", out var tierEl)) return "emerald";
+            if (!root.TryGetProperty("queueMap", out var queueMap)) return null;
+            if (!queueMap.TryGetProperty("RANKED_SOLO_5x5", out var solo)) return null;
+            if (!solo.TryGetProperty("tier", out var tierEl)) return null;
 
             var tier = tierEl.GetString()?.ToUpperInvariant() ?? "";
             return TierToBucket(tier);
         }
         catch
         {
-            return "emerald";
+            return null;
         }
     }
 

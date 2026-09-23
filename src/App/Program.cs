@@ -421,14 +421,18 @@ class Program
         // показывать «ожидание клиента»).
         overlay.SetLcuReady(true);
 
-        var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct);
+        // Ранг мог ещё не прочитаться — тогда берём запомненный с прошлого раза и
+        // базу не трогаем. Раньше на его месте молча оказывался «изумруд», и
+        // программа качала чужую базу, а следом свою.
+        var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct)
+                         ?? Settings.GetString("dataBucket");
         // Запоминаем ранг для скачивания нужной базы на следующем запуске. Если
         // ранг сменился (поднялся), а на диске база ДРУГОГО одиночного бакета —
         // она не содержит его данных, поэтому подкачаем нужную сразу. Общая
         // база ("all") содержит все бакеты — до-качка не нужна.
-        Settings.Set("dataBucket", tierBucket);
+        if (tierBucket is not null) Settings.Set("dataBucket", tierBucket);
         var loaded = DataDb.CurrentBucket;
-        if (loaded is not null && loaded != "all" && loaded != tierBucket
+        if (tierBucket is not null && loaded is not null && loaded != "all" && loaded != tierBucket
             && _bucketFetched.Add(tierBucket))
             // Add() — не только проверка ранга, но и защита от петли: если
             // закачка не довела до конца (оборвалась сеть, не записался тег),
@@ -462,7 +466,10 @@ class Program
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is not null)
         {
-            engine = RecommendationEngine.Create(dbPath, tierBucket);
+            // Ранг ещё неизвестен — собираем движок на середине шкалы: без него
+            // не будет ни тир-листа, ни подбора, а прочитается ранг событием
+            // ниже, и движок пересоберётся уже под него.
+            engine = RecommendationEngine.Create(dbPath, tierBucket ?? "emerald");
             engine.Mastery = mastery;
             overlay.SetEngine(engine);   // окну настроек пула — считать WR/дельту связок
             overlay.ShowReady();
@@ -535,7 +542,15 @@ class Program
 
                 // Эло у нового аккаунта своё: и пул чемпионов, и владение
                 // чемпионами, и рекомендации считаются по нему.
-                var bucket = await PlayerInfo.GetTierBucketAsync(http, ct);
+                // Ранг ещё не прочитался — оставляем прежний бакет. Иначе на
+                // каждом старте качали бы базу «по умолчанию», а следом свою.
+                var bucket = await PlayerInfo.GetTierBucketAsync(http, ct)
+                             ?? Settings.GetString("dataBucket");
+                if (bucket is null)
+                {
+                    Log.Write("ранг ещё не читается, база подождёт до следующего события");
+                    return;
+                }
                 Settings.Set("dataBucket", bucket);
                 mastery = await PlayerInfo.GetMasteryAsync(http, ct);
                 overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));

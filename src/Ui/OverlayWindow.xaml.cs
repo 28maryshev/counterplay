@@ -55,7 +55,26 @@ public partial class OverlayWindow : Window
 
     /// Ранняя привязка движка — чтобы окно настроек пула считало WR/дельту связок
     /// ещё на экране Ready, до старта драфта (там _engine иначе ещё не выставлен).
-    public void SetEngine(RecommendationEngine engine) => _engine = engine;
+    public void SetEngine(RecommendationEngine engine) => UseEngine(engine);
+
+    /// <summary>
+    /// Поставить движок и выбросить всё, что из него посчитано.
+    ///
+    /// Тир-лист и пул роли считаются ОДИН раз и кэшируются — список статичен в
+    /// пределах патча. Но движок за сеанс меняется: скачали свежую базу, человек
+    /// перешёл в другой ранг (бакет свой у каждого). Раньше кэш при этом
+    /// оставался от прежнего движка; а если он успел посчитаться, когда данных
+    /// ещё не было, пустой список оставался до перезапуска — и тир-лист в банах
+    /// просто не показывался.
+    /// </summary>
+    private void UseEngine(RecommendationEngine? engine)
+    {
+        if (engine is null || ReferenceEquals(engine, _engine)) return;
+        _engine = engine;
+        _tierCols = null;
+        _rolePoolCells = null;
+        _rolePoolRole = "";
+    }
 
     // ── «Сохранить для драфта» (только тестовый режим) ───────────────────────
     private DispatcherTimer? _saveHintTimer;
@@ -4783,7 +4802,7 @@ public partial class OverlayWindow : Window
                       $"враги {draft.TheirTeam.Count(x => x.ChampionId > 0)}/{draft.TheirTeam.Count}, " +
                       $"{(draft.InBanPhase ? "фаза банов" : "фаза пиков")}" +
                       $"{(draft.IsAram ? ", ARAM" : "")}, кандидатов {recs?.Count ?? 0}");
-            if (engine != null) _engine = engine;
+            UseEngine(engine);
             // Подбор выключен настройкой: в драфте прячемся в трей и ничего не
             // считаем. Программа остаётся тем, ради чего её оставили, —
             // информационной панелью между играми.
@@ -4824,7 +4843,7 @@ public partial class OverlayWindow : Window
                            RecommendationEngine? engine = null) =>
         Dispatcher.InvokeAsync(() =>
         {
-            if (engine != null) _engine = engine;   // нужен тир-листу (банфаза идёт до пиков)
+            UseEngine(engine);   // нужен тир-листу (банфаза идёт до пиков)
 
             // Подбор выключен настройкой — банфаза тоже не наша: прячемся в трей.
             // Раньше проверка стояла только у пиков, и оверлей всё равно всплывал
