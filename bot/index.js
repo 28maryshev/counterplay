@@ -88,6 +88,10 @@ async function main() {
       job('duelPost', 'draftDuels', everyDays(3, 'duelPost', require('./cron/duelPost').run)), tz);
     cron.schedule('0 22 * * *', job('duelReveal', 'draftDuels', require('./cron/duelReveal').run), tz);
     cron.schedule('0 20 * * 0', job('weeklyBoard', 'draftDuels', require('./cron/weeklyBoard').run), tz);
+    // Позиции в поиске — по понедельникам: неделя к неделе в отчёте считается
+    // ровно неделями, так что смотреть его посреди недели бессмысленно.
+    // Идёт в личку владельцу, а не в канал — поэтому channelKey пустой.
+    cron.schedule('20 9 * * 1', job('seoReminder', null, require('./cron/seoReminder').run), tz);
     cron.schedule('15 * * * *', job('dataSync', null, () => dataSync.sync()), tz);
     cron.schedule('30 * * * *', job('releaseWatch', 'announcements', require('./cron/releaseWatch').run), tz);
     cron.schedule('45 * * * *', job('patchWatch', 'announcements', require('./cron/patchWatch').run), tz);
@@ -99,7 +103,7 @@ async function main() {
     cron.schedule('0 0 * * *', job('installsDaily', 'installs', require('./cron/installsDaily').run), {
       timezone: 'Europe/Kyiv'
     });
-    logger.info('cron scheduled (UTC): radar 10:00 every 2 days, duel 12:00 every 3 days, reveal 22:00, board Sun 20:00, sync+releases+patch hourly; installs summary at 00:00 Europe/Kyiv (live feed is pushed by the site)');
+    logger.info('cron scheduled (UTC): radar 10:00 every 2 days, duel 12:00 every 3 days, reveal 22:00, board Sun 20:00, SEO reminder Mon 09:20, sync+releases+patch hourly; installs summary at 00:00 Europe/Kyiv (live feed is pushed by the site)');
   });
 
   await client.login(config.token);
