@@ -63,9 +63,60 @@ public static class Telemetry
         catch { return null; }
     }
 
-    // Стабильный обезличенный идентификатор устройства: хэш MAC; если MAC нет —
-    // случайный GUID, сохранённый в %APPDATA%\Counterplay\install.id.
-    private static string DeviceId()
+    /// <summary>
+    /// Обезличенный идентификатор этого компьютера.
+    ///
+    /// ПЕРВЫМ делом смотрим сохранённый файл <c>%APPDATA%\Counterplay\install.id</c>,
+    /// и только если его нет — вычисляем (хэш MAC, иначе случайный GUID) и
+    /// сохраняем.
+    ///
+    /// Порядок был обратный, и это ломало счёт. Хэш брался от ПЕРВОГО
+    /// не-loopback и не-tunnel сетевого адаптера, а «первый» — величина
+    /// непостоянная: многие VPN-адаптеры числятся Ethernet, а не Tunnel, да и
+    /// порядок перечисления ничем не закреплён. Включили VPN, переткнули кабель,
+    /// выключили адаптер — идентификатор другой, и один и тот же компьютер
+    /// приходил как новый. В базе сайта таких строк набралось 47 из 88 (замер
+    /// 2026-09-23); в счёт установок они не попадали (сервер ловит их по дате
+    /// появления программы), но статистику активных пользователей размывали.
+    ///
+    /// Преемственность не рвётся: у тех, кто уже пользуется программой, файла
+    /// нет, при первом же запуске в него ляжет их нынешний хэш MAC — тот самый,
+    /// под которым их знает сервер.
+    /// </summary>
+    public static string DeviceId()
+    {
+        var path = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Counterplay", "install.id");
+
+        // Сохранённый идентификатор — главный источник. Мусор в файле (пустой,
+        // обрезанный) игнорируем и считаем заново: пустой id сервер всё равно
+        // отвергнет, и компьютер выпадет из статистики целиком.
+        try
+        {
+            if (File.Exists(path))
+            {
+                var saved = File.ReadAllText(path).Trim();
+                if (saved.Length is >= 6 and <= 64) return saved;
+            }
+        }
+        catch { /* файл недоступен — вычислим ниже */ }
+
+        var id = Computed();
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, id);
+            Log.Write($"идентификатор установки сохранён ({id[..8]}…)");
+        }
+        catch { /* не записалось — ничего страшного, посчитаем снова в следующий раз */ }
+
+        return id;
+    }
+
+    /// Вычислить идентификатор заново: хэш MAC, иначе случайный GUID.
+    private static string Computed()
     {
         try
         {
@@ -82,17 +133,6 @@ public static class Telemetry
         }
         catch { /* ниже фолбэк */ }
 
-        try
-        {
-            var path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Counterplay", "install.id");
-            if (File.Exists(path)) return File.ReadAllText(path).Trim();
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var id = Guid.NewGuid().ToString("N");
-            File.WriteAllText(path, id);
-            return id;
-        }
-        catch { return "unknown"; }
+        return Guid.NewGuid().ToString("N");
     }
 }
