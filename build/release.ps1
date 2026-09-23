@@ -262,13 +262,36 @@ if ($Upload) {
     gh release download "v$Version" --pattern $f --dir $tmp --clobber 2>$null
   }
 
+  # Запасной путь: GitHub иногда отдаёт объект релиза с ПУСТЫМ списком файлов,
+  # хотя сами файлы залиты и качаются. Тогда скачать их по шаблону не выходит —
+  # берём локальные. Они перечисляют все версии сразу, но в катящемся теге лежат
+  # пакеты всех версий, так что фид остаётся рабочим.
+  if (-not (Get-ChildItem $tmp -File -ErrorAction SilentlyContinue)) {
+    Write-Host "warn: published feed not listed by the API - falling back to local files" -ForegroundColor Yellow
+    foreach ($f in @("releases.win.json", "RELEASES")) {
+      $local = Join-Path "Releases" $f
+      if (Test-Path $local) { Copy-Item $local $tmp }
+    }
+  }
+
   $feed = @(Get-ChildItem $tmp -File)
   $feed += @(Get-ChildItem "Releases" -File | Where-Object { $_.Name -like "Counterplay-$Version-*.nupkg" })
   if ($feed.Count -lt 2) { throw "feed files for v$Version not found (is the release published?)" }
 
   gh release upload latest @($feed.FullName) --clobber 2>$null
-  if ($LASTEXITCODE -ne 0) { throw "failed to update the 'latest' feed" }
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+
+  # Проверяем РЕЗУЛЬТАТ, а не код возврата: при той же неполадке с листингом gh
+  # возвращает ошибку, хотя фид обновлён. Ложная тревога тут дороже пропуска —
+  # из-за неё релиз выглядит сломанным и его начинают пересоздавать.
+  $check = ""
+  try {
+    $check = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
+      "https://github.com/28maryshev/counterplay/releases/download/latest/RELEASES").Content
+  } catch { }
+  if ($check -notmatch [regex]::Escape("Counterplay-$Version-full.nupkg")) {
+    throw "the 'latest' feed does not advertise $Version - auto-update will not see it"
+  }
   Write-Host "Update feed refreshed (tag 'latest'): $($feed.Name -join ', ')" -ForegroundColor Green
 }
 
