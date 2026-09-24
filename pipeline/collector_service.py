@@ -38,6 +38,8 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -72,6 +74,15 @@ KEY_WARMUP_PAUSE = 25     # пауза между попытками
 # выпуска, а не от того, когда ключ попал к нам. Два часа — с запасом: полный
 # ключ живёт около суток, а остаток чужих суток обычно меряется минутами.
 SHORT_KEY_SEC = 2 * 3600
+# 401 НЕ РАВНО «ключ мёртв». Riot отдаёт его и на вполне живой ключ — на этом
+# стоит ветка прогрева выше. 24.09 то же самое случилось уже в разгар сбора:
+# ключ, выпущенный в 14:24 и действительный до следующего дня, получил 401 в
+# 14:58, был выброшен как истёкший, и сбор встал на 22 часа. Поэтому прежде чем
+# поверить в смерть ключа — переспрашиваем у Riot отдельным дешёвым запросом.
+KEY_RECHECK_TRIES = 5
+KEY_RECHECK_PAUSE = 60
+KEY_PROBE_URL = 'https://euw1.api.riotgames.com/lol/status/v4/platform-data'
+KEY_PROBE_TIMEOUT = 10
 # Потолок времени на публикацию. Это не «сколько она обычно идёт» (снимок плюс
 # шесть заливок могут занять и полчаса), а «когда считать, что она уже не
 # закончится»: демон живёт на сервере без присмотра, и одна залипшая заливка
@@ -130,6 +141,33 @@ def disk() -> tuple[float, float] | None:
 def matches_line() -> str:
     n = db_matches()
     return f'В базе: **{n:,}** матчей.'.replace(',', ' ') if n is not None else ''
+
+
+def key_alive(key: str) -> bool | None:
+    """Жив ли ключ — один дешёвый запрос к Riot, мимо всей логики сбора.
+
+    True — Riot отвечает, ключ рабочий; False — отказ именно по ключу;
+    None — спросить не вышло (сеть, таймаут), то есть вывода нет.
+
+    Статус платформы выбран нарочно: он ничего не стоит по лимитам и не зависит
+    от того, какой регион и бакет мы в этот момент вычерпывали.
+
+    User-Agent обязателен. На запрос с подписью python-urllib край Riot отвечает
+    403 независимо от ключа — проба на этом врала и объявляла живой ключ мёртвым.
+    Про 403 поэтому и не делаем вывода: отказ по самому ключу — это 401
+    (проверено на заведомо неверном ключе), а 403 приходит и от защиты края.
+    """
+    req = urllib.request.Request(KEY_PROBE_URL, headers={
+        'X-Riot-Token': key, 'User-Agent': 'counterplay-collector'})
+    try:
+        with urllib.request.urlopen(req, timeout=KEY_PROBE_TIMEOUT) as r:
+            return 200 <= r.status < 300
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return False
+        return None          # 403, 429, 5xx про сам ключ ничего не говорят
+    except Exception:
+        return None
 
 
 def human_span(sec: float) -> str:
@@ -413,6 +451,7 @@ def main():
     last_key = None
     key_at = 0.0    # когда этот ключ у нас появился — см. KEY_WARMUP_SEC
     warmups = 0     # сколько раз он ответил отказом, ещё не разойдясь по сети Riot
+    rechecks = 0    # сколько раз переспросили Riot про отказ посреди сбора
     while True:
         key = wait_for_key()
         # base_matches — точка отсчёта для «+N за текущий ключ» в heartbeat.
@@ -425,10 +464,12 @@ def main():
             last_key = key
             key_at = time.time()
             warmups = 0
+            rechecks = 0
         else:
             print('Следующий круг тем же ключом.', flush=True)
         try:
             got = collect.run_continuous(key, DB_PATH, regions, buckets, DAYS, 0)
+            rechecks = 0    # круг дошёл до конца — прошлые отказы были случайными
             # Круг пройден до конца. Ключ живёт сутки, а круг — часы: выбрасывать
             # ещё живой ключ и ждать человека значит стоять без дела полдня.
             # Публикуем и идём на следующий круг тем же ключом; уберёт его ветка
@@ -483,17 +524,36 @@ def main():
                 time.sleep(KEY_WARMUP_PAUSE)
                 continue
 
+            # Отказ пришёл в разгар сбора. Прежде чем выбрасывать ключ — спросим
+            # у Riot напрямую, мёртв ли он. Этого шага не было 24.09, и живой
+            # ключ с 22 часами впереди отправился в мусор после одного 401.
+            alive = key_alive(key)
+            if alive is not False and rechecks < KEY_RECHECK_TRIES:
+                rechecks += 1
+                why = 'ключ отвечает' if alive else 'спросить не вышло'
+                print(f'[{e.code}] Отказ, но {why} — переспрошу тем же ключом, '
+                      f'попытка {rechecks} из {KEY_RECHECK_TRIES}.', flush=True)
+                ops_log.record('key_recheck', matches=db_matches(), code=e.code,
+                               attempt=rechecks, alive=alive, collected=got)
+                set_status(state='key_recheck', attempt=rechecks, collected=got)
+                if rechecks == 1:
+                    notify(f'⚠️ Riot отказал по ключу ({e.code}), но сам ключ '
+                           f'{"ещё отвечает" if alive else "проверить не удалось"} — '
+                           f'похоже на сбой, а не на конец суток. Собрано за него '
+                           f'**+{got}**. Пробую тем же ключом, новый пока не нужен.')
+                time.sleep(KEY_RECHECK_PAUSE)
+                continue
+
             # Просьба о новом ключе идёт ПЕРЕД публикацией, а не после. Публикация
             # занимает минуты, и всё это время человек не знал, что от него ждут
             # ключ; а когда она однажды залипла на заливке, не узнал вовсе —
             # демон молча простоял сутки. Сбор без ключа всё равно не продолжить,
             # так что пусть новый ключ едет навстречу выкладке.
-            # Сколько ключ прожил у нас на руках. Сутки у ключа Riot считаются от
-            # ВЫПУСКА, а страница портала показывает прежний ключ, пока не нажать
-            # Regenerate: скопировал показанное — получил остаток чужих суток.
-            # 24.09 так и вышло: ключ прожил 33 минуты и принёс 2 705 матчей
-            # вместо 23 585 за полные сутки, и по сообщению это было не отличить
-            # от поломки сбора.
+            #
+            # Срок жизни в сообщении — чтобы короткий ключ было видно сразу:
+            # сутки Riot считает от ВЫПУСКА, а портал показывает прежний ключ,
+            # пока не нажать Regenerate, так что скопированный с экрана ключ
+            # может принести лишь остаток чужих суток.
             lived = time.time() - key_at if key_at else 0.0
             drop_key(key)
             set_status(state='key_expired', collected=got, lived_min=round(lived / 60))
