@@ -113,6 +113,22 @@ public static class DataDb
         : bytesPerSec > 0        ? $"{bytesPerSec / 1024.0:0} КБ/с"
         : "";
 
+    /// <summary>
+    /// Брать локальную базу как есть и ничего не качать.
+    ///
+    /// Ставится для песочницы. Она работает на той же папке, что и боевой
+    /// экземпляр, и когда оба запущены, подменить файл нельзя — базу держит
+    /// открытой основной. Песочница честно качала, распаковывала и падала на
+    /// подмене, а следом уходила качать общую базу на 198 МБ. И так каждый
+    /// запуск. Данные ей нужны любые — свежесть тут ни на что не влияет.
+    /// </summary>
+    public static bool ReuseLocal { get; set; }
+
+    /// Есть ли годная к работе база на диске.
+    private static bool HaveUsableDb() =>
+        File.Exists(LocalPath) && new FileInfo(LocalPath).Length > 0
+        && RecommendationEngine.HasData(LocalPath);
+
     /// Гарантирует наличие актуальной базы. Для dev — берёт локальную как есть.
     /// Для установленной версии — сверяет версию с сервером и подкачивает свежую.
     /// progress: (текст со статусом+скоростью, доля 0..1).
@@ -124,6 +140,13 @@ public static class DataDb
         // 1. Dev-режим (по opt-in): локальная база рядом с проектом — не качаем.
         if (DevDbEnabled && DevCandidates.Any(p => File.Exists(p) && RecommendationEngine.HasData(p)))
             return;
+
+        // 1a. Песочница: база уже лежит — работаем на ней. См. ReuseLocal.
+        if (ReuseLocal && HaveUsableDb())
+        {
+            Log.Write("песочница: беру готовую базу, не качаю");
+            return;
+        }
 
         // 2. Установленная версия — версионная подкачка.
         try
@@ -150,13 +173,26 @@ public static class DataDb
             {
                 await DownloadAsync(url + ".gz", label, progress, ct, gzipped: true);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or IOException
+                                          && ex is not OperationCanceledException
+                                          && ex is not UnauthorizedAccessException)
             {
-                // Сжатой нет (старый дата-релиз) или она не скачалась — берём
+                // Сжатой нет (старый дата-релиз) или она не докачалась — берём
                 // обычную. Так обновление программы не зависит от того, успел ли
                 // пайплайн выложить новый файл.
+                //
+                // Ошибку ДОСТУПА сюда не пускаем. Она означает, что скачалось всё
+                // хорошо, а подменить файл не вышло: базу держит открытой другой
+                // экземпляр программы. Качать вместо неё обычную — это те же
+                // грабли, только на 198 МБ вместо 38, и с тем же концом.
                 Log.Write($"сжатая база не далась ({ex.Message}) — качаю обычную");
                 await DownloadAsync(url, label, progress, ct);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Файл занят другим экземпляром. Остаёмся на той базе, что есть.
+                Log.Write("базу держит другой экземпляр — остаюсь на прежней");
+                return;
             }
 
             if (wantedTag is not null)
