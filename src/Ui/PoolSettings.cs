@@ -2145,7 +2145,7 @@ static class PoolImport
     /// </summary>
     public static bool Apply(Window owner, string text, bool? intoDuo, string? fallbackName)
     {
-        var (pool, duo) = PoolFile.Parse(text);
+        var (pool, duo, ownerPuuid) = PoolFile.ParseWithOwner(text);
         if (pool is null && duo is null)
         {
             Confirm.Tell(owner, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
@@ -2187,6 +2187,10 @@ static class PoolImport
                 FriendName = pairName,
                 Friend     = CloneRoles(pool.ByRole),
                 Mine       = mine is null ? new() : CloneRoles(mine.ByRole),
+                // Хозяин второй половины — тот, кто прислал файл. Дальше связка
+                // ищется в команде по нему, а не по совпадению имени: играя
+                // впятером, пул срабатывает именно на этого человека.
+                FriendPuuid = ownerPuuid,
             };
             name = pairName;   // о нём же и сообщаем
             pool = null;

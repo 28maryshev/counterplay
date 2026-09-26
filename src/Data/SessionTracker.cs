@@ -138,6 +138,15 @@ public static class SessionTracker
         /// возвращают тот же список), так что задним числом взять неоткуда.
         /// </summary>
         public Dictionary<string, PairRec> Pairs { get; set; } = new();
+
+        /// <summary>
+        /// Игры, уже посчитанные в связки. Отдельно от <see cref="SeenGames"/>
+        /// нарочно: связки появились позже, и у тех, кто играл с программой
+        /// раньше, все игры в истории уже «виденные». Считая по SeenGames, мы
+        /// не дали бы им ни одной связки — а пул с другом у них уже настроен.
+        /// Свой список позволяет разово пройти по тому, что клиент ещё помнит.
+        /// </summary>
+        public List<long> PairGames { get; set; } = new();
     }
 
     /// Счёт по одной связке. Отдельный класс, а не кортеж: лежит в json.
@@ -625,11 +634,24 @@ public static class SessionTracker
             if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
             appended[h.Queue] = log;
             seen.Add(h.GameId);
+        }
 
-            // Винрейт связки. Состав команды есть только в подробной игре, а это
-            // отдельный запрос — поэтому делаем его ТОЛЬКО для новых игр: обычно
-            // это ноль-один запрос на обновление, а не двадцать.
-            if (!string.IsNullOrEmpty(who?.Puuid))
+        // 4a) Винрейт связок. Идём по ВСЕЙ истории, а не только по новым играм:
+        //     у того, кто уже давно играет с программой, все игры «виденные», и
+        //     по ним связок не набралось бы ни одной — при том что пул с другом
+        //     у него настроен. Свой список посчитанных игр это разводит: первый
+        //     раз проходим по всему, что клиент помнит (около двадцати игр),
+        //     дальше — только по новым.
+        //
+        //     Состав команды есть лишь в подробной игре, и это отдельный запрос
+        //     на игру. Поэтому и нужен список: иначе двадцать запросов уходили
+        //     бы на каждое обновление.
+        if (!string.IsNullOrEmpty(who?.Puuid))
+        {
+            var counted = new HashSet<long>(acc.PairGames);
+            foreach (var h in history)
+            {
+                if (!counted.Add(h.GameId)) continue;
                 foreach (var a in await FetchAlliesAsync(http, h.GameId, who!.Puuid, ct))
                 {
                     var key = PairKey(a.Puuid, h.ChampionId, a.ChampionId);
@@ -639,6 +661,11 @@ public static class SessionTracker
                     if (h.Win) rec.Wins++;
                     if (a.Name.Length > 0) rec.Name = a.Name;   // ник мог смениться
                 }
+            }
+            // Помним столько же, сколько и виденных игр: выпавшая из истории
+            // игра второй раз оттуда не придёт, копить бесконечно незачем.
+            acc.PairGames = history.Select(h => h.GameId).Concat(counted)
+                                   .Distinct().Take(100).ToList();
         }
 
         // Помним столько, сколько отдаёт история (20 игр), с запасом на случай

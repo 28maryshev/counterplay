@@ -144,6 +144,10 @@ public static class PoolStore
 
     private static string Key => _account ?? "_local";
 
+    /// puuid того, кто сейчас в клиенте. null — клиент ещё не отвечал.
+    /// Уезжает в выгружаемый пул, чтобы получатель знал, чей это набор.
+    public static string? AccountPuuid => _account;
+
     /// Текущий аккаунт (puuid + ник) — вызывается при подключении к LCU.
     public static void SetAccount(string? puuid, string? name)
     {

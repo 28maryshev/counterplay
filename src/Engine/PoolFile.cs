@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -48,6 +48,23 @@ public static class PoolFile
         public Dictionary<string, List<int>>? Friend { get; set; }
         public bool Manual { get; set; }
         public List<ManualDuoPair>? ManualPairs { get; set; }
+
+        /// <summary>
+        /// Кто отдал этот пул: puuid и ник на момент выгрузки.
+        ///
+        /// Ради этого поля файл и возит с собой хозяина: загрузив личный пул
+        /// друга в свою половину «Дуо», мы сразу знаем, ЧЕЙ это набор, и
+        /// связку потом считаем по нему, а не по совпадению имени. В обычной
+        /// игре впятером среди союзников находится именно он.
+        ///
+        /// Пусто — файл из старой версии или выгружен без клиента: тогда всё
+        /// работает как раньше, по пати.
+        /// </summary>
+        public string? OwnerPuuid { get; set; }
+        public string? OwnerName { get; set; }
+
+        /// Для дуо-файла — хозяин ВТОРОЙ половины (тот, с кем эта связка).
+        public string? FriendPuuid { get; set; }
     }
 
     public static string Export(ChampPool p) => JsonSerializer.Serialize(new Envelope
@@ -57,6 +74,8 @@ public static class PoolFile
         Kind = "pool",
         Name = p.Name,
         ByRole = p.ByRole,
+        OwnerPuuid = PoolStore.AccountPuuid,
+        OwnerName  = PoolStore.Current().AccountName,
     }, Opts);
 
     public static string Export(DuoPool d) => JsonSerializer.Serialize(new Envelope
@@ -69,6 +88,9 @@ public static class PoolFile
         Friend = d.Friend,
         Manual = d.Manual,
         ManualPairs = d.ManualPairs,
+        OwnerPuuid  = PoolStore.AccountPuuid,
+        OwnerName   = PoolStore.Current().AccountName,
+        FriendPuuid = d.FriendPuuid,
     }, Opts);
 
     /// <summary>
@@ -78,11 +100,24 @@ public static class PoolFile
     /// </summary>
     public static (ChampPool? Pool, DuoPool? Duo) Parse(string json)
     {
+        var (p, d, _) = ParseWithOwner(json);
+        return (p, d);
+    }
+
+    /// <summary>
+    /// То же, но ещё и puuid хозяина файла.
+    ///
+    /// Нужен при загрузке ЛИЧНОГО пула друга в половину «Дуо»: сам пул о паре
+    /// ничего не знает, а хозяином второй половины становится как раз тот, кто
+    /// его отдал. Пусто — файл из старой версии.
+    /// </summary>
+    public static (ChampPool? Pool, DuoPool? Duo, string OwnerPuuid) ParseWithOwner(string json)
+    {
         try
         {
             var e = JsonSerializer.Deserialize<Envelope>(json);
             if (e is null || e.Format != Marker || e.Version < 1 || e.Version > FormatVersion)
-                return (null, null);
+                return (null, null, "");
 
             if (e.Kind == "duo")
             {
@@ -93,21 +128,62 @@ public static class PoolFile
                     Friend = Roles(e.Friend),
                     Manual = e.Manual,
                     ManualPairs = (e.ManualPairs ?? []).Where(p => p.Mine != 0 || p.Friend != 0).ToList(),
+                    // Кто на второй половине.
+                    //
+                    // В файле записана пара «хозяин + его напарник». Если этот
+                    // напарник — Я, то для меня второй половиной становится сам
+                    // хозяин: связка та же, стороны зеркальны. Иначе берём то,
+                    // что записано, а без него — хозяина файла.
+                    FriendPuuid = OtherHalf(e),
                 };
                 // Пустой пул грузить не во что: пометка нашей и осталась, а внутри
                 // ничего нет — честнее сказать, что файл не подошёл.
                 if (duo.Mine.Count == 0 && duo.Friend.Count == 0 && duo.ManualPairs.Count == 0)
-                    return (null, null);
-                return (null, duo);
+                    return (null, null, "");
+                return (null, duo, CleanPuuid(e.OwnerPuuid));
             }
 
             var pool = new ChampPool { Name = Clean(e.Name), ByRole = Roles(e.ByRole) };
-            return pool.ByRole.Count == 0 ? (null, null) : (pool, null);
+            return pool.ByRole.Count == 0
+                ? (null, null, "")
+                : (pool, null, CleanPuuid(e.OwnerPuuid));
         }
-        catch { return (null, null); }
+        catch { return (null, null, ""); }
     }
 
     /// Имя из чужого файла показывается в нашем окне — длину и переносы режем.
+    /// <summary>
+    /// Кто для НАС хозяин второй половины дуо-файла.
+    ///
+    /// Записан напарник, и это я сам → второй половиной становится хозяин файла
+    /// (он прислал мне нашу же связку со своей стороны). Иначе — записанный
+    /// напарник, а если его нет, хозяин файла.
+    /// </summary>
+    private static string OtherHalf(Envelope e)
+    {
+        var owner  = CleanPuuid(e.OwnerPuuid);
+        var friend = CleanPuuid(e.FriendPuuid);
+        var me = PoolStore.AccountPuuid ?? "";
+        if (friend.Length > 0 && friend.Equals(me, StringComparison.OrdinalIgnoreCase))
+            return owner;
+        return friend.Length > 0 ? friend : owner;
+    }
+
+    /// <summary>
+    /// puuid из чужого файла. Проверяем форму, а не режем длину: puuid у Riot —
+    /// 78 знаков из букв, цифр, дефиса и подчёркивания, и обычная обрезка имён
+    /// (40 знаков) превратила бы его в мусор, по которому никто не нашёлся бы.
+    /// Всё, что на puuid не похоже, отбрасываем целиком.
+    /// </summary>
+    private static string CleanPuuid(string? s)
+    {
+        var t = (s ?? "").Trim();
+        if (t.Length is < 20 or > 128) return "";
+        foreach (var c in t)
+            if (!char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_') return "";
+        return t;
+    }
+
     private static string Clean(string? s)
     {
         var t = (s ?? "").Replace('\n', ' ').Replace('\r', ' ').Trim();
