@@ -286,8 +286,12 @@ sealed class PoolSettingsWindow : Window
 
             inner.Children.Add(new TextBlock
             {
-                Text = $"{p.Wins}-{p.Games - p.Wins}",
-                Foreground = frame, FontSize = 11, FontWeight = FontWeights.Bold,
+                // «73% / 8-3» — как в левой половине («57% / 12»), только вместо
+                // числа игр счёт побед и поражений: у связки важно не сколько
+                // сыграно, а чем кончилось.
+                Text = $"{p.WinRate:F0}% / {p.Wins}-{p.Games - p.Wins}",
+                Foreground = frame, FontSize = 10, FontWeight = FontWeights.Bold,
+                TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 3, 0, 0)
             });
