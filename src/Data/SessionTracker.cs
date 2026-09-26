@@ -272,7 +272,16 @@ public static class SessionTracker
     /// </summary>
     public static (int Games, int Wins) PairStats(string? allyPuuid, int myChampion, int allyChampion)
     {
-        if (string.IsNullOrEmpty(allyPuuid) || myChampion == 0 || allyChampion == 0) return (0, 0);
+        if (myChampion == 0 || allyChampion == 0) return (0, 0);
+        if (Preview is { } fake)
+        {
+            var p = fake.FirstOrDefault(x => x.MyChampionId == myChampion
+                                             && x.AllyChampionId == allyChampion
+                                             && (string.IsNullOrEmpty(allyPuuid)
+                                                 || x.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)));
+            return p is null ? (0, 0) : (p.Games, p.Wins);
+        }
+        if (string.IsNullOrEmpty(allyPuuid)) return (0, 0);
         var acc = CurrentAccount();
         if (acc is null) return (0, 0);
         return acc.Pairs.TryGetValue(PairKey(allyPuuid, myChampion, allyChampion), out var r)
@@ -285,6 +294,12 @@ public static class SessionTracker
     /// </summary>
     public static (int Games, int Wins) MateStats(string? allyPuuid)
     {
+        if (Preview is { } fake)
+        {
+            var mine = fake.Where(p => string.IsNullOrEmpty(allyPuuid)
+                                       || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)).ToList();
+            return (mine.Sum(p => p.Games), mine.Sum(p => p.Wins));
+        }
         if (string.IsNullOrEmpty(allyPuuid)) return (0, 0);
         var acc = CurrentAccount();
         if (acc is null) return (0, 0);
@@ -296,11 +311,24 @@ public static class SessionTracker
     }
 
     /// <summary>
+    /// Подменные связки для песочницы. Настоящие копятся только по сыгранным
+    /// играм, и без них раздел в песочнице всегда пуст — посмотреть, как он
+    /// выглядит с данными, было нельзя. В боевом режиме всегда null.
+    /// </summary>
+    public static IReadOnlyList<PairStat>? Preview { get; set; }
+
+    /// <summary>
     /// Связки, сыгранные с этим человеком, — самые частые первыми.
     /// Пустой <paramref name="allyPuuid"/> — все связки со всеми.
     /// </summary>
     public static IReadOnlyList<PairStat> TopPairs(string? allyPuuid = null, int take = 30)
     {
+        if (Preview is { } fake)
+            return fake.Where(p => string.IsNullOrEmpty(allyPuuid)
+                                   || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase))
+                       .OrderByDescending(p => p.Games).ThenByDescending(p => p.WinRate)
+                       .Take(take).ToList();
+
         var acc = CurrentAccount();
         if (acc is null) return [];
         var res = new List<PairStat>();
