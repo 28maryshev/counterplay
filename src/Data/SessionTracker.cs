@@ -680,6 +680,11 @@ public static class SessionTracker
             foreach (var h in history)
             {
                 if (!counted.Add(h.GameId)) continue;
+                // ARAM в связки НЕ идёт: чемпионы там раздаются случайно, и пара
+                // сложилась сама, а не была выбрана. Её винрейт не говорит ни о
+                // чём — ровно по той же причине ARAM не входит и в винрейт по
+                // чемпионам. Заодно экономим запрос подробной игры.
+                if (h.Queue == "aram") continue;
                 foreach (var a in await FetchAlliesAsync(http, h.GameId, who!.Puuid, ct))
                 {
                     var key = PairKey(a.Puuid, h.ChampionId, a.ChampionId);
