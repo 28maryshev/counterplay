@@ -4755,6 +4755,16 @@ public partial class OverlayWindow : Window
     // Возврат к размеру активного режима (полный/компактный) при появлении пиков.
     private void RestoreModeSize()
     {
+        // Возвращаемся ли из экрана ожидания. Он ужимает окно до ширины сайдбара
+        // (ShowIdle: SizeToContent.Height, Width = IdleW), и тогда «размер уже
+        // задан раскладкой драфта» — неправда.
+        //
+        // Ровно на этом ломался ARAM: в первых снимках champ select скамейки ещё
+        // нет и чемпион не роздан, подбирать не из чего — показывается ожидание.
+        // Дальше скамейка приходит, кандидаты появляются, а окно так и остаётся
+        // шириной с сайдбар, потому что восстановление размера пропускалось.
+        var fromIdle = IdlePanel.Visibility == Visibility.Visible;
+
         StatusText.Visibility = Visibility.Visible;
         IdlePanel.Visibility  = Visibility.Collapsed;
 
@@ -4771,7 +4781,12 @@ public partial class OverlayWindow : Window
             // переходе «баны → пики» окно прыгало обратно к сохранённому размеру,
             // и раскладка выглядела так, будто у банов и пиков она разная.
             // MinWidth тоже не трогаем: он шире раскладки и растянул бы окно.
-            if (!(_placementApplied && AppSettings.Current.DraftPlacement != "right"))
+            //
+            // Но если окно побывало на экране ожидания, оно сейчас шириной с
+            // сайдбар, а не с раскладку — там восстанавливать обязательно.
+            // _savedFullW/H как раз и сняты перед сворачиванием, то есть хранят
+            // размер раскладки.
+            if (fromIdle || !(_placementApplied && AppSettings.Current.DraftPlacement != "right"))
             {
                 MinWidth = Scaled(MinW);
                 Width    = w;
