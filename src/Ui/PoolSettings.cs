@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -102,23 +102,57 @@ sealed class PoolSettingsWindow : Window
     // ARAM не в счёт. Сортировка по числу игр — сверху те, на ком реально играют.
     private readonly StackPanel _wrStrip = new() { Margin = new Thickness(0, 0, 0, 8) };
 
+    // Винрейты стоят ДВУМЯ КОЛОНКАМИ, ровно под пулами: слева личное, справа
+    // связки. Одно под другим читалось хуже — глаз ищет винрейт под своей
+    // половиной, а не в столбик через весь низ окна.
+    private readonly StackPanel _wrSolo = new();
+    private readonly StackPanel _wrDuo  = new();
+
     private void RefreshWinrates()
     {
-        _wrStrip.Children.Clear();
+        _wrSolo.Children.Clear();
+        _wrDuo.Children.Clear();
+
+        if (_wrStrip.Children.Count == 0)
+        {
+            var g = new Grid();
+            // Те же доли и та же черта, что у пулов выше, — колонки совпадают.
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Grid.SetColumn(_wrSolo, 0);
+            g.Children.Add(_wrSolo);
+
+            var line = new Border
+            {
+                Width = 1, Background = new SolidColorBrush(Line),
+                Margin = new Thickness(14, 0, 14, 0)
+            };
+            Grid.SetColumn(line, 1);
+            g.Children.Add(line);
+
+            Grid.SetColumn(_wrDuo, 2);
+            g.Children.Add(_wrDuo);
+
+            _wrStrip.Children.Add(g);
+        }
+
         RefreshSoloWinrates();
         RefreshDuoWinrates();
     }
 
     /// Заголовок раздела винрейтов.
-    private void WrHeader(string text) => _wrStrip.Children.Add(new TextBlock
+    private static void WrHeader(System.Windows.Controls.Panel into, string text) => into.Children.Add(new TextBlock
     {
         Text = text,
         Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
-        FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6)
+        FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6),
+        TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis
     });
 
     /// Приглушённая строка «пока пусто».
-    private void WrEmpty(string text) => _wrStrip.Children.Add(new TextBlock
+    private static void WrEmpty(System.Windows.Controls.Panel into, string text) => into.Children.Add(new TextBlock
     {
         Text = text, Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)),
         FontSize = 11, Margin = new Thickness(2, 0, 0, 10), TextWrapping = TextWrapping.Wrap
@@ -144,14 +178,14 @@ sealed class PoolSettingsWindow : Window
             .OrderByDescending(id => ranked.GetValueOrDefault(id).Games + normal.GetValueOrDefault(id).Games)
             .Take(30).ToList();
 
-        WrHeader(fav is null
+        WrHeader(_wrSolo, fav is null
             ? Loc.T("pool.myWinrates", SessionTracker.RecentDays)
             : Loc.T("pool.myWinratesPool", fav.Name.Length > 0 ? fav.Name : Loc.T("pool.pool"),
                     SessionTracker.RecentDays));
 
         if (ids.Count == 0)
         {
-            WrEmpty(Loc.T("pool.myWinratesEmpty"));
+            WrEmpty(_wrSolo, Loc.T("pool.myWinratesEmpty"));
             return;
         }
 
@@ -194,7 +228,7 @@ sealed class PoolSettingsWindow : Window
             };
             row.Children.Add(slot);
         }
-        _wrStrip.Children.Add(new ScrollViewer
+        _wrSolo.Children.Add(new ScrollViewer
         {
             Content = row, MaxHeight = 170,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -217,18 +251,13 @@ sealed class PoolSettingsWindow : Window
         var who = fav?.FriendPuuid;
         var pairs = SessionTracker.TopPairs(who, take: 24);
 
-        _wrStrip.Children.Add(new Border
-        {
-            Height = 1, Margin = new Thickness(2, 12, 2, 10),
-            Background = new SolidColorBrush(Color.FromRgb(0x24, 0x31, 0x42))
-        });
-        WrHeader(fav is not null
+        WrHeader(_wrDuo, fav is not null
             ? Loc.T("pool.duoWinratesWith", fav.FriendName.Length > 0 ? fav.FriendName : Loc.T("pool.duo"))
             : Loc.T("pool.duoWinrates"));
 
         if (pairs.Count == 0)
         {
-            WrEmpty(Loc.T("pool.duoWinratesEmpty"));
+            WrEmpty(_wrDuo, Loc.T("pool.duoWinratesEmpty"));
             return;
         }
 
@@ -277,7 +306,7 @@ sealed class PoolSettingsWindow : Window
                 Child = inner
             });
         }
-        _wrStrip.Children.Add(new ScrollViewer
+        _wrDuo.Children.Add(new ScrollViewer
         {
             Content = row, MaxHeight = 150,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
