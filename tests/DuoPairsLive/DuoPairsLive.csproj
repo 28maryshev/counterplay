@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Винрейт связок на ЖИВОМ клиенте: проверка гоняет настоящий сбор по
+       истории и смотрит, что связки набрались. Клиент не запущен — тихо
+       пропускаем. Настоящий session.json сохраняется и возвращается. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+  </ItemGroup>
+
+</Project>
