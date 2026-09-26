@@ -492,7 +492,12 @@
     "exported": "Salvo: {0}",
     "pickMineTitle": "Sua metade da dupla",
     "pickMineHint": "“{0}” será a metade do seu amigo. Escolha o seu grupo para esta dupla ou preencha depois.",
-    "later": "Preencher depois"
+    "later": "Preencher depois",
+    "myWinratesPool": "O teu winrate · pool «{0}» · últimos {1} dias",
+    "duoWinrates": "Winrate de duplas · com quem jogaste",
+    "duoWinratesWith": "Winrate de duplas · com {0}",
+    "duoWinratesEmpty": "Ainda sem duplas. A contagem começa nas partidas novas: joguem juntos e elas aparecem aqui.",
+    "games": "partidas"
   },
   "phaseState": {
     "none": "Pronto",

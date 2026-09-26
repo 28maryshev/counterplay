@@ -492,7 +492,12 @@
     "exported": "Enregistré : {0}",
     "pickMineTitle": "Ta moitié du duo",
     "pickMineHint": "« {0} » devient la moitié de ton ami. Choisis ton pool pour ce duo, ou remplis-le plus tard.",
-    "later": "Remplir plus tard"
+    "later": "Remplir plus tard",
+    "myWinratesPool": "Ton winrate · pool « {0} » · {1} derniers jours",
+    "duoWinrates": "Winrate des duos · avec qui tu as joué",
+    "duoWinratesWith": "Winrate des duos · avec {0}",
+    "duoWinratesEmpty": "Pas encore de paires. Le compte démarre avec les nouvelles parties : jouez ensemble et elles apparaîtront ici.",
+    "games": "parties"
   },
   "phaseState": {
     "none": "Prêt",

@@ -492,7 +492,12 @@
     "exported": "已保存：{0}",
     "pickMineTitle": "双人组合中你的一半",
     "pickMineHint": "“{0}”将成为好友的一半。选择你这边的池，或稍后再填。",
-    "later": "稍后再填"
+    "later": "稍后再填",
+    "myWinratesPool": "你的胜率 · 池「{0}」· 最近 {1} 天",
+    "duoWinrates": "双排胜率 · 与谁一起玩过",
+    "duoWinratesWith": "双排胜率 · 与 {0}",
+    "duoWinratesEmpty": "还没有组合。从新对局开始统计——一起玩几局，这里就会出现。",
+    "games": "场"
   },
   "phaseState": {
     "none": "就绪",

@@ -492,7 +492,12 @@
     "exported": "Zapisano: {0}",
     "pickMineTitle": "Twoja połowa duo",
     "pickMineHint": "„{0}” zostaje połową znajomego. Wybierz swoją pulę do tego duo albo uzupełnij ją później.",
-    "later": "Uzupełnię później"
+    "later": "Uzupełnię później",
+    "myWinratesPool": "Twój winrate · pula „{0}” · ostatnie {1} dni",
+    "duoWinrates": "Winrate duetów · z kim grałeś",
+    "duoWinratesWith": "Winrate duetów · z {0}",
+    "duoWinratesEmpty": "Na razie brak par. Liczenie zaczyna się od nowych gier — zagrajcie razem, a pary pojawią się tutaj.",
+    "games": "gier"
   },
   "phaseState": {
     "none": "Gotowe",

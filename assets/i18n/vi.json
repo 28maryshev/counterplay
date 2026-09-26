@@ -492,7 +492,12 @@
     "exported": "Đã lưu: {0}",
     "pickMineTitle": "Nửa của bạn trong duo",
     "pickMineHint": "“{0}” sẽ là nửa của bạn bè. Chọn pool của bạn cho duo này, hoặc điền sau.",
-    "later": "Điền sau"
+    "later": "Điền sau",
+    "myWinratesPool": "Tỷ lệ thắng của bạn · pool “{0}” · {1} ngày qua",
+    "duoWinrates": "Tỷ lệ thắng cặp · đã chơi cùng ai",
+    "duoWinratesWith": "Tỷ lệ thắng cặp · với {0}",
+    "duoWinratesEmpty": "Chưa có cặp nào. Bắt đầu tính từ các trận mới — chơi cùng nhau và cặp sẽ hiện ở đây.",
+    "games": "trận"
   },
   "phaseState": {
     "none": "Sẵn sàng",

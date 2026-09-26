@@ -105,28 +105,53 @@ sealed class PoolSettingsWindow : Window
     private void RefreshWinrates()
     {
         _wrStrip.Children.Clear();
+        RefreshSoloWinrates();
+        RefreshDuoWinrates();
+    }
 
+    /// Заголовок раздела винрейтов.
+    private void WrHeader(string text) => _wrStrip.Children.Add(new TextBlock
+    {
+        Text = text,
+        Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
+        FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6)
+    });
+
+    /// Приглушённая строка «пока пусто».
+    private void WrEmpty(string text) => _wrStrip.Children.Add(new TextBlock
+    {
+        Text = text, Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)),
+        FontSize = 11, Margin = new Thickness(2, 0, 0, 10), TextWrapping = TextWrapping.Wrap
+    });
+
+    // ── Часть первая: личный винрейт по чемпионам ───────────────────────────
+    //
+    // Отмечен звездой личный пул — показываем только его чемпионов: человек
+    // отметил, чем играет, и мерить себя логично по этому же набору. Звезды
+    // нет — показываем всех, как и раньше.
+    private void RefreshSoloWinrates()
+    {
         var ranked = SessionTracker.ChampStatsMap(SessionTracker.QueuesRanked);
         var normal = SessionTracker.ChampStatsMap(SessionTracker.QueuesNormal);
+
+        var a = PoolStore.Current();
+        var fav = a.Pools.FirstOrDefault(p => p.Id == a.FavPoolId);
+        var only = fav is null ? null
+            : new HashSet<int>(fav.ByRole.Values.SelectMany(l => l).Where(id => id != 0));
+
         var ids = ranked.Keys.Concat(normal.Keys).Distinct()
+            .Where(id => only is null || only.Contains(id))
             .OrderByDescending(id => ranked.GetValueOrDefault(id).Games + normal.GetValueOrDefault(id).Games)
             .Take(30).ToList();
 
-        _wrStrip.Children.Add(new TextBlock
-        {
-            Text = Loc.T("pool.myWinrates", SessionTracker.RecentDays),
-            Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
-            FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6)
-        });
+        WrHeader(fav is null
+            ? Loc.T("pool.myWinrates", SessionTracker.RecentDays)
+            : Loc.T("pool.myWinratesPool", fav.Name.Length > 0 ? fav.Name : Loc.T("pool.pool"),
+                    SessionTracker.RecentDays));
 
         if (ids.Count == 0)
         {
-            _wrStrip.Children.Add(new TextBlock
-            {
-                Text = Loc.T("pool.myWinratesEmpty"),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)),
-                FontSize = 11, Margin = new Thickness(2, 0, 0, 0), TextWrapping = TextWrapping.Wrap
-            });
+            WrEmpty(Loc.T("pool.myWinratesEmpty"));
             return;
         }
 
@@ -172,6 +197,89 @@ sealed class PoolSettingsWindow : Window
         _wrStrip.Children.Add(new ScrollViewer
         {
             Content = row, MaxHeight = 170,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        });
+    }
+
+    // ── Часть вторая: винрейт связок ────────────────────────────────────────
+    //
+    // Здесь не общая синергия из базы, а СВОЙ счёт: сколько игр сыграно вдвоём
+    // именно на этой паре чемпионов и сколько выиграно. Копится только вперёд —
+    // история клиента отдаёт около двадцати последних игр и глубже не пускает.
+    private void RefreshDuoWinrates()
+    {
+        var a = PoolStore.Current();
+        var fav = a.DuoPools.FirstOrDefault(d => d.Id == a.FavDuoId);
+
+        // Звездой отмечен дуо-пул и напарник уже опознан — считаем по нему.
+        // Иначе показываем связки со всеми, с кем играли.
+        var who = fav?.FriendPuuid;
+        var pairs = SessionTracker.TopPairs(who, take: 24);
+
+        _wrStrip.Children.Add(new Border
+        {
+            Height = 1, Margin = new Thickness(2, 12, 2, 10),
+            Background = new SolidColorBrush(Color.FromRgb(0x24, 0x31, 0x42))
+        });
+        WrHeader(fav is not null
+            ? Loc.T("pool.duoWinratesWith", fav.FriendName.Length > 0 ? fav.FriendName : Loc.T("pool.duo"))
+            : Loc.T("pool.duoWinrates"));
+
+        if (pairs.Count == 0)
+        {
+            WrEmpty(Loc.T("pool.duoWinratesEmpty"));
+            return;
+        }
+
+        var row = new WrapPanel();
+        foreach (var p in pairs)
+        {
+            var frame = WinrateColor.BrushForSample(p.WinRate, p.Games);
+            var inner = new StackPanel { Margin = new Thickness(4, 4, 4, 3) };
+
+            // Две иконки рядом: слева мой чемпион, справа его. Так связка
+            // читается как одна карточка, а не как два отдельных винрейта.
+            var faces = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            foreach (var (id, first) in new[] { (p.MyChampionId, true), (p.AllyChampionId, false) })
+                if (IconCache.Get(id) is { } src)
+                    faces.Children.Add(new Border
+                    {
+                        Width = 36, Height = 36, CornerRadius = new CornerRadius(4),
+                        Margin = new Thickness(first ? 0 : 3, 0, 0, 0),
+                        Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
+                    });
+            inner.Children.Add(faces);
+
+            inner.Children.Add(new TextBlock
+            {
+                Text = $"{p.Wins}-{p.Games - p.Wins}",
+                Foreground = frame, FontSize = 11, FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+
+            row.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                BorderThickness = new Thickness(1),
+                BorderBrush = frame,
+                Background = WinrateColor.TintForSample(p.WinRate, p.Games),
+                Margin = new Thickness(0, 0, 8, 8),
+                ToolTip = $"{DataDragon.Name(p.MyChampionId)} + {DataDragon.Name(p.AllyChampionId)}"
+                          + (p.AllyName.Length > 0 ? $"\n{p.AllyName}" : "")
+                          + $"\n{p.WinRate:0}% · {p.Games} "
+                          + Loc.T("pool.games"),
+                Child = inner
+            });
+        }
+        _wrStrip.Children.Add(new ScrollViewer
+        {
+            Content = row, MaxHeight = 150,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });
@@ -313,7 +421,7 @@ sealed class PoolSettingsWindow : Window
         foreach (var p in a.Pools)
         {
             var champs = p.ByRole.Values.SelectMany(l => l).Where(id => id != 0).Distinct().ToList();
-            _poolArea.Children.Add(Tile(p.Name, a.ActiveKind == PoolKind.Pool && a.ActiveId == p.Id,
+            _poolArea.Children.Add(Tile(p.Name, a.FavPoolId == p.Id,
                 () => EditPool(p), () => DeletePool(p), () => Select(PoolKind.Pool, p.Id), champs));
         }
         _poolArea.Children.Add(PlusTile(() => EditPool(null)));
@@ -328,7 +436,7 @@ sealed class PoolSettingsWindow : Window
                     ? d.ManualPairs.SelectMany(mp => new[] { mp.Mine, mp.Friend })
                     : d.Mine.Values.SelectMany(l => l).Concat(d.Friend.Values.SelectMany(l => l)))
                 .Where(id => id != 0).Distinct().ToList();
-            _duoArea.Children.Add(Tile(d.FriendName, a.ActiveKind == PoolKind.Duo && a.ActiveId == d.Id,
+            _duoArea.Children.Add(Tile(d.FriendName, a.FavDuoId == d.Id,
                 () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id), champs,
                 Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto")));
         }
@@ -375,13 +483,12 @@ sealed class PoolSettingsWindow : Window
         if (PoolShare.Receive(this, intoDuo)) { _onChange(); Refresh(); }
     }
 
-    // Сделать пул активным (звёздочка). Повторный клик по активному — снять выбор
-    // (возврат в обычный режим подбора).
+    // Звёздочка — избранное в СВОЕЙ половине. Личный пул и дуо могут быть
+    // отмечены одновременно; какой из них в деле, решает кнопка в сайдбаре.
+    // Повторный клик по отмеченному снимает отметку.
     private void Select(PoolKind kind, string id)
     {
-        var a = PoolStore.Current();
-        if (a.ActiveKind == kind && a.ActiveId == id) PoolStore.SetActive(PoolKind.Normal, null);
-        else                                          PoolStore.SetActive(kind, id);
+        PoolStore.SetFavourite(kind, id);
         _onChange();
         Refresh();
     }

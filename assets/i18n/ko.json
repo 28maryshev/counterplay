@@ -492,7 +492,12 @@
     "exported": "저장했습니다: {0}",
     "pickMineTitle": "듀오에서 내 쪽",
     "pickMineHint": "“{0}”은(는) 친구 쪽이 됩니다. 내 쪽 풀을 고르거나 나중에 채우세요.",
-    "later": "나중에 채우기"
+    "later": "나중에 채우기",
+    "myWinratesPool": "내 승률 · 풀 “{0}” · 최근 {1}일",
+    "duoWinrates": "듀오 승률 · 함께 플레이한 상대",
+    "duoWinratesWith": "듀오 승률 · {0}와 함께",
+    "duoWinratesEmpty": "아직 조합이 없습니다. 새 경기부터 집계됩니다 — 함께 플레이하면 여기에 표시됩니다.",
+    "games": "판"
   },
   "phaseState": {
     "none": "대기 중",

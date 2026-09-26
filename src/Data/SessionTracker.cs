@@ -125,6 +125,37 @@ public static class SessionTracker
         // Последний успешный снимок рангов: LCU после рестарта/обновления может
         // не ответить — панель всё равно рендерится из кэша, а не пустой.
         public Dictionary<string, RankedCache> Ranked { get; set; } = new();
+
+        /// <summary>
+        /// Винрейт связки: сколько игр на КОНКРЕТНОЙ паре «мой чемпион + его
+        /// чемпион» сыграно именно с этим человеком и сколько из них выиграно.
+        ///
+        /// Ключ — <c>puuid|мой чемпион|его чемпион</c>. Напарник опознаётся по
+        /// puuid, а не по нику: ник меняется, puuid — нет.
+        ///
+        /// Копится только вперёд. История LCU отдаёт около двадцати последних
+        /// игр и глубже не пускает (проверено: запросы с begIndex 100 и 200
+        /// возвращают тот же список), так что задним числом взять неоткуда.
+        /// </summary>
+        public Dictionary<string, PairRec> Pairs { get; set; } = new();
+    }
+
+    /// Счёт по одной связке. Отдельный класс, а не кортеж: лежит в json.
+    private sealed class PairRec
+    {
+        public int Games { get; set; }
+        public int Wins { get; set; }
+        /// Ник напарника, каким он был в последней совместной игре. Только для
+        /// показа: опознаём человека по puuid, ник может смениться.
+        public string Name { get; set; } = "";
+    }
+
+    /// Одна связка наружу: с кем, на ком, с каким счётом.
+    public sealed record PairStat(
+        string AllyPuuid, string AllyName, int MyChampionId, int AllyChampionId,
+        int Games, int Wins)
+    {
+        public double WinRate => Games > 0 ? 100.0 * Wins / Games : 0;
     }
 
     private sealed class Store
@@ -221,6 +252,73 @@ public static class SessionTracker
     {
         var m = ChampStatsMap(queues);
         return m.TryGetValue(championId, out var v) ? v : (0, 0);
+    }
+
+    /// <summary>
+    /// Винрейт КОНКРЕТНОЙ связки: сколько игр сыграно вдвоём с этим человеком
+    /// именно на этой паре чемпионов и сколько из них выиграно.
+    ///
+    /// Это личная статистика игрока, а не общая синергия из базы: «мы вдвоём
+    /// на этой паре 7-3», а не «эта пара в среднем выигрывает 52%».
+    /// </summary>
+    public static (int Games, int Wins) PairStats(string? allyPuuid, int myChampion, int allyChampion)
+    {
+        if (string.IsNullOrEmpty(allyPuuid) || myChampion == 0 || allyChampion == 0) return (0, 0);
+        var acc = CurrentAccount();
+        if (acc is null) return (0, 0);
+        return acc.Pairs.TryGetValue(PairKey(allyPuuid, myChampion, allyChampion), out var r)
+            ? (r.Games, r.Wins) : (0, 0);
+    }
+
+    /// <summary>
+    /// Сколько всего игр сыграно с этим человеком (по всем парам чемпионов).
+    /// Нужно, чтобы отличить «связки не было» от «связка есть, но новая».
+    /// </summary>
+    public static (int Games, int Wins) MateStats(string? allyPuuid)
+    {
+        if (string.IsNullOrEmpty(allyPuuid)) return (0, 0);
+        var acc = CurrentAccount();
+        if (acc is null) return (0, 0);
+        var prefix = allyPuuid + "|";
+        var g = 0; var w = 0;
+        foreach (var (k, r) in acc.Pairs)
+            if (k.StartsWith(prefix, StringComparison.Ordinal)) { g += r.Games; w += r.Wins; }
+        return (g, w);
+    }
+
+    /// <summary>
+    /// Связки, сыгранные с этим человеком, — самые частые первыми.
+    /// Пустой <paramref name="allyPuuid"/> — все связки со всеми.
+    /// </summary>
+    public static IReadOnlyList<PairStat> TopPairs(string? allyPuuid = null, int take = 30)
+    {
+        var acc = CurrentAccount();
+        if (acc is null) return [];
+        var res = new List<PairStat>();
+        foreach (var (k, r) in acc.Pairs)
+        {
+            // Ключ: puuid|мой чемпион|его чемпион. puuid сам по себе '|' не содержит.
+            var i = k.LastIndexOf('|');
+            if (i <= 0) continue;
+            var j = k.LastIndexOf('|', i - 1);
+            if (j <= 0) continue;
+            var pu = k[..j];
+            if (!string.IsNullOrEmpty(allyPuuid)
+                && !pu.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!int.TryParse(k[(j + 1)..i], out var mine)) continue;
+            if (!int.TryParse(k[(i + 1)..], out var his)) continue;
+            res.Add(new PairStat(pu, r.Name, mine, his, r.Games, r.Wins));
+        }
+        return res.OrderByDescending(p => p.Games).ThenByDescending(p => p.WinRate)
+                  .Take(take).ToList();
+    }
+
+    /// Аккаунт, под которым сейчас сидят. null — клиент ещё не отдал игрока.
+    private static Account? CurrentAccount()
+    {
+        if (_account is null) return null;
+        var store = Load();
+        return store.Accounts.GetValueOrDefault(_account);
     }
 
     /// Правит журнал после ошибки в привязке LP: победа отдавала свои очки
@@ -527,6 +625,20 @@ public static class SessionTracker
             if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
             appended[h.Queue] = log;
             seen.Add(h.GameId);
+
+            // Винрейт связки. Состав команды есть только в подробной игре, а это
+            // отдельный запрос — поэтому делаем его ТОЛЬКО для новых игр: обычно
+            // это ноль-один запрос на обновление, а не двадцать.
+            if (!string.IsNullOrEmpty(who?.Puuid))
+                foreach (var a in await FetchAlliesAsync(http, h.GameId, who!.Puuid, ct))
+                {
+                    var key = PairKey(a.Puuid, h.ChampionId, a.ChampionId);
+                    if (!acc.Pairs.TryGetValue(key, out var rec))
+                        acc.Pairs[key] = rec = new PairRec();
+                    rec.Games++;
+                    if (h.Win) rec.Wins++;
+                    if (a.Name.Length > 0) rec.Name = a.Name;   // ник мог смениться
+                }
         }
 
         // Помним столько, сколько отдаёт история (20 игр), с запасом на случай
@@ -778,6 +890,80 @@ public static class SessionTracker
             return new Ranked(!string.IsNullOrEmpty(tier), tier, div, Get("leaguePoints"), Get("wins"), Get("losses"));
         }
     }
+
+    /// Союзник в прошлой игре: кто и на ком. Для винрейта связки.
+    private sealed record Ally(string Puuid, int ChampionId, string Name);
+
+    /// <summary>
+    /// Состав СВОЕЙ команды в одной прошлой игре.
+    ///
+    /// Сводка истории кладёт в participants только меня — состава там нет. Он
+    /// есть в подробной игре, вместе с participantIdentities, где у каждого
+    /// лежит puuid. Отсюда и берём напарника.
+    ///
+    /// Ремейки отдают одного участника вместо десяти (проверено на игре в 90
+    /// секунд) — тогда просто вернётся пустой список, и связок не прибавится.
+    /// </summary>
+    private static async Task<List<Ally>> FetchAlliesAsync(
+        LcuHttpClient http, long gameId, string myPuuid, CancellationToken ct)
+    {
+        var allies = new List<Ally>();
+        try
+        {
+            var (s, body) = await http.GetAsync($"/lol-match-history/v1/games/{gameId}", ct);
+            if (s != 200) return allies;
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("participants", out var parts)
+                || !root.TryGetProperty("participantIdentities", out var ids)
+                || parts.ValueKind != JsonValueKind.Array
+                || ids.ValueKind != JsonValueKind.Array) return allies;
+
+            // participantId → puuid и ник. Ник берём riot-овский (gameName), а
+            // если его нет — старое имя призывателя.
+            var puuidOf = new Dictionary<int, string>();
+            var nameOf = new Dictionary<int, string>();
+            foreach (var e in ids.EnumerateArray())
+            {
+                if (!e.TryGetProperty("player", out var pl)) continue;
+                var pu = pl.TryGetProperty("puuid", out var p) ? p.GetString() : null;
+                if (string.IsNullOrEmpty(pu)) continue;
+                var pid = GetInt(e, "participantId");
+                puuidOf[pid] = pu;
+                var nm = pl.TryGetProperty("gameName", out var gn) ? gn.GetString() : null;
+                if (string.IsNullOrEmpty(nm))
+                    nm = pl.TryGetProperty("summonerName", out var sn) ? sn.GetString() : null;
+                nameOf[pid] = nm ?? "";
+            }
+
+            // Моя команда — по моему же participantId.
+            int myTeam = -1;
+            foreach (var e in parts.EnumerateArray())
+                if (puuidOf.GetValueOrDefault(GetInt(e, "participantId")) == myPuuid)
+                    myTeam = GetInt(e, "teamId", -1);
+            if (myTeam < 0) return allies;
+
+            foreach (var e in parts.EnumerateArray())
+            {
+                if (GetInt(e, "teamId", -1) != myTeam) continue;
+                var pid = GetInt(e, "participantId");
+                var pu = puuidOf.GetValueOrDefault(pid);
+                if (string.IsNullOrEmpty(pu) || pu == myPuuid) continue;
+                var champ = GetInt(e, "championId");
+                if (champ > 0) allies.Add(new Ally(pu, champ, nameOf.GetValueOrDefault(pid, "")));
+            }
+        }
+        catch { /* подробная игра недоступна — связки просто не пополнятся */ }
+        return allies;
+    }
+
+    private static int GetInt(JsonElement e, string name, int fallback = 0) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetInt32() : fallback;
+
+    /// Ключ связки. Порядок частей фиксирован: мой чемпион всегда первым.
+    private static string PairKey(string allyPuuid, int myChampion, int allyChampion) =>
+        $"{allyPuuid}|{myChampion}|{allyChampion}";
 
     // Последние игры из истории LCU: gameId, очередь, чемпион, победа.
     private static async Task<List<HistEntry>> FetchHistoryAsync(LcuHttpClient http, CancellationToken ct)

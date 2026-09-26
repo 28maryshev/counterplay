@@ -2872,8 +2872,18 @@ public partial class OverlayWindow : Window
         RenderSessionView();
     });
 
+    /// <summary>
+    /// Лента винрейтов в сайдбаре.
+    ///
+    /// Включён дуо-пул — показываем винрейт СВЯЗОК: с кем и на какой паре
+    /// сколько выиграно. В обычном режиме и с личным пулом — свой винрейт по
+    /// чемпионам, как было. Логика простая: лента отвечает на вопрос того
+    /// режима, в котором игрок сейчас находится.
+    /// </summary>
     private void UpdateMyChampsStrip()
     {
+        if (PoolStore.Current().ActiveKind == PoolKind.Duo && TryDuoStrip()) return;
+
         var ranked = SessionTracker.ChampStatsMap(SessionTracker.QueuesRanked);
         var normal = SessionTracker.ChampStatsMap(SessionTracker.QueuesNormal);
         var items = ranked.Keys.Concat(normal.Keys).Distinct()
@@ -2918,6 +2928,38 @@ public partial class OverlayWindow : Window
         MyChampsStrip.ItemsSource = items;
         MyChampsBox.Visibility    = AppSettings.Current.ReadyChamps
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Лента связок для дуо-режима. false — связок ещё нет, и тогда лента
+    /// остаётся обычной: пустые слоты «сыграйте вдвоём» ничего не объясняют,
+    /// а свой винрейт по чемпионам полезен всегда.
+    /// </summary>
+    private bool TryDuoStrip()
+    {
+        if (_champsPreview is not null || _emptyProfilePreview) return false;
+
+        // Напарник опознан (заходили с этим пулом в драфт вместе) — считаем по
+        // нему. Ещё не опознан — берём связки со всеми, с кем играли.
+        var a = PoolStore.Current();
+        var duo = a.DuoPools.FirstOrDefault(d => d.Id == (a.ActiveId ?? a.FavDuoId));
+        var pairs = SessionTracker.TopPairs(duo?.FriendPuuid, MyChampsMax);
+        if (pairs.Count == 0) return false;
+
+        MyChampsStrip.ItemsSource = pairs.Select(p => MyChampCard.FromChampion(
+            IconCache.Get(p.MyChampionId),
+            $"{p.WinRate:F0}%",
+            WinrateColor.BrushForSample(p.WinRate, p.Games),
+            WinrateColor.TintForSample(p.WinRate, p.Games),
+            // В подсказке — вся связка целиком: на карточке помещается только
+            // мой чемпион, и без неё две разные пары выглядели бы одинаково.
+            $"{DataDragon.Name(p.MyChampionId)} + {DataDragon.Name(p.AllyChampionId)}"
+            + (p.AllyName.Length > 0 ? $" ({p.AllyName})" : "")
+            + $" — {p.WinRate:F0}% / {p.Games}")).ToList();
+
+        MyChampsBox.Visibility = AppSettings.Current.ReadyChamps
+            ? Visibility.Visible : Visibility.Collapsed;
+        return true;
     }
 
     /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
@@ -2971,9 +3013,13 @@ public partial class OverlayWindow : Window
             : a.DuoPools.Select(d => (d.Id, Name: d.FriendName.Length > 0 ? d.FriendName : Loc.T("pool.duo"),
                                       Mode: Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto"))).ToList();
         if (items.Count == 0) return;   // нет пулов — создать в настройках (след. этап)
-        if (items.Count == 1)
+
+        // Отмечен звездой — включаем сразу его, без меню: звезда для того и
+        // ставится, чтобы кнопка включала «тот самый» пул этой половины.
+        var fav = PoolStore.Favourite(kind);
+        if (items.Count == 1 || (fav is not null && items.Any(i => i.Id == fav)))
         {
-            PoolStore.SetActive(kind, items[0].Id);
+            PoolStore.SetActive(kind, fav ?? items[0].Id);
             UpdatePoolButtons();
             RenderCurrentState();
             return;

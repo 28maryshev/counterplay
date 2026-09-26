@@ -492,7 +492,12 @@
     "exported": "Gespeichert: {0}",
     "pickMineTitle": "Deine Hälfte des Duos",
     "pickMineHint": "„{0}“ wird die Hälfte deines Freundes. Wähle deinen Pool für dieses Duo — oder fülle ihn später.",
-    "later": "Später füllen"
+    "later": "Später füllen",
+    "myWinratesPool": "Deine Winrate · Pool „{0}“ · letzte {1} Tage",
+    "duoWinrates": "Duo-Winrates · mit wem du gespielt hast",
+    "duoWinratesWith": "Duo-Winrates · mit {0}",
+    "duoWinratesEmpty": "Noch keine Paare. Gezählt wird ab neuen Spielen — spielt zusammen, dann erscheinen sie hier.",
+    "games": "Spiele"
   },
   "phaseState": {
     "none": "Bereit",

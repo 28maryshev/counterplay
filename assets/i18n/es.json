@@ -492,7 +492,12 @@
     "exported": "Guardado: {0}",
     "pickMineTitle": "Tu mitad del dúo",
     "pickMineHint": "«{0}» será la mitad de tu amigo. Elige tu grupo para este dúo o complétalo más tarde.",
-    "later": "Rellenar después"
+    "later": "Rellenar después",
+    "myWinratesPool": "Tu winrate · pool «{0}» · últimos {1} días",
+    "duoWinrates": "Winrate de dúos · con quién jugaste",
+    "duoWinratesWith": "Winrate de dúos · con {0}",
+    "duoWinratesEmpty": "Aún no hay parejas. La cuenta empieza con las partidas nuevas: jugad juntos y aparecerán aquí.",
+    "games": "partidas"
   },
   "phaseState": {
     "none": "Listo",

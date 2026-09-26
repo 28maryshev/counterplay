@@ -105,7 +105,18 @@ public static class Party
 
         var mate = allies.FirstOrDefault(IsMate);
         if (mate is not null)
+        {
+            // Заодно запоминаем, КТО этот напарник. Имя в дуо-пуле игрок пишет
+            // как хочет, а винрейт связки считается по puuid — привязку больше
+            // взять неоткуда, и делается она сама, без лишнего вопроса.
+            if (mate.Puuid.Length > 0 && duo.FriendPuuid != mate.Puuid)
+            {
+                duo.FriendPuuid = mate.Puuid;
+                PoolStore.Persist();
+                Log.Write($"дуо «{duo.FriendName}»: напарник опознан, связки считаем по нему");
+            }
             return Logged(mate.EffectiveChampionId, $"напарник по пати, роль {Role(mate)}");
+        }
 
         if (allies.Count == 0) return Logged(0, "");
         return Logged(0, Known ? "в команде никого из пати" : "состав пати неизвестен — пару не предлагаю");

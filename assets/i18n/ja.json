@@ -492,7 +492,12 @@
     "exported": "保存しました: {0}",
     "pickMineTitle": "デュオのあなた側",
     "pickMineHint": "「{0}」はフレンド側になります。あなた側のプールを選ぶか、あとで埋めてください。",
-    "later": "あとで埋める"
+    "later": "あとで埋める",
+    "myWinratesPool": "自分の勝率 · プール「{0}」· 直近{1}日",
+    "duoWinrates": "デュオ勝率 · 一緒に遊んだ相手",
+    "duoWinratesWith": "デュオ勝率 · {0} と",
+    "duoWinratesEmpty": "まだ組み合わせがありません。新しい試合から集計します — 一緒にプレイするとここに表示されます。",
+    "games": "試合"
   },
   "phaseState": {
     "none": "待機中",

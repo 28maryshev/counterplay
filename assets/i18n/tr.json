@@ -492,7 +492,12 @@
     "exported": "Kaydedildi: {0}",
     "pickMineTitle": "İkilideki senin yarın",
     "pickMineHint": "“{0}” arkadaşının yarısı olur. Bu ikili için kendi havuzunu seç ya da sonra doldur.",
-    "later": "Sonra doldur"
+    "later": "Sonra doldur",
+    "myWinratesPool": "Kazanma oranın · havuz “{0}” · son {1} gün",
+    "duoWinrates": "İkili kazanma oranları · kiminle oynadın",
+    "duoWinratesWith": "İkili kazanma oranları · {0} ile",
+    "duoWinratesEmpty": "Henüz ikili yok. Sayım yeni maçlardan başlar — birlikte oynayın, burada görünecekler.",
+    "games": "maç"
   },
   "phaseState": {
     "none": "Hazır",

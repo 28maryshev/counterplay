@@ -28,6 +28,14 @@ public sealed class DuoPool
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
     public string FriendName { get; set; } = "";
+
+    /// <summary>
+    /// puuid напарника — узнаётся сам, когда с этим дуо-пулом заходят в драфт
+    /// вместе с человеком из пати. Нужен для винрейта связки: имя в пуле пишет
+    /// игрок как хочет, а считать надо по тому же ключу, что и игры.
+    /// Пусто — пока не заходили вместе; тогда связки показываем по всем, с кем играли.
+    /// </summary>
+    public string FriendPuuid { get; set; } = "";
     public Dictionary<string, List<int>> Mine { get; set; } = new();
     public Dictionary<string, List<int>> Friend { get; set; } = new();
     public List<int> MineForRole(string role)   => Mine.TryGetValue(role, out var l) ? l : [];
@@ -58,6 +66,15 @@ public sealed class AccountPools
     public PoolKind        ActiveKind { get; set; } = PoolKind.Normal;
     public string?         ActiveId   { get; set; }   // id активного (дуо-)пула
     public string?         AccountName { get; set; }  // ник (для выбора при импорте)
+
+    // Избранное — ОТДЕЛЬНО в каждой половине: звезда может гореть и на личном
+    // пуле, и на дуо одновременно. Какой из них сейчас в деле, решает кнопка в
+    // сайдбаре (ActiveKind выше), а звезда лишь говорит «этот из своей половины».
+    //
+    // Раньше звезда и переключатель были одним и тем же: выбрал дуо — личный
+    // выбор терялся, и вернуться к нему можно было только заново отметив пул.
+    public string? FavPoolId { get; set; }
+    public string? FavDuoId  { get; set; }
 
     // Выбор режима ЗАПОМИНАЕТСЯ ПО ОЧЕРЕДИ (solo/flex/normal/aram): дуо-пул из
     // соло-очереди не должен утекать во флекс. ActiveKind/ActiveId выше — это
@@ -96,6 +113,22 @@ public static class PoolStore
                        ?? new();
         }
         catch { _all = new(); }
+
+        // Переход со старого формата, где звезда и переключатель были одним и
+        // тем же. Что было активным — то и становится избранным в своей
+        // половине, иначе после обновления звёзды погасли бы на всех пулах.
+        foreach (var a in _all.Values)
+        {
+            if (a.FavPoolId is null && a.ActiveKind == PoolKind.Pool) a.FavPoolId = a.ActiveId;
+            if (a.FavDuoId  is null && a.ActiveKind == PoolKind.Duo)  a.FavDuoId  = a.ActiveId;
+            // Плюс то, что помнится по очередям: человек мог играть и с личным
+            // пулом в соло, и с дуо во флексе — обе звезды должны загореться.
+            foreach (var q in a.ByQueue.Values)
+            {
+                if (a.FavPoolId is null && q.Kind == PoolKind.Pool) a.FavPoolId = q.Id;
+                if (a.FavDuoId  is null && q.Kind == PoolKind.Duo)  a.FavDuoId  = q.Id;
+            }
+        }
         _loaded = true;
     }
 
@@ -184,7 +217,51 @@ public static class PoolStore
             a.ActiveKind = kind;
             a.ActiveId   = id;
             a.ByQueue[_queue] = new QueueActive { Kind = kind, Id = id };
+            // Включили пул кнопкой — он же и становится избранным в своей
+            // половине: иначе звезда показывала бы одно, а работало другое.
+            if (kind == PoolKind.Pool && id is not null) a.FavPoolId = id;
+            if (kind == PoolKind.Duo  && id is not null) a.FavDuoId  = id;
             Save();
+        }
+    }
+
+    /// <summary>
+    /// Отметить избранный пул в СВОЕЙ половине (звезда). Вторую половину не
+    /// трогает. Повторный клик по уже избранному — снять отметку.
+    ///
+    /// Если эта половина сейчас в деле, переключатель идёт следом: иначе на
+    /// экране горела бы одна звезда, а подбор шёл по другому пулу.
+    /// </summary>
+    public static void SetFavourite(PoolKind kind, string? id)
+    {
+        lock (Gate)
+        {
+            EnsureLoaded();
+            var a = CurrentLocked();
+            if (kind == PoolKind.Pool) a.FavPoolId = a.FavPoolId == id ? null : id;
+            else if (kind == PoolKind.Duo) a.FavDuoId = a.FavDuoId == id ? null : id;
+            else return;
+
+            var fav = kind == PoolKind.Pool ? a.FavPoolId : a.FavDuoId;
+            if (a.ActiveKind == kind)
+            {
+                if (fav is null) { a.ActiveKind = PoolKind.Normal; a.ActiveId = null; }
+                else a.ActiveId = fav;
+                a.ByQueue[_queue] = new QueueActive { Kind = a.ActiveKind, Id = a.ActiveId };
+            }
+            Save();
+        }
+    }
+
+    /// Избранный пул своей половины (null — звезда не горит).
+    public static string? Favourite(PoolKind kind)
+    {
+        lock (Gate)
+        {
+            EnsureLoaded();
+            var a = CurrentLocked();
+            return kind == PoolKind.Pool ? a.FavPoolId
+                 : kind == PoolKind.Duo  ? a.FavDuoId : null;
         }
     }
 
