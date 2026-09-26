@@ -19,13 +19,31 @@ public static class DataDb
     public static string LocalPath        => Path.Combine(Dir, "data.db");
     private static string LocalVersionPath => Path.Combine(Dir, "data-version.txt");
 
-    // Дата-релиз: ассеты обновляются независимо от релизов приложения.
-    private const string BaseUrl    = "https://github.com/28maryshev/counterplay/releases/download/data";
-    private const string VersionUrl = BaseUrl + "/data-version.json";
+    // Откуда качаем базу. Первым — своё хранилище на Cloudflare (R2), вторым —
+    // дата-релиз на GitHub.
+    //
+    // Порядок такой не из вкусовщины, а по замерам с обычного домашнего канала:
+    // GitHub отдавал 0.11–0.12 МБ/с, сеть Cloudflare — 5–6 МБ/с, Data Dragon —
+    // 9 МБ/с. Разница в полсотни раз, и канал тут ни при чём. При 51 КБ/с кусок
+    // в 16 МБ не успевал за отведённые пять минут, и загрузка начиналась заново.
+    //
+    // GitHub оставляем запасным путём: по нему качают версии программы,
+    // выпущенные до переезда, и он же выручит, если R2 будет недоступен.
+    private const string R2Url      = "https://data.counterplays.com";
+    private const string GhUrl      = "https://github.com/28maryshev/counterplay/releases/download/data";
+
+    /// Источники по порядку предпочтения. Пустой R2Url — значит ещё не завели.
+    private static IEnumerable<string> Sources()
+    {
+        if (R2Url.Length > 0) yield return R2Url;
+        yield return GhUrl;
+    }
+
+    private static string VersionUrlOn(string baseUrl) => baseUrl + "/data-version.json";
     // Побакетная база (data-<bucket>.db, ~50 МБ) — качаем только свой ранг. Если
     // бакет неизвестен — общая тонкая data.db (все бакеты, ~177 МБ).
-    private static string DataUrlFor(string? bucket) =>
-        string.IsNullOrEmpty(bucket) ? BaseUrl + "/data.db" : $"{BaseUrl}/data-{bucket}.db";
+    private static string DataUrlOn(string baseUrl, string? bucket) =>
+        string.IsNullOrEmpty(bucket) ? baseUrl + "/data.db" : $"{baseUrl}/data-{bucket}.db";
 
     // Локальные dev-базы (рядом с проектом). Используются как есть, БЕЗ скачивания,
     // ТОЛЬКО в dev-режиме (см. DevDbEnabled). По умолчанию их игнорируем — база
@@ -153,7 +171,10 @@ public static class DataDb
         {
             Directory.CreateDirectory(Dir);
 
-            var remoteVer = await FetchVersionAsync(bucket, ct);
+            // Версию спрашиваем у того же источника, с которого потом качаем:
+            // выложиться они могут в разное время, и брать номер у одного, а
+            // файл у другого — верный способ записать чужую версию себе.
+            var (source, remoteVer) = await FetchVersionAsync(bucket, ct);
             var wantedTag = remoteVer is null ? null : $"{bucket ?? "all"}:{remoteVer}";
             var localTag  = File.Exists(LocalVersionPath) ? File.ReadAllText(LocalVersionPath).Trim() : null;
             var haveDb    = File.Exists(LocalPath) && new FileInfo(LocalPath).Length > 0;
@@ -165,10 +186,9 @@ public static class DataDb
             progress?.Invoke(label, 0);
 
             // Сперва сжатая база: она втрое с лишним меньше (112 МБ против 32 у
-            // изумруда), а маршрут до GitHub из России гуляет от 0.4 до 6 МБ/с —
-            // на плохой минуте это разница между полуминутой и тремя.
-            // Распаковка занимает секунды и на фоне скачивания незаметна.
-            var url = DataUrlFor(bucket);
+            // изумруда). Распаковка занимает секунды и на фоне скачивания
+            // незаметна.
+            var url = DataUrlOn(source, bucket);
             try
             {
                 await DownloadAsync(url + ".gz", label, progress, ct, gzipped: true);
@@ -207,22 +227,39 @@ public static class DataDb
     // Версия целевой базы: для бакета — из manifest.buckets[bucket].version,
     // иначе общая version. Если побакетной секции нет (старый релиз) — вернём
     // общую и качнём общую data.db (обратная совместимость).
-    private static async Task<string?> FetchVersionAsync(string? bucket, CancellationToken ct)
+    private static async Task<(string Source, string? Version)> FetchVersionAsync(
+        string? bucket, CancellationToken ct)
     {
-        try
+        string? firstFailure = null;
+        foreach (var src in Sources())
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            var json = (await http.GetStringAsync(VersionUrl, ct)).TrimStart('﻿');
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            if (!string.IsNullOrEmpty(bucket)
-                && root.TryGetProperty("buckets", out var bs)
-                && bs.TryGetProperty(bucket, out var b)
-                && b.TryGetProperty("version", out var bv))
-                return bv.GetString();
-            return root.TryGetProperty("version", out var v) ? v.GetString() : null;
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                var json = (await http.GetStringAsync(VersionUrlOn(src), ct)).TrimStart('﻿');
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                string? ver = null;
+                if (!string.IsNullOrEmpty(bucket)
+                    && root.TryGetProperty("buckets", out var bs)
+                    && bs.TryGetProperty(bucket, out var b)
+                    && b.TryGetProperty("version", out var bv))
+                    ver = bv.GetString();
+                else if (root.TryGetProperty("version", out var v))
+                    ver = v.GetString();
+
+                if (firstFailure is not null)
+                    Log.Write($"данные беру с запасного источника ({firstFailure})");
+                return (src, ver);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                firstFailure ??= ex.Message;
+            }
         }
-        catch { return null; }
+        // Никто не ответил — качать не с чего, останемся на том, что есть.
+        return (GhUrl, null);
     }
 
     // База качается КУСКАМИ по 16 МБ через Range-запросы, а не одним потоком.

@@ -35,6 +35,7 @@ from pathlib import Path
 
 import requests
 
+import r2
 from freshness import all_patches
 
 REPO = os.environ.get('GITHUB_REPO', '28maryshev/counterplay')
@@ -271,6 +272,31 @@ def upload_gz(s: requests.Session, release_id: int, path: Path, name: str):
         gz.unlink(missing_ok=True)
 
 
+def publish_r2(slim: Path, bucket_files: dict, vfile: Path):
+    """Выложить базы в R2. Не настроен — молча пропускаем.
+
+    Сбой заливки НЕ роняет публикацию: в GitHub всё уже лежит, и программа
+    откатится на него сама. Молчать при этом нельзя — пишем в вывод.
+    """
+    if not r2.configured():
+        print('[R2] не настроен — пропускаю', flush=True)
+        return
+    try:
+        files = [(slim, 'data.db')] + [(bf, f'data-{b}.db') for b, bf in bucket_files.items()]
+        for path, name in files:
+            gz = gzip_file(path)
+            try:
+                print(f'[R2] заливаю {name}.gz ({gz.stat().st_size / 1e6:.1f} МБ)…', flush=True)
+                r2.put(gz, name + '.gz')
+            finally:
+                gz.unlink(missing_ok=True)   # место на диске на счету
+        # Номер версии — последним, см. вызов.
+        r2.put(vfile, 'data-version.json', 'application/json', cache_seconds=60)
+        print('[R2] готово', flush=True)
+    except Exception as e:
+        print(f'[R2] НЕ ВЫШЛО: {type(e).__name__}: {e}', flush=True)
+
+
 def upload_asset(s: requests.Session, release_id: int, path: Path, name: str):
     """Заливает ассет, снося прежний с тем же именем (--clobber у gh).
 
@@ -347,6 +373,17 @@ def publish(db_path: str, token: str) -> dict:
             upload_asset(s, rid, bf, f'data-{b}.db')
             upload_gz(s, rid, bf, f'data-{b}.db')
         upload_asset(s, rid, vfile, 'data-version.json')
+
+        # То же самое — в своё хранилище на Cloudflare. Программа спрашивает
+        # сперва его: GitHub из России отдаёт 0.11 МБ/с против 5–6 у Cloudflare,
+        # и на плохой минуте кусок не успевал скачаться за отведённое время.
+        #
+        # GitHub остаётся: по нему качают версии программы, выпущенные до
+        # переезда, и он же запасной путь, если R2 окажется недоступен.
+        #
+        # Номер версии заливаем ПОСЛЕДНИМ: пока он старый, программа не пойдёт
+        # за файлами, которых ещё нет.
+        publish_r2(slim, bucket_files, vfile)
 
         manifest['slim_mb'] = round(slim.stat().st_size / 1e6, 1)
     return manifest
