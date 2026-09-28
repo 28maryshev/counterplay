@@ -5964,7 +5964,7 @@ public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
                                     : InPool   ? "#3FD9C8"
                                     : ShowGrade ? GradeColor : "#3A4B5F";
     /// Подложка — та же бирюза, еле заметной заливкой.
-    public string       PoolTint   => InPool ? "#233F3C" : "#00000000";
+    public string       PoolTint   => InPool ? "#593FD9C8" : "#00000000";
 
     // Чемпион уже забанен в этом драфте — помечаем оверлеем (обновляется по ходу).
     private bool _banned;
@@ -6133,7 +6133,9 @@ public sealed class FullRecCard
     // Пик из пула игрока — синяя плашка, но БЕЗ рамки: обведённой показывается
     // выбранная карточка, и вторая обводка рядом читалась как второй выбор.
     // Синего в заливке за неё чуть больше — иначе без рамки плашка теряется.
-    public string       CardBg     => FromPool ? "#30315C8A" : IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
+    // Дуо-пик из пула — бирюзой, тем же тоном, что пометка в полосе ролей
+    // (#3FD9C8). Прежний синий (#315C8A) спорил с ней и читался как другой знак.
+    public string       CardBg     => FromPool ? "#2E3FD9C8" : IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
     public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
 
     // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».

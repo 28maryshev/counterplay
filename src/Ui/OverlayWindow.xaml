@@ -1755,7 +1755,11 @@
                               Opacity="{Binding CellOpacity}"
                               MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}"
                               MouseEnter="PoolCell_Enter" MouseLeave="PoolCell_Leave">
-                          <Grid.Background><SolidColorBrush Color="{Binding PoolTint}"/></Grid.Background>
+                          <!-- Пометка пула: КРУГ по форме иконки. Заливка квадрата
+                               под круглым портретом читалась как случайная плашка. -->
+                          <Ellipse Margin="-2">
+                            <Ellipse.Fill><SolidColorBrush Color="{Binding PoolTint}"/></Ellipse.Fill>
+                          </Ellipse>
                           <Ellipse x:Name="PoolIcon" StrokeThickness="1.5">
                             <Ellipse.Fill>
                               <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
