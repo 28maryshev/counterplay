@@ -112,8 +112,10 @@ public sealed class PoolSettingsWindow : Window
     {
         _wrSolo.Children.Clear();
         _wrDuo.Children.Clear();
-        _wrPeriod.Children.Clear();
-        FillPeriodButtons();
+        _wrPeriodSolo.Children.Clear();
+        _wrPeriodDuo.Children.Clear();
+        FillPeriodButtons(_wrPeriodSolo, duo: false);
+        FillPeriodButtons(_wrPeriodDuo,  duo: true);
 
         // Каркас собираем ОДИН раз. Пересобирать его на каждом обновлении
         // нельзя: колонки остаются детьми прежней сетки, и WPF отвечает
@@ -121,16 +123,19 @@ public sealed class PoolSettingsWindow : Window
         // периода.
         if (_wrStrip.Children.Count == 0)
         {
-            _wrStrip.Children.Add(_wrPeriod);
-
             var g = new Grid();
             // Те же доли и та же черта, что у пулов выше, — колонки совпадают.
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            Grid.SetColumn(_wrSolo, 0);
-            g.Children.Add(_wrSolo);
+            // Кнопки стоят В СВОЕЙ колонке, над её заголовком: период у
+            // половин теперь разный, и общий ряд наверху врал бы про обе.
+            var left = new StackPanel();
+            left.Children.Add(_wrPeriodSolo);
+            left.Children.Add(_wrSolo);
+            Grid.SetColumn(left, 0);
+            g.Children.Add(left);
 
             var line = new Border
             {
@@ -140,8 +145,11 @@ public sealed class PoolSettingsWindow : Window
             Grid.SetColumn(line, 1);
             g.Children.Add(line);
 
-            Grid.SetColumn(_wrDuo, 2);
-            g.Children.Add(_wrDuo);
+            var right = new StackPanel();
+            right.Children.Add(_wrPeriodDuo);
+            right.Children.Add(_wrDuo);
+            Grid.SetColumn(right, 2);
+            g.Children.Add(right);
 
             _wrStrip.Children.Add(g);
         }
@@ -150,9 +158,11 @@ public sealed class PoolSettingsWindow : Window
         RefreshDuoWinrates();
     }
 
-    /// Выбранное окно в днях; 0 — за всё время.
-    private static int PeriodDays =>
+    /// Выбранное окно в днях для своей половины; 0 — за всё время.
+    private static int SoloDays =>
         AppSettings.Current.WinratesAllTime ? 0 : SessionTracker.RecentDays;
+    private static int DuoDays =>
+        AppSettings.Current.DuoWinratesAllTime ? 0 : SessionTracker.RecentDays;
 
     /// <summary>
     /// Переключатель периода — один на обе половины.
@@ -161,19 +171,24 @@ public sealed class PoolSettingsWindow : Window
     /// в подписях. Теперь период общий и выбирается здесь, а подписи колонок
     /// стали короче: период стоит над ними и не повторяется дважды.
     /// </summary>
-    private readonly StackPanel _wrPeriod = new()
+    private static StackPanel PeriodRow() => new()
     {
         Orientation = System.Windows.Controls.Orientation.Horizontal,
         Margin = new Thickness(2, 0, 0, 8)
     };
 
-    private void FillPeriodButtons()
+    private readonly StackPanel _wrPeriodSolo = PeriodRow();
+    private readonly StackPanel _wrPeriodDuo  = PeriodRow();
+
+    /// <param name="duo">true — кнопки правой половины (связки).</param>
+    private void FillPeriodButtons(StackPanel row, bool duo)
     {
-        var row = _wrPeriod;
+        bool Chosen() => duo ? AppSettings.Current.DuoWinratesAllTime
+                             : AppSettings.Current.WinratesAllTime;
 
         Button Make(string text, bool allTime)
         {
-            var on = AppSettings.Current.WinratesAllTime == allTime;
+            var on = Chosen() == allTime;
             var b = new Button
             {
                 Content = text, FontSize = 11, FontWeight = FontWeights.Bold,
@@ -188,8 +203,9 @@ public sealed class PoolSettingsWindow : Window
             };
             b.Click += (_, _) =>
             {
-                if (AppSettings.Current.WinratesAllTime == allTime) return;
-                AppSettings.Current.WinratesAllTime = allTime;
+                if (Chosen() == allTime) return;
+                if (duo) AppSettings.Current.DuoWinratesAllTime = allTime;
+                else     AppSettings.Current.WinratesAllTime    = allTime;
                 AppSettings.SaveQuiet();
                 RefreshWinrates();   // каркас на месте, меняется только содержимое
             };
@@ -223,7 +239,7 @@ public sealed class PoolSettingsWindow : Window
     // нет — показываем всех, как и раньше.
     private void RefreshSoloWinrates()
     {
-        var days   = PeriodDays;
+        var days   = SoloDays;
         var ranked = SessionTracker.ChampStatsMap(days, SessionTracker.QueuesRanked);
         var normal = SessionTracker.ChampStatsMap(days, SessionTracker.QueuesNormal);
 
@@ -335,7 +351,7 @@ public sealed class PoolSettingsWindow : Window
         // Звездой отмечен дуо-пул и напарник уже опознан — считаем по нему.
         // Иначе показываем связки со всеми, с кем играли.
         var who = fav?.FriendPuuid;
-        var pairs = SessionTracker.TopPairs(who, take: 200, days: PeriodDays).ToList();
+        var pairs = SessionTracker.TopPairs(who, take: 200, days: DuoDays).ToList();
 
         // Пары, задуманные В ПУЛЕ, идут первыми. В общем списке они тонули среди
         // случайных союзников, а смотрят сюда обычно ради них.
@@ -659,6 +675,8 @@ public sealed class PoolSettingsWindow : Window
             BorderBrush = new SolidColorBrush(active ? Color.FromRgb(0xC8, 0x9B, 0x3C) : Color.FromRgb(0x30, 0x42, 0x54)),
             BorderThickness = new Thickness(active ? 2 : 1),
             Cursor = System.Windows.Input.Cursors.Hand,
+            // Режим подбора уступил место нику — сохраняем его в подсказке.
+            ToolTip = mode.Length > 0 && nick.Length > 0 ? $"{name}\n{mode}" : null,
             ClipToBounds = true   // фон-мозаика не вылезает за скруглённые углы
         };
         var g = new Grid();
@@ -677,35 +695,29 @@ public sealed class PoolSettingsWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             // Внизу стоят пометка режима и ник — оставляем им место, чтобы
             // название не наезжало.
-            Margin = new Thickness(6, 6, 6, 6 + (mode.Length > 0 ? 14 : 0) + (nick.Length > 0 ? 14 : 0)),
+            Margin = new Thickness(6, 6, 6, mode.Length > 0 || nick.Length > 0 ? 20 : 6),
             // Тень — имя выделяется на мозаике.
             Effect = new System.Windows.Media.Effects.DropShadowEffect
             { Color = Colors.Black, BlurRadius = 5, ShadowDepth = 0, Opacity = 0.9 }
         });
-        // С КЕМ этот пул. Название плитки склеено из половин и о человеке не
-        // говорит; раньше имя было видно только в заголовке раздела винрейтов,
-        // то есть после того, как пул отметили звездой.
-        if (nick.Length > 0)
+        // Нижняя строка плитки: если знаем, С КЕМ пул, — стоит ник. Он важнее
+        // способа подбора: название склеено из половин и о человеке молчит, а
+        // режим никуда не девается — он в подсказке к плитке.
+        var bottom = nick.Length > 0 ? nick : mode;
+        if (bottom.Length > 0)
             g.Children.Add(new TextBlock
             {
-                Text = nick, FontSize = 10, FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Blue),
+                Text = bottom, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(nick.Length > 0 ? Blue
+                                                                 : Color.FromRgb(0x8A, 0xA0, 0xB2)),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(4, 0, 4, mode.Length > 0 ? 21 : 7),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect
-                { Color = Colors.Black, BlurRadius = 4, ShadowDepth = 0, Opacity = 0.9 }
-            });
-
-        // Режим подбора пары дуо-пула — снизу плитки.
-        if (mode.Length > 0)
-            g.Children.Add(new TextBlock
-            {
-                Text = mode, FontSize = 10, FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(4, 0, 4, 7)
+                Margin = new Thickness(4, 0, 4, 7),
+                Effect = nick.Length > 0
+                    ? new System.Windows.Media.Effects.DropShadowEffect
+                      { Color = Colors.Black, BlurRadius = 4, ShadowDepth = 0, Opacity = 0.9 }
+                    : null
             });
         // Звезда выбора — левый верхний угол.
         var star = new Button

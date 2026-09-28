@@ -91,13 +91,15 @@ internal static class Program
         Check("подпись плитки осталась прежней", texts.Contains("supports + top"), "да");
 
         // ── Переключение периода ───────────────────────────────────────────
+        // Кнопок теперь четыре: своя пара у каждой половины. Порядок обхода
+        // дерева сверху вниз и слева направо, поэтому первые две — левые.
         var buttons = Walk<Button>(w)
             .Where(b => b.Content is string s && (s.Contains("дней") || s.Contains("всё время")))
             .ToList();
-        Check("кнопки периода на месте", buttons.Count == 2, $"{buttons.Count}");
-        if (buttons.Count != 2) { w.Close(); app.Shutdown(); return; }
+        Check("у каждой половины своя пара кнопок", buttons.Count == 4, $"{buttons.Count}");
+        if (buttons.Count != 4) { w.Close(); app.Shutdown(); return; }
 
-        // Жмём обе, и по два раза: падало именно на ПОВТОРНОЙ сборке.
+        // Жмём все, и по два раза: падало именно на ПОВТОРНОЙ сборке.
         foreach (var round in new[] { 1, 2 })
             foreach (var b in buttons)
             {
@@ -112,16 +114,35 @@ internal static class Program
                     w.Close(); app.Shutdown(); return;
                 }
             }
-        Check("оба периода нажимаются по два раза", true, "без ошибок");
+        Check("все кнопки нажимаются по два раза", true, "без ошибок");
 
-        // Выбор запомнился и виден в настройках.
-        Check("выбор периода сохраняется",
-              AppSettings.Current.WinratesAllTime == (buttons[1].Content as string == "За всё время"),
-              AppSettings.Current.WinratesAllTime ? "за всё время" : "за 30 дней");
+        // Половины независимы: ставим им РАЗНЫЕ периоды и смотрим, что оба
+        // держатся. Ради этого разделение и делалось.
+        Click(buttons, "За 30 дней", first: true);      // слева — месяц
+        Click(buttons, "За всё время", first: false);   // справа — всё время
+        Check("слева месяц, справа всё время",
+              !AppSettings.Current.WinratesAllTime && AppSettings.Current.DuoWinratesAllTime,
+              $"слева {(AppSettings.Current.WinratesAllTime ? "всё" : "месяц")}, "
+              + $"справа {(AppSettings.Current.DuoWinratesAllTime ? "всё" : "месяц")}");
+
+        Click(buttons, "За всё время", first: true);    // слева переключаем
+        Check("переключение слева не тронуло правую",
+              AppSettings.Current.WinratesAllTime && AppSettings.Current.DuoWinratesAllTime,
+              $"слева {(AppSettings.Current.WinratesAllTime ? "всё" : "месяц")}, "
+              + $"справа {(AppSettings.Current.DuoWinratesAllTime ? "всё" : "месяц")}");
 
         w.Close();
         Pump();
         app.Shutdown();
+    }
+
+    /// Нажать кнопку с таким текстом: первую (левая половина) или вторую (правая).
+    private static void Click(List<Button> all, string text, bool first)
+    {
+        var found = all.Where(b => (string?)b.Content == text).ToList();
+        var b = first ? found.First() : found.Last();
+        b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Pump();
     }
 
     /// Все потомки нужного типа в дереве окна.
