@@ -506,11 +506,65 @@ public sealed class PoolSettingsWindow : Window
             var add = PoolUi.Btn(Loc.T("sync.add"));
             add.Padding = new Thickness(9, 2, 9, 3);
             add.FontSize = 11;
-            add.ToolTip = Loc.T("sync.hint");
             add.Click += (_, _) => AskPassword();
             row.Children.Add(add);
         }
+
+        // «?» одинаково нужен в обоих состояниях: и тому, кто ещё не завёл
+        // пароль, и тому, кто забыл, зачем он.
+        row.Children.Add(SyncHelp());
         return row;
+    }
+
+    /// <summary>
+    /// «?» рядом с кнопкой: что это за пароль и зачем он.
+    ///
+    /// Раньше пояснение висело на самой кнопке — то есть узнать, о чём речь,
+    /// можно было, только наведя на кнопку, которую ещё не решился нажать.
+    /// </summary>
+    private static FrameworkElement SyncHelp()
+    {
+        var body = new StackPanel { MaxWidth = 320 };
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("sync.hint"), TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+            FontSize = 12, LineHeight = 18
+        });
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("sync.why"), TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 11, LineHeight = 16, Margin = new Thickness(0, 8, 0, 0)
+        });
+
+        var tip = new System.Windows.Controls.ToolTip
+        {
+            Content = body, Padding = new Thickness(12, 10, 12, 10),
+            Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)),
+            BorderThickness = new Thickness(1)
+        };
+
+        var q = new Border
+        {
+            Width = 18, Height = 18, CornerRadius = new CornerRadius(9),
+            Margin = new Thickness(7, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0x5A, 0x8A, 0xC8)),
+            BorderBrush = new SolidColorBrush(Blue), BorderThickness = new Thickness(1),
+            ToolTip = tip,
+            Child = new TextBlock
+            {
+                Text = "?", Foreground = new SolidColorBrush(Blue), FontWeight = FontWeights.Bold,
+                FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        System.Windows.Controls.ToolTipService.SetShowDuration(q, 60000);
+        System.Windows.Controls.ToolTipService.SetInitialShowDelay(q, 150);
+        return q;
     }
 
     /// Перерисовать значок после смены пароля — состояние поменялось.

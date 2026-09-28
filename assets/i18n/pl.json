@@ -660,13 +660,14 @@
   },
   "sync": {
     "title": "Synchronizacja",
-    "add": "Dodaj hasło",
+    "add": "Hasło synchronizacji",
     "change": "Zmień",
     "set": "Hasło dodane",
     "password": "Hasło",
     "again": "Powtórz hasło",
     "mismatch": "Hasła nie są takie same",
     "failed": "Nie udało się zapisać hasła",
-    "hint": "Hasło łączy ustawienia i pule między komputerami oraz je szyfruje — bez niego nie da się ich odczytać. Zapamiętaj je: nie da się go odzyskać. Puste pole usuwa hasło."
+    "hint": "Hasło łączy ustawienia i pule między komputerami oraz je szyfruje — bez niego nie da się ich odczytać. Zapamiętaj je: nie da się go odzyskać. Puste pole usuwa hasło.",
+    "why": "Hasło znasz tylko ty. Identyfikator z gry się nie nadaje: jest w każdej twojej grze i zna go każdy, z kim grałeś."
   }
 }

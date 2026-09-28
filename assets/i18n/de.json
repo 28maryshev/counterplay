@@ -660,13 +660,14 @@
   },
   "sync": {
     "title": "Synchronisierung",
-    "add": "Passwort hinzufügen",
+    "add": "Sync-Passwort",
     "change": "Ändern",
     "set": "Passwort hinzugefügt",
     "password": "Passwort",
     "again": "Passwort wiederholen",
     "mismatch": "Passwörter stimmen nicht überein",
     "failed": "Passwort konnte nicht gespeichert werden",
-    "hint": "Das Passwort verbindet deine Einstellungen und Pools zwischen Rechnern und verschlüsselt sie — ohne es sind sie nicht lesbar. Merk es dir: es lässt sich nicht wiederherstellen. Leer lassen, um es zu vergessen."
+    "hint": "Das Passwort verbindet deine Einstellungen und Pools zwischen Rechnern und verschlüsselt sie — ohne es sind sie nicht lesbar. Merk es dir: es lässt sich nicht wiederherstellen. Leer lassen, um es zu vergessen.",
+    "why": "Dein Passwort kennst nur du. Die Spiel-ID taugt dafür nicht: sie steckt in jedem deiner Spiele und ist jedem bekannt, mit dem du gespielt hast."
   }
 }

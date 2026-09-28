@@ -660,13 +660,14 @@
   },
   "sync": {
     "title": "Sincronizzazione",
-    "add": "Aggiungi password",
+    "add": "Password di sincronizzazione",
     "change": "Modifica",
     "set": "Password aggiunta",
     "password": "Password",
     "again": "Ripeti la password",
     "mismatch": "Le password non coincidono",
     "failed": "Impossibile salvare la password",
-    "hint": "La password collega impostazioni e pool tra computer e li cifra: senza non sono leggibili. Ricordala: non è recuperabile. Lascia vuoto per dimenticarla."
+    "hint": "La password collega impostazioni e pool tra computer e li cifra: senza non sono leggibili. Ricordala: non è recuperabile. Lascia vuoto per dimenticarla.",
+    "why": "Solo tu conosci la tua password. L’identificativo di gioco non va bene: compare in ogni tua partita e lo conosce chiunque abbia giocato con te."
   }
 }

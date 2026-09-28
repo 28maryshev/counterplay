@@ -660,13 +660,14 @@
   },
   "sync": {
     "title": "Sync",
-    "add": "Add password",
+    "add": "Sync password",
     "change": "Change",
     "set": "Password added",
     "password": "Password",
     "again": "Repeat password",
     "mismatch": "Passwords do not match",
     "failed": "Could not save the password",
-    "hint": "The password ties your settings and pools together across computers, and encrypts them — without it they cannot be read. Remember it: it cannot be recovered. Leave empty to forget it."
+    "hint": "The password ties your settings and pools together across computers, and encrypts them — without it they cannot be read. Remember it: it cannot be recovered. Leave empty to forget it.",
+    "why": "Only you know your password. The in-game identifier will not do: it appears in every game you play and is known to everyone you have played with."
   }
 }

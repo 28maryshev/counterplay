@@ -660,13 +660,14 @@
   },
   "sync": {
     "title": "Eşitleme",
-    "add": "Parola ekle",
+    "add": "Eşitleme parolası",
     "change": "Değiştir",
     "set": "Parola eklendi",
     "password": "Parola",
     "again": "Parolayı tekrarla",
     "mismatch": "Parolalar eşleşmiyor",
     "failed": "Parola kaydedilemedi",
-    "hint": "Parola ayarlarını ve havuzlarını bilgisayarlar arasında bağlar ve şifreler — onsuz okunamazlar. Unutma: geri alınamaz. Boş bırakırsan parola silinir."
+    "hint": "Parola ayarlarını ve havuzlarını bilgisayarlar arasında bağlar ve şifreler — onsuz okunamazlar. Unutma: geri alınamaz. Boş bırakırsan parola silinir.",
+    "why": "Parolanı yalnızca sen bilirsin. Oyun kimliği bunun için uygun değil: her maçında yer alır ve birlikte oynadığın herkes onu bilir."
   }
 }

@@ -97,13 +97,24 @@ internal static class Program
         // ── Пароль синхронизации ───────────────────────────────────────────
         // Кнопка живёт справа от «Как это работает» и меняет вид, когда пароль
         // задан. Сам пароль — секрет, поэтому проверяем не его, а состояние.
-        Check("без пароля предлагают его добавить",
-              texts.Any(t => t == Loc.T("sync.add")), Loc.T("sync.add"));
-        Check("пометки «пароль добавлен» пока нет",
-              !texts.Any(t => t.Contains(Loc.T("sync.set"))), "нет");
-
         var hadPass = SyncPassword.IsSet;
-        var saved = hadPass;   // чужой пароль не трогаем
+        if (hadPass)
+        {
+            Check("с паролем показано «добавлен»",
+                  texts.Any(t => t.Contains(Loc.T("sync.set"))), Loc.T("sync.set"));
+            Check("и кнопка «изменить»",
+                  Walk<Button>(w).Any(b => (string?)b.Content == Loc.T("sync.change")),
+                  Loc.T("sync.change"));
+        }
+        else
+        {
+            Check("без пароля предлагают его завести",
+                  Walk<Button>(w).Any(b => (string?)b.Content == Loc.T("sync.add")),
+                  Loc.T("sync.add"));
+            Check("пометки «пароль добавлен» пока нет",
+                  !texts.Any(t => t.Contains(Loc.T("sync.set"))), "нет");
+        }
+
         if (!hadPass)
         {
             Check("пароль сохраняется", SyncPassword.Set("проверка-пароля"), "да");
