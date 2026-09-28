@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "ยังไม่มีคู่ นับจากเกมใหม่เป็นต้นไป — เล่นด้วยกันแล้วคู่จะขึ้นที่นี่",
     "games": "เกม",
     "myWinratesPoolEmpty": "ยังไม่มีเกมกับแชมป์ในพูลนี้ — ลองเล่นดู แล้วอัตราชนะจะขึ้นที่นี่",
-    "inPool": "คู่จากพูล"
+    "inPool": "คู่จากพูล",
+    "periodRecent": "{0} วันล่าสุด",
+    "periodAll": "ตลอดเวลา",
+    "myWinratesShort": "อัตราชนะของคุณ",
+    "myWinratesPoolShort": "อัตราชนะของคุณ · พูล “{0}”",
+    "duoWinratesShort": "อัตราชนะคู่ · เคยเล่นกับใคร",
+    "duoWinratesWithShort": "อัตราชนะคู่ · กับ {0}"
   },
   "phaseState": {
     "none": "พร้อม",

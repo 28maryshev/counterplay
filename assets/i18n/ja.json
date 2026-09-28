@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "まだ組み合わせがありません。新しい試合から集計します — 一緒にプレイするとここに表示されます。",
     "games": "試合",
     "myWinratesPoolEmpty": "このプールのチャンピオンでの試合はまだありません — プレイすると勝率がここに出ます。",
-    "inPool": "プールの組み合わせ"
+    "inPool": "プールの組み合わせ",
+    "periodRecent": "直近{0}日",
+    "periodAll": "全期間",
+    "myWinratesShort": "自分の勝率",
+    "myWinratesPoolShort": "自分の勝率 · プール「{0}」",
+    "duoWinratesShort": "デュオ勝率 · 一緒に遊んだ相手",
+    "duoWinratesWithShort": "デュオ勝率 · {0} と"
   },
   "phaseState": {
     "none": "待機中",

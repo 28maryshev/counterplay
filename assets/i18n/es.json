@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "Aún no hay parejas. La cuenta empieza con las partidas nuevas: jugad juntos y aparecerán aquí.",
     "games": "partidas",
     "myWinratesPoolEmpty": "Aún no hay partidas con los campeones de este pool: juégalos y aparecerán aquí.",
-    "inPool": "pareja del pool"
+    "inPool": "pareja del pool",
+    "periodRecent": "Últimos {0} días",
+    "periodAll": "Histórico",
+    "myWinratesShort": "Tu winrate",
+    "myWinratesPoolShort": "Tu winrate · pool «{0}»",
+    "duoWinratesShort": "Winrate de dúos · con quién jugaste",
+    "duoWinratesWithShort": "Winrate de dúos · con {0}"
   },
   "phaseState": {
     "none": "Listo",

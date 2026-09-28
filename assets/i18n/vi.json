@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "Chưa có cặp nào. Bắt đầu tính từ các trận mới — chơi cùng nhau và cặp sẽ hiện ở đây.",
     "games": "trận",
     "myWinratesPoolEmpty": "Chưa có trận nào với tướng trong pool này — chơi thử và tỷ lệ thắng sẽ hiện ở đây.",
-    "inPool": "cặp trong pool"
+    "inPool": "cặp trong pool",
+    "periodRecent": "{0} ngày qua",
+    "periodAll": "Toàn thời gian",
+    "myWinratesShort": "Tỷ lệ thắng của bạn",
+    "myWinratesPoolShort": "Tỷ lệ thắng của bạn · pool “{0}”",
+    "duoWinratesShort": "Tỷ lệ thắng cặp · đã chơi cùng ai",
+    "duoWinratesWithShort": "Tỷ lệ thắng cặp · với {0}"
   },
   "phaseState": {
     "none": "Sẵn sàng",

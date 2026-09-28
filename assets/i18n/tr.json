@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "Henüz ikili yok. Sayım yeni maçlardan başlar — birlikte oynayın, burada görünecekler.",
     "games": "maç",
     "myWinratesPoolEmpty": "Bu havuzdaki şampiyonlarla henüz maç yok — onlarla oyna, oranlar burada görünsün.",
-    "inPool": "havuzdaki ikili"
+    "inPool": "havuzdaki ikili",
+    "periodRecent": "Son {0} gün",
+    "periodAll": "Tüm zamanlar",
+    "myWinratesShort": "Kazanma oranın",
+    "myWinratesPoolShort": "Kazanma oranın · havuz “{0}”",
+    "duoWinratesShort": "İkili kazanma oranları · kiminle oynadın",
+    "duoWinratesWithShort": "İkili kazanma oranları · {0} ile"
   },
   "phaseState": {
     "none": "Hazır",

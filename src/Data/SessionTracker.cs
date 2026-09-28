@@ -149,14 +149,38 @@ public static class SessionTracker
         public List<long> PairGames { get; set; } = new();
     }
 
-    /// Счёт по одной связке. Отдельный класс, а не кортеж: лежит в json.
+    /// <summary>
+    /// Одна связка. Хранит не счёт, а ВРЕМЯ каждой совместной игры — отдельно
+    /// выигранных и проигранных.
+    ///
+    /// Счётчиков было мало: из «11 игр, 8 побед» не вычесть прошлый месяц, а
+    /// период в окне переключается. Два массива чисел в json занимают немного,
+    /// и из них считается и общий счёт, и любое окно.
+    /// </summary>
     private sealed class PairRec
     {
-        public int Games { get; set; }
-        public int Wins { get; set; }
+        public List<long> Won  { get; set; } = new();
+        public List<long> Lost { get; set; } = new();
         /// Ник напарника, каким он был в последней совместной игре. Только для
         /// показа: опознаём человека по puuid, ник может смениться.
         public string Name { get; set; } = "";
+
+        /// Сколько сыграно и выиграно не раньше указанного времени (0 — всё).
+        public (int Games, int Wins) Count(long since)
+        {
+            var w = Won.Count(t => t >= since);
+            var l = Lost.Count(t => t >= since);
+            return (w + l, w);
+        }
+
+        /// Связка живёт годами, а нужны из неё последние игры: держим последние
+        /// PairKeep с каждой стороны, чтобы файл не рос без конца.
+        public void Trim()
+        {
+            const int PairKeep = 200;
+            if (Won.Count  > PairKeep) Won.RemoveRange(0, Won.Count - PairKeep);
+            if (Lost.Count > PairKeep) Lost.RemoveRange(0, Lost.Count - PairKeep);
+        }
     }
 
     /// Одна связка наружу: с кем, на ком, с каким счётом.
@@ -311,7 +335,11 @@ public static class SessionTracker
         var prefix = allyPuuid + "|";
         var g = 0; var w = 0;
         foreach (var (k, r) in acc.Pairs)
-            if (k.StartsWith(prefix, StringComparison.Ordinal)) { g += r.Games; w += r.Wins; }
+            if (k.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                var (pg, pw) = r.Count(0);
+                g += pg; w += pw;
+            }
         return (g, w);
     }
 
@@ -326,9 +354,12 @@ public static class SessionTracker
     /// Связки, сыгранные с этим человеком, — самые частые первыми.
     /// Пустой <paramref name="allyPuuid"/> — все связки со всеми.
     /// </summary>
+    /// <param name="days">Окно в днях; 0 — за всё время.</param>
     public static IReadOnlyList<PairStat> TopPairs(string? allyPuuid = null, int take = 30,
-                                                  params string[] queues)
+                                                  int days = 0, params string[] queues)
     {
+        var since = days > 0
+            ? DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds() : 0L;
         if (Preview is { } fake)
             return fake.Where(p => (string.IsNullOrEmpty(allyPuuid)
                                     || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase))
@@ -357,7 +388,9 @@ public static class SessionTracker
             if (queues is { Length: > 0 } && !queues.Contains(queue)) continue;
             if (!int.TryParse(k[(i2 + 1)..i3], out var mine)) continue;
             if (!int.TryParse(k[(i3 + 1)..], out var his)) continue;
-            res.Add(new PairStat(pu, r.Name, queue, mine, his, r.Games, r.Wins));
+            var (g, w) = r.Count(since);
+            if (g == 0) continue;          // в выбранное окно связка не попала
+            res.Add(new PairStat(pu, r.Name, queue, mine, his, g, w));
         }
         return res.OrderByDescending(p => p.Games).ThenByDescending(p => p.WinRate)
                   .Take(take).ToList();
@@ -703,8 +736,10 @@ public static class SessionTracker
                     var key = PairKey(a.Puuid, h.Queue, h.ChampionId, a.ChampionId);
                     if (!acc.Pairs.TryGetValue(key, out var rec))
                         acc.Pairs[key] = rec = new PairRec();
-                    rec.Games++;
-                    if (h.Win) rec.Wins++;
+                    // Время игры, а не «сейчас»: наполнение задним числом идёт по
+                    // старым играм, и по «сейчас» они все попали бы в этот месяц.
+                    (h.Win ? rec.Won : rec.Lost).Add(h.CreatedSec);
+                    rec.Trim();
                     if (a.Name.Length > 0) rec.Name = a.Name;   // ник мог смениться
                 }
             }

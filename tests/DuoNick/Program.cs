@@ -64,8 +64,8 @@ internal static class Program
 
         // Та же развилка, что и в окне.
         var header = nick.Length > 0
-            ? Loc.T("pool.duoWinratesWith", nick)
-            : Loc.T("pool.duoWinrates");
+            ? Loc.T("pool.duoWinratesWithShort", nick)
+            : Loc.T("pool.duoWinratesShort");
 
         Console.WriteLine($"  {what}");
         Console.WriteLine($"    плитка:    «{duo.FriendName}»");

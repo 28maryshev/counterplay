@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "Na razie brak par. Liczenie zaczyna się od nowych gier — zagrajcie razem, a pary pojawią się tutaj.",
     "games": "gier",
     "myWinratesPoolEmpty": "Brak gier na bohaterach z tej puli — zagraj nimi, a winrate pojawi się tutaj.",
-    "inPool": "para z puli"
+    "inPool": "para z puli",
+    "periodRecent": "Ostatnie {0} dni",
+    "periodAll": "Od zawsze",
+    "myWinratesShort": "Twój winrate",
+    "myWinratesPoolShort": "Twój winrate · pula „{0}”",
+    "duoWinratesShort": "Winrate duetów · z kim grałeś",
+    "duoWinratesWithShort": "Winrate duetów · z {0}"
   },
   "phaseState": {
     "none": "Gotowe",

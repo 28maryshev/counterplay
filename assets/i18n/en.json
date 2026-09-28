@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "No pairs yet. The count starts from new games — play together and pairs will show up here.",
     "games": "games",
     "myWinratesPoolEmpty": "No games yet on this pool's champions — play them and the rates will show up here.",
-    "inPool": "pair from the pool"
+    "inPool": "pair from the pool",
+    "periodRecent": "Last {0} days",
+    "periodAll": "All time",
+    "myWinratesShort": "Your win rate",
+    "myWinratesPoolShort": "Your win rate · pool “{0}”",
+    "duoWinratesShort": "Duo win rates · who you played with",
+    "duoWinratesWithShort": "Duo win rates · with {0}"
   },
   "phaseState": {
     "none": "Ready",

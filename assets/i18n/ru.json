@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "Связок пока нет. Счёт копится с новых игр — сыграйте вдвоём, и пары появятся здесь.",
     "games": "игр",
     "myWinratesPoolEmpty": "По чемпионам этого пула игр пока нет — сыграй ими, и винрейты появятся здесь.",
-    "inPool": "пара из пула"
+    "inPool": "пара из пула",
+    "periodRecent": "За {0} дней",
+    "periodAll": "За всё время",
+    "myWinratesShort": "Твой винрейт",
+    "myWinratesPoolShort": "Твой винрейт · пул «{0}»",
+    "duoWinratesShort": "Винрейт связок · с кем играл вдвоём",
+    "duoWinratesWithShort": "Винрейт связок · с {0}"
   },
   "phaseState": {
     "none": "Готов",

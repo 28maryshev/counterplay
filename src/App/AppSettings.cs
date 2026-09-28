@@ -24,6 +24,14 @@ public sealed class AppSettings
     public bool ReadyBeta    { get; set; } = true;   // плашка беты и поддержки
     public bool ReadyPhase   { get; set; } = true;   // строка фазы (Готов / Лобби / Драфт)
 
+    /// <summary>
+    /// Винрейты в окне пулов: за всё время, а не за последние 30 дней.
+    ///
+    /// Запоминается, потому что это способ смотреть, а не разовое действие:
+    /// кто играет помногу — смотрит месяц, кто редко — всю историю.
+    /// </summary>
+    public bool WinratesAllTime { get; set; }
+
     /// Что рисовать на графике: "winrate" — процент побед, "rating" — движение
     /// ранга по дивизионам, "off" — только цифры без графика.
     public string ChartMode { get; set; } = "rating";

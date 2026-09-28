@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "아직 조합이 없습니다. 새 경기부터 집계됩니다 — 함께 플레이하면 여기에 표시됩니다.",
     "games": "판",
     "myWinratesPoolEmpty": "이 풀의 챔피언으로 플레이한 경기가 아직 없습니다 — 플레이하면 여기에 표시됩니다.",
-    "inPool": "풀에 있는 조합"
+    "inPool": "풀에 있는 조합",
+    "periodRecent": "최근 {0}일",
+    "periodAll": "전체 기간",
+    "myWinratesShort": "내 승률",
+    "myWinratesPoolShort": "내 승률 · 풀 “{0}”",
+    "duoWinratesShort": "듀오 승률 · 함께 플레이한 상대",
+    "duoWinratesWithShort": "듀오 승률 · {0}와 함께"
   },
   "phaseState": {
     "none": "대기 중",

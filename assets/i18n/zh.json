@@ -499,7 +499,13 @@
     "duoWinratesEmpty": "还没有组合。从新对局开始统计——一起玩几局，这里就会出现。",
     "games": "场",
     "myWinratesPoolEmpty": "还没有用这个池里的英雄打过——玩几局，胜率就会出现在这里。",
-    "inPool": "池中的组合"
+    "inPool": "池中的组合",
+    "periodRecent": "最近 {0} 天",
+    "periodAll": "全部时间",
+    "myWinratesShort": "你的胜率",
+    "myWinratesPoolShort": "你的胜率 · 池「{0}」",
+    "duoWinratesShort": "双排胜率 · 与谁一起玩过",
+    "duoWinratesWithShort": "双排胜率 · 与 {0}"
   },
   "phaseState": {
     "none": "就绪",
