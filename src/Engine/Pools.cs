@@ -374,4 +374,22 @@ public static class DuoNaming
         if (duo.FriendNick.Length > 0) return duo.FriendNick;
         return pairs.FirstOrDefault(p => p.AllyName.Length > 0)?.AllyName ?? "";
     }
+
+    /// <summary>
+    /// Имя для ПЛИТКИ пула. Правило мягче, чем у заголовка.
+    ///
+    /// Заголовок подписывает список связок, и назвать там человека можно только
+    /// когда список по нему и отфильтрован, — иначе подпись обещает одного, а
+    /// показаны связки со всеми. На плитке вопрос другой: «с кем этот пул». Ник
+    /// из файла отвечает на него сам по себе, даже если вместе ещё не играли и
+    /// puuid не подтверждён.
+    /// </summary>
+    public static string TileNick(DuoPool? duo, IEnumerable<SessionTracker.PairStat> pairs)
+    {
+        if (duo is null) return "";
+        if (duo.FriendNick.Length > 0) return duo.FriendNick;
+        return duo.FriendPuuid.Length > 0
+            ? pairs.FirstOrDefault(p => p.AllyName.Length > 0)?.AllyName ?? ""
+            : "";
+    }
 }

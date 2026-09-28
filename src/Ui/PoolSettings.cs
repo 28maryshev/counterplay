@@ -21,7 +21,7 @@ namespace Counterplay;
 /// слева (шире) — обычные пулы, справа — дуо-пулы. В каждой — квадратная «+» и
 /// плитки существующих пулов. «+» / клик по плитке открывает редактор пула.
 /// </summary>
-sealed class PoolSettingsWindow : Window
+public sealed class PoolSettingsWindow : Window
 {
     internal static readonly string[] Roles     = ["top", "jungle", "mid", "adc", "support"];
     internal static readonly string[] RoleNames = ["TOP", "JGL", "MID", "BOT", "SUP"];
@@ -112,10 +112,16 @@ sealed class PoolSettingsWindow : Window
     {
         _wrSolo.Children.Clear();
         _wrDuo.Children.Clear();
+        _wrPeriod.Children.Clear();
+        FillPeriodButtons();
 
+        // Каркас собираем ОДИН раз. Пересобирать его на каждом обновлении
+        // нельзя: колонки остаются детьми прежней сетки, и WPF отвечает
+        // «элемент уже вложен в другой» — ровно на этом падало переключение
+        // периода.
         if (_wrStrip.Children.Count == 0)
         {
-            _wrStrip.Children.Add(PeriodButtons());
+            _wrStrip.Children.Add(_wrPeriod);
 
             var g = new Grid();
             // Те же доли и та же черта, что у пулов выше, — колонки совпадают.
@@ -155,13 +161,15 @@ sealed class PoolSettingsWindow : Window
     /// в подписях. Теперь период общий и выбирается здесь, а подписи колонок
     /// стали короче: период стоит над ними и не повторяется дважды.
     /// </summary>
-    private FrameworkElement PeriodButtons()
+    private readonly StackPanel _wrPeriod = new()
     {
-        var row = new StackPanel
-        {
-            Orientation = System.Windows.Controls.Orientation.Horizontal,
-            Margin = new Thickness(2, 0, 0, 8)
-        };
+        Orientation = System.Windows.Controls.Orientation.Horizontal,
+        Margin = new Thickness(2, 0, 0, 8)
+    };
+
+    private void FillPeriodButtons()
+    {
+        var row = _wrPeriod;
 
         Button Make(string text, bool allTime)
         {
@@ -183,16 +191,13 @@ sealed class PoolSettingsWindow : Window
                 if (AppSettings.Current.WinratesAllTime == allTime) return;
                 AppSettings.Current.WinratesAllTime = allTime;
                 AppSettings.SaveQuiet();
-                // Ряд кнопок пересобирается вместе с содержимым.
-                _wrStrip.Children.Clear();
-                RefreshWinrates();
+                RefreshWinrates();   // каркас на месте, меняется только содержимое
             };
             return b;
         }
 
         row.Children.Add(Make(Loc.T("pool.periodRecent", SessionTracker.RecentDays), false));
         row.Children.Add(Make(Loc.T("pool.periodAll"), true));
-        return row;
     }
 
     /// Заголовок раздела винрейтов.
@@ -583,7 +588,7 @@ sealed class PoolSettingsWindow : Window
                 .Where(id => id != 0).Distinct().ToList();
             // Ник берём тем же путём, что и заголовок раздела: из файла, иначе
             // из связок. Называть некого — строки просто не будет.
-            var nick = DuoNaming.PartnerNick(d, SessionTracker.TopPairs(d.FriendPuuid, 1));
+            var nick = DuoNaming.TileNick(d, SessionTracker.TopPairs(d.FriendPuuid, 1));
             _duoArea.Children.Add(Tile(d.FriendName, a.FavDuoId == d.Id,
                 () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id), champs,
                 Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto"), nick));
