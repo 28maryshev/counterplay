@@ -505,7 +505,8 @@
     "myWinratesShort": "Tỷ lệ thắng của bạn",
     "myWinratesPoolShort": "Tỷ lệ thắng của bạn · pool “{0}”",
     "duoWinratesShort": "Tỷ lệ thắng cặp · đã chơi cùng ai",
-    "duoWinratesWithShort": "Tỷ lệ thắng cặp · với {0}"
+    "duoWinratesWithShort": "Tỷ lệ thắng cặp · với {0}",
+    "friendNick": "Tên người chơi cùng"
   },
   "phaseState": {
     "none": "Sẵn sàng",

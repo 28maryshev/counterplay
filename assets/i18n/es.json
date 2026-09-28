@@ -505,7 +505,8 @@
     "myWinratesShort": "Tu winrate",
     "myWinratesPoolShort": "Tu winrate · pool «{0}»",
     "duoWinratesShort": "Winrate de dúos · con quién jugaste",
-    "duoWinratesWithShort": "Winrate de dúos · con {0}"
+    "duoWinratesWithShort": "Winrate de dúos · con {0}",
+    "friendNick": "Nombre del compañero"
   },
   "phaseState": {
     "none": "Listo",

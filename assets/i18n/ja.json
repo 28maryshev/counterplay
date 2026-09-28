@@ -505,7 +505,8 @@
     "myWinratesShort": "自分の勝率",
     "myWinratesPoolShort": "自分の勝率 · プール「{0}」",
     "duoWinratesShort": "デュオ勝率 · 一緒に遊んだ相手",
-    "duoWinratesWithShort": "デュオ勝率 · {0} と"
+    "duoWinratesWithShort": "デュオ勝率 · {0} と",
+    "friendNick": "相方の名前"
   },
   "phaseState": {
     "none": "待機中",

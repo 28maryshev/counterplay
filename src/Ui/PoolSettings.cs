@@ -834,6 +834,8 @@ sealed class PoolEditorWindow : Window
 
     // Рабочие копии.
     private string _name;
+    /// Ник напарника — только для дуо-пула. Пусто, пока не вписали.
+    private string _nick = "";
     private readonly Dictionary<string, List<int>> _mine   = NewRoles();
     private readonly Dictionary<string, List<int>> _friend = NewRoles();
     private bool _dirty;
@@ -844,6 +846,8 @@ sealed class PoolEditorWindow : Window
     private readonly List<ManualDuoPair> _manualPairs = [];
 
     private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 240 };
+    /// Ник напарника. Уже, чем название: это одно слово, а не фраза.
+    private readonly TextBox _nickBox = new() { FontSize = 13, MinWidth = 150 };
     private readonly StackPanel _body = new();
 
     private static Dictionary<string, List<int>> NewRoles() =>
@@ -864,7 +868,8 @@ sealed class PoolEditorWindow : Window
         if (existing is ChampPool p)
         { _srcPool = p; _name = p.Name; CopyInto(_mine, p.ByRole); }
         else if (existing is DuoPool d)
-        { _srcDuo = d; _name = d.FriendName; CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend);
+        { _srcDuo = d; _name = d.FriendName; _nick = d.FriendNick;
+          CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend);
           _manual = d.Manual;
           _manualPairs.AddRange(d.ManualPairs.Select(p => new ManualDuoPair {
               Mine = p.Mine, MineRole = p.MineRole, Friend = p.Friend, FriendRole = p.FriendRole })); }
@@ -896,6 +901,11 @@ sealed class PoolEditorWindow : Window
         _nameBox.Text = _name;
         _nameBox.TextChanged += (_, _) => { _name = _nameBox.Text; _dirty = true; };
 
+        // Ник напарника — только у дуо. Раньше его можно было получить лишь
+        // файлом или совместной игрой, а вписать руками было негде.
+        _nickBox.Text = _nick;
+        _nickBox.TextChanged += (_, _) => { _nick = _nickBox.Text; _dirty = true; };
+
         var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         // Экспорт — золотом и с отбивкой: это действие не по ходу формы, а в
         // сторону, и среди трёх одинаковых тёмных кнопок его не находили глазами.
@@ -924,7 +934,28 @@ sealed class PoolEditorWindow : Window
             Margin = new Thickness(0, 0, 0, 3)
         });
         nameWrap.Children.Add(_nameBox);
-        top.Children.Add(nameWrap);
+
+        // У дуо-пула рядом с названием — ник напарника. Название склеивается из
+        // половин («supports + top») и о человеке молчит; имя нужно отдельным
+        // полем, иначе вписать его негде.
+        if (_duo)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(nameWrap);
+
+            var nickWrap = new StackPanel { Margin = new Thickness(0, 0, 18, 0) };
+            nickWrap.Children.Add(new TextBlock
+            {
+                Text = Loc.T("pool.friendNick"),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+                FontSize = 10, FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 3)
+            });
+            nickWrap.Children.Add(_nickBox);
+            row.Children.Add(nickWrap);
+            top.Children.Add(row);
+        }
+        else top.Children.Add(nameWrap);
         DockPanel.SetDock(top, Dock.Top);
         root.Children.Add(top);
 
@@ -1363,6 +1394,7 @@ sealed class PoolEditorWindow : Window
         {
             var d = _srcDuo ?? new DuoPool();
             d.FriendName   = _name;
+            d.FriendNick   = _nick.Trim();
             d.Mine         = Clone(_mine);
             d.Friend       = Clone(_friend);
             d.Manual      = _manual;

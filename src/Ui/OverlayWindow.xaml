@@ -1749,11 +1749,13 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
+                        <!-- Подложка бирюзой у чемпионов моей половины пула -->
                         <Grid x:Name="PoolCellRoot" Width="34" Height="34" Margin="0,0,4,4"
-                              ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
+                              ToolTip="{Binding Tip}" Cursor="Hand"
                               Opacity="{Binding CellOpacity}"
                               MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}"
                               MouseEnter="PoolCell_Enter" MouseLeave="PoolCell_Leave">
+                          <Grid.Background><SolidColorBrush Color="{Binding PoolTint}"/></Grid.Background>
                           <Ellipse x:Name="PoolIcon" StrokeThickness="1.5">
                             <Ellipse.Fill>
                               <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>

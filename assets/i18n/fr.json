@@ -505,7 +505,8 @@
     "myWinratesShort": "Ton winrate",
     "myWinratesPoolShort": "Ton winrate · pool « {0} »",
     "duoWinratesShort": "Winrate des duos · avec qui tu as joué",
-    "duoWinratesWithShort": "Winrate des duos · avec {0}"
+    "duoWinratesWithShort": "Winrate des duos · avec {0}",
+    "friendNick": "Nom du partenaire"
   },
   "phaseState": {
     "none": "Prêt",

@@ -2193,6 +2193,9 @@ public partial class OverlayWindow : Window
     // ролей он пересобирается, в остальное время статичен в пределах патча.
     private List<TierCell>? _rolePoolCells;
     private string _rolePoolRole = "";
+    /// Состав моей половины пула, с которым собрана полоса: сменился пул —
+    /// полосу надо пересобрать, иначе пометки останутся от прежнего.
+    private HashSet<int> _rolePoolMine = [];
 
     private void RenderRolePool(DraftState? draft)
     {
@@ -2201,9 +2204,13 @@ public partial class OverlayWindow : Window
         var role = RecommendationEngine.LcuToDbRole(draft.MyPosition);
         if (role.Length == 0) { RolePoolBar.Visibility = Visibility.Collapsed; return; }
 
-        if (role != _rolePoolRole || _rolePoolCells is null)
+        // Моя половина активного пула. Для дуо это Mine, для личного — он сам.
+        var mine = new HashSet<int>(PoolStore.ActiveForRole(role).Mine);
+
+        if (role != _rolePoolRole || _rolePoolCells is null || !mine.SetEquals(_rolePoolMine))
         {
             _rolePoolRole = role;
+            _rolePoolMine = mine;
             // perRole с запасом: нужен весь пул роли, а не топ-15 как в тир-листе.
             _rolePoolCells = _engine.TierList(perRole: 200)
                 .Where(t => t.Role == role)
@@ -2217,8 +2224,13 @@ public partial class OverlayWindow : Window
                         Grade  = cell.Grade,  GradeColor = cell.GradeColor,
                         Tip    = cell.Tip, ShowGrade = true,
                         NotOwned = _ownedChamps.Count > 0 && !_ownedChamps.Contains(t.ChampionId),
+                        InPool   = mine.Contains(t.ChampionId),
                     };
-                }).ToList();
+                })
+                // Своя половина — впереди. Отметив пул, человек ждёт увидеть
+                // его чемпионов сразу, а не искать среди всех на роли.
+                .OrderByDescending(c => c.InPool)
+                .ToList();
             RolePoolList.ItemsSource = _rolePoolCells;
             RolePoolTitle.Text = Loc.T("rolePool.title", RoleNameDb(role));
         }
@@ -5939,7 +5951,20 @@ public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
     // роли, но взять его нельзя.
     public bool         NotOwned   { get; init; }
     public double       CellOpacity => NotOwned ? 0.45 : 1.0;
-    public string       FrameColor => NotOwned ? "#F0402F" : ShowGrade ? GradeColor : "#3A4B5F";
+
+    /// <summary>
+    /// Чемпион из МОЕЙ половины активного пула.
+    ///
+    /// Цвет бирюзовый нарочно: золото занято грейдами тир-листа, красный —
+    /// «нет на аккаунте». Бирюза ни с чем не спорит и читается отдельным
+    /// признаком — «это твоё по пулу», а не «это сильно».
+    /// </summary>
+    public bool         InPool     { get; init; }
+    public string       FrameColor => NotOwned ? "#F0402F"
+                                    : InPool   ? "#3FD9C8"
+                                    : ShowGrade ? GradeColor : "#3A4B5F";
+    /// Подложка — та же бирюза, еле заметной заливкой.
+    public string       PoolTint   => InPool ? "#233F3C" : "#00000000";
 
     // Чемпион уже забанен в этом драфте — помечаем оверлеем (обновляется по ходу).
     private bool _banned;
