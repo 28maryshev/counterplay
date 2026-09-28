@@ -4676,6 +4676,26 @@ public partial class OverlayWindow : Window
             ShowIdle();
         });
 
+    /// <summary>
+    /// Прогресс фонового обновления базы — тонкой полосой в подвале, у версии.
+    ///
+    /// Отличие от <see cref="ShowProgress"/> в том, чего тут НЕТ: экрана
+    /// загрузки. Пока качается новая база, программа работает на прежней —
+    /// драфт разбирается, рекомендации выдаются. Полоса внизу только говорит,
+    /// сколько осталось.
+    /// </summary>
+    public void ShowSideProgress(string text, double fraction) =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            SideDl.Visibility  = Visibility.Visible;
+            SideDlText.Text    = text;
+            SideDlFillT.ScaleX = Math.Clamp(fraction, 0.0, 1.0);
+        });
+
+    /// Убрать полосу: скачали, бросили или нечего было качать.
+    public void HideSideProgress() =>
+        Dispatcher.InvokeAsync(() => SideDl.Visibility = Visibility.Collapsed);
+
     // Неопределённый прогресс: фоновая работа без процентов (распаковка/проверка).
     // Полоса полная, но блик продолжает бежать — видно, что процесс идёт.
     public void ShowProgressBusy(string text) =>

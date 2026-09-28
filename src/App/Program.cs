@@ -281,7 +281,25 @@ class Program
         // всех бакетов (~198 МБ). Реальный ранг подхватим из LCU ниже и, если он
         // другой, подкачаем нужный бакет — суммарно всё равно меньше общей базы.
         var storedBucket = Settings.GetString("dataBucket") ?? "emerald";
-        await DataDb.EnsureAsync(storedBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
+
+        // Скачанное фоном в прошлый раз применяем сейчас: база ещё никем не
+        // открыта, и это единственный момент, когда подмена заведомо пройдёт.
+        DataDb.ApplySwap();
+
+        if (DataDb.HaveUsableDb())
+        {
+            // Работать есть на чём — обновляемся ФОНОМ. Раньше здесь стоял
+            // await: нашлась новая версия, и программа вставала на экран
+            // загрузки, пока не докачает. На медленном канале это полчаса, всё
+            // это время негодная, хотя рабочая база лежала рядом. Теперь она
+            // считает драфт на прежней, а внизу сайдбара идёт полоса.
+            StartDbUpdate(overlay, storedBucket, ct);
+        }
+        else
+        {
+            // Базы нет вовсе — первый запуск. Тут ждать приходится: считать не на чем.
+            await DataDb.EnsureAsync(storedBucket, (msg, frac) => overlay.ShowProgress(msg, frac), ct);
+        }
         DataDb.SelfClean();
 
         // Внешний цикл — переподключение при перезапуске клиента.
@@ -329,6 +347,26 @@ class Program
             }
         }
     }
+
+    /// <summary>
+    /// Фоновое обновление базы — качаем, пока программа работает на прежней.
+    ///
+    /// Скачанное ложится рядом и ждёт подмены: рабочую базу держит открытой
+    /// движок, и подменить её можно только в перерыве между драфтами. Этим
+    /// занимается ApplyNewDbIfReady в сессии клиента.
+    /// </summary>
+    private static void StartDbUpdate(OverlayWindow overlay, string? bucket, CancellationToken ct) =>
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await DataDb.UpdateInBackgroundAsync(
+                    bucket, (m, f) => overlay.ShowSideProgress(m, f), ct);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Log.Write($"фоновое обновление базы: {ex.Message}"); }
+            finally { overlay.HideSideProgress(); }
+        }, ct);
 
     /// Следит за выходом патча и перечитывает справочники Riot.
     ///
@@ -466,6 +504,9 @@ class Program
         overlay.BanLockHandler  = champId => RunesImporter.LockChampionAsync(http, myBanActionId, champId, ct);
 
         RecommendationEngine? engine = null;
+        // Скачанное фоном могло дождаться этого момента — сейчас движка ещё нет,
+        // базу никто не держит.
+        DataDb.ApplySwap();
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is not null)
         {
@@ -480,6 +521,36 @@ class Program
         else
         {
             overlay.ShowStatus(Loc.T("status.noDb"));
+        }
+
+        /// <summary>
+        /// Применить скачанную фоном базу и пересобрать движок.
+        ///
+        /// Зовётся только между драфтами. Подмена требует закрыть соединение с
+        /// базой, а посреди драфта это отняло бы рекомендации на те полсекунды,
+        /// ради которых программу и открывают.
+        /// </summary>
+        void ApplyNewDbIfReady()
+        {
+            if (!DataDb.SwapReady) return;
+            try
+            {
+                var old = engine;
+                engine = null;          // наружу битый движок не отдаём
+                old?.Dispose();         // отпускаем файл базы
+                if (!DataDb.ApplySwap()) return;   // занята — подождём ещё
+
+                dbPath = RecommendationEngine.FindDb();
+                if (dbPath is null) return;
+                engine = RecommendationEngine.Create(dbPath, tierBucket ?? "emerald");
+                engine.Mastery = mastery;
+                overlay.SetEngine(engine);
+                Log.Write("движок пересобран на свежей базе");
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"пересборка движка на свежей базе не удалась: {ex.Message}");
+            }
         }
 
         // Синк фазы геймфлоу при (ПЕРЕ)подключении. Подписка на события отдаёт
@@ -565,8 +636,14 @@ class Program
                     if (bucket != tierBucket && dbPath is not null)
                     {
                         tierBucket = bucket;
+                        // Прежний закрываем: он держал базу открытой, а SQLite в
+                        // режиме WAL не отпускает файл даже на чтении. Брошенное
+                        // соединение означало бы, что скачанную фоном базу уже
+                        // никогда не подменить.
+                        var old = engine;
                         engine = RecommendationEngine.Create(dbPath, bucket);
                         overlay.SetEngine(engine);
+                        old.Dispose();
                     }
                     engine.Mastery = mastery;
                 }
@@ -662,6 +739,8 @@ class Program
                     }
                     else if (phase != "ChampSelect")
                     {
+                        // Драфта нет — самое время подменить скачанную фоном базу.
+                        ApplyNewDbIfReady();
                         // Меню/лобби/конец игры — возвращаем оверлей из трея.
                         overlay.SetGameActive(false);
                         overlay.RestoreFromTray();
@@ -691,6 +770,7 @@ class Program
                         // Не просто статус: окно должно вернуться на экран готовности
                         // той фазы, в которой клиент уже находится (см. DraftEnded).
                         overlay.DraftEnded(); // подавится, если в трее
+                        ApplyNewDbIfReady();  // драфт кончился — можно менять базу
                         lastHash = "";
                         draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();

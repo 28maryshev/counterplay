@@ -294,15 +294,25 @@ internal static class Program
     {
         Console.WriteLine();
 
+        // Масштаб окон зависит от разрешения клиента LoL, поэтому размеры для
+        // проверки берём С ЗАПАСОМ над минимумом — иначе при запущенном клиенте
+        // они упрутся в него, и проверка будет мерить не то, что задумано.
+        var probe = new PoolSettingsWindow(() => { });
+        probe.Show(); Pump();
+        var minW = probe.MinWidth; var minH = probe.MinHeight;
+        probe.Close(); Pump();
+        var wideW = minW + 180; var wideH = minH + 120;
+
         // ── Мусорное место: размер берём, место — нет ──────────────────────
         AppSettings.Current.PoolWinLeft   = -9000;
         AppSettings.Current.PoolWinTop    = -9000;
-        AppSettings.Current.PoolWinWidth  = 900;
-        AppSettings.Current.PoolWinHeight = 700;
+        AppSettings.Current.PoolWinWidth  = wideW;
+        AppSettings.Current.PoolWinHeight = wideH;
 
         var w1 = new PoolSettingsWindow(() => { });
         w1.Show(); Pump();
-        Check("размер с прошлого раза восстановлен", Math.Abs(w1.Width - 900) < 2, $"{w1.Width:0}");
+        Check("размер с прошлого раза восстановлен", Math.Abs(w1.Width - wideW) < 2,
+              $"{w1.Width:0} (ждали {wideW:0})");
         Check("место за краем экрана отброшено", w1.Left > -1000, $"{w1.Left:0}");
         w1.Close(); Pump();
         Check("и в настройки такое место не легло", AppSettings.Current.PoolWinLeft > -1000,
@@ -311,8 +321,8 @@ internal static class Program
         // ── Нормальное место: открылось ровно там ──────────────────────────
         AppSettings.Current.PoolWinLeft   = 140;
         AppSettings.Current.PoolWinTop    = 90;
-        AppSettings.Current.PoolWinWidth  = 880;
-        AppSettings.Current.PoolWinHeight = 680;
+        AppSettings.Current.PoolWinWidth  = wideW;
+        AppSettings.Current.PoolWinHeight = wideH;
 
         var w2 = new PoolSettingsWindow(() => { });
         w2.Show(); Pump();
@@ -321,14 +331,31 @@ internal static class Program
               $"{w2.Left:0},{w2.Top:0}");
 
         // Подвинули и растянули — при закрытии это должно лечь в настройки.
-        w2.Left = 210; w2.Top = 130; w2.Width = 910; w2.Height = 720;
+        w2.Left = 210; w2.Top = 130; w2.Width = wideW + 30; w2.Height = wideH + 40;
         Pump();
         w2.Close(); Pump();
         Check("новое место и размер запомнены",
               Math.Abs(AppSettings.Current.PoolWinLeft - 210) < 2 &&
-              Math.Abs(AppSettings.Current.PoolWinHeight - 720) < 2,
+              Math.Abs(AppSettings.Current.PoolWinHeight - (wideH + 40)) < 2,
               $"{AppSettings.Current.PoolWinLeft:0},{AppSettings.Current.PoolWinTop:0} "
               + $"{AppSettings.Current.PoolWinWidth:0}×{AppSettings.Current.PoolWinHeight:0}");
+
+        // ── Размер меньше нынешнего минимума: поджимается, место не теряется ──
+        // Клиент LoL сменил разрешение — вместе с ним растёт масштаб окон, и
+        // запомненный размер может оказаться мал. Раньше из-за этого молча
+        // терялось и место.
+        AppSettings.Current.PoolWinLeft   = 175;
+        AppSettings.Current.PoolWinTop    = 105;
+        AppSettings.Current.PoolWinWidth  = 50;
+        AppSettings.Current.PoolWinHeight = 50;
+        var w4 = new PoolSettingsWindow(() => { });
+        w4.Show(); Pump();
+        Check("размер меньше минимума поджимается", Math.Abs(w4.Width - w4.MinWidth) < 2,
+              $"{w4.Width:0} при минимуме {w4.MinWidth:0}");
+        Check("место при этом не потеряно",
+              Math.Abs(w4.Left - 175) < 2 && Math.Abs(w4.Top - 105) < 2,
+              $"{w4.Left:0},{w4.Top:0}");
+        w4.Close(); Pump();
 
         // ── Первое открытие: высота по умолчанию, та самая «на треть выше» ──
         AppSettings.Current.PoolWinWidth = 0;

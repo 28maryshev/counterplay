@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
@@ -13,11 +13,25 @@ namespace Counterplay;
 /// </summary>
 public static class DataDb
 {
+    /// <summary>
+    /// Подменить папку базы. Нужно ПРОВЕРКАМ: они гоняют подмену файла на
+    /// боевых именах, и делать это в профиле пользователя нельзя — там лежит
+    /// его настоящая база, да ещё и открытая запущенной программой.
+    /// В работе всегда null.
+    /// </summary>
+    public static string? DirOverride { get; set; }
+
     // Постоянное место БД — вне каталога установки, переживает обновления приложения.
-    private static string Dir =>
+    private static string Dir => DirOverride ??
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
     public static string LocalPath        => Path.Combine(Dir, "data.db");
     private static string LocalVersionPath => Path.Combine(Dir, "data-version.txt");
+
+    // Скачанная фоном база ждёт здесь, пока рабочую не станет можно подменить.
+    // Рядом — её версия: писать её в боевой data-version.txt раньше подмены
+    // нельзя, иначе после перезапуска программа сочтёт старый файл свежим.
+    private static string PendingPath        => LocalPath + ".new";
+    private static string PendingVersionPath => LocalPath + ".new.ver";
 
     // Откуда качаем базу. Первым — своё хранилище на Cloudflare (R2), вторым —
     // дата-релиз на GitHub.
@@ -142,10 +156,111 @@ public static class DataDb
     /// </summary>
     public static bool ReuseLocal { get; set; }
 
-    /// Есть ли годная к работе база на диске.
-    private static bool HaveUsableDb() =>
+    /// Есть ли годная к работе база на диске. По этому признаку решается,
+    /// обновляться фоном (есть на чём работать) или на экране загрузки.
+    public static bool HaveUsableDb() =>
         File.Exists(LocalPath) && new FileInfo(LocalPath).Length > 0
         && RecommendationEngine.HasData(LocalPath);
+
+    /// Скачана ли фоном база, которая ждёт подмены.
+    public static bool SwapReady
+    {
+        get
+        {
+            try { return File.Exists(PendingPath) && new FileInfo(PendingPath).Length > 0; }
+            catch { return false; }
+        }
+    }
+
+    /// <summary>
+    /// Подменить рабочую базу скачанной фоном.
+    ///
+    /// Вызывать в момент, когда базу никто не держит открытой: SQLite в режиме
+    /// WAL держит файл и на чтение, и подмена под открытым соединением на
+    /// Windows просто не выйдет. Не вышла — файл остаётся ждать: следующий
+    /// тихий момент или следующий запуск.
+    /// </summary>
+    public static bool ApplySwap()
+    {
+        if (!SwapReady) return false;
+        try
+        {
+            // Одного Dispose движку мало: Microsoft.Data.Sqlite держит закрытые
+            // соединения в пуле, и файл остаётся открытым. Замерено — подмена
+            // после Dispose падает с «отказано в доступе», а после очистки пула
+            // проходит. Без этой строки скачанная фоном база не применилась бы
+            // никогда: каждый запуск качал бы её заново.
+            SqliteConnection.ClearAllPools();
+            File.Move(PendingPath, LocalPath, overwrite: true);
+            if (File.Exists(PendingVersionPath))
+                File.Move(PendingVersionPath, LocalVersionPath, overwrite: true);
+            Log.Write("новая база применена");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"подмена базы не вышла ({ex.Message}) — оставляю ждать");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Обновить базу, не мешая работать.
+    ///
+    /// От <see cref="EnsureAsync"/> отличается одним: рабочий data.db не
+    /// трогается. Скачанное ложится рядом, а подменяется потом —
+    /// <see cref="ApplySwap"/>. Пока идёт закачка, программа считает драфт на
+    /// прежней базе, и внизу сайдбара видно, сколько осталось.
+    ///
+    /// Вернёт true, если скачанное готово к подмене.
+    /// </summary>
+    public static async Task<bool> UpdateInBackgroundAsync(
+        string? bucket, Action<string, double>? progress, CancellationToken ct)
+    {
+        if (DevDbEnabled && DevCandidates.Any(p => File.Exists(p) && RecommendationEngine.HasData(p)))
+            return false;
+        if (ReuseLocal) return false;          // песочница живёт на общей базе
+
+        try
+        {
+            var (source, remoteVer) = await FetchVersionAsync(bucket, ct);
+            if (remoteVer is null) return false;          // сервер молчит — не время
+            var wantedTag = $"{bucket ?? "all"}:{remoteVer}";
+            var localTag  = File.Exists(LocalVersionPath) ? File.ReadAllText(LocalVersionPath).Trim() : null;
+            if (wantedTag == localTag) return false;      // уже свежая
+
+            // Уже скачали ровно эту версию и ждём тихой минуты — второй раз не качаем.
+            if (SwapReady && File.Exists(PendingVersionPath)
+                && File.ReadAllText(PendingVersionPath).Trim() == wantedTag)
+                return true;
+
+            Log.Write($"база обновляется фоном: {localTag ?? "—"} → {wantedTag}");
+            var label = Loc.T("status.updatingDb");
+            progress?.Invoke(label, 0);
+
+            var url = DataUrlOn(source, bucket);
+            try
+            {
+                await DownloadAsync(url + ".gz", label, progress, ct, gzipped: true, dest: PendingPath);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException
+                                          && ex is not OperationCanceledException)
+            {
+                Log.Write($"сжатая база не далась ({ex.Message}) — качаю обычную");
+                await DownloadAsync(url, label, progress, ct, dest: PendingPath);
+            }
+
+            await File.WriteAllTextAsync(PendingVersionPath, wantedTag, ct);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex)
+        {
+            // Сети нет, места нет, сервер прилёг — работаем на прежней базе.
+            Log.Write($"фоновое обновление базы не удалось: {ex.Message}");
+            return false;
+        }
+    }
 
     /// Гарантирует наличие актуальной базы. Для dev — берёт локальную как есть.
     /// Для установленной версии — сверяет версию с сервером и подкачивает свежую.
@@ -170,6 +285,11 @@ public static class DataDb
         try
         {
             Directory.CreateDirectory(Dir);
+
+            // Скачанная фоном база ждёт подмены с прошлого запуска — сейчас её
+            // никто не держит, самое время. Дальше сверка версий увидит уже
+            // новый тег и никуда не пойдёт.
+            ApplySwap();
 
             // Версию спрашиваем у того же источника, с которого потом качаем:
             // выложиться они могут в разное время, и брать номер у одного, а
@@ -274,9 +394,13 @@ public static class DataDb
     // готовые куски остаются на диске.
     private const int ChunkSize = 16 * 1024 * 1024;
 
+    /// <param name="dest">Куда положить готовый файл. По умолчанию рабочая
+    /// база; фоновое обновление кладёт рядом, чтобы не трогать работающую.</param>
     private static async Task DownloadAsync(string url, string label, Action<string, double>? progress,
-                                            CancellationToken ct, bool gzipped = false)
+                                            CancellationToken ct, bool gzipped = false,
+                                            string? dest = null)
     {
+        dest ??= LocalPath;
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
         // Размер и поддержку Range узнаём одним лёгким запросом.
@@ -292,7 +416,7 @@ public static class DataDb
         }
         catch { /* не ответил на HEAD — качаем одним потоком, как раньше */ }
 
-        var tmp = LocalPath + ".tmp";
+        var tmp = dest + ".tmp";
         var mark = tmp + ".part";     // что именно лежит в .tmp и сколько ждали всего
 
         // Докачка. Оборванная загрузка раньше начиналась с нуля: при 51 КБ/с
@@ -394,7 +518,7 @@ public static class DataDb
         {
             // Распаковываем в СОСЕДНИЙ файл и только потом подменяем боевой: если
             // архив побился по дороге, рабочая база останется прежней.
-            var raw = LocalPath + ".raw";
+            var raw = dest + ".raw";
             var unz = Stopwatch.StartNew();
             await using (var src = File.OpenRead(tmp))
             await using (var gz  = new GZipStream(src, CompressionMode.Decompress))
@@ -406,6 +530,6 @@ public static class DataDb
             tmp = raw;
         }
 
-        File.Move(tmp, LocalPath, overwrite: true);
+        File.Move(tmp, dest, overwrite: true);
     }
 }

@@ -55,10 +55,14 @@ static class WindowScale
 
             if (remember is null) return;
             var (l, t, ww, hh) = remember.Read();
-            if (ww < w.MinWidth || hh < w.MinHeight) return;   // ещё не двигали
+            if (ww <= 0 || hh <= 0) return;          // ещё ни разу не двигали
 
-            w.Width  = Math.Min(ww, maxW);
-            w.Height = Math.Min(hh, maxH);
+            // Не отбрасываем, а поджимаем под нынешние границы. Масштаб зависит
+            // от разрешения клиента LoL: человек поменял его — и запомненный
+            // размер может оказаться меньше нового минимума. Отбрасывать из-за
+            // этого и место, и размер значило бы забыть всё из-за пары пикселей.
+            w.Width  = Math.Clamp(ww, w.MinWidth, maxW);
+            w.Height = Math.Clamp(hh, w.MinHeight, maxH);
 
             // Место принимаем, только если оно ещё на экране: монитор могли
             // отключить, и окно уехало бы туда, откуда его не достать мышью.

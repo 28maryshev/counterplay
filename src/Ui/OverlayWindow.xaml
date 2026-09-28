@@ -1,4 +1,4 @@
-<Window x:Class="Counterplay.OverlayWindow"
+﻿<Window x:Class="Counterplay.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:Counterplay"
@@ -2644,6 +2644,31 @@
                      FontFamily="{StaticResource UiFont}" FontSize="10"
                      TextWrapping="Wrap" TextAlignment="Center"
                      HorizontalAlignment="Stretch" Margin="16,0,16,7"/>
+
+          <!-- ── Фоновое обновление базы ────────────────────────────────
+               Стоит там же, где версия, и только потому, что база теперь
+               качается ФОНОМ. Раньше обновление занимало весь экран
+               загрузки, и до его конца программа была ни на что не годна.
+               Здесь она работает на прежней базе, а внизу видно, сколько
+               осталось. Полоса тонкая и без блика: это справка, а не
+               событие, ради которого стоит отвлекаться. -->
+          <StackPanel x:Name="SideDl" Visibility="Collapsed" Margin="16,0,16,7">
+            <TextBlock x:Name="SideDlText" Text="" Foreground="#4A6070"
+                       FontFamily="{StaticResource UiFont}" FontSize="9"
+                       TextWrapping="Wrap" TextAlignment="Center"
+                       HorizontalAlignment="Stretch"/>
+            <Grid Height="3" Margin="0,3,0,0" ClipToBounds="True">
+              <Border Background="#1AFFFFFF" CornerRadius="1.5"/>
+              <!-- Доля задаётся масштабом, а не шириной: сайдбар и панель
+                   драфта разной ширины, а подвал у них общий. -->
+              <Border x:Name="SideDlFill" Background="#C89B3C" CornerRadius="1.5"
+                      HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5">
+                <Border.RenderTransform>
+                  <ScaleTransform x:Name="SideDlFillT" ScaleX="0"/>
+                </Border.RenderTransform>
+              </Border>
+            </Grid>
+          </StackPanel>
         </StackPanel>
       </Grid>
     </Border>
