@@ -295,9 +295,7 @@ sealed class PoolSettingsWindow : Window
         // Ник берём по порядку: из файла, которым обменялись; если его нет —
         // из самих связок, там он лежит рядом с играми; и только потом
         // отступаем к подписи плитки.
-        var nick = fav?.FriendNick ?? "";
-        if (nick.Length == 0 && who is { Length: > 0 })
-            nick = pairs.FirstOrDefault(p => p.AllyName.Length > 0)?.AllyName ?? "";
+        var nick = DuoNaming.PartnerNick(fav, pairs);
 
         // Пары показаны СО ВСЕМИ, а подпись обещала бы одного человека — так
         // подписывать нельзя: пул собран руками, напарник ещё не опознан.

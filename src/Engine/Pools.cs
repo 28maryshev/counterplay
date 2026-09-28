@@ -349,3 +349,29 @@ public static class PoolStore
     private static Dictionary<string, List<int>> Clone(Dictionary<string, List<int>> src) =>
         src.ToDictionary(kv => kv.Key, kv => new List<int>(kv.Value));
 }
+
+/// <summary>
+/// Как назвать напарника там, где речь о ЧЕЛОВЕКЕ, а не о наборе чемпионов.
+///
+/// <see cref="DuoPool.FriendName"/> для этого не годится: это подпись плитки,
+/// и она нарочно склеена из названий обеих половин («supports + top»). На месте
+/// имени такая склейка читается бессмыслицей — «связки с supports + top».
+/// </summary>
+public static class DuoNaming
+{
+    /// <summary>
+    /// Ник напарника или пусто, если назвать некого.
+    ///
+    /// По порядку: ник из файла, которым обменялись (приезжает рядом с puuid);
+    /// ник из самих связок, где он лежит рядом с играми; иначе — пусто.
+    ///
+    /// Пусто возвращается и тогда, когда напарник вообще не опознан: в этом
+    /// случае показаны связки СО ВСЕМИ, и называть кого-то одного нельзя.
+    /// </summary>
+    public static string PartnerNick(DuoPool? duo, IEnumerable<SessionTracker.PairStat> pairs)
+    {
+        if (duo is null || duo.FriendPuuid.Length == 0) return "";
+        if (duo.FriendNick.Length > 0) return duo.FriendNick;
+        return pairs.FirstOrDefault(p => p.AllyName.Length > 0)?.AllyName ?? "";
+    }
+}
