@@ -508,6 +508,7 @@
     "duoWinratesWithShort": "İkili kazanma oranları · {0} ile",
     "friendNick": "Partner adı",
     "fewGames": "Maç sayısı az — yüzde henüz bir şey söylemiyor",
+    "splitHint": "Havuzlara ya da kazanma oranlarına daha fazla yer vermek için sürükleyin",
     "duoNoPool": "Bir ikili havuzu yıldızla, ortak kazanma oranlarınız burada görünsün.",
     "duoNoMate": "Partner henüz tanınmadı. Bu havuzla birlikte drafta girin ya da onun havuz dosyasını içe aktarın; ikililer sayılmaya başlar."
   },

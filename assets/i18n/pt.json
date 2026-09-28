@@ -508,6 +508,7 @@
     "duoWinratesWithShort": "Winrate de duplas · com {0}",
     "friendNick": "Nome do parceiro",
     "fewGames": "Poucas partidas — a percentagem ainda diz pouco",
+    "splitHint": "Arraste para dar mais espaço às pools ou às percentagens de vitória",
     "duoNoPool": "Marca uma pool de dupla com a estrela e os vossos winrates juntos aparecem aqui.",
     "duoNoMate": "O parceiro ainda não foi identificado. Entrem juntos num draft com esta pool — ou importa o ficheiro dele — e as duplas começam a contar."
   },

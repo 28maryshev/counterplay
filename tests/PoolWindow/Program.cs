@@ -37,6 +37,10 @@ internal static class Program
 
         var before = File.Exists(PoolsPath) ? File.ReadAllText(PoolsPath) : null;
         var wasAllTime = AppSettings.Current.WinratesAllTime;
+        // Окно теперь запоминает, как его растянули, — свои значения бережём.
+        var wasSplit = AppSettings.Current.PoolSplit;
+        var wasGeom = (AppSettings.Current.PoolWinLeft, AppSettings.Current.PoolWinTop,
+                       AppSettings.Current.PoolWinWidth, AppSettings.Current.PoolWinHeight);
         try
         {
             if (before is not null) File.Delete(PoolsPath);
@@ -45,6 +49,9 @@ internal static class Program
         finally
         {
             AppSettings.Current.WinratesAllTime = wasAllTime;
+            AppSettings.Current.PoolSplit = wasSplit;
+            (AppSettings.Current.PoolWinLeft, AppSettings.Current.PoolWinTop,
+             AppSettings.Current.PoolWinWidth, AppSettings.Current.PoolWinHeight) = wasGeom;
             AppSettings.SaveQuiet();
             if (before is not null) File.WriteAllText(PoolsPath, before);
             else if (File.Exists(PoolsPath)) File.Delete(PoolsPath);
@@ -52,7 +59,7 @@ internal static class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: период переключается, ник на плитке виден"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: период, ник, подвижная полоса и память места"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
@@ -208,9 +215,132 @@ internal static class Program
               $"слева {(AppSettings.Current.WinratesAllTime ? "всё" : "месяц")}, "
               + $"справа {(AppSettings.Current.DuoWinratesAllTime ? "всё" : "месяц")}");
 
+        Splitter(w);
+
         w.Close();
         Pump();
         app.Shutdown();
+    }
+
+    /// <summary>
+    /// Подвижная полоса между пулами и винрейтами.
+    ///
+    /// Три вопроса. Полоса вообще есть и её можно тянуть? Винрейты при этом
+    /// действительно получают место — раньше у лент был жёсткий потолок в 150
+    /// точек, и отданная высота пропадала впустую. И запоминается ли доля.
+    /// </summary>
+    private static void Splitter(Window w)
+    {
+        Console.WriteLine();
+        var sp = Walk<GridSplitter>(w).FirstOrDefault();
+        Check("полоса между половинами есть", sp is not null, sp is null ? "нет" : "да");
+        if (sp is null) return;
+
+        var frame = (Grid)VisualTreeHelper.GetParent(sp);
+        var rows = frame.RowDefinitions;
+        Check("делит ровно на две части", rows.Count == 3, $"{rows.Count} строки");
+
+        // Нижняя часть — только винрейты. Ходить по ВСЕМУ окну тут нельзя:
+        // у пулов свои полосы прокрутки, и они бы отвечали за чужую половину.
+        var lower = frame.Children.Cast<UIElement>().First(c => Grid.GetRow(c) == 2);
+
+        // Высота лент ДО и ПОСЛЕ сдвига. Меряем нижнюю строку целиком: в ней и
+        // кнопки периода, и заголовки, и сами ленты.
+        var wasBottom = rows[2].ActualHeight;
+        var wasTop    = rows[0].ActualHeight;
+        Check("обе части заметного размера", wasTop > 100 && wasBottom > 100,
+              $"{wasTop:0} / {wasBottom:0}");
+
+        // Тянем полосу вверх: у пулов забираем, винрейтам отдаём.
+        const double Drag = 120;
+        rows[0].Height = new GridLength(Math.Max(120, wasTop - Drag), GridUnitType.Star);
+        rows[2].Height = new GridLength(wasBottom + Drag, GridUnitType.Star);
+        Pump();
+
+        Check("винрейтам досталось больше места", rows[2].ActualHeight > wasBottom + Drag * 0.5,
+              $"{wasBottom:0} → {rows[2].ActualHeight:0}");
+
+        // Главное: ленту тоже растянуло. Жёсткий потолок съел бы прибавку.
+        var strip = Walk<ScrollViewer>(lower)
+            .Where(s => s.ActualHeight > 0)
+            .OrderByDescending(s => s.ActualHeight)
+            .ToList();
+        Check("ленты не упираются в потолок",
+              strip.Any(s => s.ActualHeight > 170), $"самая высокая {strip.FirstOrDefault()?.ActualHeight ?? 0:0}");
+
+        // Доля должна лечь в настройки при закрытии.
+        var win = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+        win.Show(); Pump();
+        var r2 = ((Grid)VisualTreeHelper.GetParent(Walk<GridSplitter>(win).First())).RowDefinitions;
+        r2[0].Height = new GridLength(0.3, GridUnitType.Star);
+        r2[2].Height = new GridLength(0.7, GridUnitType.Star);
+        Pump();
+        win.Close(); Pump();
+        Check("доля запомнена", Math.Abs(AppSettings.Current.PoolSplit - 0.3) < 0.05,
+              $"{AppSettings.Current.PoolSplit:0.00} (ждали 0.30)");
+
+        Geometry();
+    }
+
+    /// <summary>
+    /// Память места и размера.
+    ///
+    /// Два случая. Обычный: окно открывается там, где его оставили. И тот, из-за
+    /// которого проверка вообще написана: монитор отключили, запомненное место
+    /// оказалось за краем — размер берём, место нет, иначе окно уедет туда,
+    /// откуда его не достать мышью.
+    /// </summary>
+    private static void Geometry()
+    {
+        Console.WriteLine();
+
+        // ── Мусорное место: размер берём, место — нет ──────────────────────
+        AppSettings.Current.PoolWinLeft   = -9000;
+        AppSettings.Current.PoolWinTop    = -9000;
+        AppSettings.Current.PoolWinWidth  = 900;
+        AppSettings.Current.PoolWinHeight = 700;
+
+        var w1 = new PoolSettingsWindow(() => { });
+        w1.Show(); Pump();
+        Check("размер с прошлого раза восстановлен", Math.Abs(w1.Width - 900) < 2, $"{w1.Width:0}");
+        Check("место за краем экрана отброшено", w1.Left > -1000, $"{w1.Left:0}");
+        w1.Close(); Pump();
+        Check("и в настройки такое место не легло", AppSettings.Current.PoolWinLeft > -1000,
+              $"{AppSettings.Current.PoolWinLeft:0}");
+
+        // ── Нормальное место: открылось ровно там ──────────────────────────
+        AppSettings.Current.PoolWinLeft   = 140;
+        AppSettings.Current.PoolWinTop    = 90;
+        AppSettings.Current.PoolWinWidth  = 880;
+        AppSettings.Current.PoolWinHeight = 680;
+
+        var w2 = new PoolSettingsWindow(() => { });
+        w2.Show(); Pump();
+        Check("окно открылось там, где его оставили",
+              Math.Abs(w2.Left - 140) < 2 && Math.Abs(w2.Top - 90) < 2,
+              $"{w2.Left:0},{w2.Top:0}");
+
+        // Подвинули и растянули — при закрытии это должно лечь в настройки.
+        w2.Left = 210; w2.Top = 130; w2.Width = 910; w2.Height = 720;
+        Pump();
+        w2.Close(); Pump();
+        Check("новое место и размер запомнены",
+              Math.Abs(AppSettings.Current.PoolWinLeft - 210) < 2 &&
+              Math.Abs(AppSettings.Current.PoolWinHeight - 720) < 2,
+              $"{AppSettings.Current.PoolWinLeft:0},{AppSettings.Current.PoolWinTop:0} "
+              + $"{AppSettings.Current.PoolWinWidth:0}×{AppSettings.Current.PoolWinHeight:0}");
+
+        // ── Первое открытие: высота по умолчанию, та самая «на треть выше» ──
+        AppSettings.Current.PoolWinWidth = 0;
+        AppSettings.Current.PoolWinHeight = 0;
+        var w3 = new PoolSettingsWindow(() => { });
+        w3.Show(); Pump();
+        var want = 750 * AppSettings.Current.FontScale * OverlayWindow.ClientScaleFor(w3);
+        var cap  = Math.Max(240, SystemParameters.WorkArea.Height - 40);
+        Check("без памяти окно открывается высоким",
+              Math.Abs(w3.Height - Math.Min(want, cap)) < 2,
+              $"{w3.Height:0} (было 560)");
+        w3.Close(); Pump();
     }
 
     /// Нажать кнопку с таким текстом: первую (левая половина) или вторую (правая).

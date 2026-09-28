@@ -508,6 +508,7 @@
     "duoWinratesWithShort": "Duo win rates · with {0}",
     "friendNick": "Partner name",
     "fewGames": "Too few games — the percentage means little yet",
+    "splitHint": "Drag to give more room to pools or win rates",
     "duoNoPool": "Star a duo pool and your shared win rates will appear here.",
     "duoNoMate": "The partner is not identified yet. Enter a draft together with this pool — or import their pool file — and pairs will start counting."
   },

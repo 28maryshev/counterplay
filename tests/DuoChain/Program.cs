@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -46,6 +46,10 @@ internal static class Program
 
         var before = File.Exists(PoolsPath) ? File.ReadAllText(PoolsPath) : null;
         var wasAllTime = AppSettings.Current.DuoWinratesAllTime;
+        // Окно пулов запоминает своё место и деление — чужие значения не трогаем.
+        var wasSplit = AppSettings.Current.PoolSplit;
+        var wasGeom = (AppSettings.Current.PoolWinLeft, AppSettings.Current.PoolWinTop,
+                       AppSettings.Current.PoolWinWidth, AppSettings.Current.PoolWinHeight);
         try
         {
             if (before is not null) File.Delete(PoolsPath);
@@ -56,6 +60,9 @@ internal static class Program
         {
             SessionTracker.Preview = null;
             AppSettings.Current.DuoWinratesAllTime = wasAllTime;
+            AppSettings.Current.PoolSplit = wasSplit;
+            (AppSettings.Current.PoolWinLeft, AppSettings.Current.PoolWinTop,
+             AppSettings.Current.PoolWinWidth, AppSettings.Current.PoolWinHeight) = wasGeom;
             AppSettings.SaveQuiet();
             if (before is not null) File.WriteAllText(PoolsPath, before);
             else if (File.Exists(PoolsPath)) File.Delete(PoolsPath);

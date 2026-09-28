@@ -1,7 +1,15 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 
 namespace Counterplay;
+
+/// <summary>
+/// Куда класть и откуда брать геометрию окна. Пара действий, чтобы
+/// <see cref="WindowScale"/> не знал, в какой именно настройке она живёт.
+/// </summary>
+public sealed record WindowPlace(
+    Func<(double L, double T, double W, double H)> Read,
+    Action<double, double, double, double> Write);
 
 /// <summary>
 /// Масштаб отдельных окон — тот же, что у оверлея: выбор человека
@@ -20,9 +28,13 @@ static class WindowScale
     /// <summary>
     /// Привязать окно к масштабу. <paramref name="baseW"/>/<paramref name="baseH"/>
     /// и минимумы задаются в «единичном» размере — тут их умножат.
+    ///
+    /// <paramref name="remember"/> — необязательная память места и размера: окно
+    /// открывается там, где его оставили в прошлый раз.
     /// </summary>
     public static void Apply(Window w, FrameworkElement root,
-                             double baseW, double baseH, double minW, double minH)
+                             double baseW, double baseH, double minW, double minH,
+                             WindowPlace? remember = null)
     {
         // SourceInitialized, а не Loaded: окно уже знает свой DPI, но ещё не
         // показано — человек не увидит, как оно прыгает в нужный размер.
@@ -40,6 +52,54 @@ static class WindowScale
             w.MinHeight = Math.Min(minH * k, maxH);
             w.Width     = Math.Min(baseW * k, maxW);
             w.Height    = Math.Min(baseH * k, maxH);
+
+            if (remember is null) return;
+            var (l, t, ww, hh) = remember.Read();
+            if (ww < w.MinWidth || hh < w.MinHeight) return;   // ещё не двигали
+
+            w.Width  = Math.Min(ww, maxW);
+            w.Height = Math.Min(hh, maxH);
+
+            // Место принимаем, только если оно ещё на экране: монитор могли
+            // отключить, и окно уехало бы туда, откуда его не достать мышью.
+            if (OnScreen(l, t))
+            {
+                w.WindowStartupLocation = WindowStartupLocation.Manual;
+                w.Left = l;
+                w.Top  = t;
+            }
         };
+
+        // Сохраняем при закрытии: ловить каждое движение незачем, а закрытие
+        // случается ровно тогда, когда человек уже поставил окно как хотел.
+        if (remember is not null)
+            w.Closing += (_, _) =>
+            {
+                // У свёрнутого и развёрнутого окна Left/Top врут (у свёрнутого
+                // это −32000). Спрашиваем размер, с которым оно вернётся.
+                var r = w.WindowState == WindowState.Normal
+                    ? new Rect(w.Left, w.Top, w.Width, w.Height)
+                    : w.RestoreBounds;
+                if (double.IsNaN(r.Width) || r.Width <= 0 || r.Height <= 0) return;
+                if (!OnScreen(r.X, r.Y)) return;
+                remember.Write(r.X, r.Y, r.Width, r.Height);
+            };
+    }
+
+    /// <summary>
+    /// Виден ли левый верхний угол настолько, чтобы окно можно было схватить.
+    ///
+    /// Меряем по ВСЕМ мониторам, а не по рабочей области основного: у второго
+    /// монитора слева координаты отрицательные, и проверка по основному экрану
+    /// отказывалась бы запоминать совершенно нормальное место.
+    /// </summary>
+    private static bool OnScreen(double l, double t)
+    {
+        var left   = SystemParameters.VirtualScreenLeft;
+        var top    = SystemParameters.VirtualScreenTop;
+        var right  = left + SystemParameters.VirtualScreenWidth;
+        var bottom = top  + SystemParameters.VirtualScreenHeight;
+        return l > left - 50 && l < right - 100 &&
+               t > top  - 50 && t < bottom - 80;
     }
 }

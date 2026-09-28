@@ -89,10 +89,60 @@ public sealed class PoolSettingsWindow : Window
         bottom.Children.Add(hr);
         bottom.Children.Add(_wrStrip);
 
-        var layout = new DockPanel();
-        DockPanel.SetDock(bottom, Dock.Bottom);
+        // Две части с подвижной границей: сверху пулы, снизу винрейты. Доли
+        // были жёсткими, и на низком окне винрейты почти не помещались.
+        var layout = new Grid();
+        layout.RowDefinitions.Add(new RowDefinition
+        {
+            Height = new GridLength(AppSettings.Current.PoolSplit, GridUnitType.Star),
+            MinHeight = 120
+        });
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        layout.RowDefinitions.Add(new RowDefinition
+        {
+            Height = new GridLength(1 - AppSettings.Current.PoolSplit, GridUnitType.Star),
+            MinHeight = 120
+        });
+
+        Grid.SetRow(grid, 0);
+        layout.Children.Add(grid);
+
+        // Сама полоса: широкая настолько, чтобы в неё попадали мышью, но
+        // видимая часть тонкая — толстая черта посреди окна мозолила бы глаз.
+        var splitter = new GridSplitter
+        {
+            Height = 9,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Cursor = System.Windows.Input.Cursors.SizeNS,
+            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
+            ToolTip = Loc.T("pool.splitHint"),
+        };
+        Grid.SetRow(splitter, 1);
+        layout.Children.Add(splitter);
+
+        var splitLine = new Border
+        {
+            Height = 1, Margin = new Thickness(16, 4, 16, 4),
+            Background = new SolidColorBrush(Line),
+            IsHitTestVisible = false,        // тянут полосу, а не черту
+        };
+        Grid.SetRow(splitLine, 1);
+        layout.Children.Add(splitLine);
+
+        Grid.SetRow(bottom, 2);
         layout.Children.Add(bottom);
-        layout.Children.Add(grid);           // остаток — пулы
+
+        // Запоминаем, где человек оставил границу.
+        Closing += (_, _) =>
+        {
+            var top = layout.RowDefinitions[0].ActualHeight;
+            var all = top + layout.RowDefinitions[2].ActualHeight;
+            if (all > 0)
+                AppSettings.Current.PoolSplit = Math.Clamp(top / all, 0.25, 0.85);
+            AppSettings.SaveQuiet();
+        };
 
         // Декоративный фон как на драфте: синий сверху-слева → красный снизу-справа.
         var decorated = new Grid();
@@ -101,19 +151,31 @@ public sealed class PoolSettingsWindow : Window
 
         var chrome = PoolUi.Chrome(this, Title, decorated, resizable: true);
         Content = chrome;
-        WindowScale.Apply(this, chrome, 820, 560, 700, 460);
+        // Высота на треть больше прежней (560): обе половины винрейтов ютились
+        // в паре рядов. Место и размер запоминаются, как у окна подбора.
+        WindowScale.Apply(this, chrome, 820, 750, 700, 460, new WindowPlace(
+            () => (AppSettings.Current.PoolWinLeft, AppSettings.Current.PoolWinTop,
+                   AppSettings.Current.PoolWinWidth, AppSettings.Current.PoolWinHeight),
+            (l, t, w, h) =>
+            {
+                AppSettings.Current.PoolWinLeft = l;
+                AppSettings.Current.PoolWinTop = t;
+                AppSettings.Current.PoolWinWidth = w;
+                AppSettings.Current.PoolWinHeight = h;
+                AppSettings.SaveQuiet();
+            }));
         Refresh();
     }
 
     // Лента «мой винрейт по чемпионам»: ранкед (соло+флекс) и нормалы отдельно,
     // ARAM не в счёт. Сортировка по числу игр — сверху те, на ком реально играют.
-    private readonly StackPanel _wrStrip = new() { Margin = new Thickness(0, 0, 0, 8) };
+    private readonly Grid _wrStrip = new() { Margin = new Thickness(0, 0, 0, 8) };
 
     // Винрейты стоят ДВУМЯ КОЛОНКАМИ, ровно под пулами: слева личное, справа
     // связки. Одно под другим читалось хуже — глаз ищет винрейт под своей
     // половиной, а не в столбик через весь низ окна.
-    private readonly StackPanel _wrSolo = new();
-    private readonly StackPanel _wrDuo  = new();
+    private readonly DockPanel _wrSolo = new();
+    private readonly DockPanel _wrDuo  = new();
 
     private void RefreshWinrates()
     {
@@ -138,9 +200,10 @@ public sealed class PoolSettingsWindow : Window
 
             // Кнопки стоят В СВОЕЙ колонке, над её заголовком: период у
             // половин теперь разный, и общий ряд наверху врал бы про обе.
-            var left = new StackPanel();
+            var left = new DockPanel();
+            DockPanel.SetDock(_wrPeriodSolo, Dock.Top);
             left.Children.Add(_wrPeriodSolo);
-            left.Children.Add(_wrSolo);
+            left.Children.Add(_wrSolo);      // остаток высоты — ленте
             Grid.SetColumn(left, 0);
             g.Children.Add(left);
 
@@ -152,9 +215,10 @@ public sealed class PoolSettingsWindow : Window
             Grid.SetColumn(line, 1);
             g.Children.Add(line);
 
-            var right = new StackPanel();
+            var right = new DockPanel();
+            DockPanel.SetDock(_wrPeriodDuo, Dock.Top);
             right.Children.Add(_wrPeriodDuo);
-            right.Children.Add(_wrDuo);
+            right.Children.Add(_wrDuo);      // остаток высоты — ленте
             Grid.SetColumn(right, 2);
             g.Children.Add(right);
 
@@ -224,20 +288,33 @@ public sealed class PoolSettingsWindow : Window
     }
 
     /// Заголовок раздела винрейтов.
-    private static void WrHeader(System.Windows.Controls.Panel into, string text) => into.Children.Add(new TextBlock
+    private static void WrHeader(System.Windows.Controls.Panel into, string text)
     {
-        Text = text,
-        Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
-        FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6),
-        TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis
-    });
+        var tb = new TextBlock
+        {
+            Text = text,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
+            FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(2, 0, 0, 6),
+            TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        // Прибит сверху: половина — DockPanel, и остаток высоты должен уйти
+        // ленте, а не разойтись поровну.
+        DockPanel.SetDock(tb, Dock.Top);
+        into.Children.Add(tb);
+    }
 
     /// Приглушённая строка «пока пусто».
-    private static void WrEmpty(System.Windows.Controls.Panel into, string text) => into.Children.Add(new TextBlock
+    private static void WrEmpty(System.Windows.Controls.Panel into, string text)
     {
-        Text = text, Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)),
-        FontSize = 11, Margin = new Thickness(2, 0, 0, 10), TextWrapping = TextWrapping.Wrap
-    });
+        var tb = new TextBlock
+        {
+            Text = text, Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86)),
+            FontSize = 11, Margin = new Thickness(2, 0, 0, 10), TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        DockPanel.SetDock(tb, Dock.Top);
+        into.Children.Add(tb);
+    }
 
     // ── Часть первая: личный винрейт по чемпионам ───────────────────────────
     //
@@ -316,7 +393,9 @@ public sealed class PoolSettingsWindow : Window
         }
         _wrSolo.Children.Add(new ScrollViewer
         {
-            Content = row, MaxHeight = 170,
+            // Потолка нет нарочно: высоту отмеряет подвижная полоса, а раньше
+            // при жёстких 170 половина отданного места пустовала.
+            Content = row,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });
@@ -472,7 +551,7 @@ public sealed class PoolSettingsWindow : Window
         }
         _wrDuo.Children.Add(new ScrollViewer
         {
-            Content = row, MaxHeight = 150,
+            Content = row,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });

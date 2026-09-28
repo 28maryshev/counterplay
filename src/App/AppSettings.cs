@@ -46,6 +46,20 @@ public sealed class AppSettings
     /// </remarks>
     public bool DuoWinratesAllTime { get; set; } = true;
 
+    /// <summary>
+    /// Размер, положение и разделение окна пулов — как у окна подбора.
+    ///
+    /// Человек один раз ставит окно удобно; возвращать его в середину экрана
+    /// при каждом открытии значит заставлять делать это снова. Ноль в размере —
+    /// «ещё не двигали», тогда берётся размер по умолчанию.
+    /// </summary>
+    public double PoolWinLeft { get; set; }
+    public double PoolWinTop { get; set; }
+    public double PoolWinWidth { get; set; }
+    public double PoolWinHeight { get; set; }
+    /// Доля верхней части (пулы) от высоты окна: 0.25…0.85, по умолчанию 0.58.
+    public double PoolSplit { get; set; } = 0.58;
+
     /// Что рисовать на графике: "winrate" — процент побед, "rating" — движение
     /// ранга по дивизионам, "off" — только цифры без графика.
     public string ChartMode { get; set; } = "rating";
