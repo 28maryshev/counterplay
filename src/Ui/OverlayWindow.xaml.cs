@@ -184,6 +184,16 @@ public partial class OverlayWindow : Window
         _gameActive = active;
     }
 
+    /// <summary>
+    /// Свёрнута ли программа в трей и идёт ли игра.
+    ///
+    /// Спрашивает перезапуск после обновления: посреди игры перезапускаться
+    /// нельзя, а вернуться надо туда же, откуда ушли — был значок в трее,
+    /// значит и поднимаемся в трей, а не окном поверх клиента.
+    /// </summary>
+    public bool InTray => _inTray;
+    public bool GameActive => _gameActive;
+
     /// LCU подключён/отключён — гейтит авто-возврат из трея (см. _lcuReady).
     public void SetLcuReady(bool ready)
     {

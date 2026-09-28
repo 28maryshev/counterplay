@@ -310,6 +310,9 @@ class Program
         var quiet = false;
         while (!ct.IsCancellationRequested)
         {
+            // Клиента нет — ни драфта, ни игры: самое спокойное время.
+            _restartSafe = true;
+            ApplyUpdateIfIdle(overlay);
             if (!quiet)
             {
                 overlay.SetLcuReady(false); // не подключены — авто-возврат из трея подавлен
@@ -433,6 +436,68 @@ class Program
                                     onlyOnNewPatch: true);
             }
         }, ct);
+    }
+
+    /// Скачанное обновление, которое ждёт тихой минуты. Пусто — ждать нечего.
+    private static Velopack.VelopackAsset? _updateStaged;
+
+    /// <summary>
+    /// Можно ли сейчас перезапуститься.
+    ///
+    /// Нельзя в драфте и в игре: перезапуск отнимает секунду, но именно эта
+    /// секунда — то, ради чего программу открывают. В меню, в лобби и при
+    /// закрытом клиенте — можно.
+    /// </summary>
+    private static volatile bool _restartSafe = true;
+
+    /// <summary>
+    /// Поставить скачанное обновление и перезапуститься, если сейчас можно.
+    ///
+    /// Не время — ничего не делаем: позовут снова в конце драфта или на смене
+    /// фазы. Совсем не позовут (человек закрыл программу) — обновление никуда
+    /// не денется, оно уже на диске, и встанет при следующем запуске.
+    ///
+    /// Пробуем ОДИН раз за сеанс: если установка не удалась, повторять её по
+    /// кругу — верный способ получить программу, которая только и делает, что
+    /// перезапускается.
+    /// </summary>
+    static void ApplyUpdateIfIdle(OverlayWindow overlay)
+    {
+        var staged = _updateStaged;
+        if (staged is null) return;
+        if (!_restartSafe || overlay.GameActive) return;
+        if (AlreadyFailed(staged.Version?.ToString())) { _updateStaged = null; return; }
+
+        _updateStaged = null;
+        try
+        {
+            Log.Write($"ставлю версию {staged.Version} и перезапускаюсь");
+            overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
+            ApplySilently(overlay, new UpdateManager(UpdateSource), staged);
+        }
+        catch (Exception ex)
+        {
+            // Не встало — работаем на прежней версии, попробуем при запуске.
+            Log.Write($"обновление не поставилось: {ex.GetType().Name} — {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// С чем перезапускаться после обновления.
+    ///
+    /// Переносим свои ключи (в том числе --autostart: с ним программа
+    /// поднимается сразу в трей) и путь к lockfile. Открытый двойным кликом
+    /// файл пула НЕ переносим — это разовое действие, повторять его незачем.
+    /// Был значок в трее — уходим в трей, даже если запускались иначе: человек
+    /// убрал окно сам, и возвращать его без спроса невежливо.
+    /// </summary>
+    static string[] RestartArgs(OverlayWindow overlay)
+    {
+        var args = Environment.GetCommandLineArgs().Skip(1)
+            .Where(a => !a.EndsWith(FileAssoc.Extension, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (overlay.InTray && !args.Contains("--autostart")) args.Add("--autostart");
+        return [.. args];
     }
 
     // Бакеты, за которыми уже ходили в этом запуске: одна попытка на бакет.
@@ -590,8 +655,10 @@ class Program
             {
                 using var gdoc = JsonDocument.Parse(gfBody);
                 var phase = PhaseOf(gdoc.RootElement);
+                _restartSafe = phase != "ChampSelect";
                 if (phase is "GameStart" or "InProgress" or "Reconnect")
                 {
+                    _restartSafe = false;
                     overlay.SetGameActive(true);
                     // По умолчанию прячемся: прозрачное topmost-окно мешает входу
                     // в игру. Настройкой это можно отключить.
@@ -755,6 +822,7 @@ class Program
                     // Фаза геймфлоу — единственный источник правды для трея.
                     if (phase is "GameStart" or "InProgress" or "Reconnect")
                     {
+                        _restartSafe = false;      // не перезапускаемся посреди игры
                         // Игра идёт — оверлей скрыт в трее (не разворачиваем ни при каких
                         // событиях, иначе прозрачное topmost-окно блокирует вход в игру).
                         overlay.SetGameActive(true);
@@ -763,8 +831,11 @@ class Program
                     }
                     else if (phase != "ChampSelect")
                     {
-                        // Драфта нет — самое время подменить скачанную фоном базу.
+                        // Драфта нет — самое время подменить скачанную фоном базу
+                        // и поставить скачанное обновление.
+                        _restartSafe = true;
                         ApplyNewDbIfReady();
+                        ApplyUpdateIfIdle(overlay);
                         // Меню/лобби/конец игры — возвращаем оверлей из трея.
                         overlay.SetGameActive(false);
                         overlay.RestoreFromTray();
@@ -794,13 +865,16 @@ class Program
                         // Не просто статус: окно должно вернуться на экран готовности
                         // той фазы, в которой клиент уже находится (см. DraftEnded).
                         overlay.DraftEnded(); // подавится, если в трее
-                        ApplyNewDbIfReady();  // драфт кончился — можно менять базу
+                        _restartSafe = true;  // драфт кончился — можно и то, и другое
+                        ApplyNewDbIfReady();
+                        ApplyUpdateIfIdle(overlay);
                         lastHash = "";
                         draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
                     }
                     else
                     {
+                        _restartSafe = false;   // идёт драфт — не до перезапуска
                         var draft = ChampSelectParser.Parse(ev.Data);
                         myPickActionId = draft.MyPickActionId;
                         myBanActionId  = draft.MyBanActionId;
@@ -970,10 +1044,15 @@ class Program
                     var v = info.TargetFullRelease?.Version.ToString() ?? "?";
                     Log.Write($"фоновая проверка: есть версия {v}, качаю");
                     await mgr.DownloadUpdatesAsync(info);
-                    // Применить при выходе, без перезапуска на ходу.
-                    mgr.WaitExitThenApplyUpdates(info, silent: true, restart: false);
-                    Log.Write($"версия {v} скачана и встанет при следующем запуске");
+                    Log.Write($"версия {v} скачана");
                     overlay.ShowUpdateReady(v);
+
+                    // Ставим при первой возможности. Раньше скачанное ждало
+                    // СЛЕДУЮЩЕГО ЗАПУСКА, а программа с автозапуском живёт
+                    // неделями — человек всё это время сидел на старой версии,
+                    // хотя новая лежала у него на диске.
+                    _updateStaged = info.TargetFullRelease;
+                    ApplyUpdateIfIdle(overlay);
                 }
                 catch (Exception ex)
                 {
@@ -1003,10 +1082,35 @@ class Program
     /// </summary>
     static void ApplySilently(OverlayWindow overlay, UpdateManager mgr, VelopackAsset? asset)
     {
-        mgr.WaitExitThenApplyUpdates(asset, silent: true, restart: true);
+        // Помечаем попытку. Если установка не удастся, программа поднимется на
+        // ПРЕЖНЕЙ версии, снова увидит готовое обновление и пойдёт ставить его
+        // опять — бесконечный круг «ставлю — перезапуск — не встало», без
+        // единого сообщения человеку. По этой отметке следующий запуск поймёт,
+        // что эту версию уже пробовал.
+        Settings.Set("updateTried", asset?.Version?.ToString() ?? "");
+        mgr.WaitExitThenApplyUpdates(asset, silent: true, restart: true,
+                                     restartArgs: RestartArgs(overlay));
         try { overlay.Dispatcher.Invoke(overlay.Close); }
         catch { /* окно уже закрыто — не повод не выходить */ }
         Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// Пробовали ли уже поставить эту версию — и остались на прежней.
+    ///
+    /// Значит, установка не прошла: сама программа второй раз за неё не
+    /// берётся, иначе получится круг из перезапусков. Человеку версия
+    /// покажется готовой — поставит вручную или переустановит.
+    /// </summary>
+    static bool AlreadyFailed(string? version) =>
+        !string.IsNullOrEmpty(version) && Settings.GetString("updateTried") == version;
+
+    /// Снять отметку о неудачной попытке. Пишем, только если есть что снимать:
+    /// иначе файл настроек трогался бы на каждом запуске без всякой нужды.
+    static void ForgetUpdateAttempt()
+    {
+        if (!string.IsNullOrEmpty(Settings.GetString("updateTried")))
+            Settings.Set("updateTried", "");
     }
 
     /// Сколько ждём ответа о новой версии на запуске. Пять секунд — с запасом
@@ -1023,14 +1127,33 @@ class Program
             var mgr = new UpdateManager(UpdateSource);
             if (!mgr.IsInstalled) return; // запущено из dev-сборки — не обновляемся
 
-            // Обновление уже подготовлено прошлым запуском, но программу с тех пор
-            // не закрывали — применяем сразу, оно того и ждёт.
+            // Обновление уже лежит готовым — ставим сразу. Сюда попадают те, до
+            // кого не дошла очередь на ходу: человек закрыл программу в драфте
+            // или оставил её в игре, и тихой минуты так и не случилось.
             if (mgr.UpdatePendingRestart is { } staged)
             {
+                var ready = staged.Version?.ToString();
+                // Уже на ней: пакет мог остаться лежать после удачной установки.
+                // Без этой ветки отметка о попытке приняла бы удачу за неудачу.
+                if (ready is not null && ready == mgr.CurrentVersion?.ToString())
+                {
+                    ForgetUpdateAttempt();
+                    return;
+                }
+                if (AlreadyFailed(ready))
+                {
+                    Log.Write($"версия {ready} однажды не поставилась — сама больше не пробую");
+                    overlay.ShowUpdateReady(ready!);
+                    return;
+                }
                 overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
                 ApplySilently(overlay, mgr, staged);
                 return;
             }
+
+            // Ставить нечего — значит, прошлая попытка удалась. Отметку снимаем,
+            // иначе она запретила бы и честное обновление до той же версии.
+            ForgetUpdateAttempt();
 
             overlay.ShowStatus(Loc.T("status.checkingUpdates"));
             Log.Write($"проверяю обновления: сейчас {mgr.CurrentVersion}");
