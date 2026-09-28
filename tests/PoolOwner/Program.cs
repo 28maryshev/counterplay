@@ -106,6 +106,55 @@ internal static class Program
 
         FiveStack();
         SandboxPair();
+        NickTravels();
+    }
+
+    /// <summary>
+    /// Имя напарника доезжает получателю — иначе плитка у него молчит, хотя
+    /// человек известен отправителю.
+    ///
+    /// Проверяем три пути: личный пул в половину «Дуо», готовый дуо-файл и тот
+    /// же дуо-файл кодом. Имя обязано встать под ТУ ЖЕ половину, что и puuid,
+    /// иначе на плитке будет один человек, а считаться будет другой.
+    /// </summary>
+    private static void NickTravels()
+    {
+        // Друг выгружает свой личный пул.
+        PoolStore.SetAccount(Friend, "Harribon");
+        var his = new ChampPool { Id = "h2", Name = "поддержка" };
+        his.ByRole["support"] = [412];
+        var poolFile = PoolFile.Export(his);
+
+        PoolStore.SetAccount(Me, "я");
+        var (_, _, _, nick1) = PoolFile.ParseWithOwner(poolFile);
+        Check("личный пул везёт имя хозяина", nick1 == "Harribon", nick1);
+
+        // Друг выгружает готовый дуо-пул, где вторая половина — Я.
+        PoolStore.SetAccount(Friend, "Harribon");
+        var duo = new DuoPool { Id = "d9", FriendName = "я + он", FriendPuuid = Me, FriendNick = "я" };
+        duo.Mine["support"] = [412];
+        duo.Friend["adc"] = [22];
+        var duoFile = PoolFile.Export(duo);
+
+        // У МЕНЯ стороны зеркальны: второй половиной становится отправитель.
+        PoolStore.SetAccount(Me, "я");
+        var (_, mine, _, _) = PoolFile.ParseWithOwner(duoFile);
+        Check("дуо-файл: имя встало под отправителя", mine?.FriendNick == "Harribon",
+              mine?.FriendNick ?? "(пусто)");
+        Check("и puuid под него же", mine?.FriendPuuid == Friend, Tail(mine?.FriendPuuid));
+
+        // Тот же файл кодом — формат один, значит и имя то же.
+        var code = PoolFile.ToCode(duoFile);
+        var back = PoolFile.FromCode(code);
+        var (_, byCode, _, _) = PoolFile.ParseWithOwner(back!);
+        Check("кодом имя доезжает так же", byCode?.FriendNick == "Harribon",
+              byCode?.FriendNick ?? "(пусто)");
+
+        // Посторонний: связка чужая, имя остаётся тем, что записано.
+        PoolStore.SetAccount(Third, "третий");
+        var (_, forThird, _, _) = PoolFile.ParseWithOwner(duoFile);
+        Check("у постороннего имя не подменяется", forThird?.FriendNick == "я",
+              forThird?.FriendNick ?? "(пусто)");
     }
 
     /// <summary>

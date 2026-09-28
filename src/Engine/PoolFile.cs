@@ -65,6 +65,9 @@ public static class PoolFile
 
         /// Для дуо-файла — хозяин ВТОРОЙ половины (тот, с кем эта связка).
         public string? FriendPuuid { get; set; }
+        /// …и его имя, каким его знал отправитель. Без него плитка у
+        /// получателя молчала бы, хотя человек известен.
+        public string? FriendNick { get; set; }
     }
 
     public static string Export(ChampPool p) => JsonSerializer.Serialize(new Envelope
@@ -91,6 +94,7 @@ public static class PoolFile
         OwnerPuuid  = PoolStore.AccountPuuid,
         OwnerName   = PoolStore.Current().AccountName,
         FriendPuuid = d.FriendPuuid,
+        FriendNick  = d.FriendNick,
     }, Opts);
 
     /// <summary>
@@ -136,6 +140,9 @@ public static class PoolFile
                     // хозяин: связка та же, стороны зеркальны. Иначе берём то,
                     // что записано, а без него — хозяина файла.
                     FriendPuuid = OtherHalf(e),
+                    // Имя — под ТУ ЖЕ половину, что и puuid, иначе на плитке
+                    // окажется имя одного человека, а считаться будет другой.
+                    FriendNick = OtherHalfNick(e),
                 };
                 // Пустой пул грузить не во что: пометка нашей и осталась, а внутри
                 // ничего нет — честнее сказать, что файл не подошёл.
@@ -168,6 +175,21 @@ public static class PoolFile
         if (friend.Length > 0 && friend.Equals(me, StringComparison.OrdinalIgnoreCase))
             return owner;
         return friend.Length > 0 ? friend : owner;
+    }
+
+    /// <summary>
+    /// Имя того, кто для НАС на второй половине. Пара к <see cref="OtherHalf"/>:
+    /// стороны выбираются одинаково, иначе имя и счёт разъедутся.
+    /// </summary>
+    private static string OtherHalfNick(Envelope e)
+    {
+        var friend = CleanPuuid(e.FriendPuuid);
+        var me = PoolStore.AccountPuuid ?? "";
+        // Зеркальный случай: напарник в файле — я, значит второй половиной стал
+        // отправитель, и имя нужно его.
+        if (friend.Length > 0 && friend.Equals(me, StringComparison.OrdinalIgnoreCase))
+            return Clean(e.OwnerName);
+        return Clean(e.FriendNick ?? "") is { Length: > 0 } n ? n : Clean(e.OwnerName);
     }
 
     /// <summary>
