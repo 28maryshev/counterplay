@@ -186,6 +186,23 @@ sealed class SettingsWindow : Window
         var s = _draft;
         var body = new StackPanel { Margin = new Thickness(20, 16, 20, 16) };
 
+        // Синхронизация — выше всего прочего и сразу под языком. На НОВОМ
+        // компьютере человек приходит именно сюда: пулов у него ещё нет, он за
+        // ними и пришёл. Держать кнопку только в окне пулов означало, что
+        // включить синхронизацию негде.
+        body.Children.Add(Section(Loc.T("sync.title")));
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("sync.settingsHint"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 11, TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 6)
+        });
+        var syncRow = SyncBadge.Row(() => PoolSettingsWindow.AskSyncPassword(this));
+        syncRow.HorizontalAlignment = HorizontalAlignment.Left;
+        syncRow.Margin = new Thickness(0, 0, 0, 4);
+        body.Children.Add(syncRow);
+
         // Язык — самым верхом и в обход «Применить»: смена языка перерисовывает
         // само окно настроек, ждать кнопки тут не от чего.
         body.Children.Add(Section(Loc.T("settings.language")));

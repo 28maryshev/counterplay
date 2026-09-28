@@ -74,7 +74,7 @@ public sealed class PoolSettingsWindow : Window
         // «?» слева, пароль синхронизации справа — одной строкой: оба про то,
         // «как этим пользоваться», а не про сами пулы.
         var helpRow = new DockPanel();
-        _syncBox = SyncBadge();
+        _syncBox = SyncBadge.Row(() => AskSyncPassword(this));
         DockPanel.SetDock(_syncBox, Dock.Right);
         helpRow.Children.Add(_syncBox);
         helpRow.Children.Add(HelpBadge());
@@ -471,118 +471,15 @@ public sealed class PoolSettingsWindow : Window
 
     private FrameworkElement? _syncBox;
 
-    /// <summary>
-    /// Состояние пароля синхронизации: кнопка «задать» либо «задан + изменить».
-    ///
-    /// Пароль нужен потому, что puuid — НЕ секрет: он лежит в каждой игре, и
-    /// его знает любой, с кем ты играл. Отдавать по нему чужие пулы нельзя.
-    /// </summary>
-    private FrameworkElement SyncBadge()
-    {
-        var row = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
-        };
 
-        if (SyncPassword.IsSet)
-        {
-            row.Children.Add(new TextBlock
-            {
-                Text = "✓ " + Loc.T("sync.set"),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0xC8, 0x8A)),
-                FontSize = 11, FontWeight = FontWeights.Bold,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
-            });
-            var change = PoolUi.Btn(Loc.T("sync.change"));
-            change.Padding = new Thickness(9, 2, 9, 3);
-            change.FontSize = 11;
-            change.Click += (_, _) => AskPassword();
-            row.Children.Add(change);
-        }
-        else
-        {
-            var add = PoolUi.Btn(Loc.T("sync.add"));
-            add.Padding = new Thickness(9, 2, 9, 3);
-            add.FontSize = 11;
-            add.Click += (_, _) => AskPassword();
-            row.Children.Add(add);
-        }
-
-        // «?» одинаково нужен в обоих состояниях: и тому, кто ещё не завёл
-        // пароль, и тому, кто забыл, зачем он.
-        row.Children.Add(SyncHelp());
-        return row;
-    }
-
-    /// <summary>
-    /// «?» рядом с кнопкой: что это за пароль и зачем он.
-    ///
-    /// Раньше пояснение висело на самой кнопке — то есть узнать, о чём речь,
-    /// можно было, только наведя на кнопку, которую ещё не решился нажать.
-    /// </summary>
-    private static FrameworkElement SyncHelp()
-    {
-        var body = new StackPanel { MaxWidth = 320 };
-        body.Children.Add(new TextBlock
-        {
-            Text = Loc.T("sync.hint"), TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
-            FontSize = 12, LineHeight = 18
-        });
-        body.Children.Add(new TextBlock
-        {
-            Text = Loc.T("sync.why"), TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-            FontSize = 11, LineHeight = 16, Margin = new Thickness(0, 8, 0, 0)
-        });
-
-        var tip = new System.Windows.Controls.ToolTip
-        {
-            Content = body, Padding = new Thickness(12, 10, 12, 10),
-            Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x24)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x35, 0x48, 0x5A)),
-            BorderThickness = new Thickness(1)
-        };
-
-        var q = new Border
-        {
-            Width = 18, Height = 18, CornerRadius = new CornerRadius(9),
-            Margin = new Thickness(7, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Background = new SolidColorBrush(Color.FromArgb(0x22, 0x5A, 0x8A, 0xC8)),
-            BorderBrush = new SolidColorBrush(Blue), BorderThickness = new Thickness(1),
-            ToolTip = tip,
-            Child = new TextBlock
-            {
-                Text = "?", Foreground = new SolidColorBrush(Blue), FontWeight = FontWeights.Bold,
-                FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            }
-        };
-        System.Windows.Controls.ToolTipService.SetShowDuration(q, 60000);
-        System.Windows.Controls.ToolTipService.SetInitialShowDelay(q, 150);
-        return q;
-    }
-
-    /// Перерисовать значок после смены пароля — состояние поменялось.
-    private void RefreshSyncBadge()
-    {
-        if (_syncBox?.Parent is not DockPanel parent) return;
-        parent.Children.Remove(_syncBox);
-        _syncBox = SyncBadge();
-        DockPanel.SetDock(_syncBox, Dock.Right);
-        parent.Children.Insert(0, _syncBox);
-    }
 
     /// <summary>
     /// Окно ввода пароля. Пустое поле — забыть пароль (синхронизация выключается).
     /// Просим ввести дважды: опечатку в пароле не видно, а исправить её потом
     /// негде — на другом компьютере просто не подойдёт.
     /// </summary>
-    private void AskPassword()
+    /// Окно ввода пароля. Зовётся из обоих окон — настроек и пулов.
+    public static bool AskSyncPassword(Window owner)
     {
         var body = new StackPanel { MinWidth = 300 };
         body.Children.Add(new TextBlock
@@ -604,7 +501,7 @@ public sealed class PoolSettingsWindow : Window
         };
         body.Children.Add(err);
 
-        var win = Confirm.Form(this, Loc.T("sync.title"), body, Loc.T("pool.save"), () =>
+        return Confirm.Form(owner, Loc.T("sync.title"), body, Loc.T("pool.save"), () =>
         {
             if (first.Password != again.Password)
             {
@@ -620,7 +517,6 @@ public sealed class PoolSettingsWindow : Window
             }
             return true;
         });
-        if (win) RefreshSyncBadge();
     }
 
     /// Подпись над полем — как у имени пула.

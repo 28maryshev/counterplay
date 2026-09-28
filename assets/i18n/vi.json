@@ -668,6 +668,7 @@
     "mismatch": "Mật khẩu không khớp",
     "failed": "Không lưu được mật khẩu",
     "hint": "Mật khẩu liên kết cài đặt và pool giữa các máy, đồng thời mã hoá chúng — không có nó thì không đọc được. Hãy nhớ kỹ: không thể khôi phục. Để trống để xoá.",
-    "why": "Chỉ bạn biết mật khẩu của mình. Định danh trong game thì không dùng được: nó có trong mọi trận và ai từng chơi cùng đều biết."
+    "why": "Chỉ bạn biết mật khẩu của mình. Định danh trong game thì không dùng được: nó có trong mọi trận và ai từng chơi cùng đều biết.",
+    "settingsHint": "Pool, lịch sử trận, tỷ lệ thắng cặp, biểu đồ và cài đặt — trên mọi máy của bạn."
   }
 }

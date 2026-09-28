@@ -668,6 +668,7 @@
     "mismatch": "Les mots de passe ne correspondent pas",
     "failed": "Impossible d’enregistrer le mot de passe",
     "hint": "Le mot de passe relie tes réglages et tes pools entre ordinateurs et les chiffre : sans lui, ils sont illisibles. Retiens-le : il est irrécupérable. Laisse vide pour l’oublier.",
-    "why": "Toi seul connais ton mot de passe. L’identifiant de jeu ne convient pas : il figure dans chacune de tes parties et le connaît quiconque a joué avec toi."
+    "why": "Toi seul connais ton mot de passe. L’identifiant de jeu ne convient pas : il figure dans chacune de tes parties et le connaît quiconque a joué avec toi.",
+    "settingsHint": "Pools, historique, winrates des duos, graphique et réglages — sur tous tes ordinateurs."
   }
 }

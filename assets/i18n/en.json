@@ -668,6 +668,7 @@
     "mismatch": "Passwords do not match",
     "failed": "Could not save the password",
     "hint": "The password ties your settings and pools together across computers, and encrypts them — without it they cannot be read. Remember it: it cannot be recovered. Leave empty to forget it.",
-    "why": "Only you know your password. The in-game identifier will not do: it appears in every game you play and is known to everyone you have played with."
+    "why": "Only you know your password. The in-game identifier will not do: it appears in every game you play and is known to everyone you have played with.",
+    "settingsHint": "Pools, match history, pair win rates, the chart and settings — on every computer of yours."
   }
 }
