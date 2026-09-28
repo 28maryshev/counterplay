@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using Counterplay;
 using Microsoft.Data.Sqlite;
@@ -109,27 +110,61 @@ internal static class Program
         Pump();
         var draftWidth = w.Width;
 
-        var bar = w.FindName("SideDl") as UIElement;
-        Check("полоса в подвале есть", bar is not null, bar is null ? "нет" : "да");
-        Check("пока не качаем — её не видно", bar?.Visibility == Visibility.Collapsed,
-              bar?.Visibility.ToString() ?? "—");
+        var dbBar  = w.FindName("SideDlDb")  as UIElement;
+        var appBar = w.FindName("SideDlApp") as UIElement;
+        Check("полос в подвале две", dbBar is not null && appBar is not null,
+              $"база {(dbBar is null ? "нет" : "есть")}, релиз {(appBar is null ? "нет" : "есть")}");
+        if (dbBar is null || appBar is null) return;
 
-        w.ShowSideProgress("Обновляю базу данных… 40%", 0.4);
+        Check("пока не качаем — обеих не видно",
+              dbBar.Visibility == Visibility.Collapsed && appBar.Visibility == Visibility.Collapsed,
+              $"{dbBar.Visibility} / {appBar.Visibility}");
+
+        // ── База ───────────────────────────────────────────────────────────
+        w.ShowSideProgress("Обновляю базу данных… 3,1 МБ/с", 0.4, "db");
         Pump();
-        Check("во время загрузки полоса видна", bar?.Visibility == Visibility.Visible,
-              bar?.Visibility.ToString() ?? "—");
+        Check("полоса базы появилась", dbBar.Visibility == Visibility.Visible,
+              dbBar.Visibility.ToString());
+        Check("полоса релизов при этом молчит", appBar.Visibility == Visibility.Collapsed,
+              appBar.Visibility.ToString());
         Check("доля дошла до полосы",
-              w.FindName("SideDlFillT") is ScaleTransform t && Math.Abs(t.ScaleX - 0.4) < 0.01,
-              (w.FindName("SideDlFillT") as ScaleTransform)?.ScaleX.ToString("0.00") ?? "—");
+              w.FindName("SideDlDbFillT") is ScaleTransform t && Math.Abs(t.ScaleX - 0.4) < 0.01,
+              (w.FindName("SideDlDbFillT") as ScaleTransform)?.ScaleX.ToString("0.00") ?? "—");
+        Check("процент подписан",
+              (w.FindName("SideDlDbPct") as TextBlock)?.Text == "40%",
+              (w.FindName("SideDlDbPct") as TextBlock)?.Text ?? "—");
+        Check("подробности ушли в подсказку",
+              (dbBar as FrameworkElement)?.ToolTip as string is { } tip && tip.Contains("МБ/с"),
+              (dbBar as FrameworkElement)?.ToolTip as string ?? "—");
 
         // Главное: окно осталось в раскладке драфта. Программа работает.
         Check("окно не ушло на экран загрузки", Math.Abs(w.Width - draftWidth) < 2,
               $"{w.Width:0} против {draftWidth:0}");
 
-        w.HideSideProgress();
+        // ── Обе разом ──────────────────────────────────────────────────────
+        // Сторожа ходят раз в час и раз в три — рано или поздно совпадут.
+        // Одна полоса на двоих показывала бы то одно, то другое.
+        w.ShowSideProgress("Загружаю обновление… 10%", 0.1, "app");
         Pump();
-        Check("после загрузки полоса убирается", bar?.Visibility == Visibility.Collapsed,
-              bar?.Visibility.ToString() ?? "—");
+        Check("обе полосы держатся разом",
+              dbBar.Visibility == Visibility.Visible && appBar.Visibility == Visibility.Visible,
+              $"{dbBar.Visibility} / {appBar.Visibility}");
+        Check("и у каждой своя доля",
+              (w.FindName("SideDlDbFillT")  as ScaleTransform)?.ScaleX is { } a && Math.Abs(a - 0.4) < 0.01 &&
+              (w.FindName("SideDlAppFillT") as ScaleTransform)?.ScaleX is { } b && Math.Abs(b - 0.1) < 0.01,
+              $"{(w.FindName("SideDlDbFillT") as ScaleTransform)?.ScaleX:0.00} / "
+              + $"{(w.FindName("SideDlAppFillT") as ScaleTransform)?.ScaleX:0.00}");
+
+        w.HideSideProgress("db");
+        Pump();
+        Check("своя полоса убирается", dbBar.Visibility == Visibility.Collapsed,
+              dbBar.Visibility.ToString());
+        Check("чужая остаётся догорать", appBar.Visibility == Visibility.Visible,
+              appBar.Visibility.ToString());
+        w.HideSideProgress("app");
+        Pump();
+        Check("и вторая убирается", appBar.Visibility == Visibility.Collapsed,
+              appBar.Visibility.ToString());
 
         // Для сравнения — полоса первого запуска. Она как раз обязана уводить на
         // экран загрузки: считать там не на чем.

@@ -2645,29 +2645,61 @@
                      TextWrapping="Wrap" TextAlignment="Center"
                      HorizontalAlignment="Stretch" Margin="16,0,16,7"/>
 
-          <!-- ── Фоновое обновление базы ────────────────────────────────
-               Стоит там же, где версия, и только потому, что база теперь
-               качается ФОНОМ. Раньше обновление занимало весь экран
-               загрузки, и до его конца программа была ни на что не годна.
-               Здесь она работает на прежней базе, а внизу видно, сколько
-               осталось. Полоса тонкая и без блика: это справка, а не
-               событие, ради которого стоит отвлекаться. -->
-          <StackPanel x:Name="SideDl" Visibility="Collapsed" Margin="16,0,16,7">
-            <TextBlock x:Name="SideDlText" Text="" Foreground="#4A6070"
-                       FontFamily="{StaticResource UiFont}" FontSize="9"
-                       TextWrapping="Wrap" TextAlignment="Center"
-                       HorizontalAlignment="Stretch"/>
-            <Grid Height="3" Margin="0,3,0,0" ClipToBounds="True">
-              <Border Background="#1AFFFFFF" CornerRadius="1.5"/>
-              <!-- Доля задаётся масштабом, а не шириной: сайдбар и панель
-                   драфта разной ширины, а подвал у них общий. -->
-              <Border x:Name="SideDlFill" Background="#C89B3C" CornerRadius="1.5"
-                      HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5">
-                <Border.RenderTransform>
-                  <ScaleTransform x:Name="SideDlFillT" ScaleX="0"/>
-                </Border.RenderTransform>
-              </Border>
-            </Grid>
+          <!-- ── Что качается прямо сейчас ──────────────────────────────
+               Две полосы под версией: база и новая версия программы. Обе
+               качаются ФОНОМ — программа в это время работает, — и полосы
+               здесь единственный способ об этом узнать. Каждая показывается
+               сама по себе: качаться может и то, и другое, и оба сторожа
+               рано или поздно совпадут.
+
+               Полосы тонкие и без бегущего блика: это справка, а не событие,
+               ради которого стоит отвлекаться от драфта. Подробности (скорость,
+               что именно) — в подсказке при наведении, в строку они не лезут.
+
+               Подписи «base» и «release» нарочно не переводятся: два коротких
+               слова, понятных везде, а места на подпись ровно столько. -->
+          <StackPanel x:Name="SideDlDb" Visibility="Collapsed" Margin="16,0,16,2">
+            <DockPanel>
+              <TextBlock Text="base" DockPanel.Dock="Left" Width="34"
+                         Foreground="#4A6070" FontFamily="{StaticResource UiFont}"
+                         FontSize="8" VerticalAlignment="Center"/>
+              <TextBlock x:Name="SideDlDbPct" Text="" DockPanel.Dock="Right" Width="26"
+                         Foreground="#4A6070" FontFamily="{StaticResource UiFont}"
+                         FontSize="8" TextAlignment="Right" VerticalAlignment="Center"/>
+              <Grid Height="3" Margin="0,0,6,0" ClipToBounds="True" VerticalAlignment="Center">
+                <Border Background="#1AFFFFFF" CornerRadius="1.5"/>
+                <!-- Доля задаётся масштабом, а не шириной: сайдбар и панель
+                     драфта разной ширины, а подвал у них общий. -->
+                <Border Background="#C89B3C" CornerRadius="1.5"
+                        HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5">
+                  <Border.RenderTransform>
+                    <ScaleTransform x:Name="SideDlDbFillT" ScaleX="0"/>
+                  </Border.RenderTransform>
+                </Border>
+              </Grid>
+            </DockPanel>
+          </StackPanel>
+
+          <StackPanel x:Name="SideDlApp" Visibility="Collapsed" Margin="16,0,16,7">
+            <DockPanel>
+              <TextBlock Text="release" DockPanel.Dock="Left" Width="34"
+                         Foreground="#4A6070" FontFamily="{StaticResource UiFont}"
+                         FontSize="8" VerticalAlignment="Center"/>
+              <TextBlock x:Name="SideDlAppPct" Text="" DockPanel.Dock="Right" Width="26"
+                         Foreground="#4A6070" FontFamily="{StaticResource UiFont}"
+                         FontSize="8" TextAlignment="Right" VerticalAlignment="Center"/>
+              <Grid Height="3" Margin="0,0,6,0" ClipToBounds="True" VerticalAlignment="Center">
+                <Border Background="#1AFFFFFF" CornerRadius="1.5"/>
+                <!-- Синяя, чтобы не путать с базой: две одинаковые полосы в
+                     одном углу пришлось бы читать по подписи каждый раз. -->
+                <Border Background="#5A8AC8" CornerRadius="1.5"
+                        HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5">
+                  <Border.RenderTransform>
+                    <ScaleTransform x:Name="SideDlAppFillT" ScaleX="0"/>
+                  </Border.RenderTransform>
+                </Border>
+              </Grid>
+            </DockPanel>
           </StackPanel>
         </StackPanel>
       </Grid>

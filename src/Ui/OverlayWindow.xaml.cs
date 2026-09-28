@@ -4694,17 +4694,40 @@ public partial class OverlayWindow : Window
     /// драфт разбирается, рекомендации выдаются. Полоса внизу только говорит,
     /// сколько осталось.
     /// </summary>
-    public void ShowSideProgress(string text, double fraction) =>
+    /// <summary>
+    /// Прогресс фоновой загрузки — тонкой полосой в подвале, у версии.
+    ///
+    /// Отличие от <see cref="ShowProgress"/> в том, чего тут НЕТ: экрана
+    /// загрузки. Пока качается новая база или новая версия, программа работает —
+    /// драфт разбирается, рекомендации выдаются. Полоса внизу только говорит,
+    /// сколько осталось.
+    /// </summary>
+    /// <param name="owner">Чья полоса: «app» — новая версия, иначе база. Полосы
+    /// РАЗНЫЕ, а не одна на двоих: сторожа ходят с разной частотой (раз в час и
+    /// раз в три), рано или поздно совпадут, и одна полоса на двоих показывала
+    /// бы то одно, то другое.</param>
+    /// <param name="text">Подробности для подсказки: что именно и с какой
+    /// скоростью. В строку они не лезут, а при наведении пригодятся.</param>
+    public void ShowSideProgress(string text, double fraction, string owner = "db") =>
         Dispatcher.InvokeAsync(() =>
         {
-            SideDl.Visibility  = Visibility.Visible;
-            SideDlText.Text    = text;
-            SideDlFillT.ScaleX = Math.Clamp(fraction, 0.0, 1.0);
+            var app  = owner == "app";
+            var box  = app ? SideDlApp     : SideDlDb;
+            var pct  = app ? SideDlAppPct  : SideDlDbPct;
+            var fill = app ? SideDlAppFillT : SideDlDbFillT;
+
+            var part = Math.Clamp(fraction, 0.0, 1.0);
+            box.Visibility = Visibility.Visible;
+            box.ToolTip    = text;
+            pct.Text       = $"{part * 100:0}%";
+            fill.ScaleX    = part;
         });
 
-    /// Убрать полосу: скачали, бросили или нечего было качать.
-    public void HideSideProgress() =>
-        Dispatcher.InvokeAsync(() => SideDl.Visibility = Visibility.Collapsed);
+    /// Убрать свою полосу: скачали, бросили или нечего было качать. Чужую не
+    /// трогаем — она может догорать.
+    public void HideSideProgress(string owner = "db") =>
+        Dispatcher.InvokeAsync(() =>
+            (owner == "app" ? SideDlApp : SideDlDb).Visibility = Visibility.Collapsed);
 
     // Неопределённый прогресс: фоновая работа без процентов (распаковка/проверка).
     // Полоса полная, но блик продолжает бежать — видно, что процесс идёт.

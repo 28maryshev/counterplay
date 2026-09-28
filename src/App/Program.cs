@@ -375,12 +375,12 @@ class Program
         try
         {
             if (await DataDb.UpdateInBackgroundAsync(
-                    bucket, (m, f) => overlay.ShowSideProgress(m, f), ct, onlyOnNewPatch))
+                    bucket, (m, f) => overlay.ShowSideProgress(m, f, "db"), ct, onlyOnNewPatch))
                 DataDb.ApplySwap();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Log.Write($"фоновое обновление базы: {ex.Message}"); }
-        finally { overlay.HideSideProgress(); }
+        finally { overlay.HideSideProgress("db"); }
     }
 
     /// Следит за выходом патча и перечитывает справочники Riot.
@@ -1055,7 +1055,13 @@ class Program
                     if (info == null) { Log.Write("обновлений нет (фоновая проверка)"); continue; }
                     var v = info.TargetFullRelease?.Version.ToString() ?? "?";
                     Log.Write($"фоновая проверка: есть версия {v}, качаю");
-                    await mgr.DownloadUpdatesAsync(info);
+                    // Полосой внизу сайдбара, у версии — там же, где идёт
+                    // загрузка базы. Раньше обновление качалось совсем молча:
+                    // программа что-то тянула, а по ней этого было не видно.
+                    await mgr.DownloadUpdatesAsync(info, pct =>
+                        overlay.ShowSideProgress(
+                            Loc.T("status.downloadingUpdate", pct, ""), pct / 100.0, "app"));
+                    overlay.HideSideProgress("app");
                     Log.Write($"версия {v} скачана");
                     overlay.ShowUpdateReady(v);
 
