@@ -250,8 +250,19 @@ public static class PoolFile
             using var gz = new GZipStream(input, CompressionMode.Decompress);
             using var outp = new MemoryStream();
             gz.CopyTo(outp);
+            var text = Encoding.UTF8.GetString(outp.ToArray()).Trim();
+
+            // Обрезанный код: распаковка оборвалась на границе блока и вернула
+            // всё, что успела, БЕЗ ошибки. Целый пул — всегда завершённый
+            // объект, поэтому незакрытая скобка означает обрывок.
+            //
+            // Ловить это здесь, а не надеяться, что дальше не разберётся Parse:
+            // код приходит из чужих рук, и «наполовину приехавший пул» должен
+            // отвергаться так же ясно, как и посторонний текст.
+            if (text.Length < 2 || text[0] != '{' || text[^1] != '}') return null;
+
             // Мусор, распаковавшийся во что попало, отсеет уже Parse.
-            return Encoding.UTF8.GetString(outp.ToArray());
+            return text;
         }
         catch { return null; }
     }
