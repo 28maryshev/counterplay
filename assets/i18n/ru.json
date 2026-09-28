@@ -506,7 +506,8 @@
     "myWinratesPoolShort": "Твой винрейт · пул «{0}»",
     "duoWinratesShort": "Винрейт связок · с кем играл вдвоём",
     "duoWinratesWithShort": "Винрейт связок · с {0}",
-    "friendNick": "Ник напарника"
+    "friendNick": "Ник напарника",
+    "fewGames": "Игр пока мало — процент ещё ни о чём не говорит"
   },
   "phaseState": {
     "none": "Готов",

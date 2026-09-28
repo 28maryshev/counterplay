@@ -2955,8 +2955,15 @@ public partial class OverlayWindow : Window
         // нему. Ещё не опознан — берём связки со всеми, с кем играли.
         var a = PoolStore.Current();
         var duo = a.DuoPools.FirstOrDefault(d => d.Id == (a.ActiveId ?? a.FavDuoId));
-        var pairs = SessionTracker.TopPairs(duo?.FriendPuuid, MyChampsMax);
+        var pairs = SessionTracker.TopPairs(duo?.FriendPuuid, MyChampsMax * 3);
         if (pairs.Count == 0) return false;
+
+        // Связки, задуманные в пуле, — вперёд и с пометкой. В ленте они шли
+        // вперемешку со случайными союзниками, хотя в окне пулов уже разделены.
+        var inPool = InDuoPool(duo);
+        pairs = pairs.OrderByDescending(p => inPool(p.MyChampionId, p.AllyChampionId))
+                     .ThenByDescending(p => p.Games)
+                     .Take(MyChampsMax).ToList();
 
         MyChampsStrip.ItemsSource = pairs.Select(p => MyChampCard.FromPair(
             IconCache.Get(p.MyChampionId),
@@ -2968,11 +2975,27 @@ public partial class OverlayWindow : Window
             // мой чемпион, и без неё две разные пары выглядели бы одинаково.
             $"{DataDragon.Name(p.MyChampionId)} + {DataDragon.Name(p.AllyChampionId)}"
             + (p.AllyName.Length > 0 ? $" ({p.AllyName})" : "")
-            + $" — {p.WinRate:F0}% / {p.Games}")).ToList();
+            + $" — {p.WinRate:F0}% / {p.Games}"
+            + (inPool(p.MyChampionId, p.AllyChampionId) ? "\n" + Loc.T("pool.inPool") : ""),
+            inPool(p.MyChampionId, p.AllyChampionId))).ToList();
 
         MyChampsBox.Visibility = AppSettings.Current.ReadyChamps
             ? Visibility.Visible : Visibility.Collapsed;
         return true;
+    }
+
+    /// «Эта пара задумана в пуле?» — обе половины должны быть из него.
+    private static Func<int, int, bool> InDuoPool(DuoPool? d)
+    {
+        if (d is null) return (_, _) => false;
+        if (d.Manual)
+        {
+            var set = d.ManualPairs.Select(p => (p.Mine, p.Friend)).ToHashSet();
+            return (m, f) => set.Contains((m, f));
+        }
+        var mine   = d.Mine.Values.SelectMany(l => l).Where(x => x != 0).ToHashSet();
+        var friend = d.Friend.Values.SelectMany(l => l).Where(x => x != 0).ToHashSet();
+        return (m, f) => mine.Contains(m) && friend.Contains(f);
     }
 
     /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
@@ -6018,11 +6041,16 @@ public sealed class MyChampCard
     /// бы лица.
     /// </summary>
     public static MyChampCard FromPair(ImageSource? mine, ImageSource? theirs,
-                                       string wr, Brush frame, Brush tint, string tip)
+                                       string wr, Brush frame, Brush tint, string tip,
+                                       bool fromPool = false)
         => new()
         {
             Fill  = mine is null && theirs is null ? Skeleton.Shimmer : PairFill(mine, theirs),
-            Wr = wr, Frame = frame, Tint = tint, Tip = tip,
+            Wr = wr, Tip = tip,
+            // Пара из пула — бирюзой, тем же знаком, что и в полосе ролей и на
+            // карточках подбора. Случайная связка остаётся как была.
+            Frame = fromPool ? new SolidColorBrush(Color.FromRgb(0x3F, 0xD9, 0xC8)) : frame,
+            Tint  = fromPool ? new SolidColorBrush(Color.FromArgb(0x30, 0x3F, 0xD9, 0xC8)) : tint,
         };
 
     private static Brush PairFill(ImageSource? mine, ImageSource? theirs)

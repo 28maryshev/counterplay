@@ -506,7 +506,8 @@
     "myWinratesPoolShort": "Kazanma oranın · havuz “{0}”",
     "duoWinratesShort": "İkili kazanma oranları · kiminle oynadın",
     "duoWinratesWithShort": "İkili kazanma oranları · {0} ile",
-    "friendNick": "Partner adı"
+    "friendNick": "Partner adı",
+    "fewGames": "Maç sayısı az — yüzde henüz bir şey söylemiyor"
   },
   "phaseState": {
     "none": "Hazır",

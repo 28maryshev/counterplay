@@ -506,7 +506,8 @@
     "myWinratesPoolShort": "내 승률 · 풀 “{0}”",
     "duoWinratesShort": "듀오 승률 · 함께 플레이한 상대",
     "duoWinratesWithShort": "듀오 승률 · {0}와 함께",
-    "friendNick": "듀오 상대 이름"
+    "friendNick": "듀오 상대 이름",
+    "fewGames": "경기 수가 적어 승률은 아직 의미가 없습니다"
   },
   "phaseState": {
     "none": "대기 중",

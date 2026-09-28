@@ -506,7 +506,8 @@
     "myWinratesPoolShort": "你的胜率 · 池「{0}」",
     "duoWinratesShort": "双排胜率 · 与谁一起玩过",
     "duoWinratesWithShort": "双排胜率 · 与 {0}",
-    "friendNick": "队友名字"
+    "friendNick": "队友名字",
+    "fewGames": "场次太少，胜率还说明不了什么"
   },
   "phaseState": {
     "none": "就绪",

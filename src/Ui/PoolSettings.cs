@@ -334,6 +334,10 @@ public sealed class PoolSettingsWindow : Window
         return (m, f) => mine.Contains(m) && friend.Contains(f);
     }
 
+    /// Ниже этого числа игр процент не показываем — он ещё ничего не значит.
+    /// То же число, по которому WinrateColor глушит цвет: признак один.
+    private const int SmallSample = 5;
+
     /// Название очереди для подсказки. Ключи те же, что у трекера сессии.
     private static string QueueName(string q) =>
         q is "solo" or "flex" or "normal" ? Loc.T($"session.queue.{q}") : q;
@@ -417,7 +421,13 @@ public sealed class PoolSettingsWindow : Window
                 // «73% / 8-3» — как в левой половине («57% / 12»), только вместо
                 // числа игр счёт побед и поражений: у связки важно не сколько
                 // сыграно, а чем кончилось.
-                Text = $"{p.WinRate:F0}% / {p.Wins}-{p.Games - p.Wins}",
+                //
+                // На малой выборке процента НЕТ: «0% / 0-3» читается приговором,
+                // хотя это три игры. Порог тот же, по которому уже глушится
+                // цвет, — значит признак один и тот же, а не два разных.
+                Text = p.Games >= SmallSample
+                    ? $"{p.WinRate:F0}% / {p.Wins}-{p.Games - p.Wins}"
+                    : $"{p.Wins}-{p.Games - p.Wins}",
                 Foreground = frame, FontSize = 10, FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -439,7 +449,8 @@ public sealed class PoolSettingsWindow : Window
                           // Очередь: дуо-пул собирают под одну, и «5-2 во флексе»
                           // это совсем не то же, что «5-2 где придётся».
                           + (p.Queue.Length > 0 ? $" · {QueueName(p.Queue)}" : "")
-                          + (own ? "\n" + Loc.T("pool.inPool") : ""),
+                          + (own ? "\n" + Loc.T("pool.inPool") : "")
+                          + (p.Games < SmallSample ? "\n" + Loc.T("pool.fewGames") : ""),
                 Child = inner
             });
         }

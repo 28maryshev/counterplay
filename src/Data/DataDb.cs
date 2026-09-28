@@ -293,8 +293,40 @@ public static class DataDb
         catch { /* не ответил на HEAD — качаем одним потоком, как раньше */ }
 
         var tmp = LocalPath + ".tmp";
+        var mark = tmp + ".part";     // что именно лежит в .tmp и сколько ждали всего
+
+        // Докачка. Оборванная загрузка раньше начиналась с нуля: при 51 КБ/с
+        // кусок в 16 МБ не укладывался в отведённое время, и так по кругу.
+        //
+        // Хвост берём только если он от ТОГО ЖЕ файла и той же длины — иначе
+        // недокачанная другая база молча склеилась бы с новой. Отметка рядом и
+        // хранит эти две вещи.
+        long resume = 0;
+        if (ranges && total > 0 && File.Exists(tmp) && File.Exists(mark))
+        {
+            try
+            {
+                var saved = (await File.ReadAllTextAsync(mark, ct)).Split('\n');
+                var have  = new FileInfo(tmp).Length;
+                if (saved.Length == 2 && saved[0] == url
+                    && long.TryParse(saved[1], out var savedTotal) && savedTotal == total
+                    && have > 0 && have < total)
+                {
+                    resume = have;
+                    Log.Write($"докачиваю с {resume / 1048576.0:0} МБ из {total / 1048576.0:0}");
+                }
+            }
+            catch { /* отметка битая — качаем заново */ }
+        }
+        if (resume == 0)
+        {
+            try { File.Delete(tmp); } catch { /* нет файла — и хорошо */ }
+            if (ranges && total > 0)
+                try { await File.WriteAllTextAsync(mark, $"{url}\n{total}", ct); } catch { }
+        }
+
         var sw  = Stopwatch.StartNew();
-        long done = 0;
+        long done = resume;
         long lastBytes = 0;
         var  lastT = TimeSpan.Zero;
 
@@ -310,7 +342,7 @@ public static class DataDb
             progress?.Invoke($"{label}{pctTxt} · {FormatSpeed(bps)}", frac);
         }
 
-        await using (var dst = File.Create(tmp))
+        await using (var dst = resume > 0 ? new FileStream(tmp, FileMode.Append) : File.Create(tmp))
         {
             var buf = new byte[81920];
 
@@ -331,7 +363,7 @@ public static class DataDb
             }
             else
             {
-                for (long off = 0; off < total; off += ChunkSize)
+                for (long off = resume; off < total; off += ChunkSize)
                 {
                     var last = Math.Min(off + ChunkSize, total) - 1;
                     var req  = new HttpRequestMessage(HttpMethod.Get, url);
@@ -352,6 +384,7 @@ public static class DataDb
         }
 
         Report(done, force: true);
+        try { File.Delete(mark); } catch { /* уже нет — и хорошо */ }
         Log.Write($"база скачана: {done / 1048576.0:0} МБ за {sw.Elapsed.TotalSeconds:0.0} с " +
                   $"({FormatSpeed(done / Math.Max(0.001, sw.Elapsed.TotalSeconds))}, " +
                   $"{(ranges && total > ChunkSize ? "кусками" : "одним потоком")}" +
