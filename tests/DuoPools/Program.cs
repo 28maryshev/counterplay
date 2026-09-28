@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Counterplay;
 
@@ -126,6 +126,35 @@ internal static class Program
         Check("снятие активной звезды выключает пул",
               PoolStore.Current().ActiveKind == PoolKind.Normal,
               PoolStore.Current().ActiveKind.ToString());
+
+        CardColours();
+    }
+
+    /// <summary>
+    /// Цвет плашки говорит, ИЗ КАКОГО пула пик.
+    ///
+    /// Личный — синий, дуо — бирюзовый, тем же тоном, что пометка дуо в полосе
+    /// ролей. Одно время бирюзой красили оба, и разницы было не видно: человек
+    /// с личным пулом получал метку дуо. Владелец это и заметил.
+    /// </summary>
+    private static void CardColours()
+    {
+        Console.WriteLine();
+        var solo    = new FullRecCard { FromPool = true };
+        var duo     = new FullRecCard { FromPool = true, FromDuoPool = true };
+        var neither = new FullRecCard();
+
+        Check("личный пул — синий", solo.CardBg == "#22315C8A", solo.CardBg);
+        Check("дуо-пул — бирюзовый", duo.CardBg == "#2E3FD9C8", duo.CardBg);
+        Check("и это разные цвета", solo.CardBg != duo.CardBg,
+              $"{solo.CardBg} против {duo.CardBg}");
+        Check("без пула плашка обычная", neither.CardBg != solo.CardBg && neither.CardBg != duo.CardBg,
+              neither.CardBg);
+
+        // Выбранная карточка обводится золотом, но из пула она или нет — всё
+        // равно видно по заливке: подпись «пик из пула» одна на все случаи.
+        var picked = new FullRecCard { FromPool = true, IsSelected = true };
+        Check("выбор не стирает пометку пула", picked.CardBg == solo.CardBg, picked.CardBg);
     }
 
     private static void Check(string what, bool ok, string detail)

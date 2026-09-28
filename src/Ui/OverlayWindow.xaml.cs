@@ -5386,13 +5386,15 @@ public partial class OverlayWindow : Window
                 var (mine, friend, isDuo) = PoolStore.ActiveForRole(myRoleDb);
 
                 // Построение синей карточки пула (мой пик + опц. иконка друга для дуо).
-                void AddPoolCard(Recommendation pr, string poolLabel, ImageSource? duoIcon, string duoName)
+                void AddPoolCard(Recommendation pr, string poolLabel, ImageSource? duoIcon, string duoName,
+                                 bool fromDuo = false)
                 {
                     var (pag, pac, pat) = ArchBadge(pr.ChampionId);
                     poolCards.Add(new FullRecCard
                     {
                         ChampionId = pr.ChampionId,
-                        FromPool   = true,
+                        FromPool    = true,
+                        FromDuoPool = fromDuo,
                         PoolLabel  = poolLabel,
                         Rank       = "★",
                         Name       = DataDragon.Name(pr.ChampionId),
@@ -5456,7 +5458,8 @@ public partial class OverlayWindow : Window
                             if (shown.Count == 0 && ordered.Count > 0) shown = [ordered[0]];
                             foreach (var mr in shown)
                                 AddPoolCard(mr, Loc.T("pool.duoLabel"),
-                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken));
+                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken),
+                                            fromDuo: true);
                         }
                         else
                         {
@@ -5464,7 +5467,8 @@ public partial class OverlayWindow : Window
                             // под взятого напарника (синергию с ним движок уже учёл).
                             foreach (var pr in _engine.TopFromPool(draft, duo.MineForRole(myRoleDb), 3))
                                 AddPoolCard(pr, Loc.T("pool.duoLabel"),
-                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken));
+                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken),
+                                            fromDuo: true);
                         }
                     }
                 }
@@ -6233,12 +6237,18 @@ public sealed class FullRecCard
     // Толщина рамки у ВСЕХ карточек одинаковая (1.5): разная толщина сдвигала
     // содержимое выбранной карточки на 1px — ряды «плыли» относительно соседних.
     public bool         IsSelected { get; init; }
-    // Пик из пула игрока — синяя плашка, но БЕЗ рамки: обведённой показывается
-    // выбранная карточка, и вторая обводка рядом читалась как второй выбор.
-    // Синего в заливке за неё чуть больше — иначе без рамки плашка теряется.
-    // Дуо-пик из пула — бирюзой, тем же тоном, что пометка в полосе ролей
-    // (#3FD9C8). Прежний синий (#315C8A) спорил с ней и читался как другой знак.
-    public string       CardBg     => FromPool ? "#2E3FD9C8" : IsSelected ? "#2AC89B3C" : IsMyPick ? "#1E36D6E7" : "#1EC89B3C";
+    // Пик из пула — плашка БЕЗ рамки: обведённой показывается выбранная
+    // карточка, и вторая обводка рядом читалась как второй выбор.
+    //
+    // Цвет говорит, ИЗ КАКОГО пула пик: личный — синий, дуо — бирюзовый, тем же
+    // тоном, что пометка дуо в полосе ролей (#3FD9C8). Одно время бирюзовым
+    // красили оба, и разницы было не видно: человек с личным пулом получал
+    // метку дуо. Бирюзовой заливки чуть больше (0x2E против 0x22) — она светлее
+    // и на тёмном фоне слабее себя показывает.
+    public string       CardBg     => FromDuoPool ? "#2E3FD9C8"
+                                    : FromPool    ? "#22315C8A"
+                                    : IsSelected  ? "#2AC89B3C"
+                                    : IsMyPick    ? "#1E36D6E7" : "#1EC89B3C";
     public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
 
     // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».
@@ -6248,6 +6258,8 @@ public sealed class FullRecCard
 
     // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ») — подпись слота.
     public bool         FromPool   { get; init; }
+    /// Пул именно ДУО — от этого зависит цвет плашки (бирюза вместо синего).
+    public bool         FromDuoPool { get; init; }
     public string       PoolLabel  { get; init; } = "";
     public Visibility   PoolLabelVisibility => FromPool ? Visibility.Visible : Visibility.Collapsed;
     // Дуо: иконка чемпиона друга (кого назвать другу пикнуть) + его имя.
