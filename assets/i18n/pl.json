@@ -657,5 +657,16 @@
       "update": "Aktualizacja",
       "question": "Pytanie"
     }
+  },
+  "sync": {
+    "title": "Synchronizacja",
+    "add": "Dodaj hasło",
+    "change": "Zmień",
+    "set": "Hasło dodane",
+    "password": "Hasło",
+    "again": "Powtórz hasło",
+    "mismatch": "Hasła nie są takie same",
+    "failed": "Nie udało się zapisać hasła",
+    "hint": "Hasło łączy ustawienia i pule między komputerami oraz je szyfruje — bez niego nie da się ich odczytać. Zapamiętaj je: nie da się go odzyskać. Puste pole usuwa hasło."
   }
 }

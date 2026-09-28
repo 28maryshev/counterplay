@@ -657,5 +657,16 @@
       "update": "Atualização",
       "question": "Pergunta"
     }
+  },
+  "sync": {
+    "title": "Sincronização",
+    "add": "Adicionar palavra-passe",
+    "change": "Alterar",
+    "set": "Palavra-passe adicionada",
+    "password": "Palavra-passe",
+    "again": "Repete a palavra-passe",
+    "mismatch": "As palavras-passe não coincidem",
+    "failed": "Não foi possível guardar a palavra-passe",
+    "hint": "A palavra-passe liga as definições e pools entre computadores e cifra-as: sem ela não podem ser lidas. Memoriza-a: não é recuperável. Deixa vazio para esquecer."
   }
 }

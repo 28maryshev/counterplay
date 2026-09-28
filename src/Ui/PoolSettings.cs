@@ -71,7 +71,14 @@ public sealed class PoolSettingsWindow : Window
         // в нём, на ком реально идёт игра. Подсказка выше винрейтов: она про то,
         // ради чего окно открыли, а винрейты — справка на посмотреть.
         var bottom = new DockPanel { Margin = new Thickness(16, 0, 16, 10) };
-        var help = HelpBadge();
+        // «?» слева, пароль синхронизации справа — одной строкой: оба про то,
+        // «как этим пользоваться», а не про сами пулы.
+        var helpRow = new DockPanel();
+        _syncBox = SyncBadge();
+        DockPanel.SetDock(_syncBox, Dock.Right);
+        helpRow.Children.Add(_syncBox);
+        helpRow.Children.Add(HelpBadge());
+        var help = helpRow;
         DockPanel.SetDock(help, Dock.Top);
         bottom.Children.Add(help);
         var hr = new Border
@@ -460,6 +467,119 @@ public sealed class PoolSettingsWindow : Window
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });
+    }
+
+    private FrameworkElement? _syncBox;
+
+    /// <summary>
+    /// Состояние пароля синхронизации: кнопка «задать» либо «задан + изменить».
+    ///
+    /// Пароль нужен потому, что puuid — НЕ секрет: он лежит в каждой игре, и
+    /// его знает любой, с кем ты играл. Отдавать по нему чужие пулы нельзя.
+    /// </summary>
+    private FrameworkElement SyncBadge()
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (SyncPassword.IsSet)
+        {
+            row.Children.Add(new TextBlock
+            {
+                Text = "✓ " + Loc.T("sync.set"),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0xC8, 0x8A)),
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+            var change = PoolUi.Btn(Loc.T("sync.change"));
+            change.Padding = new Thickness(9, 2, 9, 3);
+            change.FontSize = 11;
+            change.Click += (_, _) => AskPassword();
+            row.Children.Add(change);
+        }
+        else
+        {
+            var add = PoolUi.Btn(Loc.T("sync.add"));
+            add.Padding = new Thickness(9, 2, 9, 3);
+            add.FontSize = 11;
+            add.ToolTip = Loc.T("sync.hint");
+            add.Click += (_, _) => AskPassword();
+            row.Children.Add(add);
+        }
+        return row;
+    }
+
+    /// Перерисовать значок после смены пароля — состояние поменялось.
+    private void RefreshSyncBadge()
+    {
+        if (_syncBox?.Parent is not DockPanel parent) return;
+        parent.Children.Remove(_syncBox);
+        _syncBox = SyncBadge();
+        DockPanel.SetDock(_syncBox, Dock.Right);
+        parent.Children.Insert(0, _syncBox);
+    }
+
+    /// <summary>
+    /// Окно ввода пароля. Пустое поле — забыть пароль (синхронизация выключается).
+    /// Просим ввести дважды: опечатку в пароле не видно, а исправить её потом
+    /// негде — на другом компьютере просто не подойдёт.
+    /// </summary>
+    private void AskPassword()
+    {
+        var body = new StackPanel { MinWidth = 300 };
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("sync.hint"), TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xA8, 0xB6, 0xC4)),
+            FontSize = 11, Margin = new Thickness(0, 0, 0, 10)
+        });
+
+        var first = new PasswordBox { FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
+        var again = new PasswordBox { FontSize = 14 };
+        body.Children.Add(Labeled(Loc.T("sync.password"), first));
+        body.Children.Add(Labeled(Loc.T("sync.again"), again));
+
+        var err = new TextBlock
+        {
+            Foreground = new SolidColorBrush(Color.FromRgb(0xF0, 0x68, 0x4F)),
+            FontSize = 11, Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed
+        };
+        body.Children.Add(err);
+
+        var win = Confirm.Form(this, Loc.T("sync.title"), body, Loc.T("pool.save"), () =>
+        {
+            if (first.Password != again.Password)
+            {
+                err.Text = Loc.T("sync.mismatch");
+                err.Visibility = Visibility.Visible;
+                return false;   // окно не закрываем
+            }
+            if (!SyncPassword.Set(first.Password))
+            {
+                err.Text = Loc.T("sync.failed");
+                err.Visibility = Visibility.Visible;
+                return false;
+            }
+            return true;
+        });
+        if (win) RefreshSyncBadge();
+    }
+
+    /// Подпись над полем — как у имени пула.
+    private static FrameworkElement Labeled(string label, FrameworkElement field)
+    {
+        var sp = new StackPanel();
+        sp.Children.Add(new TextBlock
+        {
+            Text = label, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 10, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 3)
+        });
+        sp.Children.Add(field);
+        return sp;
     }
 
     // Иконка «?» внизу: при наведении — пояснение, что такое пулы и зачем.
@@ -2542,6 +2662,51 @@ static class Confirm
         yes.Click += (_, _) => { ok = true; dlg.Close(); };
         btns.Children.Add(no); btns.Children.Add(yes);
         sp.Children.Add(btns);
+        dlg.Content = PoolUi.Chrome(dlg, title, sp);
+        dlg.ShowDialog();
+        return ok;
+    }
+
+    /// <summary>
+    /// Окно с произвольным содержимым и кнопкой подтверждения.
+    ///
+    /// <paramref name="onOk"/> возвращает false — окно остаётся открытым: так
+    /// сообщение об ошибке видно рядом с полем, а введённое не пропадает.
+    /// Возвращает true, если подтвердили и проверка прошла.
+    /// </summary>
+    public static bool Form(Window owner, string title, FrameworkElement body,
+                            string okText, Func<bool> onOk)
+    {
+        var dlg = new Window
+        {
+            Title = title, Width = 380, SizeToContent = SizeToContent.Height, Owner = owner,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new SolidColorBrush(PoolSettingsWindow.Bg)
+        };
+        PoolUi.Apply(dlg);
+
+        var sp = new StackPanel { Margin = new Thickness(16) };
+        sp.Children.Add(body);
+
+        bool ok = false;
+        var btns = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0)
+        };
+        var no = PoolUi.Btn(Loc.T("pool.cancel"));
+        no.Margin = new Thickness(0, 0, 8, 0);
+        no.Click += (_, _) => dlg.Close();
+        var yes = PoolUi.Btn(okText);
+        yes.FontWeight = FontWeights.Bold;
+        yes.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x5A, 0x8A, 0xC8));
+        yes.BorderBrush = new SolidColorBrush(PoolSettingsWindow.Blue);
+        yes.Foreground = Brushes.White;
+        yes.Click += (_, _) => { if (onOk()) { ok = true; dlg.Close(); } };
+        btns.Children.Add(no); btns.Children.Add(yes);
+        sp.Children.Add(btns);
+
         dlg.Content = PoolUi.Chrome(dlg, title, sp);
         dlg.ShowDialog();
         return ok;

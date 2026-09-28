@@ -657,5 +657,16 @@
       "update": "Aggiornamento",
       "question": "Domanda"
     }
+  },
+  "sync": {
+    "title": "Sincronizzazione",
+    "add": "Aggiungi password",
+    "change": "Modifica",
+    "set": "Password aggiunta",
+    "password": "Password",
+    "again": "Ripeti la password",
+    "mismatch": "Le password non coincidono",
+    "failed": "Impossibile salvare la password",
+    "hint": "La password collega impostazioni e pool tra computer e li cifra: senza non sono leggibili. Ricordala: non è recuperabile. Lascia vuoto per dimenticarla."
   }
 }

@@ -657,5 +657,16 @@
       "update": "Güncelleme",
       "question": "Soru"
     }
+  },
+  "sync": {
+    "title": "Eşitleme",
+    "add": "Parola ekle",
+    "change": "Değiştir",
+    "set": "Parola eklendi",
+    "password": "Parola",
+    "again": "Parolayı tekrarla",
+    "mismatch": "Parolalar eşleşmiyor",
+    "failed": "Parola kaydedilemedi",
+    "hint": "Parola ayarlarını ve havuzlarını bilgisayarlar arasında bağlar ve şifreler — onsuz okunamazlar. Unutma: geri alınamaz. Boş bırakırsan parola silinir."
   }
 }

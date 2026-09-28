@@ -657,5 +657,16 @@
       "update": "Update",
       "question": "Question"
     }
+  },
+  "sync": {
+    "title": "Sync",
+    "add": "Add password",
+    "change": "Change",
+    "set": "Password added",
+    "password": "Password",
+    "again": "Repeat password",
+    "mismatch": "Passwords do not match",
+    "failed": "Could not save the password",
+    "hint": "The password ties your settings and pools together across computers, and encrypts them — without it they cannot be read. Remember it: it cannot be recovered. Leave empty to forget it."
   }
 }

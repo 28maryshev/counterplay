@@ -94,6 +94,45 @@ internal static class Program
         Check("«Ручной» с плитки убран", !texts.Contains("Ручной"),
               texts.Contains("Ручной") ? "всё ещё на плитке" : "нет");
 
+        // ── Пароль синхронизации ───────────────────────────────────────────
+        // Кнопка живёт справа от «Как это работает» и меняет вид, когда пароль
+        // задан. Сам пароль — секрет, поэтому проверяем не его, а состояние.
+        Check("без пароля предлагают его добавить",
+              texts.Any(t => t == Loc.T("sync.add")), Loc.T("sync.add"));
+        Check("пометки «пароль добавлен» пока нет",
+              !texts.Any(t => t.Contains(Loc.T("sync.set"))), "нет");
+
+        var hadPass = SyncPassword.IsSet;
+        var saved = hadPass;   // чужой пароль не трогаем
+        if (!hadPass)
+        {
+            Check("пароль сохраняется", SyncPassword.Set("проверка-пароля"), "да");
+            Check("пароль виден как заданный", SyncPassword.IsSet, "да");
+
+            // Ключ выводится из пароля и puuid: у одного человека на двух
+            // компьютерах он обязан совпасть, у разных людей — нет.
+            var k1 = SyncPassword.KeyFor("puuid-один");
+            var k2 = SyncPassword.KeyFor("puuid-один");
+            var k3 = SyncPassword.KeyFor("puuid-другой");
+            Check("ключ получен", k1 is { Length: 32 }, $"{k1?.Length ?? 0} байт");
+            Check("на том же аккаунте ключ тот же", k1!.SequenceEqual(k2!), "да");
+            Check("у другого аккаунта ключ другой", !k1.SequenceEqual(k3!), "да");
+
+            // Окно, открытое заново, показывает уже другое состояние.
+            var w2 = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+            w2.Show(); Pump();
+            var t2 = Walk<TextBlock>(w2).Select(x => x.Text).ToList();
+            Check("с паролем показано «добавлен»",
+                  t2.Any(t => t.Contains(Loc.T("sync.set"))), Loc.T("sync.set"));
+            Check("и кнопка «изменить»", Walk<Button>(w2).Any(b => (string?)b.Content == Loc.T("sync.change")),
+                  Loc.T("sync.change"));
+            w2.Close(); Pump();
+
+            SyncPassword.Set(null);
+            Check("пароль убирается", !SyncPassword.IsSet, "да");
+        }
+        else Console.WriteLine("  (свой пароль уже задан — проверку записи пропускаю)");
+
         // ── Переключение периода ───────────────────────────────────────────
         // Кнопок теперь четыре: своя пара у каждой половины. Порядок обхода
         // дерева сверху вниз и слева направо, поэтому первые две — левые.

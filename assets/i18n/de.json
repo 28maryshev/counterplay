@@ -657,5 +657,16 @@
       "update": "Update",
       "question": "Frage"
     }
+  },
+  "sync": {
+    "title": "Synchronisierung",
+    "add": "Passwort hinzufügen",
+    "change": "Ändern",
+    "set": "Passwort hinzugefügt",
+    "password": "Passwort",
+    "again": "Passwort wiederholen",
+    "mismatch": "Passwörter stimmen nicht überein",
+    "failed": "Passwort konnte nicht gespeichert werden",
+    "hint": "Das Passwort verbindet deine Einstellungen und Pools zwischen Rechnern und verschlüsselt sie — ohne es sind sie nicht lesbar. Merk es dir: es lässt sich nicht wiederherstellen. Leer lassen, um es zu vergessen."
   }
 }

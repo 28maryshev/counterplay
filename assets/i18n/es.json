@@ -657,5 +657,16 @@
       "update": "Actualización",
       "question": "Pregunta"
     }
+  },
+  "sync": {
+    "title": "Sincronización",
+    "add": "Añadir contraseña",
+    "change": "Cambiar",
+    "set": "Contraseña añadida",
+    "password": "Contraseña",
+    "again": "Repite la contraseña",
+    "mismatch": "Las contraseñas no coinciden",
+    "failed": "No se pudo guardar la contraseña",
+    "hint": "La contraseña conecta tus ajustes y pools entre ordenadores y los cifra: sin ella no se pueden leer. Recuérdala: no se puede recuperar. Déjala vacía para olvidarla."
   }
 }

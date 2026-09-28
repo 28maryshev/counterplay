@@ -657,5 +657,16 @@
       "update": "Mise à jour",
       "question": "Question"
     }
+  },
+  "sync": {
+    "title": "Synchronisation",
+    "add": "Ajouter un mot de passe",
+    "change": "Modifier",
+    "set": "Mot de passe ajouté",
+    "password": "Mot de passe",
+    "again": "Répète le mot de passe",
+    "mismatch": "Les mots de passe ne correspondent pas",
+    "failed": "Impossible d’enregistrer le mot de passe",
+    "hint": "Le mot de passe relie tes réglages et tes pools entre ordinateurs et les chiffre : sans lui, ils sont illisibles. Retiens-le : il est irrécupérable. Laisse vide pour l’oublier."
   }
 }

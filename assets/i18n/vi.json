@@ -657,5 +657,16 @@
       "update": "Cập nhật",
       "question": "Câu hỏi"
     }
+  },
+  "sync": {
+    "title": "Đồng bộ",
+    "add": "Thêm mật khẩu",
+    "change": "Đổi",
+    "set": "Đã thêm mật khẩu",
+    "password": "Mật khẩu",
+    "again": "Nhập lại mật khẩu",
+    "mismatch": "Mật khẩu không khớp",
+    "failed": "Không lưu được mật khẩu",
+    "hint": "Mật khẩu liên kết cài đặt và pool giữa các máy, đồng thời mã hoá chúng — không có nó thì không đọc được. Hãy nhớ kỹ: không thể khôi phục. Để trống để xoá."
   }
 }
