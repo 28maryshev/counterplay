@@ -987,6 +987,28 @@ class Program
         }, ct);
     }
 
+    /// <summary>
+    /// Применить обновление и перезапуститься — без чужого окна поверх клиента.
+    ///
+    /// ApplyUpdatesAndRestart поднимает собственное окно Velopack: «Установка
+    /// обновления, пожалуйста, подождите». Программа с автозапуском стартует
+    /// вместе с клиентом LoL, и это окно вылезало поверх игры — притом что своё
+    /// состояние мы и так показываем в сайдбаре.
+    ///
+    /// WaitExitThenApplyUpdates делает то же самое молча, но ЖДЁТ нашего
+    /// выхода — и ждёт всего 60 секунд. Поэтому сразу за ним гасим программу:
+    /// закрываем окно (на этом снимается значок из трея) и выходим. Мгновенный
+    /// выход тут не грубость: прежний метод делал ровно то же, только со своим
+    /// окном впридачу.
+    /// </summary>
+    static void ApplySilently(OverlayWindow overlay, UpdateManager mgr, VelopackAsset? asset)
+    {
+        mgr.WaitExitThenApplyUpdates(asset, silent: true, restart: true);
+        try { overlay.Dispatcher.Invoke(overlay.Close); }
+        catch { /* окно уже закрыто — не повод не выходить */ }
+        Environment.Exit(0);
+    }
+
     // Проверка/применение обновлений из GitHub Releases при каждом запуске.
     // Для dev-сборки (не установленной через Velopack) — тихо пропускается.
     static async Task CheckForUpdatesAsync(OverlayWindow overlay, CancellationToken ct)
@@ -1001,7 +1023,7 @@ class Program
             if (mgr.UpdatePendingRestart is { } staged)
             {
                 overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
-                mgr.ApplyUpdatesAndRestart(staged);
+                ApplySilently(overlay, mgr, staged);
                 return;
             }
 
@@ -1035,7 +1057,7 @@ class Program
             overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
             // Применяем и перезапускаемся в новую версию.
             Log.Write("обновление скачано, применяю и перезапускаюсь");
-            mgr.ApplyUpdatesAndRestart(info);
+            ApplySilently(overlay, mgr, info.TargetFullRelease);
         }
         catch (Exception ex)
         {
