@@ -178,6 +178,21 @@ public partial class OverlayWindow : Window
         });
     });
 
+    /// <summary>
+    /// Иконки доехали — перерисовать то, что сейчас на экране.
+    ///
+    /// Разогрев идёт фоном, а <see cref="IconCache.Get"/> отдаёт картинку один
+    /// раз, в момент отрисовки. Карточка, нарисованная до разогрева, так и
+    /// осталась бы без портрета — до следующего события драфта, а на экране
+    /// ожидания и вовсе навсегда.
+    /// </summary>
+    public void IconsArrived() =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (_lastDraft is null) return;
+            UpdateRecommendations(_lastRecs, _lastDraft, _engine);
+        });
+
     public void SetGameActive(bool active)
     {
         if (_gameActive != active) Log.Write(active ? "игра началась" : "игра закончилась");

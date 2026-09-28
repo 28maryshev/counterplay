@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.IO;
+using System.Text.Json;
 
 namespace Counterplay;
 
@@ -10,6 +11,41 @@ public static class DataDragon
     private static string _version = "14.10.1";
 
     public static string Version => _version;
+
+    // Справочник на диске: %APPDATA%\Counterplay\ddragon\champion-<локаль>.json
+    // рядом с файлом версии, к которой он относится.
+    private static string CacheDir => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "ddragon");
+    private static string CachePath(string locale) => Path.Combine(CacheDir, $"champion-{locale}.json");
+    private static string CacheVer(string locale)  => Path.Combine(CacheDir, $"champion-{locale}.ver");
+
+    /// <summary>
+    /// Взять справочник с диска. Ничего не ждёт и в сеть не ходит.
+    ///
+    /// Ради этого всё и заведено: раньше запуск упирался в два запроса к Data
+    /// Dragon и до ответа не показывал ничего. Справочник меняется раз в патч —
+    /// держать его в сети незачем.
+    ///
+    /// Вернёт false, если кэша нет (первый запуск) или он не читается.
+    /// </summary>
+    public static bool LoadFromCache(string locale)
+    {
+        try
+        {
+            if (!File.Exists(CachePath(locale)) || !File.Exists(CacheVer(locale))) return false;
+            var ver = File.ReadAllText(CacheVer(locale)).Trim();
+            if (ver.Length == 0) return false;
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(CachePath(locale)));
+            if (!doc.RootElement.TryGetProperty("data", out var data)) return false;
+
+            _version = ver;
+            Parse(data);
+            Log.Write($"справочник чемпионов с диска: {_champions?.Count ?? 0}, патч {_version}");
+            return _champions is { Count: > 0 };
+        }
+        catch { return false; }
+    }
 
     /// Загружает имена/иконки чемпионов. locale — локаль Data Dragon (ru_RU, en_US…).
     public static async Task LoadAsync(string locale, CancellationToken ct)
@@ -29,6 +65,30 @@ public static class DataDragon
             using var cDoc = JsonDocument.Parse(cJson);
             var data = cDoc.RootElement.GetProperty("data");
 
+            Parse(data);
+
+            // Кладём на диск ровно то, что пришло: следующий запуск обойдётся
+            // без сети. Не легло — не беда, просто сходим ещё раз.
+            try
+            {
+                Directory.CreateDirectory(CacheDir);
+                await File.WriteAllTextAsync(CachePath(locale), cJson, ct);
+                await File.WriteAllTextAsync(CacheVer(locale), _version, ct);
+            }
+            catch { /* диск занят или полон — обойдёмся без кэша */ }
+
+            Console.WriteLine($"Data Dragon загружен: {_champions?.Count ?? 0} чемпионов, патч {_version}.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Data Dragon недоступен ({ex.Message}) — показываем ID.");
+        }
+    }
+
+    /// Разбор раздела data из champion.json. Один на оба пути — сетевой и дисковый.
+    private static void Parse(JsonElement data)
+    {
+        {
             _champions = [];
             foreach (var entry in data.EnumerateObject())
             {
@@ -58,11 +118,6 @@ public static class DataDragon
                         Magic: mag);
                 }
             }
-            Console.WriteLine($"Data Dragon загружен: {_champions.Count} чемпионов, патч {_version}.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Data Dragon недоступен ({ex.Message}) — показываем ID.");
         }
     }
 

@@ -254,25 +254,21 @@ class Program
         await CheckForUpdatesAsync(overlay, ct);
         StartUpdateWatcher(overlay, ct); // и дальше — раз в час (живём в трее сутками)
 
-        // Data Dragon + иконки грузим один раз при старте
-        overlay.ShowStatus(Loc.T("status.loadingChamps"));
-        await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
+        // Имена чемпионов — с диска, мгновенно. Сеть спросим фоном.
+        //
+        // Раньше запуск ЖДАЛ Data Dragon: два запроса, а справочник меняется
+        // раз в патч. В плохой сети это двадцать секунд, и все двадцать
+        // программа не показывала ничего.
+        if (!DataDragon.LoadFromCache(Loc.DDragonLocale))
+        {
+            // Первый запуск: заменить нечем, придётся подождать.
+            overlay.ShowStatus(Loc.T("status.loadingChamps"));
+            await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
+            overlay.ShowStatus(Loc.T("status.loadingIcons"));
+            await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
+        }
 
-        overlay.ShowStatus(Loc.T("status.loadingIcons"));
-        await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
-        await RoleIcons.PreloadAsync(ct);
-        await ItemIcons.PreloadAsync(ct); // иконки контр-предметов
-
-        // Руны: справочник (имена/иконки) + названия предметов + манифест сервера.
-        // Если данных на сервере ещё нет — панель просто не появится, фича
-        // включится сама, когда наберётся выборка.
-        await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
-        await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
-        // Что предмет даёт (броня, магзащита, срез лечения, пробивание) — на
-        // этом строится подбор сборки под состав врагов.
-        await ItemFacts.LoadAsync(ct);
-        await RunesClient.LoadManifestAsync(ct);
-
+        StartWarmup(overlay, ct);         // иконки и справочники — фоном
         StartPatchWatcher(overlay, ct);   // цены, характеристики и руны — с выходом патча
 
         // Гарантируем наличие data.db. Качаем базу только СВОЕГО эло (~50 МБ) по
@@ -382,6 +378,49 @@ class Program
         catch (Exception ex) { Log.Write($"фоновое обновление базы: {ex.Message}"); }
         finally { overlay.HideSideProgress("db"); }
     }
+
+    /// <summary>
+    /// Разогрев: иконки и справочники Riot — в фоне.
+    ///
+    /// Ничего из этого не нужно, чтобы программа начала работать. Иконки
+    /// подтягиваются по мере готовности (`IconCache.Get` отдаёт null, пока
+    /// картинки нет, и карточка просто рисуется без портрета — а события
+    /// драфта идут часто, так что следующая перерисовка её подхватит). Руны и
+    /// характеристики предметов нужны, только когда чемпион уже выбран.
+    ///
+    /// Раньше всё это грузилось ПЕРЕД первым показом окна, со строчками
+    /// «Загружаю иконки…». На тёплом кэше это пара секунд, на холодном или в
+    /// плохой сети — куда больше, и всё это время программа была витриной
+    /// собственной загрузки.
+    ///
+    /// Порядок внутри важен: сперва сверяем справочник с сетью (вдруг вышел
+    /// патч и на диске старый), и только потом тянем иконки — иначе скачали бы
+    /// набор прошлого патча, а следом ещё раз новый.
+    /// </summary>
+    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct) =>
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
+                await IconCache.PreloadAllAsync(null, ct);
+                overlay.IconsArrived();     // портреты доехали — показать их
+                await RoleIcons.PreloadAsync(ct);
+                await ItemIcons.PreloadAsync(ct);   // иконки контр-предметов
+
+                // Руны: справочник (имена/иконки) + названия предметов + манифест
+                // сервера. Если данных на сервере ещё нет — панель просто не
+                // появится, фича включится сама, когда наберётся выборка.
+                await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+                await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
+                // Что предмет даёт (броня, магзащита, срез лечения, пробивание) —
+                // на этом строится подбор сборки под состав врагов.
+                await ItemFacts.LoadAsync(ct);
+                await RunesClient.LoadManifestAsync(ct);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Log.Write($"разогрев не доделан: {ex.Message}"); }
+        }, ct);
 
     /// Следит за выходом патча и перечитывает справочники Riot.
     ///
