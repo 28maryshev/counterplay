@@ -507,7 +507,9 @@
     "duoWinratesShort": "Winrate duetów · z kim grałeś",
     "duoWinratesWithShort": "Winrate duetów · z {0}",
     "friendNick": "Nick partnera",
-    "fewGames": "Za mało gier — procent jeszcze nic nie mówi"
+    "fewGames": "Za mało gier — procent jeszcze nic nie mówi",
+    "duoNoPool": "Oznacz gwiazdką pulę duo, a pojawią się tu wasze wspólne winrate.",
+    "duoNoMate": "Partner nie został jeszcze rozpoznany. Wejdźcie razem do draftu z tą pulą albo zaimportuj jego plik, a pary zaczną się liczyć."
   },
   "phaseState": {
     "none": "Gotowe",

@@ -80,6 +80,9 @@ internal static class Program
         // Пул, собранный руками: назвать некого.
         a.DuoPools.Add(new DuoPool { Id = "d2", FriendName = "top + mid" });
         PoolStore.Persist();
+        // Раздел связок говорит про ОТМЕЧЕННЫЙ дуо-пул — без звезды он и не про
+        // кого вовсе, и проверять там нечего.
+        PoolStore.SetFavourite(PoolKind.Duo, "d1");
 
         var w = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
         w.Show();
@@ -97,6 +100,26 @@ internal static class Program
         // ── Пароль синхронизации ───────────────────────────────────────────
         // Кнопка живёт справа от «Как это работает» и меняет вид, когда пароль
         // задан. Сам пароль — секрет, поэтому проверяем не его, а состояние.
+        // ── Связки: только с напарником по пулу ────────────────────────────
+        // Подменные связки заведены на Him. У отмеченного пула (d1) хозяин не
+        // опознан — значит показывать чужие связки нельзя, даже если чемпионы
+        // совпадают с половинами пула.
+        Check("без опознанного напарника связки не показываются",
+              !texts.Any(t => t.Contains("73%") || t.Contains("8-3")),
+              texts.Any(t => t.Contains("8-3")) ? "показаны чужие" : "нет");
+        Check("сказано, чего не хватает",
+              texts.Any(t => t == Loc.T("pool.duoNoMate")), Loc.T("pool.duoNoMate")[..28] + "…");
+
+        // Тот же пул, но хозяин известен — связки появляются.
+        PoolStore.Current().DuoPools[0].FriendPuuid = Him;
+        PoolStore.Persist();
+        var w3 = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+        w3.Show(); Pump();
+        var t3 = Walk<TextBlock>(w3).Select(x => x.Text).ToList();
+        Check("с опознанным напарником связки появились",
+              t3.Any(t => t.Contains("8-3")), t3.Any(t => t.Contains("8-3")) ? "есть" : "нет");
+        w3.Close(); Pump();
+
         var hadPass = SyncPassword.IsSet;
         if (hadPass)
         {

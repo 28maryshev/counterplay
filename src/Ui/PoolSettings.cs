@@ -359,9 +359,18 @@ public sealed class PoolSettingsWindow : Window
         var a = PoolStore.Current();
         var fav = a.DuoPools.FirstOrDefault(d => d.Id == a.FavDuoId);
 
-        // Звездой отмечен дуо-пул и напарник уже опознан — считаем по нему.
-        // Иначе показываем связки со всеми, с кем играли.
-        var who = fav?.FriendPuuid;
+        // Только с напарником по пулу. Раньше при неопознанном напарнике сюда
+        // сыпались связки со всеми подряд, да ещё с пометкой «пара из пула» —
+        // она ставится по чемпионам, а человек при этом посторонний.
+        //
+        // Пустой список честнее чужого: лучше сказать, чего не хватает.
+        var who = fav?.FriendPuuid ?? "";
+        if (who.Length == 0)
+        {
+            WrHeader(_wrDuo, Loc.T("pool.duoWinratesShort"));
+            WrEmpty(_wrDuo, fav is null ? Loc.T("pool.duoNoPool") : Loc.T("pool.duoNoMate"));
+            return;
+        }
         var pairs = SessionTracker.TopPairs(who, take: 200, days: DuoDays).ToList();
 
         // Пары, задуманные В ПУЛЕ, идут первыми. В общем списке они тонули среди

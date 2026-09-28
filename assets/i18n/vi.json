@@ -507,7 +507,9 @@
     "duoWinratesShort": "Tỷ lệ thắng cặp · đã chơi cùng ai",
     "duoWinratesWithShort": "Tỷ lệ thắng cặp · với {0}",
     "friendNick": "Tên người chơi cùng",
-    "fewGames": "Còn quá ít trận — tỷ lệ chưa nói lên điều gì"
+    "fewGames": "Còn quá ít trận — tỷ lệ chưa nói lên điều gì",
+    "duoNoPool": "Đánh dấu sao một pool đôi, tỷ lệ thắng chung sẽ hiện ở đây.",
+    "duoNoMate": "Chưa xác định được người chơi cùng. Hãy vào draft cùng nhau với pool này, hoặc nhập tệp pool của họ, rồi các cặp sẽ bắt đầu được tính."
   },
   "phaseState": {
     "none": "Sẵn sàng",

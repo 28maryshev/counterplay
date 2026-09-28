@@ -2955,7 +2955,11 @@ public partial class OverlayWindow : Window
         // нему. Ещё не опознан — берём связки со всеми, с кем играли.
         var a = PoolStore.Current();
         var duo = a.DuoPools.FirstOrDefault(d => d.Id == (a.ActiveId ?? a.FavDuoId));
-        var pairs = SessionTracker.TopPairs(duo?.FriendPuuid, MyChampsMax * 3);
+        // Только с напарником по пулу: без опознанного человека лента
+        // показывала связки со всеми, кого заносило в команду.
+        if (duo is null || duo.FriendPuuid.Length == 0) return false;
+
+        var pairs = SessionTracker.TopPairs(duo.FriendPuuid, MyChampsMax * 3);
         if (pairs.Count == 0) return false;
 
         // Связки, задуманные в пуле, — вперёд и с пометкой. В ленте они шли
@@ -2976,8 +2980,7 @@ public partial class OverlayWindow : Window
             $"{DataDragon.Name(p.MyChampionId)} + {DataDragon.Name(p.AllyChampionId)}"
             + (p.AllyName.Length > 0 ? $" ({p.AllyName})" : "")
             + $" — {p.WinRate:F0}% / {p.Games}"
-            + (inPool(p.MyChampionId, p.AllyChampionId) ? "\n" + Loc.T("pool.inPool") : ""),
-            inPool(p.MyChampionId, p.AllyChampionId))).ToList();
+            + (inPool(p.MyChampionId, p.AllyChampionId) ? "\n" + Loc.T("pool.inPool") : ""))).ToList();
 
         MyChampsBox.Visibility = AppSettings.Current.ReadyChamps
             ? Visibility.Visible : Visibility.Collapsed;
@@ -4870,7 +4873,11 @@ public partial class OverlayWindow : Window
             // размер раскладки.
             if (fromIdle || !(_placementApplied && AppSettings.Current.DraftPlacement != "right"))
             {
-                MinWidth = Scaled(MinW);
+                // MinWidth зажимаем по восстанавливаемой ширине — так же, как в
+                // раскладке драфта. На крупном клиенте Scaled(MinW) шире
+                // запомненного окна, и WPF растягивал его до этого минимума:
+                // возврат с экрана ожидания делал окно шире, чем оно было.
+                MinWidth = Math.Min(Scaled(MinW), w);
                 Width    = w;
                 Height   = h;
             }
@@ -6041,16 +6048,16 @@ public sealed class MyChampCard
     /// бы лица.
     /// </summary>
     public static MyChampCard FromPair(ImageSource? mine, ImageSource? theirs,
-                                       string wr, Brush frame, Brush tint, string tip,
-                                       bool fromPool = false)
+                                       string wr, Brush frame, Brush tint, string tip)
         => new()
         {
             Fill  = mine is null && theirs is null ? Skeleton.Shimmer : PairFill(mine, theirs),
             Wr = wr, Tip = tip,
-            // Пара из пула — бирюзой, тем же знаком, что и в полосе ролей и на
-            // карточках подбора. Случайная связка остаётся как была.
-            Frame = fromPool ? new SolidColorBrush(Color.FromRgb(0x3F, 0xD9, 0xC8)) : frame,
-            Tint  = fromPool ? new SolidColorBrush(Color.FromArgb(0x30, 0x3F, 0xD9, 0xC8)) : tint,
+            // Цвет — по винрейту, как у остальных карточек. Помечать «из пула»
+            // тут нечем и незачем: лента показывает только связки с напарником
+            // по пулу, то есть из пула они все, а краска съела бы единственный
+            // полезный сигнал — как эта пара играет.
+            Frame = frame, Tint = tint,
         };
 
     private static Brush PairFill(ImageSource? mine, ImageSource? theirs)
