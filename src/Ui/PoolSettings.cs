@@ -251,8 +251,22 @@ sealed class PoolSettingsWindow : Window
         var who = fav?.FriendPuuid;
         var pairs = SessionTracker.TopPairs(who, take: 24);
 
-        WrHeader(_wrDuo, fav is not null
-            ? Loc.T("pool.duoWinratesWith", fav.FriendName.Length > 0 ? fav.FriendName : Loc.T("pool.duo"))
+        // Заголовок должен называть ЧЕЛОВЕКА. FriendName — подпись плитки, она
+        // склеена из названий половин («supports + top») и на месте имени
+        // читается бессмыслицей: «связки с supports + top».
+        //
+        // Ник берём по порядку: из файла, которым обменялись; если его нет —
+        // из самих связок, там он лежит рядом с играми; и только потом
+        // отступаем к подписи плитки.
+        var nick = fav?.FriendNick ?? "";
+        if (nick.Length == 0 && who is { Length: > 0 })
+            nick = pairs.FirstOrDefault(p => p.AllyName.Length > 0)?.AllyName ?? "";
+
+        // Пары показаны СО ВСЕМИ, а подпись обещала бы одного человека — так
+        // подписывать нельзя: пул собран руками, напарник ещё не опознан.
+        var byPerson = who is { Length: > 0 };
+        WrHeader(_wrDuo, byPerson && nick.Length > 0
+            ? Loc.T("pool.duoWinratesWith", nick)
             : Loc.T("pool.duoWinrates"));
 
         if (pairs.Count == 0)
@@ -2178,7 +2192,7 @@ static class PoolImport
     /// </summary>
     public static bool Apply(Window owner, string text, bool? intoDuo, string? fallbackName)
     {
-        var (pool, duo, ownerPuuid) = PoolFile.ParseWithOwner(text);
+        var (pool, duo, ownerPuuid, ownerName) = PoolFile.ParseWithOwner(text);
         if (pool is null && duo is null)
         {
             Confirm.Tell(owner, Loc.T("pool.importFile"), Loc.T("pool.importBad"));
@@ -2224,6 +2238,9 @@ static class PoolImport
                 // ищется в команде по нему, а не по совпадению имени: играя
                 // впятером, пул срабатывает именно на этого человека.
                 FriendPuuid = ownerPuuid,
+                // Ник человека — отдельно от подписи плитки: та склеена из
+                // названий половин и на месте имени читается бессмыслицей.
+                FriendNick  = ownerName,
             };
             name = pairName;   // о нём же и сообщаем
             pool = null;

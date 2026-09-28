@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Counterplay;
 
@@ -65,9 +65,10 @@ internal static class Program
 
         // ── Я загружаю его себе ─────────────────────────────────────────────
         PoolStore.SetAccount(Me, "я");
-        var (pool, _, owner) = PoolFile.ParseWithOwner(file);
+        var (pool, _, owner, ownerNick) = PoolFile.ParseWithOwner(file);
         Check("пул прочитался", pool is not null, pool?.Name ?? "—");
         Check("хозяин прочитан целиком", owner == Friend, $"{owner.Length} знаков");
+        Check("ник хозяина приехал", ownerNick == "Harribon", ownerNick);
 
         // ── Дуо-файл: хозяин + его напарник ─────────────────────────────────
         PoolStore.SetAccount(Friend, "Harribon");
@@ -78,20 +79,20 @@ internal static class Program
 
         // Его напарник — это Я. Значит для меня второй половиной становится ОН.
         PoolStore.SetAccount(Me, "я");
-        var (_, mineNow, _) = PoolFile.ParseWithOwner(duoFile);
+        var (_, mineNow, _, _) = PoolFile.ParseWithOwner(duoFile);
         Check("зеркальный случай: хозяином стал отправитель",
               mineNow?.FriendPuuid == Friend, Tail(mineNow?.FriendPuuid));
 
         // Тот же файл у постороннего: связка чужая, второй половиной остаётся
         // тот, кто в ней записан.
         PoolStore.SetAccount(Third, "третий");
-        var (_, forThird, _) = PoolFile.ParseWithOwner(duoFile);
+        var (_, forThird, _, _) = PoolFile.ParseWithOwner(duoFile);
         Check("у постороннего половина не подменяется",
               forThird?.FriendPuuid == Me, Tail(forThird?.FriendPuuid));
 
         // ── Мусор вместо puuid не должен просочиться ────────────────────────
         var junk = file.Replace(Friend, "не-пуид-а-ерунда\nс переносом");
-        var (_, _, bad) = PoolFile.ParseWithOwner(junk);
+        var (_, _, bad, _) = PoolFile.ParseWithOwner(junk);
         Check("подделанный puuid отброшен", bad.Length == 0, bad.Length == 0 ? "пусто" : bad);
 
         // ── Старый файл без хозяина ─────────────────────────────────────────
@@ -99,7 +100,7 @@ internal static class Program
         {"Format":"counterplay-pool","Version":1,"Kind":"pool","Name":"OLD",
          "ByRole":{"mid":[1,2,3]}}
         """;
-        var (oldPool, _, noOwner) = PoolFile.ParseWithOwner(old);
+        var (oldPool, _, noOwner, _) = PoolFile.ParseWithOwner(old);
         Check("старый файл грузится", oldPool is not null, oldPool?.Name ?? "—");
         Check("хозяина в нём нет, и это не ошибка", noOwner.Length == 0, "пусто");
 

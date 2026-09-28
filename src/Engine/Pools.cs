@@ -36,6 +36,17 @@ public sealed class DuoPool
     /// Пусто — пока не заходили вместе; тогда связки показываем по всем, с кем играли.
     /// </summary>
     public string FriendPuuid { get; set; } = "";
+
+    /// <summary>
+    /// Ник напарника — ЧЕЛОВЕКА, а не набора чемпионов.
+    ///
+    /// <see cref="FriendName"/> — подпись плитки, и она складывается из
+    /// названий двух половин («supports + top»): по ней видно, из чего пара
+    /// собрана. Но там, где речь о человеке («связки с …»), такая склейка
+    /// читается бессмыслицей. Сюда кладём настоящий ник — он приезжает в файле
+    /// вместе с puuid хозяина.
+    /// </summary>
+    public string FriendNick { get; set; } = "";
     public Dictionary<string, List<int>> Mine { get; set; } = new();
     public Dictionary<string, List<int>> Friend { get; set; } = new();
     public List<int> MineForRole(string role)   => Mine.TryGetValue(role, out var l) ? l : [];

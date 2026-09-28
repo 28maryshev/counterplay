@@ -100,7 +100,7 @@ public static class PoolFile
     /// </summary>
     public static (ChampPool? Pool, DuoPool? Duo) Parse(string json)
     {
-        var (p, d, _) = ParseWithOwner(json);
+        var (p, d, _, _) = ParseWithOwner(json);
         return (p, d);
     }
 
@@ -111,13 +111,14 @@ public static class PoolFile
     /// ничего не знает, а хозяином второй половины становится как раз тот, кто
     /// его отдал. Пусто — файл из старой версии.
     /// </summary>
-    public static (ChampPool? Pool, DuoPool? Duo, string OwnerPuuid) ParseWithOwner(string json)
+    public static (ChampPool? Pool, DuoPool? Duo, string OwnerPuuid, string OwnerName)
+        ParseWithOwner(string json)
     {
         try
         {
             var e = JsonSerializer.Deserialize<Envelope>(json);
             if (e is null || e.Format != Marker || e.Version < 1 || e.Version > FormatVersion)
-                return (null, null, "");
+                return (null, null, "", "");
 
             if (e.Kind == "duo")
             {
@@ -139,16 +140,16 @@ public static class PoolFile
                 // Пустой пул грузить не во что: пометка нашей и осталась, а внутри
                 // ничего нет — честнее сказать, что файл не подошёл.
                 if (duo.Mine.Count == 0 && duo.Friend.Count == 0 && duo.ManualPairs.Count == 0)
-                    return (null, null, "");
-                return (null, duo, CleanPuuid(e.OwnerPuuid));
+                    return (null, null, "", "");
+                return (null, duo, CleanPuuid(e.OwnerPuuid), Clean(e.OwnerName));
             }
 
             var pool = new ChampPool { Name = Clean(e.Name), ByRole = Roles(e.ByRole) };
             return pool.ByRole.Count == 0
-                ? (null, null, "")
-                : (pool, null, CleanPuuid(e.OwnerPuuid));
+                ? (null, null, "", "")
+                : (pool, null, CleanPuuid(e.OwnerPuuid), Clean(e.OwnerName));
         }
-        catch { return (null, null, ""); }
+        catch { return (null, null, "", ""); }
     }
 
     /// Имя из чужого файла показывается в нашем окне — длину и переносы режем.
