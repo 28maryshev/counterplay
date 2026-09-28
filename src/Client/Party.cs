@@ -142,6 +142,21 @@ public static class Party
                 PoolStore.Persist();
                 Log.Write($"дуо «{duo.FriendName}»: напарник опознан, связки считаем по нему");
             }
+
+            // Имя подхватываем из связок: оно там лежит рядом с играми. Пул,
+            // собранный руками, иначе молчал бы на плитке до тех пор, пока ник
+            // не впишут — хотя вписывать уже нечего, человек известен.
+            if (duo.FriendNick.Length == 0 && duo.FriendPuuid.Length > 0)
+            {
+                var known = SessionTracker.TopPairs(duo.FriendPuuid, 1)
+                                          .FirstOrDefault(p => p.AllyName.Length > 0)?.AllyName;
+                if (!string.IsNullOrEmpty(known))
+                {
+                    duo.FriendNick = known;
+                    PoolStore.Persist();
+                    Log.Write($"дуо «{duo.FriendName}»: напарник — {known}");
+                }
+            }
             return Logged(mate.EffectiveChampionId, $"напарник по пати, роль {Role(mate)}");
         }
 

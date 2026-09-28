@@ -173,6 +173,10 @@ public static class SessionTracker
             return (w + l, w);
         }
 
+        /// Время последней совместной игры; 0 — игр нет.
+        public long Last() => Math.Max(Won.Count > 0 ? Won[^1] : 0,
+                                       Lost.Count > 0 ? Lost[^1] : 0);
+
         /// Связка живёт годами, а нужны из неё последние игры: держим последние
         /// PairKeep с каждой стороны, чтобы файл не рос без конца.
         public void Trim()
@@ -349,6 +353,36 @@ public static class SessionTracker
     /// выглядит с данными, было нельзя. В боевом режиме всегда null.
     /// </summary>
     public static IReadOnlyList<PairStat>? Preview { get; set; }
+
+    /// <summary>
+    /// Убрать связки, которые ничего не значат.
+    ///
+    /// Каждая игра добавляет до четырёх ключей, и почти все — случайные
+    /// союзники на один раз: из 21 игры вышло 68 связок с 63 людьми. Без чистки
+    /// session.json растёт весь сезон.
+    ///
+    /// Смысл связки в повторах. Одну игру, которой больше месяца, забываем:
+    /// «сыграли раз полгода назад» не говорит ни о чём. Настоящие связки —
+    /// те, что повторяются, — не трогаем, пока их не станет слишком много;
+    /// тогда срежем по давности последней совместной игры.
+    /// </summary>
+    private static void PrunePairs(Account acc, long now)
+    {
+        const int MaxPairs = 400;          // с запасом: у постоянной пары их десятки
+        const int OneOffDays = 30;
+
+        var cutoff = now - OneOffDays * 86400L;
+        foreach (var key in acc.Pairs
+                     .Where(kv => kv.Value.Count(0).Games <= 1 && kv.Value.Last() < cutoff)
+                     .Select(kv => kv.Key).ToList())
+            acc.Pairs.Remove(key);
+
+        if (acc.Pairs.Count <= MaxPairs) return;
+        foreach (var key in acc.Pairs.OrderBy(kv => kv.Value.Last())
+                                     .Take(acc.Pairs.Count - MaxPairs)
+                                     .Select(kv => kv.Key).ToList())
+            acc.Pairs.Remove(key);
+    }
 
     /// <summary>
     /// Связки, сыгранные с этим человеком, — самые частые первыми.
@@ -747,6 +781,8 @@ public static class SessionTracker
             // игра второй раз оттуда не придёт, копить бесконечно незачем.
             acc.PairGames = history.Select(h => h.GameId).Concat(counted)
                                    .Distinct().Take(100).ToList();
+
+            PrunePairs(acc, now);
         }
 
         // Помним столько, сколько отдаёт история (20 игр), с запасом на случай
