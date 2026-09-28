@@ -161,8 +161,8 @@ public static class SessionTracker
 
     /// Одна связка наружу: с кем, на ком, с каким счётом.
     public sealed record PairStat(
-        string AllyPuuid, string AllyName, int MyChampionId, int AllyChampionId,
-        int Games, int Wins)
+        string AllyPuuid, string AllyName, string Queue,
+        int MyChampionId, int AllyChampionId, int Games, int Wins)
     {
         public double WinRate => Games > 0 ? 100.0 * Wins / Games : 0;
     }
@@ -284,8 +284,13 @@ public static class SessionTracker
         if (string.IsNullOrEmpty(allyPuuid)) return (0, 0);
         var acc = CurrentAccount();
         if (acc is null) return (0, 0);
-        return acc.Pairs.TryGetValue(PairKey(allyPuuid, myChampion, allyChampion), out var r)
-            ? (r.Games, r.Wins) : (0, 0);
+        // Ключ теперь несёт очередь, а спрашивают про пару целиком — складываем
+        // по всем очередям, кроме ARAM (его в связки не пишем вовсе).
+        var g = 0; var w = 0;
+        foreach (var p in TopPairs(allyPuuid, int.MaxValue))
+            if (p.MyChampionId == myChampion && p.AllyChampionId == allyChampion)
+            { g += p.Games; w += p.Wins; }
+        return (g, w);
     }
 
     /// <summary>
@@ -321,11 +326,13 @@ public static class SessionTracker
     /// Связки, сыгранные с этим человеком, — самые частые первыми.
     /// Пустой <paramref name="allyPuuid"/> — все связки со всеми.
     /// </summary>
-    public static IReadOnlyList<PairStat> TopPairs(string? allyPuuid = null, int take = 30)
+    public static IReadOnlyList<PairStat> TopPairs(string? allyPuuid = null, int take = 30,
+                                                  params string[] queues)
     {
         if (Preview is { } fake)
-            return fake.Where(p => string.IsNullOrEmpty(allyPuuid)
-                                   || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase))
+            return fake.Where(p => (string.IsNullOrEmpty(allyPuuid)
+                                    || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase))
+                                   && (queues is not { Length: > 0 } || queues.Contains(p.Queue)))
                        .OrderByDescending(p => p.Games).ThenByDescending(p => p.WinRate)
                        .Take(take).ToList();
 
@@ -334,17 +341,23 @@ public static class SessionTracker
         var res = new List<PairStat>();
         foreach (var (k, r) in acc.Pairs)
         {
-            // Ключ: puuid|мой чемпион|его чемпион. puuid сам по себе '|' не содержит.
-            var i = k.LastIndexOf('|');
-            if (i <= 0) continue;
-            var j = k.LastIndexOf('|', i - 1);
-            if (j <= 0) continue;
-            var pu = k[..j];
+            // Ключ: puuid|очередь|мой чемпион|его чемпион. Разбираем С КОНЦА:
+            // puuid '|' не содержит, а вот делить с начала нельзя — он длинный
+            // и меняться по форме не обязан.
+            var i3 = k.LastIndexOf('|');
+            if (i3 <= 0) continue;
+            var i2 = k.LastIndexOf('|', i3 - 1);
+            if (i2 <= 0) continue;
+            var i1 = k.LastIndexOf('|', i2 - 1);
+            if (i1 <= 0) continue;
+            var pu = k[..i1];
             if (!string.IsNullOrEmpty(allyPuuid)
                 && !pu.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)) continue;
-            if (!int.TryParse(k[(j + 1)..i], out var mine)) continue;
-            if (!int.TryParse(k[(i + 1)..], out var his)) continue;
-            res.Add(new PairStat(pu, r.Name, mine, his, r.Games, r.Wins));
+            var queue = k[(i1 + 1)..i2];
+            if (queues is { Length: > 0 } && !queues.Contains(queue)) continue;
+            if (!int.TryParse(k[(i2 + 1)..i3], out var mine)) continue;
+            if (!int.TryParse(k[(i3 + 1)..], out var his)) continue;
+            res.Add(new PairStat(pu, r.Name, queue, mine, his, r.Games, r.Wins));
         }
         return res.OrderByDescending(p => p.Games).ThenByDescending(p => p.WinRate)
                   .Take(take).ToList();
@@ -687,7 +700,7 @@ public static class SessionTracker
                 if (h.Queue == "aram") continue;
                 foreach (var a in await FetchAlliesAsync(http, h.GameId, who!.Puuid, ct))
                 {
-                    var key = PairKey(a.Puuid, h.ChampionId, a.ChampionId);
+                    var key = PairKey(a.Puuid, h.Queue, h.ChampionId, a.ChampionId);
                     if (!acc.Pairs.TryGetValue(key, out var rec))
                         acc.Pairs[key] = rec = new PairRec();
                     rec.Games++;
@@ -1021,9 +1034,17 @@ public static class SessionTracker
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
             ? v.GetInt32() : fallback;
 
-    /// Ключ связки. Порядок частей фиксирован: мой чемпион всегда первым.
-    private static string PairKey(string allyPuuid, int myChampion, int allyChampion) =>
-        $"{allyPuuid}|{myChampion}|{allyChampion}";
+    /// <summary>
+    /// Ключ связки: кто, в какой очереди, на какой паре.
+    ///
+    /// Очередь в ключе нужна, чтобы флекс не смешивался с нормалами: дуо-пул
+    /// собирают под конкретную очередь, и общий котёл смазывает картину. Слева
+    /// в окне винрейты по чемпионам разделены ровно по той же причине.
+    ///
+    /// Порядок частей фиксирован, мой чемпион всегда первым.
+    /// </summary>
+    private static string PairKey(string allyPuuid, string queue, int myChampion, int allyChampion) =>
+        $"{allyPuuid}|{queue}|{myChampion}|{allyChampion}";
 
     // Последние игры из истории LCU: gameId, очередь, чемпион, победа.
     private static async Task<List<HistEntry>> FetchHistoryAsync(LcuHttpClient http, CancellationToken ct)

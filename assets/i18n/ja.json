@@ -494,10 +494,12 @@
     "pickMineHint": "「{0}」はフレンド側になります。あなた側のプールを選ぶか、あとで埋めてください。",
     "later": "あとで埋める",
     "myWinratesPool": "自分の勝率 · プール「{0}」· 直近{1}日",
-    "duoWinrates": "デュオ勝率 · 一緒に遊んだ相手",
-    "duoWinratesWith": "デュオ勝率 · {0} と",
+    "duoWinrates": "デュオ勝率 · 一緒に遊んだ相手 · 全期間",
+    "duoWinratesWith": "デュオ勝率 · {0} と · 全期間",
     "duoWinratesEmpty": "まだ組み合わせがありません。新しい試合から集計します — 一緒にプレイするとここに表示されます。",
-    "games": "試合"
+    "games": "試合",
+    "myWinratesPoolEmpty": "このプールのチャンピオンでの試合はまだありません — プレイすると勝率がここに出ます。",
+    "inPool": "プールの組み合わせ"
   },
   "phaseState": {
     "none": "待機中",

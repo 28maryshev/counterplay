@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -330,16 +330,16 @@ static class TestMode
         return
         [
             // Постоянный напарник: я на саппортах, он на стрелках.
-            new(Main, "Harribon", 412,  22, 11, 8),   // Треш + Эш
-            new(Main, "Harribon", 412,  21,  9, 5),   // Треш + Мисс Фортуна
-            new(Main, "Harribon",  89,  51,  7, 2),   // Леона + Кейтлин
-            new(Main, "Harribon",  89, 236,  4, 3),   // Леона + Люциан
-            new(Main, "Harribon", 555,  22,  3, 0),   // Пайк + Эш — провальная
+            new(Main, "Harribon", "flex",   412,  22, 11, 8),   // Треш + Эш
+            new(Main, "Harribon", "flex",   412,  21,  9, 5),   // Треш + Мисс Фортуна
+            new(Main, "Harribon", "flex",    89,  51,  7, 2),   // Леона + Кейтлин
+            new(Main, "Harribon", "solo",    89, 236,  4, 3),   // Леона + Люциан
+            new(Main, "Harribon", "normal", 555,  22,  3, 0),   // Пайк + Эш — провальная
             // Изредка меняемся линиями: я мид, он лес.
-            new(Rare, "Ozzy",     103,  64,  6, 4),   // Ари + Ли Син
-            new(Rare, "Ozzy",     157, 254,  2, 1),   // Ясуо + Вай
+            new(Rare, "Ozzy",     "normal", 103,  64,  6, 4),   // Ари + Ли Син
+            new(Rare, "Ozzy",     "normal", 157, 254,  2, 1),   // Ясуо + Вай
             // Разовый союзник.
-            new(Once, "Sanya",     86, 122,  1, 1),   // Гарен + Дариус
+            new(Once, "Sanya",    "solo",    86, 122,  1, 1),   // Гарен + Дариус
         ];
     }
 }

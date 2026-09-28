@@ -185,7 +185,12 @@ sealed class PoolSettingsWindow : Window
 
         if (ids.Count == 0)
         {
-            WrEmpty(_wrSolo, Loc.T("pool.myWinratesEmpty"));
+            // Пул отмечен, а игр по ЕГО чемпионам нет — это другое, чем «игр нет
+            // вовсе». Прежний текст звал поиграть с запущенной программой, хотя
+            // играть человек мог много, просто не этими.
+            WrEmpty(_wrSolo, only is not null
+                ? Loc.T("pool.myWinratesPoolEmpty")
+                : Loc.T("pool.myWinratesEmpty"));
             return;
         }
 
@@ -236,6 +241,29 @@ sealed class PoolSettingsWindow : Window
         });
     }
 
+    /// <summary>
+    /// «Эта пара задумана в пуле?» — обе половины должны быть из него.
+    ///
+    /// В ручном режиме пул перечисляет сами связки, в авто — наборы по ролям, и
+    /// парой считается любое сочетание «мой из моей половины + его из его».
+    /// </summary>
+    private static Func<int, int, bool> InPool(DuoPool? d)
+    {
+        if (d is null) return (_, _) => false;
+        if (d.Manual)
+        {
+            var set = d.ManualPairs.Select(p => (p.Mine, p.Friend)).ToHashSet();
+            return (m, f) => set.Contains((m, f));
+        }
+        var mine   = d.Mine.Values.SelectMany(l => l).Where(x => x != 0).ToHashSet();
+        var friend = d.Friend.Values.SelectMany(l => l).Where(x => x != 0).ToHashSet();
+        return (m, f) => mine.Contains(m) && friend.Contains(f);
+    }
+
+    /// Название очереди для подсказки. Ключи те же, что у трекера сессии.
+    private static string QueueName(string q) =>
+        q is "solo" or "flex" or "normal" ? Loc.T($"session.queue.{q}") : q;
+
     // ── Часть вторая: винрейт связок ────────────────────────────────────────
     //
     // Здесь не общая синергия из базы, а СВОЙ счёт: сколько игр сыграно вдвоём
@@ -249,7 +277,16 @@ sealed class PoolSettingsWindow : Window
         // Звездой отмечен дуо-пул и напарник уже опознан — считаем по нему.
         // Иначе показываем связки со всеми, с кем играли.
         var who = fav?.FriendPuuid;
-        var pairs = SessionTracker.TopPairs(who, take: 24);
+        var pairs = SessionTracker.TopPairs(who, take: 200).ToList();
+
+        // Пары, задуманные В ПУЛЕ, идут первыми. В общем списке они тонули среди
+        // случайных союзников, а смотрят сюда обычно ради них.
+        var inPool = InPool(fav);
+        pairs = pairs
+            .OrderByDescending(p => inPool(p.MyChampionId, p.AllyChampionId))
+            .ThenByDescending(p => p.Games)
+            .ThenByDescending(p => p.WinRate)
+            .Take(24).ToList();
 
         // Заголовок должен называть ЧЕЛОВЕКА. FriendName — подпись плитки, она
         // склеена из названий половин («supports + top») и на месте имени
@@ -265,6 +302,10 @@ sealed class PoolSettingsWindow : Window
         // Пары показаны СО ВСЕМИ, а подпись обещала бы одного человека — так
         // подписывать нельзя: пул собран руками, напарник ещё не опознан.
         var byPerson = who is { Length: > 0 };
+        // Период в подписи стоит нарочно. Слева считается за 30 дней, здесь — за
+        // всё время: у связки игр во много раз меньше, и окно в месяц оставило
+        // бы от неё одну-две. Но половины стоят рядом, и разницу надо назвать, а
+        // не оставлять догадываться.
         WrHeader(_wrDuo, byPerson && nick.Length > 0
             ? Loc.T("pool.duoWinratesWith", nick)
             : Loc.T("pool.duoWinrates"));
@@ -279,6 +320,7 @@ sealed class PoolSettingsWindow : Window
         foreach (var p in pairs)
         {
             var frame = WinrateColor.BrushForSample(p.WinRate, p.Games);
+            var own   = inPool(p.MyChampionId, p.AllyChampionId);
             var inner = new StackPanel { Margin = new Thickness(4, 4, 4, 3) };
 
             // Две иконки рядом: слева мой чемпион, справа его. Так связка
@@ -313,14 +355,19 @@ sealed class PoolSettingsWindow : Window
             row.Children.Add(new Border
             {
                 CornerRadius = new CornerRadius(8),
-                BorderThickness = new Thickness(1),
+                // Пара из пула обведена жирнее: она стоит первой, и рамка это
+                // подтверждает, не добавляя в тесный слот ещё и подписи.
+                BorderThickness = new Thickness(own ? 2 : 1),
                 BorderBrush = frame,
                 Background = WinrateColor.TintForSample(p.WinRate, p.Games),
                 Margin = new Thickness(0, 0, 8, 8),
                 ToolTip = $"{DataDragon.Name(p.MyChampionId)} + {DataDragon.Name(p.AllyChampionId)}"
                           + (p.AllyName.Length > 0 ? $"\n{p.AllyName}" : "")
-                          + $"\n{p.WinRate:0}% · {p.Games} "
-                          + Loc.T("pool.games"),
+                          + $"\n{p.WinRate:0}% · {p.Games} " + Loc.T("pool.games")
+                          // Очередь: дуо-пул собирают под одну, и «5-2 во флексе»
+                          // это совсем не то же, что «5-2 где придётся».
+                          + (p.Queue.Length > 0 ? $" · {QueueName(p.Queue)}" : "")
+                          + (own ? "\n" + Loc.T("pool.inPool") : ""),
                 Child = inner
             });
         }

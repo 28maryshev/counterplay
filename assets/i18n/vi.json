@@ -494,10 +494,12 @@
     "pickMineHint": "“{0}” sẽ là nửa của bạn bè. Chọn pool của bạn cho duo này, hoặc điền sau.",
     "later": "Điền sau",
     "myWinratesPool": "Tỷ lệ thắng của bạn · pool “{0}” · {1} ngày qua",
-    "duoWinrates": "Tỷ lệ thắng cặp · đã chơi cùng ai",
-    "duoWinratesWith": "Tỷ lệ thắng cặp · với {0}",
+    "duoWinrates": "Tỷ lệ thắng cặp · đã chơi cùng ai · toàn thời gian",
+    "duoWinratesWith": "Tỷ lệ thắng cặp · với {0} · toàn thời gian",
     "duoWinratesEmpty": "Chưa có cặp nào. Bắt đầu tính từ các trận mới — chơi cùng nhau và cặp sẽ hiện ở đây.",
-    "games": "trận"
+    "games": "trận",
+    "myWinratesPoolEmpty": "Chưa có trận nào với tướng trong pool này — chơi thử và tỷ lệ thắng sẽ hiện ở đây.",
+    "inPool": "cặp trong pool"
   },
   "phaseState": {
     "none": "Sẵn sàng",

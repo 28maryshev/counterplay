@@ -494,10 +494,12 @@
     "pickMineHint": "„{0}“ wird die Hälfte deines Freundes. Wähle deinen Pool für dieses Duo — oder fülle ihn später.",
     "later": "Später füllen",
     "myWinratesPool": "Deine Winrate · Pool „{0}“ · letzte {1} Tage",
-    "duoWinrates": "Duo-Winrates · mit wem du gespielt hast",
-    "duoWinratesWith": "Duo-Winrates · mit {0}",
+    "duoWinrates": "Duo-Winrates · mit wem du gespielt hast · gesamt",
+    "duoWinratesWith": "Duo-Winrates · mit {0} · gesamt",
     "duoWinratesEmpty": "Noch keine Paare. Gezählt wird ab neuen Spielen — spielt zusammen, dann erscheinen sie hier.",
-    "games": "Spiele"
+    "games": "Spiele",
+    "myWinratesPoolEmpty": "Noch keine Spiele mit den Champions dieses Pools — spiel sie, dann erscheinen die Winrates hier.",
+    "inPool": "Paar aus dem Pool"
   },
   "phaseState": {
     "none": "Bereit",
