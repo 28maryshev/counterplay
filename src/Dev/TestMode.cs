@@ -56,6 +56,7 @@ static class TestMode
         // Песочница не привязывается к окну клиента: даже если лига запущена,
         // она к тесту отношения не имеет, а окно из-за неё прыгало и пряталось.
         overlay.SandboxMode = true;
+        Party.Sandbox = true;   // пати нет — напарника ищем по чемпиону из половины друга
 
         // Та же подготовка, что в боевом режиме: статика, иконки, база.
         overlay.ShowStatus(Loc.T("status.loadingChamps"));
@@ -296,6 +297,7 @@ static class TestMode
             overlay.SetEmptyProfilePreview(false);
             overlay.SetChampsPreview(null);
             SessionTracker.Preview = null;   // связки — только настоящие
+            Party.Sandbox = false;           // в бою напарник только по пати
             overlay.ShowSession(null);
             overlay.UpdateRecommendations(null, null);
             overlay.ApplyRunesHandler = null;

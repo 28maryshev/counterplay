@@ -75,7 +75,8 @@ internal static class Program
         p.ByRole["support"] = [412, 89];
         a.Pools.Add(p);
         // Пул, полученный файлом: ник есть, вместе ещё не играли.
-        a.DuoPools.Add(new DuoPool { Id = "d1", FriendName = "supports + top", FriendNick = "Harribon" });
+        a.DuoPools.Add(new DuoPool { Id = "d1", FriendName = "supports + top", FriendNick = "Harribon",
+                                     Manual = true });
         // Пул, собранный руками: назвать некого.
         a.DuoPools.Add(new DuoPool { Id = "d2", FriendName = "top + mid" });
         PoolStore.Persist();
@@ -89,6 +90,9 @@ internal static class Program
         Check("ник из файла виден на плитке", texts.Contains("Harribon"),
               texts.Contains("Harribon") ? "есть" : "нет");
         Check("подпись плитки осталась прежней", texts.Contains("supports + top"), "да");
+        // Режим подбора ушёл с плитки в подсказку — в тексте его быть не должно.
+        Check("«Ручной» с плитки убран", !texts.Contains("Ручной"),
+              texts.Contains("Ручной") ? "всё ещё на плитке" : "нет");
 
         // ── Переключение периода ───────────────────────────────────────────
         // Кнопок теперь четыре: своя пара у каждой половины. Порядок обхода

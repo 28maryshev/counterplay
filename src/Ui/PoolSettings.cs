@@ -675,8 +675,8 @@ public sealed class PoolSettingsWindow : Window
             BorderBrush = new SolidColorBrush(active ? Color.FromRgb(0xC8, 0x9B, 0x3C) : Color.FromRgb(0x30, 0x42, 0x54)),
             BorderThickness = new Thickness(active ? 2 : 1),
             Cursor = System.Windows.Input.Cursors.Hand,
-            // Режим подбора уступил место нику — сохраняем его в подсказке.
-            ToolTip = mode.Length > 0 && nick.Length > 0 ? $"{name}\n{mode}" : null,
+            // Режим подбора ушёл с плитки целиком — живёт здесь.
+            ToolTip = mode.Length > 0 ? $"{name}\n{mode}" : null,
             ClipToBounds = true   // фон-мозаика не вылезает за скруглённые углы
         };
         var g = new Grid();
@@ -695,7 +695,7 @@ public sealed class PoolSettingsWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             // Внизу стоят пометка режима и ник — оставляем им место, чтобы
             // название не наезжало.
-            Margin = new Thickness(6, 6, 6, mode.Length > 0 || nick.Length > 0 ? 20 : 6),
+            Margin = new Thickness(6, 6, 6, nick.Length > 0 ? 20 : 6),
             // Тень — имя выделяется на мозаике.
             Effect = new System.Windows.Media.Effects.DropShadowEffect
             { Color = Colors.Black, BlurRadius = 5, ShadowDepth = 0, Opacity = 0.9 }
@@ -703,8 +703,10 @@ public sealed class PoolSettingsWindow : Window
         // Нижняя строка плитки: если знаем, С КЕМ пул, — стоит ник. Он важнее
         // способа подбора: название склеено из половин и о человеке молчит, а
         // режим никуда не девается — он в подсказке к плитке.
-        var bottom = nick.Length > 0 ? nick : mode;
-        if (bottom.Length > 0)
+        // Только ник. Режим подбора — настройка, а не подпись: строка под
+        // названием полезнее занята тем, С КЕМ этот пул. Режим не теряется —
+        // он в подсказке к плитке.
+        if (nick.Length > 0)
             g.Children.Add(new Border
             {
                 // Серая плашка, а не цветной текст: подпись «с кем» не должна
@@ -721,7 +723,7 @@ public sealed class PoolSettingsWindow : Window
                 Margin = new Thickness(4, 0, 4, 6),
                 Child = new TextBlock
                 {
-                    Text = bottom, FontSize = 10, FontWeight = FontWeights.Bold,
+                    Text = nick, FontSize = 10, FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(0xA8, 0xB6, 0xC4)),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     TextAlignment = TextAlignment.Center,

@@ -29,6 +29,12 @@ public static class Party
     /// </summary>
     public static bool Known { get; private set; }
 
+    /// <summary>
+    /// Песочница: пати нет и быть не может. Включает запасное правило поиска
+    /// напарника — по чемпиону из половины друга (см. MateChampion).
+    /// </summary>
+    public static bool Sandbox { get; set; }
+
     /// Ники сопартийцев — для журнала и показа в настройках.
     public static IReadOnlyList<string> Names { get; private set; } = [];
 
@@ -140,8 +146,27 @@ public static class Party
         }
 
         if (allies.Count == 0) return Logged(0, "");
+
+        // 3) Песочница: пати взяться неоткуда, поэтому напарником считаем того,
+        //    кто взял чемпиона из половины друга. В бою это правило убрано —
+        //    там оно цепляло посторонних, — но здесь путать не с кем.
+        if (Sandbox)
+        {
+            var theirs = FriendChampions(duo);
+            var byPool = allies.FirstOrDefault(p => theirs.Contains(p.EffectiveChampionId));
+            if (byPool is not null)
+                return Logged(byPool.EffectiveChampionId, $"песочница: чемпион из половины друга, роль {Role(byPool)}");
+            return Logged(0, "песочница: никто не взял чемпиона из половины друга");
+        }
+
         return Logged(0, Known ? "в команде никого из пати" : "состав пати неизвестен — пару не предлагаю");
     }
+
+    /// Чемпионы половины друга: в ручном режиме — из связок, в авто — наборы по ролям.
+    private static HashSet<int> FriendChampions(DuoPool d) =>
+        d.Manual
+            ? [.. d.ManualPairs.Select(p => p.Friend).Where(x => x != 0)]
+            : [.. d.Friend.Values.SelectMany(l => l).Where(x => x != 0)];
 
     private static string Role(DraftPlayer p) => p.Position.Length > 0 ? p.Position : "не раскрыта";
 

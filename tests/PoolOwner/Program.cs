@@ -105,6 +105,52 @@ internal static class Program
         Check("хозяина в нём нет, и это не ошибка", noOwner.Length == 0, "пусто");
 
         FiveStack();
+        SandboxPair();
+    }
+
+    /// <summary>
+    /// Песочница. Пати там нет и быть не может — лобби никто не открывал,
+    /// puuid у выдуманных союзников пустые. Связка всё равно должна строиться:
+    /// напарник тот, кто взял чемпиона из половины друга.
+    ///
+    /// В бою это правило убрано намеренно (посторонний, случайно взявший
+    /// чемпиона из пула, становился «напарником»), поэтому проверяем и что вне
+    /// песочницы оно молчит.
+    /// </summary>
+    private static void SandboxPair()
+    {
+        PoolStore.SetAccount(Me, "я");
+        var duo = new DuoPool { Id = "ds", FriendName = "sandbox" };
+        duo.Friend["support"] = [412, 89];      // половина друга
+        duo.Mine["adc"] = [22];
+
+        const int HisChamp = 412, Other = 64;
+        var team = new List<DraftPlayer>
+        {
+            new(0, 22, 0, "adc", true),                 // я, без puuid — как в песочнице
+            new(1, Other, 0, "top", false),
+            new(2, HisChamp, 0, "support", false),      // взял из половины друга
+            new(3, Other, 0, "jungle", false),
+        };
+        var state = Draft(team);
+
+        Party.Sandbox = false;
+        Check("вне песочницы пара по чемпиону НЕ строится",
+              Party.MateChampion(state, duo) == 0, Party.MateChampion(state, duo).ToString());
+
+        Party.Sandbox = true;
+        try
+        {
+            var champ = Party.MateChampion(state, duo);
+            Check("в песочнице напарник найден по половине друга", champ == HisChamp,
+                  $"{champ} (ждали {HisChamp})");
+
+            // Никто не взял из половины друга — пары нет, а не случайный союзник.
+            var none = Draft(team.Where(p => p.ChampionId != HisChamp).ToList());
+            Check("чужих в напарники не берём", Party.MateChampion(none, duo) == 0,
+                  Party.MateChampion(none, duo).ToString());
+        }
+        finally { Party.Sandbox = false; }
     }
 
     /// <summary>
