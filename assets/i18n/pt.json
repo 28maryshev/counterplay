@@ -667,8 +667,23 @@
     "again": "Repete a palavra-passe",
     "mismatch": "As palavras-passe não coincidem",
     "failed": "Não foi possível guardar a palavra-passe",
-    "hint": "A palavra-passe liga as definições e pools entre computadores e cifra-as: sem ela não podem ser lidas. Memoriza-a: não é recuperável. Deixa vazio para esquecer.",
-    "why": "Só tu sabes a tua palavra-passe. O identificador do jogo não serve: aparece em todas as tuas partidas e é conhecido por quem jogou contigo.",
-    "settingsHint": "Pools, histórico, winrates de duplas, gráfico e definições — em todos os teus computadores."
+    "hint": "A palavra-passe de sincronização junta vários computadores num único perfil e cifra os dados: saem selados e não podem ser lidos sem ela.",
+    "settingsHint": "Pools, histórico, winrates de duplas, gráfico e definições — em todos os teus computadores.",
+    "whatTitle": "É transferido:",
+    "whatList": [
+      "pools de campeões e duplas",
+      "histórico de partidas",
+      "winrates de campeões e duplas",
+      "gráfico do painel de perfil",
+      "todas as definições do programa"
+    ],
+    "warn": "A palavra-passe não pode ser recuperada — guarde-a. Um campo vazio remove-a e desliga a sincronização.",
+    "now": "Sincronizar",
+    "doing": "A processar…",
+    "done": "Pronto",
+    "noPassword": "Sem palavra-passe",
+    "noAccount": "Perfil ainda desconhecido — abre o cliente do jogo",
+    "failedNet": "Não foi possível contactar o servidor",
+    "pulled": "Ficheiros recebidos: {0}"
   }
 }

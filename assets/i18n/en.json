@@ -667,8 +667,23 @@
     "again": "Repeat password",
     "mismatch": "Passwords do not match",
     "failed": "Could not save the password",
-    "hint": "The password ties your settings and pools together across computers, and encrypts them — without it they cannot be read. Remember it: it cannot be recovered. Leave empty to forget it.",
-    "why": "Only you know your password. The in-game identifier will not do: it appears in every game you play and is known to everyone you have played with.",
-    "settingsHint": "Pools, match history, pair win rates, the chart and settings — on every computer of yours."
+    "hint": "The sync password joins several computers into one profile and encrypts the data: it leaves sealed and cannot be read without the password.",
+    "settingsHint": "Pools, match history, pair win rates, the chart and settings — on every computer of yours.",
+    "whatTitle": "What is carried over:",
+    "whatList": [
+      "champion pools and duo pairs",
+      "match history",
+      "champion and pair win rates",
+      "the profile panel chart",
+      "all application settings"
+    ],
+    "warn": "The password cannot be recovered — keep it safe. An empty field removes it and turns synchronisation off.",
+    "now": "Sync now",
+    "doing": "Working…",
+    "done": "Done",
+    "noPassword": "No password set",
+    "noAccount": "Profile not known yet — open the game client",
+    "failedNet": "Could not reach the server",
+    "pulled": "Files received: {0}"
   }
 }

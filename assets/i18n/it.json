@@ -667,8 +667,23 @@
     "again": "Ripeti la password",
     "mismatch": "Le password non coincidono",
     "failed": "Impossibile salvare la password",
-    "hint": "La password collega impostazioni e pool tra computer e li cifra: senza non sono leggibili. Ricordala: non è recuperabile. Lascia vuoto per dimenticarla.",
-    "why": "Solo tu conosci la tua password. L’identificativo di gioco non va bene: compare in ogni tua partita e lo conosce chiunque abbia giocato con te.",
-    "settingsHint": "Pool, cronologia, winrate dei duo, grafico e impostazioni su tutti i tuoi computer."
+    "hint": "La password di sincronizzazione unisce più computer in un unico profilo e cifra i dati: escono sigillati e senza password non sono leggibili.",
+    "settingsHint": "Pool, cronologia, winrate dei duo, grafico e impostazioni su tutti i tuoi computer.",
+    "whatTitle": "Viene trasferito:",
+    "whatList": [
+      "pool di campioni e coppie duo",
+      "cronologia delle partite",
+      "winrate di campioni e coppie",
+      "grafico del pannello profilo",
+      "tutte le impostazioni del programma"
+    ],
+    "warn": "La password non è recuperabile: conservatela. Un campo vuoto la rimuove e disattiva la sincronizzazione.",
+    "now": "Sincronizza",
+    "doing": "In corso…",
+    "done": "Fatto",
+    "noPassword": "Nessuna password",
+    "noAccount": "Profilo non ancora noto: apri il client di gioco",
+    "failedNet": "Server irraggiungibile",
+    "pulled": "File ricevuti: {0}"
   }
 }

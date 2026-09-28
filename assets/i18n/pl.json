@@ -667,8 +667,23 @@
     "again": "Powtórz hasło",
     "mismatch": "Hasła nie są takie same",
     "failed": "Nie udało się zapisać hasła",
-    "hint": "Hasło łączy ustawienia i pule między komputerami oraz je szyfruje — bez niego nie da się ich odczytać. Zapamiętaj je: nie da się go odzyskać. Puste pole usuwa hasło.",
-    "why": "Hasło znasz tylko ty. Identyfikator z gry się nie nadaje: jest w każdej twojej grze i zna go każdy, z kim grałeś.",
-    "settingsHint": "Pule, historia gier, winrate duetów, wykres i ustawienia — na wszystkich twoich komputerach."
+    "hint": "Hasło synchronizacji łączy kilka komputerów w jeden profil i szyfruje dane: opuszczają komputer zamknięte i bez hasła są nieczytelne.",
+    "settingsHint": "Pule, historia gier, winrate duetów, wykres i ustawienia — na wszystkich twoich komputerach.",
+    "whatTitle": "Przenoszone są:",
+    "whatList": [
+      "pule bohaterów i pary duo",
+      "historia meczów",
+      "winrate bohaterów i par",
+      "wykres w panelu profilu",
+      "wszystkie ustawienia programu"
+    ],
+    "warn": "Hasła nie da się odzyskać — zachowaj je. Puste pole usuwa hasło i wyłącza synchronizację.",
+    "now": "Synchronizuj",
+    "doing": "Trwa…",
+    "done": "Gotowe",
+    "noPassword": "Brak hasła",
+    "noAccount": "Profil jeszcze nieznany — otwórz klienta gry",
+    "failedNet": "Nie udało się połączyć z serwerem",
+    "pulled": "Odebrane pliki: {0}"
   }
 }

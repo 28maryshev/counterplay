@@ -7,6 +7,8 @@ using ToolTip = System.Windows.Controls.ToolTip;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 using Button = System.Windows.Controls.Button;
+using DockPanel = System.Windows.Controls.DockPanel;
+using Dock = System.Windows.Controls.Dock;
 
 namespace Counterplay;
 
@@ -53,6 +55,12 @@ public static class SyncBadge
                 Margin = new Thickness(0, 0, 8, 0)
             });
             row.Children.Add(MakeButton(Loc.T("sync.change"), row, ask, changed));
+
+            // Сам перенос. Только при заданном пароле: без него жать не на что.
+            var now = MakeButton(Loc.T("sync.now"), row, () => false, null);
+            now.Margin = new Thickness(6, 0, 0, 0);
+            now.Click += async (_, _) => await RunSync(now, changed);
+            row.Children.Add(now);
         }
         else row.Children.Add(MakeButton(Loc.T("sync.add"), row, ask, changed));
 
@@ -82,21 +90,88 @@ public static class SyncBadge
         return b;
     }
 
+    /// <summary>
+    /// Один проход синхронизации по нажатию.
+    ///
+    /// Кнопка на время работы гаснет: перенос идёт по сети, и второе нажатие
+    /// посреди первого устроило бы гонку за одну и ту же строку.
+    /// </summary>
+    private static async Task RunSync(Button btn, Action? changed)
+    {
+        var was = btn.Content;
+        btn.IsEnabled = false;
+        btn.Content = Loc.T("sync.doing");
+        try
+        {
+            var res = await SyncClient.SyncAsync(PoolStore.AccountPuuid);
+            btn.Content = res.Ok ? "✓ " + Loc.T("sync.now") : was;
+
+            if (!res.Ok)
+                Confirm.Tell(Window.GetWindow(btn)!, Loc.T("sync.title"), res.Message);
+            else if (res.Pulled > 0)
+            {
+                // Забрали чужое — перечитать всё, что уже в памяти, иначе на
+                // экране останется прежнее, а на диске будет новое.
+                PoolStore.Reload();
+                changed?.Invoke();
+                Confirm.Tell(Window.GetWindow(btn)!, Loc.T("sync.title"),
+                             Loc.T("sync.pulled", res.Pulled));
+            }
+        }
+        finally
+        {
+            btn.IsEnabled = true;
+            // Галочку держим до следующего открытия окна — видно, что сходило.
+            if ((string?)btn.Content == Loc.T("sync.doing")) btn.Content = was;
+        }
+    }
+
     /// «?» с пояснением: что это за пароль и зачем.
     private static FrameworkElement Help()
     {
-        var body = new StackPanel { MaxWidth = 320 };
+        var body = new StackPanel { MaxWidth = 340 };
         body.Children.Add(new TextBlock
         {
             Text = Loc.T("sync.hint"), TextWrapping = TextWrapping.Wrap,
             Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
             FontSize = 12, LineHeight = 18
         });
+
+        // Перечень — списком, а не абзацем: сюда заглядывают именно чтобы
+        // увидеть, что попадёт на второй компьютер, и сплошной текст для этого
+        // читать неудобно.
         body.Children.Add(new TextBlock
         {
-            Text = Loc.T("sync.why"), TextWrapping = TextWrapping.Wrap,
+            Text = Loc.T("sync.whatTitle"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8)),
+            FontSize = 11, FontWeight = FontWeights.Bold,
+            Margin = new Thickness(0, 10, 0, 5)
+        });
+        foreach (var item in Loc.TArray("sync.whatList"))
+        {
+            var line = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+            var dot = new TextBlock
+            {
+                Text = "•", Foreground = new SolidColorBrush(Muted),
+                FontSize = 11, Margin = new Thickness(2, 0, 7, 0),
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            DockPanel.SetDock(dot, Dock.Left);
+            line.Children.Add(dot);
+            line.Children.Add(new TextBlock
+            {
+                Text = item, TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+                FontSize = 11, LineHeight = 16
+            });
+            body.Children.Add(line);
+        }
+
+        body.Children.Add(new TextBlock
+        {
+            Text = Loc.T("sync.warn"), TextWrapping = TextWrapping.Wrap,
             Foreground = new SolidColorBrush(Muted),
-            FontSize = 11, LineHeight = 16, Margin = new Thickness(0, 8, 0, 0)
+            FontSize = 11, LineHeight = 16, Margin = new Thickness(0, 10, 0, 0)
         });
 
         var tip = new ToolTip

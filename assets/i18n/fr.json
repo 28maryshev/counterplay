@@ -667,8 +667,23 @@
     "again": "Répète le mot de passe",
     "mismatch": "Les mots de passe ne correspondent pas",
     "failed": "Impossible d’enregistrer le mot de passe",
-    "hint": "Le mot de passe relie tes réglages et tes pools entre ordinateurs et les chiffre : sans lui, ils sont illisibles. Retiens-le : il est irrécupérable. Laisse vide pour l’oublier.",
-    "why": "Toi seul connais ton mot de passe. L’identifiant de jeu ne convient pas : il figure dans chacune de tes parties et le connaît quiconque a joué avec toi.",
-    "settingsHint": "Pools, historique, winrates des duos, graphique et réglages — sur tous tes ordinateurs."
+    "hint": "Le mot de passe de synchronisation réunit plusieurs ordinateurs en un seul profil et chiffre les données : elles partent scellées et sont illisibles sans lui.",
+    "settingsHint": "Pools, historique, winrates des duos, graphique et réglages — sur tous tes ordinateurs.",
+    "whatTitle": "Ce qui est transféré :",
+    "whatList": [
+      "pools de champions et paires de duo",
+      "historique des parties",
+      "winrates des champions et des paires",
+      "graphique du panneau de profil",
+      "tous les réglages du programme"
+    ],
+    "warn": "Le mot de passe est irrécupérable — conservez-le. Un champ vide le supprime et désactive la synchronisation.",
+    "now": "Synchroniser",
+    "doing": "En cours…",
+    "done": "Terminé",
+    "noPassword": "Aucun mot de passe",
+    "noAccount": "Profil inconnu — ouvre le client du jeu",
+    "failedNet": "Serveur injoignable",
+    "pulled": "Fichiers reçus : {0}"
   }
 }

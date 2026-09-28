@@ -667,8 +667,23 @@
     "again": "Nhập lại mật khẩu",
     "mismatch": "Mật khẩu không khớp",
     "failed": "Không lưu được mật khẩu",
-    "hint": "Mật khẩu liên kết cài đặt và pool giữa các máy, đồng thời mã hoá chúng — không có nó thì không đọc được. Hãy nhớ kỹ: không thể khôi phục. Để trống để xoá.",
-    "why": "Chỉ bạn biết mật khẩu của mình. Định danh trong game thì không dùng được: nó có trong mọi trận và ai từng chơi cùng đều biết.",
-    "settingsHint": "Pool, lịch sử trận, tỷ lệ thắng cặp, biểu đồ và cài đặt — trên mọi máy của bạn."
+    "hint": "Mật khẩu đồng bộ gộp nhiều máy tính thành một hồ sơ và mã hoá dữ liệu: dữ liệu rời máy ở dạng đã mã hoá và không thể đọc nếu không có mật khẩu.",
+    "settingsHint": "Pool, lịch sử trận, tỷ lệ thắng cặp, biểu đồ và cài đặt — trên mọi máy của bạn.",
+    "whatTitle": "Được đồng bộ:",
+    "whatList": [
+      "pool tướng và cặp đôi",
+      "lịch sử trận đấu",
+      "tỷ lệ thắng của tướng và cặp",
+      "biểu đồ trong bảng hồ sơ",
+      "toàn bộ cài đặt chương trình"
+    ],
+    "warn": "Mật khẩu không thể khôi phục — hãy giữ kỹ. Để trống sẽ xoá mật khẩu và tắt đồng bộ.",
+    "now": "Đồng bộ ngay",
+    "doing": "Đang xử lý…",
+    "done": "Xong",
+    "noPassword": "Chưa đặt mật khẩu",
+    "noAccount": "Chưa xác định hồ sơ — hãy mở client game",
+    "failedNet": "Không liên hệ được máy chủ",
+    "pulled": "Số tệp đã nhận: {0}"
   }
 }

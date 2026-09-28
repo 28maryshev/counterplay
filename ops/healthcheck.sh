@@ -259,6 +259,33 @@ else
   else ok "база свежая: патч $patch, $age ч назад"; fi
 fi
 
+# ────────────────────── настройки игроков (синхронизация) ─────────────────
+head2 "СИНХРОНИЗАЦИЯ НАСТРОЕК"
+SYNC=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "$SITE" "docker exec counterplay-site-db-1 \
+  psql -U counterplay -d counterplay -t -A -F'|' -c \
+  \"SELECT count(*),
+            coalesce(pg_size_pretty(pg_total_relation_size('sync')),'0'),
+            count(*) FILTER (WHERE seen_at < now() - interval '90 days')
+     FROM sync;\"" 2>/dev/null)
+
+if [ -z "$SYNC" ]; then
+  warn "таблица синхронизации не опрошена (сайт недоступен или её ещё нет)"
+else
+  rows=$(echo "$SYNC" | cut -d'|' -f1)
+  size=$(echo "$SYNC" | cut -d'|' -f2)
+  old=$(echo  "$SYNC" | cut -d'|' -f3)
+  ok "строк: $rows, занято: $size"
+  # Заброшенные должны вычищаться сами. Копятся — значит чистка не ходит.
+  if   [ "${old:-0}" -gt 100 ]; then bad  "заброшенных строк: $old — чистка не работает (ops/prune-sync.sh)"
+  elif [ "${old:-0}" -gt 0 ];   then warn "заброшенных строк: $old — чистка уберёт их ночью"
+  else ok "заброшенных нет"; fi
+  # Потолок мягкий: сотня мегабайт на настройки — уже повод посмотреть, что там.
+  mb=$(echo "$size" | awk '{ if ($2 ~ /GB/) print $1*1024; else if ($2 ~ /MB/) print $1; else print 0 }')
+  if [ "$(printf '%.0f' "${mb:-0}")" -gt 100 ]; then
+    warn "таблица выросла до $size — стоит посмотреть, чем"
+  fi
+fi
+
 # ───────────────────────────── копии в R2 ─────────────────────────────
 head2 "ХРАНИЛИЩЕ КОПИЙ (R2)"
 B=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "$COLLECTOR" '. ~/.backup.env 2>/dev/null; B=${R2_BUCKET:-counterplay-backups}

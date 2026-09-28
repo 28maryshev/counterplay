@@ -667,8 +667,23 @@
     "again": "Parolayı tekrarla",
     "mismatch": "Parolalar eşleşmiyor",
     "failed": "Parola kaydedilemedi",
-    "hint": "Parola ayarlarını ve havuzlarını bilgisayarlar arasında bağlar ve şifreler — onsuz okunamazlar. Unutma: geri alınamaz. Boş bırakırsan parola silinir.",
-    "why": "Parolanı yalnızca sen bilirsin. Oyun kimliği bunun için uygun değil: her maçında yer alır ve birlikte oynadığın herkes onu bilir.",
-    "settingsHint": "Havuzlar, maç geçmişi, ikili kazanma oranları, grafik ve ayarlar — tüm bilgisayarlarında."
+    "hint": "Eşitleme parolası birkaç bilgisayarı tek bir profilde birleştirir ve verileri şifreler: bilgisayardan kapalı çıkar ve parola olmadan okunamaz.",
+    "settingsHint": "Havuzlar, maç geçmişi, ikili kazanma oranları, grafik ve ayarlar — tüm bilgisayarlarında.",
+    "whatTitle": "Aktarılanlar:",
+    "whatList": [
+      "şampiyon havuzları ve ikili eşleşmeler",
+      "maç geçmişi",
+      "şampiyon ve ikili kazanma oranları",
+      "profil panelindeki grafik",
+      "tüm program ayarları"
+    ],
+    "warn": "Parola kurtarılamaz — saklayın. Boş alan parolayı siler ve eşitlemeyi kapatır.",
+    "now": "Şimdi eşitle",
+    "doing": "Çalışıyor…",
+    "done": "Tamam",
+    "noPassword": "Parola yok",
+    "noAccount": "Profil henüz bilinmiyor — oyun istemcisini aç",
+    "failedNet": "Sunucuya ulaşılamadı",
+    "pulled": "Alınan dosyalar: {0}"
   }
 }

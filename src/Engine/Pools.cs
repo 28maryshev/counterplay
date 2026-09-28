@@ -155,6 +155,22 @@ public static class PoolStore
 
     private static string Key => _account ?? "_local";
 
+    /// <summary>
+    /// Перечитать пулы с диска, забыв то, что в памяти.
+    ///
+    /// Нужно после синхронизации: файл на диске заменили снаружи, а в памяти
+    /// остались прежние пулы — и первое же сохранение затёрло бы принесённое.
+    /// </summary>
+    public static void Reload()
+    {
+        lock (Gate)
+        {
+            _loaded = false;
+            _all = new();
+            EnsureLoaded();
+        }
+    }
+
     /// puuid того, кто сейчас в клиенте. null — клиент ещё не отвечал.
     /// Уезжает в выгружаемый пул, чтобы получатель знал, чей это набор.
     public static string? AccountPuuid => _account;

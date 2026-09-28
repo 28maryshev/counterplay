@@ -667,8 +667,23 @@
     "again": "Passwort wiederholen",
     "mismatch": "Passwörter stimmen nicht überein",
     "failed": "Passwort konnte nicht gespeichert werden",
-    "hint": "Das Passwort verbindet deine Einstellungen und Pools zwischen Rechnern und verschlüsselt sie — ohne es sind sie nicht lesbar. Merk es dir: es lässt sich nicht wiederherstellen. Leer lassen, um es zu vergessen.",
-    "why": "Dein Passwort kennst nur du. Die Spiel-ID taugt dafür nicht: sie steckt in jedem deiner Spiele und ist jedem bekannt, mit dem du gespielt hast.",
-    "settingsHint": "Pools, Spielverlauf, Duo-Winrates, Diagramm und Einstellungen — auf all deinen Rechnern."
+    "hint": "Das Sync-Passwort verbindet mehrere Rechner zu einem Profil und verschlüsselt die Daten: sie verlassen den Rechner versiegelt und sind ohne Passwort nicht lesbar.",
+    "settingsHint": "Pools, Spielverlauf, Duo-Winrates, Diagramm und Einstellungen — auf all deinen Rechnern.",
+    "whatTitle": "Übertragen wird:",
+    "whatList": [
+      "Champion-Pools und Duo-Paare",
+      "Spielverlauf",
+      "Winrates von Champions und Paaren",
+      "Diagramm im Profilbereich",
+      "alle Programmeinstellungen"
+    ],
+    "warn": "Das Passwort kann nicht wiederhergestellt werden — bitte aufbewahren. Ein leeres Feld entfernt es und schaltet die Synchronisierung ab.",
+    "now": "Jetzt abgleichen",
+    "doing": "Läuft…",
+    "done": "Fertig",
+    "noPassword": "Kein Passwort gesetzt",
+    "noAccount": "Profil noch unbekannt — öffne den Spiel-Client",
+    "failedNet": "Server nicht erreichbar",
+    "pulled": "Empfangene Dateien: {0}"
   }
 }

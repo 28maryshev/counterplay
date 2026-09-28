@@ -32,8 +32,24 @@ public static class Telemetry
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
             if (Secret.Length > 0)
                 http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
-            var json = JsonSerializer.Serialize(
-                new { installId = DeviceId(), version, installedAt = InstalledAt() });
+            // Про пулы шлём ТОЛЬКО числа и режим: сколько личных, сколько дуо,
+            // что включено и задан ли пароль синхронизации. Ни чемпионов, ни
+            // названий, ни ников — по этим цифрам нельзя узнать ничего о
+            // человеке, зато видно, чем вообще пользуются.
+            var a = PoolStore.Current();
+            var json = JsonSerializer.Serialize(new
+            {
+                installId = DeviceId(), version, installedAt = InstalledAt(),
+                pools = a.Pools.Count,
+                duos = a.DuoPools.Count,
+                mode = a.ActiveKind switch
+                {
+                    PoolKind.Pool => "pool",
+                    PoolKind.Duo  => "duo",
+                    _             => "off"
+                },
+                sync = SyncPassword.IsSet,
+            });
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             await http.PostAsync(Url, content);
         }
