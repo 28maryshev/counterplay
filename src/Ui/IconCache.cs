@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -16,15 +16,39 @@ public static class IconCache
     /// Готовит все ~170 иконок. Дисковый кэш по версии патча: первый раз качает из
     /// сети и сохраняет на диск, дальше читает с диска (быстро, без сети). Вызывается
     /// один раз при старте.
+    /// Папка кэша под текущий патч: %APPDATA%\Counterplay\icons\{version}\{id}.png
+    private static string CacheDirFor(string version) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Counterplay", "icons", version);
+
+    /// <summary>
+    /// Все ли портреты уже лежат на диске.
+    ///
+    /// От этого зависит, ждать их на запуске или тянуть фоном. С диска 170
+    /// маленьких файлов читаются за доли секунды — ждать дешевле, чем городить
+    /// дорисовку: вид, собранный до готовности иконок, остаётся с пустыми
+    /// слотами, и каждый такой вид приходится вспоминать и обновлять отдельно.
+    /// Из сети — дело другое, там ждать нельзя.
+    /// </summary>
+    public static bool AllCached()
+    {
+        try
+        {
+            var urls = DataDragon.GetAllIconUrls();
+            if (urls.Count == 0) return false;
+            var dir = CacheDirFor(DataDragon.Version);
+            if (!Directory.Exists(dir)) return false;
+            return urls.Keys.All(id => File.Exists(Path.Combine(dir, $"{id}.png")));
+        }
+        catch { return false; }
+    }
+
     public static async Task PreloadAllAsync(Action<string>? progress, CancellationToken ct)
     {
         var urls = DataDragon.GetAllIconUrls();
         if (urls.Count == 0) return;
 
-        // %APPDATA%\Counterplay\icons\{version}\{id}.png
-        var cacheDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Counterplay", "icons", DataDragon.Version);
+        var cacheDir = CacheDirFor(DataDragon.Version);
         try
         {
             Directory.CreateDirectory(cacheDir);

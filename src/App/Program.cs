@@ -264,11 +264,23 @@ class Program
             // Первый запуск: заменить нечем, придётся подождать.
             overlay.ShowStatus(Loc.T("status.loadingChamps"));
             await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
-            overlay.ShowStatus(Loc.T("status.loadingIcons"));
-            await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
         }
 
-        StartWarmup(overlay, ct);         // иконки и справочники — фоном
+        // Портреты уже на диске — читаем их СРАЗУ, это доли секунды. Иначе вид,
+        // собранный до разогрева, остаётся с пустыми слотами, и каждый такой
+        // вид надо вспоминать и обновлять отдельно. Ровно на этом и попались:
+        // лента винрейтов в сайдбаре стояла пустой до конца игры.
+        //
+        // Из сети — дело другое: там ждать нельзя, и дорисовка оправдана.
+        if (IconCache.AllCached())
+            await IconCache.PreloadAllAsync(null, ct);
+        else
+        {
+            overlay.ShowStatus(Loc.T("status.loadingIcons"));
+            StartIcons(overlay, ct);
+        }
+
+        StartWarmup(overlay, ct);         // справочники Riot — фоном
         StartPatchWatcher(overlay, ct);   // цены, характеристики и руны — с выходом патча
 
         // Гарантируем наличие data.db. Качаем базу только СВОЕГО эло (~50 МБ) по
@@ -403,8 +415,6 @@ class Program
             try
             {
                 await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
-                await IconCache.PreloadAllAsync(null, ct);
-                overlay.IconsArrived();     // портреты доехали — показать их
                 await RoleIcons.PreloadAsync(ct);
                 await ItemIcons.PreloadAsync(ct);   // иконки контр-предметов
 
@@ -420,6 +430,25 @@ class Program
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { Log.Write($"разогрев не доделан: {ex.Message}"); }
+        }, ct);
+
+    /// <summary>
+    /// Портреты чемпионов, которых на диске ещё нет, — фоном.
+    ///
+    /// Первый запуск или свежий патч: качать полторы сотни картинок на глазах у
+    /// человека незачем, программа к работе готова и без них. Пустые слоты
+    /// дорисуются, когда портреты доедут.
+    /// </summary>
+    private static void StartIcons(OverlayWindow overlay, CancellationToken ct) =>
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
+                overlay.IconsArrived();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Log.Write($"портреты не докачались: {ex.Message}"); }
         }, ct);
 
     /// Следит за выходом патча и перечитывает справочники Riot.

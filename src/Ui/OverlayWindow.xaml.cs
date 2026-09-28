@@ -189,8 +189,18 @@ public partial class OverlayWindow : Window
     public void IconsArrived() =>
         Dispatcher.InvokeAsync(() =>
         {
-            if (_lastDraft is null) return;
-            UpdateRecommendations(_lastRecs, _lastDraft, _engine);
+            // Тир-лист кэширует колонки ВМЕСТЕ с картинками — «статичен в
+            // пределах патча». Собрался он до разогрева — и пустые слоты
+            // остались бы до смены патча, никакая перерисовка бы не помогла.
+            _tierCols = null;
+
+            // Экран ожидания рисуется один раз и сам себя не обновляет. Пустая
+            // лента винрейтов держалась там до конца игры: владелец это и
+            // увидел — «картинки вообще не прогружаются», а после игры пришли.
+            if (_session is not null) ShowSession(_session);
+
+            RenderCurrentState();
+            if (_lastDraft is not null) UpdateRecommendations(_lastRecs, _lastDraft, _engine);
         });
 
     public void SetGameActive(bool active)
