@@ -250,9 +250,13 @@ class Program
 
         overlay.SetVersion(Log.Version);
 
-        // Проверка обновлений при каждом запуске (только для установленной версии).
-        await CheckForUpdatesAsync(overlay, ct);
-        StartUpdateWatcher(overlay, ct); // и дальше — раз в час (живём в трее сутками)
+        // Обновления НИЧЕГО не задерживают: сайдбар показывается сразу, а новая
+        // версия качается фоном и встаёт сама, когда человек не в драфте.
+        //
+        // Раньше запуск начинался с проверки и, если версия нашлась, вставал на
+        // экран загрузки до конца скачивания. Программа при этом была полностью
+        // готова работать.
+        StartUpdateWatcher(overlay, ct);
 
         // Имена чемпионов — с диска, мгновенно. Сеть спросим фоном.
         //
@@ -1094,9 +1098,11 @@ class Program
     {
         _ = Task.Run(async () =>
         {
-            // Первый заход быстрый: программа с автозапуском живёт в трее сутками,
-            // и ждать четыре часа, чтобы сказать о новой версии, незачем.
-            var delay = TimeSpan.FromMinutes(10);
+            // Первый заход — почти сразу: проверка ушла со старта сюда, и тянуть
+            // с ней десять минут значило бы, что человек эти десять минут сидит
+            // на старой версии. Пять секунд — чтобы не спорить за сеть с
+            // разогревом и не мешать окну появиться.
+            var delay = TimeSpan.FromSeconds(5);
             while (!ct.IsCancellationRequested)
             {
                 try { await Task.Delay(delay, ct); }
@@ -1115,9 +1121,30 @@ class Program
                     // не узнавал о новой версии никогда.
                     if (mgr.UpdatePendingRestart is { } staged)
                     {
-                        overlay.ShowUpdateReady(staged.Version?.ToString() ?? "");
-                        continue;   // качать нечего, ждём перезапуска
+                        var ready = staged.Version?.ToString() ?? "";
+
+                        // Уже на ней: пакет мог остаться лежать после УДАЧНОЙ
+                        // установки. Без этой ветки отметка о попытке приняла бы
+                        // удачу за неудачу и навсегда запретила бы эту версию.
+                        if (ready == mgr.CurrentVersion?.ToString()) { ForgetUpdateAttempt(); continue; }
+
+                        overlay.ShowUpdateReady(ready);
+                        if (AlreadyFailed(ready))
+                        {
+                            Log.Write($"версия {ready} однажды не поставилась — сама больше не пробую");
+                            continue;
+                        }
+                        // Качать нечего — но и ждать следующего запуска незачем:
+                        // ставим в первую тихую минуту, как и всё остальное.
+                        _updateStaged = staged;
+                        ApplyUpdateIfIdle(overlay);
+                        continue;
                     }
+
+                    // Ставить нечего — значит, прошлая попытка удалась. Отметку
+                    // снимаем, иначе она запретила бы и честное обновление до
+                    // той же версии.
+                    ForgetUpdateAttempt();
 
                     var info = await mgr.CheckForUpdatesAsync();
                     if (info == null) { Log.Write("обновлений нет (фоновая проверка)"); continue; }
@@ -1197,98 +1224,6 @@ class Program
     {
         if (!string.IsNullOrEmpty(Settings.GetString("updateTried")))
             Settings.Set("updateTried", "");
-    }
-
-    /// Сколько ждём ответа о новой версии на запуске. Пять секунд — с запасом
-    /// на обычный ответ (доли секунды) и мало для человека, который просто
-    /// открыл программу.
-    private static readonly TimeSpan CheckLimit = TimeSpan.FromSeconds(5);
-
-    // Проверка/применение обновлений из GitHub Releases при каждом запуске.
-    // Для dev-сборки (не установленной через Velopack) — тихо пропускается.
-    static async Task CheckForUpdatesAsync(OverlayWindow overlay, CancellationToken ct)
-    {
-        try
-        {
-            var mgr = new UpdateManager(UpdateSource);
-            if (!mgr.IsInstalled) return; // запущено из dev-сборки — не обновляемся
-
-            // Обновление уже лежит готовым — ставим сразу. Сюда попадают те, до
-            // кого не дошла очередь на ходу: человек закрыл программу в драфте
-            // или оставил её в игре, и тихой минуты так и не случилось.
-            if (mgr.UpdatePendingRestart is { } staged)
-            {
-                var ready = staged.Version?.ToString();
-                // Уже на ней: пакет мог остаться лежать после удачной установки.
-                // Без этой ветки отметка о попытке приняла бы удачу за неудачу.
-                if (ready is not null && ready == mgr.CurrentVersion?.ToString())
-                {
-                    ForgetUpdateAttempt();
-                    return;
-                }
-                if (AlreadyFailed(ready))
-                {
-                    Log.Write($"версия {ready} однажды не поставилась — сама больше не пробую");
-                    overlay.ShowUpdateReady(ready!);
-                    return;
-                }
-                overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
-                ApplySilently(overlay, mgr, staged);
-                return;
-            }
-
-            // Ставить нечего — значит, прошлая попытка удалась. Отметку снимаем,
-            // иначе она запретила бы и честное обновление до той же версии.
-            ForgetUpdateAttempt();
-
-            overlay.ShowStatus(Loc.T("status.checkingUpdates"));
-            Log.Write($"проверяю обновления: сейчас {mgr.CurrentVersion}");
-
-            // Срок на проверку. GitHub иногда отвечает минутами, и запуск
-            // программы упирался в это: сама она к работе готова, а ждёт чужой
-            // сервер. Не уложился — уходим работать, проверку доделает часовой
-            // сторож. Ограничиваем именно ПРОВЕРКУ, а не загрузку: загрузка
-            // видна полосой, и человек понимает, чего ждёт.
-            var info = await Deadline.OrNull(mgr.CheckForUpdatesAsync(), CheckLimit, ct);
-            if (info == null)
-            {
-                Log.Write("обновлений нет или проверка не уложилась в срок");
-                return;
-            }
-            Log.Write($"есть версия {info.TargetFullRelease?.Version}, качаю " +
-                      $"({(info.DeltasToTarget.Length > 0 ? "дельтой" : "целиком")})");
-
-            // Загрузка обновления со строкой состояния и скоростью.
-            var total = info.TargetFullRelease?.Size ?? 0L;
-            var sw = Stopwatch.StartNew();
-            long lastBytes = 0; var lastT = TimeSpan.Zero;
-            await mgr.DownloadUpdatesAsync(info, pct =>
-            {
-                var frac = pct / 100.0;
-                var now  = sw.Elapsed;
-                double bps = 0;
-                if (total > 0 && (now - lastT).TotalSeconds >= 0.2)
-                {
-                    var bytes = (long)(frac * total);
-                    bps = (bytes - lastBytes) / (now - lastT).TotalSeconds;
-                    lastBytes = bytes; lastT = now;
-                }
-                var speed = bps > 0 ? $" · {DataDb.FormatSpeed(bps)}" : "";
-                overlay.ShowProgress(Loc.T("status.downloadingUpdate", pct, speed), frac);
-            });
-            // Скачивание завершено — Velopack дальше распаковывает/проверяет молча
-            // (тот самый «застрявший» хвост). Показываем неопределённую стадию.
-            overlay.ShowProgressBusy(Loc.T("status.applyingUpdate"));
-            // Применяем и перезапускаемся в новую версию.
-            Log.Write("обновление скачано, применяю и перезапускаюсь");
-            ApplySilently(overlay, mgr, info.TargetFullRelease);
-        }
-        catch (Exception ex)
-        {
-            // Работаем на текущей версии. Причину пишем: «не обновляется» —
-            // самая частая жалоба, и без строки в журнале она неразбираема.
-            Log.Write($"обновление не удалось: {ex.GetType().Name} — {ex.Message}");
-        }
     }
 
     // Очередь текущего лобби из события геймфлоу: gameData.queue.id → наш ключ
