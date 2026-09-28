@@ -1009,6 +1009,11 @@ class Program
         Environment.Exit(0);
     }
 
+    /// Сколько ждём ответа о новой версии на запуске. Пять секунд — с запасом
+    /// на обычный ответ (доли секунды) и мало для человека, который просто
+    /// открыл программу.
+    private static readonly TimeSpan CheckLimit = TimeSpan.FromSeconds(5);
+
     // Проверка/применение обновлений из GitHub Releases при каждом запуске.
     // Для dev-сборки (не установленной через Velopack) — тихо пропускается.
     static async Task CheckForUpdatesAsync(OverlayWindow overlay, CancellationToken ct)
@@ -1029,8 +1034,18 @@ class Program
 
             overlay.ShowStatus(Loc.T("status.checkingUpdates"));
             Log.Write($"проверяю обновления: сейчас {mgr.CurrentVersion}");
-            var info = await mgr.CheckForUpdatesAsync();
-            if (info == null) { Log.Write("обновлений нет — версия актуальная"); return; }
+
+            // Срок на проверку. GitHub иногда отвечает минутами, и запуск
+            // программы упирался в это: сама она к работе готова, а ждёт чужой
+            // сервер. Не уложился — уходим работать, проверку доделает часовой
+            // сторож. Ограничиваем именно ПРОВЕРКУ, а не загрузку: загрузка
+            // видна полосой, и человек понимает, чего ждёт.
+            var info = await Deadline.OrNull(mgr.CheckForUpdatesAsync(), CheckLimit, ct);
+            if (info == null)
+            {
+                Log.Write("обновлений нет или проверка не уложилась в срок");
+                return;
+            }
             Log.Write($"есть версия {info.TargetFullRelease?.Version}, качаю " +
                       $"({(info.DeltasToTarget.Length > 0 ? "дельтой" : "целиком")})");
 
