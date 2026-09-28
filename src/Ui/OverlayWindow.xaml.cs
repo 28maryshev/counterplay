@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -2946,8 +2946,9 @@ public partial class OverlayWindow : Window
         var pairs = SessionTracker.TopPairs(duo?.FriendPuuid, MyChampsMax);
         if (pairs.Count == 0) return false;
 
-        MyChampsStrip.ItemsSource = pairs.Select(p => MyChampCard.FromChampion(
+        MyChampsStrip.ItemsSource = pairs.Select(p => MyChampCard.FromPair(
             IconCache.Get(p.MyChampionId),
+            IconCache.Get(p.AllyChampionId),
             $"{p.WinRate:F0}%",
             WinrateColor.BrushForSample(p.WinRate, p.Games),
             WinrateColor.TintForSample(p.WinRate, p.Games),
@@ -5977,6 +5978,54 @@ public sealed class MyChampCard
                 : Skeleton.Shimmer,
             Wr = wr, Frame = frame, Tint = tint, Tip = tip,
         };
+
+    /// <summary>
+    /// Карточка СВЯЗКИ: два чемпиона в одном слоте.
+    ///
+    /// Слот в ленте — квадрат 30×30, и шесть таких стоят в ряд; поставить рядом
+    /// две полноразмерные иконки там негде. Поэтому рисуем их одной кистью:
+    /// каждому достаётся своя половина слота, а между ними щель, сквозь которую
+    /// видно подложку — так две половины читаются как одна связка, а не как
+    /// слипшиеся картинки.
+    ///
+    /// Берём у иконки центральную половину по ширине, а не сжимаем её целиком:
+    /// у половины слота пропорции 1:2, у целой иконки 1:1, и сжатие расплющило
+    /// бы лица.
+    /// </summary>
+    public static MyChampCard FromPair(ImageSource? mine, ImageSource? theirs,
+                                       string wr, Brush frame, Brush tint, string tip)
+        => new()
+        {
+            Fill  = mine is null && theirs is null ? Skeleton.Shimmer : PairFill(mine, theirs),
+            Wr = wr, Frame = frame, Tint = tint, Tip = tip,
+        };
+
+    private static Brush PairFill(ImageSource? mine, ImageSource? theirs)
+    {
+        var group = new DrawingGroup();
+        Half(mine,   0.00);
+        Half(theirs, 0.52);
+
+        void Half(ImageSource? src, double x)
+        {
+            if (src is null) return;
+            var brush = new ImageBrush(src)
+            {
+                Stretch      = Stretch.Fill,
+                Viewbox      = new Rect(0.25, 0, 0.5, 1),   // центральная половина иконки
+                ViewboxUnits = BrushMappingMode.RelativeToBoundingBox,
+            };
+            group.Children.Add(new GeometryDrawing(
+                brush, null, new RectangleGeometry(new Rect(x, 0, 0.48, 1), 0.06, 0.06)));
+        }
+
+        return new DrawingBrush(group)
+        {
+            Stretch      = Stretch.Fill,
+            Viewbox      = new Rect(0, 0, 1, 1),
+            ViewboxUnits = BrushMappingMode.Absolute,
+        };
+    }
 
     // Скелетон слота: размеры настоящей карточки, вместо иконки и цифр — плашки
     // с бликом, чтобы место под статистику читалось как «скоро заполнится».
