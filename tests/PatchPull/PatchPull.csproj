@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Вышел патч — база подтягивается сама, без перезапуска программы.
+       Проверяется весь путь через СВОЙ крошечный сервер: манифест, решение
+       качать или нет, закачка, готовность к подмене. Главное здесь — что
+       внутри патча не качается ничего: пайплайн перевыкладывает базу почти
+       каждый день, и гнаться за каждой выкладкой значило бы сливать человеку
+       по сотне мегабайт в сутки. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+  </ItemGroup>
+
+</Project>

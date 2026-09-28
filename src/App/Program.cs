@@ -356,17 +356,29 @@ class Program
     /// занимается ApplyNewDbIfReady в сессии клиента.
     /// </summary>
     private static void StartDbUpdate(OverlayWindow overlay, string? bucket, CancellationToken ct) =>
-        _ = Task.Run(async () =>
+        _ = Task.Run(() => UpdateDbAsync(overlay, bucket, ct), ct);
+
+    /// <summary>
+    /// Скачать базу фоном и применить, если её никто не держит.
+    ///
+    /// Попытка подмены прямо здесь — ради случая «клиент LoL закрыт»: движка
+    /// нет, файл свободен, и ждать событий от клиента не надо. Если клиент
+    /// запущен, движок держит базу и подмена не пройдёт — её подхватит
+    /// ApplyNewDbIfReady в перерыве между драфтами.
+    /// </summary>
+    private static async Task UpdateDbAsync(OverlayWindow overlay, string? bucket,
+                                            CancellationToken ct, bool onlyOnNewPatch = false)
+    {
+        try
         {
-            try
-            {
-                await DataDb.UpdateInBackgroundAsync(
-                    bucket, (m, f) => overlay.ShowSideProgress(m, f), ct);
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { Log.Write($"фоновое обновление базы: {ex.Message}"); }
-            finally { overlay.HideSideProgress(); }
-        }, ct);
+            if (await DataDb.UpdateInBackgroundAsync(
+                    bucket, (m, f) => overlay.ShowSideProgress(m, f), ct, onlyOnNewPatch))
+                DataDb.ApplySwap();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Log.Write($"фоновое обновление базы: {ex.Message}"); }
+        finally { overlay.HideSideProgress(); }
+    }
 
     /// Следит за выходом патча и перечитывает справочники Riot.
     ///
@@ -391,15 +403,16 @@ class Program
                     var was = DataDragon.Version;
                     // LoadAsync сам перечитает номер версии из versions.json.
                     await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
-                    if (DataDragon.Version == was) continue;
-
-                    Log.Write($"патч сменился: {was} → {DataDragon.Version}, обновляю справочники");
-                    // Каждый из них сверяется с номером патча сам и перечитает
-                    // только то, что устарело.
-                    await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
-                    await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
-                    await ItemIcons.PreloadAsync(ct);
-                    await ItemFacts.LoadAsync(ct);
+                    if (DataDragon.Version != was)
+                    {
+                        Log.Write($"патч сменился: {was} → {DataDragon.Version}, обновляю справочники");
+                        // Каждый из них сверяется с номером патча сам и перечитает
+                        // только то, что устарело.
+                        await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
+                        await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
+                        await ItemIcons.PreloadAsync(ct);
+                        await ItemFacts.LoadAsync(ct);
+                    }
                 }
                 catch (OperationCanceledException) { return; }
                 catch (Exception ex)
@@ -407,6 +420,17 @@ class Program
                     // Сети нет или Data Dragon прилёг — попробуем через три часа.
                     Log.Write($"проверка патча не удалась: {ex.Message}");
                 }
+
+                // База — отдельным заходом, и НЕ только когда сменился Data
+                // Dragon: пайплайн выкладывает её не в ту же минуту, что Riot
+                // патч, а через день-другой, когда наберутся матчи. Поэтому
+                // спрашиваем каждый круг; свой манифест сам скажет, сменился ли
+                // патч, и внутри патча ничего не качается.
+                //
+                // Раньше сверка была только на запуске, и у того, кто держит
+                // программу в трее неделями, база оставалась от прошлого патча.
+                await UpdateDbAsync(overlay, Settings.GetString("dataBucket"), ct,
+                                    onlyOnNewPatch: true);
             }
         }, ct);
     }

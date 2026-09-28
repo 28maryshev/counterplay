@@ -46,9 +46,17 @@ public static class DataDb
     private const string R2Url      = "https://data.counterplays.com";
     private const string GhUrl      = "https://github.com/28maryshev/counterplay/releases/download/data";
 
+    /// <summary>
+    /// Подменить источник. Нужно ПРОВЕРКАМ: они поднимают у себя крошечный
+    /// сервер и гоняют через него весь путь — манифест, решение качать или нет,
+    /// саму закачку. В работе всегда null.
+    /// </summary>
+    public static string? SourceOverride { get; set; }
+
     /// Источники по порядку предпочтения. Пустой R2Url — значит ещё не завели.
     private static IEnumerable<string> Sources()
     {
+        if (SourceOverride is { Length: > 0 } test) { yield return test; yield break; }
         if (R2Url.Length > 0) yield return R2Url;
         yield return GhUrl;
     }
@@ -162,6 +170,21 @@ public static class DataDb
         File.Exists(LocalPath) && new FileInfo(LocalPath).Length > 0
         && RecommendationEngine.HasData(LocalPath);
 
+    /// <summary>
+    /// Патч, которому отвечает база на диске (из манифеста: «16.19»).
+    ///
+    /// Живёт в памяти и ставится, когда база скачана или признана свежей. По
+    /// нему решается, тянуть ли новую: версия файла меняется почти каждый день
+    /// (пайплайн добирает матчи), а патч — раз в две недели. Гнаться за версией
+    /// значило бы качать сотню с лишним мегабайт в сутки.
+    ///
+    /// null — сверки в этом запуске ещё не было (например, не было сети).
+    /// </summary>
+    public static string? DbPatch { get; private set; }
+
+    // Одна закачка за раз: два потока писали бы в один и тот же .tmp.
+    private static int _updating;
+
     /// Скачана ли фоном база, которая ждёт подмены.
     public static bool SwapReady
     {
@@ -212,22 +235,39 @@ public static class DataDb
     /// <see cref="ApplySwap"/>. Пока идёт закачка, программа считает драфт на
     /// прежней базе, и внизу сайдбара видно, сколько осталось.
     ///
+    /// <param name="onlyOnNewPatch">Тянуть, только если Riot выпустил новый
+    /// патч. Так ходит повторная проверка: внутри патча база на диске годная, а
+    /// перевыкладки ради добранных матчей не стоят полутора сотен мегабайт.</param>
     /// Вернёт true, если скачанное готово к подмене.
     /// </summary>
     public static async Task<bool> UpdateInBackgroundAsync(
-        string? bucket, Action<string, double>? progress, CancellationToken ct)
+        string? bucket, Action<string, double>? progress, CancellationToken ct,
+        bool onlyOnNewPatch = false)
     {
         if (DevDbEnabled && DevCandidates.Any(p => File.Exists(p) && RecommendationEngine.HasData(p)))
             return false;
         if (ReuseLocal) return false;          // песочница живёт на общей базе
 
+        // Уже качаем — второй раз не начинаем: оба потока писали бы в один .tmp.
+        if (Interlocked.Exchange(ref _updating, 1) == 1) return false;
         try
         {
-            var (source, remoteVer) = await FetchVersionAsync(bucket, ct);
+            var (source, remoteVer, remotePatch) = await FetchVersionAsync(bucket, ct);
             if (remoteVer is null) return false;          // сервер молчит — не время
+
+            // Повторная проверка: патч тот же — ничего не делаем. Первый заход
+            // (DbPatch ещё пуст) пропускаем: сверять не с чем.
+            if (onlyOnNewPatch && remotePatch is not null && DbPatch is not null
+                && remotePatch == DbPatch)
+                return false;
+
             var wantedTag = $"{bucket ?? "all"}:{remoteVer}";
             var localTag  = File.Exists(LocalVersionPath) ? File.ReadAllText(LocalVersionPath).Trim() : null;
-            if (wantedTag == localTag) return false;      // уже свежая
+            if (wantedTag == localTag)
+            {
+                DbPatch = remotePatch ?? DbPatch;   // уже свежая, патч запомнили
+                return false;
+            }
 
             // Уже скачали ровно эту версию и ждём тихой минуты — второй раз не качаем.
             if (SwapReady && File.Exists(PendingVersionPath)
@@ -251,6 +291,7 @@ public static class DataDb
             }
 
             await File.WriteAllTextAsync(PendingVersionPath, wantedTag, ct);
+            DbPatch = remotePatch ?? DbPatch;
             return true;
         }
         catch (OperationCanceledException) { return false; }
@@ -260,6 +301,7 @@ public static class DataDb
             Log.Write($"фоновое обновление базы не удалось: {ex.Message}");
             return false;
         }
+        finally { Interlocked.Exchange(ref _updating, 0); }
     }
 
     /// Гарантирует наличие актуальной базы. Для dev — берёт локальную как есть.
@@ -294,7 +336,8 @@ public static class DataDb
             // Версию спрашиваем у того же источника, с которого потом качаем:
             // выложиться они могут в разное время, и брать номер у одного, а
             // файл у другого — верный способ записать чужую версию себе.
-            var (source, remoteVer) = await FetchVersionAsync(bucket, ct);
+            var (source, remoteVer, remotePatch) = await FetchVersionAsync(bucket, ct);
+            DbPatch = remotePatch ?? DbPatch;   // отсюда считаем «новый патч»
             var wantedTag = remoteVer is null ? null : $"{bucket ?? "all"}:{remoteVer}";
             var localTag  = File.Exists(LocalVersionPath) ? File.ReadAllText(LocalVersionPath).Trim() : null;
             var haveDb    = File.Exists(LocalPath) && new FileInfo(LocalPath).Length > 0;
@@ -347,7 +390,7 @@ public static class DataDb
     // Версия целевой базы: для бакета — из manifest.buckets[bucket].version,
     // иначе общая version. Если побакетной секции нет (старый релиз) — вернём
     // общую и качнём общую data.db (обратная совместимость).
-    private static async Task<(string Source, string? Version)> FetchVersionAsync(
+    private static async Task<(string Source, string? Version, string? Patch)> FetchVersionAsync(
         string? bucket, CancellationToken ct)
     {
         string? firstFailure = null;
@@ -368,9 +411,12 @@ public static class DataDb
                 else if (root.TryGetProperty("version", out var v))
                     ver = v.GetString();
 
+                // Патч у манифеста один на все бакеты — им и меряем новизну.
+                var patch = root.TryGetProperty("patch", out var pv) ? pv.GetString() : null;
+
                 if (firstFailure is not null)
                     Log.Write($"данные беру с запасного источника ({firstFailure})");
-                return (src, ver);
+                return (src, ver, patch);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
@@ -379,7 +425,7 @@ public static class DataDb
             }
         }
         // Никто не ответил — качать не с чего, останемся на том, что есть.
-        return (GhUrl, null);
+        return (GhUrl, null, null);
     }
 
     // База качается КУСКАМИ по 16 МБ через Range-запросы, а не одним потоком.
