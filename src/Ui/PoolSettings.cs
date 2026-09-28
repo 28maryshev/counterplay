@@ -705,19 +705,27 @@ public sealed class PoolSettingsWindow : Window
         // режим никуда не девается — он в подсказке к плитке.
         var bottom = nick.Length > 0 ? nick : mode;
         if (bottom.Length > 0)
-            g.Children.Add(new TextBlock
+            g.Children.Add(new Border
             {
-                Text = bottom, FontSize = 10, FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(nick.Length > 0 ? Blue
-                                                                 : Color.FromRgb(0x8A, 0xA0, 0xB2)),
-                TextTrimming = TextTrimming.CharacterEllipsis,
+                // Серая плашка, а не цветной текст: подпись «с кем» не должна
+                // перебивать название пула и спорить с золотой рамкой
+                // отмеченной плитки.
+                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(Color.FromArgb(0xB8, 0x18, 0x21, 0x2B)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x48, 0x58)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(6, 1, 6, 2),
+                MaxWidth = 104,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(4, 0, 4, 7),
-                Effect = nick.Length > 0
-                    ? new System.Windows.Media.Effects.DropShadowEffect
-                      { Color = Colors.Black, BlurRadius = 4, ShadowDepth = 0, Opacity = 0.9 }
-                    : null
+                Margin = new Thickness(4, 0, 4, 6),
+                Child = new TextBlock
+                {
+                    Text = bottom, FontSize = 10, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xA8, 0xB6, 0xC4)),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    TextAlignment = TextAlignment.Center,
+                }
             });
         // Звезда выбора — левый верхний угол.
         var star = new Button
