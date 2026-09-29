@@ -5731,7 +5731,14 @@ public partial class OverlayWindow : Window
 
     private static int ReasonSign(string r) => r.Length == 0 ? 0
         : r[0] == RecommendationEngine.SIGN_GOOD ?  1
+        : r[0] == RecommendationEngine.SIGN_KEY  ?  1
         : r[0] == RecommendationEngine.SIGN_BAD  ? -1 : 0;
+
+    /// Довод, который нельзя выбрасывать как общий: связка с конкретным
+    /// союзником. Она одинакова у всех подходящих кандидатов — и именно поэтому
+    /// отсев общих строк убирал её у всех сразу.
+    private static bool KeyReason(string r) =>
+        r.Length > 0 && r[0] == RecommendationEngine.SIGN_KEY;
 
     private static string[] Distinctive(string[] reasons, Dictionary<string, int> freq, int total)
     {
@@ -5744,7 +5751,8 @@ public partial class OverlayWindow : Window
         if (total > 2)
         {
             var common = Math.Max(2, (int)Math.Ceiling(total * 0.6));
-            var kept = meaningful.Where(r => freq.GetValueOrDefault(r) < common).ToList();
+            var kept = meaningful
+                .Where(r => KeyReason(r) || freq.GetValueOrDefault(r) < common).ToList();
             if (kept.Count >= 2) meaningful = kept;
         }
 
@@ -5782,6 +5790,7 @@ public partial class OverlayWindow : Window
             var raw  = reasons[i];
             var sign = raw.Length > 0 ? raw[0] : ' ';
             var text = sign is RecommendationEngine.SIGN_GOOD or RecommendationEngine.SIGN_BAD
+                                or RecommendationEngine.SIGN_KEY
                 ? raw[1..] : raw;
             segs.Add(new ReasonSeg
             {
@@ -5789,6 +5798,9 @@ public partial class OverlayWindow : Window
                 Color = sign switch
                 {
                     RecommendationEngine.SIGN_GOOD => "#4CE38B",
+                    // Связка — тоже довод «за», и точка у неё того же цвета:
+                    // отдельный цвет добавил бы пестроты, не добавив смысла.
+                    RecommendationEngine.SIGN_KEY  => "#4CE38B",
                     RecommendationEngine.SIGN_BAD  => "#FF6B5E",
                     _                              => "#6E8598",   // нейтральный факт
                 }

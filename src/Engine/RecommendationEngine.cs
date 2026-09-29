@@ -25,8 +25,16 @@ public sealed class RecommendationEngine : IDisposable
     // красный — «против», серый — нейтральный факт.
     public const char SIGN_GOOD = '';
     public const char SIGN_BAD  = '';
+    /// <summary>
+    /// Довод, который нельзя выбрасывать как «общий». Такова связка с конкретным
+    /// союзником: «Ясуо ультует в твой подброс» одинакова у всех подкидывающих
+    /// кандидатов — и отсев общих строк убирал её у ВСЕХ разом, хотя ради неё
+    /// пик и берут. Знак читается как «за», но помечен отдельно.
+    /// </summary>
+    public const char SIGN_KEY  = '';
     private static string Good(string s) => SIGN_GOOD + s;
     private static string Bad(string s)  => SIGN_BAD + s;
+    private static string Key(string s)  => SIGN_KEY + s;
 
     // Лаплас-сглаживание: при малом числе игр тянем к 50%.
     private const double K      = 50.0; // для базового WR (данных много)
@@ -1961,7 +1969,11 @@ public sealed class RecommendationEngine : IDisposable
             var ex = TeamSynergies.ExplainPair(champId, a.Id, a.Role);
             if (ex is null) continue;
             if (!seenKinds.Add(ex.Value.Kind)) continue; // тот же тип связки уже показан
-            lines.Add(ex.Value.Text);
+            // Помечаем как довод «за» и как несменяемый: без знака интерфейс
+            // считал связку нейтральной и выбрасывал её первой же строкой
+            // отбора. Владелец на это и наткнулся: Мальфит с Ясуо в команде,
+            // а про подброс с ультом в карточке ни слова.
+            lines.Add(Key(ex.Value.Text));
             if (seenKinds.Count >= 2) break;
         }
         var explained = seenKinds.Count;

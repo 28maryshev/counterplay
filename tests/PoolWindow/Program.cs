@@ -99,6 +99,7 @@ internal static class Program
         PoolStore.SetFavourite(PoolKind.Duo, "d1");
 
         var w = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+        w.Opacity = 0; w.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w.Show();
         Pump();
 
@@ -128,6 +129,7 @@ internal static class Program
         PoolStore.Current().DuoPools[0].FriendPuuid = Him;
         PoolStore.Persist();
         var w3 = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+        w3.Opacity = 0; w3.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w3.Show(); Pump();
         var t3 = Walk<TextBlock>(w3).Select(x => x.Text).ToList();
         Check("с опознанным напарником связки появились",
@@ -168,6 +170,7 @@ internal static class Program
 
             // Окно, открытое заново, показывает уже другое состояние.
             var w2 = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+            w2.Opacity = 0; w2.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
             w2.Show(); Pump();
             var t2 = Walk<TextBlock>(w2).Select(x => x.Text).ToList();
             Check("с паролем показано «добавлен»",
@@ -277,6 +280,7 @@ internal static class Program
 
         // Доля должна лечь в настройки при закрытии.
         var win = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+        win.Opacity = 0; win.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         win.Show(); Pump();
         var r2 = ((Grid)VisualTreeHelper.GetParent(Walk<GridSplitter>(win).First())).RowDefinitions;
         r2[0].Height = new GridLength(0.3, GridUnitType.Star);
@@ -305,6 +309,7 @@ internal static class Program
         // проверки берём С ЗАПАСОМ над минимумом — иначе при запущенном клиенте
         // они упрутся в него, и проверка будет мерить не то, что задумано.
         var probe = new PoolSettingsWindow(() => { });
+        probe.Opacity = 0; probe.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         probe.Show(); Pump();
         var minW = probe.MinWidth; var minH = probe.MinHeight;
         probe.Close(); Pump();
@@ -317,6 +322,7 @@ internal static class Program
         AppSettings.Current.PoolWinHeight = wideH;
 
         var w1 = new PoolSettingsWindow(() => { });
+        w1.Opacity = 0; w1.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w1.Show(); Pump();
         Check("размер с прошлого раза восстановлен", Math.Abs(w1.Width - wideW) < 2,
               $"{w1.Width:0} (ждали {wideW:0})");
@@ -332,6 +338,7 @@ internal static class Program
         AppSettings.Current.PoolWinHeight = wideH;
 
         var w2 = new PoolSettingsWindow(() => { });
+        w2.Opacity = 0; w2.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w2.Show(); Pump();
         Check("окно открылось там, где его оставили",
               Math.Abs(w2.Left - 140) < 2 && Math.Abs(w2.Top - 90) < 2,
@@ -356,6 +363,7 @@ internal static class Program
         AppSettings.Current.PoolWinWidth  = 50;
         AppSettings.Current.PoolWinHeight = 50;
         var w4 = new PoolSettingsWindow(() => { });
+        w4.Opacity = 0; w4.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w4.Show(); Pump();
         Check("размер меньше минимума поджимается", Math.Abs(w4.Width - w4.MinWidth) < 2,
               $"{w4.Width:0} при минимуме {w4.MinWidth:0}");
@@ -368,6 +376,7 @@ internal static class Program
         AppSettings.Current.PoolWinWidth = 0;
         AppSettings.Current.PoolWinHeight = 0;
         var w3 = new PoolSettingsWindow(() => { });
+        w3.Opacity = 0; w3.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w3.Show(); Pump();
         var want = 750 * AppSettings.Current.FontScale * OverlayWindow.ClientScaleFor(w3);
         var cap  = Math.Max(240, SystemParameters.WorkArea.Height - 40);

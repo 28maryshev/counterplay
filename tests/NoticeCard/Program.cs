@@ -106,6 +106,7 @@ internal static class Program
         Notice.LoadCached();
         Console.WriteLine($"    (активных сообщений: {Notice.Active().Count})");
         var w = new OverlayWindow { Left = -4000, Top = -4000 };
+        w.Opacity = 0; w.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w.Show();
         w.ShowReadyPhase("Lobby");   // плашка живёт на экране готовности
         Pump();

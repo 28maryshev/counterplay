@@ -104,6 +104,7 @@ internal static class Program
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
 
         var w = new OverlayWindow { Left = -4000, Top = -4000 };
+        w.Opacity = 0; w.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         w.Show();
         Pump();
         w.UpdateRecommendations([Rec()], Draft(), null);

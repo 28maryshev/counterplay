@@ -128,6 +128,7 @@ internal static class Program
 
         // ── 4. Окно показывает его связки и называет по имени ──────────────
         var win = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
+        win.Opacity = 0; win.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
         win.Show();
         Pump();
         var texts = Walk<TextBlock>(win).Select(t => t.Text).ToList();
