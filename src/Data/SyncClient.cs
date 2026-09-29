@@ -49,7 +49,8 @@ public static class SyncClient
     /// <summary>
     /// Забрать чужое, слить со своим, выложить обратно. Один проход.
     /// </summary>
-    public static async Task<Result> SyncAsync(string? puuid, CancellationToken ct = default)
+    public static async Task<Result> SyncAsync(string? puuid, CancellationToken ct = default,
+                                              int tries = 3)
     {
         if (!SyncPassword.IsSet) return new Result(false, Loc.T("sync.noPassword"));
         var id = IdFor(puuid);
@@ -73,8 +74,14 @@ public static class SyncClient
             if (!pushed)
             {
                 // Пока сливали, записали с другого компьютера — проходим ещё раз
-                // с их версией. Второй раз подряд это не повторяется.
-                return await SyncAsync(puuid, ct);
+                // с их версией.
+                //
+                // Число заходов ограничено: раньше их не считали вовсе, и пара
+                // компьютеров, пишущих одновременно, могла гонять друг друга по
+                // кругу без конца. С автоматической синхронизацией заходов стало
+                // больше, а значит и совпадений.
+                if (tries <= 1) return new Result(false, Loc.T("sync.failedNet"));
+                return await SyncAsync(puuid, ct, tries - 1);
             }
 
             return new Result(true, Loc.T("sync.done"), pulled, Files.Length);
@@ -85,6 +92,60 @@ public static class SyncClient
             Log.Write($"синхронизация не вышла: {e.Message}");
             return new Result(false, Loc.T("sync.failedNet"));
         }
+    }
+
+    /// <summary>
+    /// Что сделать, когда с сервера пришли ЧУЖИЕ правки.
+    ///
+    /// Интерфейс держит пулы в памяти и о подмене файлов сам не узнает: на
+    /// экране осталось бы прежнее, а на диске уже новое. Ручной проход делает
+    /// то же самое, только там есть кому нажать и обновить.
+    ///
+    /// Зовётся из фонового потока — перечитывать и перерисовывать надо в потоке
+    /// окна, это забота того, кто ставит обработчик.
+    /// </summary>
+    public static Action? Pulled { get; set; }
+
+    /// Когда последний раз сходили сами, и не идёт ли проход прямо сейчас.
+    private static DateTime _lastAuto = DateTime.MinValue;
+    private static int _autoRunning;
+
+    /// <summary>
+    /// Не чаще раза в минуту. События идут пачками — конец игры, правка пула,
+    /// переподключение к клиенту, — и без этого порога десять событий подряд
+    /// устроили бы десять заходов за одну и ту же строку.
+    /// </summary>
+    private static readonly TimeSpan AutoQuiet = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Тихий проход: сам решает, пора ли, и молчит, если не пора.
+    ///
+    /// Заведён потому, что кнопка сама себя не нажимает. Человек задавал
+    /// пароль и играл неделю, а на сервер не уезжало ничего: получалась не
+    /// синхронизация, а выгрузка по памяти. Забыл нажать — и переустановка
+    /// Windows уносит историю, связки и пулы.
+    ///
+    /// Ничего не показывает и не спрашивает: следы — только в журнале. Кнопка
+    /// остаётся для тех, кому надо прямо сейчас, и порог её не касается.
+    /// </summary>
+    public static async Task AutoAsync(string? puuid, string reason, CancellationToken ct = default)
+    {
+        if (!SyncPassword.IsSet || string.IsNullOrEmpty(puuid)) return;
+        if (DateTime.UtcNow - _lastAuto < AutoQuiet) return;
+        // Уже идём — второй заход только подрался бы с первым за ту же строку.
+        if (Interlocked.Exchange(ref _autoRunning, 1) == 1) return;
+        try
+        {
+            var r = await SyncAsync(puuid, ct);
+            _lastAuto = DateTime.UtcNow;   // и на неудаче: иначе будем долбиться
+            Log.Write(r.Ok
+                ? $"синхронизация ({reason}): забрано {r.Pulled} из {r.Pushed}"
+                : $"синхронизация ({reason}) не вышла: {r.Message}");
+            if (r is { Ok: true, Pulled: > 0 }) Pulled?.Invoke();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e) { Log.Write($"синхронизация ({reason}): {e.Message}"); }
+        finally { Interlocked.Exchange(ref _autoRunning, 0); }
     }
 
     // ── сеть ───────────────────────────────────────────────────────────────

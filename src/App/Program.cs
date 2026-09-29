@@ -250,6 +250,14 @@ class Program
 
         overlay.SetVersion(Log.Version);
 
+        // Пришло чужое — перечитать пулы и перерисовать. В потоке окна: на
+        // экране они живут в памяти и о подмене файлов сами не узнают.
+        SyncClient.Pulled = () => overlay.Dispatcher.InvokeAsync(() =>
+        {
+            PoolStore.Reload();
+            overlay.RefreshPoolMode();
+        });
+
         // Обновления НИЧЕГО не задерживают: сайдбар показывается сразу, а новая
         // версия качается фоном и встаёт сама, когда человек не в драфте.
         //
@@ -660,6 +668,10 @@ class Program
         var (poolPuuid, poolName) = await PlayerInfo.GetAccountAsync(http, ct);
         PoolStore.SetAccount(poolPuuid, poolName);
 
+        // Клиент назвал аккаунт — раньше этого синхронизироваться не с чем:
+        // адрес строки на сервере считается из пароля И профиля.
+        _ = SyncClient.AutoAsync(poolPuuid, "запуск", ct);
+
         // Импорт рун и билда прямо в клиент — по кнопкам в панели.
         overlay.ApplyRunesHandler  = (page, id, name) => RunesImporter.ApplyRunesAsync(http, page, id, name, ct);
         overlay.ApplySpellsHandler = spells => RunesImporter.ApplySpellsAsync(http, spells, ct);
@@ -929,6 +941,9 @@ class Program
                         overlay.ShowReadyPhase(phase);
                         // После игры (EndOfGame) ранг/LP обновились — перечитываем трекер.
                         await RefreshSessionAsync();
+                        // И отдаём свежую историю на сервер. Главный момент из
+                        // всех: именно здесь появляются новые игры и связки.
+                        _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "после игры", ct);
                         lastHash = "";
                         draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();

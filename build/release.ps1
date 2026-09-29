@@ -115,7 +115,7 @@ if (-not $FeedOnly) {
   $secretArgs = @()
   if ($telemetry) {
     $secretArgs = @("-p:TelemetrySecret=$telemetry")
-    Write-Host "Telemetry secret: taken from $(if ($env:TELEMETRY_SHARED_SECRET) {'environment'} else {'build	elemetry.secret'})" -ForegroundColor Cyan
+    Write-Host "Telemetry secret: taken from $(if ($env:TELEMETRY_SHARED_SECRET) {'environment'} else {'build\telemetry.secret'})" -ForegroundColor Cyan
   } else {
     Write-Host "warn: no telemetry secret - the build will not report installs" -ForegroundColor Yellow
   }

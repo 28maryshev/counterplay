@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Text.Json;
 
 namespace Counterplay;
@@ -106,9 +106,17 @@ public static class Notice
         catch (Exception ex) { Log.Write($"сообщение: кэш не прочитался — {ex.Message}"); }
     }
 
+    /// <summary>
+    /// Не ходить на сайт. Нужно ПРОВЕРКАМ: они подставляют свои сообщения, а
+    /// окно при открытии идёт за настоящими и затирает подставленные.
+    /// В работе всегда false.
+    /// </summary>
+    public static bool Frozen { get; set; }
+
     /// Спрашивает сайт. Возвращает true, если показывать нужно что-то другое.
     public static async Task<bool> RefreshAsync()
     {
+        if (Frozen) return false;
         try
         {
             var before = Signature();

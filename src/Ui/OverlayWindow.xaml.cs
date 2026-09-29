@@ -2448,6 +2448,10 @@ public partial class OverlayWindow : Window
         _noticeRotate.Start();
     }
 
+    /// Набор, под который уже посчитана высота плашки. Меняется вместе с
+    /// сообщениями и с языком — пересчитываем только тогда, а не каждый тик.
+    private string _noticeSig = "";
+
     private void ApplyNotice()
     {
         var list = Notice.Active();
@@ -2455,6 +2459,78 @@ public partial class OverlayWindow : Window
         var n = list.Count == 0 ? null : list[_noticeIndex % list.Count];
         RestartNoticeRotation(list.Count);
 
+        RenderNotice(n);
+        FitNoticeCard(list);
+    }
+
+    /// <summary>
+    /// Плашка держит высоту самого длинного из АКТИВНЫХ сообщений.
+    ///
+    /// Сообщения сменяются по кругу сами, и высота панели прыгала вместе с
+    /// ними: короткое — сайдбар поджался, длинное — вырос. Человек в этот
+    /// момент ничего не делает, а окно под ним дёргается.
+    ///
+    /// Меряем ТЕКСТ, а не плашку целиком. Живую плашку измерить не вышло: WPF
+    /// отдаёт размер, посчитанный для прежнего текста, сколько ни сбрасывай
+    /// мерку вручную — длинный абзац выходил в 76 точек вместо 145. Поэтому
+    /// текст меряется отдельным блоком с той же типографикой, а плашке задаётся
+    /// минимум по САМОМУ тексту: всё остальное в ней от сообщения не зависит.
+    ///
+    /// Кроме строки ссылки — она есть не у всех. Если ссылка есть хоть у
+    /// одного, у остальных прячем её местом, а не выбрасываем: иначе высота
+    /// прыгала бы на эту строку.
+    /// </summary>
+    private void FitNoticeCard(IReadOnlyList<Notice.Item> list)
+    {
+        if (list.Count < 2)
+        {
+            BetaText.MinHeight = 0;
+            _noticeSig = "";
+            _noticeKeepLink = false;
+            return;
+        }
+
+        var sig = string.Join("", list.Select(i => i.Text + "|" + i.Head + "|" + i.Link));
+        if (sig == _noticeSig) return;
+        _noticeSig = sig;
+
+        // Ширина, которая достаётся тексту: плашка минус её поля и рамка.
+        var inner = BetaCard.Width
+                  - BetaCard.Padding.Left - BetaCard.Padding.Right
+                  - BetaCard.BorderThickness.Left - BetaCard.BorderThickness.Right;
+
+        var ruler = new TextBlock
+        {
+            FontFamily    = BetaText.FontFamily,
+            FontSize      = BetaText.FontSize,
+            FontWeight    = BetaText.FontWeight,
+            LineHeight    = BetaText.LineHeight,
+            LineStackingStrategy = BetaText.LineStackingStrategy,
+            TextWrapping  = TextWrapping.Wrap,
+            TextAlignment = BetaText.TextAlignment,
+            Width         = inner,
+        };
+
+        var tallest = 0.0;
+        foreach (var item in list)
+        {
+            ruler.Text = item.Text;
+            ruler.Measure(new Size(inner, double.PositiveInfinity));
+            tallest = Math.Max(tallest, ruler.DesiredSize.Height);
+        }
+        BetaText.MinHeight = tallest;
+
+        // Ссылка есть хоть у одного — место под неё держим у всех.
+        _noticeKeepLink = list.Any(i => !string.IsNullOrWhiteSpace(i.Link));
+        RenderNotice(list[_noticeIndex % list.Count]);
+    }
+
+    /// Держать ли место под строку ссылки у сообщений без неё.
+    private bool _noticeKeepLink;
+
+    /// Выставить содержимое плашки под одно сообщение. null — плашка про бету.
+    private void RenderNotice(Notice.Item? n)
+    {
         var alert = n?.Kind == "alert";
 
         // Нет сообщения — обычный текст «пишите в поддержку».
@@ -2485,7 +2561,9 @@ public partial class OverlayWindow : Window
         var link = n is null ? "https://counterplays.com/support" : n.Link;
         if (string.IsNullOrWhiteSpace(link))
         {
-            BetaLinkLine.Visibility = Visibility.Collapsed;
+            // Hidden, а не Collapsed, когда ссылка есть у соседнего сообщения:
+            // строка исчезает, а место под неё остаётся, и высота не прыгает.
+            BetaLinkLine.Visibility = _noticeKeepLink ? Visibility.Hidden : Visibility.Collapsed;
         }
         else
         {
@@ -2859,6 +2937,10 @@ public partial class OverlayWindow : Window
         // обновляем кнопки и слот пула.
         if (_poolSettings is { IsVisible: true }) { _poolSettings.Activate(); return; }
         _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); }, _engine);
+        // Закрыли окно — отдаём правки на сервер. Пулы правят здесь и только
+        // здесь, а ждать до конца следующей игры значит рисковать ими зря.
+        _poolSettings.Closed += (_, _) =>
+            _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "правка пулов");
         _poolSettings.Show();
     }
 
