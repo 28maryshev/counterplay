@@ -5480,7 +5480,9 @@ public partial class OverlayWindow : Window
         // и по строке «выгодные матчапы против Калиста, Талон» нельзя было
         // сходу понять, свои это или чужие. Сторона важнее архетипа: она
         // отвечает на первый вопрос, который задаёт глаз.
-        const string AllyColor  = "#5ED89A";
+        // Свои — бирюзой слова «Counter» из логотипа (#36D6E7), враги — красным
+        // из «Play». Цвета программы, а не случайные: глаз их уже знает.
+        const string AllyColor  = "#36D6E7";
         const string EnemyColor = "#E06464";
 
         var nameColor = new Dictionary<string, string>();

@@ -138,13 +138,39 @@ public static class DataDragon
     public static string[] ClassTags(int id) =>
         _champions is not null && _champions.TryGetValue(id, out var info) ? info.Tags : [];
 
-    /// Преимущественно магический урон (magic > attack по Data Dragon info).
-    public static bool IsApChampion(int id) =>
-        _champions is not null && _champions.TryGetValue(id, out var info) && info.Magic > info.Attack;
+    /// <summary>
+    /// Тип урона: маг, физик или «не берёмся судить».
+    ///
+    /// Основной признак — оценки Data Dragon (attack против magic). У семи
+    /// чемпионов из 173 они РАВНЫ, и у четырёх из них там вообще нули: Riot не
+    /// заполняет этот блок для новых чемпионов. Серафина — из таких, и баланс
+    /// урона обходил её стороной: пятый маг в команде не получал штрафа за
+    /// перекос, потому что магом его не считали.
+    ///
+    /// Для таких смотрим классы. Правило намеренно осторожное: «Mage без
+    /// Marksman» — маг, «Marksman/Assassin/Fighter без Mage» — физик, а танк или
+    /// саппорт без ясного класса так и остаются никем. Танк урона почти не
+    /// носит, и записывать его в любую сторону значило бы врать балансу.
+    /// </summary>
+    private static int DamageKind(int id)   // +1 маг, -1 физик, 0 не знаем
+    {
+        if (_champions is null || !_champions.TryGetValue(id, out var info)) return 0;
+        if (info.Magic > info.Attack) return  1;
+        if (info.Attack > info.Magic) return -1;
 
-    /// Преимущественно физический урон (attack > magic по Data Dragon info).
-    public static bool IsAdChampion(int id) =>
-        _champions is not null && _champions.TryGetValue(id, out var info) && info.Attack > info.Magic;
+        var tags = info.Tags;
+        bool mage = tags.Contains("Mage"), shooter = tags.Contains("Marksman");
+        if (mage && !shooter) return  1;
+        if (shooter && !mage) return -1;
+        if (!mage && (tags.Contains("Assassin") || tags.Contains("Fighter"))) return -1;
+        return 0;   // «Mage,Marksman», чистый танк, саппорт без класса
+    }
+
+    /// Преимущественно магический урон.
+    public static bool IsApChampion(int id) => DamageKind(id) > 0;
+
+    /// Преимущественно физический урон.
+    public static bool IsAdChampion(int id) => DamageKind(id) < 0;
 
     /// URL иконки для оверлея.
     public static string IconUrl(int id)
