@@ -70,6 +70,22 @@ internal static class Program
               : line[0] == RecommendationEngine.SIGN_GOOD ? "нет, обычное «за»"
               : line[0] == RecommendationEngine.SIGN_BAD  ? "нет, «против»" : "нет, без знака");
 
+        // ── Кружок у союзника считает то же, что и подпись ────────────────
+        //
+        // Кружок и цифра под портретом союзника берутся из PairSynergy, а она
+        // смотрела синергию ПО ВСЕМ РОЛЯМ сразу. У Мальфита пара с Ясуо на топе
+        // даёт +1,26 на 8034 играх, а вместе с его лесом и саппортом, где пара
+        // проигрывает, выходит −0,22 — ниже порога в 0,3, и кружок не зажигался.
+        // В карточке при этом стоял плюс: она считает по роли.
+        var ring = engine.PairSynergy(Malphite, "top", Yasuo);
+        Check("связка видна и кружку союзника", ring >= 0.3, $"{ring:+0.00;-0.00}");
+
+        // И это должно быть ТО ЖЕ число, что в подписи, иначе они спорят.
+        var said = double.Parse(num.Groups[1].Value.Replace(',', '.'),
+                                System.Globalization.CultureInfo.InvariantCulture);
+        Check("   и совпадает с числом в подписи", Math.Abs(ring - said) < 0.1,
+              $"кружок {ring:0.0}, подпись {said:0.0}");
+
         return Done();
     }
 

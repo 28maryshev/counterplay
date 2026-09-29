@@ -5475,16 +5475,32 @@ public partial class OverlayWindow : Window
         static bool IsMax(double v, double max) => max > 0.05 && v >= max - 0.05;
 
         // Имена чемпионов драфта → цвет их архетипа (подсветка имён в обоснованиях).
+        // Имена чемпионов в доводах красим по СТОРОНЕ: свои зелёным, враги
+        // красным. Раньше цвет брался от архетипа — три-четыре разных оттенка,
+        // и по строке «выгодные матчапы против Калиста, Талон» нельзя было
+        // сходу понять, свои это или чужие. Сторона важнее архетипа: она
+        // отвечает на первый вопрос, который задаёт глаз.
+        const string AllyColor  = "#5ED89A";
+        const string EnemyColor = "#E06464";
+
         var nameColor = new Dictionary<string, string>();
         if (draft != null)
-            foreach (var p in draft.MyTeam.Concat(draft.TheirTeam))
+        {
+            void Paint(IEnumerable<DraftPlayer> side, string color)
             {
-                var id = p.EffectiveChampionId;
-                if (id == 0) continue;
-                var (_, archCol, _) = ArchBadge(id);
-                var nm = DataDragon.Name(id);
-                if (!string.IsNullOrEmpty(nm) && archCol != "#888888") nameColor[nm] = archCol;
+                foreach (var p in side)
+                {
+                    var id = p.EffectiveChampionId;
+                    if (id == 0) continue;
+                    var nm = DataDragon.Name(id);
+                    if (!string.IsNullOrEmpty(nm)) nameColor[nm] = color;
+                }
             }
+            // Врагов красим первыми: если один и тот же чемпион почему-то есть
+            // в обоих составах, «свой» важнее.
+            Paint(draft.TheirTeam, EnemyColor);
+            Paint(draft.MyTeam,    AllyColor);
+        }
 
         // Союзники без меня — для расчёта контр-предметов состава.
         var allyNoMe = draft?.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
