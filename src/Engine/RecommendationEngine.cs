@@ -1068,7 +1068,14 @@ public sealed class RecommendationEngine : IDisposable
         // Угроза для всей команды: чемпион, который обыгрывает НАШИХ вообще, даже
         // не будучи чьей-то персональной топ-контрой. Считаем по всем показанным
         // пикам сразу — один бан снимает проблему всей команде.
-        var teamPicks = protectees.Select(p => p.Id).Distinct().ToList();
+        // С РОЛЯМИ: matchup хранит только противостояние на линии, и без роли
+        // угроза складывалась по всем ролям сразу — лесной матчап приписывался
+        // топ-лейнеру.
+        var teamPicks = protectees
+            .Select(p => (p.Id, p.Role))
+            .Where(p => p.Id > 0)
+            .Distinct()
+            .ToList();
 
         // В счёте участвует весь показанный пул, включая прошлые наведения, — так
         // бан выбирается точнее. А в подписи называем только то, что игрок видит
@@ -1709,6 +1716,11 @@ public sealed class RecommendationEngine : IDisposable
     }
 
     // Лаплас-дельта в процентных пунктах относительно 50%.
+    /// Роли в том виде, в каком они лежат в базе. Нужны, чтобы подставлять роль
+    /// в запрос можно было без опаски: список закрытый, чужого сюда не попадёт.
+    private static readonly HashSet<string> DbRoles =
+        new(StringComparer.Ordinal) { "top", "jungle", "mid", "adc", "support" };
+
     private static double Delta(double g, double w, double k) => ((w + k / 2.0) / (g + k) - PRIOR) * 100;
 
     /// Очки перевеса со знаком — в том же виде, что на карточках драфта.
@@ -1746,14 +1758,28 @@ public sealed class RecommendationEngine : IDisposable
     /// </summary>
     private sealed record TeamThreat(double Threat, List<int> Victims, Dictionary<int, double> Edge);
 
-    private Dictionary<int, TeamThreat> TeamThreats(IReadOnlyCollection<int> allyIds)
+    private Dictionary<int, TeamThreat> TeamThreats(
+        IReadOnlyCollection<(int Id, string? Role)> allies)
     {
         var res = new Dictionary<int, TeamThreat>();
+        var allyIds = allies.Select(a => a.Id).Where(x => x > 0).Distinct().ToList();
         if (allyIds.Count < 2) return res;   // «командная» угроза начинается с двоих
         try
         {
-            var ids = string.Join(",", allyIds.Where(x => x > 0));
-            if (ids.Length == 0) return res;
+            // Роль союзника сужает выборку до его линии. Роли может не быть
+            // (ranked solo/duo, блайнд) — тогда берём по всем, как раньше:
+            // приблизительно, но лучше, чем молчать.
+            var parts = new List<string>();
+            foreach (var (id, role) in allies)
+            {
+                if (id <= 0) continue;
+                if (!string.IsNullOrEmpty(role) && DbRoles.Contains(role))
+                    parts.Add($"(vs_champion_id = {id} AND role = '{role}')");
+                else
+                    parts.Add($"vs_champion_id = {id}");
+            }
+            if (parts.Count == 0) return res;
+            var ids = string.Join(" OR ", parts);
 
             // Строка на КАЖДУЮ пару, а не одна на кандидата: сумму обратно по
             // именам не разложить, а подпись именно этого и требует. Складываем
@@ -1764,7 +1790,7 @@ public sealed class RecommendationEngine : IDisposable
                        SUM(games*{PW}) AS g,
                        SUM(wins*{PW})  AS w
                 FROM   matchup
-                WHERE  vs_champion_id IN ({ids}) AND patch IN (@p1, @p2, @p3)
+                WHERE  ({ids}) AND patch IN (@p1, @p2, @p3)
                 GROUP  BY champion_id, vs_champion_id";
             cmd.Parameters.AddWithValue("@p1", _p1);
             cmd.Parameters.AddWithValue("@p2", _p2);

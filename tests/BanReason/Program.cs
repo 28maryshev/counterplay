@@ -74,6 +74,35 @@ internal static class Program
 
         Check($"подпись вообще встречается (составов: {teams.Length})", seen > 0, $"{seen} шт.");
 
+        // ── Роль союзника участвует в счёте ────────────────────────────────
+        //
+        // matchup — это противостояние НА ЛИНИИ. Значит у каждой названной пары
+        // «кандидат против союзника» ОБЯЗАНЫ быть строки именно в роли этого
+        // союзника. Без учёта роли туда попадал, например, лесной Скарнер как
+        // угроза Грагасу на топе: строки есть, но лес против леса.
+        //
+        // Первая версия этой проверки сравнивала подписи «с ролями» и «без
+        // ролей» и проходила в обоих случаях: роль влияет и на другие слагаемые,
+        // так что разница была всегда. Выброшена.
+        var checkedPairs = 0;
+        foreach (var team in teams)
+        {
+            var roleOf = new Dictionary<int, string>();
+            for (var i = 0; i < team.Length; i++) roleOf[team[i]] = DbRole(i);
+
+            foreach (var ban in engine.RecommendBans(Draft(team), top: 8))
+                foreach (var reason in ban.Reasons.Where(r => r.StartsWith(Head, StringComparison.Ordinal)))
+                    foreach (Match m in Regex.Matches(reason, @"id=(\d+) \("))
+                    {
+                        var victim = int.Parse(m.Groups[1].Value);
+                        if (!roleOf.TryGetValue(victim, out var role)) continue;
+                        checkedPairs++;
+                        Check($"   {ban.ChampionId} против {victim} есть на роли {role}",
+                              Games(db, ban.ChampionId, victim, role) > 0, "строки есть");
+                    }
+        }
+        Check("пар проверено на роль", checkedPairs > 0, $"{checkedPairs}");
+
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: бан объясняет, против кого и насколько"
                                       : $"ИТОГ: провалено — {_fails}");
@@ -81,17 +110,39 @@ internal static class Program
     }
 
     /// Драфт: своя роль известна, союзники уже показали пики, врагов нет.
-    private static DraftState Draft(IReadOnlyList<int> allies)
+    private static DraftState Draft(IReadOnlyList<int> allies, bool withRole = true)
     {
+        // Роли союзникам задаём НАРОЧНО: matchup — это противостояние на линии,
+        // и без роли угроза складывалась по всем ролям сразу (лесной матчап
+        // приписывался топ-лейнеру). Проверка должна гонять именно этот путь.
+        string[] pos = ["top", "jungle", "middle"];   // см. DbRole
         var team = new List<DraftPlayer> { new(0, 0, 0, "utility", true) };
         for (var i = 0; i < allies.Count; i++)
-            team.Add(new DraftPlayer(i + 1, allies[i], 0, "", false));
+            team.Add(new DraftPlayer(i + 1, allies[i], 0, withRole ? pos[i % pos.Length] : "", false));
         return new DraftState(
             MyTeam: team, TheirTeam: [], MyTeamBans: [], TheirTeamBans: [],
             Me: team[0], MyPosition: "utility", DirectOpponent: null, ExposedToCounter: false,
             InBanPhase: true, Bench: [], IsAram: false,
             MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
             FirstPickCell: -1, MyBanActionId: 0, MyBanInProgress: true);
+    }
+
+    /// Роль союзника по его месту в составе — в том виде, как её хранит база.
+    /// «middle» у клиента и «mid» в базе — разные слова, и путать их нельзя.
+    private static string DbRole(int i) => (i % 3) switch { 0 => "top", 1 => "jungle", _ => "mid" };
+
+    /// Сколько игр у пары именно на этой роли.
+    private static long Games(string db, int champ, int vs, string role)
+    {
+        using var con = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db}");
+        con.Open();
+        var cmd = con.CreateCommand();
+        cmd.CommandText = @"SELECT COALESCE(SUM(games),0) FROM matchup
+                            WHERE champion_id=@c AND vs_champion_id=@v AND role=@r";
+        cmd.Parameters.AddWithValue("@c", champ);
+        cmd.Parameters.AddWithValue("@v", vs);
+        cmd.Parameters.AddWithValue("@r", role);
+        return Convert.ToInt64(cmd.ExecuteScalar());
     }
 
     private static string Short(string s) => s.Length <= 64 ? s : s[..61] + "…";
