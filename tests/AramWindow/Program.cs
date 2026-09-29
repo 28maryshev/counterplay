@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Windows;
 using Counterplay;
 
@@ -59,13 +59,67 @@ internal static class Program
 
         a.Close(); b.Close();
         Pump();
+
+        Remembered();
+
         app.Shutdown();
 
         Console.WriteLine();
         Console.WriteLine(_fails == 0
-            ? "ИТОГ: окно возвращается из экрана ожидания"
+            ? "ИТОГ: окно возвращается из ожидания и помнит размер"
             : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Запомненная раскладка переживает экран ожидания.
+    ///
+    /// Восстановленный размер надо положить ещё и в «сохранённый полный»:
+    /// обновляет его только обработчик изменения размера, а во время
+    /// восстановления он нарочно заглушён — иначе затёр бы то, что ставим.
+    /// Без этого там оставался размер ПО УМОЛЧАНИЮ, и возврат с экрана
+    /// ожидания подсовывал его вместо запомненного, а конец драфта записывал
+    /// поверх. В журнале владельца это выглядело как 1452×901 три драфта
+    /// подряд, а потом вдруг 1320×848.
+    /// </summary>
+    private static void Remembered()
+    {
+        Console.WriteLine();
+        var s = AppSettings.Current;
+        var was = (s.DraftPlacement, s.DraftLeft, s.DraftTop, s.DraftWidth, s.DraftHeight);
+        try
+        {
+            // Размер нарочно не круглый и не совпадающий с умолчаниями.
+            s.DraftPlacement = "remember";
+            s.DraftLeft = 220; s.DraftTop = 140;
+            s.DraftWidth = 1452; s.DraftHeight = 901;
+
+            var w = Open();
+
+            // Порядок как в жизни: раскладку ставит БАНФАЗА, а размер режима
+            // восстанавливается уже на пиках. Если сразу дать пики, оба шага
+            // проходят в одном вызове и беда не всплывает — на этом первая
+            // версия проверки и обманулась.
+            // (в банфазе без самих банов окно ещё сайдбар — размер проверять
+            //  тут нечего, важен сам факт, что раскладка уже применена)
+            w.UpdateBans(null, Draft(), null);
+            Pump();
+
+            w.UpdateRecommendations([Rec()], Aram(bench: [64, 103, 1]), null);
+            Pump();
+            Check("пики не подменили размер запомнившимся ранее",
+                  Math.Abs(w.Width - 1452) < 2 && Math.Abs(w.Height - 901) < 2,
+                  $"{w.Width:0}×{w.Height:0} (ждали 1452×901)");
+
+            w.Close();
+            Pump();
+        }
+        finally
+        {
+            (s.DraftPlacement, s.DraftLeft, s.DraftTop, s.DraftWidth, s.DraftHeight) = was;
+            AppSettings.SaveQuiet();
+            Console.WriteLine("свои настройки раскладки возвращены на место");
+        }
     }
 
     /// Окно за пределами экрана: проверка не мигает им на рабочем столе.
@@ -75,6 +129,18 @@ internal static class Program
         w.Show();
         Pump();
         return w;
+    }
+
+    /// Обычный снимок драфта (не ARAM) для банфазы.
+    private static DraftState Draft()
+    {
+        var me = new DraftPlayer(0, 0, 0, "utility", true);
+        return new DraftState(
+            MyTeam: [me], TheirTeam: [], MyTeamBans: [], TheirTeamBans: [],
+            Me: me, MyPosition: "utility", DirectOpponent: null, ExposedToCounter: false,
+            InBanPhase: true, Bench: [], IsAram: false,
+            MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
+            FirstPickCell: -1, MyBanActionId: 0, MyBanInProgress: true);
     }
 
     /// Снимок champ select ARAM: чемпион не роздан, роли отсутствуют, врагов не видно.

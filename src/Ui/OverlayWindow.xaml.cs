@@ -528,6 +528,12 @@ public partial class OverlayWindow : Window
         // на следующем драфте бессмысленно.
         if (!_placementApplied || Width <= 100 || Height <= 100) return;
         var s = AppSettings.Current;
+        // Пишем, ЧТО запоминаем и что было до этого: размер иногда подменялся
+        // между раскладкой и концом драфта, и по одному лишь «раскладка
+        // «запомненная»» виновника было не найти.
+        if (Math.Abs(s.DraftWidth - Width) > 1 || Math.Abs(s.DraftHeight - Height) > 1)
+            Log.Write($"запоминаю раскладку: {Width:0}×{Height:0} в ({Left:0};{Top:0}) "
+                      + $"— было {s.DraftWidth:0}×{s.DraftHeight:0}");
         s.DraftLeft = Left; s.DraftTop = Top;
         s.DraftWidth = Width; s.DraftHeight = Height;
         AppSettings.SaveQuiet();
@@ -580,6 +586,19 @@ public partial class OverlayWindow : Window
                 Width  = s.DraftWidth;
                 Height = s.DraftHeight;
                 _settingSize = false;
+
+                // Тот же размер кладём в «сохранённый полный». Обновляет его
+                // только OnWindowSizeChanged, а его мы сами и заглушили флагом
+                // _settingSize — иначе он затёр бы то, что восстанавливаем.
+                //
+                // Без этой пары строк там остаётся прежнее, чаще всего размер
+                // ПО УМОЛЧАНИЮ. Стоит окну сходить на экран ожидания посреди
+                // драфта и вернуться — RestoreModeSize ставит его, а конец
+                // драфта записывает поверх запомненного. В журнале это выглядит
+                // как 1452×901 три драфта подряд, а потом вдруг 1320×848, где
+                // 1320 — ширина по умолчанию.
+                _savedFullW = Width;
+                _savedFullH = Height;
             }
             else
             {
@@ -5038,6 +5057,10 @@ public partial class OverlayWindow : Window
                 // запомненного окна, и WPF растягивал его до этого минимума:
                 // возврат с экрана ожидания делал окно шире, чем оно было.
                 MinWidth = Math.Min(Scaled(MinW), w);
+                if (Math.Abs(Width - w) > 1 || Math.Abs(Height - h) > 1)
+                    Log.Write($"возврат размера режима: {Width:0}×{Height:0} → {w:0}×{h:0} "
+                              + $"(с ожидания: {(fromIdle ? "да" : "нет")}, "
+                              + $"раскладка применена: {(_placementApplied ? "да" : "нет")})");
                 Width    = w;
                 Height   = h;
             }
