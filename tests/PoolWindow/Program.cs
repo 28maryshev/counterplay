@@ -82,8 +82,15 @@ internal static class Program
         p.ByRole["support"] = [412, 89];
         a.Pools.Add(p);
         // Пул, полученный файлом: ник есть, вместе ещё не играли.
-        a.DuoPools.Add(new DuoPool { Id = "d1", FriendName = "supports + top", FriendNick = "Harribon",
-                                     Manual = true });
+        //
+        // Пара в пуле нужна ПО ДЕЛУ: лента связок показывает только то, что в
+        // пуле задумано, и у пустого ручного пула ей нечего показывать. Раньше
+        // туда шли любые совместные игры, и пул мог быть каким угодно.
+        var d1 = new DuoPool { Id = "d1", FriendName = "supports + top", FriendNick = "Harribon",
+                               Manual = true };
+        d1.ManualPairs.Add(new ManualDuoPair { Mine = 412, MineRole = "support",
+                                               Friend = 22, FriendRole = "adc" });
+        a.DuoPools.Add(d1);
         // Пул, собранный руками: назвать некого.
         a.DuoPools.Add(new DuoPool { Id = "d2", FriendName = "top + mid" });
         PoolStore.Persist();

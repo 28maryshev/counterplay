@@ -497,6 +497,7 @@
     "duoWinrates": "İkili kazanma oranları · kiminle oynadın · tüm zamanlar",
     "duoWinratesWith": "İkili kazanma oranları · {0} ile · tüm zamanlar",
     "duoWinratesEmpty": "Henüz ikili yok. Sayım yeni maçlardan başlar — birlikte oynayın, burada görünecekler.",
+    "duoWinratesOffPool": "Birlikte oynadınız ama bu havuzdan değil. Yalnızca havuzdaki ikililer sayılır.",
     "games": "maç",
     "myWinratesPoolEmpty": "Bu havuzdaki şampiyonlarla henüz maç yok — onlarla oyna, oranlar burada görünsün.",
     "inPool": "havuzdaki ikili",

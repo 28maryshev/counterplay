@@ -497,6 +497,7 @@
     "duoWinrates": "Tỷ lệ thắng cặp · đã chơi cùng ai · toàn thời gian",
     "duoWinratesWith": "Tỷ lệ thắng cặp · với {0} · toàn thời gian",
     "duoWinratesEmpty": "Chưa có cặp nào. Bắt đầu tính từ các trận mới — chơi cùng nhau và cặp sẽ hiện ở đây.",
+    "duoWinratesOffPool": "Hai bạn đã chơi cùng nhau, nhưng không theo pool này. Chỉ tính các cặp trong pool.",
     "games": "trận",
     "myWinratesPoolEmpty": "Chưa có trận nào với tướng trong pool này — chơi thử và tỷ lệ thắng sẽ hiện ở đây.",
     "inPool": "cặp trong pool",

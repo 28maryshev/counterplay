@@ -497,6 +497,7 @@
     "duoWinrates": "Winrate de duplas · com quem jogaste · desde sempre",
     "duoWinratesWith": "Winrate de duplas · com {0} · desde sempre",
     "duoWinratesEmpty": "Ainda sem duplas. A contagem começa nas partidas novas: joguem juntos e elas aparecem aqui.",
+    "duoWinratesOffPool": "Jogaram juntos, mas não com esta pool. Só contam os pares dela.",
     "games": "partidas",
     "myWinratesPoolEmpty": "Ainda sem partidas nos campeões desta pool — joga com eles e os winrates aparecem aqui.",
     "inPool": "dupla da pool",

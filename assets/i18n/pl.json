@@ -497,6 +497,7 @@
     "duoWinrates": "Winrate duetów · z kim grałeś · od zawsze",
     "duoWinratesWith": "Winrate duetów · z {0} · od zawsze",
     "duoWinratesEmpty": "Na razie brak par. Liczenie zaczyna się od nowych gier — zagrajcie razem, a pary pojawią się tutaj.",
+    "duoWinratesOffPool": "Graliście razem, ale nie z tej puli. Liczone są tylko jej pary.",
     "games": "gier",
     "myWinratesPoolEmpty": "Brak gier na bohaterach z tej puli — zagraj nimi, a winrate pojawi się tutaj.",
     "inPool": "para z puli",

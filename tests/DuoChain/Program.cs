@@ -116,6 +116,10 @@ internal static class Program
         SessionTracker.Preview =
         [
             new(Him, "Harribon", "solo", MyChamp, HisChamp, 10, 7),
+            // Тот же человек, но чемпионы НЕ из пула: играли вместе, пул не
+            // использовали. В счёт связки это идти не должно — иначе цифры
+            // обещают «винрейт пула», а показывают винрейт знакомства.
+            new(Him, "Harribon", "solo", AlienChamp, AlienChamp, 4, 4),
             new(Other, "Посторонний", "solo", MyChamp, AlienChamp, 5, 5),
         ];
 
@@ -134,6 +138,8 @@ internal static class Program
               texts.FirstOrDefault(t => t.Contains("-")) ?? "нет");
         Check("   чужая связка не показана", !texts.Any(t => t.Contains("5-0")),
               texts.Any(t => t.Contains("5-0")) ? "показана" : "нет");
+        Check("   игра с ним МИМО пула не показана", !texts.Any(t => t.Contains("4-0")),
+              texts.Any(t => t.Contains("4-0")) ? "показана" : "нет");
         win.Close();
         Pump();
 

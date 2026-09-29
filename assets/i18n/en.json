@@ -497,6 +497,7 @@
     "duoWinrates": "Duo win rates · who you played with · all time",
     "duoWinratesWith": "Duo win rates · with {0} · all time",
     "duoWinratesEmpty": "No pairs yet. The count starts from new games — play together and pairs will show up here.",
+    "duoWinratesOffPool": "You played together, but not from this pool. Only its pairs are counted.",
     "games": "games",
     "myWinratesPoolEmpty": "No games yet on this pool's champions — play them and the rates will show up here.",
     "inPool": "pair from the pool",

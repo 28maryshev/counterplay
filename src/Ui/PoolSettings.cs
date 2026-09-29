@@ -452,12 +452,15 @@ public sealed class PoolSettingsWindow : Window
         }
         var pairs = SessionTracker.TopPairs(who, take: 200, days: DuoDays).ToList();
 
-        // Пары, задуманные В ПУЛЕ, идут первыми. В общем списке они тонули среди
-        // случайных союзников, а смотрят сюда обычно ради них.
+        // Только пары, задуманные В ПУЛЕ. Раньше сюда шли ВСЕ игры с этим
+        // человеком, а пулевые лишь поднимались наверх — и счёт связки мешался
+        // со случайными сочетаниями: напарник взял чемпиона не из пула, сыграл
+        // не на своей роли, а игра всё равно ложилась в ту же ленту. Смотрят
+        // сюда ради пула, значит и считать надо по нему.
         var inPool = InPool(fav);
         pairs = pairs
-            .OrderByDescending(p => inPool(p.MyChampionId, p.AllyChampionId))
-            .ThenByDescending(p => p.Games)
+            .Where(p => inPool(p.MyChampionId, p.AllyChampionId))
+            .OrderByDescending(p => p.Games)
             .ThenByDescending(p => p.WinRate)
             .Take(24).ToList();
 
@@ -483,7 +486,11 @@ public sealed class PoolSettingsWindow : Window
 
         if (pairs.Count == 0)
         {
-            WrEmpty(_wrDuo, Loc.T("pool.duoWinratesEmpty"));
+            // Играли вместе, но не по пулу — это другое «пусто», и сказать надо
+            // иначе: счёт есть, просто не тот, что здесь показывают.
+            var anyAtAll = SessionTracker.TopPairs(who, take: 1, days: DuoDays).Any();
+            WrEmpty(_wrDuo, anyAtAll ? Loc.T("pool.duoWinratesOffPool")
+                                     : Loc.T("pool.duoWinratesEmpty"));
             return;
         }
 
@@ -491,7 +498,6 @@ public sealed class PoolSettingsWindow : Window
         foreach (var p in pairs)
         {
             var frame = WinrateColor.BrushForSample(p.WinRate, p.Games);
-            var own   = inPool(p.MyChampionId, p.AllyChampionId);
             var inner = new StackPanel { Margin = new Thickness(4, 4, 4, 3) };
 
             // Две иконки рядом: слева мой чемпион, справа его. Так связка
@@ -532,9 +538,9 @@ public sealed class PoolSettingsWindow : Window
             row.Children.Add(new Border
             {
                 CornerRadius = new CornerRadius(8),
-                // Пара из пула обведена жирнее: она стоит первой, и рамка это
-                // подтверждает, не добавляя в тесный слот ещё и подписи.
-                BorderThickness = new Thickness(own ? 2 : 1),
+                // Толщина у всех одна: в ленте теперь только пары из пула, и
+                // выделять стало нечего на фоне чего.
+                BorderThickness = new Thickness(1),
                 BorderBrush = frame,
                 Background = WinrateColor.TintForSample(p.WinRate, p.Games),
                 Margin = new Thickness(0, 0, 8, 8),
@@ -544,7 +550,6 @@ public sealed class PoolSettingsWindow : Window
                           // Очередь: дуо-пул собирают под одну, и «5-2 во флексе»
                           // это совсем не то же, что «5-2 где придётся».
                           + (p.Queue.Length > 0 ? $" · {QueueName(p.Queue)}" : "")
-                          + (own ? "\n" + Loc.T("pool.inPool") : "")
                           + (p.Games < SmallSample ? "\n" + Loc.T("pool.fewGames") : ""),
                 Child = inner
             });
