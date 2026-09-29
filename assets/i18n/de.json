@@ -176,7 +176,7 @@
     "baseNeutral": "Neutraler Pick, WR ≈{0}%",
     "countersMany": "Kontert eure {0}",
     "personalWr": "Deine Winrate mit diesem Champion — {0}% über {1} Spiele",
-    "teamThreat": "Schlägt euer Team generell — stark gegen {0} eurer Picks"
+    "teamThreat": "Schlägt euer Team generell — stark gegen {0}"
   },
   "metric": {
     "base": "Winrate in diesem Patch",

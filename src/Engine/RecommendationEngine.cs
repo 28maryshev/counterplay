@@ -1079,13 +1079,30 @@ public sealed class RecommendationEngine : IDisposable
             .Select(p => p.EffectiveChampionId)
             .ToHashSet();
 
-        foreach (var (c, (threat, victims)) in TeamThreats(teamPicks))
+        foreach (var (c, t) in TeamThreats(teamPicks))
         {
             if (taken.Contains(c)) continue;
-            scores[c] = scores.GetValueOrDefault(c) + W_BAN_TEAM * threat;
-            var shown = victims.Count(onScreen.Contains);
-            if (threat >= 0.5 && shown >= 2)
-                AddReason(c, Loc.T("reason.teamThreat", shown));
+            scores[c] = scores.GetValueOrDefault(c) + W_BAN_TEAM * t.Threat;
+
+            // Называем поимённо и с цифрами: «силён против Экко (+0,5),
+            // Синджед (+3,4)». Прежнее «силён против 2 ваших пиков» не давало
+            // ни проверить, ни выбрать между двумя кандидатами.
+            //
+            // Сильные — первыми: если пострадавших много, обрежется хвост, а не
+            // то, ради чего бан и нужен.
+            var named = t.Victims
+                .Where(onScreen.Contains)
+                // Только те, против кого он ДЕЙСТВИТЕЛЬНО силён. Общая угроза
+                // складывается из всех матчапов, и среди них попадаются
+                // отрицательные — назвать их под словом «силён против» значило
+                // бы соврать. Проверка это и поймала: в списке стояло «(-…)».
+                .Where(v => t.Edge.GetValueOrDefault(v) > 0)
+                .OrderByDescending(v => t.Edge.GetValueOrDefault(v))
+                .Select(v => $"{DataDragon.Name(v)} ({Points(t.Edge.GetValueOrDefault(v))})")
+                .Take(3)
+                .ToList();
+            if (t.Threat >= 0.5 && named.Count >= 2)
+                AddReason(c, Loc.T("reason.teamThreat", string.Join(", ", named)));
         }
 
         // Бонус за ширину: кандидат, контрящий 2+ РАЗНЫХ наших чемпионов,
@@ -1694,6 +1711,9 @@ public sealed class RecommendationEngine : IDisposable
     // Лаплас-дельта в процентных пунктах относительно 50%.
     private static double Delta(double g, double w, double k) => ((w + k / 2.0) / (g + k) - PRIOR) * 100;
 
+    /// Очки перевеса со знаком — в том же виде, что на карточках драфта.
+    private static string Points(double v) => (v >= 0 ? "+" : "") + v.ToString("F1");
+
     // Нижняя граница доверительного интервала Уилсона для доли побед: штрафует
     // малые выборки, поэтому редкие пары не всплывают как «контра»/«синергия».
     private static double WilsonLower(double wins, double games)
@@ -1716,51 +1736,74 @@ public sealed class RecommendationEngine : IDisposable
     // именно из неё бьёт. Список нужен подписи: в счёт идут не только пики на
     // экране, но и чемпионы, которых союзники наводили раньше, — писать про них
     // «твои пики» нельзя, игрок их уже не видит.
-    private Dictionary<int, (double Threat, List<int> Victims)> TeamThreats(IReadOnlyCollection<int> allyIds)
+    /// <summary>
+    /// Чем кандидат опасен для нашей команды: общая угроза, список пострадавших
+    /// и насколько он бьёт КАЖДОГО из них.
+    ///
+    /// Разбивка по именам нужна подписи в банах: «силён против 2 ваших пиков» —
+    /// число без имён, по нему нельзя ни проверить, ни решить. Сила указана в
+    /// тех же очках, что на карточках драфта.
+    /// </summary>
+    private sealed record TeamThreat(double Threat, List<int> Victims, Dictionary<int, double> Edge);
+
+    private Dictionary<int, TeamThreat> TeamThreats(IReadOnlyCollection<int> allyIds)
     {
-        var res = new Dictionary<int, (double, List<int>)>();
+        var res = new Dictionary<int, TeamThreat>();
         if (allyIds.Count < 2) return res;   // «командная» угроза начинается с двоих
         try
         {
             var ids = string.Join(",", allyIds.Where(x => x > 0));
             if (ids.Length == 0) return res;
 
+            // Строка на КАЖДУЮ пару, а не одна на кандидата: сумму обратно по
+            // именам не разложить, а подпись именно этого и требует. Складываем
+            // сами, тем же способом, чтобы порядок банов не изменился.
             var cmd = _db.CreateCommand();
             cmd.CommandText = $@"
-                SELECT champion_id,
-                       COUNT(DISTINCT vs_champion_id) AS n,
-                       GROUP_CONCAT(DISTINCT vs_champion_id) AS victims,
+                SELECT champion_id, vs_champion_id,
                        SUM(games*{PW}) AS g,
                        SUM(wins*{PW})  AS w
                 FROM   matchup
                 WHERE  vs_champion_id IN ({ids}) AND patch IN (@p1, @p2, @p3)
-                GROUP  BY champion_id
-                HAVING n >= 2 AND g >= 150";
+                GROUP  BY champion_id, vs_champion_id";
             cmd.Parameters.AddWithValue("@p1", _p1);
             cmd.Parameters.AddWithValue("@p2", _p2);
             cmd.Parameters.AddWithValue("@p3", _p3);
 
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read())
+            var rows = new Dictionary<int, List<(int Vs, double G, double W)>>();
+            using (var rd = cmd.ExecuteReader())
+                while (rd.Read())
+                {
+                    var id = rd.GetInt32(0);
+                    var vs = rd.GetInt32(1);
+                    if (vs <= 0) continue;
+                    if (!rows.TryGetValue(id, out var list)) rows[id] = list = [];
+                    list.Add((vs, Convert.ToDouble(rd.GetValue(2)), Convert.ToDouble(rd.GetValue(3))));
+                }
+
+            foreach (var (id, list) in rows)
             {
-                var id = rd.GetInt32(0);
-                var n  = rd.GetInt32(1);
-                var victims = (rd.GetValue(2) as string ?? "")
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => int.TryParse(x, out var v) ? v : 0)
-                    .Where(x => x > 0).ToList();
-                var g  = Convert.ToDouble(rd.GetValue(3));
-                var w  = Convert.ToDouble(rd.GetValue(4));
+                var victims = list.Select(r => r.Vs).Distinct().ToList();
+                var n = victims.Count;
+                var g = list.Sum(r => r.G);
+                var w = list.Sum(r => r.W);
+                if (n < 2 || g < 150) continue;      // прежние HAVING, теперь у нас
 
                 // Чистая угроза: WR против наших минус собственный средний WR —
                 // иначе наверх лезли бы просто сильные чемпионы патча.
                 var (bg, bw) = RawBaseAny(id);
                 if (bg <= 0) continue;
-                var threat = (Delta(g, w, K_PAIR) - Delta(bg, bw, K)) * (g / (g + MATCHUP_CONF));
+                var mine = Delta(bg, bw, K);
+                var threat = (Delta(g, w, K_PAIR) - mine) * (g / (g + MATCHUP_CONF));
                 if (threat <= 0) continue;
 
+                // По каждому пострадавшему — тот же перевес, только по его паре.
+                var edge = new Dictionary<int, double>();
+                foreach (var r in list)
+                    if (r.G > 0) edge[r.Vs] = Delta(r.G, r.W, K_PAIR) - mine;
+
                 // Масштабируем по охвату: бьёт троих — весомее, чем двоих.
-                res[id] = (threat * n / allyIds.Count, victims);
+                res[id] = new TeamThreat(threat * n / allyIds.Count, victims, edge);
             }
         }
         catch { /* нет данных — фактор молчит */ }

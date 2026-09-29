@@ -406,7 +406,7 @@
     "baseNeutral": "Nötr seçim, WR ≈%{0}",
     "countersMany": "Takımından {0} karşı koz",
     "personalWr": "Bu şampiyonla kazanma oranın — {1} maçta %{0}",
-    "teamThreat": "Takımını genel olarak yeniyor — {0} seçiminize karşı güçlü"
+    "teamThreat": "Takımını genel olarak yeniyor — {0} karşısında güçlü"
   },
   "pool": {
     "slotLabel": "Havuzundan seçim",

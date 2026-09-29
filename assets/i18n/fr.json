@@ -406,7 +406,7 @@
     "baseNeutral": "Pick neutre, WR ≈{0}%",
     "countersMany": "Contre vos {0}",
     "personalWr": "Votre winrate avec ce champion : {0}% sur {1} parties",
-    "teamThreat": "Bat votre équipe en général — fort contre {0} de vos picks"
+    "teamThreat": "Bat votre équipe en général — fort contre {0}"
   },
   "pool": {
     "slotLabel": "Pick de ton pool",

@@ -312,7 +312,7 @@
     "baseNeutral": "Neutralny pick, WR ≈{0}%",
     "countersMany": "Kontruje waszych: {0}",
     "personalWr": "Twój winrate na tym bohaterze — {0}% z {1} gier",
-    "teamThreat": "Ogólnie ogrywa waszą drużynę — mocny przeciw {0} waszym pickom"
+    "teamThreat": "Ogólnie ogrywa waszą drużynę — mocny przeciw {0}"
   },
   "rec": {
     "yourPick": "TWÓJ PICK",

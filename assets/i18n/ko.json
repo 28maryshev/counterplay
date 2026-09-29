@@ -176,7 +176,7 @@
     "baseNeutral": "무난한 픽, 승률 ≈{0}%",
     "countersMany": "아군 {0}을(를) 카운터",
     "personalWr": "이 챔피언으로의 승률 — {1}게임에서 {0}%",
-    "teamThreat": "팀 전체에 강함 — 아군 픽 {0}명에게 유리"
+    "teamThreat": "팀 전체에 강함 — {0} 상대로 유리"
   },
   "metric": {
     "base": "이번 패치 승률",
