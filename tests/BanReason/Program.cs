@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using Counterplay;
 
@@ -103,6 +104,8 @@ internal static class Program
         }
         Check("пар проверено на роль", checkedPairs > 0, $"{checkedPairs}");
 
+        Mains(engine);
+
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: бан объясняет, против кого и насколько"
                                       : $"ИТОГ: провалено — {_fails}");
@@ -125,6 +128,67 @@ internal static class Program
             InBanPhase: true, Bench: [], IsAram: false,
             MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
             FirstPickCell: -1, MyBanActionId: 0, MyBanInProgress: true);
+    }
+
+    /// <summary>
+    /// Защитные баны смотрят на то, чем игрок играет СЕЙЧАС.
+    ///
+    /// Раньше «мейны» брались только из мастерства, а оно копится годами: в
+    /// банах всплывало «контрит Зилеана» на чемпионе, которого не трогали
+    /// полгода. Такой совет — потраченный бан.
+    ///
+    /// Внутри RecommendBans история игр используется ровно в одном месте — в
+    /// списке мейнов. Значит разница в подписях при разной истории доказывает,
+    /// что она учитывается.
+    /// </summary>
+    private static void Mains(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        var dir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+        var path = System.IO.Path.Combine(dir, "session.json");
+        var before = File.Exists(path) ? File.ReadAllText(path) : null;
+        const string Puuid = "TEST-bans-mains-000000000000000000000000000000000000000000000000000000";
+
+        try
+        {
+            PoolStore.SetAccount(Puuid, "проверка");
+            engine.Mastery = new Dictionary<int, long> { [412] = 900_000L };   // Тамкенч по мастерству
+
+            File.WriteAllText(path, "{\"Accounts\":{}}");
+            SessionTracker.DropCache();
+            var noHistory = Reasons(engine);
+
+            // Двадцать свежих игр на другом чемпионе этой же роли.
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var games = string.Join(",", Enumerable.Range(0, 20).Select(i =>
+                $"{{\"Ts\":{now - i * 3600},\"ChampionId\":89,\"Win\":true}}"));
+            File.WriteAllText(path,
+                $"{{\"Accounts\":{{\"{Puuid}\":{{\"Queues\":{{\"solo\":{{\"Games\":[{games}]}}}}}}}}}}");
+            SessionTracker.DropCache();
+            var withHistory = Reasons(engine);
+
+            Check("свежая история меняет защитные баны",
+                  withHistory.Count > 0 && !withHistory.SetEquals(noHistory),
+                  $"без истории {noHistory.Count}, с историей {withHistory.Count}");
+        }
+        finally
+        {
+            if (before is not null) File.WriteAllText(path, before);
+            else if (File.Exists(path)) File.Delete(path);
+            SessionTracker.DropCache();
+            Console.WriteLine("своя история игр возвращена на место");
+        }
+    }
+
+    /// Подписи «контрит твой пул» — их и питают мейны.
+    private static HashSet<string> Reasons(RecommendationEngine engine)
+    {
+        var head = Loc.T("reason.countersPool", "").Split('')[0];
+        return engine.RecommendBans(Draft([157, 64, 103]), top: 10)
+                     .SelectMany(b => b.Reasons)
+                     .Where(r => r.StartsWith(head, StringComparison.Ordinal))
+                     .ToHashSet();
     }
 
     /// Роль союзника по его месту в составе — в том виде, как её хранит база.

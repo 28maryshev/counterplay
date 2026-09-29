@@ -121,6 +121,13 @@ public sealed class RecommendationEngine : IDisposable
     // ролей; пока пары нет в базе — фактор по ней молчит (0) с фолбэком на
     // same-role таблицу (W_OTHER).
     private const double W_CROSS = 1.2;
+
+    /// За сколько дней считаем «чем игрок играет сейчас» для защитных банов.
+    /// Месяц: короче — и после недельного перерыва список опустеет, длиннее —
+    /// и туда снова полезут давно брошенные чемпионы.
+    private const int MainsDays = 30;
+    /// Сколько мейнов защищаем. Больше пяти — и бан начинает защищать случайное.
+    private const int MainsTake = 5;
     // Порог включения бот-матчапов: сумма игр в botlane_matchup. ~20k записей —
     // это примерно столько же матчей с собранной бот-статистикой (по ~1 на пару).
     private const double BOTLANE_MIN_GAMES = 20000;
@@ -955,11 +962,34 @@ public sealed class RecommendationEngine : IDisposable
         foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
             if (b != 0) taken.Add(b);
 
-        // Мои мейны на этой роли (по мастерству) — чтобы банить их контр-пики.
-        var myMains = Mastery
-            .Where(kv => stats.ContainsKey(kv.Key))
-            .OrderByDescending(kv => kv.Value)
-            .Take(5).Select(kv => kv.Key).ToList();
+        // Мои мейны на этой роли — чтобы банить их контр-пики.
+        //
+        // Сперва те, кем игрок ДЕЙСТВИТЕЛЬНО играет в последнее время. Раньше
+        // брали только мастерство, а оно копится годами и не забывается: в
+        // банах всплывало «контрит Зилеана» на чемпионе, которого человек не
+        // трогал полгода. Совет про него — потраченный бан.
+        //
+        // Мастерством добираем остаток: у свежей установки истории ещё нет, и
+        // без него список был бы пустым.
+        var myMains = new List<int>();
+        var recent = SessionTracker.ChampStatsMap(
+            MainsDays, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        foreach (var id in recent
+                     .Where(kv => kv.Value.Games > 0 && stats.ContainsKey(kv.Key))
+                     .OrderByDescending(kv => kv.Value.Games)
+                     .Select(kv => kv.Key))
+        {
+            if (myMains.Count >= MainsTake) break;
+            myMains.Add(id);
+        }
+        foreach (var id in Mastery
+                     .Where(kv => stats.ContainsKey(kv.Key))
+                     .OrderByDescending(kv => kv.Value)
+                     .Select(kv => kv.Key))
+        {
+            if (myMains.Count >= MainsTake) break;
+            if (!myMains.Contains(id)) myMains.Add(id);
+        }
 
         var scores  = new Dictionary<int, double>();
         var reasons = new Dictionary<int, List<string>>();

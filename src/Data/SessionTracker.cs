@@ -241,6 +241,16 @@ public static class SessionTracker
     // поэтому карту держим в коротком кэше.
     private static readonly Dictionary<string, (DateTime At, Dictionary<int, (int G, int W)> Map)> StatsCache = new();
 
+    /// <summary>
+    /// Забыть накопленное. Нужно ПРОВЕРКАМ: карта живёт в кэше двадцать секунд,
+    /// и подменённый файл истории без сброса просто не заметят.
+    /// В работе кэш протухает сам.
+    /// </summary>
+    public static void DropCache()
+    {
+        lock (StatsCache) StatsCache.Clear();
+    }
+
     /// Окно «свежей формы». Журнал держится за весь сезон, но для подбора важно,
     /// как человек играет СЕЙЧАС: 600 игр с 50% за сезон не говорят ни о чём, а
     /// 30 игр с 60% за месяц — говорят.
