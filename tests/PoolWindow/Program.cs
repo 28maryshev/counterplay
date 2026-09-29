@@ -99,8 +99,7 @@ internal static class Program
         PoolStore.SetFavourite(PoolKind.Duo, "d1");
 
         var w = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
-        w.Opacity = 0; w.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w.Show();
+        ShowHidden(w);
         Pump();
 
         // ── Ник на плитке ──────────────────────────────────────────────────
@@ -129,8 +128,7 @@ internal static class Program
         PoolStore.Current().DuoPools[0].FriendPuuid = Him;
         PoolStore.Persist();
         var w3 = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
-        w3.Opacity = 0; w3.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w3.Show(); Pump();
+        ShowHidden(w3); Pump();
         var t3 = Walk<TextBlock>(w3).Select(x => x.Text).ToList();
         Check("с опознанным напарником связки появились",
               t3.Any(t => t.Contains("8-3")), t3.Any(t => t.Contains("8-3")) ? "есть" : "нет");
@@ -170,8 +168,7 @@ internal static class Program
 
             // Окно, открытое заново, показывает уже другое состояние.
             var w2 = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
-            w2.Opacity = 0; w2.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-            w2.Show(); Pump();
+        ShowHidden(w2); Pump();
             var t2 = Walk<TextBlock>(w2).Select(x => x.Text).ToList();
             Check("с паролем показано «добавлен»",
                   t2.Any(t => t.Contains(Loc.T("sync.set"))), Loc.T("sync.set"));
@@ -280,8 +277,7 @@ internal static class Program
 
         // Доля должна лечь в настройки при закрытии.
         var win = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
-        win.Opacity = 0; win.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        win.Show(); Pump();
+        ShowHidden(win); Pump();
         var r2 = ((Grid)VisualTreeHelper.GetParent(Walk<GridSplitter>(win).First())).RowDefinitions;
         r2[0].Height = new GridLength(0.3, GridUnitType.Star);
         r2[2].Height = new GridLength(0.7, GridUnitType.Star);
@@ -309,8 +305,7 @@ internal static class Program
         // проверки берём С ЗАПАСОМ над минимумом — иначе при запущенном клиенте
         // они упрутся в него, и проверка будет мерить не то, что задумано.
         var probe = new PoolSettingsWindow(() => { });
-        probe.Opacity = 0; probe.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        probe.Show(); Pump();
+        ShowHidden(probe); Pump();
         var minW = probe.MinWidth; var minH = probe.MinHeight;
         probe.Close(); Pump();
         var wideW = minW + 180; var wideH = minH + 120;
@@ -322,13 +317,18 @@ internal static class Program
         AppSettings.Current.PoolWinHeight = wideH;
 
         var w1 = new PoolSettingsWindow(() => { });
-        w1.Opacity = 0; w1.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w1.Show(); Pump();
+        ShowHidden(w1); Pump();
         Check("размер с прошлого раза восстановлен", Math.Abs(w1.Width - wideW) < 2,
               $"{w1.Width:0} (ждали {wideW:0})");
-        Check("место за краем экрана отброшено", w1.Left > -1000, $"{w1.Left:0}");
+        // Сверяем не «окно на экране», а «окно НЕ уехало в мусорное место»:
+        // проверки теперь и стартуют за краем, чтобы не мигать поверх игры, и
+        // по одному положению эти два случая уже не различить.
+        Check("мусорное место не применено", Math.Abs(w1.Left - (-9000)) > 1, $"{w1.Left:0}");
         w1.Close(); Pump();
-        Check("и в настройки такое место не легло", AppSettings.Current.PoolWinLeft > -1000,
+        // Окно закрылось за краем экрана — такое место запоминать нельзя, и
+        // настройка обязана остаться прежней (той, что положили выше).
+        Check("закрытие за краем не записалось",
+              Math.Abs(AppSettings.Current.PoolWinLeft - (-9000)) < 1,
               $"{AppSettings.Current.PoolWinLeft:0}");
 
         // ── Нормальное место: открылось ровно там ──────────────────────────
@@ -338,8 +338,7 @@ internal static class Program
         AppSettings.Current.PoolWinHeight = wideH;
 
         var w2 = new PoolSettingsWindow(() => { });
-        w2.Opacity = 0; w2.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w2.Show(); Pump();
+        ShowHidden(w2); Pump();
         Check("окно открылось там, где его оставили",
               Math.Abs(w2.Left - 140) < 2 && Math.Abs(w2.Top - 90) < 2,
               $"{w2.Left:0},{w2.Top:0}");
@@ -363,8 +362,7 @@ internal static class Program
         AppSettings.Current.PoolWinWidth  = 50;
         AppSettings.Current.PoolWinHeight = 50;
         var w4 = new PoolSettingsWindow(() => { });
-        w4.Opacity = 0; w4.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w4.Show(); Pump();
+        ShowHidden(w4); Pump();
         Check("размер меньше минимума поджимается", Math.Abs(w4.Width - w4.MinWidth) < 2,
               $"{w4.Width:0} при минимуме {w4.MinWidth:0}");
         Check("место при этом не потеряно",
@@ -376,8 +374,7 @@ internal static class Program
         AppSettings.Current.PoolWinWidth = 0;
         AppSettings.Current.PoolWinHeight = 0;
         var w3 = new PoolSettingsWindow(() => { });
-        w3.Opacity = 0; w3.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w3.Show(); Pump();
+        ShowHidden(w3); Pump();
         var want = 750 * AppSettings.Current.FontScale * OverlayWindow.ClientScaleFor(w3);
         var cap  = Math.Max(240, SystemParameters.WorkArea.Height - 40);
         Check("без памяти окно открывается высоким",
@@ -415,6 +412,30 @@ internal static class Program
                 () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             Thread.Sleep(60);
         }
+    }
+
+    /// <summary>
+    /// Показать окно так, чтобы человек его не увидел.
+    ///
+    /// Одной прозрачности мало: она работает только у окон с
+    /// AllowsTransparency, а у окна пулов его нет — там Opacity=0 давал чёрный
+    /// прямоугольник посреди экрана. Поэтому ещё и уводим за край, отключив
+    /// центрирование: WindowStartupLocation по умолчанию перебивает Left/Top,
+    /// выставленные до Show.
+    ///
+    /// Раскладка, размеры и обход дерева при этом работают как обычно.
+    /// </summary>
+    private static void ShowHidden(System.Windows.Window w)
+    {
+        w.ShowInTaskbar = false;
+        w.ShowActivated = false;
+        w.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+        w.Left = -32000; w.Top = -32000;
+        w.Opacity = 0;
+        w.Show();
+        // ПОСЛЕ показа не двигаем: запомненную раскладку окно ставит себе само,
+        // и проверки геометрии меряют именно её. Тем, у кого раскладки нет,
+        // хватает вынесенного старта.
     }
 
     private static void Check(string what, bool ok, string detail)

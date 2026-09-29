@@ -55,6 +55,13 @@ internal static class Program
               line is null ? string.Join(" | ", malph.Reasons) : line[1..]);
         if (line is null) return Done();
 
+        // Цифра: остальные доводы в карточке её приводят, и связка без неё
+        // выглядела голословной — «выгодно», а насколько, непонятно.
+        var num = System.Text.RegularExpressions.Regex.Match(line, @"\(([+-]\d+[.,]\d)%\)");
+        Check("рядом стоит измеренная прибавка", num.Success, num.Success ? num.Groups[1].Value : "цифры нет");
+        if (num.Success)
+            Check("   и она положительная", !num.Groups[1].Value.StartsWith('-'), num.Groups[1].Value);
+
         // Знак решает судьбу строки в интерфейсе: без него её выбрасывают как
         // нейтральную, а с обычным «за» — как общую для многих кандидатов.
         Check("помечена как несменяемый довод",

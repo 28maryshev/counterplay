@@ -106,8 +106,7 @@ internal static class Program
         Notice.LoadCached();
         Console.WriteLine($"    (активных сообщений: {Notice.Active().Count})");
         var w = new OverlayWindow { Left = -4000, Top = -4000 };
-        w.Opacity = 0; w.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        w.Show();
+        ShowHidden(w);
         w.ShowReadyPhase("Lobby");   // плашка живёт на экране готовности
         Pump();
         var card = (Border)w.FindName("BetaCard")!;
@@ -136,6 +135,30 @@ internal static class Program
                 () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             Thread.Sleep(60);
         }
+    }
+
+    /// <summary>
+    /// Показать окно так, чтобы человек его не увидел.
+    ///
+    /// Одной прозрачности мало: она работает только у окон с
+    /// AllowsTransparency, а у окна пулов его нет — там Opacity=0 давал чёрный
+    /// прямоугольник посреди экрана. Поэтому ещё и уводим за край, отключив
+    /// центрирование: WindowStartupLocation по умолчанию перебивает Left/Top,
+    /// выставленные до Show.
+    ///
+    /// Раскладка, размеры и обход дерева при этом работают как обычно.
+    /// </summary>
+    private static void ShowHidden(System.Windows.Window w)
+    {
+        w.ShowInTaskbar = false;
+        w.ShowActivated = false;
+        w.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+        w.Left = -32000; w.Top = -32000;
+        w.Opacity = 0;
+        w.Show();
+        // ПОСЛЕ показа не двигаем: запомненную раскладку окно ставит себе само,
+        // и проверки геометрии меряют именно её. Тем, у кого раскладки нет,
+        // хватает вынесенного старта.
     }
 
     private static void Check(string what, bool ok, string detail)

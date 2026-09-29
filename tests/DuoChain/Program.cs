@@ -128,8 +128,7 @@ internal static class Program
 
         // ── 4. Окно показывает его связки и называет по имени ──────────────
         var win = new PoolSettingsWindow(() => { }) { Left = -4000, Top = -4000 };
-        win.Opacity = 0; win.ShowInTaskbar = false;   // не мигаем окном поверх игры: раскладка считается, видно не будет
-        win.Show();
+        ShowHidden(win);
         Pump();
         var texts = Walk<TextBlock>(win).Select(t => t.Text).ToList();
 
@@ -197,6 +196,30 @@ internal static class Program
 
     private static string Tail(string? s) =>
         string.IsNullOrEmpty(s) ? "—" : s[..3] + "…(" + s.Length + ")";
+
+    /// <summary>
+    /// Показать окно так, чтобы человек его не увидел.
+    ///
+    /// Одной прозрачности мало: она работает только у окон с
+    /// AllowsTransparency, а у окна пулов его нет — там Opacity=0 давал чёрный
+    /// прямоугольник посреди экрана. Поэтому ещё и уводим за край, отключив
+    /// центрирование: WindowStartupLocation по умолчанию перебивает Left/Top,
+    /// выставленные до Show.
+    ///
+    /// Раскладка, размеры и обход дерева при этом работают как обычно.
+    /// </summary>
+    private static void ShowHidden(System.Windows.Window w)
+    {
+        w.ShowInTaskbar = false;
+        w.ShowActivated = false;
+        w.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+        w.Left = -32000; w.Top = -32000;
+        w.Opacity = 0;
+        w.Show();
+        // ПОСЛЕ показа не двигаем: запомненную раскладку окно ставит себе само,
+        // и проверки геометрии меряют именно её. Тем, у кого раскладки нет,
+        // хватает вынесенного старта.
+    }
 
     private static void Check(string what, bool ok, string detail)
     {
