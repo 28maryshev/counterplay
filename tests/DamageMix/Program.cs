@@ -66,7 +66,10 @@ internal static class Program
         Check("нерасмеченных стало мало", unknown.Count <= 4, $"{unknown.Count}");
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: перекос по урону виден и у новых чемпионов"
+        _fails += Items.Run(Check);
+
+        Console.WriteLine();
+        Console.WriteLine(_fails == 0 ? "ИТОГ: перекос по урону виден, предметы — только настоящие"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }

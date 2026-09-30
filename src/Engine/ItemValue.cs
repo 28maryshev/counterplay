@@ -1,4 +1,4 @@
-namespace Counterplay;
+﻿namespace Counterplay;
 
 /// <summary>
 /// «Ценность предметов» (п.1): штраф за стак одной уязвимости в своей команде
@@ -97,8 +97,31 @@ public static class ItemValue
     /// иконок под описанием. Смысл — предупреждение о СТАКЕ: одним предметом враг рубит
     /// полкоманды. Поэтому предмет показывается только пику, который ДОБАВЛЯЕТ к перекосу
     /// (ещё один AD в АД-команду), а не тому, кто её разбавляет.
-    public static IReadOnlyList<int> CounterItems(int candidate, IReadOnlyList<int> allyIds)
+    /// <param name="enemyIds">Состав врага. Без него предупреждение висело в
+    /// пустоте: показывали броню и МР, кто бы их ни собирал. Владелец поймал на
+    /// живом драфте — у врага из танков один Наутилус, а на топе Триндамир,
+    /// который идёт в керри; собирать Терновник там просто некому.</param>
+    public static IReadOnlyList<int> CounterItems(int candidate, IReadOnlyList<int> allyIds,
+                                                  IReadOnlyList<int>? enemyIds = null)
     {
+        // Кто у врага вообще купит такое. Броня, МР и сопротивление — предметы
+        // ПЕРЕДНЕЙ ЛИНИИ: их берут танки и джаггернауты, а не кэрри.
+        var enemies = enemyIds ?? [];
+        int frontline = 0, apEnemies = 0;
+        foreach (var e in enemies)
+        {
+            if (ChampionTraits.IsTanky(e)) frontline++;
+            if (DataDragon.IsApChampion(e)) apEnemies++;
+        }
+        // Врагов ещё не видно (ранний драфт, блайнд) — судить не о чем, ведём
+        // себя как раньше: лучше предупредить, чем промолчать.
+        bool blind = enemies.Count == 0;
+        // Один танк такие предметы возьмёт разве что случайно, и «одним
+        // предметом рубит полкоманды» про него уже неправда. Тот же порог, по
+        // которому смягчается штраф за перекос урона, — признак один.
+        bool willBuildResist = blind || frontline >= 2;
+        bool willBuildAnti   = blind || apEnemies >= 1;
+
         int ad = 0, ap = 0, cc = 0, heal = 0;
         foreach (var t in allyIds.Append(candidate))
         {
@@ -113,14 +136,22 @@ public static class ItemValue
 
         // Перекос типа урона: предупреждаем ТОЛЬКО пик того же типа, что стак, и только
         // когда команда почти вся одного типа (враг возьмёт броню/МР на всех).
-        if (candAd && ad >= 3 && ad - ap >= 2) { items.Add(Thornmail); items.Add(RanduinOmen); items.Add(FrozenHeart); } // броня + скорость атаки
-        else if (candAp && ap >= 3 && ap - ad >= 2) { items.Add(SpiritVisage); items.Add(KaenicRookern); }               // МР
+        if (candAd && ad >= 3 && ad - ap >= 2 && willBuildResist)
+            { items.Add(Thornmail); items.Add(RanduinOmen); items.Add(FrozenHeart); }   // броня + скорость атаки
+        else if (candAp && ap >= 3 && ap - ad >= 2 && willBuildResist)
+            { items.Add(SpiritVisage); items.Add(KaenicRookern); }                      // МР
 
         // Стак контроля: пик добавляет CC и его в команде уже ≥2 → враг возьмёт тенасити.
         if (ChampionTraits.HardCc(candidate) >= 1 && cc >= 2) items.Add(MercTreads);
 
         // Стак хила: пик хилит и хила в команде уже ≥2 → враг возьмёт гривус.
-        if (ChampionTraits.HealReliant(candidate) && heal >= 2) items.Add(candAp ? Morello : Thornmail);
+        // Гривус: Морелло покупает маг, Терновник — передняя линия. Нет ни
+        // того, ни другого — и предупреждать не о чем.
+        if (ChampionTraits.HealReliant(candidate) && heal >= 2)
+        {
+            if (candAp) { if (willBuildAnti)   items.Add(Morello); }
+            else        { if (willBuildResist) items.Add(Thornmail); }
+        }
 
         return items.Distinct().Take(5).ToList();
     }

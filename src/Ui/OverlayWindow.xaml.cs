@@ -5508,6 +5508,11 @@ public partial class OverlayWindow : Window
         var allyNoMe = draft?.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
                                     .Select(p => p.EffectiveChampionId).ToList() ?? [];
 
+        // Враги, уже показавшие чемпиона, — по ним видно, кто станет покупать
+        // предметы, которыми нас «накажут».
+        var enemyNow = draft?.TheirTeam.Where(p => p.EffectiveChampionId != 0)
+                                       .Select(p => p.EffectiveChampionId).ToList() ?? [];
+
         // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ»): лучший из пула на мою
         // роль против врагов — отдельной СИНЕЙ карточкой сверху. Дуо-пул: рядом —
         // иконка чемпиона друга (кого назвать пикнуть).
@@ -5688,7 +5693,7 @@ public partial class OverlayWindow : Window
                 ArchDim    = _allyStyle != null && candArch != _allyStyle,
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
                 CounterItems = cfg.DraftItems
-                    ? ItemValue.CounterItems(r.ChampionId, allyNoMe)
+                    ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow)
                         .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList()
                     : [],
                 // Чемпиона нет на аккаунте (только если владение вообще известно).
