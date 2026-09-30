@@ -407,17 +407,35 @@ public sealed class PoolSettingsWindow : Window
     /// В ручном режиме пул перечисляет сами связки, в авто — наборы по ролям, и
     /// парой считается любое сочетание «мой из моей половины + его из его».
     /// </summary>
-    private static Func<int, int, bool> InPool(DuoPool? d)
+    /// <summary>
+    /// «Пара задумана в пуле?» — теперь и по РОЛЯМ, если они у записи есть.
+    ///
+    /// Пул собран по линиям: мои саппорты отдельно, его стрелки отдельно. Игра,
+    /// где мы взяли тех же чемпионов, но встали иначе, к этому пулу отношения
+    /// не имеет, а считалась в нём наравне.
+    ///
+    /// Роли есть не у всех записей: до того, как их начали хранить, история
+    /// ничего о линиях не знала, и переразметить её нечем. Такие записи
+    /// проверяются как раньше — по чемпионам. Иначе накопленный счёт исчез бы с
+    /// экрана, а это выглядело бы как потеря данных.
+    /// </summary>
+    private static Func<SessionTracker.PairStat, bool> InPool(DuoPool? d)
     {
-        if (d is null) return (_, _) => false;
+        if (d is null) return _ => false;
         if (d.Manual)
         {
             var set = d.ManualPairs.Select(p => (p.Mine, p.Friend)).ToHashSet();
-            return (m, f) => set.Contains((m, f));
+            return p => set.Contains((p.MyChampionId, p.AllyChampionId));
         }
         var mine   = d.Mine.Values.SelectMany(l => l).Where(x => x != 0).ToHashSet();
         var friend = d.Friend.Values.SelectMany(l => l).Where(x => x != 0).ToHashSet();
-        return (m, f) => mine.Contains(m) && friend.Contains(f);
+        return p =>
+        {
+            if (!mine.Contains(p.MyChampionId) || !friend.Contains(p.AllyChampionId)) return false;
+            if (!p.HasRoles) return true;   // роль не сохранена — судим как раньше
+            return d.Mine.TryGetValue(p.MyRole, out var mineRole) && mineRole.Contains(p.MyChampionId)
+                && d.Friend.TryGetValue(p.AllyRole, out var hisRole) && hisRole.Contains(p.AllyChampionId);
+        };
     }
 
     /// Ниже этого числа игр процент не показываем — он ещё ничего не значит.
@@ -459,7 +477,7 @@ public sealed class PoolSettingsWindow : Window
         // сюда ради пула, значит и считать надо по нему.
         var inPool = InPool(fav);
         pairs = pairs
-            .Where(p => inPool(p.MyChampionId, p.AllyChampionId))
+            .Where(inPool)
             .OrderByDescending(p => p.Games)
             .ThenByDescending(p => p.WinRate)
             .Take(24).ToList();

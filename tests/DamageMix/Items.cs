@@ -70,9 +70,11 @@ internal static class Items
         var carries = ItemValue.CounterItems(Seraphine, ApTeam, OnlyCarries);
         Say("против одних кэрри — тоже нет", !carries.Intersect(Resists).Any(), Names(carries));
 
-        // Врагов ещё не видно (ранний драфт, блайнд) — судить не о чем.
+        // Врагов ещё не показали — показывать нечего. Владелец увидел обратное
+        // на живом драфте: состав врага пуст, а строка предметов уже полна.
+        // Предупреждение без того, кто его исполнит, — выдумка.
         var blind = ItemValue.CounterItems(Seraphine, ApTeam, []);
-        Say("пока врагов не видно — как раньше", blind.Count > 0, $"{blind.Count} шт.");
+        Say("пока врагов не видно — предметов нет", blind.Count == 0, $"{blind.Count} шт.");
 
         // Галио — и маг, и танк: он и в передней линии, и Морелло ему по руке.
         Say("танк-маг считается передней линией", ChampionTraits.IsTanky(Galio), "да");

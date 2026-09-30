@@ -190,8 +190,12 @@ public static class SessionTracker
     /// Одна связка наружу: с кем, на ком, с каким счётом.
     public sealed record PairStat(
         string AllyPuuid, string AllyName, string Queue,
-        int MyChampionId, int AllyChampionId, int Games, int Wins)
+        int MyChampionId, int AllyChampionId, int Games, int Wins,
+        string MyRole = "", string AllyRole = "")
     {
+        /// Роли известны у обеих сторон — значит по ним можно и отбирать.
+        public bool HasRoles => MyRole.Length > 0 && AllyRole.Length > 0;
+
         public double WinRate => Games > 0 ? 100.0 * Wins / Games : 0;
     }
 
@@ -416,25 +420,14 @@ public static class SessionTracker
         var res = new List<PairStat>();
         foreach (var (k, r) in acc.Pairs)
         {
-            // Ключ: puuid|очередь|мой чемпион|его чемпион. Разбираем С КОНЦА:
-            // puuid '|' не содержит, а вот делить с начала нельзя — он длинный
-            // и меняться по форме не обязан.
-            var i3 = k.LastIndexOf('|');
-            if (i3 <= 0) continue;
-            var i2 = k.LastIndexOf('|', i3 - 1);
-            if (i2 <= 0) continue;
-            var i1 = k.LastIndexOf('|', i2 - 1);
-            if (i1 <= 0) continue;
-            var pu = k[..i1];
+            if (ParsePairKey(k) is not { } p) continue;
+            var (pu, queue, mine, his, myRole, hisRole) = p;
             if (!string.IsNullOrEmpty(allyPuuid)
                 && !pu.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)) continue;
-            var queue = k[(i1 + 1)..i2];
             if (queues is { Length: > 0 } && !queues.Contains(queue)) continue;
-            if (!int.TryParse(k[(i2 + 1)..i3], out var mine)) continue;
-            if (!int.TryParse(k[(i3 + 1)..], out var his)) continue;
             var (g, w) = r.Count(since);
             if (g == 0) continue;          // в выбранное окно связка не попала
-            res.Add(new PairStat(pu, r.Name, queue, mine, his, g, w));
+            res.Add(new PairStat(pu, r.Name, queue, mine, his, g, w, myRole, hisRole));
         }
         return res.OrderByDescending(p => p.Games).ThenByDescending(p => p.WinRate)
                   .Take(take).ToList();
@@ -663,14 +656,21 @@ public static class SessionTracker
     private sealed record Ranked(bool HasRank, string Tier, string Div, int Lp, int Wins, int Losses);
     private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win, long CreatedSec);
 
-    public static async Task<SessionData?> RefreshAsync(LcuHttpClient http, CancellationToken ct)
+    /// <param name="roleShare">
+    /// Доля игр чемпиона на роли — ею достраиваются роли в прошлых играх там,
+    /// где клиент врёт (везде, кроме бот-линии). Без неё известной останется
+    /// только бот-линия: приблизительно, но честно.
+    /// </param>
+    public static async Task<SessionData?> RefreshAsync(
+        LcuHttpClient http, CancellationToken ct, Func<int, string, double>? roleShare = null)
     {
         await Gate.WaitAsync(ct);
-        try { return await RefreshCoreAsync(http, ct); }
+        try { return await RefreshCoreAsync(http, roleShare, ct); }
         finally { Gate.Release(); }
     }
 
-    private static async Task<SessionData?> RefreshCoreAsync(LcuHttpClient http, CancellationToken ct)
+    private static async Task<SessionData?> RefreshCoreAsync(
+        LcuHttpClient http, Func<int, string, double>? roleShare, CancellationToken ct)
     {
         var store = Load();
 
@@ -775,9 +775,10 @@ public static class SessionTracker
                 // чём — ровно по той же причине ARAM не входит и в винрейт по
                 // чемпионам. Заодно экономим запрос подробной игры.
                 if (h.Queue == "aram") continue;
-                foreach (var a in await FetchAlliesAsync(http, h.GameId, who!.Puuid, ct))
+                var (mates, myRole) = await FetchAlliesAsync(http, h.GameId, who!.Puuid, roleShare, ct);
+                foreach (var a in mates)
                 {
-                    var key = PairKey(a.Puuid, h.Queue, h.ChampionId, a.ChampionId);
+                    var key = PairKey(a.Puuid, h.Queue, h.ChampionId, a.ChampionId, myRole, a.Role);
                     if (!acc.Pairs.TryGetValue(key, out var rec))
                         acc.Pairs[key] = rec = new PairRec();
                     // Время игры, а не «сейчас»: наполнение задним числом идёт по
@@ -1045,8 +1046,50 @@ public static class SessionTracker
         }
     }
 
-    /// Союзник в прошлой игре: кто и на ком. Для винрейта связки.
-    private sealed record Ally(string Puuid, int ChampionId, string Name);
+    /// Союзник в прошлой игре: кто, на ком и НА КАКОЙ РОЛИ. Роль нужна связкам:
+    /// дуо-пул собирают под конкретную пару линий, а без роли все совместные
+    /// игры валились в одну кучу — мы вдвоём на боте и мы же в лесу с мидом.
+    /// Пусто — роль установить не удалось.
+    private sealed record Ally(string Puuid, int ChampionId, string Name, string Role);
+
+    /// Роли своей пятёрки в прошлой игре: participantId → роль базы.
+    ///
+    /// Клиент отдаёт `timeline.lane`/`role`, но верить им можно не везде. Замер
+    /// на живой истории (19 игр, 38 команд): все пять ролей различимы лишь в
+    /// **16%** случаев — топ-лейнеров он сплошь метит джунглерами. Надёжна одна
+    /// бот-линия: **66%**. Лучшего источника у клиента нет — `teamPosition`
+    /// отсутствует, `/timeline` отдаёт 404, в `stats` роли тоже нет.
+    ///
+    /// Поэтому берём у него то, что он знает точно (кэрри и саппорт на боте), а
+    /// остальные три роли достраиваем по доле роли чемпиона — той же
+    /// механикой, что раскладывает роли вражеской команде в драфте.
+    /// Публична ради проверки: путь «прошлая игра → роли» иначе достижим только
+    /// через живой клиент и запись в файл игрока.
+    public static Dictionary<int, string> RolesOfTeam(
+        IReadOnlyList<(int Pid, int Champ, string Lane, string Role)> team,
+        Func<int, string, double>? roleShare)
+    {
+        var res = new Dictionary<int, string>();
+
+        // 1. Бот-линия — прямо из ответа клиента, но только если она читается
+        //    однозначно: ровно один кэрри и ровно один саппорт.
+        var carry = team.Where(t => t.Lane == "BOTTOM" && t.Role == "CARRY").ToList();
+        var sup   = team.Where(t => t.Lane == "BOTTOM" && t.Role == "SUPPORT").ToList();
+        if (carry.Count == 1) res[carry[0].Pid] = "adc";
+        if (sup.Count == 1)   res[sup[0].Pid]   = "support";
+
+        // 2. Остальные — жадно по доле роли: сперва самые однозначные пары.
+        if (roleShare is null) return res;
+        var free  = team.Where(t => !res.ContainsKey(t.Pid)).ToList();
+        var roles = new[] { "top", "jungle", "mid", "adc", "support" }
+                    .Where(r => !res.ContainsValue(r)).ToList();
+        var pairs = free.SelectMany(t => roles.Select(r => (t.Pid, Role: r, Share: roleShare(t.Champ, r))))
+                        .Where(x => x.Share > 0)
+                        .OrderByDescending(x => x.Share).ToList();
+        foreach (var (pid, role, _) in pairs)
+            if (!res.ContainsKey(pid) && !res.ContainsValue(role)) res[pid] = role;
+        return res;
+    }
 
     /// <summary>
     /// Состав СВОЕЙ команды в одной прошлой игре.
@@ -1058,20 +1101,22 @@ public static class SessionTracker
     /// Ремейки отдают одного участника вместо десяти (проверено на игре в 90
     /// секунд) — тогда просто вернётся пустой список, и связок не прибавится.
     /// </summary>
-    private static async Task<List<Ally>> FetchAlliesAsync(
-        LcuHttpClient http, long gameId, string myPuuid, CancellationToken ct)
+    private static async Task<(List<Ally> Allies, string MyRole)> FetchAlliesAsync(
+        LcuHttpClient http, long gameId, string myPuuid,
+        Func<int, string, double>? roleShare, CancellationToken ct)
     {
         var allies = new List<Ally>();
+        var myRole = "";
         try
         {
             var (s, body) = await http.GetAsync($"/lol-match-history/v1/games/{gameId}", ct);
-            if (s != 200) return allies;
+            if (s != 200) return (allies, myRole);
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
             if (!root.TryGetProperty("participants", out var parts)
                 || !root.TryGetProperty("participantIdentities", out var ids)
                 || parts.ValueKind != JsonValueKind.Array
-                || ids.ValueKind != JsonValueKind.Array) return allies;
+                || ids.ValueKind != JsonValueKind.Array) return (allies, myRole);
 
             // participantId → puuid и ник. Ник берём riot-овский (gameName), а
             // если его нет — старое имя призывателя.
@@ -1095,20 +1140,39 @@ public static class SessionTracker
             foreach (var e in parts.EnumerateArray())
                 if (puuidOf.GetValueOrDefault(GetInt(e, "participantId")) == myPuuid)
                     myTeam = GetInt(e, "teamId", -1);
-            if (myTeam < 0) return allies;
+            if (myTeam < 0) return (allies, myRole);
+
+            // Роли своей пятёрки: бот-линия из ответа клиента, остальные по
+            // доле роли (см. RolesOfTeam — метки клиента верны только на боте).
+            var mine = new List<(int Pid, int Champ, string Lane, string Role)>();
+            foreach (var e in parts.EnumerateArray())
+            {
+                if (GetInt(e, "teamId", -1) != myTeam) continue;
+                string lane = "", role = "";
+                if (e.TryGetProperty("timeline", out var tl))
+                {
+                    if (tl.TryGetProperty("lane", out var l)) lane = l.GetString() ?? "";
+                    if (tl.TryGetProperty("role", out var r)) role = r.GetString() ?? "";
+                }
+                mine.Add((GetInt(e, "participantId"), GetInt(e, "championId"), lane, role));
+            }
+            var roleOf = RolesOfTeam(mine, roleShare);
 
             foreach (var e in parts.EnumerateArray())
             {
                 if (GetInt(e, "teamId", -1) != myTeam) continue;
                 var pid = GetInt(e, "participantId");
                 var pu = puuidOf.GetValueOrDefault(pid);
-                if (string.IsNullOrEmpty(pu) || pu == myPuuid) continue;
+                if (pu == myPuuid) { myRole = roleOf.GetValueOrDefault(pid, ""); continue; }
+                if (string.IsNullOrEmpty(pu)) continue;
                 var champ = GetInt(e, "championId");
-                if (champ > 0) allies.Add(new Ally(pu, champ, nameOf.GetValueOrDefault(pid, "")));
+                if (champ > 0)
+                    allies.Add(new Ally(pu, champ, nameOf.GetValueOrDefault(pid, ""),
+                                        roleOf.GetValueOrDefault(pid, "")));
             }
         }
         catch { /* подробная игра недоступна — связки просто не пополнятся */ }
-        return allies;
+        return (allies, myRole);
     }
 
     private static int GetInt(JsonElement e, string name, int fallback = 0) =>
@@ -1124,8 +1188,35 @@ public static class SessionTracker
     ///
     /// Порядок частей фиксирован, мой чемпион всегда первым.
     /// </summary>
-    private static string PairKey(string allyPuuid, string queue, int myChampion, int allyChampion) =>
-        $"{allyPuuid}|{queue}|{myChampion}|{allyChampion}";
+    /// <summary>
+    /// Разбор ключа связки. null —形а незнакомая, запись пропускаем.
+    ///
+    /// Публичен ради проверки: формат ключа — то, чем связка хранится годами, и
+    /// ошибка в нём тихо теряет накопленный счёт.
+    /// </summary>
+    public static (string Puuid, string Queue, int Mine, int His, string MyRole, string HisRole)?
+        ParsePairKey(string key)
+    {
+        // puuid '|' не содержит, поэтому делим целиком. Частей четыре или шесть:
+        // записи, сделанные до того, как роли начали храниться, короче, и
+        // переразметить их нечем — роли в истории не сохранялись.
+        var part = key.Split('|');
+        if (part.Length is not (4 or 6)) return null;
+        if (!int.TryParse(part[2], out var mine)) return null;
+        if (!int.TryParse(part[3], out var his)) return null;
+        return (part[0], part[1], mine, his,
+                part.Length == 6 ? part[4] : "",
+                part.Length == 6 ? part[5] : "");
+    }
+
+    /// Роли — в конце и только если известны обе: старые записи (без ролей)
+    /// остаются рабочими, их ключ просто короче. Переразметить их нечем — роли
+    /// в истории не хранились, — поэтому они и дальше считаются «роль неизвестна».
+    public static string PairKey(string allyPuuid, string queue, int myChampion, int allyChampion,
+                                  string myRole = "", string allyRole = "") =>
+        myRole.Length > 0 && allyRole.Length > 0
+            ? $"{allyPuuid}|{queue}|{myChampion}|{allyChampion}|{myRole}|{allyRole}"
+            : $"{allyPuuid}|{queue}|{myChampion}|{allyChampion}";
 
     // Последние игры из истории LCU: gameId, очередь, чемпион, победа.
     private static async Task<List<HistEntry>> FetchHistoryAsync(LcuHttpClient http, CancellationToken ct)

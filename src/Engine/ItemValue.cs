@@ -167,15 +167,19 @@ public static class ItemValue
                                                   Func<int, IReadOnlyCollection<int>?>? buildOf = null)
     {
         var enemies = enemyIds ?? [];
-        // Врагов ещё не видно (ранний драфт, блайнд) — судить не о чем, ведём
-        // себя как раньше: лучше предупредить, чем промолчать.
-        bool blind = enemies.Count == 0;
         var foes = enemies.Select(e => Describe(e, buildOf)).ToList();
 
         // Кто у врага купит ИМЕННО ЭТОТ предмет: подходит по роли в бою И правда
         // его собирает. Про кого сборок нет — судим по роли, как раньше.
+        //
+        // Врагов ещё не показали — не показываем НИЧЕГО. Сначала тут стояло
+        // «судить не о чем, лучше предупредить», и на пустом составе вылезал
+        // весь список. Владелец: «врагов ещё не выбрало, а итемы уже
+        // показывает — мы же договорились, что только те, которые смогут
+        // собрать враги». Договорённость сильнее: предупреждение без того, кто
+        // его исполнит, — это не осторожность, а выдумка.
         bool Buys(int item, Func<Foe, bool> who) =>
-            blind || foes.Any(f => who(f) && (f.Build is null || f.Build.Contains(item)));
+            foes.Any(f => who(f) && (f.Build is null || f.Build.Contains(item)));
 
         int frontline = foes.Count(f => f.Frontline);
 
@@ -194,7 +198,7 @@ public static class ItemValue
         // Один танк такие предметы возьмёт разве что случайно, и «одним предметом
         // рубит полкоманды» про него уже неправда. Тот же порог, по которому
         // смягчается штраф за перекос урона, — признак один.
-        bool twoTanks = blind || frontline >= 2;
+        bool twoTanks = frontline >= 2;
         void Resist(int item) { if (twoTanks && Buys(item, f => f.Frontline)) stack.Add(item); }
 
         // Перекос типа урона: предупреждаем ТОЛЬКО пик того же типа, что стак, и только
@@ -220,7 +224,7 @@ public static class ItemValue
         // Сначала ответы на САМ пик — карточка про него и есть, — но два места
         // остаются за предупреждением о перекосе команды: оно сюда и ставилось.
         return stack.Take(2)
-                    .Concat(AgainstThisPick(candidate, foes, blind, Buys))
+                    .Concat(AgainstThisPick(candidate, foes, Buys))
                     .Concat(stack.Skip(2))
                     .Distinct().Take(5).ToList();
     }
@@ -270,7 +274,7 @@ public static class ItemValue
     /// подбрасывающим он не ответ.
     /// </summary>
     private static List<int> AgainstThisPick(
-        int candidate, IReadOnlyList<Foe> foes, bool blind, Func<int, Func<Foe, bool>, bool> Buys)
+        int candidate, IReadOnlyList<Foe> foes, Func<int, Func<Foe, bool>, bool> Buys)
     {
         var it = new List<int>();
         void Add(bool when, int item) { if (when) it.Add(item); }

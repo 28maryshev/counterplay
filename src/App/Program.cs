@@ -859,7 +859,11 @@ class Program
         // Трекер сессии для экрана ожидания (ранг/LP/последние игры/винрейт).
         async Task RefreshSessionAsync()
         {
-            try { overlay.ShowSession(await SessionTracker.RefreshAsync(http, ct)); }
+            // Доля роли — из движка: ею достраиваются роли в прошлых играх.
+            // Клиент их отдаёт, но верны они только на бот-линии, остальное он
+            // путает (замер: полная раскладка сходится в 16% команд).
+            Func<int, string, double>? shares = engine is null ? null : engine.RoleShare;
+            try { overlay.ShowSession(await SessionTracker.RefreshAsync(http, ct, shares)); }
             catch { /* LCU временно недоступен — пропускаем обновление */ }
         }
         await RefreshSessionAsync();
