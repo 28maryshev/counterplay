@@ -11,8 +11,10 @@ namespace Counterplay;
 /// </summary>
 public static class ItemIcons
 {
-    // Набор = все предметы, что может вернуть ItemValue.CounterItems.
-    private static readonly int[] Ids = [3111, 3165, 3075, 3143, 3110, 3065, 2504];
+    // Набор = все предметы, что может вернуть ItemValue.CounterItems. Список
+    // берём ИЗ НЕГО, а не переписываем сюда: пока он был отдельной строкой, у
+    // нового предмета не оказывалось иконки — и он молча пропадал из показа.
+    public static readonly int[] Ids = ItemValue.All;
     private static readonly Dictionary<int, ImageSource> _icons = new();
 
     // Картинки кэшируем ПО ПАТЧУ: Riot их перерисовывает, а кэш по одному id

@@ -89,9 +89,61 @@ public static class ItemValue
         return (balBonus - stackPen, stackPen > 0.01, candAd);
     }
 
-    // ID предметов Data Dragon.
-    private const int MercTreads = 3111, Morello = 3165, Thornmail = 3075,
-                      RanduinOmen = 3143, FrozenHeart = 3110, SpiritVisage = 3065, KaenicRookern = 2504;
+    // ID предметов Data Dragon. Каждый сверен с item.json патча 16.19.1: есть на
+    // Ущелье, финальный (не заготовка), и делает ровно то, что написано рядом.
+    // Сверка нужна не для порядка: на ней отвалились два предположения по
+    // памяти — Микаэль не снимает подбросы, а Ртуть снимает подавление.
+    private const int
+        // ── Сопротивление: их берёт передняя линия ──────────────────────────
+        Thornmail     = 3075, // броня + шипы + гривус по бьющему
+        RanduinOmen   = 3143, // броня, −30% урона от критов
+        FrozenHeart   = 3110, // броня, −20% скорости атаки вокруг
+        SpiritVisage  = 3065, // МР + усиление лечения на себе
+        KaenicRookern = 2504, // МР + магический щит, если давно не получал магии
+        ForceOfNature = 4401, // МР стаком за полученную магию
+        Steelcaps     = 3047, // ботинки: −10% урона от автоатак
+        MercTreads    = 3111, // ботинки: 30% стойкости
+
+        // ── Снять контроль ──────────────────────────────────────────────────
+        Mikael        = 3222, // с союзника — КРОМЕ подброса и подавления
+        Qss           = 3140, // с себя — кроме подброса (подавление снимает)
+        Sterak        = 3053, // 20% стойкости + щит на низком ХП, для бойца
+
+        // ── Заблокировать заклинание ────────────────────────────────────────
+        Banshee       = 3102, // щит от одного заклинания, AP-цена
+        EdgeOfNight   = 3814, // тот же щит, AD-цена с летальностью
+
+        // ── Пережить взрыв ──────────────────────────────────────────────────
+        Zhonya        = 3157, // стазис 2,5 с
+        SeraphEmbrace = 3040, // щит на низком ХП, для мага на мане
+        GuardianAngel = 3026, // воскрешение
+        Shieldbow     = 6673, // щит на низком ХП, для крит-стрелка
+        Maw           = 3156, // щит от магического урона на низком ХП
+        WitsEnd       = 3091, // МР + стойкость + магический он-хит
+
+        // ── Гривус: у каждого покупателя свой ───────────────────────────────
+        Morello       = 3165, // магу
+        MortalReminder= 3033, // крит-стрелку
+        Chempunk      = 6609, // бойцу/убийце
+        ChemPutrifier = 3011, // энчантеру
+
+        // ── Прочее ──────────────────────────────────────────────────────────
+        SerpentFang   = 6695, // срезает щиты
+        Anathema      = 8001; // −урон от ОДНОГО выбранного врага
+
+    /// <summary>
+    /// Все предметы, какие может вернуть <see cref="CounterItems"/>.
+    /// Единственный источник для предзагрузки иконок: пока списки жили порознь,
+    /// новый предмет попадал в подбор, но иконки к нему не было — и он молча
+    /// пропадал из строки.
+    /// </summary>
+    public static readonly int[] All =
+    [
+        Thornmail, RanduinOmen, FrozenHeart, SpiritVisage, KaenicRookern, ForceOfNature,
+        Steelcaps, MercTreads, Mikael, Qss, Sterak, Banshee, EdgeOfNight,
+        Zhonya, SeraphEmbrace, GuardianAngel, Shieldbow, Maw, WitsEnd,
+        Morello, MortalReminder, Chempunk, ChemPutrifier, SerpentFang, Anathema,
+    ];
 
     /// Предметы, которыми враг накажет команду, ЕСЛИ взять этот пик. Показываем строкой
     /// иконок под описанием. Смысл — предупреждение о СТАКЕ: одним предметом враг рубит
@@ -132,28 +184,161 @@ public static class ItemValue
         }
         bool candAd = DataDragon.IsAdChampion(candidate);
         bool candAp = DataDragon.IsApChampion(candidate);
-        var items = new List<int>();
+        var stack = new List<int>();
 
         // Перекос типа урона: предупреждаем ТОЛЬКО пик того же типа, что стак, и только
         // когда команда почти вся одного типа (враг возьмёт броню/МР на всех).
         if (candAd && ad >= 3 && ad - ap >= 2 && willBuildResist)
-            { items.Add(Thornmail); items.Add(RanduinOmen); items.Add(FrozenHeart); }   // броня + скорость атаки
+            { stack.Add(Thornmail); stack.Add(RanduinOmen); stack.Add(FrozenHeart); }   // броня + скорость атаки
         else if (candAp && ap >= 3 && ap - ad >= 2 && willBuildResist)
-            { items.Add(SpiritVisage); items.Add(KaenicRookern); }                      // МР
+            { stack.Add(KaenicRookern); stack.Add(ForceOfNature); stack.Add(SpiritVisage); } // МР
 
         // Стак контроля: пик добавляет CC и его в команде уже ≥2 → враг возьмёт тенасити.
-        if (ChampionTraits.HardCc(candidate) >= 1 && cc >= 2) items.Add(MercTreads);
+        if (ChampionTraits.HardCc(candidate) >= 1 && cc >= 2) stack.Add(MercTreads);
 
         // Стак хила: пик хилит и хила в команде уже ≥2 → враг возьмёт гривус.
         // Гривус: Морелло покупает маг, Терновник — передняя линия. Нет ни
         // того, ни другого — и предупреждать не о чем.
         if (ChampionTraits.HealReliant(candidate) && heal >= 2)
         {
-            if (candAp) { if (willBuildAnti)   items.Add(Morello); }
-            else        { if (willBuildResist) items.Add(Thornmail); }
+            if (candAp) { if (willBuildAnti)   stack.Add(Morello); }
+            else        { if (willBuildResist) stack.Add(Thornmail); }
         }
 
-        return items.Distinct().Take(5).ToList();
+        // Сначала ответы на САМ пик — карточка про него и есть, — но два места
+        // остаются за предупреждением о перекосе команды: оно сюда и ставилось.
+        return stack.Take(2)
+                    .Concat(AgainstThisPick(candidate, enemies, blind))
+                    .Concat(stack.Skip(2))
+                    .Distinct().Take(5).ToList();
+    }
+
+    /// <summary>
+    /// Предметы против САМОГО пика, а не против перекоса команды.
+    ///
+    /// Прежняя таблица знала только про стаки — урон одного типа, контроль,
+    /// хил. Но чаще всего враг покупает ответ на КОНКРЕТНОГО чемпиона: на
+    /// провокацию Раммуса берут Микаэля, на хук — Банши. Владелец это и просил
+    /// добавить.
+    ///
+    /// Каждое правило — пара условий: что в пике приглашает предмет и КТО у
+    /// врага его купит. Без второго условия список снова повиснет в пустоте.
+    /// Действие предметов сверено с их описаниями в item.json, а не взято по
+    /// памяти: Микаэль, например, НЕ снимает подбросы и подавление, поэтому
+    /// подбрасывающим он не ответ.
+    /// </summary>
+    private static List<int> AgainstThisPick(
+        int candidate, IReadOnlyList<int> enemies, bool blind)
+    {
+        // Кто у врага что покупает. Один предмет редко подходит всем: Морелло
+        // носит маг, Напоминание о смерти — крит-стрелок, Бензопилу — боец,
+        // а Химтех-гнилушку — энчантер. Считаем эти четыре роли отдельно,
+        // иначе снова получится «предмет, который некому купить».
+        int enchanters = 0, mages = 0, marksmen = 0, fighters = 0, assassins = 0, frontline = 0;
+        foreach (var e in enemies)
+        {
+            bool tanky = ChampionTraits.IsTanky(e);
+            if (tanky) frontline++;
+            if (ChampionTraits.Peel(e) >= 1) enchanters++;                // хил/щит/пил
+            if (tanky) continue;                                          // танк своё уже получил
+            if (DataDragon.IsApChampion(e)) mages++;
+            else if (ChampionTraits.AutoReliant(e)) marksmen++;
+            else if (!DataDragon.IsAdChampion(e)) { }
+            else if (DataDragon.ClassTags(e).Contains("Assassin")) assassins++;
+            else fighters++;
+        }
+        int lethality = fighters + assassins;   // кому по руке летальность
+        bool Any(int n) => blind || n >= 1;
+
+        var it = new List<int>();
+        void Add(bool when, int item) { if (when) it.Add(item); }
+
+        bool candAp   = DataDragon.IsApChampion(candidate);
+        bool suppress = ChampionTraits.Suppresses(candidate);
+
+        // ── Снять контроль ─────────────────────────────────────────────────
+        // Микаэль снимает станы, корни, провокации — но НЕ подбросы и НЕ
+        // подавление (так в описании предмета). Раммусу с его провокацией он
+        // ответ, Мальфиту с подбросом — нет, и предлагать его там было бы
+        // враньём.
+        Add(ChampionTraits.CleansableCc(candidate) && Any(enchanters), Mikael);
+        // Подавление Микаэлем не снять, Ртутью — снять. Её берёт тот, на кого
+        // ульт и нацелен: керри.
+        Add(suppress && Any(marksmen + lethality + mages), Qss);
+
+        // ── Гривус ─────────────────────────────────────────────────────────
+        // Самая однозначная покупка в игре: хил на той стороне — и предмет
+        // берут в первые же минуты. Поэтому идёт вперёд остальных.
+        // Показываем ДВА — те, под чьих покупателей во вражеском составе людей
+        // больше: одним гривусом обходятся редко, четырьмя — никогда.
+        if (ChampionTraits.HealReliant(candidate))
+        {
+            (int Buyers, int Item)[] grievous =
+            [
+                (mages,      Morello),          // магу
+                (marksmen,   MortalReminder),   // крит-стрелку
+                (fighters,   Chempunk),         // бойцу
+                (enchanters, ChemPutrifier),    // энчантеру
+            ];
+            it.AddRange(grievous.Where(g => Any(g.Buyers))
+                                .OrderByDescending(g => g.Buyers)
+                                .Take(2).Select(g => g.Item));
+            // Терновник вешает гривус сам, но только на того, кто его бьёт.
+            Add(ChampionTraits.AutoReliant(candidate) && Any(frontline), Thornmail);
+        }
+
+        // ── Заблокировать заклинание ───────────────────────────────────────
+        // Щит от заклинания гасит ОДНО умение — значит он ответ тем, у кого с
+        // одного умения всё и начинается: хук, подавление, стан под взрыв. И
+        // он же единственный ответ на подброс: его не снять и не укоротить.
+        bool oneSpell = ChampionTags.Has(candidate, "hook") || suppress
+                        || ChampionTraits.DisplacementCc(candidate)
+                        || (ChampionTraits.HardCc(candidate) >= 2 && ChampionTraits.BurstThreat(candidate));
+        Add(oneSpell && Any(mages),     Banshee);       // магу по руке Банши
+        Add(oneSpell && Any(lethality), EdgeOfNight);   // убийце и бойцу — Грань ночи
+
+        // ── Пережить взрыв ─────────────────────────────────────────────────
+        if (ChampionTraits.BurstThreat(candidate))
+        {
+            if (candAp)
+            {
+                Add(Any(mages),     Zhonya);          // маг уходит в стазис
+                Add(Any(marksmen),  WitsEnd);         // стрелку — МР и стойкость
+                Add(Any(lethality), Maw);             // бойцу — щит именно от магии
+                Add(Any(frontline), KaenicRookern);
+            }
+            else
+            {
+                Add(Any(marksmen),  GuardianAngel);   // стрелку — воскрешение
+                Add(Any(marksmen),  Shieldbow);
+                Add(Any(mages),     Zhonya);
+                Add(Any(mages),     SeraphEmbrace);   // магу на мане — щит от смерти
+            }
+        }
+
+        // ── Пережить автоатаки ─────────────────────────────────────────────
+        if (ChampionTraits.AutoReliant(candidate))
+        {
+            it.Add(Steelcaps);                        // ботинки берут все
+            Add(Any(frontline), RanduinOmen);         // −30% урона от критов
+            Add(Any(frontline), FrozenHeart);         // −20% скорости атаки
+        }
+
+        // ── Срезать щиты ───────────────────────────────────────────────────
+        // Клык — предмет летальности: его носят убийцы и бойцы, не танки.
+        Add(ChampionTraits.ShieldReliant(candidate) && Any(lethality), SerpentFang);
+
+        // ── Пересидеть контроль ────────────────────────────────────────────
+        // Стойкость укорачивает стан и корень, но НЕ подброс, — поэтому только
+        // снимаемый контроль. Боец не убегает, он переживает.
+        Add(ChampionTraits.CleansableCc(candidate) && Any(fighters), Sterak);
+
+        // ── Один чемпион давит всю игру ────────────────────────────────────
+        // Цепи работают против ОДНОГО выбранного врага — их берёт передняя
+        // линия против гиперкэрри, которого иначе не пережить.
+        Add(ChampionTags.Has(candidate, "hypercarry") && (blind || frontline >= 1), Anathema);
+
+        return it;
     }
 
     /// Категория, которую враг вынужден контрить предметом (если стак ≥2).
