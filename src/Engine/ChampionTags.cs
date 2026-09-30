@@ -1,4 +1,4 @@
-namespace Counterplay;
+﻿namespace Counterplay;
 
 // Теги ключевых чемпионов для семантической синергии.
 // Идентификаторы по championId из LCU / Data Dragon.
@@ -10,7 +10,11 @@ public static class ChampionTags
         [412] = ["hook", "engage", "cc"],              // Thresh
         [111] = ["hook", "engage", "hard_cc"],         // Nautilus
         [53]  = ["hook", "engage", "cc"],              // Blitzcrank
-        [555] = ["hook", "cc", "roam"],                // Pyke
+        // Пайк стоял в одном ряду с Трешем и Блицкранком — как хук-ТАНК. Но у
+        // Riot он Support+Assassin, и полкита не было записано вовсе:
+        // невидимость на W, рывок на E, добивающий ульт. Без них архетип
+        // считался чистым подловом, хотя дайва в нём не меньше.
+        [555] = ["hook", "cc", "roam", "burst", "stealth", "mobility"], // Pyke
         [89]  = ["engage", "hard_cc"],                 // Leona
         [526] = ["engage", "hard_cc"],                 // Rell
         [497] = ["engage", "cc", "xayah_pair"],        // Rakan
