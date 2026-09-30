@@ -178,22 +178,8 @@
     <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
          Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
          а не смыканием дуг. Левая половина синяя, правая красная. -->
-    <!-- Подсказка в фирменном виде: системная плашка с жёлтым фоном выбивается
-         из окна, поэтому у объяснений свой шаблон — как у панелей приложения. -->
-    <Style x:Key="HintTip" TargetType="ToolTip">
-      <Setter Property="Foreground" Value="#D7DEE6"/>
-      <Setter Property="HasDropShadow" Value="False"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ToolTip">
-            <Border Background="#F2141C28" BorderBrush="#4436D6E7" BorderThickness="1"
-                    CornerRadius="8" Padding="11,9">
-              <ContentPresenter/>
-            </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
+    <!-- Фирменный вид подсказок переехал в src/Ui/Theme.xaml и стал стилем БЕЗ
+         ключа: теперь его подхватывает каждая подсказка сама, в любом окне. -->
 
     <DrawingImage x:Key="BrandMark">
       <DrawingImage.Drawing>
@@ -1479,8 +1465,9 @@
                                   <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                       <Border CornerRadius="3" Margin="0,0,4,0"
-                                              BorderBrush="#4A3A22" BorderThickness="1">
-                                        <Image Source="{Binding}" Width="22" Height="22"/>
+                                              BorderBrush="#4A3A22" BorderThickness="1"
+                                              ToolTip="{Binding Name}">
+                                        <Image Source="{Binding Icon}" Width="22" Height="22"/>
                                       </Border>
                                     </DataTemplate>
                                   </ItemsControl.ItemTemplate>
@@ -2107,7 +2094,7 @@
                              заголовок и причины. Системная подсказка одной строкой
                              выглядела чужой рядом с нашей. -->
                         <Border.ToolTip>
-                          <ToolTip Style="{StaticResource HintTip}">
+                          <ToolTip>
                             <StackPanel MaxWidth="270">
                               <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
                                          FontFamily="{StaticResource UiFont}" FontSize="11"
@@ -2191,7 +2178,7 @@
                                              FontSize="9" FontWeight="Bold" Foreground="#36D6E7"
                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                   <Border.ToolTip>
-                                    <ToolTip Style="{StaticResource HintTip}">
+                                    <ToolTip>
                                       <StackPanel MaxWidth="270">
                                         <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
                                                    FontFamily="{StaticResource UiFont}" FontSize="11"
@@ -2232,7 +2219,7 @@
                                           ToolTipService.InitialShowDelay="200"
                                           ToolTipService.ShowDuration="30000">
                                     <Border.ToolTip>
-                                      <ToolTip Style="{StaticResource HintTip}">
+                                      <ToolTip>
                                         <StackPanel MaxWidth="300">
                                           <!-- Шапка как в клиенте: иконка, название,
                                                цена с монетой справа. -->

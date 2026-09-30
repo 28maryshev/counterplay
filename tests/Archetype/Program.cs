@@ -39,8 +39,12 @@ internal static class Program
     /// Известные дыры, до которых ещё не дошли руки. Список нарочно отдельный
     /// от предыдущего: там «мы так решили», а здесь «мы это видим и не
     /// поправили». Проверка следит, чтобы он не РОС.
+    ///
+    /// Сейчас пуст: Ари, Ясуо и Йоне разобраны следом за Пайком. У Ясуо и Йоне
+    /// теги заводились ради одной связки с подбросом и больше ничего не
+    /// описывали; Ари числилась поук-магом без взрыва и подвижности.
     /// </summary>
-    private static readonly HashSet<int> KnownGaps = [103, 157, 777]; // Ари, Ясуо, Йоне
+    private static readonly HashSet<int> KnownGaps = [];
 
     [STAThread]
     private static int Main()
@@ -78,10 +82,22 @@ internal static class Program
         Console.WriteLine("  (убийцы без признаков дайва: "
                           + (gaps.Count == 0 ? "нет" : string.Join(", ", gaps.Select(DataDragon.Name))) + ")");
 
-        Check("новых дыр не появилось", gaps.All(KnownGaps.Contains),
-              string.Join(", ", gaps.Where(g => !KnownGaps.Contains(g)).Select(DataDragon.Name)) is { Length: > 0 } s
-                  ? "новые: " + s : "нет");
-        Check("   и Пайка среди них больше нет", !gaps.Contains(Pyke), Where(Pyke));
+        Check("дыр не осталось", gaps.Count == 0 && KnownGaps.Count == 0,
+              gaps.Count == 0 ? "да" : "есть: " + string.Join(", ", gaps.Select(DataDragon.Name)));
+
+        // Кого разобрали поимённо — тот и должен оказаться в своей трети.
+        foreach (var (id, want) in new[]
+                 {
+                     (Pyke,  ChampionTraits.Arch.Dive),
+                     (157,   ChampionTraits.Arch.Dive),      // Ясуо
+                     (777,   ChampionTraits.Arch.Dive),      // Йоне
+                 })
+            Check($"   {DataDragon.Name(id)} — {want}", ChampionTraits.ChampArch(id) == want, Where(id));
+
+        // Ари осталась подловом, и это не недосмотр: её Q — настоящий поук, а
+        // перевес вышел узкий. Важно, что взрыв и подвижность у неё теперь есть.
+        Check("   у Ари появились взрыв и подвижность",
+              ChampionTags.Has(103, "burst") && ChampionTags.Has(103, "mobility"), Where(103));
 
         // Список известных дыр должен таять, а не жить вечно: если его чистили,
         // проверку надо поправить следом.

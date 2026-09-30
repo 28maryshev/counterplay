@@ -101,6 +101,24 @@ internal static class Program
               notEngagers.Count == 0 ? "да" : string.Join(", ", notEngagers.Take(6)));
         }
 
+        // ── Связка Калисты держится на её саппорте ─────────────────────────
+        //
+        // Владелец: «Калиста делает связку обычно только с саппортом и
+        // закидывает его». Клятвенный выбирается в начале игры и всегда тот,
+        // кто стоит с ней на линии. Правило же брало любого союзника с заходом,
+        // и в пару к ней попадал топ-лейнер, которого она никогда не бросит.
+        const int Kalista = 429, Maokai = 57, Soraka = 16;
+        bool HasKalistaCombo((int, string)[] team) =>
+            TeamSynergies.Detect(team.ToList(), forAlly: true)
+                         .Any(c => c.ChampionIds.Contains(Kalista));
+
+        Check("Калиста + заход на саппорте — связка есть",
+              HasKalistaCombo([(Kalista, "adc"), (Maokai, "support"), (54, "top")]), "");
+        Check("   тот же заход на ТОПЕ — связки нет",
+              !HasKalistaCombo([(Kalista, "adc"), (Maokai, "top"), (Soraka, "support")]), "");
+        Check("   саппорт без захода — связки нет",
+              !HasKalistaCombo([(Kalista, "adc"), (Soraka, "support"), (54, "top")]), "");
+
         // ── Сама связка распознаётся ───────────────────────────────────────
         var pair = TeamSynergies.ExplainPair(Malphite, Yasuo, "mid");
         Check("связка Мальфит+Ясуо распознана", pair is not null, pair?.Kind ?? "нет");

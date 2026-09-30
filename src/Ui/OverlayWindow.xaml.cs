@@ -1742,8 +1742,15 @@ public partial class OverlayWindow : Window
         // Связки, в которые кандидат войдёт своим пиком: те самые цветные полоски
         // под его иконкой. Цвет и место скобки — как у готовых связок, новая
         // встаёт следующей за ними.
-        var ids  = _allyIdsNow.Contains(champId) ? _allyIdsNow : [.. _allyIdsNow, champId];
-        var team = ids.Select(id => (Id: id, Role: "")).ToList();
+        // Роли передаём настоящие: связки бывают привязаны к линии — ульт
+        // Калисты забрасывает только её саппорта, и без роли правило не
+        // отличит его от кого угодно с заходом. Роль кандидата — моя.
+        var team = _lastDraft.MyTeam
+            .Where(p => p.EffectiveChampionId != 0 && p.EffectiveChampionId != champId)
+            .Select(p => (Id: p.EffectiveChampionId,
+                          Role: RecommendationEngine.LcuToDbRole(p.Position)))
+            .ToList();
+        team.Add((champId, RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition)));
         int nextSlot = _comboColors.Count;
         var fresh = new List<TeamCombo>();
 
@@ -1781,7 +1788,11 @@ public partial class OverlayWindow : Window
 
             var syn = _engine.PairSynergy(champId, myRole, ally,
                                           RecommendationEngine.LcuToDbRole(p.Position));
-            if (syn >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
+            // Минус показываем наравне с плюсом. Раньше рисовался только плюс, и
+            // «пара играет хуже среднего» выглядело ровно как «данных нет» —
+            // два разных ответа одной пустотой. У врага красное кольцо есть, у
+            // союзника не было.
+            if (Math.Abs(syn) >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
             // Смысловая связка есть, а прибавки в винрейте нет (энчантер + кэрри
             // выигрывают не чаще среднего) — отмечаем бирюзой, без числа: пара
             // работает по механикам, но статистикой это не подтверждается.
@@ -1991,14 +2002,21 @@ public partial class OverlayWindow : Window
 
     // Портрет союзника, с которым кандидат хорошо играет: чем сильнее пара, тем
     // ярче и шире зелёное свечение. Под портретом — сама величина в пунктах.
+    /// <summary>
+    /// Кольцо и число у союзника: насколько пара с ним сильнее (или слабее)
+    /// среднего. Цвет по знаку — как у врагов: зелёное «вместе лучше», красное
+    /// «вместе хуже». Молчание теперь значит ровно одно — данных нет.
+    /// </summary>
     private void DrawAllySynergy(int row, double syn)
     {
         if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
         // (36, 42) — центр портрета в координатах слота (см. DrawTeamLines)
         var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
 
-        var strength = Math.Min(1.0, syn / 3.0);
-        var green = System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B);
+        var strength = Math.Min(1.0, Math.Abs(syn) / 3.0);
+        // Те же два цвета, что у вражеских портретов: один язык на обе стороны.
+        var green = syn >= 0 ? System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B)
+                             : System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x5E);
 
         var glow = new SolidColorBrush(green) { Opacity = 0.35 + 0.6 * strength };
         glow.Freeze();
@@ -2011,7 +2029,7 @@ public partial class OverlayWindow : Window
 
         var num = new TextBlock
         {
-            Text = "+" + syn.ToString("F1"),
+            Text = (syn >= 0 ? "+" : "") + syn.ToString("F1"),
             Foreground = new SolidColorBrush(green) { Opacity = 0.6 + 0.4 * strength },
             FontSize = 11, FontWeight = FontWeights.Bold,
             Effect = new System.Windows.Media.Effects.DropShadowEffect
@@ -5734,7 +5752,8 @@ public partial class OverlayWindow : Window
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
                 CounterItems = cfg.DraftItems
                     ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow, BuildOf)
-                        .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList()
+                        .Select(id => new CounterItemVm(ItemIcons.Get(id), ItemIcons.NameOf(id)))
+                        .Where(x => x.Icon != null).ToList()
                     : [],
                 // Чемпиона нет на аккаунте (только если владение вообще известно).
                 NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId),
@@ -6388,6 +6407,12 @@ public sealed class TierRoleCol
     public List<TierCell>   TierCells { get; init; } = [];   // по meta-score, с грейдами
 }
 
+/// <summary>
+/// Значок контр-предмета с названием. Предметов в таблице два десятка, и по
+/// картинке узнаётся далеко не каждый — название всплывает при наведении.
+/// </summary>
+public sealed record CounterItemVm(ImageSource? Icon, string Name);
+
 public sealed class FullRecCard
 {
     public int          ChampionId { get; init; }   // для hover/lock в клиенте
@@ -6432,7 +6457,9 @@ public sealed class FullRecCard
     public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
 
     // Иконки предметов, которыми враг контрит состав (см. ItemValue.CounterItems).
-    public List<ImageSource> CounterItems { get; init; } = [];
+    // С названием: предметов в таблице два десятка, и по значку узнаётся далеко
+    // не каждый — название всплывает при наведении.
+    public List<CounterItemVm> CounterItems { get; init; } = [];
     public Visibility CounterItemsVisibility =>
         CounterItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 

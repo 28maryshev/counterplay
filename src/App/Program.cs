@@ -89,6 +89,13 @@ class Program
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         var app     = new System.Windows.Application();
+        // Общий вид для всех окон: подсказки в фирменной плашке, а не системной.
+        // Окна пулов, настроек и подтверждения собраны кодом, своей разметки у
+        // них нет, и стиль до них доходит только отсюда.
+        app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+        {
+            Source = new Uri("/src/Ui/Theme.xaml", UriKind.Relative),
+        });
         var overlay = new OverlayWindow();
 
         // Автозапуск с Windows: стартуем свёрнутыми в трей. Показывать окно

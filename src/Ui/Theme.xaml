@@ -1,0 +1,48 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Общий вид для ВСЕХ окон программы. Словарь подмешивается в ресурсы
+    приложения на старте (см. Program.cs), поэтому действует и в оверлее, и в
+    окнах пулов, настроек и подтверждения — там разметки нет, окна собраны
+    кодом, и до сих пор им доставалось системное оформление.
+  -->
+
+  <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+
+  <!--
+    Всплывающая подсказка.
+
+    Стиль БЕЗ ключа — значит его подхватывает каждая подсказка сама, включая
+    короткие `ToolTip="Имя"`, которых в программе большинство. Раньше фирменный
+    вид был только у трёх развёрнутых объяснений, а остальные выходили
+    системной жёлто-белой плашкой посреди тёмного окна: на портретах чемпионов
+    это особенно било в глаза.
+
+    Тень системную гасим: у плашки своя рамка, а тень поверх прозрачного
+    оверлея оставляет серый ореол.
+  -->
+  <Style TargetType="ToolTip">
+    <Setter Property="Foreground" Value="#D7DEE6"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="HasDropShadow" Value="False"/>
+    <Setter Property="Placement" Value="Bottom"/>
+    <Setter Property="HorizontalOffset" Value="2"/>
+    <Setter Property="VerticalOffset" Value="4"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToolTip">
+          <Border Background="#F2141C28" BorderBrush="#4436D6E7" BorderThickness="1"
+                  CornerRadius="8" Padding="11,9">
+            <!-- Содержимое не трогаем: развёрнутые подсказки (руны, сборка)
+                 верстают себя сами, и общий перенос по словам сломал бы им
+                 раскладку. Короткие имена в переносе не нуждаются. -->
+            <ContentPresenter/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+</ResourceDictionary>

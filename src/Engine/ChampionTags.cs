@@ -69,11 +69,17 @@ public static class ChampionTags
 
         // ── Midlaners ─────────────────────────────────────────────────────────
         [61]  = ["ult_orianna", "poke"],               // Orianna
-        [157] = ["ult_airborne", "dash"],              // Yasuo
-        [777] = ["ult_airborne", "dash"],              // Yone
+        // У Ясуо и Йоне теги заводились ради одной связки — «ульт по
+        // подброшенным», — и кроме неё они не описывали ничего. Riot считает
+        // обоих убийцами, и оба ныряют: Ясуо дэшем через миньонов, Йоне —
+        // рывком души и ультом сквозь строй. Без этого оба числились подловом.
+        [157] = ["ult_airborne", "dash", "dive", "mobility"],   // Yasuo
+        [777] = ["ult_airborne", "dash", "dive", "mobility", "burst"], // Yone
         [54]  = ["engage", "hard_cc", "ult_malphite"], // Malphite
         [134] = ["poke", "zone_control", "burst", "cc"], // Syndra (пик-маг, не дайв)
-        [103] = ["poke", "cc"],                        // Ahri
+        // Ари — не поук-маг: она заходит чармом, снимает цель и уходит тремя
+        // рывками ульта. Ни взрыва, ни подвижности в тегах не было.
+        [103] = ["poke", "cc", "burst", "mobility"],   // Ahri
         [84]  = ["dive", "burst"],                     // Akali
         [105] = ["dive", "burst"],                     // Fizz
         [85]  = ["engage", "hard_cc", "dive"],         // Kennen (AoE-стан R/W-проки)

@@ -215,8 +215,17 @@ public static class TeamSynergies
                 Loc.T("combo.lovers.desc"),
                 forAlly ? Loc.T("combo.lovers.tipAlly") : Loc.T("combo.lovers.tipEnemy")));
 
-        // 2c. «Зов судьбы»: Калиста забрасывает энгейдж-союзника в тыл врага.
-        var kalistaMates = ids.Where(id => id != Kalista && (Has(id, "engage") || Hooks.Contains(id))).ToList();
+        // 2c. «Зов судьбы»: Калиста забрасывает Клятвенного в тыл врага.
+        //
+        // Клятвенный — НЕ любой союзник с заходом: связь заключается в начале
+        // игры и всегда с тем, кто стоит с ней на линии, то есть с саппортом.
+        // Владелец: «Калиста делает связку обычно только с саппортом и
+        // закидывает его». Раньше правило брало кого угодно с заходом, и в
+        // пару к ней попадал топ-лейнер, которого она никогда не бросит.
+        var kalistaMates = team
+            .Where(t => t.Id != Kalista && t.Role == "support"
+                        && (Has(t.Id, "engage") || Hooks.Contains(t.Id)))
+            .Select(t => t.Id).ToList();
         if (ids.Contains(Kalista) && kalistaMates.Count > 0)
             combos.Add(new TeamCombo(
                 Loc.T("combo.kalista.name"),
