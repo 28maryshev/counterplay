@@ -66,3 +66,6 @@ journal/
 data-slice.db
 data-slice.db.gz
 pipeline/.ddragon-names.json
+
+# Временный проект, который WPF создаёт при полной пересборке
+*_wpftmp.csproj

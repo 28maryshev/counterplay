@@ -657,7 +657,7 @@ public sealed class RecommendationEngine : IDisposable
                 // Тоже ЧИСТАЯ (минус собственная база): «пара играет лучше, чем этот
                 // чемпион в среднем», а не «сильный чемпион хорош с кем угодно».
                 var synRaw = allyData
-                    .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id); return (a.Id, a.Role, G: g, W: w); })
+                    .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id, a.Role); return (a.Id, a.Role, G: g, W: w); })
                     .ToList();
                 var synByAlly = synRaw.Select(x => (x.Id, x.Role, Delta: PureVs(x.G, x.W))).ToList();
                 var synGames = synRaw.Sum(x => x.G);
@@ -796,14 +796,16 @@ public sealed class RecommendationEngine : IDisposable
 
     /// Чистая синергия ПАРЫ (m ↔ f), как дельта: WR пары минус база m, темпер по
     /// объёму. Роли маржинализуем (пара может быть любых линий).
-    public double PairSynergy(int m, string mRole, int f)
+    public double PairSynergy(int m, string mRole, int f, string? fRole = null)
     {
         // ПО РОЛИ, а не по всем сразу. Связка живёт на конкретной линии:
         // Мальфит с Ясуо на топе — 8034 игры и чистые +1,26, а если досыпать
         // его же лес и саппорт, где пара проигрывает, выходит −0,22. Кружок у
         // союзника зажигается от +0,3 — и настоящая связка до него не
         // доезжала, хотя в карточке та же пара стояла с плюсом.
-        var (g, w) = RawSynergy(m, mRole, f);
+        // Линия союзника учитывается там же (RawSynergy): «Ясуо на миде» и
+        // «Ясуо в боте» — разные пары.
+        var (g, w) = RawSynergy(m, mRole, f, fRole);
         // Нет данных по роли (редкий чемпион, свежий патч) — берём что есть:
         // приблизительно, но лучше, чем промолчать.
         if (g <= 0) (g, w) = RawSynergyAny(m, f);
@@ -1700,21 +1702,60 @@ public sealed class RecommendationEngine : IDisposable
         catch { return (0, 0); }
     }
 
-    // Сырые (games, wins) синергии. Данные крайне редки, поэтому:
-    //  • маржинализуем роль союзника (любой ally_role / role у обратной записи),
-    //  • суммируем ОБЕ стороны пары (champ+ally и ally+champ) — синергия симметрична.
-    // Это максимизирует выборку. Пул по союзникам делает вызывающий код.
-    private (double g, double w) RawSynergy(int champId, string role, int allyId)
+    /// <summary>
+    /// Сырые (games, wins) синергии. Обе стороны пары суммируются (champ+ally и
+    /// ally+champ) — синергия симметрична, а записана она одной строкой.
+    ///
+    /// Роль союзника важна не меньше своей: «Ясуо на миде» и «Ясуо в боте» —
+    /// разные пары, и складывать их значит усреднять то, что вместе не
+    /// встречается. Замер по базе: у 11% пар число переезжает через порог
+    /// кружка (+0,3), в крайних случаях разница доходит до 11 пп. Объём при
+    /// этом почти не страдает — в медиане маржинал шире всего в 1,13 раза.
+    ///
+    /// Роль союзника неизвестна (ARAM, блайнд) или по ней пусто — откат на
+    /// сумму по всем его ролям: приблизительно, но лучше, чем промолчать.
+    /// </summary>
+    private (double g, double w) RawSynergy(int champId, string role, int allyId,
+                                            string? allyRole = null)
     {
+        // Откат решаем по СВОИМ играм, а не по итогу с приором: приор добавляет
+        // 25 псевдо-игр и сам по себе делает выборку «непустой». Пара, у
+        // которой на этой паре линий не сыграно ничего, должна уходить на сумму
+        // по ролям, а не жить на одной ставке.
+        if (!string.IsNullOrEmpty(allyRole) && allyRole != role
+            && SynergyOwn(champId, role, allyId, allyRole).g > 0)
+            return SynergyRows(champId, role, allyId, allyRole);
+        return SynergyRows(champId, role, allyId, null);
+    }
+
+    private (double g, double w) SynergyRows(int champId, string role, int allyId, string? allyRole)
+    {
+        var own = SynergyOwn(champId, role, allyId, allyRole);
+        if (!HasPool) return own;
+
+        // Сводка по дивизионам — это ПРИОР, то есть ставка на исход пары.
+        // Берём её по той же паре ролей; если такой сводки мало (роль редкая),
+        // ставку делает более широкая — лучше грубый приор, чем никакого.
+        var pool = PoolPair(champId, role, allyId, allyRole);
+        if (allyRole is not null && pool.g < POOL_MIN) pool = PoolPair(champId, role, allyId, null);
+        return WithPool(own, pool);
+    }
+
+    // Игры пары в СВОЁМ бакете, без сводки по дивизионам.
+    private (double g, double w) SynergyOwn(int champId, string role, int allyId, string? allyRole)
+    {
+        var byAlly = allyRole is not null;
         var cmd = _db.CreateCommand();
         cmd.CommandText = $@"
             SELECT COALESCE(SUM(games),0), COALESCE(SUM(wins),0) FROM (
                 SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
                   WHERE champion_id=@c AND role=@r AND ally_id=@a
+                    {(byAlly ? "AND ally_role=@ar" : "")}
                     AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
                 UNION ALL
                 SELECT games*{PW} AS games, wins*{PW} AS wins FROM synergy
                   WHERE champion_id=@a AND ally_id=@c AND ally_role=@r
+                    {(byAlly ? "AND role=@ar" : "")}
                     AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
             )";
         cmd.Parameters.AddWithValue("@c",  champId);
@@ -1724,14 +1765,25 @@ public sealed class RecommendationEngine : IDisposable
         cmd.Parameters.AddWithValue("@p1", _p1);
         cmd.Parameters.AddWithValue("@p2", _p2);
         cmd.Parameters.AddWithValue("@p3", _p3);
-        var own = RawAgg(cmd);
-        if (!HasPool) return own;
-        // Пара записана одной стороной — сводку берём в обе, как и сам запрос выше.
-        var a = PoolRow("synergy", "champion_id=@c AND role=@r AND ally_id=@a",
-                        ("@c", champId), ("@r", role), ("@a", allyId));
-        var b = PoolRow("synergy", "champion_id=@a AND ally_id=@c AND ally_role=@r",
-                        ("@a", allyId), ("@c", champId), ("@r", role));
-        return WithPool(own, (a.g + b.g, a.w + b.w));
+        if (byAlly) cmd.Parameters.AddWithValue("@ar", allyRole);
+        return RawAgg(cmd);
+    }
+
+    // Сводка по дивизионам для пары — обе стороны записи, как и сам запрос выше.
+    private (double g, double w) PoolPair(int champId, string role, int allyId, string? allyRole)
+    {
+        var byAlly = allyRole is not null;
+        var a = byAlly
+            ? PoolRow("synergy", "champion_id=@c AND role=@r AND ally_id=@a AND ally_role=@ar",
+                      ("@c", champId), ("@r", role), ("@a", allyId), ("@ar", allyRole!))
+            : PoolRow("synergy", "champion_id=@c AND role=@r AND ally_id=@a",
+                      ("@c", champId), ("@r", role), ("@a", allyId));
+        var b = byAlly
+            ? PoolRow("synergy", "champion_id=@a AND ally_id=@c AND ally_role=@r AND role=@ar",
+                      ("@a", allyId), ("@c", champId), ("@r", role), ("@ar", allyRole!))
+            : PoolRow("synergy", "champion_id=@a AND ally_id=@c AND ally_role=@r",
+                      ("@a", allyId), ("@c", champId), ("@r", role));
+        return (a.g + b.g, a.w + b.w);
     }
 
     // Синергия пары с ОБЕИМИ известными ролями (обе стороны записи). Точнее, чем

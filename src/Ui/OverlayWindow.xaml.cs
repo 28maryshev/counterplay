@@ -1764,7 +1764,8 @@ public partial class OverlayWindow : Window
             var ally = p.EffectiveChampionId;
             if (ally == 0 || ally == champId || p.IsLocalPlayer) continue;
 
-            var syn = _engine.PairSynergy(champId, myRole, ally);
+            var syn = _engine.PairSynergy(champId, myRole, ally,
+                                          RecommendationEngine.LcuToDbRole(p.Position));
             if (syn >= SYN_LINK_MIN) DrawAllySynergy(i, syn);
             // Смысловая связка есть, а прибавки в винрейте нет (энчантер + кэрри
             // выигрывают не чаще среднего) — отмечаем бирюзой, без числа: пара
@@ -1784,9 +1785,13 @@ public partial class OverlayWindow : Window
 
             var vs = _engine.VersusDelta(champId, myRole, e.EffectiveChampionId,
                                          RecommendationEngine.LcuToDbRole(e.Position));
-            var style = ChampionTraits.ChampArch(e.EffectiveChampionId) is { } arch
-                ? RecommendationEngine.StyleVsArch(champId, arch) : 0.0;
-            if (Math.Abs(vs) >= SYN_LINK_MIN || style >= 0.5) DrawEnemyMatchup(i, vs, style);
+            var arch  = ChampionTraits.ChampArch(e.EffectiveChampionId);
+            var style = arch is { } a ? RecommendationEngine.StyleVsArch(champId, a) : 0.0;
+            // Значок стиля берём тот же, что стоит на самом портрете: янтарное
+            // число рядом с ним — «против ЭТОГО стиля», а не против чемпиона.
+            var glyph = arch is { } aa ? ArchBadge(e.EffectiveChampionId).Glyph : "";
+            if (Math.Abs(vs) >= SYN_LINK_MIN || style >= 0.5)
+                DrawEnemyMatchup(i, vs, style, glyph);
         }
     }
 
@@ -1833,7 +1838,7 @@ public partial class OverlayWindow : Window
 
     // Портрет врага: свечение по знаку матчапа (зелёное — кандидат его бьёт,
     // красное — проигрывает), под ним само число, рядом — вклад против стиля.
-    private void DrawEnemyMatchup(int row, double vs, double style)
+    private void DrawEnemyMatchup(int row, double vs, double style, string archGlyph)
     {
         if (EnemyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
         var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
@@ -1866,8 +1871,14 @@ public partial class OverlayWindow : Window
             line.Children.Add(Num(Signed(vs), color, 0.6 + 0.4 * strength));
         }
         if (style >= 0.5)
-            line.Children.Add(Num("+" + style.ToString("F1"),
-                                  System.Windows.Media.Color.FromRgb(0xE8, 0xB8, 0x4B), 0.85));
+        {
+            // Со значком стиля впереди: без него янтарное число стояло голым и
+            // читалось как второй матчап, хотя это совсем другая величина —
+            // насколько кандидат хорош против такого СТИЛЯ игры.
+            var amber = System.Windows.Media.Color.FromRgb(0xE8, 0xB8, 0x4B);
+            if (archGlyph.Length > 0) line.Children.Add(Num(archGlyph, amber, 0.7));
+            line.Children.Add(Num("+" + style.ToString("F1"), amber, 0.85));
+        }
         if (line.Children.Count == 0) return;
 
         line.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));

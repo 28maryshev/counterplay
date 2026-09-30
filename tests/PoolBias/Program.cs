@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Counterplay;
 
@@ -39,8 +39,12 @@ internal static class Program
             Console.Error.WriteLine("не нашёл data-slice.db — запускать из корня репозитория");
             return 2;
         }
-        var poolsFile = PoolsPath();
-        var before = FileStamp(poolsFile);
+        // «Файл игрока не тронули» сверяем по СЧЁТЧИКУ записей, а не по отметке
+        // времени: рядом обычно крутится сама программа, и с появлением
+        // автосинхронизации она переписывает тот же pools.json по своему
+        // расписанию. Отметка тогда говорит о чужой работе, а не о нашей, и
+        // проверка падала на ровном месте — хуже, чем не проверять вовсе.
+        var savesBefore = PoolStore.SaveCount;
 
         // Пулы пользователя правим только в памяти, но всё равно возвращаем на
         // место: вдруг когда-нибудь ниже появится Persist.
@@ -212,7 +216,8 @@ internal static class Program
               Median(weak) < -1.0, $"{Median(weak):F2}");
 
         // Файл пулов трогать мы не должны.
-        Check("pools.json не изменился", FileStamp(poolsFile) == before, poolsFile ?? "(файла нет)");
+        Check("пулы игрока на диск не писались", PoolStore.SaveCount == savesBefore,
+              $"записей за проверку: {PoolStore.SaveCount - savesBefore}");
 
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: перекоса нет" : $"ИТОГ: провалено проверок — {_fails}");
@@ -510,13 +515,4 @@ internal static class Program
         catch { return false; }
     }
 
-    private static string PoolsPath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "pools.json");
-
-    private static string FileStamp(string? path)
-    {
-        if (path is null || !File.Exists(path)) return "нет файла";
-        var fi = new FileInfo(path);
-        return $"{fi.Length}:{fi.LastWriteTimeUtc:O}";
-    }
 }

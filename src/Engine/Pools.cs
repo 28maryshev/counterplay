@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
@@ -143,12 +143,24 @@ public static class PoolStore
         _loaded = true;
     }
 
+    /// <summary>
+    /// Сколько раз пулы записывались на диск за жизнь процесса.
+    ///
+    /// Нужно проверкам: «мы подставили пулы в память и файл игрока не тронули»
+    /// раньше сверялось по отметке времени файла, а с тех пор появилась
+    /// автосинхронизация — и запущенная рядом программа переписывает тот же
+    /// файл сама. Отметка стала говорить о чужой работе, а не о нашей.
+    /// Счётчик говорит ровно о своём процессе и гонки не знает.
+    /// </summary>
+    public static int SaveCount { get; private set; }
+
     private static void Save()
     {
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
             File.WriteAllText(Path_, JsonSerializer.Serialize(_all, JsonOpts));
+            SaveCount++;
         }
         catch { /* не критично */ }
     }

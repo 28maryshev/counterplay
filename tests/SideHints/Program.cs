@@ -129,6 +129,50 @@ internal static class Program
                   same.Count == 0 ? $"проверено {flexSyn.Count}" : Few(same.Select(DataDragon.Name)));
         }
 
+        // ── Цифры на портретах: линия союзника и линия врага ───────────────
+        // Под союзником — прибавка пары, под врагом — матчап. Оба числа идут в
+        // один скор с карточкой, поэтому считать их надо на тех же ролях, что
+        // и подбор. Флекс-пик показывает, что роль правда участвует: одна и та
+        // же пара на разных линиях — это разные пары.
+        var flexAllies = plays["top"].Intersect(plays["mid"]).Take(12).ToList();
+        var myCand = plays["support"].First();
+
+        var synDiff = flexAllies
+            .Select(f => (Id: f,
+                          Top: engine.PairSynergy(myCand, "support", f, "top"),
+                          Mid: engine.PairSynergy(myCand, "support", f, "mid")))
+            .Where(x => x.Top != 0 || x.Mid != 0).ToList();
+        Check("связка считается на линии союзника",
+              synDiff.Count > 0 && synDiff.Any(x => Math.Abs(x.Top - x.Mid) >= 0.05),
+              synDiff.Count == 0 ? "флекс-пиков не нашлось"
+                  : $"{synDiff.Count} пар, наибольший разброс "
+                    + $"{synDiff.Max(x => Math.Abs(x.Top - x.Mid)):0.00} пп");
+
+        // И эта разница правда доезжает до кружка: порог +0,3, а сдвиг больше.
+        var ringFlips = synDiff.Count(x => (x.Top >= 0.3) != (x.Mid >= 0.3));
+        Console.WriteLine($"  (кружок загорается по-разному у {ringFlips} из {synDiff.Count})");
+
+        // Выборка не просела: число под портретом должно стоять не на десятке игр.
+        var thin = flexAllies
+            .Select(f => (Id: f, engine.PairStats(myCand, "support", f, "mid").Games))
+            .Where(x => x.Games < 60).ToList();
+        Check("и стоит на приличной выборке", thin.Count == 0,
+              thin.Count == 0
+                  ? $"минимум {flexAllies.Min(f => engine.PairStats(myCand, "support", f, "mid").Games)} игр"
+                  : Few(thin.Select(x => $"{DataDragon.Name(x.Id)}: {x.Games}")));
+
+        var flexEnemies = plays["top"].Intersect(plays["mid"]).Take(12).ToList();
+        var vsDiff = flexEnemies
+            .Select(f => (Id: f,
+                          Top: engine.VersusDelta(myCand, "support", f, "top"),
+                          Mid: engine.VersusDelta(myCand, "support", f, "mid")))
+            .Where(x => x.Top != 0 || x.Mid != 0).ToList();
+        Check("матчап считается на линии врага",
+              vsDiff.Count > 0 && vsDiff.Any(x => Math.Abs(x.Top - x.Mid) >= 0.05),
+              vsDiff.Count == 0 ? "флекс-пиков не нашлось"
+                  : $"{vsDiff.Count} пар, наибольший разброс "
+                    + $"{vsDiff.Max(x => Math.Abs(x.Top - x.Mid)):0.00} пп");
+
         // ── Пример владельца ───────────────────────────────────────────────
         foreach (var (champ, role) in new[] { (711, "mid"), (222, "adc"), (24, "top") })
             if (plays[role].Contains(champ))
