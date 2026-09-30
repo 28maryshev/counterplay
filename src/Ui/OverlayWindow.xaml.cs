@@ -203,6 +203,21 @@ public partial class OverlayWindow : Window
             if (_lastDraft is not null) UpdateRecommendations(_lastRecs, _lastDraft, _engine);
         });
 
+    /// <summary>
+    /// Подъехали ходовые предметы очередного врага.
+    ///
+    /// Карточки уже нарисованы, и строка контр-предметов в них собрана по
+    /// одному лишь классу: «магу такое по руке». Настоящие сборки приходят
+    /// секундой позже и половину этой строки отменяют — значит карточки надо
+    /// пересобрать, иначе игрок так и останется с предметом, которого на том
+    /// чемпионе никто не покупает.
+    /// </summary>
+    public void BuildsArrived() =>
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (_lastDraft is not null) UpdateRecommendations(_lastRecs, _lastDraft, _engine);
+        });
+
     public void SetGameActive(bool active)
     {
         if (_gameActive != active) Log.Write(active ? "игра началась" : "игра закончилась");
@@ -5524,6 +5539,20 @@ public partial class OverlayWindow : Window
         var enemyNow = draft?.TheirTeam.Where(p => p.EffectiveChampionId != 0)
                                        .Select(p => p.EffectiveChampionId).ToList() ?? [];
 
+        // Что на этих врагах РЕАЛЬНО собирают. Класс говорит, кому предмет по
+        // руке, а сборки — кто его берёт: Посох серафима магу по руке, но на
+        // ЛеБлан и Зайру его не покупают, и показывать его там значит врать.
+        var enemyRole = draft?.TheirTeam
+            .Where(p => p.EffectiveChampionId != 0)
+            .ToDictionary(p => p.EffectiveChampionId,
+                          p => RecommendationEngine.LcuToDbRole(p.Position))
+            ?? [];
+        IReadOnlyCollection<int>? BuildOf(int champ)
+        {
+            var role = RunesClient.ResolveRole(champ, enemyRole.GetValueOrDefault(champ, ""));
+            return role is null ? null : RunesClient.CachedItems(champ, role);
+        }
+
         // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ»): лучший из пула на мою
         // роль против врагов — отдельной СИНЕЙ карточкой сверху. Дуо-пул: рядом —
         // иконка чемпиона друга (кого назвать пикнуть).
@@ -5704,7 +5733,7 @@ public partial class OverlayWindow : Window
                 ArchDim    = _allyStyle != null && candArch != _allyStyle,
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
                 CounterItems = cfg.DraftItems
-                    ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow)
+                    ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow, BuildOf)
                         .Select(ItemIcons.Get).Where(x => x != null).Cast<ImageSource>().ToList()
                     : [],
                 // Чемпиона нет на аккаунте (только если владение вообще известно).

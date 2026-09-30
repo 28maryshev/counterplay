@@ -5,7 +5,8 @@ namespace Counterplay;
 
 public static class DataDragon
 {
-    private sealed record ChampInfo(string Name, string DdId, string[] Tags, int Attack, int Magic);
+    private sealed record ChampInfo(string Name, string DdId, string[] Tags, int Attack, int Magic,
+                                    int AttackRange);
 
     private static Dictionary<int, ChampInfo>? _champions;
     private static string _version = "14.10.1";
@@ -110,12 +111,20 @@ public static class DataDragon
                         if (infoEl.TryGetProperty("magic",  out var mEl) && mEl.ValueKind == JsonValueKind.Number) mag = mEl.GetInt32();
                     }
 
+                    // Дальность автоатаки: у ближнего боя 125–175, у дальнего от 500.
+                    // Нужна, чтобы не приписывать ближнему «бьёт с дистанции».
+                    int range = 0;
+                    if (val.TryGetProperty("stats", out var stEl) && stEl.ValueKind == JsonValueKind.Object
+                        && stEl.TryGetProperty("attackrange", out var rEl) && rEl.ValueKind == JsonValueKind.Number)
+                        range = (int)rEl.GetDouble();
+
                     _champions[id] = new ChampInfo(
                         Name: nameEl.GetString() ?? entry.Name,
                         DdId: entry.Name,
                         Tags: tags,
                         Attack: atk,
-                        Magic: mag);
+                        Magic: mag,
+                        AttackRange: range);
                 }
             }
         }
@@ -137,6 +146,18 @@ public static class DataDragon
 
     public static string[] ClassTags(int id) =>
         _champions is not null && _champions.TryGetValue(id, out var info) ? info.Tags : [];
+
+    /// <summary>
+    /// Бьёт ли чемпион с дистанции. Порог 300 лежит в пустоте между двумя
+    /// группами: ближний бой это 125–175, дальний — от 500.
+    ///
+    /// Дальность берём базовую, какой её отдаёт Riot. У Кейл она вырастает по
+    /// ходу игры, и по этому признаку она числится ближней — на ранней игре так
+    /// и есть. Неизвестен чемпион — считаем ближним: приписать «бьёт с
+    /// дистанции» тому, кто стоит в гуще, хуже, чем промолчать.
+    /// </summary>
+    public static bool IsRanged(int id) =>
+        _champions is not null && _champions.TryGetValue(id, out var i) && i.AttackRange >= 300;
 
     /// <summary>
     /// Тип урона: маг, физик или «не берёмся судить».

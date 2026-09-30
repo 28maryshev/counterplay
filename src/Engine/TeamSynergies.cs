@@ -1,4 +1,4 @@
-namespace Counterplay;
+﻿namespace Counterplay;
 
 /// <summary>Распознанная командная связка (комбо нескольких чемпионов).</summary>
 public sealed record TeamCombo(
@@ -135,10 +135,21 @@ public static class TeamSynergies
         if (Has(champId, "peel") && (Has(allyId, "hypercarry") || A(ImmobileCarry, allyId)))
             return ("peel", Loc.T("pair.peel.a", name));
 
-        // 8. Инициатор + дальний урон
-        if ((Has(champId, "engage") || Has(champId, "hard_cc")) && (Has(allyId, "poke") || Has(allyId, "scale")))
+        // 8. Инициатор + ДАЛЬНИЙ урон.
+        //
+        // «scale» значит «набирает силу к поздней игре», а вовсе не «бьёт
+        // издалека»: Насус выходил в паре с Люкс как тот, кто «бьёт с
+        // дистанции», хотя у него 125 единиц дальности и палка в руках. Для
+        // этой ветки спрашиваем справочник.
+        //
+        // Тег «poke» проверять дальностью НЕ надо — он авторский и означает
+        // размен умениями: у Гангпланка, Гнара и Джейса автоатака ближняя, а
+        // достают они и правда издалека.
+        bool Ranged(int id) => Has(id, "poke")
+                               || (Has(id, "scale") && DataDragon.IsRanged(id));
+        if ((Has(champId, "engage") || Has(champId, "hard_cc")) && Ranged(allyId))
             return ("frontline", Loc.T("pair.frontline.a", name));
-        if ((Has(allyId, "engage") || Has(allyId, "hard_cc")) && (Has(champId, "poke") || Has(champId, "scale")))
+        if ((Has(allyId, "engage") || Has(allyId, "hard_cc")) && Ranged(champId))
             return ("frontline", Loc.T("pair.frontline.b", name));
 
         // 9. Два инициатора

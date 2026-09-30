@@ -34,6 +34,44 @@ internal static class Program
         Log.FileDisabled = true;
         Loc.SetLanguage("ru");
 
+        // Справочник Riot нужен для дальности автоатаки: без него все чемпионы
+        // выглядят ближними, и проверка ниже прошла бы впустую.
+        if (!DataDragon.LoadFromCache("ru_RU"))
+            Console.WriteLine("  (справочника чемпионов нет — дальность не проверяем)");
+        else
+
+        // ── «Бьёт с дистанции» говорим только про дальних ──────────────────
+        //
+        // Владелец: «Люкс и Насус. Насус не бьёт с дистанции». И правда:
+        // правило «инициатор + дальний урон» принимало тег `scale`, а он про
+        // позднюю игру, а не про дальность. У Насуса 125 единиц — палка в упор.
+        //
+        // Тег `poke` при этом дальностью НЕ проверяется: он авторский и значит
+        // размен умениями (Гангпланк, Гнар, Джейс бьют в упор, а достают
+        // издалека), так что проверка это тоже стережёт.
+        {
+        foreach (var (a, b, want) in new[]
+                 {
+                     (99, 75,  false),  // Люкс + Насус — Насус в упор
+                     (54, 11,  false),  // Мальфит + Мастер Йи
+                     (54, 222, true),   // Мальфит + Джинкс — вот это дальний
+                     (89, 96,  true),   // Леона + Ког'Мао
+                 })
+        {
+            var link = TeamSynergies.ExplainPair(a, b, "");
+            Check($"«с дистанции» {(want ? "есть" : "нет")}: {DataDragon.Name(a)} + {DataDragon.Name(b)}",
+                  (link?.Kind == "frontline") == want, link?.Text ?? "связки нет");
+        }
+
+        // Ни один ближний не должен попадать в эту связку через `scale`.
+        var wrong = DataDragon.GetAllIconUrls().Keys
+            .Where(id => !DataDragon.IsRanged(id) && !ChampionTags.Has(id, "poke")
+                         && TeamSynergies.ExplainPair(54, id, "")?.Kind == "frontline")
+            .Select(DataDragon.Name).ToList();
+        Check("ближних в «бьёт с дистанции» нет", wrong.Count == 0,
+              wrong.Count == 0 ? "да" : string.Join(", ", wrong.Take(6)));
+        }
+
         // ── Сама связка распознаётся ───────────────────────────────────────
         var pair = TeamSynergies.ExplainPair(Malphite, Yasuo, "mid");
         Check("связка Мальфит+Ясуо распознана", pair is not null, pair?.Kind ?? "нет");

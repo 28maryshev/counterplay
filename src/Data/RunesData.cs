@@ -132,7 +132,48 @@ public static class RunesClient
         await Gate.WaitAsync(ct);
         try { Cache[key] = stats; }
         finally { Gate.Release(); }
+        if (stats is { Items.Count: > 0 })
+        {
+            _items[key] = stats.Items.Select(i => i.Id).ToHashSet();
+            ItemsLoaded?.Invoke();
+        }
         return stats;
+    }
+
+    // ── Ходовые предметы: отдельно и без ожидания ────────────────────────
+    //
+    // Контр-предметы в карточке пика рисуются синхронно, посреди отрисовки, и
+    // ждать сеть там нельзя. Поэтому то, что уже загрузилось, лежит здесь
+    // отдельным слепком: спросил — либо есть, либо нет.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<int>> _items = new();
+
+    /// Позвать, когда подъехали предметы очередного чемпиона: вид, нарисованный
+    /// раньше, про них не знал и его стоит пересобрать.
+    public static Action? ItemsLoaded;
+
+    /// <summary>
+    /// Ходовые предметы чемпиона на роли — ТОЛЬКО из памяти, без сети.
+    /// null — ещё не загрузились или данных нет вовсе; звать с этим значением
+    /// надо осторожно: «не знаем» и «не собирает» это разные вещи.
+    /// </summary>
+    public static IReadOnlyCollection<int>? CachedItems(int champ, string role) =>
+        _items.TryGetValue($"{champ}-{role}", out var v) ? v : null;
+
+    /// <summary>
+    /// Предзагрузка по парам «чемпион + роль». Кандидаты все на одной роли, а
+    /// вот у врагов роли разные, и одной на всех тут не обойтись.
+    /// </summary>
+    public static void PrefetchRoles(IEnumerable<(int Champ, string Role)> pairs, CancellationToken ct)
+    {
+        foreach (var (champ, lcuRole) in pairs)
+        {
+            if (champ == 0) continue;
+            var role = ResolveRole(champ, lcuRole);
+            if (role is null) continue;
+            if (CachedItems(champ, role) is not null) continue;
+            var c = champ; var r = role;
+            _ = Task.Run(() => GetAsync(c, r, ct), ct);
+        }
     }
 
     /// Предзагрузка для кандидатов (чтобы к моменту пика данные уже были).

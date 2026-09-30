@@ -292,6 +292,11 @@ class Program
             StartIcons(overlay, ct);
         }
 
+        // Ходовые предметы врагов приходят по сети уже после отрисовки карточек:
+        // строку «контрят тебя и команду» тогда надо пересобрать, иначе в ней
+        // останутся предметы, которые на этих чемпионах не покупают.
+        RunesClient.ItemsLoaded = overlay.BuildsArrived;
+
         StartWarmup(overlay, ct);         // справочники Riot — фоном
         StartPatchWatcher(overlay, ct);   // цены, характеристики и руны — с выходом патча
 
@@ -1044,6 +1049,15 @@ class Program
                             if (recs is { Count: > 0 })
                                 RunesClient.Prefetch(recs.Select(r => r.ChampionId),
                                                      RecommendationEngine.LcuToDbRole(draft.MyPosition), ct);
+
+                            // И сборки ВРАГОВ: по ним видно, кто из них правда
+                            // купит предмет, которым нас «накажут». Без этого
+                            // строка контр-предметов судит по одному классу и
+                            // предлагает Посох серафима тем, кто его не берёт.
+                            RunesClient.PrefetchRoles(
+                                draft.TheirTeam.Where(p => p.EffectiveChampionId != 0)
+                                     .Select(p => (p.EffectiveChampionId,
+                                                   RecommendationEngine.LcuToDbRole(p.Position))), ct);
                             _ = UpdateRunesAsync(overlay, draft, ct);
                         }
                     }
