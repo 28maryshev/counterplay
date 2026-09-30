@@ -100,10 +100,15 @@ static class TestMode
         overlay.ApplyRunesHandler  = async (_, _, _) => { await Task.Delay(400, ct); return true; };
         overlay.ApplySpellsHandler = async _ => { await Task.Delay(200, ct); return true; };
         overlay.ExportBuildHandler = async (_, _, _, _, _, _) => { await Task.Delay(400, ct); return true; };
-        overlay.HoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
-        // Лок из оверлея ставит чемпиона в мой слот тестовой панели — пик через
-        // интерфейс работает в песочнице как в бою (и снимает паузу авто-драфта).
-        overlay.LockHandler  = async id => { await Task.Delay(300, ct); panel?.LockMy(id); return 200; };
+        // Наведение из оверлея ставит чемпиона в мой слот, как это делает клиент:
+        // он отвечает на ховер полем championPickIntent, и сайдбар показывает
+        // уже нового. Раньше хендлер отвечал «200» и выбрасывал чемпиона — в
+        // песочнице клик по карточке менял кнопку, а слот оставался с прежним,
+        // и весь путь «ткнул в кандидата → смотрю его» проверить было нельзя.
+        overlay.HoverHandler = async id => { await Task.Delay(150, ct); panel?.SetMy(id); return 200; };
+        // Лок из оверлея — туда же: в песочнице мой слот всегда ховер
+        // (PickIntentId), отдельного «залочено» она не изображает.
+        overlay.LockHandler  = async id => { await Task.Delay(300, ct); panel?.SetMy(id); return 200; };
         // Баны: без этих хендлеров кнопка бана в песочнице не появлялась вовсе
         // (клик по тир-листу/карточке молча выходил, а UpdateBanBar их проверяет).
         overlay.BanHoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
@@ -937,12 +942,12 @@ sealed class TestPanel : Window
         return i < 0 ? 2 : i;
     }
 
-    // Пик из оверлея (кнопка «Выбрать»): ставим чемпиона в мой слот панели.
+    // Наведение и пик из оверлея: ставим чемпиона в мой слот панели.
     // SelectionChanged сам вызовет Recompute, а SimTick снимет паузу.
     /// Панель закрывают ради боевого режима, а не выхода из программы.
     public bool SwitchingToLive { get; set; }
 
-    public void LockMy(int champId)
+    public void SetMy(int champId)
     {
         var name = DataDragon.Name(champId);
         if (_idByName.ContainsKey(name)) _ally[MeCell()].SelectedItem = name;
