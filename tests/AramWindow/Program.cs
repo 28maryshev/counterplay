@@ -31,6 +31,19 @@ internal static class Program
             ShutdownMode = ShutdownMode.OnExplicitShutdown
         };
 
+        // Запомненный размер на время этих трёх проверок отключаем.
+        //
+        // Они про то, что окно СЖИМАЕТСЯ на экране ожидания и разворачивается с
+        // приходом кандидатов, — то есть про размер по содержимому. А
+        // запомненная раскладка задаёт его насильно, и все три окна выходят
+        // одинаковыми. Поймалось на живом: запущенная программа сохранила туда
+        // размер сайдбара (340×253), и проверка встала на ровном месте.
+        var s0 = AppSettings.Current;
+        var savedSize = (s0.DraftWidth, s0.DraftHeight);
+        s0.DraftWidth = 0; s0.DraftHeight = 0;
+        try
+        {
+
         // Окно А — как в ARAM: сперва подбирать не из чего, затем кандидаты есть.
         var a = Open();
         a.UpdateRecommendations([], Aram(bench: []), null);
@@ -59,6 +72,9 @@ internal static class Program
 
         a.Close(); b.Close();
         Pump();
+
+        }
+        finally { (s0.DraftWidth, s0.DraftHeight) = savedSize; }
 
         Remembered();
 

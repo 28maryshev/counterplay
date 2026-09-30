@@ -4449,9 +4449,12 @@ public partial class OverlayWindow : Window
         var text = Loc.T("rank.winGives", _lpWin);
         if (need > 0)
             text += " · " + Loc.T(up ? "rank.toPromo" : "rank.toDemote", need);
+        // Стиль не задаём: фирменный вид подсказок лежит в Theme.xaml БЕЗ ключа,
+        // и подхватывается сам. Раньше здесь стоял FindResource("HintTip") —
+        // ключ убрали вместе со стилем, и эта строка валила программу целиком
+        // при каждом показе сессии: после игры, в начале драфта, на банах.
         RankProgressTrack.ToolTip = new System.Windows.Controls.ToolTip
         {
-            Style = (Style)FindResource("HintTip"),
             Content = new TextBlock
             {
                 Text = text,

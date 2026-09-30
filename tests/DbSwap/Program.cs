@@ -103,6 +103,16 @@ internal static class Program
         Console.WriteLine("Полоса внизу сайдбара");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
 
+        // Запомненный размер окна на время проверки отключаем: ниже сравниваются
+        // ШИРИНЫ (драфт против экрана загрузки), а раскладка задаёт их насильно и
+        // делает обе одинаковыми. Поймалось на живом — запущенная программа
+        // сохранила туда размер сайдбара, и проверка встала на ровном месте.
+        var cfg = AppSettings.Current;
+        var savedSize = (cfg.DraftWidth, cfg.DraftHeight);
+        cfg.DraftWidth = 0; cfg.DraftHeight = 0;
+        try
+        {
+
         var w = new OverlayWindow { Left = -4000, Top = -4000 };
         ShowHidden(w);
         Pump();
@@ -175,6 +185,10 @@ internal static class Program
 
         w.Close();
         Pump();
+
+        }
+        finally { (cfg.DraftWidth, cfg.DraftHeight) = savedSize; }
+
         app.Shutdown();
     }
 

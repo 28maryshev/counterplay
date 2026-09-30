@@ -94,7 +94,10 @@ class Program
         // них нет, и стиль до них доходит только отсюда.
         app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
         {
-            Source = new Uri("/src/Ui/Theme.xaml", UriKind.Relative),
+            // Путь с именем сборки, а не просто "/src/...": короткий вид
+            // разрешается относительно точки входа, и вне приложения (в
+            // проверке) словарь по нему не находится.
+            Source = new Uri("/Counterplay;component/src/Ui/Theme.xaml", UriKind.Relative),
         });
         var overlay = new OverlayWindow();
 
