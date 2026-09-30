@@ -70,6 +70,35 @@ internal static class Program
             .Select(DataDragon.Name).ToList();
         Check("ближних в «бьёт с дистанции» нет", wrong.Count == 0,
               wrong.Count == 0 ? "да" : string.Join(", ", wrong.Take(6)));
+
+        // ── «Ты заходишь» — только тем, кто правда заходит ─────────────────
+        //
+        // Та же болезнь с другой стороны той же строки: «заходом» считался
+        // ЛЮБОЙ жёсткий контроль, и в карточке Люкс стояло «Ты заходишь»,
+        // хотя она кидает связывание из тыла. По одному `hard_cc` сюда
+        // проходили 16 чемпионов, которые не заходят вовсе.
+        foreach (var (a, b, kind, want) in new[]
+                 {
+                     (99,  222, "frontline",     false), // Люкс + Джинкс — Люкс не заходит
+                     (89,  96,  "frontline",     true),  // Леона + Ког'Мао — вот это заход
+                     (254, 222, "frontline",     true),  // Вай + Джинкс — дайв тоже заход
+                     (99,  37,  "double_engage", false), // Люкс + Сона — двойного захода нет
+                     (89,  54,  "double_engage", true),  // Леона + Мальфит — есть
+                 })
+        {
+            var link = TeamSynergies.ExplainPair(a, b, "");
+            Check($"«{kind}» {(want ? "есть" : "нет")}: {DataDragon.Name(a)} + {DataDragon.Name(b)}",
+                  (link?.Kind == kind) == want, link?.Text ?? "связки нет");
+        }
+
+        // Никто без `engage`/`dive` не должен объявляться заходящим.
+        var notEngagers = DataDragon.GetAllIconUrls().Keys
+            .Where(id => !ChampionTags.Has(id, "engage") && !ChampionTags.Has(id, "dive"))
+            .Where(id => TeamSynergies.ExplainPair(id, 222, "") is { Kind: "frontline" }
+                      || TeamSynergies.ExplainPair(id, 89, "") is { Kind: "double_engage" })
+            .Select(DataDragon.Name).ToList();
+        Check("не заходящих в «заходе» нет", notEngagers.Count == 0,
+              notEngagers.Count == 0 ? "да" : string.Join(", ", notEngagers.Take(6)));
         }
 
         // ── Сама связка распознаётся ───────────────────────────────────────

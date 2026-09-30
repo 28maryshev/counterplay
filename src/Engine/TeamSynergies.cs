@@ -147,13 +147,26 @@ public static class TeamSynergies
         // достают они и правда издалека.
         bool Ranged(int id) => Has(id, "poke")
                                || (Has(id, "scale") && DataDragon.IsRanged(id));
-        if ((Has(champId, "engage") || Has(champId, "hard_cc")) && Ranged(allyId))
+
+        // «Заход» — это engage или дайв, а НЕ жёсткий контроль сам по себе.
+        // Та же болезнь, что и с дальностью: у Люкс есть `hard_cc`, и в её
+        // карточке стояло «Ты заходишь», хотя она стоит в тылу и кидает
+        // связывание. По одному лишь `hard_cc` сюда проходили 16 чемпионов,
+        // которые не заходят вовсе: Сона, Ксерат, Вейгар, Зои, Анивия, Зилеан,
+        // Азир, Варус, Талия, Аурелион Сол, Фиддлстикс, Иверн, Лиллия, Таам
+        // Кенч, Ургот, Люкс.
+        //
+        // Дайв считаем заходом: у Вай, Дариуса, Клэда, Элизы, Ивелинн, Кияны,
+        // Рек'Сая, Виего и Варвика тега `engage` нет, а заходят они прекрасно.
+        bool Engages(int id) => Has(id, "engage") || Has(id, "dive");
+
+        if (Engages(champId) && Ranged(allyId))
             return ("frontline", Loc.T("pair.frontline.a", name));
-        if ((Has(allyId, "engage") || Has(allyId, "hard_cc")) && Ranged(champId))
+        if (Engages(allyId) && Ranged(champId))
             return ("frontline", Loc.T("pair.frontline.b", name));
 
         // 9. Два инициатора
-        if ((Has(champId, "engage") || Has(champId, "hard_cc")) && (Has(allyId, "engage") || Has(allyId, "hard_cc")))
+        if (Engages(champId) && Engages(allyId))
             return ("double_engage", Loc.T("pair.double_engage.a", name));
 
         return null;
