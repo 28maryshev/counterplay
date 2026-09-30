@@ -6033,6 +6033,10 @@ public partial class OverlayWindow : Window
         }
     }
 
+    // Сколько иконок стоит под портретом. Ровно три: под них сверстана строка,
+    // и «сколько нашлось» читается как поломка, а не как честность.
+    private const int SIDE_ICONS = 3;
+
     private static List<ChampSlotCard> BuildSlots(
         IReadOnlyList<DraftPlayer> players, bool ally,
         RecommendationEngine? engine, string myRole,
@@ -6058,14 +6062,26 @@ public partial class OverlayWindow : Window
             {
                 if (!ally)
                 {
+                    // Контры считаем в роли, которую враг занял (её подставляет
+                    // ApplyEnemyRoleOverrides — ручная метка или догадка по доле
+                    // роли). Без роли это была бы смесь линий, которые никогда
+                    // не встречаются. И добираем до трёх: место под три иконки,
+                    // одна вместо трёх выглядит поломкой.
                     var enemyRole = RecommendationEngine.LcuToDbRole(p.Position);
-                    var ids = engine.TopCounters(champId, string.IsNullOrEmpty(enemyRole) ? null : enemyRole);
+                    var ids = engine.TopCounters(champId,
+                        string.IsNullOrEmpty(enemyRole) ? null : enemyRole, SIDE_ICONS, fill: true);
                     sideIcons = ids.Select(id => IconCache.Get(id)).Where(x => x != null).Cast<ImageSource>().ToList();
                     if (sideIcons.Count > 0) sideLabel = Loc.T("slot.counters");
                 }
                 else if (!p.IsLocalPlayer)
                 {
-                    var ids = engine.TopSynergies(champId, myRole);
+                    // Синергия — с точки зрения МОЕЙ роли: это кандидаты мне в
+                    // пик, а не абстрактные напарники этого союзника. Роль
+                    // самого союзника тоже важна: у Владимира на топе и на миде
+                    // лучшие напарники разные.
+                    var allyRole = RecommendationEngine.LcuToDbRole(p.Position);
+                    var ids = engine.TopSynergies(champId, myRole, SIDE_ICONS,
+                        string.IsNullOrEmpty(allyRole) ? null : allyRole);
                     sideIcons = ids.Select(id => IconCache.Get(id)).Where(x => x != null).Cast<ImageSource>().ToList();
                     if (sideIcons.Count > 0) sideLabel = Loc.T("slot.synergy");
                 }

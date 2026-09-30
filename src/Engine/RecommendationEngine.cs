@@ -252,6 +252,8 @@ public sealed class RecommendationEngine : IDisposable
     // всплывал шум: пара на 10–15 играх со случайным перевесом выдавалась за
     // «контру» (напр. Сион «контрил» Кейл на 16 играх, хотя реально проигрывает).
     private const int    HINT_MIN_GAMES = 30;   // минимум совместных игр на пару (контры)
+    private const int    HINT_FILL_GAMES = 10;  // при доборе до трёх порог ниже
+    private const double HINT_EVEN_WR   = 0.49; // ровная пара: годится третьей, проигрышная — нет
     private const int    HINT_MIN_SYN   = 12;   // ниже порог для синергии — чтобы заполнять 3
     private const double HINT_MIN_EDGE  = 0.50; // контру показываем, только если LB Уилсона > 50%
     private const double WILSON_Z       = 1.28; // ~80% односторонняя уверенность
@@ -1886,64 +1888,147 @@ public sealed class RecommendationEngine : IDisposable
         return res;
     }
 
-    private static List<int> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE)
+    // Одна строка подсказки: кандидат, объём пары и её винрейт.
+    private readonly record struct HintRow(int Id, double Games, double Wins)
     {
-        var scored = new List<(int Id, double Lb)>();
-        using (var rd = cmd.ExecuteReader())
-            while (rd.Read())
-            {
-                double g = Convert.ToDouble(rd.GetValue(1));
-                double w = Convert.ToDouble(rd.GetValue(2));
-                var lb = WilsonLower(w, g);
-                if (lb > minEdge) scored.Add((rd.GetInt32(0), lb));
-            }
-        return scored.OrderByDescending(x => x.Lb).Take(top).Select(x => x.Id).ToList();
+        public double Wr => Games > 0 ? Wins / Games : 0;
     }
 
+    private static List<HintRow> ReadHintRows(SqliteCommand cmd)
+    {
+        var rows = new List<HintRow>();
+        using var rd = cmd.ExecuteReader();
+        while (rd.Read())
+            rows.Add(new HintRow(rd.GetInt32(0),
+                                 Convert.ToDouble(rd.GetValue(1)),
+                                 Convert.ToDouble(rd.GetValue(2))));
+        return rows;
+    }
+
+    private static List<int> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE) =>
+        ReadHintRows(cmd)
+            .Select(r => (r.Id, Lb: WilsonLower(r.Wins, r.Games)))
+            .Where(x => x.Lb > minEdge)
+            .OrderByDescending(x => x.Lb)
+            .Take(top).Select(x => x.Id).ToList();
+
+    /// <summary>
+    /// Подзапрос «кто эту роль реально играет»: тот же отбор, что у кандидатов
+    /// подбора (абсолютный порог игр И доля роли). Парные таблицы его не знают
+    /// и хранят что угодно, включая Сивир на миде на пятнадцати играх, — а
+    /// такой «контрпик» ни выбрать нельзя, ни проверить.
+    /// </summary>
+    private string RolePlayersSql => $@"
+        SELECT champion_id FROM base_wr
+        WHERE  role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+        GROUP  BY champion_id
+        HAVING SUM(games*{PW}) >= @roleMin
+           AND SUM(games*{PW}) >= @roleShare * (
+               SELECT SUM(games*{PW}) FROM base_wr
+               WHERE role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3))";
+
+    private void AddRolePlayerParams(SqliteCommand cmd)
+    {
+        cmd.Parameters.AddWithValue("@t",         TierBucket);
+        cmd.Parameters.AddWithValue("@roleMin",   MIN_GAMES);
+        cmd.Parameters.AddWithValue("@roleShare", MIN_ROLE_SHARE);
+    }
+
+    /// <summary>
     /// Топ N чемпионов той же роли, лучше всего контрящих данного врага.
     /// Если роль неизвестна — запрос по всем ролям. minGames/minEdge можно
     /// ослабить (защитные баны: данные по паре разрежены, а показать надо).
+    /// </summary>
+    /// <param name="fill">
+    /// Добрать до N, если по строгим порогам набралось меньше. Нужно боковым
+    /// подсказкам: там место под три иконки, и «одна вместо трёх» читается как
+    /// поломка. Добор берёт следующих по Уилсону, но только с настоящим
+    /// перевесом (WR выше половины) — иначе это был бы уже не контрпик.
+    /// </param>
     public IReadOnlyList<int> TopCounters(int enemyId, string? enemyRole = null, int top = 3,
-                                          int? minGames = null, double? minEdge = null)
+                                          int? minGames = null, double? minEdge = null,
+                                          bool fill = false)
     {
         if (enemyId == 0) return [];
         try
         {
+            var byRole = !string.IsNullOrEmpty(enemyRole);
             var cmd = _db.CreateCommand();
-            var roleFilter = string.IsNullOrEmpty(enemyRole) ? "" : " AND role = @r";
             // По всем дивизионам сразу: данные по парам разрежены, фильтр по бакету
-            // добил бы выборку. Ранжируем/фильтруем по Уилсону в RankByWilson.
+            // добил бы выборку. Ранжируем/фильтруем по Уилсону уже в C#.
             cmd.CommandText = $@"
                 SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
                 FROM   matchup
-                WHERE  vs_champion_id = @v{roleFilter} AND patch IN (@p1, @p2, @p3)
-                GROUP  BY champion_id
-                HAVING SUM(games*{PW}) >= @min";
+                WHERE  vs_champion_id = @v AND patch IN (@p1, @p2, @p3)
+                       {(byRole ? "AND role = @r AND champion_id IN (" + RolePlayersSql + ")" : "")}
+                GROUP  BY champion_id";
             cmd.Parameters.AddWithValue("@v",   enemyId);
-            cmd.Parameters.AddWithValue("@min", minGames ?? HINT_MIN_GAMES);
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
-            if (!string.IsNullOrEmpty(enemyRole))
-                cmd.Parameters.AddWithValue("@r", enemyRole);
-            return RankByWilson(cmd, top, minEdge ?? HINT_MIN_EDGE);
+            if (byRole) { cmd.Parameters.AddWithValue("@r", enemyRole); AddRolePlayerParams(cmd); }
+
+            var rows = ReadHintRows(cmd);
+            double gMin = minGames ?? HINT_MIN_GAMES, eMin = minEdge ?? HINT_MIN_EDGE;
+            var strict = rows.Where(r => r.Games >= gMin && WilsonLower(r.Wins, r.Games) > eMin)
+                             .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
+                             .Select(r => r.Id);
+            if (!fill) return strict.Take(top).ToList();
+
+            // Сначала те, у кого перевес настоящий…
+            var winning = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr > 0.50)
+                              .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
+                              .Select(r => r.Id);
+            // …и только потом ровные пары. Против чемпиона вроде Джинкс роль
+            // может не знать НИ ОДНОГО победного матчапа: лучший ответ там —
+            // тот, кто не проигрывает. Ниже этой границы уже проигрыш, и
+            // называть его контрой нельзя даже ради третьей иконки.
+            var even = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr >= HINT_EVEN_WR)
+                           .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
+                           .Select(r => r.Id);
+            return strict.Concat(winning).Concat(even).Distinct().Take(top).ToList();
         }
         catch { return []; }
     }
 
+    /// <summary>
     /// Топ N чемпионов МОЕЙ роли с наилучшей синергией с данным союзником.
-    public IReadOnlyList<int> TopSynergies(int allyId, string myRole, int top = 3)
+    /// </summary>
+    /// <param name="allyRole">
+    /// Роль союзника, если известна. Без неё считается сумма по всем его ролям,
+    /// а это разные пары: у Владимира на топе в лучших напарниках-саппортах
+    /// Бард и Тарик, у него же на миде — Блицкранк и Рената.
+    /// </param>
+    public IReadOnlyList<int> TopSynergies(int allyId, string myRole, int top = 3,
+                                           string? allyRole = null)
     {
         if (allyId == 0 || string.IsNullOrEmpty(myRole)) return [];
+        // Своя роль союзнику не подходит: двоих на одной линии не бывает, и
+        // сумма по такой паре собрана из случайных флексов.
+        if (allyRole == myRole) allyRole = null;
+
+        var byRole = ByAllyRole(allyId, myRole, top, allyRole);
+        if (allyRole is null || byRole.Count >= top) return byRole;
+        // Роль союзника известна, но пары по ней разрежены — добираем общими.
+        return byRole.Concat(ByAllyRole(allyId, myRole, top, null))
+                     .Distinct().Take(top).ToList();
+    }
+
+    private List<int> ByAllyRole(int allyId, string myRole, int top, string? allyRole)
+    {
         try
         {
             var cmd = _db.CreateCommand();
             // Синергия по всем дивизионам (данные разрежены), порог игр ниже и без
             // фильтра edge — чтобы стабильно заполнять 3 лучших партнёра по LB.
+            // Кандидаты — только те, кто мою роль правда играет: без этого в
+            // напарники к Фиддлстиксу на топ выходил Дрэйвен на двенадцати играх.
             cmd.CommandText = $@"
                 SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
                 FROM   synergy
                 WHERE  ally_id = @a AND role = @r AND patch IN (@p1, @p2, @p3)
+                       {(allyRole is null ? "" : "AND ally_role = @ar")}
+                       AND champion_id IN ({RolePlayersSql})
                 GROUP  BY champion_id
                 HAVING SUM(games*{PW}) >= @min";
             cmd.Parameters.AddWithValue("@a",   allyId);
@@ -1952,6 +2037,8 @@ public sealed class RecommendationEngine : IDisposable
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
+            if (allyRole is not null) cmd.Parameters.AddWithValue("@ar", allyRole);
+            AddRolePlayerParams(cmd);
             return RankByWilson(cmd, top, minEdge: -1.0);
         }
         catch { return []; }
