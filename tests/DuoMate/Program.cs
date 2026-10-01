@@ -1,3 +1,4 @@
+﻿using System.IO;
 using System.Text;
 using System.Text.Json;
 using Counterplay;
@@ -93,6 +94,57 @@ internal static class Program
               Party.Known && Party.MateChampion(draft, duo) == OffPoolChamp,
               $"{Party.MateChampion(draft, duo)}");
 
+        // ── 7. Человек и чемпион — два РАЗНЫХ условия ──────────────────────
+        //
+        // Опознать напарника — ещё не повод показать связку. Срабатывает
+        // дуо-пул только когда он взял чемпиона ИЗ СВОЕЙ ПОЛОВИНЫ: пара
+        // задумана под конкретных, и подставлять её под случайный пик друга
+        // нечестно. Это разъезжалось: человека нашли — и показывали связку с
+        // чем угодно, что он взял.
+        Party.Update(Lobby(MeId, FriendId));
+        draft = Draft((FriendId, OffPoolChamp));
+        Check("друг опознан как ЧЕЛОВЕК даже с чемпионом вне половины",
+              Party.MateChampion(draft, duo) == OffPoolChamp, $"{Party.MateChampion(draft, duo)}");
+        Check("но связка при этом НЕ срабатывает",
+              !duo.FriendHas(OffPoolChamp), "");
+        Check("взял из своей половины — срабатывает",
+              duo.FriendHas(FriendPoolChamp), "");
+        Check("роль в половине не обязана совпадать с его линией",
+              duo.FriendHas(FriendPoolChamp), "чемпион лежит под adc, друг на боте");
+        Check("никто ничего не взял — не срабатывает", !duo.FriendHas(0), "");
+
+        // Фиксированные связки: половин у них нет, чемпионы друга живут в парах.
+        // Сторона в паре любая — роли разбираются уже при показе.
+        var fixedDuo = new DuoPool
+        {
+            Id = "f", FriendName = "фикс", Manual = true,
+            ManualPairs = [new ManualDuoPair { Mine = 201, MineRole = "support",
+                                               Friend = FriendPoolChamp, FriendRole = "adc" }],
+        };
+        Check("фикс-связка: чемпион из пары срабатывает",
+              fixedDuo.FriendHas(FriendPoolChamp), "");
+        Check("фикс-связка: чемпион вне пар не срабатывает",
+              !fixedDuo.FriendHas(OffPoolChamp), "");
+
+        // ── 8. Калитка стоит в самом оверлее ──────────────────────────────
+        //
+        // Проверки выше гоняют модель, а разъехался в тот раз именно оверлей:
+        // в модели было написано «авто-подсказка ждёт чемпиона из половины»,
+        // а показывал он связку от любого пика напарника. Поэтому смотрим в
+        // исходник — иначе условие снова можно убрать, и всё останется зелёным.
+        var root = FindRepoRoot();
+        if (root is null) Check("корень репозитория найден", false, "не найден");
+        else
+        {
+            var src = File.ReadAllText(Path.Combine(root, "src", "Ui", "OverlayWindow.xaml.cs"),
+                                       Encoding.UTF8);
+            var body = Code(src);
+            Check("оверлей сверяет пик напарника с его половиной",
+                  body.Contains("FriendHas(mateTaken)"), "FriendHas(mateTaken)");
+            Check("и при промахе гасит пару, а не показывает связку",
+                  body.Contains("mateTaken = 0;"), "mateTaken = 0");
+        }
+
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: напарник определяется верно" : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
@@ -152,6 +204,28 @@ internal static class Program
         t.GetProperty("Known")!.SetValue(null, false);
         t.GetField("_lastLogged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
             .SetValue(null, -1);
+    }
+
+    /// Корень репозитория: от рабочей папки вверх до Counterplay.csproj.
+    private static string? FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Counterplay.csproj")))
+            dir = dir.Parent;
+        return dir?.FullName;
+    }
+
+    /// Код без комментариев: упоминание условия в пояснении — не условие.
+    private static string Code(string src)
+    {
+        var sb = new StringBuilder();
+        foreach (var line in src.Split('\n'))
+        {
+            var t = line.TrimStart();
+            if (t.StartsWith("//") || t.StartsWith("///")) continue;
+            sb.Append(line).Append('\n');
+        }
+        return sb.ToString();
     }
 
     private static void Check(string what, bool ok, string detail)

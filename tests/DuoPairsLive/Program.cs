@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Counterplay;
 
@@ -71,7 +71,9 @@ internal static class Program
         var session = await SessionTracker.RefreshAsync(http, ct);
         Check("клиент ответил, кто играет", session is not null, session is null ? "нет" : "да");
 
-        var pairs = SessionTracker.TopPairs(take: 200);
+        // Берём ВСЁ: при маленьком срезе печатались обрезанные числа («связок
+        // 200» ровно по лимиту), и по ним казалось, будто связок меньше, чем есть.
+        var pairs = SessionTracker.TopPairs(take: 10_000);
         Check("связки набрались с пустого места", pairs.Count > 0, $"{pairs.Count}");
 
         if (pairs.Count == 0) return;
@@ -96,10 +98,17 @@ internal static class Program
 
         var top = pairs.GroupBy(p => p.AllyPuuid)
                        .OrderByDescending(x => x.Sum(p => p.Games)).First();
+
+        // Сравнивать итог по человеку надо со ВСЕМИ его связками, а не с теми,
+        // что попали в общий срез: срез ограничен, и пары давно уже в него не
+        // влезают — с ролями в ключе они дробятся мельче. Первая версия брала
+        // сумму по срезу и падала ровно на этом, а код был цел.
+        var his = SessionTracker.TopPairs(top.Key, take: 10_000);
         var (mg, mw) = SessionTracker.MateStats(top.Key);
         Check("итог по союзнику сходится с суммой его связок",
-              mg == top.Sum(p => p.Games) && mw == top.Sum(p => p.Wins),
-              $"{mw}-{mg - mw}");
+              mg == his.Sum(p => p.Games) && mw == his.Sum(p => p.Wins),
+              $"{mw}-{mg - mw} против {his.Sum(p => p.Wins)}-{his.Sum(p => p.Games - p.Wins)}"
+              + $" ({his.Count} связок)");
         Console.WriteLine($"  чаще всего играли с «{top.First().AllyName}»: {mg} игр вместе");
     }
 

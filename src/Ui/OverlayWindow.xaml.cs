@@ -45,6 +45,7 @@ public partial class OverlayWindow : Window
     private DraftState?                    _lastRawDraft; // как пришёл из LCU
     private RecommendationEngine?          _engine;
     private HashSet<int>                    _ownedChamps = new(); // чемпионы аккаунта (пусто = данных нет)
+    private int                             _duoOffPool;          // напарник взял мимо половины — чей пик уже записан в журнал
 
     // Список чемпионов аккаунта из LCU: которых нет — помечаем «нет чемпиона».
     public void SetOwnedChampions(IEnumerable<int> ids) => Dispatcher.InvokeAsync(() =>
@@ -5630,9 +5631,28 @@ public partial class OverlayWindow : Window
                     // что-то мимо своего пула — играем-то мы всё равно с ним.
                     var mateTaken = Party.MateChampion(draft, duo);
 
-                    // Дуо-пул предлагаем ТОЛЬКО когда напарник уже взял чемпиона из
-                    // пула — пара сложилась. Не взял (или взял вне пула) — связки не
-                    // показываем вовсе, идёт обычный подбор ниже.
+                    // Два условия, и они складываются. Человека нашли выше — по пати
+                    // и puuid. Но сработать дуо-пул должен только когда напарник взял
+                    // чемпиона ИЗ СВОЕЙ ПОЛОВИНЫ: связка задумана под конкретную пару,
+                    // и подставлять её под случайный пик друга нечестно.
+                    //
+                    // Взял мимо половины (или напарника в драфте нет) — связки не
+                    // показываем вовсе, идёт обычный подбор ниже. Моя половина при
+                    // этом работает всегда: чемпионы из неё получают флор
+                    // наигранности в движке, дуо-пул для этого срабатывать не обязан.
+                    if (mateTaken != 0 && duo != null && !duo.FriendHas(mateTaken))
+                    {
+                        // Один раз на чемпиона: метод зовётся на каждую перерисовку
+                        // драфта, иначе журнал заполнится одной строкой.
+                        if (_duoOffPool != mateTaken)
+                        {
+                            _duoOffPool = mateTaken;
+                            Log.Write($"дуо «{duo.FriendName}»: напарник взял "
+                                      + $"{DataDragon.Name(mateTaken)} мимо своей половины — связки не предлагаем");
+                        }
+                        mateTaken = 0;
+                    }
+                    else if (mateTaken != 0) _duoOffPool = 0;
                     if (mateTaken != 0 && duo != null)
                     {
                         if (duo.Manual)
