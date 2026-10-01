@@ -110,6 +110,15 @@ internal static class Program
               $"{mw}-{mg - mw} против {his.Sum(p => p.Wins)}-{his.Sum(p => p.Games - p.Wins)}"
               + $" ({his.Count} связок)");
         Console.WriteLine($"  чаще всего играли с «{top.First().AllyName}»: {mg} игр вместе");
+
+        // Список напарников для дуо-пула — НЕ «все, с кем играл». Связки копятся
+        // на всех союзников и во всех очередях кроме ARAM; напарник же — тот, с
+        // кем встаёшь в очередь соло/дуо.
+        var mateList = DuoNaming.Mates();
+        Console.WriteLine($"  в списке напарников {mateList.Count} из {mates}: "
+                          + string.Join(", ", mateList.Take(6).Select(m => $"{m.Name}·{m.Games}")));
+        Check("в напарники идут не все подряд", mateList.Count * 4 < mates,
+              $"{mateList.Count} из {mates}");
     }
 
     private static void Check(string what, bool ok, string detail)

@@ -459,6 +459,48 @@ public static class PoolStore
 public static class DuoNaming
 {
     /// <summary>
+    /// С кем игрок правда играл вдвоём: puuid → ник и число совместных игр,
+    /// от частых к редким. Один источник на плитку и на редактор — иначе списки
+    /// разъедутся, а человек там один и тот же.
+    /// </summary>
+    public static List<(string Puuid, string Name, int Games)> Mates()
+    {
+        // Игры вместе считаем ТОЛЬКО по соло/дуо. Связки копятся на всех
+        // союзников подряд, и по всем очередям в списке оказывались все, с кем
+        // вообще доводилось играть, — у владельца это 182 человека.
+        var games = new Dictionary<string, (string Name, int Games)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in SessionTracker.TopPairs(take: 10_000, queues: new[] { "solo" }))
+        {
+            if (p.AllyPuuid.Length == 0) continue;
+            var had = games.GetValueOrDefault(p.AllyPuuid);
+            games[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name,
+                                  had.Games + p.Games);
+        }
+
+        var res  = new List<(string Puuid, string Name, int Games)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Главный источник — лобби соло/дуо: это ровно те, с кем ВСТАВАЛИ В
+        // ОЧЕРЕДЬ. Человек попадает сюда, даже если совместных игр ещё нет.
+        foreach (var (puuid, name, _) in SessionTracker.QueuedMates())
+        {
+            var g = games.GetValueOrDefault(puuid);
+            res.Add((puuid, name.Length > 0 ? name : g.Name, g.Games));
+            seen.Add(puuid);
+        }
+
+        // Запас для тех, у кого лобби ещё не записалось: список лобби копится
+        // только вперёд, а пул с другом у многих настроен давно. В соло/дуо
+        // случайный союзник попадается один раз, напарник — помногу, поэтому
+        // двух совместных игр уже достаточно, чтобы это была не случайность.
+        foreach (var (puuid, v) in games)
+            if (!seen.Contains(puuid) && v.Games >= 2)
+                res.Add((puuid, v.Name, v.Games));
+
+        return res.OrderByDescending(x => x.Games).ToList();
+    }
+
+    /// <summary>
     /// Ник напарника или пусто, если назвать некого.
     ///
     /// По порядку: ник из файла, которым обменялись (приезжает рядом с puuid);

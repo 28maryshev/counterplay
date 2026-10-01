@@ -858,23 +858,68 @@ public sealed class PoolSettingsWindow : Window
 
     // Плитка существующего пула: имя + клик (редактировать) + × (удалить) + ★ выбора.
     // Активный (выбранный сейчас) пул выделен синей рамкой и залитой звездой.
+    /// Список напарников — правило живёт в DuoNaming, чтобы его можно было
+    /// померить проверкой без окна.
+    internal static List<(string Puuid, string Name, int Games)> MateList() => DuoNaming.Mates();
+
     /// <summary>
-    /// С кем игрок правда играл вдвоём: puuid → ник и число совместных игр,
-    /// от частых к редким. Один источник на плитку и на редактор — иначе списки
-    /// разъедутся, а человек там один и тот же.
+    /// Плашка «с кем этот пул» — она же кнопка.
+    ///
+    /// Одна на плитку и на редактор: человек там один и тот же, и выглядеть
+    /// по-разному они не должны. Под наведением плашка заметно светлеет и
+    /// обводится золотом — иначе по серому прямоугольнику не видно, что он
+    /// нажимается, а владелец на это и указал.
+    ///
+    /// Раскладку (ширину, поля, выравнивание) ставит вызывающий: на плитке она
+    /// прижата к низу, в редакторе стоит в строке рядом с ником.
     /// </summary>
-    internal static List<(string Puuid, string Name, int Games)> MateList()
+    internal static Border MateBadge(string text, bool known, Action? onClick)
     {
-        var mates = new Dictionary<string, (string Name, int Games)>();
-        foreach (var p in SessionTracker.TopPairs(take: 500))
+        // Серая плашка, а не цветной текст: подпись «с кем» не должна перебивать
+        // название пула и спорить с золотой рамкой отмеченной плитки.
+        var calm      = Color.FromArgb(0xB8, 0x18, 0x21, 0x2B);
+        var calmEdge  = Color.FromRgb(0x3A, 0x48, 0x58);
+        var calmText  = known ? Color.FromRgb(0xA8, 0xB6, 0xC4) : Color.FromRgb(0x6A, 0x7C, 0x8C);
+        var hotFill   = Color.FromRgb(0x7A, 0x8C, 0x9E);
+        var hotEdge   = Color.FromRgb(0xC8, 0x9B, 0x3C);
+        var hotText   = Color.FromRgb(0xFF, 0xFF, 0xFF);
+
+        var label = new TextBlock
         {
-            if (p.AllyPuuid.Length == 0) continue;
-            var had = mates.GetValueOrDefault(p.AllyPuuid);
-            mates[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name,
-                                  had.Games + p.Games);
-        }
-        return mates.OrderByDescending(x => x.Value.Games)
-                    .Select(x => (x.Key, x.Value.Name, x.Value.Games)).ToList();
+            Text = text,
+            FontSize = 10, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(calmText),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextAlignment = TextAlignment.Center,
+        };
+        var badge = new Border
+        {
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(calm),
+            BorderBrush = new SolidColorBrush(calmEdge),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(6, 1, 6, 2),
+            Child = label,
+        };
+
+        if (onClick is null) return badge;
+
+        badge.Cursor = System.Windows.Input.Cursors.Hand;
+        badge.ToolTip = Loc.T("pool.mateChange") + Environment.NewLine + Loc.T("pool.mateWhy");
+        badge.MouseEnter += (_, _) =>
+        {
+            badge.Background  = new SolidColorBrush(hotFill);
+            badge.BorderBrush = new SolidColorBrush(hotEdge);
+            label.Foreground  = new SolidColorBrush(hotText);
+        };
+        badge.MouseLeave += (_, _) =>
+        {
+            badge.Background  = new SolidColorBrush(calm);
+            badge.BorderBrush = new SolidColorBrush(calmEdge);
+            label.Foreground  = new SolidColorBrush(calmText);
+        };
+        badge.MouseLeftButtonDown += (_, e) => { e.Handled = true; onClick(); };
+        return badge;
     }
 
     /// Пункт меню в фирменном виде (оформление — в src/Ui/Theme.xaml).
@@ -989,36 +1034,12 @@ public sealed class PoolSettingsWindow : Window
         // наткнулся — пул «Harribon DUO» достался тому, с кем он играл сегодня.
         if (nick.Length > 0 || pickMate is not null)
         {
-            var badge = new Border
-            {
-                // Серая плашка, а не цветной текст: подпись «с кем» не должна
-                // перебивать название пула и спорить с золотой рамкой
-                // отмеченной плитки.
-                CornerRadius = new CornerRadius(4),
-                Background = new SolidColorBrush(Color.FromArgb(0xB8, 0x18, 0x21, 0x2B)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x48, 0x58)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(6, 1, 6, 2),
-                MaxWidth = 104,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(4, 0, 4, 6),
-                Child = new TextBlock
-                {
-                    Text = nick.Length > 0 ? nick : Loc.T("pool.mateUnknown"),
-                    FontSize = 10, FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(nick.Length > 0
-                        ? Color.FromRgb(0xA8, 0xB6, 0xC4) : Color.FromRgb(0x6A, 0x7C, 0x8C)),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    TextAlignment = TextAlignment.Center,
-                }
-            };
-            if (pickMate is not null)
-            {
-                badge.Cursor = System.Windows.Input.Cursors.Hand;
-                badge.ToolTip = Loc.T("pool.mateChange");
-                badge.MouseLeftButtonDown += (_, e) => { e.Handled = true; pickMate(); };
-            }
+            var badge = MateBadge(nick.Length > 0 ? nick : Loc.T("pool.mateUnknown"),
+                                  nick.Length > 0, pickMate);
+            badge.MaxWidth = 104;
+            badge.HorizontalAlignment = HorizontalAlignment.Center;
+            badge.VerticalAlignment = VerticalAlignment.Bottom;
+            badge.Margin = new Thickness(4, 0, 4, 6);
             g.Children.Add(badge);
         }
         // Звезда выбора — левый верхний угол.
@@ -1710,39 +1731,63 @@ sealed class PoolEditorWindow : Window
     /// </summary>
     private FrameworkElement MateButton()
     {
-        var b = PoolUi.Btn(Loc.T("pool.mateChange"));
-        b.Margin = new Thickness(6, 0, 0, 0);
-        b.ToolTip = Loc.T("pool.mateWhy");
-        b.Click += (_, _) =>
-        {
-            var menu = new ContextMenu { PlacementTarget = b, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-            foreach (var (puuid, nick, games) in PoolSettingsWindow.MateList().Take(12))
-            {
-                var name = nick.Length > 0 ? nick : puuid[..Math.Min(8, puuid.Length)];
-                var id = puuid; var shown = nick;
-                menu.Items.Add(PoolSettingsWindow.MateRow($"{name} · {games}", puuid == _matePuuid, () =>
-                {
-                    _matePuuid = id;
-                    if (shown.Length > 0) _nickBox.Text = shown;   // TextChanged сам положит в _nick
-                    _dirty = true;
-                }));
-            }
-            if (menu.Items.Count == 0)
-                menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateNone"), false, () => { }));
+        // Та же плашка, что на плитке: и выглядит одинаково, и светлеет под
+        // наведением. Отдельная кнопка «сменить напарника» этого не говорила —
+        // по ней не видно, КТО сейчас выбран.
+        var holder = new Border { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
 
-            if (_matePuuid.Length > 0)
-            {
-                menu.Items.Add(new Separator());
-                menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateForget"), false, () =>
-                {
-                    _matePuuid = "";
-                    _mateCleared = true;
-                    _dirty = true;
-                }));
-            }
-            menu.IsOpen = true;
+        void Draw()
+        {
+            var who  = PoolSettingsWindow.MateList().FirstOrDefault(m => m.Puuid == _matePuuid);
+            var text = _matePuuid.Length == 0 ? Loc.T("pool.mateUnknown")
+                     : who.Name is { Length: > 0 } n ? n
+                     : _matePuuid[..Math.Min(8, _matePuuid.Length)];
+
+            var badge = PoolSettingsWindow.MateBadge(text, _matePuuid.Length > 0, () => Open(holder, Draw));
+            holder.Child = badge;
+        }
+
+        Draw();
+        return holder;
+    }
+
+    /// Меню выбора напарника. Вынесено из <see cref="MateButton"/>, чтобы плашка
+    /// могла перерисовать себя после выбора и снова получить это же действие.
+    private void Open(UIElement under, Action redraw)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = under,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
         };
-        return b;
+        foreach (var (puuid, nick, games) in PoolSettingsWindow.MateList().Take(12))
+        {
+            var name = nick.Length > 0 ? nick : puuid[..Math.Min(8, puuid.Length)];
+            var id = puuid; var shown = nick;
+            menu.Items.Add(PoolSettingsWindow.MateRow($"{name} · {games}", puuid == _matePuuid, () =>
+            {
+                _matePuuid = id;
+                if (shown.Length > 0) _nickBox.Text = shown;   // TextChanged сам положит в _nick
+                _mateCleared = false;
+                _dirty = true;
+                redraw();
+            }));
+        }
+        if (menu.Items.Count == 0)
+            menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateNone"), false, () => { }));
+
+        if (_matePuuid.Length > 0)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateForget"), false, () =>
+            {
+                _matePuuid = "";
+                _mateCleared = true;
+                _dirty = true;
+                redraw();
+            }));
+        }
+        menu.IsOpen = true;
     }
 
     private void Save()

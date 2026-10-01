@@ -57,6 +57,7 @@ public static class Party
         var ids = new HashSet<long>();
         var puuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var names = new List<string>();
+        var queued = new List<(string Puuid, string Name)>();
         foreach (var m in members.EnumerateArray())
         {
             var id    = Long(m, "summonerId");
@@ -67,7 +68,25 @@ public static class Party
             var name = Str(m, "gameName");
             if (name.Length == 0) name = Str(m, "summonerName");
             var tag = Str(m, "tagLine");
-            if (name.Length > 0) names.Add(tag.Length > 0 ? $"{name}#{tag}" : name);
+            var full = name.Length > 0 && tag.Length > 0 ? $"{name}#{tag}" : name;
+            if (full.Length > 0) names.Add(full);
+            if (puuid.Length > 0) queued.Add((puuid, name));
+        }
+
+        // Список напарников для дуо-пула берём ОТСЮДА, а не из связок: связки
+        // копятся на всех союзников подряд, и в флексе с нормалами туда попадают
+        // все, с кем вообще доводилось играть. Напарник — тот, с кем встаёшь в
+        // очередь, и знает это только лобби.
+        //
+        // Берём лишь соло/дуо: там в пати может быть ровно один человек, и это
+        // он и есть. В флексе их до четырёх, и «напарник» снова размывается.
+        if (queued.Count > 0)
+        {
+            var queueId = 0;
+            if (lobby.TryGetProperty("gameConfig", out var gc) && gc.ValueKind == JsonValueKind.Object)
+                queueId = (int)Long(gc, "queueId");
+            if (SessionTracker.QueueOf(queueId) == "solo")
+                SessionTracker.NoteQueued(queued);
         }
 
         var changed = !ids.SetEquals(Ids) || !puuids.SetEquals(Puuids) || !Known;

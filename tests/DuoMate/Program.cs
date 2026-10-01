@@ -145,6 +145,33 @@ internal static class Program
                   body.Contains("mateTaken = 0;"), "mateTaken = 0");
         }
 
+        // ── 9. В списке напарников — не все подряд ────────────────────────
+        //
+        // Связки копятся на ВСЕХ союзников и во всех очередях, кроме ARAM. В
+        // флексе и нормалах их четверо за игру, и список «напарников» разрастался
+        // до всех, с кем вообще доводилось играть: у владельца 182 человека.
+        // Напарник по дуо-пулу — тот, с кем встаёшь в очередь соло/дуо.
+        SessionTracker.Preview =
+        [
+            // с кем правда стоим в соло/дуо — три игры вместе
+            Pair("duo-0001", "Напарник", "solo", 2),
+            Pair("duo-0001", "Напарник", "solo", 1),
+            // случайный союзник из соло/дуо — одна игра, совпадение
+            Pair("rnd-0002", "Случайный", "solo", 1),
+            // флекс и нормалы: союзников четверо, напарником никто из них не стал
+            Pair("flx-0003", "Флекс", "flex", 9),
+            Pair("nrm-0004", "Нормал", "normal", 7),
+        ];
+        var list = DuoNaming.Mates();
+        Check("из флекса и нормалов в список никто не попал",
+              list.All(m => m.Puuid is not ("flx-0003" or "nrm-0004")),
+              string.Join(", ", list.Select(m => $"{m.Name}·{m.Games}")));
+        Check("случайный союзник одной игры — не напарник",
+              list.All(m => m.Puuid != "rnd-0002"), "");
+        Check("тот, с кем играли не раз, в списке есть",
+              list.Any(m => m.Puuid == "duo-0001" && m.Games == 3), "");
+        SessionTracker.Preview = null;
+
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: напарник определяется верно" : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
@@ -205,6 +232,10 @@ internal static class Program
         t.GetField("_lastLogged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
             .SetValue(null, -1);
     }
+
+    /// Подставная связка: с кем, в какой очереди и сколько игр.
+    private static SessionTracker.PairStat Pair(string puuid, string name, string queue, int games) =>
+        new(puuid, name, queue, 412, 429, games, games);
 
     /// Корень репозитория: от рабочей папки вверх до Counterplay.csproj.
     private static string? FindRepoRoot()

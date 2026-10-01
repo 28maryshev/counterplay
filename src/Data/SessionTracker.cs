@@ -147,6 +147,27 @@ public static class SessionTracker
         /// Свой список позволяет разово пройти по тому, что клиент ещё помнит.
         /// </summary>
         public List<long> PairGames { get; set; } = new();
+
+        /// <summary>
+        /// С кем ты СТОЯЛ В ОЧЕРЕДИ соло/дуо — puuid → ник и время последнего раза.
+        ///
+        /// Связки копятся на всех союзников подряд: в флексе и нормалах их
+        /// четверо, и список «напарников» разрастался до всех, с кем вообще
+        /// доводилось играть. Напарник по дуо-пулу — это человек, с которым
+        /// ВСТАЁШЬ В ОЧЕРЕДЬ, и знает это только лобби.
+        ///
+        /// Пишем лишь из лобби соло/дуо (queueId 420): там в пати может быть
+        /// ровно один человек, и это он и есть.
+        /// </summary>
+        public Dictionary<string, QueuedMate> Queued { get; set; } = new();
+    }
+
+    /// Человек, с которым стояли в очереди соло/дуо.
+    public sealed class QueuedMate
+    {
+        public string Name { get; set; } = "";
+        /// Unix-секунды последнего раза — по ним список стареет.
+        public long Seen { get; set; }
     }
 
     /// <summary>
@@ -574,6 +595,65 @@ public static class SessionTracker
             var q = key != null && s.Accounts.TryGetValue(key, out var a)
                 ? a.SelectedQueue : "solo";
             return QueueKeys.Contains(q) ? q : "solo";
+        }
+        finally { Gate.Release(); }
+    }
+
+    /// <summary>
+    /// Запомнить, с кем стоим в очереди соло/дуо. Зовётся из <see cref="Party"/>
+    /// при каждом обновлении лобби — поэтому пишем на диск, только если состав
+    /// правда изменился: лобби присылает себя часто.
+    /// </summary>
+    public static void NoteQueued(IEnumerable<(string Puuid, string Name)> mates)
+    {
+        var list = mates.Where(m => m.Puuid.Length > 0).ToList();
+        if (list.Count == 0) return;
+        Gate.Wait();
+        try
+        {
+            var s = Load();
+            var key = _account ?? s.LastAccount;
+            if (key is null) return;
+            var a = GetAccount(s, key, null);
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var changed = false;
+            foreach (var (puuid, name) in list)
+            {
+                if (!a.Queued.TryGetValue(puuid, out var rec))
+                {
+                    a.Queued[puuid] = rec = new QueuedMate();
+                    changed = true;
+                    Log.Write($"очередь соло/дуо: впервые встаём с «{(name.Length > 0 ? name : puuid[..8])}»");
+                }
+                if (name.Length > 0 && rec.Name != name) { rec.Name = name; changed = true; }
+                // Отметку времени двигаем не чаще раза в час: иначе каждое
+                // обновление лобби — запись файла.
+                if (now - rec.Seen > 3600) { rec.Seen = now; changed = true; }
+            }
+            // Список живёт долго, но не бесконечно: держим последних QueuedKeep.
+            const int QueuedKeep = 50;
+            if (a.Queued.Count > QueuedKeep)
+            {
+                foreach (var old in a.Queued.OrderByDescending(x => x.Value.Seen)
+                                            .Skip(QueuedKeep).Select(x => x.Key).ToList())
+                    a.Queued.Remove(old);
+                changed = true;
+            }
+            if (changed) Save(s);
+        }
+        finally { Gate.Release(); }
+    }
+
+    /// С кем стояли в очереди соло/дуо — от недавних к давним.
+    public static IReadOnlyList<(string Puuid, string Name, long Seen)> QueuedMates()
+    {
+        Gate.Wait();
+        try
+        {
+            var a = CurrentAccount();
+            if (a is null) return [];
+            return a.Queued.OrderByDescending(x => x.Value.Seen)
+                           .Select(x => (x.Key, x.Value.Name, x.Value.Seen)).ToList();
         }
         finally { Gate.Release(); }
     }
