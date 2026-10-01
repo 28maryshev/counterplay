@@ -516,6 +516,7 @@
     "mateUnknown": "nie wybrano",
     "mateNone": "Brak wspólnych gier",
     "mateForget": "Zapomnij partnera",
+    "mateReset": "Resetuj",
     "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them"
   },
   "phaseState": {

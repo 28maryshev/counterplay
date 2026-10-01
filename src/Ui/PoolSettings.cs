@@ -1188,9 +1188,8 @@ public sealed class PoolEditorWindow : Window
     private bool _manual = true;
     private readonly List<ManualDuoPair> _manualPairs = [];
 
-    private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 200 };
+    private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 240 };
     /// Ник напарника. Уже, чем название: это одно слово, а не фраза.
-    private readonly TextBox _nickBox = new() { FontSize = 13, MinWidth = 130 };
     private readonly StackPanel _body = new();
 
     private static Dictionary<string, List<int>> NewRoles() =>
@@ -1240,14 +1239,9 @@ public sealed class PoolEditorWindow : Window
         var root = new DockPanel { Margin = new Thickness(16) };
 
         // Верх: имя слева + Назад/Сброс/Сохранить справа.
-        var top = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+        var top = new DockPanel { Margin = new Thickness(0, 0, 0, _duo ? 8 : 14) };
         _nameBox.Text = _name;
         _nameBox.TextChanged += (_, _) => { _name = _nameBox.Text; _dirty = true; };
-
-        // Ник напарника — только у дуо. Раньше его можно было получить лишь
-        // файлом или совместной игрой, а вписать руками было негде.
-        _nickBox.Text = _nick;
-        _nickBox.TextChanged += (_, _) => { _nick = _nickBox.Text; _dirty = true; };
 
         var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         // Экспорт — золотом и с отбивкой: это действие не по ходу формы, а в
@@ -1281,37 +1275,19 @@ public sealed class PoolEditorWindow : Window
         });
         nameWrap.Children.Add(_nameBox);
 
-        // У дуо-пула рядом с названием — ник напарника. Название склеивается из
-        // половин («supports + top») и о человеке молчит; имя нужно отдельным
-        // полем, иначе вписать его негде.
-        if (_duo)
-        {
-            // WrapPanel, а не строка: в окне 620 кнопки справа забирают около
-            // трёхсот точек, имени нужно ещё двести — ник с плашкой в остаток не
-            // влезал и УХОДИЛ ЗА КРАЙ. Владелец поэтому и не видел выбора
-            // напарника: поле было, но его срезало. Теперь не поместилось —
-            // переносится на вторую строку, а на широком окне стоит рядом.
-            var row = new WrapPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(nameWrap);
+        top.Children.Add(nameWrap);
 
-            var nickWrap = new StackPanel { Margin = new Thickness(0, 0, 18, 0) };
-            nickWrap.Children.Add(new TextBlock
-            {
-                Text = Loc.T("pool.friendNick"),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-                FontSize = 10, FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 3)
-            });
-            var nickRow = new StackPanel { Orientation = Orientation.Horizontal };
-            nickRow.Children.Add(_nickBox);
-            nickRow.Children.Add(MateButton());
-            nickWrap.Children.Add(nickRow);
-            row.Children.Add(nickWrap);
-            top.Children.Add(row);
-        }
-        else top.Children.Add(nameWrap);
-        DockPanel.SetDock(top, Dock.Top);
-        root.Children.Add(top);
+        // Напарник — ОТДЕЛЬНОЙ строкой под именем. В одной строке с кнопками он
+        // не помещался и рисовался под ними: кнопки справа забирают около
+        // трёхсот точек, имени нужно ещё двести сорок. Поле ввода ника отсюда
+        // убрано совсем — вписывать его руками незачем, человек выбирается из
+        // списка тех, с кем правда стояли в очереди.
+        var header = new StackPanel();
+        header.Children.Add(top);
+        if (_duo) header.Children.Add(MateRow());
+
+        DockPanel.SetDock(header, Dock.Top);
+        root.Children.Add(header);
 
         root.Children.Add(new ScrollViewer { Content = _body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
 
@@ -1745,31 +1721,77 @@ public sealed class PoolEditorWindow : Window
     /// играли вдвоём. Ник при этом подставляется сам — его можно потом
     /// поправить руками, подпись и человек живут отдельно.
     /// </summary>
-    private FrameworkElement MateButton()
+    /// <summary>
+    /// Строка «Ник напарника»: плашка с именем — она же выбор из списка — и
+    /// «Сбросить» рядом.
+    ///
+    /// Поля ввода тут нет нарочно. Ник — не подпись, которую придумывают, а имя
+    /// конкретного человека: пул следует за ним по puuid, по нему же считаются
+    /// винрейты связки. Вписанный руками ник ни с кем не связан и только путает.
+    /// </summary>
+    private FrameworkElement MateRow()
     {
-        // Та же плашка, что на плитке: и выглядит одинаково, и светлеет под
-        // наведением. Отдельная кнопка «сменить напарника» этого не говорила —
-        // по ней не видно, КТО сейчас выбран.
-        var holder = new Border { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 0, 0, 14),
+        };
+        row.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.friendNick"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
+            FontSize = 10, FontWeight = FontWeights.Bold,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 10, 0),
+        });
+
+        var holder = new Border { VerticalAlignment = VerticalAlignment.Center };
+        var clear  = PoolUi.Btn(Loc.T("pool.mateReset"));
+        clear.Margin = new Thickness(10, 0, 0, 0);
+        clear.ToolTip = Loc.T("pool.mateForget");
+        // Ростом с плашку: у обычной кнопки отступы крупнее, и рядом с плашкой
+        // она выглядела башней. Высота складывается одинаково — рамка 1+1,
+        // отступы 1+2 и тот же кегль.
+        clear.FontSize = 10;
+        clear.FontWeight = FontWeights.Bold;
+        clear.Padding = new Thickness(10, 1, 10, 2);
+        clear.VerticalAlignment = VerticalAlignment.Center;
+        clear.Tag = "mate-reset";
 
         void Draw()
         {
             var who  = PoolSettingsWindow.MateList().FirstOrDefault(m => m.Puuid == _matePuuid);
-            var text = _matePuuid.Length == 0 ? Loc.T("pool.mateUnknown")
-                     : who.Name is { Length: > 0 } n ? n
-                     : _matePuuid[..Math.Min(8, _matePuuid.Length)];
+            // Ник из файла обмена оставляем видимым, даже если такого человека
+            // нет в списке: пул приехал от друга, и назвать его всё равно есть чем.
+            var text = who.Name is { Length: > 0 } n ? n
+                     : _nick.Length > 0 ? _nick
+                     : _matePuuid.Length > 0 ? _matePuuid[..Math.Min(8, _matePuuid.Length)]
+                     : Loc.T("pool.mateUnknown");
 
-            var badge = PoolSettingsWindow.MateBadge(text, _matePuuid.Length > 0, () => Open(holder, Draw));
-            holder.Child = badge;
+            holder.Child = PoolSettingsWindow.MateBadge(
+                text, _matePuuid.Length > 0 || _nick.Length > 0, () => PickMate(holder, Draw));
+            clear.Visibility = _matePuuid.Length > 0 || _nick.Length > 0
+                ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        clear.Click += (_, _) =>
+        {
+            _matePuuid   = "";
+            _nick        = "";
+            _mateCleared = true;   // стираем хозяина ТОЛЬКО по этой кнопке
+            _dirty = true;
+            Draw();
+        };
+
         Draw();
-        return holder;
+        row.Children.Add(holder);
+        row.Children.Add(clear);
+        return row;
     }
 
-    /// Меню выбора напарника. Вынесено из <see cref="MateButton"/>, чтобы плашка
-    /// могла перерисовать себя после выбора и снова получить это же действие.
-    private void Open(UIElement under, Action redraw)
+    /// Список тех, с кем стояли в очереди соло/дуо. «Забыть» здесь нет —
+    /// для этого рядом стоит своя кнопка.
+    private void PickMate(UIElement under, Action redraw)
     {
         var menu = new ContextMenu
         {
@@ -1782,8 +1804,8 @@ public sealed class PoolEditorWindow : Window
             var id = puuid; var shown = nick;
             menu.Items.Add(PoolSettingsWindow.MateRow($"{name} · {games}", puuid == _matePuuid, () =>
             {
-                _matePuuid = id;
-                if (shown.Length > 0) _nickBox.Text = shown;   // TextChanged сам положит в _nick
+                _matePuuid   = id;
+                _nick        = shown;
                 _mateCleared = false;
                 _dirty = true;
                 redraw();
@@ -1791,18 +1813,6 @@ public sealed class PoolEditorWindow : Window
         }
         if (menu.Items.Count == 0)
             menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateNone"), false, () => { }));
-
-        if (_matePuuid.Length > 0)
-        {
-            menu.Items.Add(new Separator());
-            menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateForget"), false, () =>
-            {
-                _matePuuid = "";
-                _mateCleared = true;
-                _dirty = true;
-                redraw();
-            }));
-        }
         menu.IsOpen = true;
     }
 

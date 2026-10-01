@@ -469,6 +469,14 @@ internal static class Program
         Check("и не уехала за нижний край",
               bottom <= w.ActualHeight, $"низ {bottom:F0} при высоте окна {w.ActualHeight:F0}");
 
+        // Кнопка сброса стоит вплотную к плашке — разная высота рядом видна
+        // сразу. Меряем, а не смотрим.
+        if (FindTagged(w, "mate-reset") is { } rst)
+            Check("кнопка сброса ростом с плашку",
+                  Math.Abs(rst.ActualHeight - box.Height) < 1.5,
+                  $"кнопка {rst.ActualHeight:F0}, плашка {box.Height:F0}");
+        else Check("кнопка сброса найдена", false, "не найдена");
+
         // Главное. За край окна плашка и не уезжала — она залезала ПОД кнопки
         // справа, и те её закрывали. Сравнение с шириной окна этого не видело.
         if (FindTagged(w, "editor-actions") is { } acts)
