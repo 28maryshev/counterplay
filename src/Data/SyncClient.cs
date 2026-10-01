@@ -279,9 +279,52 @@ public static class SyncClient
                 continue;
             }
 
+            // Пулы: пустое НИКОГДА не побеждает непустое, как бы свежо оно ни
+            // было. Иначе выходит так: локальный файл обнулился (сбой чтения,
+            // падение посреди записи), он же свежее — и пустота уезжает на
+            // сервер, добивая последнюю копию. Владелец на это и указал:
+            // «нельзя делать пустой», «если ничего нет и нажать
+            // синхронизировать — должно выкачивать».
+            if (name == "pools.json")
+            {
+                bool mineEmpty = PoolsEmpty(a), theirsEmpty = PoolsEmpty(b);
+                if (mineEmpty != theirsEmpty)
+                {
+                    res[name] = (mineEmpty ? b : a).DeepClone();
+                    continue;
+                }
+            }
+
             res[name] = ((long)a["at"]! >= (long)b["at"]! ? a : b).DeepClone();
         }
         return res;
+    }
+
+    /// <summary>
+    /// Нет ли в этой копии пулов вовсе.
+    ///
+    /// Файл с одними пустыми аккаунтами — это не «человек всё удалил», а почти
+    /// всегда сбой: удаляют пулы по одному, а не все пять аккаунтов разом.
+    /// Разобрать не вышло — считаем непустым: на догадке затирать нельзя.
+    /// </summary>
+    private static bool PoolsEmpty(JsonObject side)
+    {
+        try
+        {
+            var body = (string?)side["body"];
+            if (string.IsNullOrWhiteSpace(body)) return true;
+            var root = JsonNode.Parse(body)?.AsObject();
+            if (root is null || root.Count == 0) return true;
+            foreach (var acc in root)
+            {
+                var o = acc.Value?.AsObject();
+                if (o is null) continue;
+                if ((o["Pools"]?.AsArray()?.Count ?? 0) > 0) return false;
+                if ((o["DuoPools"]?.AsArray()?.Count ?? 0) > 0) return false;
+            }
+            return true;
+        }
+        catch { return false; }
     }
 
     /// <summary>

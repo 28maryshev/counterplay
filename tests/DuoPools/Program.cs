@@ -19,14 +19,28 @@ internal static class Program
 {
     private static int _fails;
 
-    private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "pools.json");
+    /// Файл пулов ПРОВЕРКИ, не игрока.
+    ///
+    /// Здесь стоял настоящий `%APPDATA%`, и проверка его УДАЛЯЛА — «чистый
+    /// лист, прежнее вернём в finally». Любой сбой в середине, или живая
+    /// программа, пишущая в тот же файл, — и возвращать уже нечего. Так у
+    /// владельца и пропали пулы, собиравшиеся месяцами.
+    private static string Path_ => System.IO.Path.Combine(PoolStore.DirOverride!, "pools.json");
 
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;   // не сорить в журнал игрока
+
+        // Пулы — в свою папку, НЕ в файл игрока. Проверки однажды уже оставили
+        // в его pools.json тестовые аккаунты, а свои пулы — пустыми.
+        PoolStore.DirOverride = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "counterplay-test-pools", "DuoPools");
+        System.IO.Directory.CreateDirectory(PoolStore.DirOverride);
+        // Reload здесь НЕ зовём: ниже проверяется переход со старого формата, а
+        // хранилище читает файл один раз за запуск — прочитать его надо уже
+        // после того, как Migration() положит старый формат на место.
+
 
         var existed = File.Exists(Path_);
         var before = existed ? File.ReadAllText(Path_) : null;

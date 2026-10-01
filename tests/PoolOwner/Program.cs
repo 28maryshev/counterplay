@@ -24,14 +24,28 @@ internal static class Program
     private const string Friend = "FR11111111111111111111111111111111111111111111111111111111111111111111111111";
     private const string Third  = "TH22222222222222222222222222222222222222222222222222222222222222222222222222";
 
-    private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "pools.json");
+        /// Файл пулов ПРОВЕРКИ, не игрока. Здесь стоял настоящий `%APPDATA%`, и
+    /// проверки его удаляли «на время» — так у владельца и пропали пулы.
+    private static string Path_ => System.IO.Path.Combine(PoolStore.DirOverride!, "pools.json");
 
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
+
+        // Пулы — в свою папку, НЕ в файл игрока. Проверки однажды уже оставили
+        // в его pools.json тестовые аккаунты, а свои пулы — пустыми.
+        PoolStore.DirOverride = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "counterplay-test-pools", "PoolOwner");
+        System.IO.Directory.CreateDirectory(PoolStore.DirOverride);
+        // И начинаем с ЧИСТОГО листа: состояние, оставшееся от прошлого
+        // запуска, делает проверку неповторяемой. SetFavourite, например,
+        // переключает — со звездой от прошлого раза он её гасит, и проверка
+        // падает через раз.
+        var stale = System.IO.Path.Combine(PoolStore.DirOverride, "pools.json");
+        if (System.IO.File.Exists(stale)) System.IO.File.Delete(stale);
+        PoolStore.Reload();
+
 
         var existed = File.Exists(Path_);
         var before = existed ? File.ReadAllText(Path_) : null;

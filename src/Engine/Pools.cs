@@ -102,9 +102,20 @@ public sealed class QueueActive
 
 public static class PoolStore
 {
+    /// <summary>
+    /// Папка с файлом пулов. Подменяется ТОЛЬКО проверками.
+    ///
+    /// Проверки работают с настоящим `%APPDATA%` игрока, и это однажды стоило
+    /// ему всех пулов: в его файле оказались тестовые аккаунты, а свои —
+    /// пустыми. Писать в живые данные человека, чтобы что-то проверить,
+    /// нельзя; у базы такой шов (`DataDb.DirOverride`) уже есть.
+    /// </summary>
+    public static string? DirOverride { get; set; }
+
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "pools.json");
+        DirOverride ?? System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay"),
+        "pools.json");
 
     private static readonly object Gate = new();
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -113,6 +124,20 @@ public static class PoolStore
     private static Dictionary<string, AccountPools> _all = new();
     private static string? _account;   // puuid текущего аккаунта
     private static bool _loaded;
+
+    /// <summary>
+    /// Файл не прочитался — запись запрещена до конца работы программы.
+    ///
+    /// Раньше любая ошибка чтения просто давала пустой набор, а первая же
+    /// запись затирала файл пустотой — и синхронизация выгружала её на сервер,
+    /// добивая копию там. Обрыв записи при падении программы, сбой диска,
+    /// недочитанный файл — и пулы, собиравшиеся месяцами, исчезали молча.
+    ///
+    /// Теперь так: испорченный файл откладываем рядом, работаем с пустыми
+    /// пулами в памяти (иначе программу не запустить), но НА ДИСК НЕ ПИШЕМ.
+    /// Пусть лучше человек увидит пустой экран и перезапустит, чем потеряет всё.
+    /// </summary>
+    private static bool _readFailed;
 
     private static void EnsureLoaded()
     {
@@ -123,7 +148,18 @@ public static class PoolStore
                 _all = JsonSerializer.Deserialize<Dictionary<string, AccountPools>>(File.ReadAllText(Path_))
                        ?? new();
         }
-        catch { _all = new(); }
+        catch (Exception ex)
+        {
+            _all = new();
+            _readFailed = true;
+            Log.Write($"пулы не прочитались ({ex.Message}) — записывать не буду, чтобы не затереть");
+            try
+            {
+                var keep = Path_ + ".unreadable";
+                if (File.Exists(Path_) && !File.Exists(keep)) File.Copy(Path_, keep);
+            }
+            catch { /* не вышло отложить — но писать всё равно не станем */ }
+        }
 
         // Переход со старого формата, где звезда и переключатель были одним и
         // тем же. Что было активным — то и становится избранным в своей
@@ -156,14 +192,32 @@ public static class PoolStore
 
     private static void Save()
     {
+        // Файл не прочитался — мы не знаем, что в нём было. Писать поверх
+        // нельзя: это и есть та самая потеря.
+        if (_readFailed) return;
+
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
+
+            // Пустым поверх непустого — никогда. Пулы собирают месяцами, а
+            // обнулить их может что угодно: сбой чтения, чужой процесс,
+            // ошибка в коде. Ни один такой случай не стоит файла игрока.
+            if (_all.Values.All(a => a.Pools.Count == 0 && a.DuoPools.Count == 0)
+                && File.Exists(Path_) && new FileInfo(Path_).Length > MinMeaningful)
+            {
+                Log.Write("пулы пусты, а на диске не пусто — запись отменена");
+                return;
+            }
+
             File.WriteAllText(Path_, JsonSerializer.Serialize(_all, JsonOpts));
             SaveCount++;
         }
         catch { /* не критично */ }
     }
+
+    /// Пустой набор на диске весит сотню байт; всё, что больше, уже чьи-то пулы.
+    private const int MinMeaningful = 200;
 
     private static string Key => _account ?? "_local";
 

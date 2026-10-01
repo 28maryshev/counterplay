@@ -33,6 +33,20 @@ internal static class Program
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;   // не сорить в журнал игрока
 
+        // Пулы — в свою папку, НЕ в файл игрока. Проверки однажды уже оставили
+        // в его pools.json тестовые аккаунты, а свои пулы — пустыми.
+        PoolStore.DirOverride = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), "counterplay-test-pools", "PoolBias");
+        System.IO.Directory.CreateDirectory(PoolStore.DirOverride);
+        // И начинаем с ЧИСТОГО листа: состояние, оставшееся от прошлого
+        // запуска, делает проверку неповторяемой. SetFavourite, например,
+        // переключает — со звездой от прошлого раза он её гасит, и проверка
+        // падает через раз.
+        var stale = System.IO.Path.Combine(PoolStore.DirOverride, "pools.json");
+        if (System.IO.File.Exists(stale)) System.IO.File.Delete(stale);
+        PoolStore.Reload();
+
+
         var dbPath = FindDb();
         if (dbPath is null)
         {
