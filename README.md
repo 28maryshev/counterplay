@@ -26,7 +26,7 @@ Website: [counterplays.com](https://counterplays.com)
   are about to lock in, and can send the rune page to the client in one click
 - Tracks your rank over a session and shows what the next game is worth
 - Adapts to your champion pool, so the advice stays inside what you actually play
-- Speaks English and Russian
+- Speaks fifteen languages
 
 ## What it deliberately does not do
 
