@@ -240,6 +240,10 @@ internal static class Program
 
         w.Close();
         Pump();
+
+        MateVisible(d1);
+        Pump();
+
         app.Shutdown();
     }
 
@@ -426,6 +430,72 @@ internal static class Program
                 () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             Thread.Sleep(60);
         }
+    }
+
+    /// <summary>
+    /// Выбор напарника виден в окне сборки дуо-пула.
+    ///
+    /// Поле ника с плашкой выбора стояло в ОДНОЙ строке с именем пула, а справа
+    /// в той же строке — Экспорт/Назад/Сброс/Сохранить. В окне шириной 620
+    /// кнопки забирают около трёхсот точек, имени нужно ещё двести — ник с
+    /// плашкой в остаток не влезал и уходил за правый край. Поле существовало,
+    /// работало и было недоступно: владелец его просто не видел.
+    ///
+    /// Поэтому меряем не «есть ли элемент», а ГДЕ он оказался.
+    /// </summary>
+    private static void MateVisible(DuoPool duo)
+    {
+        var w = new PoolEditorWindow(duo, duo: true);
+        ShowHidden(w);
+        w.UpdateLayout();
+
+        var badge = FindTagged(w, "mate-badge");
+        if (badge is null)
+        {
+            Check("плашка напарника есть в окне сборки дуо-пула", false, "не найдена");
+            w.Close();
+            return;
+        }
+
+        var box = System.Windows.Media.VisualTreeHelper.GetDescendantBounds(badge);
+        var tl  = badge.TransformToAncestor(w).Transform(new System.Windows.Point(0, 0));
+        var right  = tl.X + box.Width;
+        var bottom = tl.Y + box.Height;
+
+        Check("плашка напарника нарисована", box.Width > 0 && box.Height > 0,
+              $"{box.Width:F0}×{box.Height:F0}");
+        Check("плашка напарника не уехала за правый край окна",
+              right <= w.ActualWidth, $"правый край {right:F0} при ширине окна {w.ActualWidth:F0}");
+        Check("и не уехала за нижний край",
+              bottom <= w.ActualHeight, $"низ {bottom:F0} при высоте окна {w.ActualHeight:F0}");
+
+        // Главное. За край окна плашка и не уезжала — она залезала ПОД кнопки
+        // справа, и те её закрывали. Сравнение с шириной окна этого не видело.
+        if (FindTagged(w, "editor-actions") is { } acts)
+        {
+            var ax = acts.TransformToAncestor(w).Transform(new System.Windows.Point(0, 0)).X;
+            var ay = acts.TransformToAncestor(w).Transform(new System.Windows.Point(0, 0)).Y;
+            var ah = System.Windows.Media.VisualTreeHelper.GetDescendantBounds(acts).Height;
+            var overlapsX = right > ax;
+            var overlapsY = bottom > ay && tl.Y < ay + ah;
+            Check("плашка напарника не заехала под кнопки",
+                  !(overlapsX && overlapsY),
+                  $"плашка {tl.X:F0}–{right:F0}, кнопки начинаются с {ax:F0}");
+        }
+        else Check("блок кнопок найден", false, "не найден");
+
+        w.Close();
+    }
+
+    /// Первый элемент с такой меткой во всём дереве окна.
+    private static FrameworkElement? FindTagged(DependencyObject root, string tag)
+    {
+        if (root is FrameworkElement fe && Equals(fe.Tag, tag)) return fe;
+        var n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < n; i++)
+            if (FindTagged(System.Windows.Media.VisualTreeHelper.GetChild(root, i), tag) is { } hit)
+                return hit;
+        return null;
     }
 
     /// <summary>

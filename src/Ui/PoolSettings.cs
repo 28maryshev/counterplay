@@ -894,6 +894,9 @@ public sealed class PoolSettingsWindow : Window
         };
         var badge = new Border
         {
+            // Метка для проверки: плашку надо найти в дереве окна и померить,
+            // где она оказалась, — один раз её уже срезало краем окна.
+            Tag = "mate-badge",
             CornerRadius = new CornerRadius(4),
             Background = new SolidColorBrush(calm),
             BorderBrush = new SolidColorBrush(calmEdge),
@@ -1143,7 +1146,12 @@ public sealed class PoolSettingsWindow : Window
 /// Окно НЕ модальное: модальное запирает всё приложение, и настройки под ним
 /// нельзя было даже отодвинуть, чтобы заглянуть в то, что оно закрыло. Отсюда
 /// собственный флаг «сохранили» вместо DialogResult — он есть только у диалога.</summary>
-sealed class PoolEditorWindow : Window
+/// <summary>
+/// Окно сборки пула. Публичное РАДИ ПРОВЕРКИ: ник напарника с плашкой выбора
+/// однажды уехал за край окна и стал недоступен, а увидеть это можно только
+/// открыв окно и померив, где эта плашка оказалась.
+/// </summary>
+public sealed class PoolEditorWindow : Window
 {
     /// Нажали «Сохранить» (для владельца — обновить кнопки/слот пула).
     public bool Saved { get; private set; }
@@ -1180,9 +1188,9 @@ sealed class PoolEditorWindow : Window
     private bool _manual = true;
     private readonly List<ManualDuoPair> _manualPairs = [];
 
-    private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 240 };
+    private readonly TextBox _nameBox = new() { FontSize = 15, FontWeight = FontWeights.Bold, MinWidth = 200 };
     /// Ник напарника. Уже, чем название: это одно слово, а не фраза.
-    private readonly TextBox _nickBox = new() { FontSize = 13, MinWidth = 150 };
+    private readonly TextBox _nickBox = new() { FontSize = 13, MinWidth = 130 };
     private readonly StackPanel _body = new();
 
     private static Dictionary<string, List<int>> NewRoles() =>
@@ -1256,6 +1264,9 @@ sealed class PoolEditorWindow : Window
         var save = ActionBtn(Loc.T("pool.save"), primary: true);
         save.Click += (_, _) => Save();
         btns.Children.Add(back); btns.Children.Add(reset); btns.Children.Add(save);
+        // Метка для проверки: по левому краю кнопок видно, сколько места
+        // остаётся имени с ником, — именно туда ник и залезал.
+        btns.Tag = "editor-actions";
         DockPanel.SetDock(btns, Dock.Right);
         top.Children.Add(btns);
 
@@ -1275,7 +1286,12 @@ sealed class PoolEditorWindow : Window
         // полем, иначе вписать его негде.
         if (_duo)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            // WrapPanel, а не строка: в окне 620 кнопки справа забирают около
+            // трёхсот точек, имени нужно ещё двести — ник с плашкой в остаток не
+            // влезал и УХОДИЛ ЗА КРАЙ. Владелец поэтому и не видел выбора
+            // напарника: поле было, но его срезало. Теперь не поместилось —
+            // переносится на вторую строку, а на широком окне стоит рядом.
+            var row = new WrapPanel { Orientation = Orientation.Horizontal };
             row.Children.Add(nameWrap);
 
             var nickWrap = new StackPanel { Margin = new Thickness(0, 0, 18, 0) };
