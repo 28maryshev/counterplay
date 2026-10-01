@@ -511,7 +511,11 @@
     "fewGames": "Trop peu de parties — le pourcentage ne dit pas grand-chose",
     "splitHint": "Faites glisser pour donner plus de place aux pools ou aux taux de victoire",
     "duoNoPool": "Marque un pool de duo d’une étoile et vos winrates communs apparaîtront ici.",
-    "duoNoMate": "Le partenaire n’est pas encore identifié. Entrez ensemble en draft avec ce pool — ou importe son fichier — et les paires seront comptées."
+    "duoNoMate": "Le partenaire n’est pas encore identifié. Entrez ensemble en draft avec ce pool — ou importe son fichier — et les paires seront comptées.",
+    "mateChange": "Changer de partenaire",
+    "mateUnknown": "non défini",
+    "mateNone": "Pas encore de parties ensemble",
+    "mateForget": "Oublier le partenaire"
   },
   "phaseState": {
     "none": "Prêt",

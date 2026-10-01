@@ -511,7 +511,11 @@
     "fewGames": "Ancora poche partite — la percentuale dice poco",
     "splitHint": "Trascina per dare più spazio ai pool o alle percentuali di vittoria",
     "duoNoPool": "Segna con la stella un pool duo e qui compariranno i vostri winrate insieme.",
-    "duoNoMate": "Il compagno non è ancora identificato. Entrate insieme in un draft con questo pool, o importa il suo file, e le coppie inizieranno a contare."
+    "duoNoMate": "Il compagno non è ancora identificato. Entrate insieme in un draft con questo pool, o importa il suo file, e le coppie inizieranno a contare.",
+    "mateChange": "Cambia compagno",
+    "mateUnknown": "non scelto",
+    "mateNone": "Ancora nessuna partita insieme",
+    "mateForget": "Dimentica compagno"
   },
   "phaseState": {
     "none": "Pronto",

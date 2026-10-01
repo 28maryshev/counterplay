@@ -511,7 +511,11 @@
     "fewGames": "Còn quá ít trận — tỷ lệ chưa nói lên điều gì",
     "splitHint": "Kéo để dành thêm chỗ cho pool hoặc tỉ lệ thắng",
     "duoNoPool": "Đánh dấu sao một pool đôi, tỷ lệ thắng chung sẽ hiện ở đây.",
-    "duoNoMate": "Chưa xác định được người chơi cùng. Hãy vào draft cùng nhau với pool này, hoặc nhập tệp pool của họ, rồi các cặp sẽ bắt đầu được tính."
+    "duoNoMate": "Chưa xác định được người chơi cùng. Hãy vào draft cùng nhau với pool này, hoặc nhập tệp pool của họ, rồi các cặp sẽ bắt đầu được tính.",
+    "mateChange": "Change partner",
+    "mateUnknown": "not set",
+    "mateNone": "No games together yet",
+    "mateForget": "Forget partner"
   },
   "phaseState": {
     "none": "Sẵn sàng",

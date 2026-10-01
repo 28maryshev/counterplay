@@ -116,6 +116,7 @@ internal static class Program
         """;
         var (oldPool, _, noOwner, _) = PoolFile.ParseWithOwner(old);
         Check("старый файл грузится", oldPool is not null, oldPool?.Name ?? "—");
+        ChosenMateStays();
         Check("хозяина в нём нет, и это не ошибка", noOwner.Length == 0, "пусто");
 
         FiveStack();
@@ -257,6 +258,43 @@ internal static class Program
     private static string Head(string s) => s.Length > 40 ? s[..40] + "…" : s;
     private static string Tail(string? s) =>
         string.IsNullOrEmpty(s) ? "—" : s[..2] + "…(" + s.Length + ")";
+
+    /// <summary>
+    /// Выбранный напарник не перехватывается чужой игрой.
+    ///
+    /// Хозяин дуо-пула проставляется сам — первым, с кем окажешься в пати. Пока
+    /// он не задан, это удобно; когда задан, подменять его нельзя. Владелец
+    /// поймал обратное на живых данных: пул «Harribon DUO» достался человеку, с
+    /// которым он играл в тот день, и вернуть прежнего было нечем — в
+    /// интерфейсе выбора напарника не существовало.
+    ///
+    /// Теперь выбор есть, и эта проверка стережёт вторую половину: раз выбрали —
+    /// держится.
+    /// </summary>
+    private static void ChosenMateStays()
+    {
+        const string Chosen = "CHOSEN-mate-0000000000000000000000000000000000000000000000000000000000";
+        const string Other  = "OTHER-mate-00000000000000000000000000000000000000000000000000000000000";
+
+        var duo = new DuoPool { Id = "dm", FriendName = "выбран руками", FriendPuuid = Chosen };
+
+        // Лобби видели (иначе сработало бы правило «состав пати неизвестен»),
+        // и в пати — другой человек, не хозяин пула.
+        var lobbyJson =
+            "{\"localMember\":{\"puuid\":\"me-0000\"},\"members\":[" +
+            "{\"puuid\":\"me-0000\"},{\"puuid\":\"" + Other + "\",\"gameName\":\"Другой\"}]}";
+        using var lobby = System.Text.Json.JsonDocument.Parse(lobbyJson);
+        Party.Update(lobby.RootElement);
+
+        var state = Draft([
+            new DraftPlayer(0, 0, 0, "mid", true),
+            new DraftPlayer(1, 64, 0, "jungle", false, 0, Other),
+        ]);
+
+        var champ = Party.MateChampion(state, duo);
+        Check("чужой не выдаётся за выбранного напарника", champ == 0, $"{champ}");
+        Check("   и сам выбор не переписан", duo.FriendPuuid == Chosen, Tail(duo.FriendPuuid));
+    }
 
     private static void Check(string what, bool ok, string detail)
     {

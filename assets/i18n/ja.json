@@ -511,7 +511,11 @@
     "fewGames": "試合数が少なく、勝率はまだ当てになりません",
     "splitHint": "ドラッグするとプールか勝率の表示領域を広げられます",
     "duoNoPool": "デュオプールに星を付けると、二人の勝率がここに表示されます。",
-    "duoNoMate": "相方をまだ特定できていません。このプールで一緒にドラフトに入るか、相手のプールファイルを読み込むと集計が始まります。"
+    "duoNoMate": "相方をまだ特定できていません。このプールで一緒にドラフトに入るか、相手のプールファイルを読み込むと集計が始まります。",
+    "mateChange": "Change partner",
+    "mateUnknown": "not set",
+    "mateNone": "No games together yet",
+    "mateForget": "Forget partner"
   },
   "phaseState": {
     "none": "待機中",

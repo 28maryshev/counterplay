@@ -797,9 +797,11 @@ public sealed class PoolSettingsWindow : Window
             // Ник берём тем же путём, что и заголовок раздела: из файла, иначе
             // из связок. Называть некого — строки просто не будет.
             var nick = DuoNaming.TileNick(d, SessionTracker.TopPairs(d.FriendPuuid, 1));
+            var duo = d;   // замыкание в цикле
             _duoArea.Children.Add(Tile(d.FriendName, a.FavDuoId == d.Id,
                 () => EditDuo(d), () => DeleteDuo(d), () => Select(PoolKind.Duo, d.Id), champs,
-                Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto"), nick));
+                Loc.T(d.Manual ? "pool.duoManual" : "pool.duoAuto"), nick,
+                () => PickMate(duo)));
         }
         _duoArea.Children.Add(PlusTile(() => EditDuo(null)));
         _duoArea.Children.Add(ImportTile(intoDuo: true));
@@ -856,8 +858,90 @@ public sealed class PoolSettingsWindow : Window
 
     // Плитка существующего пула: имя + клик (редактировать) + × (удалить) + ★ выбора.
     // Активный (выбранный сейчас) пул выделен синей рамкой и залитой звездой.
+    /// <summary>
+    /// Выбор напарника для дуо-пула.
+    ///
+    /// Хозяин пула проставляется сам — первым, с кем окажешься в пати. Правило
+    /// разумное, пока оно угадывает; когда промахивается, исправить было
+    /// нечем. Владелец это и поймал: пул «Harribon DUO» достался человеку, с
+    /// которым он играл в тот день, и вернуть прежнего можно было только
+    /// удалив пул и собрав заново.
+    ///
+    /// Список — те, с кем правда играли вдвоём, по числу совместных игр из
+    /// истории связок. Выдумывать некого: кто не попадался в играх, тот и в
+    /// пуле не нужен.
+    /// </summary>
+    private void PickMate(DuoPool d)
+    {
+        // Напарники из истории: puuid → (ник, сколько игр вместе).
+        var mates = new Dictionary<string, (string Name, int Games)>();
+        foreach (var p in SessionTracker.TopPairs(take: 500))
+        {
+            if (p.AllyPuuid.Length == 0) continue;
+            var had = mates.GetValueOrDefault(p.AllyPuuid);
+            mates[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name,
+                                  had.Games + p.Games);
+        }
+
+        var menu = new ContextMenu
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x14, 0x1C, 0x28)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x44, 0x36, 0xD6, 0xE7)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
+        };
+
+        MenuItem Row(string head, bool chosen, Action act)
+        {
+            var mi = new MenuItem
+            {
+                Header = head,
+                IsCheckable = false,
+                Background = Brushes.Transparent,
+                Foreground = new SolidColorBrush(chosen
+                    ? Color.FromRgb(0xF5, 0xD7, 0x7A) : Color.FromRgb(0xD7, 0xDE, 0xE6)),
+            };
+            mi.Click += (_, _) => act();
+            return mi;
+        }
+
+        foreach (var (puuid, m) in mates.OrderByDescending(x => x.Value.Games).Take(12))
+        {
+            var name = m.Name.Length > 0 ? m.Name : puuid[..Math.Min(8, puuid.Length)];
+            var id = puuid;
+            menu.Items.Add(Row($"{name} · {m.Games}", puuid == d.FriendPuuid, () =>
+            {
+                d.FriendPuuid = id;
+                d.FriendNick  = m.Name;
+                PoolStore.Persist();
+                Log.Write($"дуо «{d.FriendName}»: напарник выбран вручную — {name}");
+                Refresh();
+            }));
+        }
+
+        if (mates.Count == 0)
+            menu.Items.Add(Row(Loc.T("pool.mateNone"), false, () => { }));
+
+        // «Забыть» — чтобы вернуть прежнее поведение: следующий напарник по
+        // пати снова займёт место сам.
+        if (d.FriendPuuid.Length > 0 || d.FriendNick.Length > 0)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Row(Loc.T("pool.mateForget"), false, () =>
+            {
+                d.FriendPuuid = "";
+                d.FriendNick  = "";
+                PoolStore.Persist();
+                Log.Write($"дуо «{d.FriendName}»: напарник забыт");
+                Refresh();
+            }));
+        }
+
+        menu.IsOpen = true;
+    }
+
     private FrameworkElement Tile(string name, bool active, Action open, Action del, Action select,
-                                  IReadOnlyList<int>? champs = null, string mode = "", string nick = "")
+                                  IReadOnlyList<int>? champs = null, string mode = "", string nick = "",
+                                  Action? pickMate = null)
     {
         var b = new Border
         {
@@ -898,8 +982,13 @@ public sealed class PoolSettingsWindow : Window
         // Только ник. Режим подбора — настройка, а не подпись: строка под
         // названием полезнее занята тем, С КЕМ этот пул. Режим не теряется —
         // он в подсказке к плитке.
-        if (nick.Length > 0)
-            g.Children.Add(new Border
+        // Плашка с ником — она же кнопка «с кем этот пул». Хозяин проставляется
+        // сам по первому напарнику в пати, и если это оказался не тот человек,
+        // поменять его было НЕЧЕМ: ни кнопки, ни сброса. Владелец на это и
+        // наткнулся — пул «Harribon DUO» достался тому, с кем он играл сегодня.
+        if (nick.Length > 0 || pickMate is not null)
+        {
+            var badge = new Border
             {
                 // Серая плашка, а не цветной текст: подпись «с кем» не должна
                 // перебивать название пула и спорить с золотой рамкой
@@ -915,12 +1004,22 @@ public sealed class PoolSettingsWindow : Window
                 Margin = new Thickness(4, 0, 4, 6),
                 Child = new TextBlock
                 {
-                    Text = nick, FontSize = 10, FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0xA8, 0xB6, 0xC4)),
+                    Text = nick.Length > 0 ? nick : Loc.T("pool.mateUnknown"),
+                    FontSize = 10, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(nick.Length > 0
+                        ? Color.FromRgb(0xA8, 0xB6, 0xC4) : Color.FromRgb(0x6A, 0x7C, 0x8C)),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     TextAlignment = TextAlignment.Center,
                 }
-            });
+            };
+            if (pickMate is not null)
+            {
+                badge.Cursor = System.Windows.Input.Cursors.Hand;
+                badge.ToolTip = Loc.T("pool.mateChange");
+                badge.MouseLeftButtonDown += (_, e) => { e.Handled = true; pickMate(); };
+            }
+            g.Children.Add(badge);
+        }
         // Звезда выбора — левый верхний угол.
         var star = new Button
         {

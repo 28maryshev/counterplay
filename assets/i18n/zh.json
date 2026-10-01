@@ -511,7 +511,11 @@
     "fewGames": "场次太少，胜率还说明不了什么",
     "splitHint": "拖动可以给英雄池或胜率留出更多空间",
     "duoNoPool": "给双排池加星，你们的共同胜率就会出现在这里。",
-    "duoNoMate": "还没有识别出队友。用这个池一起进入选人阶段，或导入对方的池文件，组合就会开始统计。"
+    "duoNoMate": "还没有识别出队友。用这个池一起进入选人阶段，或导入对方的池文件，组合就会开始统计。",
+    "mateChange": "Change partner",
+    "mateUnknown": "not set",
+    "mateNone": "No games together yet",
+    "mateForget": "Forget partner"
   },
   "phaseState": {
     "none": "就绪",

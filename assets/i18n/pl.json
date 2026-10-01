@@ -511,7 +511,11 @@
     "fewGames": "Za mało gier — procent jeszcze nic nie mówi",
     "splitHint": "Przeciągnij, aby dać więcej miejsca pulom lub procentom zwycięstw",
     "duoNoPool": "Oznacz gwiazdką pulę duo, a pojawią się tu wasze wspólne winrate.",
-    "duoNoMate": "Partner nie został jeszcze rozpoznany. Wejdźcie razem do draftu z tą pulą albo zaimportuj jego plik, a pary zaczną się liczyć."
+    "duoNoMate": "Partner nie został jeszcze rozpoznany. Wejdźcie razem do draftu z tą pulą albo zaimportuj jego plik, a pary zaczną się liczyć.",
+    "mateChange": "Zmień partnera",
+    "mateUnknown": "nie wybrano",
+    "mateNone": "Brak wspólnych gier",
+    "mateForget": "Zapomnij partnera"
   },
   "phaseState": {
     "none": "Gotowe",

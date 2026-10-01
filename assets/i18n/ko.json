@@ -511,7 +511,11 @@
     "fewGames": "경기 수가 적어 승률은 아직 의미가 없습니다",
     "splitHint": "드래그하면 챔피언 풀이나 승률 쪽에 더 넓은 자리를 줄 수 있습니다",
     "duoNoPool": "듀오 풀에 별을 표시하면 함께한 승률이 여기에 표시됩니다.",
-    "duoNoMate": "아직 듀오 상대를 확인하지 못했습니다. 이 풀로 함께 드래프트에 들어가거나 상대의 풀 파일을 불러오면 조합이 집계됩니다."
+    "duoNoMate": "아직 듀오 상대를 확인하지 못했습니다. 이 풀로 함께 드래프트에 들어가거나 상대의 풀 파일을 불러오면 조합이 집계됩니다.",
+    "mateChange": "Change partner",
+    "mateUnknown": "not set",
+    "mateNone": "No games together yet",
+    "mateForget": "Forget partner"
   },
   "phaseState": {
     "none": "대기 중",
