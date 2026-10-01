@@ -45,4 +45,70 @@
     </Setter>
   </Style>
 
+  <!--
+    Выпадающее меню.
+
+    Тоже БЕЗ ключа и по той же причине, что подсказка: фирменный вид был только
+    у меню ролей в оверлее, а всё остальное рисовалось системным шаблоном. У
+    пунктов меню он держит слева колонку под галочку и значок, и на тёмном фоне
+    она выходит белым прямоугольником — владелец это и увидел в новом меню
+    выбора напарника.
+  -->
+  <Style TargetType="ContextMenu">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContextMenu">
+          <Border Background="#101823" BorderBrush="#557089" BorderThickness="1"
+                  CornerRadius="6" Padding="4" Margin="0,2,6,6">
+            <Border.Effect>
+              <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="2" Opacity="0.6"/>
+            </Border.Effect>
+            <StackPanel IsItemsHost="True"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="MenuItem">
+    <Setter Property="Foreground" Value="#C9D2DC"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="bd" CornerRadius="4" Padding="12,5" Background="Transparent">
+            <ContentPresenter ContentSource="Header" RecognizesAccessKey="False"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#26FFFFFF"/>
+              <Setter Property="Foreground" Value="#F5D77A"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter Property="Foreground" Value="#F5D77A"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Foreground" Value="#6A7C8C"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Разделитель: системный рисует светлую полоску, на тёмном она режет глаз. -->
+  <Style TargetType="Separator">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Separator">
+          <Border Height="1" Margin="8,4" Background="#2A3A4A"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
 </ResourceDictionary>

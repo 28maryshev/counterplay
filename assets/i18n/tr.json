@@ -515,7 +515,8 @@
     "mateChange": "Partneri değiştir",
     "mateUnknown": "seçilmedi",
     "mateNone": "Henüz birlikte oynanmadı",
-    "mateForget": "Partneri unut"
+    "mateForget": "Partneri unut",
+    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them"
   },
   "phaseState": {
     "none": "Hazır",

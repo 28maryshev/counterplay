@@ -515,7 +515,8 @@
     "mateChange": "Змінити напарника",
     "mateUnknown": "не вибрано",
     "mateNone": "Спільних ігор поки немає",
-    "mateForget": "Забути напарника"
+    "mateForget": "Забути напарника",
+    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them"
   },
   "phaseState": {
     "none": "Готовий",

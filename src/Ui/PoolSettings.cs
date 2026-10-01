@@ -859,6 +859,33 @@ public sealed class PoolSettingsWindow : Window
     // Плитка существующего пула: имя + клик (редактировать) + × (удалить) + ★ выбора.
     // Активный (выбранный сейчас) пул выделен синей рамкой и залитой звездой.
     /// <summary>
+    /// С кем игрок правда играл вдвоём: puuid → ник и число совместных игр,
+    /// от частых к редким. Один источник на плитку и на редактор — иначе списки
+    /// разъедутся, а человек там один и тот же.
+    /// </summary>
+    internal static List<(string Puuid, string Name, int Games)> MateList()
+    {
+        var mates = new Dictionary<string, (string Name, int Games)>();
+        foreach (var p in SessionTracker.TopPairs(take: 500))
+        {
+            if (p.AllyPuuid.Length == 0) continue;
+            var had = mates.GetValueOrDefault(p.AllyPuuid);
+            mates[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name,
+                                  had.Games + p.Games);
+        }
+        return mates.OrderByDescending(x => x.Value.Games)
+                    .Select(x => (x.Key, x.Value.Name, x.Value.Games)).ToList();
+    }
+
+    /// Пункт меню в фирменном виде (оформление — в src/Ui/Theme.xaml).
+    internal static MenuItem MateRow(string head, bool chosen, Action act)
+    {
+        var mi = new MenuItem { Header = head, IsCheckable = false, IsChecked = chosen };
+        mi.Click += (_, _) => act();
+        return mi;
+    }
+
+    /// <summary>
     /// Выбор напарника для дуо-пула.
     ///
     /// Хозяин пула проставляется сам — первым, с кем окажешься в пати. Правило
@@ -873,45 +900,19 @@ public sealed class PoolSettingsWindow : Window
     /// </summary>
     private void PickMate(DuoPool d)
     {
-        // Напарники из истории: puuid → (ник, сколько игр вместе).
-        var mates = new Dictionary<string, (string Name, int Games)>();
-        foreach (var p in SessionTracker.TopPairs(take: 500))
-        {
-            if (p.AllyPuuid.Length == 0) continue;
-            var had = mates.GetValueOrDefault(p.AllyPuuid);
-            mates[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name,
-                                  had.Games + p.Games);
-        }
+        var mates = MateList();
 
-        var menu = new ContextMenu
-        {
-            Background = new SolidColorBrush(Color.FromRgb(0x14, 0x1C, 0x28)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x44, 0x36, 0xD6, 0xE7)),
-            Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
-        };
+        // Вид не задаём: меню оформлено приложением (src/Ui/Theme.xaml).
+        var menu = new ContextMenu();
 
-        MenuItem Row(string head, bool chosen, Action act)
+        foreach (var (puuid, nick, games) in mates.Take(12))
         {
-            var mi = new MenuItem
-            {
-                Header = head,
-                IsCheckable = false,
-                Background = Brushes.Transparent,
-                Foreground = new SolidColorBrush(chosen
-                    ? Color.FromRgb(0xF5, 0xD7, 0x7A) : Color.FromRgb(0xD7, 0xDE, 0xE6)),
-            };
-            mi.Click += (_, _) => act();
-            return mi;
-        }
-
-        foreach (var (puuid, m) in mates.OrderByDescending(x => x.Value.Games).Take(12))
-        {
-            var name = m.Name.Length > 0 ? m.Name : puuid[..Math.Min(8, puuid.Length)];
+            var name = nick.Length > 0 ? nick : puuid[..Math.Min(8, puuid.Length)];
             var id = puuid;
-            menu.Items.Add(Row($"{name} · {m.Games}", puuid == d.FriendPuuid, () =>
+            menu.Items.Add(MateRow($"{name} · {games}", puuid == d.FriendPuuid, () =>
             {
                 d.FriendPuuid = id;
-                d.FriendNick  = m.Name;
+                d.FriendNick  = nick;
                 PoolStore.Persist();
                 Log.Write($"дуо «{d.FriendName}»: напарник выбран вручную — {name}");
                 Refresh();
@@ -919,14 +920,14 @@ public sealed class PoolSettingsWindow : Window
         }
 
         if (mates.Count == 0)
-            menu.Items.Add(Row(Loc.T("pool.mateNone"), false, () => { }));
+            menu.Items.Add(MateRow(Loc.T("pool.mateNone"), false, () => { }));
 
         // «Забыть» — чтобы вернуть прежнее поведение: следующий напарник по
         // пати снова займёт место сам.
         if (d.FriendPuuid.Length > 0 || d.FriendNick.Length > 0)
         {
             menu.Items.Add(new Separator());
-            menu.Items.Add(Row(Loc.T("pool.mateForget"), false, () =>
+            menu.Items.Add(MateRow(Loc.T("pool.mateForget"), false, () =>
             {
                 d.FriendPuuid = "";
                 d.FriendNick  = "";
@@ -1137,6 +1138,18 @@ sealed class PoolEditorWindow : Window
     private string _name;
     /// Ник напарника — только для дуо-пула. Пусто, пока не вписали.
     private string _nick = "";
+    /// <summary>
+    /// Кто этот друг на самом деле. Ник — просто подпись, а следует программа
+    /// за человеком по puuid: по нему она ищет его в команде и по нему считает
+    /// винрейты связки. Раньше его можно было задать только обменным файлом
+    /// или дать проставиться самому по первой пати — и если угадало неверно,
+    /// исправить было нечем.
+    /// </summary>
+    private string _matePuuid = "";
+    /// «Забыть» нажали НАРОЧНО. Пустой puuid сам по себе значит и «забыли», и
+    /// «не успело подхватиться» — после того, как пулы однажды уже пропали,
+    /// разводить такие случаи надо явно, а не по пустой строке.
+    private bool _mateCleared;
     private readonly Dictionary<string, List<int>> _mine   = NewRoles();
     private readonly Dictionary<string, List<int>> _friend = NewRoles();
     private bool _dirty;
@@ -1169,7 +1182,7 @@ sealed class PoolEditorWindow : Window
         if (existing is ChampPool p)
         { _srcPool = p; _name = p.Name; CopyInto(_mine, p.ByRole); }
         else if (existing is DuoPool d)
-        { _srcDuo = d; _name = d.FriendName; _nick = d.FriendNick;
+        { _srcDuo = d; _name = d.FriendName; _nick = d.FriendNick; _matePuuid = d.FriendPuuid;
           CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend);
           _manual = d.Manual;
           _manualPairs.AddRange(d.ManualPairs.Select(p => new ManualDuoPair {
@@ -1252,7 +1265,10 @@ sealed class PoolEditorWindow : Window
                 FontSize = 10, FontWeight = FontWeights.Bold,
                 Margin = new Thickness(0, 0, 0, 3)
             });
-            nickWrap.Children.Add(_nickBox);
+            var nickRow = new StackPanel { Orientation = Orientation.Horizontal };
+            nickRow.Children.Add(_nickBox);
+            nickRow.Children.Add(MateButton());
+            nickWrap.Children.Add(nickRow);
             row.Children.Add(nickWrap);
             top.Children.Add(row);
         }
@@ -1687,6 +1703,48 @@ sealed class PoolEditorWindow : Window
         RenderBody();
     }
 
+    /// <summary>
+    /// Кнопка «кто это» рядом с ником: выбор напарника из тех, с кем правда
+    /// играли вдвоём. Ник при этом подставляется сам — его можно потом
+    /// поправить руками, подпись и человек живут отдельно.
+    /// </summary>
+    private FrameworkElement MateButton()
+    {
+        var b = PoolUi.Btn(Loc.T("pool.mateChange"));
+        b.Margin = new Thickness(6, 0, 0, 0);
+        b.ToolTip = Loc.T("pool.mateWhy");
+        b.Click += (_, _) =>
+        {
+            var menu = new ContextMenu { PlacementTarget = b, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            foreach (var (puuid, nick, games) in PoolSettingsWindow.MateList().Take(12))
+            {
+                var name = nick.Length > 0 ? nick : puuid[..Math.Min(8, puuid.Length)];
+                var id = puuid; var shown = nick;
+                menu.Items.Add(PoolSettingsWindow.MateRow($"{name} · {games}", puuid == _matePuuid, () =>
+                {
+                    _matePuuid = id;
+                    if (shown.Length > 0) _nickBox.Text = shown;   // TextChanged сам положит в _nick
+                    _dirty = true;
+                }));
+            }
+            if (menu.Items.Count == 0)
+                menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateNone"), false, () => { }));
+
+            if (_matePuuid.Length > 0)
+            {
+                menu.Items.Add(new Separator());
+                menu.Items.Add(PoolSettingsWindow.MateRow(Loc.T("pool.mateForget"), false, () =>
+                {
+                    _matePuuid = "";
+                    _mateCleared = true;
+                    _dirty = true;
+                }));
+            }
+            menu.IsOpen = true;
+        };
+        return b;
+    }
+
     private void Save()
     {
         if (!Confirm.Ask(this, Loc.T("pool.save"), Loc.T("pool.confirmSave"))) return;
@@ -1696,6 +1754,11 @@ sealed class PoolEditorWindow : Window
             var d = _srcDuo ?? new DuoPool();
             d.FriendName   = _name;
             d.FriendNick   = _nick.Trim();
+            // Человек, за которым следует пул. Стираем ТОЛЬКО по явному
+            // «Забыть»: иначе пустое поле однажды молча снесёт хозяина, а
+            // чем это кончается, уже видели.
+            if (_matePuuid.Length > 0)   d.FriendPuuid = _matePuuid;
+            else if (_mateCleared)       d.FriendPuuid = "";
             d.Mine         = Clone(_mine);
             d.Friend       = Clone(_friend);
             d.Manual      = _manual;

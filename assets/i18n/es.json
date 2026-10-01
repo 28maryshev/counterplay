@@ -515,7 +515,8 @@
     "mateChange": "Cambiar compañero",
     "mateUnknown": "sin elegir",
     "mateNone": "Aún no hay partidas juntos",
-    "mateForget": "Olvidar compañero"
+    "mateForget": "Olvidar compañero",
+    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them"
   },
   "phaseState": {
     "none": "Listo",
