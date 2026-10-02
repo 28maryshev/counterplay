@@ -189,7 +189,9 @@ internal static class Program
         MasteryCheck(engine);
 
         // ── надбавка за напарника по дуо-пулу ──────────────────────────────
+        CheckMultInSource();
         MateUpliftSweep(engine, rnd, DuoMateMultInCode);
+        MateGateCheck(engine, rnd);
 
         Report("прибавка к оценке за пул",        bonuses);
         Report("прибавка к оценке за дуо-пул",    duoBonuses);
@@ -354,112 +356,275 @@ internal static class Program
     /// Развёртка по силе надбавки за напарника.
     ///
     /// Меряем ДВА состояния одного драфта: союзник просто союзник и он же —
-    /// половина активного дуо-пула. Разница целиком линейна по множителю (в
-    /// оценку входит одно слагаемое (k−1)·дельта_напарника), поэтому одного замера
-    /// хватает, чтобы точно посчитать ЛЮБОЕ k — без пересборки на каждый вариант.
+    /// половина активного дуо-пула. Прирост линеен по ОБОИМ сомножителям (в
+    /// оценку входит слагаемое (k−1)·дельта_напарника·доверие), поэтому одного
+    /// замера хватает, чтобы посчитать любую пару «множитель × совместные игры»
+    /// без пересборки движка.
     /// </summary>
     private static void MateUpliftSweep(RecommendationEngine engine, Random rnd, double built)
     {
+        // Связка должна быть НАИГРАННОЙ, иначе мерить нечего: надбавка умножается
+        // на доверие по числу совместных игр, и у пустой связки она неслышна.
+        // Подставляем 24 игры — столько у самого частого напарника на живой
+        // истории владельца, выше в жизни практически не бывает.
+        var pairBak = SessionTracker.Preview;
+        SessionTracker.Preview =
+        [
+            new SessionTracker.PairStat(MatePuuid(1), "напарник", "solo", 0, 0,
+                                        MateGamesMeasured, MateGamesMeasured / 2)
+        ];
+
         // Замеренные драфты: для каждого — оценки без надбавки и прирост при built.
         var cases = new List<(List<int> Pool, Dictionary<int, double> Base, Dictionary<int, double> Gain)>();
 
-        foreach (var (dbRole, lcuRole) in Roles)
+        try
         {
-            var ids = Scored(engine, Draft(lcuRole, [], []), dbRole, null, false).Values
-                      .OrderByDescending(r => r.Score).Select(r => r.ChampionId).ToList();
-            if (ids.Count < 20) continue;
-
-            for (var n = 0; n < 40; n++)
+            foreach (var (dbRole, lcuRole) in Roles)
             {
-                var enemies = Pick(rnd, ids, 5);
-                var left    = ids.Except(enemies).ToList();
-                var mate    = Pick(rnd, left, 1);
-                if (mate.Count == 0) continue;
-                var allies  = new List<int> { mate[0] };
-                allies.AddRange(Pick(rnd, left.Except(mate).ToList(), 3));
-                var state   = Draft(lcuRole, allies, enemies);
-                var pool    = Pick(rnd, ids.Except(enemies).Except(allies).ToList(), PoolSize);
-                if (pool.Count < PoolSize) continue;
+                var ids = Scored(engine, Draft(lcuRole, [], []), dbRole, null, false).Values
+                          .OrderByDescending(r => r.Score).Select(r => r.ChampionId).ToList();
+                if (ids.Count < 20) continue;
 
-                var a = PoolStore.Current();
-                a.Pools.Clear(); a.DuoPools.Clear();
-                a.DuoPools.Add(new DuoPool { Id = "t", FriendName = "t",
-                                             Mine = new() { [dbRole] = [.. pool] } });
-                a.ActiveKind = PoolKind.Duo; a.ActiveId = "t";
-                var without = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+                for (var n = 0; n < 40; n++)
+                {
+                    var enemies = Pick(rnd, ids, 5);
+                    var left    = ids.Except(enemies).ToList();
+                    var mate    = Pick(rnd, left, 1);
+                    if (mate.Count == 0) continue;
+                    var allies  = new List<int> { mate[0] };
+                    allies.AddRange(Pick(rnd, left.Except(mate).ToList(), 3));
+                    var state   = Draft(lcuRole, allies, enemies);
+                    var pool    = Pick(rnd, ids.Except(enemies).Except(allies).ToList(), PoolSize);
+                    if (pool.Count < PoolSize) continue;
 
-                // Напарник — ТОТ САМЫЙ человек: союзник №1, он же mate[0]. Одной
-                // россыпью чемпионов в половине друга движок напарника не считает
-                // (это правило осталось только в песочнице), поэтому опознаём его
-                // так, как в бою, — по puuid хозяина половины.
-                a.DuoPools[0].FriendPuuid = MatePuuid(1);
-                a.DuoPools[0].Friend = new() { [dbRole] = [mate[0]] };
-                var with = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+                    var a = PoolStore.Current();
+                    a.Pools.Clear(); a.DuoPools.Clear();
+                    a.DuoPools.Add(new DuoPool { Id = "t", FriendName = "t",
+                                                 Mine = new() { [dbRole] = [.. pool] } });
+                    a.ActiveKind = PoolKind.Duo; a.ActiveId = "t";
+                    var without = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
 
-                var gain = without.Keys.ToDictionary(id => id, id => with[id] - without[id]);
-                cases.Add((pool, without, gain));
+                    // Напарник — ТОТ САМЫЙ человек: союзник №1, он же mate[0]. Одной
+                    // россыпью чемпионов в половине друга движок напарника не считает
+                    // (это правило осталось только в песочнице), поэтому опознаём его
+                    // так, как в бою, — по puuid хозяина половины.
+                    a.DuoPools[0].FriendPuuid = MatePuuid(1);
+                    a.DuoPools[0].Friend = new() { [dbRole] = [mate[0]] };
+                    var with = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+
+                    var gain = without.Keys.ToDictionary(id => id, id => with[id] - without[id]);
+                    cases.Add((pool, without, gain));
+                }
             }
         }
+        finally { SessionTracker.Preview = pairBak; }
 
         if (cases.Count == 0) { Console.WriteLine("надбавка: нет сценариев"); return; }
 
-        // Что даёт СОБРАННЫЙ движок — замер, а не пересчёт. Строка таблицы с тем же
-        // k должна совпасть с ней: иначе в коде стоит не тот множитель, которым
-        // развёртка считает всё остальное.
         var measured = cases.SelectMany(c => c.Pool.Select(id => c.Gain[id])).ToList();
-        Report($"замерено на сборке (k={built:F1})", measured);
+        Report($"замерено на сборке (k={built:F1}, {MateGamesMeasured} игр вдвоём)", measured);
 
-        Console.WriteLine();
-        Console.WriteLine($"НАДБАВКА ЗА НАПАРНИКА — что даёт каждый множитель ({cases.Count} драфтов)");
-        Console.WriteLine($"  {"k",-5} {"медиана",8} {"10%",8} {"90%",8}   "
-                          + $"{"|сдвиг|",7} {"90%",5}   {"сменился",9} {"сменился",9}");
-        Console.WriteLine($"  {"",-5} {"очки",8} {"",8} {"",8}   "
-                          + $"{"мест",7} {"",5}   {"пик пула",9} {"общий №1",9}");
-
-        foreach (var k in new[] { 1.0, 1.3, 1.5, 1.7, 2.0, 2.5, 3.0 })
+        // Прирост линеен по ОБОИМ сомножителям: в оценку входит слагаемое
+        // (k−1) · дельта_напарника · доверие. Поэтому одного замера хватает, чтобы
+        // посчитать любую пару (k, игры) — без пересборки движка на каждый вариант.
+        (List<double> Pts, List<double> Moves, int FlipPool, int FlipTop) Row(double factor)
         {
-            var f = (k - 1.0) / (built - 1.0);      // доля замеренного прироста
             var pts   = new List<double>();
             var moves = new List<double>();
             int flipPool = 0, flipTop = 0;
 
             foreach (var (pool, base_, gain) in cases)
             {
-                double At(int id) => base_[id] + gain[id] * f;
+                double At(int id) => base_[id] + gain[id] * factor;
                 int RankAt(int id) => base_.Keys.Count(o => At(o) > At(id)) + 1;
 
                 foreach (var id in pool)
                 {
-                    pts.Add(gain[id] * f);
+                    pts.Add(gain[id] * factor);
                     var rBase = base_.Keys.Count(o => base_[o] > base_[id]) + 1;
                     moves.Add(Math.Abs(rBase - RankAt(id)));
                 }
                 if (pool.MaxBy(id => base_[id]) != pool.MaxBy(At)) flipPool++;
                 if (base_.Keys.MaxBy(id => base_[id]) != base_.Keys.MaxBy(At)) flipTop++;
             }
+            return (pts, moves, flipPool, flipTop);
+        }
 
+        void Head(string first)
+        {
+            Console.WriteLine($"  {first,-12} {"медиана",8} {"10%",8} {"90%",8}   "
+                              + $"{"|сдвиг|",7} {"90%",5}   {"сменился",9} {"сменился",9}");
+            Console.WriteLine($"  {"",-12} {"очки",8} {"",8} {"",8}   "
+                              + $"{"мест",7} {"",5}   {"пик пула",9} {"общий №1",9}");
+        }
+
+        void Line(string label, double factor)
+        {
+            var (pts, moves, flipPool, flipTop) = Row(factor);
             var sp = pts.OrderBy(x => x).ToList();
             var sm = moves.OrderBy(x => x).ToList();
-            Console.WriteLine($"  {k,-5:F1} {Median(pts),8:F2} {sp[(int)(0.1 * (sp.Count - 1))],8:F2} "
+            Console.WriteLine($"  {label,-12} {Median(pts),8:F2} {sp[(int)(0.1 * (sp.Count - 1))],8:F2} "
                               + $"{sp[(int)(0.9 * (sp.Count - 1))],8:F2}   "
                               + $"{Median(moves),7:F1} {sm[(int)(0.9 * (sm.Count - 1))],5:F0}   "
                               + $"{100.0 * flipPool / cases.Count,8:F0}% {100.0 * flipTop / cases.Count,8:F0}%");
         }
+
+        var confMeasured = MateConf(MateGamesMeasured);
+
+        Console.WriteLine();
+        Console.WriteLine($"НАДБАВКА ЗА НАПАРНИКА — по множителю ({cases.Count} драфтов, "
+                          + $"связка наиграна: {MateGamesMeasured} игр, доверие {confMeasured:F2})");
+        Head("k");
+        foreach (var k in new[] { 1.0, 1.3, 1.5, 1.7, 2.0, 2.5, 3.0 })
+            Line($"{k:F1}", (k - 1.0) / (built - 1.0));
         Console.WriteLine("  (надбавка двусторонняя: плохую связку она так же усиливает в минус)");
+
+        Console.WriteLine();
+        Console.WriteLine($"ТО ЖЕ — ПО ЧИСЛУ СОВМЕСТНЫХ ИГР (множитель боевой, {built:F1})");
+        Head("игр вдвоём");
+        foreach (var g in new[] { 0, 1, 2, 3, 6, 12, 24 })
+            Line($"{g} ({MateConf(g):F2})", MateConf(g) / confMeasured);
+        Console.WriteLine("  (в скобках — доверие к связке. На живой истории владельца у 250");
+        Console.WriteLine("   записей из 251 ровно одна игра на пару чемпионов, поэтому порог");
+        Console.WriteLine("   стоит на играх с ЧЕЛОВЕКОМ, а не на паре чемпионов)");
+
         Console.WriteLine();
         // Сторож тут про ШОВ, а не про величину множителя. Сравнивать замер со
         // строкой развёртки бессмысленно: при k = built доля прироста f = 1, и
         // строка равна замеру ПО ПОСТРОЕНИЮ — такой сторож не упадёт никогда.
-        // Падать он обязан от другого: перестанет опознаваться напарник —
-        // надбавка исчезнет целиком и все замеры станут нулями. Ровно так и
-        // вышло, когда опознание ужалось до puuid: развёртка мерила нули и
-        // молчала. Само значение множителя проверить нечем — дельта связки
-        // считается внутри движка и наружу не выходит.
-        Check("надбавка за напарника включается (напарник опознан)",
+        // Падать он обязан от другого: перестанет опознаваться напарник или
+        // ужмётся доверие к связке — надбавка исчезнет целиком и все замеры
+        // станут нулями. Ровно так и вышло, когда опознание ужалось до puuid:
+        // развёртка мерила нули и молчала. Само значение множителя проверить
+        // нечем — дельта связки считается внутри движка и наружу не выходит.
+        Check("надбавка за напарника включается (напарник опознан, связка наиграна)",
               measured.Any(x => Math.Abs(x) > 1e-9),
               $"ненулевых замеров {measured.Count(x => Math.Abs(x) > 1e-9)} из {measured.Count}");
         Console.WriteLine();
     }
+
+    /// <summary>
+    /// Порог по совместным играм — ЗАМЕРОМ, а не пересчётом.
+    ///
+    /// Строку «0 игр» в развёртке даёт умножение замера на ноль, и она была бы
+    /// нулевой при любом движке: такой сторож не проверяет ничего. Поэтому порог
+    /// гоняется отдельно — напарник опознан, связка пустая, и оценки обязаны
+    /// совпасть с теми, что были БЕЗ напарника, до последнего знака.
+    /// </summary>
+    private static void MateGateCheck(RecommendationEngine engine, Random rnd)
+    {
+        var pairBak = SessionTracker.Preview;
+        SessionTracker.Preview = [];          // связка есть, совместных игр в ней нет
+        var worst = 0.0;
+        var drafts = 0;
+
+        try
+        {
+            foreach (var (dbRole, lcuRole) in Roles)
+            {
+                var ids = Scored(engine, Draft(lcuRole, [], []), dbRole, null, false).Values
+                          .OrderByDescending(r => r.Score).Select(r => r.ChampionId).ToList();
+                if (ids.Count < 20) continue;
+
+                for (var n = 0; n < 4; n++)
+                {
+                    var enemies = Pick(rnd, ids, 5);
+                    var left    = ids.Except(enemies).ToList();
+                    var mate    = Pick(rnd, left, 1);
+                    if (mate.Count == 0) continue;
+                    var allies  = new List<int> { mate[0] };
+                    allies.AddRange(Pick(rnd, left.Except(mate).ToList(), 3));
+                    var state   = Draft(lcuRole, allies, enemies);
+                    var pool    = Pick(rnd, ids.Except(enemies).Except(allies).ToList(), PoolSize);
+                    if (pool.Count < PoolSize) continue;
+
+                    var a = PoolStore.Current();
+                    a.Pools.Clear(); a.DuoPools.Clear();
+                    a.DuoPools.Add(new DuoPool { Id = "t", FriendName = "t",
+                                                 Mine = new() { [dbRole] = [.. pool] } });
+                    a.ActiveKind = PoolKind.Duo; a.ActiveId = "t";
+                    var without = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+
+                    a.DuoPools[0].FriendPuuid = MatePuuid(1);
+                    a.DuoPools[0].Friend = new() { [dbRole] = [mate[0]] };
+                    var with = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
+
+                    foreach (var id in without.Keys)
+                        worst = Math.Max(worst, Math.Abs(with[id] - without[id]));
+                    drafts++;
+                }
+            }
+        }
+        finally { SessionTracker.Preview = pairBak; }
+
+        // Уберите в движке множитель на доверие — расхождение станет ненулевым,
+        // и проверка назовёт это по имени.
+        Check("без совместных игр надбавки нет (замер)",
+              drafts > 0 && worst < 1e-9,
+              $"драфтов {drafts}, максимальное расхождение {worst:F6}");
+    }
+
+    /// Потолок множителя — решение владельца «выше не надо».
+    ///
+    /// Проверяется ПО ИСХОДНИКУ движка, а не по замеру. Доля смены лидера
+    /// меряется на живых данных и дрейфует от патча к патчу, а шаг с 1.5 до 1.7
+    /// это всего 18% против 26%: порог на самом замере либо краснел бы от
+    /// дрейфа, либо пропускал подъём. Исходник же не дрейфует.
+    private const double DuoMateMultCeiling = 1.5;
+
+    /// Множитель из ИСХОДНИКА движка — и сверка с копией рядом.
+    ///
+    /// Копия (DuoMateMultInCode) нужна развёртке для подписей и для пересчёта
+    /// строк. Разойдясь с кодом, она врала бы молча: вся таблица считалась бы от
+    /// одного числа, а движок работал бы с другим.
+    private static void CheckMultInSource()
+    {
+        var root = FindRepoRoot();
+        var path = root is null ? null : Path.Combine(root, "src", "Engine", "RecommendationEngine.cs");
+        if (path is null || !File.Exists(path))
+        {
+            Check("множитель прочитан из исходника движка", false,
+                  "RecommendationEngine.cs не найден — проверять нечего");
+            return;
+        }
+
+        var m = System.Text.RegularExpressions.Regex.Match(
+            File.ReadAllText(path), @"DUO_MATE_MULT\s*=\s*([0-9]+(?:\.[0-9]+)?)");
+        if (!m.Success)
+        {
+            Check("множитель прочитан из исходника движка", false,
+                  "строка DUO_MATE_MULT не найдена");
+            return;
+        }
+
+        var inSource = double.Parse(m.Groups[1].Value,
+                                    System.Globalization.CultureInfo.InvariantCulture);
+        Check("копия множителя совпадает с кодом движка",
+              Math.Abs(inSource - DuoMateMultInCode) < 1e-9,
+              $"в движке {inSource:F2}, в проверке {DuoMateMultInCode:F2}");
+        Check($"множитель не выше потолка {DuoMateMultCeiling:F1}",
+              inSource <= DuoMateMultCeiling + 1e-9,
+              $"{inSource:F2}");
+    }
+
+    /// Корень репозитория: от рабочей папки вверх до Counterplay.csproj.
+    private static string? FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Counterplay.csproj")))
+            dir = dir.Parent;
+        return dir?.FullName;
+    }
+
+
+    /// Сколько совместных игр подставляем, пока мерим. Столько у самого частого
+    /// напарника на живой истории владельца — выше в жизни практически не бывает.
+    private const int MateGamesMeasured = 24;
+
+    /// Доверие к связке, как его считает движок (см. MATE_CONF). Копия нужна
+    /// только для ПОДПИСЕЙ в развёртке: сторожа на ней не висят, так что
+    /// разойдясь с кодом она ни о чём не соврёт.
+    private static double MateConf(double games) => games / (games + 6.0);
 
     /// Синтетический puuid союзника №n. Настоящего клиента тут нет, а напарник
     /// опознаётся именно по puuid, так что хватает любой устойчивой строки.

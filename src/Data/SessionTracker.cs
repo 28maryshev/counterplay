@@ -513,6 +513,30 @@ public static class SessionTracker
     }
 
     /// <summary>
+    /// То же, но за окно в днях: «сколько мы играем вдвоём СЕЙЧАС». Нужно, чтобы
+    /// дуо-вес в оценке набирался свежей совместной игрой, а не однажды сыгранной
+    /// парой игр год назад. Подменные связки (песочница, проверки) окна не знают —
+    /// у них нет меток времени, и они возвращаются целиком.
+    /// </summary>
+    public static (int Games, int Wins) MateStats(string? allyPuuid, int days)
+    {
+        if (Preview is not null || days <= 0) return MateStats(allyPuuid);
+        if (string.IsNullOrEmpty(allyPuuid)) return (0, 0);
+        var acc = CurrentAccount();
+        if (acc is null) return (0, 0);
+        var since = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds();
+        var prefix = allyPuuid + "|";
+        var g = 0; var w = 0;
+        foreach (var (k, r) in acc.Pairs)
+            if (k.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                var (pg, pw) = r.Count(since);
+                g += pg; w += pw;
+            }
+        return (g, w);
+    }
+
+    /// <summary>
     /// Подменные связки для песочницы. Настоящие копятся только по сыгранным
     /// играм, и без них раздел в песочнице всегда пуст — посмотреть, как он
     /// выглядит с данными, было нельзя. В боевом режиме всегда null.
