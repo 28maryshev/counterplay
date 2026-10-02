@@ -517,7 +517,8 @@
     "mateNone": "Noch keine gemeinsamen Spiele",
     "mateForget": "Partner vergessen",
     "mateReset": "Zurücksetzen",
-    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them"
+    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them",
+    "duoSuggest": "Vorschlag für deinen Partner: {0}"
   },
   "phaseState": {
     "none": "Bereit",

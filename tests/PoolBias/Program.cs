@@ -28,6 +28,11 @@ internal static class Program
     /// Множитель, с которым собран движок (см. DUO_MATE_MULT).
     private const double DuoMateMultInCode = 1.5;
 
+    /// Вес синергии, с которым собран движок (см. W_SYNERGY). Копия нужна, чтобы
+    /// посчитать ожидаемый выбор напарника; сверяется с исходником там же, где
+    /// множитель напарника.
+    private const double WSynergyInCode = 1.2;
+
     private static int Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -192,6 +197,7 @@ internal static class Program
         CheckMultInSource();
         MateUpliftSweep(engine, rnd, DuoMateMultInCode);
         MateGateCheck(engine, rnd);
+        MateSuggestCheck(engine, rnd);
 
         Report("прибавка к оценке за пул",        bonuses);
         Report("прибавка к оценке за дуо-пул",    duoBonuses);
@@ -504,6 +510,100 @@ internal static class Program
     }
 
     /// <summary>
+    /// Кого предлагаем НАПАРНИКУ, пока он молчит.
+    ///
+    /// Дуо-пул предлагает пару сразу после банов и вторую половину выбирает сам.
+    /// Главное требование владельца: это должен быть подбор ПОД ДРАФТ, а не
+    /// «лучший под мой пик». Поэтому проверяется и то, что выбор меняется от
+    /// состава врагов, и то, что он не сводится к одной дельте пары.
+    ///
+    /// Ожидаемый выбор считается через ПУБЛИЧНЫЕ <c>PartnerScores</c> и
+    /// <c>PairStats</c>, а не повторением перебора: иначе проверка сверяла бы
+    /// код с его же копией.
+    /// </summary>
+    private static void MateSuggestCheck(RecommendationEngine engine, Random rnd)
+    {
+        const string myDb = "adc", myLcu = "bottom", friendDb = "support";
+
+        var mineIds = Scored(engine, Draft(myLcu, [], []), myDb, null, false).Values
+                      .OrderByDescending(r => r.Score).Select(r => r.ChampionId).ToList();
+        var friendIds = Scored(engine, Draft("utility", [], []), friendDb, null, false).Values
+                        .OrderByDescending(r => r.Score).Select(r => r.ChampionId).Take(8).ToList();
+        var enemyPool = Scored(engine, Draft("middle", [], []), "mid", null, false).Values
+                        .OrderByDescending(r => r.Score).Select(r => r.ChampionId)
+                        .Where(id => !friendIds.Contains(id)).Take(20).ToList();
+        if (mineIds.Count == 0 || friendIds.Count < 3 || enemyPool.Count < 10)
+        {
+            Console.WriteLine("подбор напарника: нет данных");
+            return;
+        }
+
+        var mineId = mineIds[0];
+        var half = new Dictionary<string, List<int>> { [friendDb] = [.. friendIds] };
+
+        double PairDelta(int f) => engine.PairStats(mineId, myDb, f, friendDb).Delta;
+
+        Console.WriteLine();
+        Console.WriteLine($"ПОДБОР НАПАРНИКА: мой пик {mineId}, в половине друга {friendIds.Count} чемпионов");
+
+        // ── Выбор считается по драфту, а не по одной паре ────────────────────
+        var state  = Draft(myLcu, [], []);
+        var scores = Quiet(() => engine.PartnerScores(state, half));
+        var best   = engine.BestPartner(state, mineId, myDb, half, scores);
+
+        double Total(int f) => (scores.TryGetValue(f, out var s) ? s : 0.0)
+                               + WSynergyInCode * PairDelta(f);
+
+        Check("напарник предложен из половины друга", friendIds.Contains(best), $"{best}");
+        Check("предложен лучший по сумме «его сила в драфте + пара со мной»",
+              Math.Abs(Total(best) - friendIds.Max(Total)) < 1e-9,
+              $"{Total(best):F2} против лучшей {friendIds.Max(Total):F2}");
+
+        // ── Зависимость от врагов ───────────────────────────────────────────
+        //
+        // Главный вопрос владельца: «это ведь работает в зависимости от пиков
+        // союзников и врагов?». Сперва — что оценки половины вообще шевелятся от
+        // состава врагов; затем — что от него меняется и сам выбор.
+        var e1 = Quiet(() => engine.PartnerScores(Draft(myLcu, [], Pick(rnd, enemyPool, 5)), half));
+        var e2 = Quiet(() => engine.PartnerScores(Draft(myLcu, [], Pick(rnd, enemyPool, 5)), half));
+        var moved = friendIds.Count(f =>
+            Math.Abs((e1.TryGetValue(f, out var a) ? a : 0) - (e2.TryGetValue(f, out var b) ? b : 0)) > 1e-9);
+        Check("оценки половины друга зависят от состава врагов",
+              moved > 0, $"разошлись у {moved} из {friendIds.Count}");
+
+        // Сколько раз выбор расходится с «лучшим по одной лишь паре». Если бы не
+        // расходился никогда, драфт в подборе напарника ничего не решал бы.
+        var pairOnly = friendIds.OrderByDescending(PairDelta).First();
+        int differs = 0, rounds = 20;
+        for (var i = 0; i < rounds; i++)
+        {
+            var st = Draft(myLcu, [], Pick(rnd, enemyPool, 5));
+            var sc = Quiet(() => engine.PartnerScores(st, half));
+            if (engine.BestPartner(st, mineId, myDb, half, sc) != pairOnly) differs++;
+        }
+        Console.WriteLine($"  выбор отличается от «лучшего по паре» в {differs} из {rounds} драфтов");
+        Check("подбор не сводится к одной дельте пары",
+              differs > 0, $"{differs} из {rounds}");
+
+        // ── Занятых и забаненных не предлагаем ──────────────────────────────
+        var busy      = Draft(myLcu, [], [best]);
+        var busySc    = Quiet(() => engine.PartnerScores(busy, half));
+        var afterBusy = engine.BestPartner(busy, mineId, myDb, half, busySc);
+        Check("занятого врагом не предлагаем",
+              afterBusy != best && friendIds.Contains(afterBusy), $"{afterBusy}");
+
+        var bannedSt  = state with { MyTeamBans = [best] };
+        var afterBan  = engine.BestPartner(bannedSt, mineId, myDb, half,
+                                           Quiet(() => engine.PartnerScores(bannedSt, half)));
+        Check("забаненного не предлагаем", afterBan != best, $"{afterBan}");
+
+        Check("без половины друга предложения нет",
+              engine.BestPartner(state, mineId, myDb, new Dictionary<string, List<int>>()) == 0, "0");
+        Console.WriteLine();
+    }
+
+
+    /// <summary>
     /// Порог по совместным играм — ЗАМЕРОМ, а не пересчётом.
     ///
     /// Строку «0 игр» в развёртке даёт умножение замера на ноль, и она была бы
@@ -605,6 +705,13 @@ internal static class Program
         Check($"множитель не выше потолка {DuoMateMultCeiling:F1}",
               inSource <= DuoMateMultCeiling + 1e-9,
               $"{inSource:F2}");
+
+        var ws = System.Text.RegularExpressions.Regex.Match(
+            File.ReadAllText(path), @"W_SYNERGY\s*=\s*([0-9]+(?:\.[0-9]+)?)");
+        Check("копия веса синергии совпадает с кодом движка",
+              ws.Success && Math.Abs(double.Parse(ws.Groups[1].Value,
+                  System.Globalization.CultureInfo.InvariantCulture) - WSynergyInCode) < 1e-9,
+              ws.Success ? $"в движке {ws.Groups[1].Value}, в проверке {WSynergyInCode:F1}" : "строка не найдена");
     }
 
     /// Корень репозитория: от рабочей папки вверх до Counterplay.csproj.

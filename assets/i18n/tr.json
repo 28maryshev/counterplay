@@ -517,7 +517,8 @@
     "mateNone": "Henüz birlikte oynanmadı",
     "mateForget": "Partneri unut",
     "mateReset": "Sıfırla",
-    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them"
+    "mateWhy": "Who this pool follows: the app looks for this exact person in your team and counts the pair's win rates by them",
+    "duoSuggest": "Partnerin için öneri: {0}"
   },
   "phaseState": {
     "none": "Hazır",

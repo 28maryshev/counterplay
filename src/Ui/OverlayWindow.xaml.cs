@@ -5640,26 +5640,41 @@ public partial class OverlayWindow : Window
                     // показываем вовсе, идёт обычный подбор ниже. Моя половина при
                     // этом работает всегда: чемпионы из неё получают флор
                     // наигранности в движке, дуо-пул для этого срабатывать не обязан.
-                    if (mateTaken != 0 && duo != null && !duo.FriendHas(mateTaken))
+                    // Напарник взял чемпиона МИМО своей половины — связки не
+                    // предлагаем вовсе: пара задумана под конкретных. Это НЕ то же
+                    // самое, что «напарник ещё ничего не показал»: там связки как
+                    // раз нужны, поэтому состояния разведены флагом, а не обнулением
+                    // mateTaken, как было раньше.
+                    var mateOffPool = mateTaken != 0 && duo != null && !duo.FriendHas(mateTaken);
+                    if (mateOffPool)
                     {
                         // Один раз на чемпиона: метод зовётся на каждую перерисовку
                         // драфта, иначе журнал заполнится одной строкой.
                         if (_duoOffPool != mateTaken)
                         {
                             _duoOffPool = mateTaken;
-                            Log.Write($"дуо «{duo.FriendName}»: напарник взял "
+                            Log.Write($"дуо «{duo!.FriendName}»: напарник взял "
                                       + $"{DataDragon.Name(mateTaken)} мимо своей половины — связки не предлагаем");
                         }
                         mateTaken = 0;
                     }
                     else if (mateTaken != 0) _duoOffPool = 0;
-                    if (mateTaken != 0 && duo != null)
+
+                    // Предлагаем, как только кончились баны, — не дожидаясь, пока
+                    // напарник что-то покажет. Чаще всего он и не успевает: если он
+                    // пикает после меня, к моему ходу у него пусто, и дуо-пул молчал
+                    // именно тогда, когда подсказка нужнее всего — заранее, чтобы
+                    // знать, что брать обоим. Показал или взял — подбираем под его
+                    // чемпиона, как и раньше.
+                    if (duo != null && !mateOffPool)
                     {
                         if (duo.Manual)
                         {
-                            // Фиксированные связки с уже взятым напарником: мой пик из
-                            // связки, где вторая половина — его чемпион. Лучшие сверху.
-                            var manual = new List<Recommendation>();
+                            // Фиксированные связки: мой пик из связки, где вторая
+                            // половина — чемпион напарника. Пока он ничего не показал,
+                            // идут все связки под мою роль, и каждая карточка несёт
+                            // СВОЙ чемпион напарника — это и есть «что брать обоим».
+                            var manual = new List<(Recommendation R, int Mate)>();
                             foreach (var mp in duo.ManualPairs)
                             {
                                 int mineId, mateId;
@@ -5669,27 +5684,48 @@ public partial class OverlayWindow : Window
                                     (mineId, mateId) = (mp.Friend, mp.Mine);
                                 else
                                     continue;
-                                if (mateId != mateTaken) continue;   // только связки с ним
+                                if (mateTaken != 0 && mateId != mateTaken) continue;   // только связки с ним
 
                                 if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
-                                    manual.Add(mr);
+                                    manual.Add((mr, mateId));
                             }
-                            var ordered = manual.OrderByDescending(r => r.Score).ToList();
-                            var shown   = ordered.Where(r => r.Score > 0).Take(3).ToList();
+                            var ordered = manual.OrderByDescending(x => x.R.Score).ToList();
+                            var shown   = ordered.Where(x => x.R.Score > 0).Take(3).ToList();
                             if (shown.Count == 0 && ordered.Count > 0) shown = [ordered[0]];
-                            foreach (var mr in shown)
+                            foreach (var (mr, pairMate) in shown)
                                 AddPoolCard(mr, Loc.T("pool.duoLabel"),
-                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken),
+                                            pairMate != 0 ? IconCache.Get(pairMate) : null,
+                                            pairMate == 0 ? ""
+                                              : mateTaken != 0 ? DataDragon.Name(pairMate)
+                                              : Loc.T("pool.duoSuggest", DataDragon.Name(pairMate)),
                                             fromDuo: true);
                         }
                         else
                         {
-                            // Авто: пара наполовину собрана — подбираем ТОЛЬКО свой пик
-                            // под взятого напарника (синергию с ним движок уже учёл).
+                            // Авто: свой пик из своей половины. Напарник взял или
+                            // показал — синергию с ним движок уже учёл. Молчит —
+                            // подбираем пару САМИ: карточка обязана отвечать «что
+                            // брать обоим», иначе предлагать заранее незачем.
+                            // Силу его половины в этом драфте считаем ОДИН раз: она
+                            // зависит от врагов и союзников, а не от того, какой
+                            // мой кандидат сейчас на карточке. Пара со мной
+                            // добавляется уже поверх, на каждого кандидата.
+                            var mateScores = mateTaken == 0
+                                ? _engine.PartnerScores(draft, duo.Friend)
+                                : null;
                             foreach (var pr in _engine.TopFromPool(draft, duo.MineForRole(myRoleDb), 3))
+                            {
+                                var suggested = mateScores is null ? 0
+                                    : _engine.BestPartner(draft, pr.ChampionId, myRoleDb,
+                                                          duo.Friend, mateScores);
+                                var shownMate = mateTaken != 0 ? mateTaken : suggested;
                                 AddPoolCard(pr, Loc.T("pool.duoLabel"),
-                                            IconCache.Get(mateTaken), DataDragon.Name(mateTaken),
+                                            shownMate != 0 ? IconCache.Get(shownMate) : null,
+                                            shownMate == 0 ? ""
+                                              : suggested != 0 ? Loc.T("pool.duoSuggest", DataDragon.Name(shownMate))
+                                              : DataDragon.Name(shownMate),
                                             fromDuo: true);
+                            }
                         }
                     }
                 }

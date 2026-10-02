@@ -227,6 +227,11 @@ public sealed class RecommendationEngine : IDisposable
     /// вспоминается быстрее незнакомого.
     private const double STALE_FLOOR = 0.25;
 
+    /// Сейчас считаем пик НАПАРНИКА, а не свой: личные факторы выключены.
+    /// Поле, а не параметр, — чтобы не тащить его через весь скоринг; вызовы
+    /// последовательные (оверлей однопоточный), и флаг снимается в finally.
+    private bool _forMate;
+
     /// <summary>
     /// Насколько это ТВОЙ чемпион прямо сейчас.
     ///
@@ -241,6 +246,10 @@ public sealed class RecommendationEngine : IDisposable
     /// </summary>
     private double ComfortDelta(int champId)
     {
+        // Считаем за НАПАРНИКА — личных факторов нет: наигранность, личный винрейт
+        // и флор пула это МОЯ история, к его чемпионам она не относится.
+        if (_forMate) return 0.0;
+
         var hist = MyHistory();
 
         var (recentGames, _) = hist.Recent(champId);
@@ -582,6 +591,18 @@ public sealed class RecommendationEngine : IDisposable
         "bottom"  => "adc",
         "utility" => "support",
         _         => pos
+    };
+
+    /// Обратно: db-роль → позиция в терминах LCU. Нужно, чтобы посчитать пик
+    /// НАПАРНИКА его же ролью — движок берёт роль из DraftState.MyPosition.
+    public static string DbToLcuRole(string role) => role.ToLowerInvariant() switch
+    {
+        "top"     => "top",
+        "jungle"  => "jungle",
+        "mid"     => "middle",
+        "adc"     => "bottom",
+        "support" => "utility",
+        _         => role
     };
 
     // ── Доли урона чемпиона (физ/маг/чистый) ────────────────────────────────
@@ -987,6 +1008,109 @@ public sealed class RecommendationEngine : IDisposable
         var baseF = fg > 0 ? Delta(fg, fw, K) : 0.0;
         var synDelta = Delta(syn.g, syn.w, K_PAIR) - (baseM + baseF) / 2.0;
         return ((int)Math.Round(syn.g), 100.0 * syn.w / syn.g, synDelta);
+    }
+
+    /// <summary>
+    /// Насколько хорош КАЖДЫЙ чемпион из половины друга в ЭТОМ драфте — тем же
+    /// скорингом, которым считается мой пик, только в роли напарника.
+    ///
+    /// Без этого подсказка напарнику была бы «кто лучше всех сочетается с моим
+    /// пиком» и не зависела бы ни от врагов, ни от остальных союзников: саппорт,
+    /// которого вражеский бот разбирает, шёл бы наравне с удобным.
+    ///
+    /// Роль берём ту, под которую чемпион положен в половину, и считаем роль
+    /// одной пачкой: позиция у движка приходит из состояния, поэтому на каждую
+    /// роль своё подменённое состояние, где локальный игрок сидит в слоте
+    /// напарника. <c>DirectOpponent</c> там снимаем намеренно — движок выведет
+    /// оппонента ПО ЭТОЙ роли сам (<see cref="InferDirectOpponent"/>), а
+    /// готовый указывал бы на моего.
+    ///
+    /// Личные факторы на это время выключены (<see cref="_forMate"/>):
+    /// наигранность и личный винрейт — моя история, не его.
+    ///
+    /// Мой слот в подменённом состоянии пуст: синергию с моим пиком добавляет
+    /// <see cref="BestPartner"/> отдельным слагаемым, и считать её дважды незачем.
+    /// </summary>
+    public IReadOnlyDictionary<int, double> PartnerScores(
+        DraftState state, IReadOnlyDictionary<string, List<int>> friendHalf)
+    {
+        var res = new Dictionary<int, double>();
+        if (friendHalf.Count == 0) return res;
+
+        foreach (var (role, champs) in friendHalf)
+        {
+            var ids = champs.Where(c => c != 0).Distinct().ToList();
+            if (ids.Count == 0) continue;
+
+            var lcu  = DbToLcuRole(role);
+            var seat = new DraftPlayer(CellId: -100, ChampionId: 0, PickIntentId: 0,
+                                       Position: lcu, IsLocalPlayer: true);
+            var team = state.MyTeam
+                .Select(p => p.IsLocalPlayer
+                    ? p with { IsLocalPlayer = false, ChampionId = 0, PickIntentId = 0 }
+                    : p)
+                .Append(seat)
+                .ToList();
+
+            var swapped = state with
+            {
+                MyTeam = team, Me = seat, MyPosition = lcu, DirectOpponent = null,
+            };
+
+            _forMate = true;
+            try
+            {
+                foreach (var r in Recommend(swapped, ids.Count, ids))
+                    res[r.ChampionId] = r.Score;
+            }
+            finally { _forMate = false; }
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Кого из половины друга брать НАПАРНИКУ под мой пик.
+    ///
+    /// Нужно, чтобы дуо-пул предлагал пару СРАЗУ, как кончились баны, а не ждал
+    /// чужого хода: напарник чаще всего пикает после меня, и к моему ходу у него
+    /// пусто — а подсказка «что брать обоим» нужна как раз заранее.
+    ///
+    /// Складываем две вещи: его собственную силу в этом драфте
+    /// (<see cref="PartnerScores"/> — враги, союзники, баланс урона) и пару со
+    /// мной, взвешенную как любая синергия (<c>W_SYNERGY</c>). Своего веса не
+    /// выдумываем: пара — это и есть синергия, просто с тем, кто в ней главный.
+    ///
+    /// Занятых и забаненных не предлагаем — их уже не взять.
+    /// </summary>
+    public int BestPartner(DraftState state, int mineId, string myRole,
+                           IReadOnlyDictionary<string, List<int>> friendHalf,
+                           IReadOnlyDictionary<int, double>? partnerScores = null)
+    {
+        if (mineId == 0 || friendHalf.Count == 0) return 0;
+        var scores = partnerScores ?? PartnerScores(state, friendHalf);
+
+        var taken = new HashSet<int>();
+        foreach (var p in state.MyTeam.Concat(state.TheirTeam))
+        {
+            // Свой слот не исключаем из занятых только для СЕБЯ; напарнику мой
+            // ховер брать нельзя — он занят так же, как чужой.
+            if (p.EffectiveChampionId != 0) taken.Add(p.EffectiveChampionId);
+        }
+        foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
+            if (b != 0) taken.Add(b);
+
+        var best = 0;
+        var bestTotal = double.NegativeInfinity;
+        foreach (var (role, champs) in friendHalf)
+            foreach (var f in champs)
+            {
+                if (f == 0 || f == mineId || taken.Contains(f)) continue;
+                var own   = scores.TryGetValue(f, out var s) ? s : 0.0;
+                var pair  = PairStats(mineId, myRole, f, role).Delta;
+                var total = own + W_SYNERGY * pair;
+                if (total > bestTotal) { bestTotal = total; best = f; }
+            }
+        return best;
     }
 
     // ---------- ARAM: подбор по скамейке ----------
@@ -1535,6 +1659,7 @@ public sealed class RecommendationEngine : IDisposable
     /// однажды разъехаться на ровном месте.
     public double PersonalDelta(int champId)
     {
+        if (_forMate) return 0.0;        // см. ComfortDelta: это моя история, не его
         var (g, w) = MyHistory().Recent(champId);
         if (g <= 0) return 0.0;
         var d = Delta(g, w, K_PERSONAL) * (g / (g + PERSONAL_CONF));
