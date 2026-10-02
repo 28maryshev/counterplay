@@ -194,9 +194,12 @@ static class DraftTest
     private static SessionTracker.PlayHistory MasteryHistory(
         double daysSince, Dictionary<int, (int Games, int Wins)> recent)
     {
-        var now  = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var last = new Dictionary<int, long>();
-        foreach (var id in new[] { 18, 21, 236 }) last[id] = now - (long)(daysSince * 86400);
-        return new SessionTracker.PlayHistory(recent, last, spanDays: 365, now: now);
+        var now   = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var times = new Dictionary<int, long[]>();
+        // Несколько отметок, а не одна: свежесть считается по третьей игре с
+        // конца, и с единственной записью сценарий всегда показывал бы «забросил».
+        foreach (var id in new[] { 18, 21, 236 })
+            times[id] = [.. Enumerable.Range(0, 5).Select(i => now - (long)((daysSince + i) * 86400))];
+        return new SessionTracker.PlayHistory(recent, times, spanDays: 365, now: now);
     }
 }

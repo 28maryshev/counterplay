@@ -203,6 +203,12 @@ public sealed class RecommendationEngine : IDisposable
     /// Когда затухание мастерства доходит до дна. Четыре месяца: за месяц-другой
     /// перерыва чемпион из рук не уходит, а через сезон — уходит.
     private const double StaleDays = 120;
+    /// По какой игре С КОНЦА считаем давность. Не по последней: ОДНА игра
+    /// воскрешала затухание целиком, и чемпион, которого берут раз в месяц,
+    /// держал полный вес мастерства вечно — почти тот же баг, от которого
+    /// лечились. Замер на живом пуле владельца: Зилеан, одна игра за тридцать
+    /// дней, свежесть 1.00. Третья с конца на разовый заход не ведётся.
+    private const int RegularGames = 3;
     /// Ниже этой доли мастерство не падает. Не ноль: даже забытый чемпион
     /// вспоминается быстрее незнакомого.
     private const double STALE_FLOOR = 0.25;
@@ -212,7 +218,8 @@ public sealed class RecommendationEngine : IDisposable
     ///
     /// Слагаемое первое — игры за последний месяц. Слагаемое второе — пожизненные
     /// очки мастерства, умноженные на свежесть: играл в этом месяце — полный вес,
-    /// не брал четыре месяца — четверть.
+    /// не брал четыре месяца — четверть. Свежесть считается по RegularGames-й
+    /// игре с конца, иначе один заход возвращал бы полный вес целиком.
     ///
     /// Чемпион из активного пула получает флор POOL_COMFORT. С мастерством он НЕ
     /// складывается — берётся максимум: пул говорит ровно то же самое («этим я
@@ -229,7 +236,7 @@ public sealed class RecommendationEngine : IDisposable
 
         var pts = Mastery.TryGetValue(champId, out var p) && p > 0 ? p : 0L;
         var mastery = pts > 0 ? MASTERY_MAX * pts / (pts + MASTERY_HALF) : 0.0;
-        mastery *= Freshness(hist.DaysSince(champId));
+        mastery *= Freshness(hist.DaysSinceNth(champId, RegularGames));
 
         if (_comfortPool.Contains(champId)) mastery = Math.Max(mastery, POOL_COMFORT);
         return recent + mastery;

@@ -173,6 +173,35 @@ internal static class Program
         Check("ниже дна не падает", Math.Abs(floor120 - floor365) < 1e-9,
               $"{floor120:F2} и {floor365:F2}");
 
+        // ── 4a. Один заход не воскрешает мастерство ─────────────────────────
+        // Нашлось живым замером на пуле владельца: Зилеан, ОДНА игра за месяц,
+        // зато три дня назад — и свежесть выходила 1.00, то есть мастерство
+        // держалось в полном весе у чемпиона, которого человек уже не играет.
+        // Это почти исходный баг. Свежесть считается по RegularGames-й игре с
+        // конца, и разовый заход её не поднимает.
+        Console.WriteLine("\n── один заход после долгого перерыва ──");
+        var nowTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        // Полгода тишины, затем ровно одна игра три дня назад.
+        var oneOff = new SessionTracker.PlayHistory(
+            new Dictionary<int, (int, int)> { [champ] = (1, 1) },
+            new Dictionary<int, long[]>
+            {
+                [champ] = [nowTs - 3 * 86400, nowTs - 200L * 86400, nowTs - 210L * 86400],
+            },
+            spanDays: 400, now: nowTs);
+
+        SessionTracker.HistoryOverride = oneOff;
+        var oneOffComfort = Scored(engine, state, null)[champ].ComfortDelta;
+        var playingNow    = Comfort(engine, state, champ, Hist(champ, recent: 12, daysSince: 1, span: 400));
+        var abandoned     = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: 200, span: 400));
+        Console.WriteLine($"  играю по-настоящему (12 игр):      {playingNow:F2}");
+        Console.WriteLine($"  взял разок три дня назад (1 игра): {oneOffComfort:F2}");
+        Console.WriteLine($"  не брал вовсе:                     {abandoned:F2}");
+        Check("разовый заход не возвращает полный вес мастерства",
+              oneOffComfort < playingNow - 1.5, $"{oneOffComfort:F2} против {playingNow:F2}");
+        Check("но он всё же заметнее, чем полное забвение",
+              oneOffComfort > abandoned, $"{oneOffComfort:F2} против {abandoned:F2}");
+
         // ── 4b. Личный винрейт ──────────────────────────────────────────────
         // Наигранность считает ИГРЫ, а не победы: «ты им владеешь» и «у тебя на
         // нём идёт» — разные вопросы. На второй отвечает PersonalDelta, и до
@@ -275,8 +304,24 @@ internal static class Program
         var w = wins ?? recent / 2;
         return new SessionTracker.PlayHistory(
             new Dictionary<int, (int, int)> { [champId] = (recent, w) },
-            new Dictionary<int, long> { [champId] = now - (long)(daysSince * 86400) },
+            new Dictionary<int, long[]> { [champId] = Times(now, daysSince, span) },
             span, now);
+    }
+
+    /// Времена последних игр: самая свежая daysSince дней назад, предыдущие —
+    /// через день. Одной отметки мало: свежесть считается по третьей с конца,
+    /// и с единственной записью любой чемпион выглядел бы заброшенным.
+    /// За глубину журнала не выходим — там игр ещё не было.
+    private static long[] Times(long now, double daysSince, double span)
+    {
+        var outp = new List<long>();
+        for (var i = 0; i < SessionTracker.PlayHistory.KeepTimes; i++)
+        {
+            var d = Math.Min(daysSince + i, span);
+            outp.Add(now - (long)(d * 86400));
+            if (d >= span) break;
+        }
+        return [.. outp];
     }
 
     private static double Comfort(RecommendationEngine engine, DraftState state, int champId,

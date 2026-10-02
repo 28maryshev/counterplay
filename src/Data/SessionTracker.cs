@@ -343,15 +343,22 @@ public static class SessionTracker
     /// </summary>
     public sealed class PlayHistory
     {
+        /// Сколько последних игр на чемпиона помним по времени. Больше горстки
+        /// не нужно: дальше третьей-четвёртой с конца вопросов к свежести нет.
+        public const int KeepTimes = 10;
+
         private readonly IReadOnlyDictionary<int, (int Games, int Wins)> _recent;
-        private readonly IReadOnlyDictionary<int, long> _last;
+        private readonly IReadOnlyDictionary<int, long[]> _times;
         private readonly long _now;
 
+        /// <param name="times">Времена последних игр по чемпионам, от свежей к
+        /// старой. Не одна отметка, а несколько: по одной нельзя отличить «играю»
+        /// от «взял разок».</param>
         public PlayHistory(IReadOnlyDictionary<int, (int Games, int Wins)> recent,
-                           IReadOnlyDictionary<int, long> last,
+                           IReadOnlyDictionary<int, long[]> times,
                            double spanDays, long now)
         {
-            _recent = recent; _last = last; SpanDays = spanDays; _now = now;
+            _recent = recent; _times = times; SpanDays = spanDays; _now = now;
         }
 
         /// Сколько дней покрывает журнал: от самой старой записи до сегодня.
@@ -367,10 +374,26 @@ public static class SessionTracker
 
         /// Сколько дней прошло с последней игры на чемпионе. Не играл ни разу —
         /// глубина журнала: дольше, чем мы смотрим, «не играл» не бывает.
-        public double DaysSince(int championId) =>
-            _last.TryGetValue(championId, out var ts) && ts > 0
-                ? Math.Max(0.0, (_now - ts) / 86400.0)
-                : SpanDays;
+        public double DaysSince(int championId) => DaysSinceNth(championId, 1);
+
+        /// <summary>
+        /// Сколько дней прошло с <paramref name="n"/>-й игры С КОНЦА.
+        ///
+        /// По последней игре судить о свежести нельзя: ОДНА игра воскрешала
+        /// затухание целиком. У владельца Зилеан — одна игра за месяц, зато три
+        /// дня назад, и мастерство держалось в полном весе, хотя человек этого
+        /// чемпиона уже не играет. Третья с конца на такое не ведётся: чтобы
+        /// считаться действующим, чемпиона надо брать не разово.
+        ///
+        /// Игр меньше, чем <paramref name="n"/> — отвечаем глубиной журнала: за
+        /// всё, что мы видели, регулярной игры не было.
+        /// </summary>
+        public double DaysSinceNth(int championId, int n)
+        {
+            if (n < 1) n = 1;
+            if (!_times.TryGetValue(championId, out var ts) || ts.Length < n) return SpanDays;
+            return Math.Max(0.0, (_now - ts[n - 1]) / 86400.0);
+        }
     }
 
     /// <summary>
@@ -393,7 +416,7 @@ public static class SessionTracker
         var now    = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var since  = now - (long)freshDays * 86400;
         var recent = new Dictionary<int, (int Games, int Wins)>();
-        var last   = new Dictionary<int, long>();
+        var times  = new Dictionary<int, List<long>>();
         var oldest = 0L;
         try
         {
@@ -416,13 +439,19 @@ public static class SessionTracker
                                 var cur = recent.GetValueOrDefault(g.ChampionId);
                                 recent[g.ChampionId] = (cur.Games + 1, cur.Wins + (g.Win ? 1 : 0));
                             }
-                            if (g.Ts > last.GetValueOrDefault(g.ChampionId)) last[g.ChampionId] = g.Ts;
+                            if (!times.TryGetValue(g.ChampionId, out var lst))
+                                times[g.ChampionId] = lst = [];
+                            lst.Add(g.Ts);
                         }
         }
         catch { /* журнала нет или он битый — истории нет */ }
 
         var span = oldest > 0 ? Math.Max(0.0, (now - oldest) / 86400.0) : 0.0;
-        var h = new PlayHistory(recent, last, span, now);
+        // От свежей к старой, и дальше KeepTimes не храним.
+        var byTime = times.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value.OrderByDescending(t => t).Take(PlayHistory.KeepTimes).ToArray());
+        var h = new PlayHistory(recent, byTime, span, now);
         _histCache = (DateTime.UtcNow, key, h);
         return h;
     }

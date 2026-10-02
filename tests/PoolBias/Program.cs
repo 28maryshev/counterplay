@@ -298,10 +298,16 @@ internal static class Program
             // очков и трёхмесячном простое комфорт падает до 1.26 — впритык к
             // флору пула (1.2), а через месяц уйдёт под него, и «пул не
             // добавляется поверх наигранности» развалится на ровном месте.
+            var nowTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             SessionTracker.HistoryOverride = new SessionTracker.PlayHistory(
                 new Dictionary<int, (int, int)> { [main] = (10, 5) },   // 5 из 10 — винрейт ровно 50%
-                new Dictionary<int, long> { [main] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() },
-                spanDays: 400, now: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                // Десять игр подряд, по одной в день: свежесть считается по
+                // третьей с конца, и одной отметки времени тут не хватило бы.
+                new Dictionary<int, long[]>
+                {
+                    [main] = [.. Enumerable.Range(0, 10).Select(i => nowTs - (long)i * 86400)],
+                },
+                spanDays: 400, now: nowTs);
             var baseline = Scored(engine, state, "support", null, false);
 
             var poolMain = Scored(engine, state, "support", [main], duo: false)[main];
