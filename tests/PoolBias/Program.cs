@@ -299,7 +299,7 @@ internal static class Program
             // флору пула (1.2), а через месяц уйдёт под него, и «пул не
             // добавляется поверх наигранности» развалится на ровном месте.
             SessionTracker.HistoryOverride = new SessionTracker.PlayHistory(
-                new Dictionary<int, int> { [main] = 10 },
+                new Dictionary<int, (int, int)> { [main] = (10, 5) },   // 5 из 10 — винрейт ровно 50%
                 new Dictionary<int, long> { [main] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() },
                 spanDays: 400, now: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             var baseline = Scored(engine, state, "support", null, false);

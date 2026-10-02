@@ -134,10 +134,11 @@ public sealed class RecommendationEngine : IDisposable
     // same-role таблицу (W_OTHER).
     private const double W_CROSS = 1.2;
 
-    /// За сколько дней считаем «чем игрок играет сейчас» для защитных банов.
-    /// Месяц: короче — и после недельного перерыва список опустеет, длиннее —
-    /// и туда снова полезут давно брошенные чемпионы.
-    private const int MainsDays = 30;
+    /// За сколько дней считаем «чем игрок играет сейчас» для защитных банов —
+    /// то же окно, что у наигранности и личного винрейта (см. FreshDays), и
+    /// по той же причине: короче — и после недельного перерыва список опустеет,
+    /// длиннее — и туда снова полезут давно брошенные чемпионы. Окно одно на
+    /// всех, поэтому отдельной константы у банов больше нет.
     /// Сколько мейнов защищаем. Больше пяти — и бан начинает защищать случайное.
     private const int MainsTake = 5;
     // Порог включения бот-матчапов: сумма игр в botlane_matchup. ~20k записей —
@@ -219,10 +220,9 @@ public sealed class RecommendationEngine : IDisposable
     /// </summary>
     private double ComfortDelta(int champId)
     {
-        var hist = SessionTracker.History(FreshDays,
-            [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        var hist = MyHistory();
 
-        var recentGames = hist.Recent(champId);
+        var (recentGames, _) = hist.Recent(champId);
         var recent = recentGames > 0
             ? RECENT_MAX * recentGames / (recentGames + RECENT_K)
             : 0.0;
@@ -234,6 +234,13 @@ public sealed class RecommendationEngine : IDisposable
         if (_comfortPool.Contains(champId)) mastery = Math.Max(mastery, POOL_COMFORT);
         return recent + mastery;
     }
+
+    /// Мой журнал за окно свежести: игры, победы, давность. ОДИН источник на
+    /// наигранность, личный винрейт и защитные баны — окно у всех трёх месяц,
+    /// а сам вызов кэширован, так что файл читается один раз на драфт.
+    private static SessionTracker.PlayHistory MyHistory() =>
+        SessionTracker.History(FreshDays,
+            [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
 
     /// Доля мастерства, которая ещё в силе: 1.0 первый месяц, дальше вниз по
     /// прямой до STALE_FLOOR к StaleDays.
@@ -781,8 +788,7 @@ public sealed class RecommendationEngine : IDisposable
                 // «твой винрейт» висела бы у каждого второго кандидата.
                 if (personalDelta >= 1.5)
                 {
-                    var (pg, pw) = SessionTracker.ChampStats(
-                        champId, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+                    var (pg, pw) = MyHistory().Recent(champId);
                     if (pg > 0)
                         reasonList.Add(Good(Loc.T("reason.personalWr", $"{100.0 * pw / pg:F0}", pg)));
                 }
@@ -1058,12 +1064,10 @@ public sealed class RecommendationEngine : IDisposable
         // Мастерством добираем остаток: у свежей установки истории ещё нет, и
         // без него список был бы пустым.
         var myMains = new List<int>();
-        var recent = SessionTracker.ChampStatsMap(
-            MainsDays, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
-        foreach (var id in recent
-                     .Where(kv => kv.Value.Games > 0 && stats.ContainsKey(kv.Key))
-                     .OrderByDescending(kv => kv.Value.Games)
-                     .Select(kv => kv.Key))
+        foreach (var id in MyHistory().Played
+                     .Where(p => p.Games > 0 && stats.ContainsKey(p.Id))
+                     .OrderByDescending(p => p.Games)
+                     .Select(p => p.Id))
         {
             if (myMains.Count >= MainsTake) break;
             myMains.Add(id);
@@ -1443,12 +1447,15 @@ public sealed class RecommendationEngine : IDisposable
     private readonly Dictionary<int, string> _roleCache = new();
 
     /// Личный винрейт игрока на чемпионе как дельта к 50%: «у меня на нём идёт».
-    /// Считается по своим играм (соло+флекс+нормалы, ARAM не берём), сглажен по
-    /// Лапласу и притушен по объёму — 2 победы подряд не дают +50.
+    /// Считается по своим играм за FreshDays (соло+флекс+нормалы, ARAM не берём),
+    /// сглажен по Лапласу и притушен по объёму — 2 победы подряд не дают +50.
+    ///
+    /// Источник тот же, что у наигранности (<see cref="MyHistory"/>): это один и
+    /// тот же журнал за одно и то же окно, и читать его двумя путями значило бы
+    /// однажды разъехаться на ровном месте.
     public double PersonalDelta(int champId)
     {
-        var (g, w) = SessionTracker.ChampStats(
-            champId, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        var (g, w) = MyHistory().Recent(champId);
         if (g <= 0) return 0.0;
         var d = Delta(g, w, K_PERSONAL) * (g / (g + PERSONAL_CONF));
         return Math.Clamp(d, -PERSONAL_CAP, PERSONAL_CAP);

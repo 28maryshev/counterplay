@@ -343,11 +343,11 @@ public static class SessionTracker
     /// </summary>
     public sealed class PlayHistory
     {
-        private readonly IReadOnlyDictionary<int, int> _recent;
+        private readonly IReadOnlyDictionary<int, (int Games, int Wins)> _recent;
         private readonly IReadOnlyDictionary<int, long> _last;
         private readonly long _now;
 
-        public PlayHistory(IReadOnlyDictionary<int, int> recent,
+        public PlayHistory(IReadOnlyDictionary<int, (int Games, int Wins)> recent,
                            IReadOnlyDictionary<int, long> last,
                            double spanDays, long now)
         {
@@ -357,8 +357,13 @@ public static class SessionTracker
         /// Сколько дней покрывает журнал: от самой старой записи до сегодня.
         public double SpanDays { get; }
 
-        /// Игр на чемпионе за окно свежести.
-        public int Recent(int championId) => _recent.GetValueOrDefault(championId);
+        /// Игр и побед на чемпионе за окно свежести.
+        public (int Games, int Wins) Recent(int championId) => _recent.GetValueOrDefault(championId);
+
+        /// Все чемпионы, которых игрок брал за окно. Нужны банам: там список
+        /// строится перебором, а не запросом по одному.
+        public IEnumerable<(int Id, int Games, int Wins)> Played =>
+            _recent.Select(kv => (kv.Key, kv.Value.Games, kv.Value.Wins));
 
         /// Сколько дней прошло с последней игры на чемпионе. Не играл ни разу —
         /// глубина журнала: дольше, чем мы смотрим, «не играл» не бывает.
@@ -387,7 +392,7 @@ public static class SessionTracker
 
         var now    = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var since  = now - (long)freshDays * 86400;
-        var recent = new Dictionary<int, int>();
+        var recent = new Dictionary<int, (int Games, int Wins)>();
         var last   = new Dictionary<int, long>();
         var oldest = 0L;
         try
@@ -400,9 +405,17 @@ public static class SessionTracker
                     if (acc.Queues.TryGetValue(q, out var ql))
                         foreach (var g in ql.Games)
                         {
+                            // Игру без отметки времени пропускаем целиком: когда
+                            // она была — неизвестно, а здесь всё считается от
+                            // времени. Такие записи остались только от старой
+                            // раскладки журнала и давно вне любого окна.
                             if (g.ChampionId == 0 || g.Ts <= 0) continue;
                             if (oldest == 0 || g.Ts < oldest) oldest = g.Ts;
-                            if (g.Ts >= since) recent[g.ChampionId] = recent.GetValueOrDefault(g.ChampionId) + 1;
+                            if (g.Ts >= since)
+                            {
+                                var cur = recent.GetValueOrDefault(g.ChampionId);
+                                recent[g.ChampionId] = (cur.Games + 1, cur.Wins + (g.Win ? 1 : 0));
+                            }
                             if (g.Ts > last.GetValueOrDefault(g.ChampionId)) last[g.ChampionId] = g.Ts;
                         }
         }

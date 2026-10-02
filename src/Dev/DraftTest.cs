@@ -106,7 +106,7 @@ static class DraftTest
         // последний раз брал Тристану, и картинка менялась бы от запуска к запуску.
         var histBak = SessionTracker.HistoryOverride;
         SessionTracker.HistoryOverride = MasteryHistory(daysSince: 2,
-            new() { { 18, 14 }, { 21, 5 }, { 236, 2 } });
+            new() { { 18, (14, 7) }, { 21, (5, 2) }, { 236, (2, 1) } });
         Print("ADC: MASTERY Tristana 250k / MF 90k / Lucian 40k — ИГРАЮ СЕЙЧАС (cmf ≈ 4.6 / 3.3 / 2.0)",
             masteryTeam, 14);
 
@@ -187,10 +187,12 @@ static class DraftTest
     }
 
     /// Подменная история игр для сценария наигранности: у перечисленных
-    /// чемпионов столько игр за месяц, последняя — daysSince дней назад.
-    /// Журнал считаем глубоким (год), иначе затухания не было бы вовсе.
+    /// чемпионов столько игр и побед за месяц, последняя — daysSince дней назад.
+    /// Побед везде половина, чтобы личный винрейт был ровно 50% и сценарий
+    /// показывал одну наигранность. Журнал считаем глубоким (год), иначе
+    /// затухания не было бы вовсе.
     private static SessionTracker.PlayHistory MasteryHistory(
-        double daysSince, Dictionary<int, int> recent)
+        double daysSince, Dictionary<int, (int Games, int Wins)> recent)
     {
         var now  = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var last = new Dictionary<int, long>();

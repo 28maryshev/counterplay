@@ -53,6 +53,13 @@ internal static class Program
         using var engine = Quiet(() => RecommendationEngine.Create(dbPath, "emerald"));
         Console.WriteLine($"патчи: {engine.PatchDisplay}   бакет: {engine.TierBucket}\n");
 
+        // Пустая история СРАЗУ, до первого же подбора. Иначе список кандидатов
+        // строился бы с оглядкой на настоящий журнал владельца — и чемпион,
+        // который достаётся замеру двадцать первым, менялся бы от машины к
+        // машине и от недели к неделе. Поймано откатом: при другом весе личного
+        // винрейта порядок разъехался, и два прогона мерили РАЗНЫХ чемпионов.
+        SessionTracker.HistoryOverride = Hist(0, recent: 0, daysSince: 0, span: 400);
+
         // Кандидаты на роль: берём чемпиона из СЕРЕДИНЫ списка — у вершины
         // сдвиг по местам упёрся бы в потолок, у хвоста его не видно.
         var empty = Draft("utility", [], []);
@@ -105,8 +112,9 @@ internal static class Program
         var freshPos = new List<double>();
         var stalePos = new List<double>();
         var spreads  = new List<double>();
-        var wasTop6  = 0;   // попадал в видимую шестёрку, пока его играют
-        var leftTop6 = 0;   // ...и вылетел из неё, когда забросили
+        var wasTop6    = 0;   // попадал в видимую шестёрку, пока его играют
+        var leftTop6   = 0;   // ...и вылетел из неё, когда забросили
+        var everBetter = 0;   // забвение где-то подняло его ВВЕРХ — так не бывает
         var histFresh = Hist(champ, recent: 12, daysSince: 1,   span: 400);
         var histStale = Hist(champ, recent: 0,  daysSince: 200, span: 400);
 
@@ -121,6 +129,7 @@ internal static class Program
             shifts.Add(rs - rf);
             freshPos.Add(rf);
             stalePos.Add(rs);
+            if (rs < rf) everBetter++;
             if (rf <= 6) { wasTop6++; if (rs > 6) leftTop6++; }
 
             var live = Scored(engine, st, null).Values.OrderByDescending(r => r.Score).ToList();
@@ -136,13 +145,16 @@ internal static class Program
 
         Check("забытый чемпион заметно уходит вниз", Median(shifts) >= 3,
               $"медиана сдвига {Median(shifts):F1} мест");
-        // Не «всегда»: если чемпион и правда силён в патче и контрит состав,
-        // он обязан остаться наверху без всякой наигранности — это и есть
-        // правильное поведение. Требуем лишь, чтобы забвение перевешивало
-        // чаще, чем нет.
-        Check("и чаще, чем нет, покидает видимую шестёрку",
-              wasTop6 > 0 && leftTop6 * 2 >= wasTop6,
-              $"{leftTop6} из {wasTop6}");
+        // Строгий инвариант: забвение отнимает очки только у НЕГО, оценки
+        // остальных не меняются, — значит подняться в списке он не может
+        // нигде. Ловит путаницу знака и случаи, когда затухание подмешалось
+        // не туда.
+        Check("и нигде не поднимается от того, что его забыли", everBetter == 0,
+              $"поднялся в {everBetter} драфтах из {DraftCount}");
+        // «Ушёл из топ-6» печатаем, но НЕ требуем: доля зависит от того,
+        // насколько выбранный чемпион силён сам по себе, а это меняется каждый
+        // патч. Сильный чемпион обязан остаться наверху и без наигранности —
+        // это правильное поведение, и порог на нём стал бы ложной тревогой.
 
         // ── 4. Затухание монотонно ──────────────────────────────────────────
         Console.WriteLine("\n── кривая затухания по дням простоя ──");
@@ -160,6 +172,47 @@ internal static class Program
         var floor365 = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: 365, span: 400));
         Check("ниже дна не падает", Math.Abs(floor120 - floor365) < 1e-9,
               $"{floor120:F2} и {floor365:F2}");
+
+        // ── 4b. Личный винрейт ──────────────────────────────────────────────
+        // Наигранность считает ИГРЫ, а не победы: «ты им владеешь» и «у тебя на
+        // нём идёт» — разные вопросы. На второй отвечает PersonalDelta, и до
+        // общего журнала померить его было нечем.
+        Console.WriteLine("\n── личный винрейт на 12 играх ──");
+        var byWr = new List<(int Wins, double Score, int Rank, double Personal)>();
+        foreach (var w in new[] { 0, 3, 6, 9, 12 })
+        {
+            SessionTracker.HistoryOverride = Hist(champ, recent: 12, daysSince: 1, span: 400, wins: w);
+            var all = Scored(engine, state, null);
+            var rank = all.Values.Count(r => r.Score > all[champ].Score) + 1;
+            byWr.Add((w, all[champ].Score, rank, engine.PersonalDelta(champ)));
+        }
+        foreach (var (w, sc, rk, pd) in byWr)
+            Console.WriteLine($"  {w,2} побед из 12 ({100 * w / 12,3}%): личная дельта {pd,5:F2}, "
+                              + $"оценка {sc,6:F2}, место {rk}");
+
+        var worst = byWr[0];
+        var best  = byWr[^1];
+        // Размах от нуля побед до всех — это ровно две обрезки потолком:
+        // 2 × PERSONAL_CAP × W_PERSONAL. Сверяем замер со строками кода, как
+        // PoolBias сверяет множитель напарника: уронишь вес обратно до 0.5 —
+        // размах станет 4.00, и проверка назовёт это по имени, а не промолчит.
+        var expected = 2 * PersonalCapInCode * PersonalWeightInCode;
+        var spreadWr = best.Score - worst.Score;
+        Check($"размах по винрейту отвечает весам в коде (ждём {expected:F2})",
+              Math.Abs(spreadWr - expected) < 0.01,
+              $"{worst.Score:F2} → {best.Score:F2}, размах {spreadWr:F2}");
+        Check("50% не двигает ничего", Math.Abs(byWr[2].Personal) < 1e-9,
+              $"дельта {byWr[2].Personal:F2}");
+        Check("рост винрейта только поднимает",
+              byWr.Zip(byWr.Skip(1)).All(p => p.Second.Score >= p.First.Score - 1e-9), "");
+        Check("но потолок держит: 100% не перебивает контрпик", best.Personal <= 4.0 + 1e-9,
+              $"личная дельта {best.Personal:F2}");
+
+        // Три победы подряд — не 100% винрейт.
+        SessionTracker.HistoryOverride = Hist(champ, recent: 3, daysSince: 1, span: 400, wins: 3);
+        var streak = engine.PersonalDelta(champ);
+        Console.WriteLine($"  для сравнения: 3 победы из 3 → личная дельта {streak:F2}");
+        Check("короткая серия гасится объёмом", streak < 2.0, $"{streak:F2}");
 
         // ── 5. Новичка затухание не наказывает ──────────────────────────────
         // Журнал копится только вперёд от установки. У того, кто поставил
@@ -202,16 +255,26 @@ internal static class Program
     /// Потолок мастерства, с которым собран движок (см. MASTERY_MAX).
     private const double MASTERY_MAX_IN_CODE = 3.0;
 
+    /// Вес и потолок личного винрейта, с которыми собран движок
+    /// (см. W_PERSONAL и PERSONAL_CAP). Зеркало строк кода: меняешь там —
+    /// меняешь здесь, и правка веса перестаёт быть незаметной.
+    private const double PersonalWeightInCode = 1.0;
+    private const double PersonalCapInCode    = 4.0;
+
     /// <summary>
     /// Подменная история: чемпион сыгран <paramref name="recent"/> раз за окно
     /// свежести, последний раз <paramref name="daysSince"/> дней назад, а сам
     /// журнал ведётся <paramref name="span"/> дней.
     /// </summary>
-    private static SessionTracker.PlayHistory Hist(int champId, int recent, double daysSince, double span)
+    private static SessionTracker.PlayHistory Hist(int champId, int recent, double daysSince, double span,
+                                                   int? wins = null)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        // Побед по умолчанию ровно половина: личный винрейт тогда ровно 50% и
+        // в оценку не вмешивается. Замеры наигранности так меряют её одну.
+        var w = wins ?? recent / 2;
         return new SessionTracker.PlayHistory(
-            new Dictionary<int, int> { [champId] = recent },
+            new Dictionary<int, (int, int)> { [champId] = (recent, w) },
             new Dictionary<int, long> { [champId] = now - (long)(daysSince * 86400) },
             span, now);
     }
