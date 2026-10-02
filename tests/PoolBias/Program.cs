@@ -288,9 +288,20 @@ internal static class Program
         var plain2 = plain[16].ChampionId;   // а этот без мастерства
         var mateId = plain[17].ChampionId;   // половина друга
         var bak    = engine.Mastery;
+        var histBak = SessionTracker.HistoryOverride;
         try
         {
             engine.Mastery = new Dictionary<int, long> { [main] = 400_000 };   // глубокий мейн
+            // «Глубокий мейн» — это тот, кого ИГРАЮТ: наигранность теперь
+            // затухает с простоем. Без своей истории проверка висела бы на том,
+            // когда владелец последний раз брал случайного саппорта: при 400k
+            // очков и трёхмесячном простое комфорт падает до 1.26 — впритык к
+            // флору пула (1.2), а через месяц уйдёт под него, и «пул не
+            // добавляется поверх наигранности» развалится на ровном месте.
+            SessionTracker.HistoryOverride = new SessionTracker.PlayHistory(
+                new Dictionary<int, int> { [main] = 10 },
+                new Dictionary<int, long> { [main] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() },
+                spanDays: 400, now: DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             var baseline = Scored(engine, state, "support", null, false);
 
             var poolMain = Scored(engine, state, "support", [main], duo: false)[main];
@@ -330,7 +341,7 @@ internal static class Program
                   Math.Abs(withFriend[mateId].Score - baseline[mateId].Score) < 1e-9,
                   $"{baseline[mateId].Score:F2} → {withFriend[mateId].Score:F2}");
         }
-        finally { engine.Mastery = bak; }
+        finally { engine.Mastery = bak; SessionTracker.HistoryOverride = histBak; }
     }
 
     /// <summary>

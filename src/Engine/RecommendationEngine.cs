@@ -97,16 +97,20 @@ public sealed class RecommendationEngine : IDisposable
     // уводит вниз, и это половина её пользы.
     private const double DUO_MATE_MULT = 1.5;
     private const double W_POOL     = 1.0; // вес «комфорта» (наигранность чемпиона)
-    // Личный винрейт игрока на чемпионе (соло+флекс+нормалы, ARAM не в счёт).
-    // Вес небольшой и намеренно ниже мета-факторов: это подсказка «у тебя на нём
-    // идёт», а не повод пикать слабого чемпиона. Малые выборки гасятся сильным
-    // сглаживанием (K_PERSONAL) и темпером по объёму (PERSONAL_CONF).
-    private const double W_PERSONAL = 0.5;
+    // Личный винрейт игрока на чемпионе за последний месяц (соло+флекс+нормалы,
+    // ARAM не в счёт). Был 0.5 — намеренно ниже мета-факторов. Поднят до 1.0
+    // вместе с урезанием пожизненного мастерства: «на нём у меня СЕЙЧАС идёт» —
+    // сигнал более свежий и более честный, чем «я когда-то его много играл».
+    // Малые выборки по-прежнему гасятся сильным сглаживанием (K_PERSONAL) и
+    // темпером по объёму (PERSONAL_CONF), так что три победы подряд ничего не
+    // переворачивают.
+    private const double W_PERSONAL = 1.0;
     private const double K_PERSONAL = 12.0;  // Лаплас: 3 игры подряд ≠ 100% винрейт
     private const double PERSONAL_CONF = 15.0;
     // Потолок личной дельты. Без него 70% на 50 играх давали бы ~+9 — больше, чем
-    // прямой контрпик, и подбор превращался бы в «играй что привык». При весе 0.5
-    // потолок 4.0 даёт максимум +2 очка — по замерам это 2-3 позиции в списке.
+    // прямой контрпик, и подбор превращался бы в «играй что привык». При весе 1.0
+    // потолок 4.0 даёт максимум +4 очка — вровень с сильным контрпиком, но не
+    // выше: личный винрейт подсказывает выбор, а не отменяет матчап.
     private const double PERSONAL_CAP = 4.0;
     private const double W_NEUTRAL  = 1.0; // нейтральный пик при неопределённости
     private const double W_TRIFECTA = 0.8; //архетип-контра (камень-ножницы-бумага)
@@ -171,15 +175,73 @@ public sealed class RecommendationEngine : IDisposable
     // перебивает контрпик.
     private const double POOL_COMFORT = 1.2;
 
-    // Бонус за наигранность: сатурирующая кривая 0..~8 (200k очков ≈ +5.7).
-    // Чемпион из активного пула получает флор POOL_COMFORT. С наигранностью НЕ
-    // складываем — берём максимум: наигранность не надбавляет уже поднятый пулом вес.
+    // ── Наигранность: что я играю СЕЙЧАС, а не что играл когда-то ────────────
+    //
+    // Жалоба игрока (1 октября): «я много играл Нилу, пока она была сильной; её
+    // занерфили, а программа всё равно держит её в топ-4». Так и было: комфорт
+    // целиком стоял на пожизненных очках мастерства Riot, а они НЕ УБЫВАЮТ. При
+    // 150k очков это давало +5.2 к оценке навсегда — больше, чем весь разрыв
+    // между 2-м и 8-м местом подбора (~2.5 очка по замеру PoolBias). Нерф двигает
+    // базовый винрейт на 1.5–3 очка и перебить такое не мог в принципе.
+    //
+    // Теперь комфорт — сумма двух слагаемых, и главное из них свежее.
+
+    /// Окно «играю сейчас». Месяц — как и у личного винрейта, и у защитных банов.
+    private const int FreshDays = 30;
+    /// Потолок прибавки за игры в этом окне.
+    private const double RECENT_MAX = 3.0;
+    /// Сколько игр за месяц дают половину потолка. Четыре: одна-две игры — это
+    /// «попробовал», а к десяти кривая уже у потолка и дальше растить нечего.
+    private const double RECENT_K = 4.0;
+
+    /// Потолок прибавки за пожизненные очки мастерства. Было 8.0 — столько эта
+    /// одна величина весить не должна: подбор превращался в «играй, что привык».
+    private const double MASTERY_MAX = 3.0;
+    /// Половина потолка мастерства, в очках Riot.
+    private const double MASTERY_HALF = 80_000.0;
+    /// Когда затухание мастерства доходит до дна. Четыре месяца: за месяц-другой
+    /// перерыва чемпион из рук не уходит, а через сезон — уходит.
+    private const double StaleDays = 120;
+    /// Ниже этой доли мастерство не падает. Не ноль: даже забытый чемпион
+    /// вспоминается быстрее незнакомого.
+    private const double STALE_FLOOR = 0.25;
+
+    /// <summary>
+    /// Насколько это ТВОЙ чемпион прямо сейчас.
+    ///
+    /// Слагаемое первое — игры за последний месяц. Слагаемое второе — пожизненные
+    /// очки мастерства, умноженные на свежесть: играл в этом месяце — полный вес,
+    /// не брал четыре месяца — четверть.
+    ///
+    /// Чемпион из активного пула получает флор POOL_COMFORT. С мастерством он НЕ
+    /// складывается — берётся максимум: пул говорит ровно то же самое («этим я
+    /// владею»), просто про второй аккаунт, где очков нет.
+    /// </summary>
     private double ComfortDelta(int champId)
     {
-        var mastery = Mastery.TryGetValue(champId, out var pts) && pts > 0
-            ? 8.0 * pts / (pts + 80_000.0)
+        var hist = SessionTracker.History(FreshDays,
+            [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+
+        var recentGames = hist.Recent(champId);
+        var recent = recentGames > 0
+            ? RECENT_MAX * recentGames / (recentGames + RECENT_K)
             : 0.0;
-        return _comfortPool.Contains(champId) ? Math.Max(mastery, POOL_COMFORT) : mastery;
+
+        var pts = Mastery.TryGetValue(champId, out var p) && p > 0 ? p : 0L;
+        var mastery = pts > 0 ? MASTERY_MAX * pts / (pts + MASTERY_HALF) : 0.0;
+        mastery *= Freshness(hist.DaysSince(champId));
+
+        if (_comfortPool.Contains(champId)) mastery = Math.Max(mastery, POOL_COMFORT);
+        return recent + mastery;
+    }
+
+    /// Доля мастерства, которая ещё в силе: 1.0 первый месяц, дальше вниз по
+    /// прямой до STALE_FLOOR к StaleDays.
+    private static double Freshness(double daysSince)
+    {
+        if (daysSince <= FreshDays) return 1.0;
+        if (daysSince >= StaleDays) return STALE_FLOOR;
+        return 1.0 - (1.0 - STALE_FLOOR) * (daysSince - FreshDays) / (StaleDays - FreshDays);
     }
 
     // Драфт-фичи: нейтральный пик (при неопределённости), трифекта композиций
@@ -891,8 +953,8 @@ public sealed class RecommendationEngine : IDisposable
             if (ChampionTraits.LongRange(champId)) gap += 0.8;
 
             var comfort = ComfortDelta(champId);
-            if      (comfort >= 5.0) reasons.Add(Good(Loc.T("reason.comfortHigh")));
-            else if (comfort >= 2.5) reasons.Add(Good(Loc.T("reason.comfortMid")));
+            if      (comfort >= 3.8) reasons.Add(Good(Loc.T("reason.comfortHigh")));
+            else if (comfort >= 1.9) reasons.Add(Good(Loc.T("reason.comfortMid")));
 
             if (synDelta > 0.5) reasons.Add(Good(Loc.T("reason.fitsTeam")));
             if      (baseDelta >= 2.5) reasons.Add(Good(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}")));
@@ -2108,8 +2170,8 @@ public sealed class RecommendationEngine : IDisposable
         var lines = new List<string>();
 
         // 0. Комфорт: часто наигранный чемпион игрока — упоминаем первым.
-        if      (comfortDelta >= 5.0) lines.Add(Good(Loc.T("reason.comfortHigh")));
-        else if (comfortDelta >= 2.5) lines.Add(Good(Loc.T("reason.comfortMid")));
+        if      (comfortDelta >= 3.8) lines.Add(Good(Loc.T("reason.comfortHigh")));
+        else if (comfortDelta >= 1.9) lines.Add(Good(Loc.T("reason.comfortMid")));
 
         // 1. Развёрнутые объяснения синергии с конкретными союзниками.
         // Сначала пары с наибольшей статистической синергией. Дедупим по ТИПУ

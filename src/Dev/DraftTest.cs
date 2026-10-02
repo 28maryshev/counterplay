@@ -85,18 +85,35 @@ static class DraftTest
                 new[] { (222, "bottom"), (64, "jungle"), (238, "middle"), (24, "top") },
                 new[] { (54, "top"), (60, "jungle"), (103, "middle"), (22, "bottom"), (111, "utility") }));
 
-        // 5. Влияние мастерства (наигранности): те же условия, что в сценарии 1, но
-        //    даём высокие очки мастерства на пару ADC — смотрим, как они поднимутся (cmf).
+        // 5. Влияние наигранности: те же условия, что в сценарии 1, но даём очки
+        //    мастерства на пару ADC — смотрим, как они поднимутся (cmf).
+        //
+        //    Сценарий идёт ДВАЖДЫ с одним и тем же мастерством и разной историей:
+        //    комфорт стоит не только на очках Riot (они не убывают никогда), но и
+        //    на том, играют ли чемпиона сейчас. Разница между двумя прогонами —
+        //    это и есть затухание.
         eng.Mastery = new Dictionary<int, long>
         {
-            { 18, 250000 },  // Tristana — очень наигранная (comfort ≈ +6.1)
-            { 21, 90000 },   // Miss Fortune — средне наигранная (≈ +4.2)
-            { 236, 40000 },  // Lucian — немного (≈ +2.7)
+            { 18, 250000 },  // Tristana — очень наигранная
+            { 21, 90000 },   // Miss Fortune — средне наигранная
+            { 236, 40000 },  // Lucian — немного
         };
-        Print("ADC: MASTERY Tristana 250k / MF 90k / Lucian 40k (team as sc.1)",
-            Build("bottom",
-                new[] { (84, "middle"), (37, "utility"), (17, "jungle"), (83, "top") },
-                new[] { (54, "top"), (113, "jungle"), (103, "middle"), (222, "bottom"), (89, "utility") }), 14);
+        var masteryTeam = Build("bottom",
+            new[] { (84, "middle"), (37, "utility"), (17, "jungle"), (83, "top") },
+            new[] { (54, "top"), (113, "jungle"), (103, "middle"), (222, "bottom"), (89, "utility") });
+
+        // Историю подставляем, иначе песочница показывала бы, когда ВЛАДЕЛЕЦ
+        // последний раз брал Тристану, и картинка менялась бы от запуска к запуску.
+        var histBak = SessionTracker.HistoryOverride;
+        SessionTracker.HistoryOverride = MasteryHistory(daysSince: 2,
+            new() { { 18, 14 }, { 21, 5 }, { 236, 2 } });
+        Print("ADC: MASTERY Tristana 250k / MF 90k / Lucian 40k — ИГРАЮ СЕЙЧАС (cmf ≈ 4.6 / 3.3 / 2.0)",
+            masteryTeam, 14);
+
+        SessionTracker.HistoryOverride = MasteryHistory(daysSince: 200, new());
+        Print("ADC: те же очки мастерства, но НЕ БРАЛ 200 ДНЕЙ (cmf ≈ 0.6 / 0.4 / 0.3)",
+            masteryTeam, 14);
+        SessionTracker.HistoryOverride = histBak;
 
         // 6. ARAM: команда почти вся AP, нет фронта/саста; на скамейке — микс.
         //    Ждём вверху: фронт+AD (Сион/Леона), затем AD/хил (баланс/дыры), 5-й AP — вниз.
@@ -167,5 +184,17 @@ static class DraftTest
             });
 
         Console.WriteLine("\n(готово)");
+    }
+
+    /// Подменная история игр для сценария наигранности: у перечисленных
+    /// чемпионов столько игр за месяц, последняя — daysSince дней назад.
+    /// Журнал считаем глубоким (год), иначе затухания не было бы вовсе.
+    private static SessionTracker.PlayHistory MasteryHistory(
+        double daysSince, Dictionary<int, int> recent)
+    {
+        var now  = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var last = new Dictionary<int, long>();
+        foreach (var id in new[] { 18, 21, 236 }) last[id] = now - (long)(daysSince * 86400);
+        return new SessionTracker.PlayHistory(recent, last, spanDays: 365, now: now);
     }
 }

@@ -274,6 +274,7 @@ public static class SessionTracker
     public static void DropCache()
     {
         lock (StatsCache) StatsCache.Clear();
+        _histCache = null;
     }
 
     /// Окно «свежей формы». Журнал держится за весь сезон, но для подбора важно,
@@ -324,6 +325,93 @@ public static class SessionTracker
     {
         var m = ChampStatsMap(queues);
         return m.TryGetValue(championId, out var v) ? v : (0, 0);
+    }
+
+    // ── Свежесть наигранности ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Чем игрок играет СЕЙЧАС, а чем играл когда-то.
+    ///
+    /// Нужна движку, чтобы «комфорт» не держался на пожизненных очках мастерства
+    /// Riot: они не убывают никогда, и чемпион, которого забросили полгода назад,
+    /// оставался в подборе наверху вечно.
+    ///
+    /// <see cref="DaysSince"/> ограничен ГЛУБИНОЙ журнала: если программа ведёт
+    /// его двадцать дней, сказать «не играл сто дней» нельзя — максимум «не играл
+    /// при нас». Поэтому у новичка затухания нет вовсе, а с ростом журнала оно
+    /// набирает силу само.
+    /// </summary>
+    public sealed class PlayHistory
+    {
+        private readonly IReadOnlyDictionary<int, int> _recent;
+        private readonly IReadOnlyDictionary<int, long> _last;
+        private readonly long _now;
+
+        public PlayHistory(IReadOnlyDictionary<int, int> recent,
+                           IReadOnlyDictionary<int, long> last,
+                           double spanDays, long now)
+        {
+            _recent = recent; _last = last; SpanDays = spanDays; _now = now;
+        }
+
+        /// Сколько дней покрывает журнал: от самой старой записи до сегодня.
+        public double SpanDays { get; }
+
+        /// Игр на чемпионе за окно свежести.
+        public int Recent(int championId) => _recent.GetValueOrDefault(championId);
+
+        /// Сколько дней прошло с последней игры на чемпионе. Не играл ни разу —
+        /// глубина журнала: дольше, чем мы смотрим, «не играл» не бывает.
+        public double DaysSince(int championId) =>
+            _last.TryGetValue(championId, out var ts) && ts > 0
+                ? Math.Max(0.0, (_now - ts) / 86400.0)
+                : SpanDays;
+    }
+
+    /// <summary>
+    /// Подменная история для проверок: настоящая копится только по сыгранным
+    /// играм, и подогнать её под замер нечем. В боевом режиме всегда null.
+    /// </summary>
+    public static PlayHistory? HistoryOverride { get; set; }
+
+    private static (DateTime At, string Key, PlayHistory H)? _histCache;
+
+    /// История игр за окно <paramref name="freshDays"/> по указанным очередям.
+    public static PlayHistory History(int freshDays, params string[] queues)
+    {
+        if (HistoryOverride is { } fake) return fake;
+
+        var key = freshDays + "|" + string.Join(",", queues);
+        if (_histCache is { } c && c.Key == key && (DateTime.UtcNow - c.At).TotalSeconds < 20)
+            return c.H;
+
+        var now    = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var since  = now - (long)freshDays * 86400;
+        var recent = new Dictionary<int, int>();
+        var last   = new Dictionary<int, long>();
+        var oldest = 0L;
+        try
+        {
+            var s = Load();
+            var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
+                ? a : s.Accounts.Values.FirstOrDefault();
+            if (acc != null)
+                foreach (var q in queues)
+                    if (acc.Queues.TryGetValue(q, out var ql))
+                        foreach (var g in ql.Games)
+                        {
+                            if (g.ChampionId == 0 || g.Ts <= 0) continue;
+                            if (oldest == 0 || g.Ts < oldest) oldest = g.Ts;
+                            if (g.Ts >= since) recent[g.ChampionId] = recent.GetValueOrDefault(g.ChampionId) + 1;
+                            if (g.Ts > last.GetValueOrDefault(g.ChampionId)) last[g.ChampionId] = g.Ts;
+                        }
+        }
+        catch { /* журнала нет или он битый — истории нет */ }
+
+        var span = oldest > 0 ? Math.Max(0.0, (now - oldest) / 86400.0) : 0.0;
+        var h = new PlayHistory(recent, last, span, now);
+        _histCache = (DateTime.UtcNow, key, h);
+        return h;
     }
 
     /// <summary>
