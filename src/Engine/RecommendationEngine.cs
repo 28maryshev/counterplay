@@ -249,6 +249,43 @@ public sealed class RecommendationEngine : IDisposable
         SessionTracker.History(FreshDays,
             [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
 
+    // ── Против контры комфорт не советчик ───────────────────────────────────
+    //
+    // Замер на живом пуле владельца показал границу: его личная прибавка на
+    // Соне (наигранность 4.52 + винрейт 3.42 = 7.94) при весе контры 2.0
+    // перебивала 4 пп матчапа. Соню показывало вторым номером против Леоны при
+    // её 22-м месте по чистой мете.
+    //
+    // Рассуждение, по которому это гасим. «Я играю на нём хорошо» намеряно по
+    // ВСЕМ матчапам сразу. Против чемпиона, который этого конкретно обыгрывает,
+    // личное преимущество переносится хуже: жёсткая контра ограничивает как раз
+    // то, что умеет игрок. Поэтому прибавку ужимаем тем сильнее, чем хуже
+    // прямой матчап.
+    //
+    // Это НЕ двойной счёт с wDirect: тот отвечает за среднего игрока, а здесь
+    // ужимается личная надбавка сверх него.
+    //
+    // Величины выбранные, а не измеренные — проверить их по данным нельзя, в
+    // матчах Riot нет отметки «насколько игрок хорош на чемпионе». Выбраны по
+    // замеру на пуле владельца: граница вылета из видимой шестёрки съезжает
+    // с −3.2 пп примерно до −2 пп, а мягкие матчапы (до −1 пп) не трогаются.
+
+    /// Матчап, до которого комфорт работает в полную силу.
+    private const double GUARD_START = -1.0;
+    /// ...и при котором он ужат до дна.
+    private const double GUARD_FULL  = -4.0;
+    /// Дно: совсем не выключаем. Даже в плохом матчапе знакомый чемпион
+    /// остаётся знакомым — руки помнят, незнакомый хуже.
+    private const double GUARD_FLOOR = 0.3;
+
+    /// Во сколько раз ужать личную прибавку при таком прямом матчапе (в пп).
+    private static double CounterGuard(double vsOpponent)
+    {
+        if (vsOpponent >= GUARD_START) return 1.0;
+        if (vsOpponent <= GUARD_FULL)  return GUARD_FLOOR;
+        return 1.0 - (1.0 - GUARD_FLOOR) * (GUARD_START - vsOpponent) / (GUARD_START - GUARD_FULL);
+    }
+
     /// Доля мастерства, которая ещё в силе: 1.0 первый месяц, дальше вниз по
     /// прямой до STALE_FLOOR к StaleDays.
     private static double Freshness(double daysSince)
@@ -782,6 +819,16 @@ public sealed class RecommendationEngine : IDisposable
                     draftReasons.Add(Bad(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId))));
 
                 var personalDelta = PersonalDelta(champId);   // «у меня на нём идёт»
+
+                // Против того, кто тебя контрит, личная прибавка ужимается.
+                // Берём ту же величину, что показана в карточке строкой «против
+                // оппонента» (матчап + бот 2v2): объяснение и счёт должны
+                // говорить об одном и том же. Обе величины правим ЗДЕСЬ, до
+                // причин и до записи в карточку, — иначе бар комфорта обещал бы
+                // то, чего в оценке уже нет.
+                var guard = CounterGuard(directDelta + botlaneDelta);
+                comfortDelta  *= guard;
+                personalDelta *= guard;
 
                 var score   = W_BASE * baseDelta + wDirect * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus

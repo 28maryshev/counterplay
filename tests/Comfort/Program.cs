@@ -87,10 +87,13 @@ internal static class Program
         engine.Mastery = new Dictionary<int, long> { [champ] = MainPoints };
 
         // ── 1. Один чемпион, две истории ────────────────────────────────────
+        // Сами ВЕЛИЧИНЫ комфорта меряем на драфте БЕЗ оппонента: прямого
+        // матчапа там нет, и ужимание против контры (блок 4c) в эти числа не
+        // вмешивается. Места и винрейт — ниже, на настоящих драфтах.
         Console.WriteLine("── наигранность: играю сейчас против играл когда-то ──");
 
-        var fresh   = Comfort(engine, state, champ, Hist(champ, recent: 12, daysSince: 1,   span: 400));
-        var stale6m = Comfort(engine, state, champ, Hist(champ, recent: 0,  daysSince: 200, span: 400));
+        var fresh   = Comfort(engine, empty, champ, Hist(champ, recent: 12, daysSince: 1,   span: 400));
+        var stale6m = Comfort(engine, empty, champ, Hist(champ, recent: 0,  daysSince: 200, span: 400));
 
         Console.WriteLine($"  играю в этом месяце (12 игр):   комфорт {fresh:F2}");
         Console.WriteLine($"  не брал 200 дней:               комфорт {stale6m:F2}");
@@ -162,14 +165,14 @@ internal static class Program
         var monotone = true;
         foreach (var d in new[] { 0, 15, 30, 45, 60, 90, 120, 180, 365 })
         {
-            var c = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: d, span: 400));
+            var c = Comfort(engine, empty, champ, Hist(champ, recent: 0, daysSince: d, span: 400));
             Console.WriteLine($"  {d,3} дней простоя → {c:F2}");
             if (prev is { } p && c > p + 1e-9) monotone = false;
             prev = c;
         }
         Check("с простоем наигранность только падает", monotone, "");
-        var floor120 = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: 120, span: 400));
-        var floor365 = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: 365, span: 400));
+        var floor120 = Comfort(engine, empty, champ, Hist(champ, recent: 0, daysSince: 120, span: 400));
+        var floor365 = Comfort(engine, empty, champ, Hist(champ, recent: 0, daysSince: 365, span: 400));
         Check("ниже дна не падает", Math.Abs(floor120 - floor365) < 1e-9,
               $"{floor120:F2} и {floor365:F2}");
 
@@ -191,9 +194,9 @@ internal static class Program
             spanDays: 400, now: nowTs);
 
         SessionTracker.HistoryOverride = oneOff;
-        var oneOffComfort = Scored(engine, state, null)[champ].ComfortDelta;
-        var playingNow    = Comfort(engine, state, champ, Hist(champ, recent: 12, daysSince: 1, span: 400));
-        var abandoned     = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: 200, span: 400));
+        var oneOffComfort = Scored(engine, empty, null)[champ].ComfortDelta;
+        var playingNow    = Comfort(engine, empty, champ, Hist(champ, recent: 12, daysSince: 1, span: 400));
+        var abandoned     = Comfort(engine, empty, champ, Hist(champ, recent: 0, daysSince: 200, span: 400));
         Console.WriteLine($"  играю по-настоящему (12 игр):      {playingNow:F2}");
         Console.WriteLine($"  взял разок три дня назад (1 игра): {oneOffComfort:F2}");
         Console.WriteLine($"  не брал вовсе:                     {abandoned:F2}");
@@ -211,7 +214,7 @@ internal static class Program
         foreach (var w in new[] { 0, 3, 6, 9, 12 })
         {
             SessionTracker.HistoryOverride = Hist(champ, recent: 12, daysSince: 1, span: 400, wins: w);
-            var all = Scored(engine, state, null);
+            var all = Scored(engine, empty, null);
             var rank = all.Values.Count(r => r.Score > all[champ].Score) + 1;
             byWr.Add((w, all[champ].Score, rank, engine.PersonalDelta(champ)));
         }
@@ -243,13 +246,61 @@ internal static class Program
         Console.WriteLine($"  для сравнения: 3 победы из 3 → личная дельта {streak:F2}");
         Check("короткая серия гасится объёмом", streak < 2.0, $"{streak:F2}");
 
+        // ── 4c. Против контры комфорт ужимается ─────────────────────────────
+        // Нашлось живым замером: личная прибавка владельца на Соне перебивала
+        // 4 пп матчапа, и Сона шла вторым номером против Леоны при 22-м месте
+        // по чистой мете. Теперь прибавка гасится тем сильнее, чем хуже прямой
+        // матчап.
+        Console.WriteLine("\n── комфорт против прямой контры ──");
+        SessionTracker.HistoryOverride = Hist(champ, recent: 12, daysSince: 1, span: 400);
+
+        // Ищем реальных оппонентов: без врага, мягкий матчап и жёсткий.
+        var byMatch = plain.Select(r => r.ChampionId).Where(id => id != champ)
+            .Select(opp =>
+            {
+                var rr = Quiet(() => engine.Recommend(Draft("utility", [], [opp]), 400))
+                         .FirstOrDefault(x => x.ChampionId == champ);
+                return (Opp: opp, Delta: rr?.DirectDelta ?? 0.0, Comfort: rr?.ComfortDelta ?? 0.0);
+            })
+            .Where(x => x.Delta != 0.0)
+            .OrderBy(x => x.Delta)
+            .ToList();
+
+        var free = Comfort(engine, Draft("utility", [], []), champ,
+                           Hist(champ, recent: 12, daysSince: 1, span: 400));
+        Console.WriteLine($"  без оппонента:          комфорт {free:F2}");
+        foreach (var x in byMatch.Take(3).Concat(byMatch.TakeLast(2)))
+            Console.WriteLine($"  против {Name(x.Opp),-14} "
+                              + $"матчап {x.Delta,6:+0.00;-0.00}пп → комфорт {x.Comfort:F2}");
+
+        var hard = byMatch.FirstOrDefault();
+        if (hard.Opp != 0 && hard.Delta <= -2.0)
+        {
+            Check("против жёсткой контры комфорт заметно ужат",
+                  hard.Comfort < free * 0.8, $"{free:F2} → {hard.Comfort:F2} при {hard.Delta:F2} пп");
+            Check("но не обнуляется — знакомый чемпион остаётся знакомым",
+                  hard.Comfort >= free * 0.25, $"{hard.Comfort:F2}");
+        }
+        else Console.WriteLine("  жёстких матчапов в срезе нет — пропускаю вердикт");
+
+        var soft = byMatch.LastOrDefault();
+        if (soft.Opp != 0 && soft.Delta >= -1.0)
+            Check("мягкий матчап комфорт не трогает",
+                  Math.Abs(soft.Comfort - free) < 1e-9, $"{free:F2} и {soft.Comfort:F2}");
+
+        // Ужимание монотонно: чем хуже матчап, тем меньше комфорт.
+        var pairs = byMatch.Where(x => x.Delta <= -1.0).OrderBy(x => x.Delta).ToList();
+        Check("чем хуже матчап, тем меньше прибавка",
+              pairs.Zip(pairs.Skip(1)).All(p => p.Second.Comfort >= p.First.Comfort - 1e-9),
+              $"точек {pairs.Count}");
+
         // ── 5. Новичка затухание не наказывает ──────────────────────────────
         // Журнал копится только вперёд от установки. У того, кто поставил
         // программу неделю назад, НЕ сыграно ничего — но это не значит
         // «забросил»: мы просто не видели. Дольше глубины журнала простоя не
         // бывает, и у новичка его нет вовсе.
         Console.WriteLine("\n── журнал ведётся неделю: простоя быть не может ──");
-        var cold = Comfort(engine, state, champ, Hist(champ, recent: 0, daysSince: 7, span: 7));
+        var cold = Comfort(engine, empty, champ, Hist(champ, recent: 0, daysSince: 7, span: 7));
         var full = MASTERY_MAX_IN_CODE * MainPoints / (MainPoints + 80_000.0);
         Console.WriteLine($"  комфорт {cold:F2} (полное мастерство без затухания — {full:F2})");
         Check("новичок наигранность не теряет", Math.Abs(cold - full) < 0.01,
@@ -257,15 +308,15 @@ internal static class Program
 
         // ── 6. Флор пула на месте ───────────────────────────────────────────
         Console.WriteLine("\n── флор пула ──");
-        var poolNoMastery = Comfort(engine, state, clean,
+        var poolNoMastery = Comfort(engine, empty, clean,
                                     Hist(clean, recent: 0, daysSince: 400, span: 400), pool: [clean]);
         Console.WriteLine($"  чемпион без очков мастерства, но в пуле: {poolNoMastery:F2}");
         Check("пул даёт флор второму аккаунту", poolNoMastery >= 1.19,
               $"{poolNoMastery:F2}");
 
         // Глубокий мейн, которого играют: пул ничего не добавляет поверх.
-        var mainOut = Comfort(engine, state, champ, Hist(champ, recent: 12, daysSince: 1, span: 400));
-        var mainIn  = Comfort(engine, state, champ, Hist(champ, recent: 12, daysSince: 1, span: 400),
+        var mainOut = Comfort(engine, empty, champ, Hist(champ, recent: 12, daysSince: 1, span: 400));
+        var mainIn  = Comfort(engine, empty, champ, Hist(champ, recent: 12, daysSince: 1, span: 400),
                               pool: [champ]);
         Check("пул не добавляется поверх живой наигранности", Math.Abs(mainIn - mainOut) < 1e-9,
               $"{mainOut:F2} → {mainIn:F2}");
@@ -376,6 +427,14 @@ internal static class Program
             outp.Add(copy[k]); copy.RemoveAt(k);
         }
         return outp;
+    }
+
+    /// Имя чемпиона, обрезанное под колонку. Справочник в проверке не
+    /// поднимается, поэтому обычно это «id=NNN» — для вердикта хватает.
+    private static string Name(int id)
+    {
+        var s = DataDragon.Name(id);
+        return s.Length <= 14 ? s : s[..13] + "…";
     }
 
     private static double Median(List<double> xs)
