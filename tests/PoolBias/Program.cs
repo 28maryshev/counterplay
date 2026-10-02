@@ -388,6 +388,11 @@ internal static class Program
                 a.ActiveKind = PoolKind.Duo; a.ActiveId = "t";
                 var without = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
 
+                // Напарник — ТОТ САМЫЙ человек: союзник №1, он же mate[0]. Одной
+                // россыпью чемпионов в половине друга движок напарника не считает
+                // (это правило осталось только в песочнице), поэтому опознаём его
+                // так, как в бою, — по puuid хозяина половины.
+                a.DuoPools[0].FriendPuuid = MatePuuid(1);
                 a.DuoPools[0].Friend = new() { [dbRole] = [mate[0]] };
                 var with = Quiet(() => engine.Recommend(state, 400)).ToDictionary(r => r.ChampionId, r => r.Score);
 
@@ -411,7 +416,6 @@ internal static class Program
         Console.WriteLine($"  {"",-5} {"очки",8} {"",8} {"",8}   "
                           + $"{"мест",7} {"",5}   {"пик пула",9} {"общий №1",9}");
 
-        var builtRow = new List<double>();
         foreach (var k in new[] { 1.0, 1.3, 1.5, 1.7, 2.0, 2.5, 3.0 })
         {
             var f = (k - 1.0) / (built - 1.0);      // доля замеренного прироста
@@ -434,7 +438,6 @@ internal static class Program
                 if (base_.Keys.MaxBy(id => base_[id]) != base_.Keys.MaxBy(At)) flipTop++;
             }
 
-            if (Math.Abs(k - built) < 1e-9) builtRow = pts;
             var sp = pts.OrderBy(x => x).ToList();
             var sm = moves.OrderBy(x => x).ToList();
             Console.WriteLine($"  {k,-5:F1} {Median(pts),8:F2} {sp[(int)(0.1 * (sp.Count - 1))],8:F2} "
@@ -444,17 +447,34 @@ internal static class Program
         }
         Console.WriteLine("  (надбавка двусторонняя: плохую связку она так же усиливает в минус)");
         Console.WriteLine();
-        Check($"в коде стоит множитель {built:F1}, а не другой",
-              Math.Abs(Median(measured) - Median(builtRow)) < 1e-9,
-              $"замер {Median(measured):F2} против строки {Median(builtRow):F2}");
+        // Сторож тут про ШОВ, а не про величину множителя. Сравнивать замер со
+        // строкой развёртки бессмысленно: при k = built доля прироста f = 1, и
+        // строка равна замеру ПО ПОСТРОЕНИЮ — такой сторож не упадёт никогда.
+        // Падать он обязан от другого: перестанет опознаваться напарник —
+        // надбавка исчезнет целиком и все замеры станут нулями. Ровно так и
+        // вышло, когда опознание ужалось до puuid: развёртка мерила нули и
+        // молчала. Само значение множителя проверить нечем — дельта связки
+        // считается внутри движка и наружу не выходит.
+        Check("надбавка за напарника включается (напарник опознан)",
+              measured.Any(x => Math.Abs(x) > 1e-9),
+              $"ненулевых замеров {measured.Count(x => Math.Abs(x) > 1e-9)} из {measured.Count}");
         Console.WriteLine();
     }
+
+    /// Синтетический puuid союзника №n. Настоящего клиента тут нет, а напарник
+    /// опознаётся именно по puuid, так что хватает любой устойчивой строки.
+    private static string MatePuuid(int n) => $"poolbias-ally-{n}";
 
     private static DraftState Draft(string lcuRole, List<int> allies, List<int> enemies)
     {
         var me = new DraftPlayer(0, 0, 0, lcuRole, true);
         var mine = new List<DraftPlayer> { me };
-        for (var i = 0; i < allies.Count; i++) mine.Add(new DraftPlayer(i + 1, allies[i], 0, "", false));
+        // Союзникам выдаём puuid: напарника движок опознаёт по ЧЕЛОВЕКУ, а не по
+        // тому, что тот взял чемпиона из половины друга (см. Party.MateChampion).
+        // Без puuid надбавка за напарника не включается вовсе, и развёртка по
+        // множителю мерила бы одни нули.
+        for (var i = 0; i < allies.Count; i++)
+            mine.Add(new DraftPlayer(i + 1, allies[i], 0, "", false, 0, MatePuuid(i + 1)));
         var theirs = enemies.Select((id, i) => new DraftPlayer(10 + i, id, 0, "", false)).ToList();
         return new DraftState(mine, theirs, [], [], me, lcuRole, null,
                               false, false, [], false, -1, false, [], -1, -1, false);
