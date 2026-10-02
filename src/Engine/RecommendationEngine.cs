@@ -651,6 +651,18 @@ public sealed class RecommendationEngine : IDisposable
         return res;
     }
 
+    /// <summary>
+    /// Доверие к связке: сколько мы играем вдвоём за окно свежести, сглаженно
+    /// (см. <see cref="MATE_CONF"/>). Одно место на оба применения — вес
+    /// напарника в МОЕЙ оценке и надбавка в подсказке ему
+    /// (<see cref="BestPartner"/>), — иначе они однажды разъедутся.
+    /// </summary>
+    private static double MateConfidence()
+    {
+        var games = SessionTracker.MateStats(PoolStore.ActiveDuo()?.FriendPuuid, FreshDays).Games;
+        return games / (games + MATE_CONF);
+    }
+
     public IReadOnlyList<Recommendation> Recommend(DraftState state, int topN = 6,
                                                    IReadOnlyCollection<int>? only = null)
     {
@@ -703,9 +715,7 @@ public sealed class RecommendationEngine : IDisposable
         // Сколько мы играем вдвоём СЕЙЧАС: от этого зависит, насколько громко
         // звучит дуо-вес (MATE_CONF). Считается ОДИН раз на драфт, а не на
         // чемпиона: журнал один и тот же, а кандидатов четыре сотни.
-        var mateGames = mateId == 0 ? 0
-            : SessionTracker.MateStats(PoolStore.ActiveDuo()?.FriendPuuid, FreshDays).Games;
-        var mateConf = mateGames / (mateGames + MATE_CONF);
+        var mateConf = mateId == 0 ? 0.0 : MateConfidence();
 
         // Бот — это 2v2: при адк/саппорте контрим и вражеского дуо-партнёра.
         // Пример: вражеский Эзреаль (адк) контрит Блицкранга (саппорт) — он сблинкуется
@@ -1028,8 +1038,10 @@ public sealed class RecommendationEngine : IDisposable
     /// Личные факторы на это время выключены (<see cref="_forMate"/>):
     /// наигранность и личный винрейт — моя история, не его.
     ///
-    /// Мой слот в подменённом состоянии пуст: синергию с моим пиком добавляет
-    /// <see cref="BestPartner"/> отдельным слагаемым, и считать её дважды незачем.
+    /// Мой слот остаётся в команде со своим чемпионом — иначе у его кандидатов
+    /// пропала бы структурная связка со мной (адк↔саппорт, лес↔линия). Обычную
+    /// синергию со мной его оценка поэтому уже содержит, и
+    /// <see cref="BestPartner"/> добавляет только надбавку над ней.
     /// </summary>
     public IReadOnlyDictionary<int, double> PartnerScores(
         DraftState state, IReadOnlyDictionary<string, List<int>> friendHalf)
@@ -1045,10 +1057,13 @@ public sealed class RecommendationEngine : IDisposable
             var lcu  = DbToLcuRole(role);
             var seat = new DraftPlayer(CellId: -100, ChampionId: 0, PickIntentId: 0,
                                        Position: lcu, IsLocalPlayer: true);
+            // Мой слот ОСТАЁТСЯ союзником со своим чемпионом: иначе у его
+            // кандидатов пропадает структурная связка со мной (адк↔саппорт,
+            // лес↔линия), а она часть той же формулы. Пару со мной BestPartner
+            // добавляет не целиком, а НАДБАВКОЙ над обычным союзником — ровно
+            // так, как её добавляет движок в моей собственной оценке.
             var team = state.MyTeam
-                .Select(p => p.IsLocalPlayer
-                    ? p with { IsLocalPlayer = false, ChampionId = 0, PickIntentId = 0 }
-                    : p)
+                .Select(p => p.IsLocalPlayer ? p with { IsLocalPlayer = false } : p)
                 .Append(seat)
                 .ToList();
 
@@ -1076,9 +1091,12 @@ public sealed class RecommendationEngine : IDisposable
     /// пусто — а подсказка «что брать обоим» нужна как раз заранее.
     ///
     /// Складываем две вещи: его собственную силу в этом драфте
-    /// (<see cref="PartnerScores"/> — враги, союзники, баланс урона) и пару со
-    /// мной, взвешенную как любая синергия (<c>W_SYNERGY</c>). Своего веса не
-    /// выдумываем: пара — это и есть синергия, просто с тем, кто в ней главный.
+    /// (<see cref="PartnerScores"/> — враги, союзники, структурные связки,
+    /// баланс урона; я там уже союзник с моим чемпионом) и НАДБАВКУ за то, что
+    /// он не случайный союзник, а напарник: <c>W_SYNERGY · (DUO_MATE_MULT−1) ·
+    /// доверие · дельта пары</c>. Ровно тем же слагаемым и с тем же порогом по
+    /// совместным играм движок считает напарника в МОЕЙ оценке, так что формула
+    /// у подсказки и у подбора одна, и своего веса тут не выдумано.
     ///
     /// Занятых и забаненных не предлагаем — их уже не взять.
     /// </summary>
@@ -1088,6 +1106,7 @@ public sealed class RecommendationEngine : IDisposable
     {
         if (mineId == 0 || friendHalf.Count == 0) return 0;
         var scores = partnerScores ?? PartnerScores(state, friendHalf);
+        var conf   = MateConfidence();
 
         var taken = new HashSet<int>();
         foreach (var p in state.MyTeam.Concat(state.TheirTeam))
@@ -1107,7 +1126,11 @@ public sealed class RecommendationEngine : IDisposable
                 if (f == 0 || f == mineId || taken.Contains(f)) continue;
                 var own   = scores.TryGetValue(f, out var s) ? s : 0.0;
                 var pair  = PairStats(mineId, myRole, f, role).Delta;
-                var total = own + W_SYNERGY * pair;
+                // Надбавка, а не вся пара: обычную синергию со мной его оценка
+                // уже посчитала — я в его команде союзником. Добавляем ровно то,
+                // чем дуо-напарник отличается от случайного, и так же ужимаем по
+                // совместным играм.
+                var total = own + W_SYNERGY * (DUO_MATE_MULT - 1.0) * conf * pair;
                 if (total > bestTotal) { bestTotal = total; best = f; }
             }
         return best;

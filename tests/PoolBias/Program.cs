@@ -513,13 +513,17 @@ internal static class Program
     /// Кого предлагаем НАПАРНИКУ, пока он молчит.
     ///
     /// Дуо-пул предлагает пару сразу после банов и вторую половину выбирает сам.
-    /// Главное требование владельца: это должен быть подбор ПОД ДРАФТ, а не
-    /// «лучший под мой пик». Поэтому проверяется и то, что выбор меняется от
-    /// состава врагов, и то, что он не сводится к одной дельте пары.
+    /// Требование владельца: считать её ТОЙ ЖЕ формулой, что обычный подбор, —
+    /// значит выбор обязан зависеть от врагов и союзников, а не быть «лучшим под
+    /// мой пик». Это и проверяется, вместе с запретом на занятых и забаненных.
     ///
-    /// Ожидаемый выбор считается через ПУБЛИЧНЫЕ <c>PartnerScores</c> и
+    /// Ожидаемое считается через ПУБЛИЧНЫЕ <c>PartnerScores</c> и
     /// <c>PairStats</c>, а не повторением перебора: иначе проверка сверяла бы
     /// код с его же копией.
+    ///
+    /// Связка подставляется наигранной (<c>SessionTracker.Preview</c>): надбавка
+    /// за напарника ужата по совместным играм, и на пустой связке слагаемое пары
+    /// осталось бы непроверенным.
     /// </summary>
     private static void MateSuggestCheck(RecommendationEngine engine, Random rnd)
     {
@@ -541,66 +545,127 @@ internal static class Program
         var mineId = mineIds[0];
         var half = new Dictionary<string, List<int>> { [friendDb] = [.. friendIds] };
 
-        double PairDelta(int f) => engine.PairStats(mineId, myDb, f, friendDb).Delta;
+        // Активный дуо-пул с ОПОЗНАННЫМ напарником и наигранной связкой: от этого
+        // зависит надбавка, которой подсказка отличает напарника от случайного.
+        var pairBak = SessionTracker.Preview;
+        SessionTracker.Preview =
+        [
+            new SessionTracker.PairStat(MatePuuid(1), "напарник", "solo", 0, 0,
+                                        MateGamesMeasured, MateGamesMeasured / 2)
+        ];
+        var acc = PoolStore.Current();
+        acc.Pools.Clear(); acc.DuoPools.Clear();
+        acc.DuoPools.Add(new DuoPool { Id = "s", FriendName = "s", FriendPuuid = MatePuuid(1),
+                                       Mine = new() { [myDb] = [mineId] }, Friend = half });
+        acc.ActiveKind = PoolKind.Duo; acc.ActiveId = "s";
 
-        Console.WriteLine();
-        Console.WriteLine($"ПОДБОР НАПАРНИКА: мой пик {mineId}, в половине друга {friendIds.Count} чемпионов");
-
-        // ── Выбор считается по драфту, а не по одной паре ────────────────────
-        var state  = Draft(myLcu, [], []);
-        var scores = Quiet(() => engine.PartnerScores(state, half));
-        var best   = engine.BestPartner(state, mineId, myDb, half, scores);
-
-        double Total(int f) => (scores.TryGetValue(f, out var s) ? s : 0.0)
-                               + WSynergyInCode * PairDelta(f);
-
-        Check("напарник предложен из половины друга", friendIds.Contains(best), $"{best}");
-        Check("предложен лучший по сумме «его сила в драфте + пара со мной»",
-              Math.Abs(Total(best) - friendIds.Max(Total)) < 1e-9,
-              $"{Total(best):F2} против лучшей {friendIds.Max(Total):F2}");
-
-        // ── Зависимость от врагов ───────────────────────────────────────────
-        //
-        // Главный вопрос владельца: «это ведь работает в зависимости от пиков
-        // союзников и врагов?». Сперва — что оценки половины вообще шевелятся от
-        // состава врагов; затем — что от него меняется и сам выбор.
-        var e1 = Quiet(() => engine.PartnerScores(Draft(myLcu, [], Pick(rnd, enemyPool, 5)), half));
-        var e2 = Quiet(() => engine.PartnerScores(Draft(myLcu, [], Pick(rnd, enemyPool, 5)), half));
-        var moved = friendIds.Count(f =>
-            Math.Abs((e1.TryGetValue(f, out var a) ? a : 0) - (e2.TryGetValue(f, out var b) ? b : 0)) > 1e-9);
-        Check("оценки половины друга зависят от состава врагов",
-              moved > 0, $"разошлись у {moved} из {friendIds.Count}");
-
-        // Сколько раз выбор расходится с «лучшим по одной лишь паре». Если бы не
-        // расходился никогда, драфт в подборе напарника ничего не решал бы.
-        var pairOnly = friendIds.OrderByDescending(PairDelta).First();
-        int differs = 0, rounds = 20;
-        for (var i = 0; i < rounds; i++)
+        try
         {
-            var st = Draft(myLcu, [], Pick(rnd, enemyPool, 5));
-            var sc = Quiet(() => engine.PartnerScores(st, half));
-            if (engine.BestPartner(st, mineId, myDb, half, sc) != pairOnly) differs++;
+            var conf = MateConf(MateGamesMeasured);
+            double PairDelta(int f) => engine.PairStats(mineId, myDb, f, friendDb).Delta;
+
+            Console.WriteLine();
+            Console.WriteLine($"ПОДБОР НАПАРНИКА: мой пик {mineId}, в половине друга "
+                              + $"{friendIds.Count} чемпионов, доверие связки {conf:F2}");
+
+            var state  = Draft(myLcu, [], []);
+            var scores = Quiet(() => engine.PartnerScores(state, half));
+            var best   = engine.BestPartner(state, mineId, myDb, half, scores);
+
+            // Та же сумма, что и в коде: его сила в драфте плюс НАДБАВКА за
+            // напарника (не вся пара — обычную синергию со мной его оценка уже
+            // содержит, я в его команде союзником).
+            double Total(int f) => (scores.TryGetValue(f, out var s) ? s : 0.0)
+                                   + WSynergyInCode * (DuoMateMultInCode - 1.0) * conf * PairDelta(f);
+
+            Check("напарник предложен из половины друга", friendIds.Contains(best), $"{best}");
+            Check("предложен лучший по сумме «его сила в драфте + надбавка за напарника»",
+                  Math.Abs(Total(best) - friendIds.Max(Total)) < 1e-9,
+                  $"{Total(best):F2} против лучшей {friendIds.Max(Total):F2}");
+
+            // ── Зависимость от драфта ───────────────────────────────────────
+            var e1 = Quiet(() => engine.PartnerScores(Draft(myLcu, [], Pick(rnd, enemyPool, 5)), half));
+            var e2 = Quiet(() => engine.PartnerScores(Draft(myLcu, [], Pick(rnd, enemyPool, 5)), half));
+            var moved = friendIds.Count(f =>
+                Math.Abs((e1.TryGetValue(f, out var a) ? a : 0) - (e2.TryGetValue(f, out var b) ? b : 0)) > 1e-9);
+            Check("оценки половины друга зависят от состава врагов",
+                  moved > 0, $"разошлись у {moved} из {friendIds.Count}");
+
+            var pairOnly = friendIds.OrderByDescending(PairDelta).First();
+            int differs = 0, rounds = 20;
+            for (var i = 0; i < rounds; i++)
+            {
+                var st = Draft(myLcu, [], Pick(rnd, enemyPool, 5));
+                var sc = Quiet(() => engine.PartnerScores(st, half));
+                if (engine.BestPartner(st, mineId, myDb, half, sc) != pairOnly) differs++;
+            }
+            Console.WriteLine($"  выбор отличается от «лучшего по паре» в {differs} из {rounds} драфтов");
+            Check("подбор не сводится к одной дельте пары", differs > 0, $"{differs} из {rounds}");
+
+            // ── Порог по совместным играм работает и ЗДЕСЬ ──────────────────
+            //
+            // Надбавка ужата по совместным играм, значит на ПУСТОЙ связке её нет
+            // вовсе, и выбор обязан совпасть с «лучшим по его силе в драфте» —
+            // без слагаемого пары. Это единственная формулировка, которая ловит
+            // расхождение формулы: сверка argmax с ожидаемой суммой терпит любое
+            // МОНОТОННОЕ искажение веса (убрал доверие — порядок тот же).
+            SessionTracker.Preview = [];
+            var emptyDrafts = new List<DraftState>();
+            for (var i = 0; i < 8; i++) emptyDrafts.Add(Draft(myLcu, [], Pick(rnd, enemyPool, 5)));
+
+            var ownOnlyOk = true;
+            foreach (var st in emptyDrafts)
+            {
+                var sc = Quiet(() => engine.PartnerScores(st, half));
+                var pickNoGames = engine.BestPartner(st, mineId, myDb, half, sc);
+                var byOwnOnly = friendIds.Where(f => f != mineId)
+                                         .OrderByDescending(f => sc.TryGetValue(f, out var v) ? v : 0.0)
+                                         .First();
+                var vA = sc.TryGetValue(pickNoGames, out var x) ? x : 0.0;
+                var vB = sc.TryGetValue(byOwnOnly,   out var y) ? y : 0.0;
+                if (Math.Abs(vA - vB) > 1e-9) ownOnlyOk = false;
+            }
+            Check("без совместных игр выбор = лучший по его силе в драфте",
+                  ownOnlyOk, $"проверено драфтов: {emptyDrafts.Count}");
+
+            // А с наигранной связкой надбавка обязана хоть где-то сдвинуть выбор,
+            // иначе слагаемое пары ни на что не влияет и порог нечего ужимать.
+            var movedByPair = 0;
+            foreach (var st in emptyDrafts)
+            {
+                SessionTracker.Preview = [];
+                var scEmpty = Quiet(() => engine.PartnerScores(st, half));
+                var noGames = engine.BestPartner(st, mineId, myDb, half, scEmpty);
+                SessionTracker.Preview =
+                [
+                    new SessionTracker.PairStat(MatePuuid(1), "напарник", "solo", 0, 0,
+                                                MateGamesMeasured, MateGamesMeasured / 2)
+                ];
+                var played = engine.BestPartner(st, mineId, myDb, half, scEmpty);
+                if (noGames != played) movedByPair++;
+            }
+            Check("наигранная связка сдвигает выбор относительно пустой",
+                  movedByPair > 0, $"разошлось в {movedByPair} из {emptyDrafts.Count}");
+
+            // ── Занятых и забаненных не предлагаем ──────────────────────────
+            var busy      = Draft(myLcu, [], [best]);
+            var afterBusy = engine.BestPartner(busy, mineId, myDb, half,
+                                               Quiet(() => engine.PartnerScores(busy, half)));
+            Check("занятого врагом не предлагаем",
+                  afterBusy != best && friendIds.Contains(afterBusy), $"{afterBusy}");
+
+            var bannedSt = state with { MyTeamBans = [best] };
+            var afterBan = engine.BestPartner(bannedSt, mineId, myDb, half,
+                                              Quiet(() => engine.PartnerScores(bannedSt, half)));
+            Check("забаненного не предлагаем", afterBan != best, $"{afterBan}");
+
+            Check("без половины друга предложения нет",
+                  engine.BestPartner(state, mineId, myDb, new Dictionary<string, List<int>>()) == 0, "0");
         }
-        Console.WriteLine($"  выбор отличается от «лучшего по паре» в {differs} из {rounds} драфтов");
-        Check("подбор не сводится к одной дельте пары",
-              differs > 0, $"{differs} из {rounds}");
-
-        // ── Занятых и забаненных не предлагаем ──────────────────────────────
-        var busy      = Draft(myLcu, [], [best]);
-        var busySc    = Quiet(() => engine.PartnerScores(busy, half));
-        var afterBusy = engine.BestPartner(busy, mineId, myDb, half, busySc);
-        Check("занятого врагом не предлагаем",
-              afterBusy != best && friendIds.Contains(afterBusy), $"{afterBusy}");
-
-        var bannedSt  = state with { MyTeamBans = [best] };
-        var afterBan  = engine.BestPartner(bannedSt, mineId, myDb, half,
-                                           Quiet(() => engine.PartnerScores(bannedSt, half)));
-        Check("забаненного не предлагаем", afterBan != best, $"{afterBan}");
-
-        Check("без половины друга предложения нет",
-              engine.BestPartner(state, mineId, myDb, new Dictionary<string, List<int>>()) == 0, "0");
+        finally { SessionTracker.Preview = pairBak; }
         Console.WriteLine();
     }
+
 
 
     /// <summary>
