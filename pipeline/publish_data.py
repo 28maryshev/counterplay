@@ -72,80 +72,130 @@ PAIR_KEYS = {
 PRUNE_MIN = {'matchup': 2, 'synergy': 2, 'botlane_matchup': 2}
 
 
-def snapshot(db_path: Path, dest: Path):
-    """Консистентная копия базы: sqlite backup читает даже открытую базу и сливает WAL."""
-    src = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
-    dst = sqlite3.connect(dest)
-    with dst:
-        src.backup(dst)
-    dst.close()
-    src.close()
+class BuildTimeout(Exception):
+    """Сборка не уложилась в отведённое время и прервана — чисто, без хвостов."""
 
 
-def build_slim(full_path: Path, dest_path: Path, patches, bucket=None, matches=0):
+def _ro_uri(path) -> str:
+    """Адрес базы для ATTACH «только чтение».
+
+    Через URI, потому что только так SQLite открывает присоединённую базу без права
+    записи. as_uri() сам экранирует путь и годится и для Linux, и для Windows (там
+    запускают ручную публикацию).
+    """
+    return Path(path).resolve().as_uri() + '?mode=ro'
+
+
+def _step(what: str, t0: float):
+    """Строка в лог о шаге сборки. 2 октября сборка шла 6,5 часа без единой
+    строки, и понять, на чём она стоит, было нельзя — теперь видно каждый шаг."""
+    print(f'[публикация] сборка: {what} ({time.monotonic() - t0:.0f} с)', flush=True)
+
+
+def build_slim(full_path: Path, dest_path: Path, patches, bucket=None, matches=0,
+               deadline: float | None = None):
     """Тонкая база: только ENGINE_TABLES, за patches, без длинного хвоста,
-    опционально по одному бакету. Источник — консистентный снапшот (без писателя).
-    processed_matches не кладём (движку не нужна) — но общее число матчей пишем в
-    служебную db_meta, чтобы бот показывал счётчик без 37 МБ таблицы."""
+    опционально по одному бакету. processed_matches не кладём (движку не нужна) —
+    но общее число матчей пишем в служебную db_meta, чтобы бот показывал счётчик
+    без 37 МБ таблицы.
+
+    Источник читается НАПРЯМУЮ, только на чтение, внутри одной транзакции. Раньше
+    перед этим снималась полная копия базы — 3,3 ГБ прочитать и столько же
+    записать, — и на машине с 256 МБ памяти контейнера это была большая часть
+    всей публикации. Копия была нужна для согласованности, но её даёт и сама
+    SQLite: в режиме WAL одна читающая транзакция видит один срез, даже если рядом
+    пишут. А во время публикации сбор и так стоит.
+
+    deadline — момент (time.monotonic), после которого сборка прерывается.
+    Прервать её можно честно, в отличие от потока заливки: SQLite останавливает
+    запрос по сигналу обработчика прогресса, и ничего не остаётся висеть.
+    """
     if dest_path.exists():
         dest_path.unlink()
-    dst = sqlite3.connect(str(dest_path))
-    dst.execute(f"ATTACH DATABASE '{full_path}' AS src")
-    ph = ','.join('?' * len(patches))
-    for t in ENGINE_TABLES:
-        row = dst.execute(
-            "SELECT sql FROM src.sqlite_master WHERE type='table' AND name=?", (t,)).fetchone()
-        if not row:
-            continue
-        dst.execute(row[0])  # тот же DDL
-        conds = [f'patch IN ({ph})']
-        params = list(patches)
-        if bucket:
-            conds.append('tier_bucket=?')
-            params.append(bucket)
-        if t in PRUNE_MIN:
-            conds.append('games>=?')
-            params.append(PRUNE_MIN[t])
-        dst.execute(f"INSERT INTO {t} SELECT * FROM src.{t} WHERE {' AND '.join(conds)}", params)
-    # Сводка пар по ВСЕМ дивизионам — приор для разреженных пар.
-    #
-    # Данные по парам «чемпион против чемпиона» тонкие: в своём бакете у половины
-    # пар меньше 15 игр, и движок обрезает такую дельту до пятой части. Соседние
-    # дивизионы про ту же пару кое-что знают, но в бакетной базе их просто нет.
-    # Кладём их одной строкой на пару (tier_bucket='all', patch='all'): по патчам
-    # разбивать смысла нет — это приор, а не источник меты, зато файл прибавляет
-    # не 108%, а 43% от парных таблиц.
-    #
-    # Метки 'all' выбраны так, чтобы старые сборки программы этих строк не увидели:
-    # каждый их запрос фильтрует и бакет, и патч по конкретным значениям.
-    if bucket:
-        for t, key in PAIR_KEYS.items():
-            cols = [c[1] for c in dst.execute(f'PRAGMA table_info({t})')]
-            if not cols:
+    # uri=True — иначе ATTACH 'file:...' создал бы файл с таким именем, а не открыл
+    # базу. Собственный путь назначения без префикса file: остаётся обычным путём.
+    dst = sqlite3.connect(str(dest_path), uri=True)
+    # Соединение закрываем ВСЕГДА: прерванная сборка иначе держит файл открытым —
+    # на Windows его не удалить, а на Linux удалённый, но открытый файл держит
+    # место на диске, которого на коллекторе и так в обрез.
+    try:
+        if deadline is not None:
+            # Возврат «правды» из обработчика обрывает текущий запрос. Зовётся раз в
+            # сотню тысяч шагов виртуальной машины SQLite — на скорость не влияет.
+            dst.set_progress_handler(lambda: time.monotonic() > deadline, 100_000)
+        dst.execute('ATTACH DATABASE ? AS src', (_ro_uri(full_path),))
+        # Явная транзакция: все чтения источника — из одного среза, а не из того, что
+        # успело оказаться в нём к очередной таблице.
+        dst.execute('BEGIN')
+        ph = ','.join('?' * len(patches))
+        for t in ENGINE_TABLES:
+            row = dst.execute(
+                "SELECT sql FROM src.sqlite_master WHERE type='table' AND name=?", (t,)).fetchone()
+            if not row:
                 continue
-            sel = ', '.join("'all'" if c in ('tier_bucket', 'patch')
-                            else f'SUM({c})' if c in ('games', 'wins') else c
-                            for c in cols)
+            dst.execute(row[0])  # тот же DDL
             conds = [f'patch IN ({ph})']
             params = list(patches)
+            if bucket:
+                conds.append('tier_bucket=?')
+                params.append(bucket)
             if t in PRUNE_MIN:
                 conds.append('games>=?')
                 params.append(PRUNE_MIN[t])
-            dst.execute(f"INSERT INTO {t} ({', '.join(cols)}) SELECT {sel} FROM src.{t} "
-                        f"WHERE {' AND '.join(conds)} GROUP BY {key}", params)
+            dst.execute(f"INSERT INTO {t} SELECT * FROM src.{t} WHERE {' AND '.join(conds)}", params)
+        # Сводка пар по ВСЕМ дивизионам — приор для разреженных пар.
+        #
+        # Данные по парам «чемпион против чемпиона» тонкие: в своём бакете у половины
+        # пар меньше 15 игр, и движок обрезает такую дельту до пятой части. Соседние
+        # дивизионы про ту же пару кое-что знают, но в бакетной базе их просто нет.
+        # Кладём их одной строкой на пару (tier_bucket='all', patch='all'): по патчам
+        # разбивать смысла нет — это приор, а не источник меты, зато файл прибавляет
+        # не 108%, а 43% от парных таблиц.
+        #
+        # Метки 'all' выбраны так, чтобы старые сборки программы этих строк не увидели:
+        # каждый их запрос фильтрует и бакет, и патч по конкретным значениям.
+        if bucket:
+            for t, key in PAIR_KEYS.items():
+                cols = [c[1] for c in dst.execute(f'PRAGMA table_info({t})')]
+                if not cols:
+                    continue
+                sel = ', '.join("'all'" if c in ('tier_bucket', 'patch')
+                                else f'SUM({c})' if c in ('games', 'wins') else c
+                                for c in cols)
+                conds = [f'patch IN ({ph})']
+                params = list(patches)
+                if t in PRUNE_MIN:
+                    conds.append('games>=?')
+                    params.append(PRUNE_MIN[t])
+                dst.execute(f"INSERT INTO {t} ({', '.join(cols)}) SELECT {sel} FROM src.{t} "
+                            f"WHERE {' AND '.join(conds)} GROUP BY {key}", params)
 
-    # Служебные метаданные (число матчей, патчи, бакет).
-    dst.execute('CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT)')
-    dst.executemany('INSERT INTO db_meta VALUES (?,?)', [
-        ('matches', str(matches)),
-        ('patch', patches[0] if patches else '0.0'),
-        ('patches', ','.join(patches)),
-        ('bucket', bucket or 'all'),
-    ])
-    dst.commit()
-    dst.execute('DETACH DATABASE src')
-    dst.execute('VACUUM')
-    dst.close()
+        # Служебные метаданные (число матчей, патчи, бакет).
+        dst.execute('CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT)')
+        dst.executemany('INSERT INTO db_meta VALUES (?,?)', [
+            ('matches', str(matches)),
+            ('patch', patches[0] if patches else '0.0'),
+            ('patches', ','.join(patches)),
+            ('bucket', bucket or 'all'),
+        ])
+        dst.commit()
+        dst.execute('DETACH DATABASE src')
+        dst.execute('VACUUM')
+    finally:
+        dst.close()
+
+
+def _guarded(fn, deadline):
+    """Вызов шага сборки с переводом «прервано по сроку» в BuildTimeout.
+
+    SQLite сообщает об обрыве обычной OperationalError «interrupted»; отличаем её
+    от настоящих ошибок по самому сроку, а не по тексту сообщения."""
+    try:
+        return fn()
+    except sqlite3.OperationalError:
+        if deadline is not None and time.monotonic() > deadline:
+            raise BuildTimeout('сборка не уложилась в отведённое время — прервана')
+        raise
 
 
 def latest_patch(db: Path) -> str:
@@ -263,7 +313,7 @@ def upload_gz(s: requests.Session, release_id: int, path: Path, name: str):
     """Сжать, залить и СРАЗУ убрать архив.
 
     На сервере коллектора памяти 256 МБ и место на диске на счету, а во временной
-    папке уже лежат полный снапшот, тонкая база и четыре побакетных.
+    папке уже лежат тонкая база и четыре побакетных.
     """
     gz = gzip_file(path)
     try:
@@ -319,74 +369,121 @@ def upload_asset(s: requests.Session, release_id: int, path: Path, name: str):
     _retry(f'заливка {name}', send)
 
 
-def publish(db_path: str, token: str) -> dict:
+def build(db_path: str, tmp: Path, build_timeout: float | None = None) -> dict:
+    """ЛОКАЛЬНАЯ часть публикации: тонкие базы и манифест в папке tmp.
+
+    Отделена от заливки, потому что у них разные беды. Заливка ходит в сеть и
+    однажды повисла насовсем (14.09) — на неё нужен дедлайн. Сборка в сеть не
+    ходит и не виснет, она бывает медленной: 2 октября шла 6,5 часа. Обрывать её
+    дедлайном заливки значило бросать поток, который продолжает молотить диск
+    фоном, — поэтому у сборки свой потолок, и прерывается она честно.
+    """
     db = Path(db_path)
     if not db.exists():
         raise FileNotFoundError(f'База не найдена: {db}')
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        full = tmp / 'full.db'
-        snapshot(db, full)                       # консистентный снапшот-источник
-        fcon = sqlite3.connect(f'file:{full}?mode=ro', uri=True)
-        patches = all_patches(fcon)[:KEEP_PATCHES]
-        patch = patches[0] if patches else '0.0'
-        matches = fcon.execute('SELECT COUNT(*) FROM processed_matches').fetchone()[0]
-        fcon.close()
+    t0 = time.monotonic()
+    deadline = t0 + build_timeout if build_timeout else None
 
-        # Тонкая общая база (совместимость со старой программой).
-        slim = tmp / 'data.db'
-        build_slim(full, slim, patches, bucket=None, matches=matches)
+    src = sqlite3.connect(_ro_uri(db), uri=True)
+    try:
+        patches = all_patches(src)[:KEEP_PATCHES]
+        matches = src.execute('SELECT COUNT(*) FROM processed_matches').fetchone()[0]
+    finally:
+        src.close()
+    patch = patches[0] if patches else '0.0'
+    _step(f'патчи {", ".join(patches)}, матчей {matches}', t0)
 
-        # Побакетные тонкие базы — из УЖЕ отфильтрованной тонкой базы, а не из
-        # полного снапшота. Строки те же (условия у бакета строго уже), но читать
-        # приходится 0.5 ГБ вместо 4+ ГБ, и так четыре раза подряд: именно эти
-        # четыре прохода по полной базе растягивали публикацию на часы — при 256 МБ
-        # памяти контейнера кэш не держит и половины файла.
-        bucket_files = {}
-        for b in BUCKETS:
-            bf = tmp / f'data-{b}.db'
-            build_slim(slim, bf, patches, bucket=b, matches=matches)
-            bucket_files[b] = bf
+    # Тонкая общая база (совместимость со старой программой) — прямо из рабочей.
+    slim = tmp / 'data.db'
+    _guarded(lambda: build_slim(db, slim, patches, bucket=None, matches=matches,
+                                deadline=deadline), deadline)
+    _step(f'тонкая общая готова, {slim.stat().st_size / 1e6:.0f} МБ', t0)
 
-        # Манифест.
-        manifest = {
-            'version': sha16(slim),
-            'patch': patch,
-            'updated': datetime.now(timezone.utc).isoformat(),
-            'buckets': {b: {'version': sha16(bf),
-                            'size_mb': round(bf.stat().st_size / 1e6, 1)}
-                        for b, bf in bucket_files.items()}
-        }
-        vfile = tmp / 'data-version.json'
-        vfile.write_text(json.dumps(manifest), encoding='utf-8')
+    # Побакетные тонкие базы — из УЖЕ отфильтрованной тонкой базы, а не из
+    # рабочей. Строки те же (условия у бакета строго уже), но читать приходится
+    # 0.3 ГБ вместо 3+ ГБ, и так четыре раза подряд.
+    bucket_files = {}
+    for b in BUCKETS:
+        bf = tmp / f'data-{b}.db'
+        _guarded(lambda bf=bf, b=b: build_slim(slim, bf, patches, bucket=b, matches=matches,
+                                                 deadline=deadline), deadline)
+        bucket_files[b] = bf
+        _step(f'бакет {b} готов', t0)
 
-        # Заливка.
-        s = _session(token)
-        rid = ensure_release(s)
-        # Обычные файлы обязательны: по ним качают ВЫПУЩЕННЫЕ до сжатия версии
-        # программы. Сжатые кладём рядом — свежая программа берёт их, а если
-        # почему-то не вышло, откатывается на обычные.
-        upload_asset(s, rid, slim, 'data.db')
-        upload_gz(s, rid, slim, 'data.db')
-        for b, bf in bucket_files.items():
-            upload_asset(s, rid, bf, f'data-{b}.db')
-            upload_gz(s, rid, bf, f'data-{b}.db')
-        upload_asset(s, rid, vfile, 'data-version.json')
+    # Манифест.
+    manifest = {
+        'version': sha16(slim),
+        'patch': patch,
+        'updated': datetime.now(timezone.utc).isoformat(),
+        'buckets': {b: {'version': sha16(bf),
+                        'size_mb': round(bf.stat().st_size / 1e6, 1)}
+                    for b, bf in bucket_files.items()}
+    }
+    vfile = tmp / 'data-version.json'
+    vfile.write_text(json.dumps(manifest), encoding='utf-8')
+    _step('манифест готов, дальше заливка', t0)
+    return {'slim': slim, 'bucket_files': bucket_files, 'vfile': vfile, 'manifest': manifest}
 
-        # То же самое — в своё хранилище на Cloudflare. Программа спрашивает
-        # сперва его: GitHub из России отдаёт 0.11 МБ/с против 5–6 у Cloudflare,
-        # и на плохой минуте кусок не успевал скачаться за отведённое время.
-        #
-        # GitHub остаётся: по нему качают версии программы, выпущенные до
-        # переезда, и он же запасной путь, если R2 окажется недоступен.
-        #
-        # Номер версии заливаем ПОСЛЕДНИМ: пока он старый, программа не пойдёт
-        # за файлами, которых ещё нет.
-        publish_r2(slim, bucket_files, vfile)
 
-        manifest['slim_mb'] = round(slim.stat().st_size / 1e6, 1)
+def upload(built: dict, token: str) -> dict:
+    """СЕТЕВАЯ часть публикации: залить собранное на GitHub и в R2."""
+    slim, bucket_files, vfile = built['slim'], built['bucket_files'], built['vfile']
+    manifest = dict(built['manifest'])
+
+    s = _session(token)
+    rid = ensure_release(s)
+    # Обычные файлы обязательны: по ним качают ВЫПУЩЕННЫЕ до сжатия версии
+    # программы. Сжатые кладём рядом — свежая программа берёт их, а если
+    # почему-то не вышло, откатывается на обычные.
+    upload_asset(s, rid, slim, 'data.db')
+    upload_gz(s, rid, slim, 'data.db')
+    for b, bf in bucket_files.items():
+        upload_asset(s, rid, bf, f'data-{b}.db')
+        upload_gz(s, rid, bf, f'data-{b}.db')
+    upload_asset(s, rid, vfile, 'data-version.json')
+
+    # То же самое — в своё хранилище на Cloudflare. Программа спрашивает
+    # сперва его: GitHub из России отдаёт 0.11 МБ/с против 5–6 у Cloudflare,
+    # и на плохой минуте кусок не успевал скачаться за отведённое время.
+    #
+    # GitHub остаётся: по нему качают версии программы, выпущенные до
+    # переезда, и он же запасной путь, если R2 окажется недоступен.
+    #
+    # Номер версии заливаем ПОСЛЕДНИМ: пока он старый, программа не пойдёт
+    # за файлами, которых ещё нет.
+    publish_r2(slim, bucket_files, vfile)
+
+    manifest['slim_mb'] = round(slim.stat().st_size / 1e6, 1)
     return manifest
+
+
+def publish(db_path: str, token: str, run_upload=None, workdir: Path | None = None,
+            build_timeout: float | None = None) -> dict:
+    """Собрать и залить.
+
+    run_upload(job) — чем запускать заливку; коллектор передаёт сюда дедлайн. Без
+    него заливка идёт тут же, как при ручном запуске.
+
+    Временную папку убирает ЗАЛИВКА, а не этот вызов. Если заливка не уложилась в
+    дедлайн, поток её продолжает работать фоном — и снести папку у него из-под
+    ног значило бы оборвать заливку посреди файлов. Хвосты прерванных заходов
+    подбирает уборка коллектора (clear_publish_dir) перед следующим.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix='pub-', dir=workdir))
+    try:
+        built = build(db_path, tmp, build_timeout)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+
+    def job():
+        try:
+            return upload(built, token)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    return (run_upload or (lambda fn: fn()))(job)
 
 
 if __name__ == '__main__':

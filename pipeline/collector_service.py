@@ -83,11 +83,24 @@ KEY_RECHECK_TRIES = 5
 KEY_RECHECK_PAUSE = 60
 KEY_PROBE_URL = 'https://euw1.api.riotgames.com/lol/status/v4/platform-data'
 KEY_PROBE_TIMEOUT = 10
-# Потолок времени на публикацию. Это не «сколько она обычно идёт» (снимок плюс
-# шесть заливок могут занять и полчаса), а «когда считать, что она уже не
-# закончится»: демон живёт на сервере без присмотра, и одна залипшая заливка
-# однажды заморозила весь цикл — база не выложена, новый ключ не запрошен.
+# Потолок времени на ЗАЛИВКУ. Это не «сколько она обычно идёт» (три минуты), а
+# «когда считать, что она уже не закончится»: демон живёт на сервере без
+# присмотра, и одна залипшая заливка однажды заморозила весь цикл — база не
+# выложена, новый ключ не запрошен.
+#
+# Раньше этот потолок стоял на всю публикацию вместе со сборкой — и 2 октября
+# оборвал медленную, но живую сборку через 90 минут. Поток при этом продолжил
+# молотить диск фоном ещё пять часов, уже наперегонки со сбором. Теперь потолок
+# только на сеть, а у сборки свой (BUILD_TIMEOUT).
 PUBLISH_TIMEOUT = int(os.environ.get('PUBLISH_TIMEOUT', '5400'))
+
+# Потолок времени на СБОРКУ тонких баз. Сборка локальная и в сеть не ходит —
+# зависнуть ей не на чем, она бывает только медленной. Поэтому идёт она в
+# основном потоке, сбор на это время стоит (иначе они делят один диск, и оба
+# ползут), а этот потолок — страховка от совсем дурного случая: сбор не должен
+# простоять полсуток. Сборка, в отличие от потока заливки, прерывается честно —
+# SQLite обрывает запрос и ничего не оставляет висеть.
+BUILD_TIMEOUT = int(os.environ.get('BUILD_TIMEOUT', '10800'))
 
 
 def notify(text: str):
@@ -226,6 +239,17 @@ def set_status(**fields):
                        db_mb=data.get('db_mb'), disk_free_gb=data.get('disk_free_gb'))
 
 
+def update_status(**fields):
+    """Дописать поля статуса, НЕ трогая состояние демона.
+
+    set_status заменяет статус целиком. Поздняя публикация доезжает, когда сбор
+    уже идёт, и затёрла бы «collecting» своим «published» — бот и проверка
+    хозяйства увидели бы демона не в той фазе."""
+    with _state_lock:
+        _state.update(fields)
+    _write_status()
+
+
 def _heartbeat_loop():
     last_sample = 0.0
     while True:
@@ -309,32 +333,85 @@ def clear_publish_dir():
               flush=True)
 
 
-def run_with_deadline(fn, seconds: int):
+def run_with_deadline(fn, seconds: int, on_late=None, on_late_error=None):
     """Выполняет fn в отдельном потоке и сдаётся, если тот не уложился в срок.
 
     Убить зависший поток в Python нельзя, но он демонский: цикл сбора поедет
     дальше, а собранное никуда не денется — выложим следующим кругом. Раньше на
     этом месте стоял обычный вызов, и одна залипшая заливка вешала демона насмерть.
+
+    Сдавшись, мы не бросаем результат. Поток, не уложившийся в срок, часто всё же
+    доделывает работу — так было 2 октября: дедлайн сработал, а база доехала до
+    игроков через пять часов. Но сделала она это МОЛЧА: хвост публикации (объявить,
+    записать, позвать обновление сайта) стоял после вызова, до которого дело уже
+    не дошло. Теперь поздний исход передаётся в on_late / on_late_error.
+
+    Кто «сдался», а кто «доделал», решается под замком: иначе поток мог закончить
+    ровно между проверкой и пометкой, и результат не достался бы никому.
     """
     global _publishing
     box: dict = {}
+    lock = threading.Lock()
 
     def runner():
         try:
-            box['ok'] = fn()
+            res, err = fn(), None
         except BaseException as e:     # пробросим в вызывающий поток как есть
-            box['err'] = e
+            res, err = None, e
+        with lock:
+            box['done'], box['ok'], box['err'] = True, res, err
+            late = box.get('abandoned', False)
+        if not late:
+            return
+        # Вызывающий уже сдался — исход достаётся нам.
+        try:
+            if err is None:
+                if on_late:
+                    on_late(res)
+            elif on_late_error:
+                on_late_error(err)
+        except Exception as e:
+            print(f'[публикация] поздний хвост не отработал: {e}', flush=True)
 
     t = threading.Thread(target=runner, daemon=True, name='publish')
     _publishing = t
     t.start()
     t.join(seconds)
-    if t.is_alive():
-        limit = f'{seconds // 60} мин' if seconds >= 60 else f'{seconds} с'
-        raise TimeoutError(f'публикация идёт дольше {limit} — бросаю ждать')
-    if 'err' in box:
+    with lock:
+        if not box.get('done'):
+            box['abandoned'] = True
+            limit = f'{seconds // 60} мин' if seconds >= 60 else f'{seconds} с'
+            raise TimeoutError(f'заливка идёт дольше {limit}')
+    if box['err'] is not None:
         raise box['err']
     return box['ok']
+
+
+def _announce_published(info: dict, session_total: int, started: float, late: bool = False):
+    """Всё, что делается после удачной публикации: объявить, записать, позвать
+    обновление сайта. Одно место на оба исхода — вовремя и с опозданием, — чтобы
+    поздний успех не оказался беднее обычного, как 2 октября."""
+    minutes = round((time.monotonic() - started) / 60)
+    buckets = info.get('buckets', {})
+    bsizes = ' · '.join(f'{b} {buckets[b]["size_mb"]}МБ' for b in buckets)
+    head = (f'📦 База обновлена в проде с опозданием (публикация шла {minutes} мин)'
+            if late else '📦 База обновлена в проде')
+    notify(f'{head}: +{session_total} матчей за круг · '
+           f'патч {info["patch"]} · версия `{info["version"]}` · '
+           f'тонкая {info.get("slim_mb", "?")}МБ'
+           + (f'\nПо эло: {bsizes}' if bsizes else ''))
+    if late:
+        # Сбор к этому времени уже идёт — фазу демона не трогаем.
+        update_status(version=info['version'], patch=info['patch'])
+    else:
+        set_status(state='published', version=info['version'], patch=info['patch'])
+    ops_log.record('publish', state=None if late else 'published',
+                   matches=db_matches(), db_mb=db_size_mb(),
+                   patch=info['patch'], version=info['version'],
+                   slim_mb=info.get('slim_mb'),
+                   buckets={b: buckets[b]['size_mb'] for b in buckets},
+                   collected=session_total, minutes=minutes, late=late)
+    request_site_update(info['patch'])
 
 
 def publish_db(session_total: int):
@@ -343,12 +420,23 @@ def publish_db(session_total: int):
                '(Автопубликация выключена — нет GITHUB_TOKEN.)')
         return
     if _publishing is not None and _publishing.is_alive():
-        # Прошлая публикация ещё не отпустила. Второй заход заливал бы те же
+        # Прошлая заливка ещё не отпустила. Второй заход заливал бы те же
         # имена ассетов вперемешку с ней — в релизе оказался бы манифест от
         # одной базы и файлы от другой.
         notify('⏭ Прошлая публикация ещё идёт — эту пропускаю, '
                'база выложится следующим кругом.')
         return
+
+    started = time.monotonic()
+
+    def late_ok(info):
+        _announce_published(info, session_total, started, late=True)
+
+    def late_err(e):
+        notify(f'⚠️ Заливка, которая шла фоном, так и не прошла: `{e}`. '
+               'База выложится следующим кругом.')
+        ops_log.record('publish_failed', error=str(e)[:200], collected=session_total, late=True)
+
     try:
         set_status(state='publishing')
         notify(f'📦 Круг завершён (+{session_total}) — публикую базу. '
@@ -357,21 +445,26 @@ def publish_db(session_total: int):
         tmp = publish_dir()
         tmp.mkdir(exist_ok=True)
         os.environ['TMPDIR'] = str(tmp)
-        info = run_with_deadline(lambda: publish_data.publish(DB_PATH, GH_TOKEN),
-                                 PUBLISH_TIMEOUT)
-        buckets = info.get('buckets', {})
-        bsizes = ' · '.join(f'{b} {buckets[b]["size_mb"]}МБ' for b in buckets)
-        notify(f'📦 База обновлена в проде: +{session_total} матчей за круг · '
-               f'патч {info["patch"]} · версия `{info["version"]}` · '
-               f'тонкая {info.get("slim_mb", "?")}МБ'
-               + (f'\nПо эло: {bsizes}' if bsizes else ''))
-        set_status(state='published', version=info['version'], patch=info['patch'])
-        ops_log.record('publish', state='published', matches=db_matches(), db_mb=db_size_mb(),
-                       patch=info['patch'], version=info['version'],
-                       slim_mb=info.get('slim_mb'),
-                       buckets={b: buckets[b]['size_mb'] for b in buckets},
-                       collected=session_total)
-        request_site_update(info['patch'])
+        # Сборка — здесь, в основном потоке: сбор на это время стоит и диск не
+        # делит. Заливка — под дедлайном, в своём потоке.
+        info = publish_data.publish(
+            DB_PATH, GH_TOKEN,
+            run_upload=lambda job: run_with_deadline(job, PUBLISH_TIMEOUT,
+                                                     on_late=late_ok, on_late_error=late_err),
+            workdir=tmp, build_timeout=BUILD_TIMEOUT)
+        _announce_published(info, session_total, started)
+    except publish_data.BuildTimeout as e:
+        notify(f'⚠️ Сбор прошёл (+{session_total}), но сборка базы не уложилась в '
+               f'{BUILD_TIMEOUT // 3600} ч и прервана. Сбор продолжаю, база выложится '
+               'следующим кругом.')
+        ops_log.record('publish_failed', error=str(e)[:200], collected=session_total)
+    except TimeoutError as e:
+        # Заливка не уложилась в срок, но поток её жив и, скорее всего, доедет:
+        # тогда о результате сообщит late_ok. Писать «упала» здесь — неправда,
+        # именно так 2 октября выглядела публикация, которая на деле прошла.
+        notify(f'⏳ Сбор прошёл (+{session_total}), но {e} — сбор продолжаю, '
+               'заливка идёт фоном, о результате сообщу отдельно.')
+        ops_log.record('publish_slow', error=str(e)[:200], collected=session_total)
     except Exception as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но публикация упала: `{e}`')
         print(traceback.format_exc(), flush=True)
@@ -379,10 +472,10 @@ def publish_db(session_total: int):
     finally:
         # Уборка идёт СРАЗУ ПОСЛЕ публикации — и по времени, и по смыслу. Сбор в
         # этот момент стоит, значит можно сжать файл: VACUUM берёт эксклюзивную
-        # блокировку, посреди сбора его звать нельзя. А нужен он именно здесь —
-        # публикация копирует базу целиком, и место под копию должно быть.
-        # Не уложившаяся в срок публикация — исключение: она всё ещё держит базу
-        # открытой, и VACUUM в этот момент только упрётся в блокировку.
+        # блокировку, посреди сбора его звать нельзя. А нужен он регулярно: без
+        # него база пухнет, и каждая следующая сборка читает больше.
+        # Не уложившаяся в срок заливка — исключение: её поток ещё жив, а
+        # отложенная уборка случится после следующей публикации.
         if _publishing is None or not _publishing.is_alive():
             prune_db()
 
