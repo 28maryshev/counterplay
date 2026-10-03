@@ -478,6 +478,62 @@ class Program
             catch (Exception ex) { Log.Write($"портреты не докачались: {ex.Message}"); }
         }, ct);
 
+    /// <summary>
+    /// Обмен наигранностью с напарником по дуо-пулу.
+    ///
+    /// Зачем: подсказку «что брать обоим» программа считает и для половины
+    /// друга, но его наигранность ей неизвестна — своя к его чемпионам не
+    /// относится. Каждый выкладывает свои числа по чемпионам СВОЕЙ половины,
+    /// второй их забирает, и подбор у обоих считается на одних данных.
+    ///
+    /// Первый проход НЕ на запуске: забранное нужно следующему драфту, а
+    /// нынешний и так считается на прошлом снимке из кэша. Дальше раз в три
+    /// часа — наигранность меняется медленно, окно у неё месяц.
+    /// </summary>
+    private static void StartDuoShareWatcher(Func<IReadOnlyDictionary<int, long>?> mastery,
+                                             CancellationToken ct)
+    {
+        _ = Task.Run(async () =>
+        {
+            var delay = TimeSpan.FromMinutes(2);
+            while (!ct.IsCancellationRequested)
+            {
+                try { await Task.Delay(delay, ct); }
+                catch (OperationCanceledException) { return; }
+                delay = TimeSpan.FromHours(3);
+
+                try { await DuoShareOnceAsync(mastery(), ct); }
+                catch (OperationCanceledException) { return; }
+                catch (Exception e) { Log.Write($"дуо-обмен: проход не удался — {e.Message}"); }
+            }
+        }, ct);
+    }
+
+    /// Один проход по всем дуо-пулам с секретом: выложить своё, забрать чужое.
+    private static async Task DuoShareOnceAsync(IReadOnlyDictionary<int, long>? mastery,
+                                                CancellationToken ct)
+    {
+        var me = PoolStore.AccountPuuid;
+        if (string.IsNullOrEmpty(me)) return;
+
+        var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0";
+        foreach (var duo in PoolStore.Current().DuoPools.ToList())
+        {
+            if (string.IsNullOrEmpty(duo.ShareSecret) || string.IsNullOrEmpty(duo.FriendPuuid))
+                continue;   // секрета нет — обмена нет, половина считается как прежде
+
+            // Выкладываем только чемпионов СВОЕЙ половины: напарнику нужны
+            // ровно они, чтобы посчитать подсказку для меня.
+            var snap = DuoShare.Snapshot(duo.Mine.Values.SelectMany(l => l), mastery,
+                                         RecommendationEngine.FreshDays,
+                                         RecommendationEngine.RegularGames);
+            if (snap.Count > 0)
+                await DuoShare.PushAsync(duo.ShareSecret, me, version, snap, ct);
+
+            await DuoShare.PullAsync(duo.ShareSecret, duo.FriendPuuid, ct);
+        }
+    }
+
     /// Следит за выходом патча и перечитывает справочники Riot.
     ///
     /// Цены, характеристики предметов и описания рун Riot правит вместе с
@@ -682,6 +738,13 @@ class Program
         // Аккаунт (puuid) — ключ пулов чемпионов: подгружаем набор этого игрока.
         var (poolPuuid, poolName) = await PlayerInfo.GetAccountAsync(http, ct);
         PoolStore.SetAccount(poolPuuid, poolName);
+
+        // Обмен наигранностью с напарником по дуо-пулу: своё выкладываем, его
+        // забираем в кэш. С пути запуска это снято намеренно — нынешний драфт
+        // считается на ПРОШЛОМ снимке (его берёт оверлей из кэша), а забранное
+        // пригодится следующему. Сеть на старте мы однажды уже убирали целиком,
+        // возвращать её сюда незачем.
+        StartDuoShareWatcher(() => mastery, ct);
 
         // Клиент назвал аккаунт — раньше этого синхронизироваться не с чем:
         // адрес строки на сервере считается из пароля И профиля.

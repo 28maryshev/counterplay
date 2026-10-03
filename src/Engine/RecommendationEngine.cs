@@ -17,6 +17,16 @@ public sealed record Recommendation(
     int    Rank   = 0,    // место в полном списке (1 = лучший)
     bool   IsMyPick = false); // это мой уже выбранный/наведённый чемпион
 
+/// <summary>
+/// Наигранность напарника на одном чемпионе — его числа, приехавшие от него.
+///
+/// Возим ИСХОДНЫЕ величины, а не готовый комфорт: формула менялась (2 октября
+/// мастерство стало затухать с простоем), и при следующей правке у двоих в
+/// одном драфте получились бы числа от разных формул. Сырые величины считает
+/// принимающая сторона, формула остаётся одна.
+/// </summary>
+public sealed record MateComfort(int Games, int Wins, long Mastery, double IdleDays);
+
 public sealed class RecommendationEngine : IDisposable
 {
     // Знак причины — невидимым префиксом в самой строке: так он доезжает до
@@ -202,7 +212,7 @@ public sealed class RecommendationEngine : IDisposable
     // Теперь комфорт — сумма двух слагаемых, и главное из них свежее.
 
     /// Окно «играю сейчас». Месяц — как и у личного винрейта, и у защитных банов.
-    private const int FreshDays = 30;
+    public const int FreshDays = 30;
     /// Потолок прибавки за игры в этом окне.
     private const double RECENT_MAX = 3.0;
     /// Сколько игр за месяц дают половину потолка. Четыре: одна-две игры — это
@@ -222,7 +232,7 @@ public sealed class RecommendationEngine : IDisposable
     /// держал полный вес мастерства вечно — почти тот же баг, от которого
     /// лечились. Замер на живом пуле владельца: Зилеан, одна игра за тридцать
     /// дней, свежесть 1.00. Третья с конца на разовый заход не ведётся.
-    private const int RegularGames = 3;
+    public const int RegularGames = 3;
     /// Ниже этой доли мастерство не падает. Не ноль: даже забытый чемпион
     /// вспоминается быстрее незнакомого.
     private const double STALE_FLOOR = 0.25;
@@ -231,6 +241,41 @@ public sealed class RecommendationEngine : IDisposable
     /// Поле, а не параметр, — чтобы не тащить его через весь скоринг; вызовы
     /// последовательные (оверлей однопоточный), и флаг снимается в finally.
     private bool _forMate;
+
+    /// <summary>
+    /// Наигранность напарника по чемпионам: его числа, приехавшие от него.
+    /// Ставится снаружи; пусто — считаем его половину без личных факторов, как
+    /// до обмена. Старый снимок лучше никакого: он берётся с диска сразу, а
+    /// свежий подтягивается фоном (как база).
+    /// </summary>
+    public IReadOnlyDictionary<int, MateComfort>? MateComfortByChamp { get; set; }
+
+    /// <summary>
+    /// Сама формула наигранности — от ЧИСЕЛ, без источника.
+    ///
+    /// Числа бывают не только мои: наигранность напарника приезжает от него
+    /// (<see cref="MateComfort"/>), а формула обязана остаться ОДНА — иначе при
+    /// её правке у двоих в одном драфте окажутся разные комфорты.
+    /// </summary>
+    private static double Comfort(int recentGames, long masteryPts, double idleDays, bool inPool)
+    {
+        var recent = recentGames > 0
+            ? RECENT_MAX * recentGames / (recentGames + RECENT_K)
+            : 0.0;
+
+        var mastery = masteryPts > 0 ? MASTERY_MAX * masteryPts / (masteryPts + MASTERY_HALF) : 0.0;
+        mastery *= Freshness(idleDays);
+
+        if (inPool) mastery = Math.Max(mastery, POOL_COMFORT);
+        return recent + mastery;
+    }
+
+    /// Та же развязка для личного винрейта: сглажен по Лапласу и притушен по
+    /// объёму, источник чисел снаружи.
+    private static double Personal(int games, int wins) =>
+        games <= 0 ? 0.0
+            : Math.Clamp(Delta(games, wins, K_PERSONAL) * (games / (games + PERSONAL_CONF)),
+                         -PERSONAL_CAP, PERSONAL_CAP);
 
     /// <summary>
     /// Насколько это ТВОЙ чемпион прямо сейчас.
@@ -246,23 +291,19 @@ public sealed class RecommendationEngine : IDisposable
     /// </summary>
     private double ComfortDelta(int champId)
     {
-        // Считаем за НАПАРНИКА — личных факторов нет: наигранность, личный винрейт
-        // и флор пула это МОЯ история, к его чемпионам она не относится.
-        if (_forMate) return 0.0;
+        // Считаем за НАПАРНИКА: своей истории тут быть не может, она про мои
+        // чемпионы. Берём ЕГО числа, если он ими поделился, — иначе ноль, как
+        // было до обмена наигранностью.
+        if (_forMate)
+            return MateComfortByChamp is { } mc && mc.TryGetValue(champId, out var m)
+                ? Comfort(m.Games, m.Mastery, m.IdleDays, inPool: false)
+                : 0.0;
 
         var hist = MyHistory();
-
         var (recentGames, _) = hist.Recent(champId);
-        var recent = recentGames > 0
-            ? RECENT_MAX * recentGames / (recentGames + RECENT_K)
-            : 0.0;
-
         var pts = Mastery.TryGetValue(champId, out var p) && p > 0 ? p : 0L;
-        var mastery = pts > 0 ? MASTERY_MAX * pts / (pts + MASTERY_HALF) : 0.0;
-        mastery *= Freshness(hist.DaysSinceNth(champId, RegularGames));
-
-        if (_comfortPool.Contains(champId)) mastery = Math.Max(mastery, POOL_COMFORT);
-        return recent + mastery;
+        return Comfort(recentGames, pts, hist.DaysSinceNth(champId, RegularGames),
+                       _comfortPool.Contains(champId));
     }
 
     /// Мой журнал за окно свежести: игры, победы, давность. ОДИН источник на
@@ -1682,11 +1723,14 @@ public sealed class RecommendationEngine : IDisposable
     /// однажды разъехаться на ровном месте.
     public double PersonalDelta(int champId)
     {
-        if (_forMate) return 0.0;        // см. ComfortDelta: это моя история, не его
+        // См. ComfortDelta: за напарника идут ЕГО победы, не мои.
+        if (_forMate)
+            return MateComfortByChamp is { } mc && mc.TryGetValue(champId, out var m)
+                ? Personal(m.Games, m.Wins)
+                : 0.0;
+
         var (g, w) = MyHistory().Recent(champId);
-        if (g <= 0) return 0.0;
-        var d = Delta(g, w, K_PERSONAL) * (g / (g + PERSONAL_CONF));
-        return Math.Clamp(d, -PERSONAL_CAP, PERSONAL_CAP);
+        return Personal(g, w);
     }
 
     // Самая частая роль чемпиона по числу игр (base_wr), с кэшем.

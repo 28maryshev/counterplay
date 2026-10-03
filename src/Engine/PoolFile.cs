@@ -27,7 +27,10 @@ public static class PoolFile
     public const string Extension = ".cpool";
 
     private const string Marker = "counterplay-pool";
-    private const int FormatVersion = 1;
+    // 2 — в конверте появился секрет дуо (обмен наигранностью). Читатели
+    // постарше поле просто не увидят: обмена у них не будет, остальное как
+    // прежде. Поэтому номер поднят, а разбор старых файлов не менялся.
+    private const int FormatVersion = 2;
 
     private static readonly JsonSerializerOptions Opts = new()
     {
@@ -48,6 +51,14 @@ public static class PoolFile
         public Dictionary<string, List<int>>? Friend { get; set; }
         public bool Manual { get; set; }
         public List<ManualDuoPair>? ManualPairs { get; set; }
+
+        /// <summary>
+        /// Секрет дуо — ключ к обмену наигранностью (см. <see cref="DuoShare"/>).
+        /// Едет в файле намеренно: это единственный путь, по которому он
+        /// попадает ко второму человеку. Файл передают тому, с кем играют,
+        /// поэтому отдельного канала для секрета не нужно.
+        /// </summary>
+        public string? Secret { get; set; }
 
         /// <summary>
         /// Кто отдал этот пул: puuid и ник на момент выгрузки.
@@ -95,7 +106,27 @@ public static class PoolFile
         OwnerName   = PoolStore.Current().AccountName,
         FriendPuuid = d.FriendPuuid,
         FriendNick  = d.FriendNick,
+        Secret      = Secret(d),
     }, Opts);
+
+    /// <summary>
+    /// Секрет дуо для выгрузки: свой, если уже есть, иначе новый — и он тут же
+    /// запоминается в пуле.
+    ///
+    /// Рождать его именно здесь важно: секрет обязан быть ОДИН на двоих, а
+    /// единственный момент, когда он попадает ко второму, — это выгрузка файла.
+    /// Сделай его при создании пула — и у того, кто пул только принял, он был бы
+    /// свой, то есть обмен молча не состоялся бы.
+    /// </summary>
+    private static string Secret(DuoPool d)
+    {
+        if (string.IsNullOrEmpty(d.ShareSecret))
+        {
+            d.ShareSecret = DuoShare.NewSecret();
+            PoolStore.Persist();
+        }
+        return d.ShareSecret;
+    }
 
     /// <summary>
     /// Разобрать файл. Возвращает то, что в нём лежит; обе ссылки null — файл
@@ -139,6 +170,7 @@ public static class PoolFile
                     // напарник — Я, то для меня второй половиной становится сам
                     // хозяин: связка та же, стороны зеркальны. Иначе берём то,
                     // что записано, а без него — хозяина файла.
+                    ShareSecret = e.Secret ?? "",
                     FriendPuuid = OtherHalf(e),
                     // Имя — под ТУ ЖЕ половину, что и puuid, иначе на плитке
                     // окажется имя одного человека, а считаться будет другой.

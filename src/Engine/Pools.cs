@@ -47,6 +47,19 @@ public sealed class DuoPool
     /// вместе с puuid хозяина.
     /// </summary>
     public string FriendNick { get; set; } = "";
+    /// <summary>
+    /// Секрет дуо: по нему двое обмениваются наигранностью через сервер
+    /// (см. <see cref="DuoShare"/>). Рождается при выгрузке пула и едет
+    /// внутри файла — тем же путём, которым пул и так попадает к человеку.
+    ///
+    /// Личный пароль синхронизации для этого брать нельзя: он открывает все
+    /// свои настройки и историю, а делиться надо только наигранностью.
+    ///
+    /// Пусто — обмена нет, и половина друга считается без его личных
+    /// факторов, как до обмена.
+    /// </summary>
+    public string ShareSecret { get; set; } = "";
+
     public Dictionary<string, List<int>> Mine { get; set; } = new();
     public Dictionary<string, List<int>> Friend { get; set; } = new();
     public List<int> MineForRole(string role)   => Mine.TryGetValue(role, out var l) ? l : [];

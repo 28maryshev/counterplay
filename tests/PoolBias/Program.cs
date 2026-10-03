@@ -647,6 +647,33 @@ internal static class Program
             Check("наигранная связка сдвигает выбор относительно пустой",
                   movedByPair > 0, $"разошлось в {movedByPair} из {emptyDrafts.Count}");
 
+            // ── Наигранность напарника входит в подбор ───────────────────────
+            //
+            // Обмен наигранностью (DuoShare) бессмыслен, если числа доезжают, а
+            // на оценку не влияют. Даём одному чемпиону его половины его же
+            // наигранность и смотрим последствие: его оценка обязана вырасти, а
+            // у остальных остаться той же.
+            SessionTracker.Preview = [];
+            var plainScores = Quiet(() => engine.PartnerScores(state, half));
+            var lucky = friendIds[^1];
+            engine.MateComfortByChamp = new Dictionary<int, MateComfort>
+            {
+                [lucky] = new MateComfort(Games: 20, Wins: 12, Mastery: 200_000, IdleDays: 0),
+            };
+            var withComfort = Quiet(() => engine.PartnerScores(state, half));
+            engine.MateComfortByChamp = null;
+
+            Check("наигранность напарника поднимает оценку его чемпиона",
+                  withComfort.TryGetValue(lucky, out var wc)
+                  && plainScores.TryGetValue(lucky, out var pc) && wc > pc + 1e-9,
+                  $"{(plainScores.TryGetValue(lucky, out var p0) ? p0 : 0):F2} → " +
+                  $"{(withComfort.TryGetValue(lucky, out var w0) ? w0 : 0):F2}");
+            Check("а чемпионов без его наигранности не трогает",
+                  friendIds.Where(f => f != lucky).All(f =>
+                      Math.Abs((withComfort.TryGetValue(f, out var a) ? a : 0)
+                               - (plainScores.TryGetValue(f, out var b) ? b : 0)) < 1e-9),
+                  "остальные на месте");
+
             // ── Занятых и забаненных не предлагаем ──────────────────────────
             var busy      = Draft(myLcu, [], [best]);
             var afterBusy = engine.BestPartner(busy, mineId, myDb, half,

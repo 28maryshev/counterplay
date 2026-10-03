@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Обмен наигранностью с напарником по дуо-пулу.
+       Гоняется весь путь через СВОЙ крошечный сервер, повторяющий контракт
+       /api/sync/{id}: снимок, выкладка, приём, кэш. Главное здесь — что
+       забранное ЛОЖИТСЯ НА ДИСК и берётся оттуда без сети: драфт начинается
+       быстрее, чем отвечает сервер, и работать надо на прошлом снимке, а не на
+       пустоте. Ни боевой папки, ни журнала игрока проверка не касается. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+  </ItemGroup>
+
+</Project>
