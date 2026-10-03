@@ -106,27 +106,9 @@ public static class PoolFile
         OwnerName   = PoolStore.Current().AccountName,
         FriendPuuid = d.FriendPuuid,
         FriendNick  = d.FriendNick,
-        Secret      = Secret(d),
+        Secret      = d.ShareSecret,
     }, Opts);
 
-    /// <summary>
-    /// Секрет дуо для выгрузки: свой, если уже есть, иначе новый — и он тут же
-    /// запоминается в пуле.
-    ///
-    /// Рождать его именно здесь важно: секрет обязан быть ОДИН на двоих, а
-    /// единственный момент, когда он попадает ко второму, — это выгрузка файла.
-    /// Сделай его при создании пула — и у того, кто пул только принял, он был бы
-    /// свой, то есть обмен молча не состоялся бы.
-    /// </summary>
-    private static string Secret(DuoPool d)
-    {
-        if (string.IsNullOrEmpty(d.ShareSecret))
-        {
-            d.ShareSecret = DuoShare.NewSecret();
-            PoolStore.Persist();
-        }
-        return d.ShareSecret;
-    }
 
     /// <summary>
     /// Разобрать файл. Возвращает то, что в нём лежит; обе ссылки null — файл

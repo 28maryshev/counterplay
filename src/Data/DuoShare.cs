@@ -124,6 +124,7 @@ public static class DuoShare
     {
         public long At { get; set; }                  // когда забрали, unix-секунды
         public string Version { get; set; } = "";     // версия программы напарника
+        public string Bucket { get; set; } = "";      // его бакет эло — для счёта по высшему
         public Dictionary<string, int[]> Champs { get; set; } = [];  // id → [g, w, mastery, idleDays×10]
     }
 
@@ -166,6 +167,41 @@ public static class DuoShare
         return res.Count > 0 ? res : null;
     }
 
+    /// <summary>Бакет эло напарника из кэша; пусто — не знаем.</summary>
+    public static string? CachedBucket(string? matePuuid)
+    {
+        if (string.IsNullOrEmpty(matePuuid)) return null;
+        var all = ReadCache();
+        return all.TryGetValue(matePuuid, out var e) && e.Bucket.Length > 0 ? e.Bucket : null;
+    }
+
+    /// <summary>
+    /// Поднять бакет до напарникова, если тот выше.
+    ///
+    /// Считать дуо надо по ОДНОМУ бакету на двоих: иначе у них в одном драфте
+    /// разные базовые винрейты, и подсказки расходятся при полностью
+    /// совпавших остальных данных. Берём высший — решение владельца. Оба
+    /// считают максимум из тех же двух чисел, поэтому приходят к одному.
+    ///
+    /// Поднимаем ТОЛЬКО когда дуо-пул активен: играешь один — считаем по
+    /// своему эло, чужое тут ни при чём.
+    ///
+    /// Бакет выбирает, какую базу качать (<c>data-&lt;bucket&gt;.db</c>), и
+    /// смена бакета сама триггерит подкачку — отдельно ничего делать не надо.
+    /// </summary>
+    public static string? RaiseBucket(string? mine)
+    {
+        var duo = PoolStore.ActiveDuo();
+        if (duo is null || string.IsNullOrEmpty(duo.FriendPuuid)) return mine;
+        var theirs = CachedBucket(duo.FriendPuuid);
+        if (theirs is null) return mine;
+
+        var raised = PlayerInfo.HigherBucket(mine, theirs);
+        if (raised != mine)
+            Log.Write($"дуо: считаем по высшему бакету — свой {mine} и {theirs} → {raised}");
+        return raised;
+    }
+
     /// <summary>Когда снимок напарника забирали последний раз (null — никогда).</summary>
     public static DateTimeOffset? CachedAt(string? matePuuid)
     {
@@ -183,6 +219,7 @@ public static class DuoShare
     /// который назвал сервер.
     /// </summary>
     public static async Task<bool> PushAsync(string secret, string myPuuid, string version,
+                                             string bucket,
                                              IReadOnlyDictionary<int, MateComfort> snapshot,
                                              CancellationToken ct = default)
     {
@@ -196,7 +233,8 @@ public static class DuoShare
 
         var payload = JsonSerializer.Serialize(new CacheEntry
         {
-            At = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Version = version, Champs = champs
+            At = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), Version = version,
+            Bucket = bucket, Champs = champs
         });
 
         var key = KeyFor(secret, myPuuid);

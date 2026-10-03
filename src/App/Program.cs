@@ -528,7 +528,8 @@ class Program
                                          RecommendationEngine.FreshDays,
                                          RecommendationEngine.RegularGames);
             if (snap.Count > 0)
-                await DuoShare.PushAsync(duo.ShareSecret, me, version, snap, ct);
+                await DuoShare.PushAsync(duo.ShareSecret, me, version,
+                                         Settings.GetString("dataBucket") ?? "", snap, ct);
 
             await DuoShare.PullAsync(duo.ShareSecret, duo.FriendPuuid, ct);
         }
@@ -707,6 +708,12 @@ class Program
         // программа качала чужую базу, а следом свою.
         var tierBucket = await PlayerInfo.GetTierBucketAsync(http, ct)
                          ?? Settings.GetString("dataBucket");
+        // Дуо считается по ВЫСШЕМУ бакету из двух: иначе у двоих в одном драфте
+        // разные базовые винрейты, и подсказки расходятся при полностью совпавших
+        // остальных данных. Поднимаем ЗДЕСЬ, до всего остального, — этим же
+        // значением дальше качается база и собирается движок, а смена бакета сама
+        // триггерит подкачку нужной базы.
+        tierBucket = DuoShare.RaiseBucket(tierBucket) ?? tierBucket;
         // Запоминаем ранг для скачивания нужной базы на следующем запуске. Если
         // ранг сменился (поднялся), а на диске база ДРУГОГО одиночного бакета —
         // она не содержит его данных, поэтому подкачаем нужную сразу. Общая
@@ -898,6 +905,9 @@ class Program
                 {
                     // Бакет базы зашит в движок при создании — под новое эло его
                     // пересобираем (данные уже на диске, это дёшево).
+                    // И тут по высшему: иначе пересборка под новое эло вернула
+                    // бы движок на свой бакет, а напарников остался бы в прошлом.
+                    bucket = DuoShare.RaiseBucket(bucket) ?? bucket;
                     if (bucket != tierBucket && dbPath is not null)
                     {
                         tierBucket = bucket;

@@ -124,6 +124,29 @@ public static class PlayerInfo
         catch { return (null, null); }
     }
 
+    /// <summary>
+    /// Бакеты по возрастанию. Тот же список, что публикует пайплайн, и он же
+    /// задаёт, какая база качается (<c>data-&lt;bucket&gt;.db</c>).
+    /// </summary>
+    public static readonly string[] BucketsLowToHigh = ["silver", "gold", "emerald", "master"];
+
+    /// <summary>
+    /// Высший из двух бакетов. Нужно дуо: считать надо по ОДНОМУ бакету на
+    /// двоих, иначе у них в одном драфте разные базовые винрейты и подсказки
+    /// расходятся. Берём высший — решение владельца.
+    ///
+    /// Незнакомое имя не роняем и не повышаем: вернётся первое, которое мы
+    /// знаем, иначе опечатка в данных увела бы обоих не туда.
+    /// </summary>
+    public static string HigherBucket(string? a, string? b)
+    {
+        var ia = Array.IndexOf(BucketsLowToHigh, a ?? "");
+        var ib = Array.IndexOf(BucketsLowToHigh, b ?? "");
+        if (ia < 0) return ib < 0 ? (a ?? b ?? "") : b!;
+        if (ib < 0) return a!;
+        return ia >= ib ? a! : b!;
+    }
+
     public static string TierToBucket(string tier) => tier switch
     {
         "IRON" or "BRONZE" or "SILVER"                    => "silver",

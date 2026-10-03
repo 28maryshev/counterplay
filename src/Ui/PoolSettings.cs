@@ -1179,6 +1179,16 @@ public sealed class PoolEditorWindow : Window
     /// «не успело подхватиться» — после того, как пулы однажды уже пропали,
     /// разводить такие случаи надо явно, а не по пустой строке.
     private bool _mateCleared;
+    /// <summary>
+    /// Секрет дуо — ключ к обмену наигранностью с напарником.
+    ///
+    /// Живёт полем, а не рождается при выгрузке: наружу уходит РАБОЧАЯ КОПИЯ
+    /// пула, собранная из полей редактора, и секрет на ней не сохранился бы
+    /// никуда — при каждой выгрузке он получался бы новый, а обмен молча не
+    /// состоялся бы. Поэтому он тут, пишется в свой пул и уезжает в файле или
+    /// в коде — в обоих случаях это один и тот же конверт.
+    /// </summary>
+    private string _shareSecret = "";
     private readonly Dictionary<string, List<int>> _mine   = NewRoles();
     private readonly Dictionary<string, List<int>> _friend = NewRoles();
     private bool _dirty;
@@ -1211,6 +1221,7 @@ public sealed class PoolEditorWindow : Window
         { _srcPool = p; _name = p.Name; CopyInto(_mine, p.ByRole); }
         else if (existing is DuoPool d)
         { _srcDuo = d; _name = d.FriendName; _nick = d.FriendNick; _matePuuid = d.FriendPuuid;
+          _shareSecret = d.ShareSecret;
           CopyInto(_mine, d.Mine); CopyInto(_friend, d.Friend);
           _manual = d.Manual;
           _manualPairs.AddRange(d.ManualPairs.Select(p => new ManualDuoPair {
@@ -1677,6 +1688,7 @@ public sealed class PoolEditorWindow : Window
             {
                 FriendName = _name, Mine = Clone(_mine), Friend = Clone(_friend),
                 Manual = _manual,
+                ShareSecret = ShareSecretForExport(),
                 // Пустые заготовки связок наружу не отдаём — как и при сохранении.
                 ManualPairs = _manualPairs.Where(p => p.Mine != 0 || p.Friend != 0).ToList(),
             })
@@ -1816,6 +1828,25 @@ public sealed class PoolEditorWindow : Window
         menu.IsOpen = true;
     }
 
+    /// <summary>
+    /// Секрет для выгрузки: свой, если есть, иначе новый — и он тут же
+    /// запоминается в своём пуле, не дожидаясь «Сохранить».
+    ///
+    /// Секрет обязан быть ОДИН на двоих, а единственный момент, когда он
+    /// попадает ко второму, — это выгрузка. Отдали код, а пул не сохранили —
+    /// и у напарника остался бы ключ, которого у нас уже нет.
+    /// </summary>
+    private string ShareSecretForExport()
+    {
+        if (_shareSecret.Length == 0) _shareSecret = DuoShare.NewSecret();
+        if (_srcDuo is not null && _srcDuo.ShareSecret != _shareSecret)
+        {
+            _srcDuo.ShareSecret = _shareSecret;
+            PoolStore.Persist();
+        }
+        return _shareSecret;
+    }
+
     private void Save()
     {
         if (!Confirm.Ask(this, Loc.T("pool.save"), Loc.T("pool.confirmSave"))) return;
@@ -1839,6 +1870,10 @@ public sealed class PoolEditorWindow : Window
                                                                          Friend = p.Friend, FriendRole = p.FriendRole }).ToList();
             // Не только новый: окно больше не модальное, и пул могли удалить из
             // списка, пока он открыт здесь. Сохранение возвращает его на место.
+            // Секрет не затираем пустым: он мог родиться при выгрузке, а
+            // мог приехать в чужом файле — потерять его значит оборвать
+            // обмен наигранностью молча.
+            if (_shareSecret.Length > 0) d.ShareSecret = _shareSecret;
             if (!a.DuoPools.Contains(d)) a.DuoPools.Add(d);
         }
         else

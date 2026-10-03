@@ -105,7 +105,8 @@ internal static class Program
         Check("намастеренный без игр тоже поехал", snap.ContainsKey(MasteredOnly), "");
 
         // ── Выкладка и приём ────────────────────────────────────────────────
-        var pushed = DuoShare.PushAsync(secret, PuuidA, "1.3.53", snap).GetAwaiter().GetResult();
+        var pushed = DuoShare.PushAsync(secret, PuuidA, "1.3.53", "master", snap)
+                              .GetAwaiter().GetResult();
         Check("своё выложилось", pushed, $"строк на сервере {_rows.Count}");
         Check("сервер не видит, чьё это и что внутри",
               _rows.Count == 1 && !Encoding.UTF8.GetString(_rows.First().Value.Blob).Contains(PuuidA),
@@ -123,6 +124,63 @@ internal static class Program
               got is not null && got.TryGetValue(Played, out var g2)
                   ? $"{g2.Games}-{g2.Wins}, очки {g2.Mastery}, простой {g2.IdleDays:F1}" : "нет");
         Check("отметка времени записана", DuoShare.CachedAt(PuuidA) is not null, "");
+
+        // ── Бакет эло: дуо считается по ВЫСШЕМУ из двух ──────────────────
+        //
+        // Решение владельца: «если нет [одного бакета], то надо реализовать
+        // чтоб бакет у них срабатывал по высшему». Иначе у двоих в одном
+        // драфте разные базовые винрейты, и подсказки расходятся при полностью
+        // совпавших остальных данных. Оба считают максимум из тех же двух
+        // чисел, поэтому приходят к одному.
+        Check("бакет напарника доехал", DuoShare.CachedBucket(PuuidA) == "master",
+              DuoShare.CachedBucket(PuuidA) ?? "нет");
+
+        Check("высший из двух: свой ниже",
+              PlayerInfo.HigherBucket("silver", "emerald") == "emerald", "");
+        Check("высший из двух: свой выше",
+              PlayerInfo.HigherBucket("master", "gold") == "master", "");
+        Check("одинаковые остаются собой",
+              PlayerInfo.HigherBucket("gold", "gold") == "gold", "");
+        // Незнакомое имя не должно ни ронять, ни повышать: опечатка в данных
+        // увела бы обоих не туда.
+        Check("незнакомый бакет не повышает",
+              PlayerInfo.HigherBucket("gold", "бронза") == "gold", "");
+        Check("порядок бакетов тот же, что у пайплайна",
+              string.Join(",", PlayerInfo.BucketsLowToHigh) == "silver,gold,emerald,master",
+              string.Join(",", PlayerInfo.BucketsLowToHigh));
+
+        // Повышение срабатывает ТОЛЬКО при активном дуо-пуле: играешь один —
+        // считаем по своему эло, чужое тут ни при чём.
+        var acc = PoolStore.Current();
+        var poolsBak = acc.DuoPools.ToList();
+        var kindBak = acc.ActiveKind;
+        var idBak = acc.ActiveId;
+        try
+        {
+            acc.DuoPools.Clear();
+            acc.DuoPools.Add(new DuoPool { Id = "t", FriendName = "t", FriendPuuid = PuuidA });
+
+            acc.ActiveKind = PoolKind.Normal; acc.ActiveId = null;
+            Check("без активного дуо-пула бакет не поднимается",
+                  DuoShare.RaiseBucket("silver") == "silver", DuoShare.RaiseBucket("silver") ?? "");
+
+            acc.ActiveKind = PoolKind.Duo; acc.ActiveId = "t";
+            Check("с активным дуо-пулом поднимается до напарникова",
+                  DuoShare.RaiseBucket("silver") == "master", DuoShare.RaiseBucket("silver") ?? "");
+            Check("свой выше — остаётся свой",
+                  DuoShare.RaiseBucket("master") == "master", DuoShare.RaiseBucket("master") ?? "");
+
+            // Напарник неизвестен — поднимать нечем, и это не ошибка.
+            acc.DuoPools[0].FriendPuuid = "кто-то-другой";
+            Check("неизвестного напарника бакет не меняет",
+                  DuoShare.RaiseBucket("silver") == "silver", DuoShare.RaiseBucket("silver") ?? "");
+        }
+        finally
+        {
+            acc.DuoPools.Clear();
+            acc.DuoPools.AddRange(poolsBak);
+            acc.ActiveKind = kindBak; acc.ActiveId = idBak;
+        }
 
         // ── Чужим секретом не прочитать ─────────────────────────────────────
         var alien = DuoShare.PullAsync(DuoShare.NewSecret(), PuuidA).GetAwaiter().GetResult();

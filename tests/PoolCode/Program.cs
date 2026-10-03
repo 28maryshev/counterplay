@@ -43,11 +43,31 @@ internal static class Program
             Mine = new() { ["support"] = [412] },
             Friend = new() { ["adc"] = [22] },
             ManualPairs = [new ManualDuoPair { Mine = 412, MineRole = "support", Friend = 22, FriendRole = "adc" }],
+            ShareSecret = DuoShare.NewSecret(),
         };
         var (_, d2) = PoolFile.Parse(PoolFile.FromCode(PoolFile.ToCode(PoolFile.Export(duo))) ?? "");
         Check("дуо вернулось из кода",
               d2 is not null && d2.FriendName == "Ваня" && d2.Manual && d2.ManualPairs.Count == 1,
               d2?.FriendName ?? "не разобралось");
+
+        // Секрет дуо едет В ТОМ ЖЕ конверте, а значит и кодом, не только файлом.
+        // Это единственный путь, которым он попадает ко второму человеку: пул
+        // чаще передают строкой в мессенджер, чем файлом.
+        var duoCode = PoolFile.ToCode(PoolFile.Export(duo));
+        Check("секрет дуо доезжает кодом",
+              d2 is not null && d2.ShareSecret == duo.ShareSecret,
+              d2?.ShareSecret ?? "нет");
+        Check("код с дуо-пулом всё ещё влезает в сообщение",
+              duoCode.Length < 900, $"{duoCode.Length}");
+        Console.WriteLine($"дуо-пул с секретом: код {duoCode.Length} знаков");
+
+        // Старый файл без секрета читается по-прежнему: обмена у него не будет,
+        // остальное как было. Иначе обновление сломало бы присланные раньше пулы.
+        var noSecret = PoolFile.Export(new DuoPool { FriendName = "Без секрета",
+                                                     Mine = new() { ["support"] = [412] } });
+        var (_, d3) = PoolFile.Parse(PoolFile.FromCode(PoolFile.ToCode(noSecret)) ?? "");
+        Check("пул без секрета читается, просто без обмена",
+              d3 is not null && d3.ShareSecret.Length == 0, d3?.FriendName ?? "не разобралось");
 
         // ── что делает с кодом жизнь ───────────────────────────────────────
         Check("перенос строки посередине не мешает",
