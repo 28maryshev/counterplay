@@ -1,0 +1,12 @@
+# В образ — только код. Данные и логи монтируются томами (docker-compose.yml),
+# .env читается через env_file, секреты — отдельным томом. Без этого файла
+# COPY . . запекал в образ 308 МБ data/, .env с токенами и каталог секретов.
+node_modules/
+data/
+logs/
+secrets/
+tmp-upload/
+.env
+*.db
+*.db-wal
+*.db-shm
