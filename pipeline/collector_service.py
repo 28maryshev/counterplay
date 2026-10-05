@@ -387,7 +387,8 @@ def run_with_deadline(fn, seconds: int, on_late=None, on_late_error=None):
     return box['ok']
 
 
-def _announce_published(info: dict, session_total: int, started: float, late: bool = False):
+def _announce_published(info: dict, session_total: int, started: float, late: bool = False,
+                        why: str = 'round'):
     """Всё, что делается после удачной публикации: объявить, записать, позвать
     обновление сайта. Одно место на оба исхода — вовремя и с опозданием, — чтобы
     поздний успех не оказался беднее обычного, как 2 октября."""
@@ -396,7 +397,7 @@ def _announce_published(info: dict, session_total: int, started: float, late: bo
     bsizes = ' · '.join(f'{b} {buckets[b]["size_mb"]}МБ' for b in buckets)
     head = (f'📦 База обновлена в проде с опозданием (публикация шла {minutes} мин)'
             if late else '📦 База обновлена в проде')
-    notify(f'{head}: +{session_total} матчей за круг · '
+    notify(f'{head}: +{session_total} матчей {PUBLISH_WHY[why]} · '
            f'патч {info["patch"]} · версия `{info["version"]}` · '
            f'тонкая {info.get("slim_mb", "?")}МБ'
            + (f'\nПо эло: {bsizes}' if bsizes else ''))
@@ -414,9 +415,19 @@ def _announce_published(info: dict, session_total: int, started: float, late: bo
     request_site_update(info['patch'])
 
 
-def publish_db(session_total: int):
+# Повод публикации — в словах сообщений. 5 октября на истёкшем ключе бот написал
+# «Круг завершён», а через полтора часа «+N за круг» — и это прочли как второй
+# круг, хотя то были начало и конец одной публикации.
+PUBLISH_WHY = {
+    'round': 'за круг',             # круг пройден, ключ жив и пойдёт дальше
+    'key': 'за истёкший ключ',      # Riot отказал, ждём новый
+    'disk': 'до остановки по диску',
+}
+
+
+def publish_db(session_total: int, why: str = 'round'):
     if not GH_TOKEN:
-        notify(f'✅ Круг сбора завершён: +{session_total} матчей. '
+        notify(f'✅ Сбор {PUBLISH_WHY[why]}: +{session_total} матчей. '
                '(Автопубликация выключена — нет GITHUB_TOKEN.)')
         return
     if _publishing is not None and _publishing.is_alive():
@@ -430,7 +441,7 @@ def publish_db(session_total: int):
     started = time.monotonic()
 
     def late_ok(info):
-        _announce_published(info, session_total, started, late=True)
+        _announce_published(info, session_total, started, late=True, why=why)
 
     def late_err(e):
         notify(f'⚠️ Заливка, которая шла фоном, так и не прошла: `{e}`. '
@@ -439,8 +450,15 @@ def publish_db(session_total: int):
 
     try:
         set_status(state='publishing')
-        notify(f'📦 Круг завершён (+{session_total}) — публикую базу. '
-               'Это несколько минут; сбор продолжится сразу после неё.')
+        # Сколько займёт — не обещаем: на этой машине сборка идёт то 6 минут, то
+        # полтора часа, смотря по остатку разгона диска (журнал, 5 октября).
+        # На истёкшем ключе молчим: о публикации уже сказано в просьбе о ключе.
+        if why == 'round':
+            notify(f'📦 Круг завершён (+{session_total}) — публикую базу; '
+                   'сбор тем же ключом продолжится после неё.')
+        elif why == 'disk':
+            notify(f'📦 Кончается место на диске — публикую собранное '
+                   f'(+{session_total}) и останавливаю сбор.')
         clear_publish_dir()            # хвосты прошлого захода — до, а не после
         tmp = publish_dir()
         tmp.mkdir(exist_ok=True)
@@ -452,7 +470,7 @@ def publish_db(session_total: int):
             run_upload=lambda job: run_with_deadline(job, PUBLISH_TIMEOUT,
                                                      on_late=late_ok, on_late_error=late_err),
             workdir=tmp, build_timeout=BUILD_TIMEOUT)
-        _announce_published(info, session_total, started)
+        _announce_published(info, session_total, started, why=why)
     except publish_data.BuildTimeout as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но сборка базы не уложилась в '
                f'{BUILD_TIMEOUT // 3600} ч и прервана. Сбор продолжаю, база выложится '
@@ -577,7 +595,7 @@ def main():
             # ×1.5 от базы именно для этого) и ждём, пока освободят. Ключ НЕ
             # трогаем: как только место появится, сбор продолжится сам.
             got = getattr(e, 'collected', 0) or 0
-            publish_db(got)
+            publish_db(got, why='disk')
             notify(f'🛑 **Сбор остановлен: мало места на диске.**\n'
                    f'Свободно {e.free_mb} МБ, нужно ≥ {e.need_mb} МБ. '
                    f'За этот ключ собрано +{got}.\n{matches_line()}\n'
@@ -661,7 +679,7 @@ def main():
                       if lived < SHORT_KEY_SEC else '')
                    + f'{matches_line()}\nПришли новый: `/collect key:RGAPI-…` — '
                    f'собранное сейчас публикую.')
-            publish_db(got)
+            publish_db(got, why='key')
         except Exception as e:
             print(traceback.format_exc(), flush=True)
             notify(f'❌ Сбор упал: `{type(e).__name__}: {e}`. Перезапущусь через минуту.')

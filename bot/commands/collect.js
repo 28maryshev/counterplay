@@ -23,6 +23,35 @@ function readStatus() {
   }
 }
 
+// Статус коллектор переписывает раз в 30 с; старше этого — значит, он молчит.
+const STATUS_STALE_MS = 5 * 60 * 1000;
+
+// Что ответить на присланный ключ. Коллектор берёт ключ из файла только между
+// кругами: пока идёт публикация или сбор старым ключом, новый ждёт. 5 октября бот
+// пообещал «старт через ~15 с», а ключ два часа пролежал под публикацией.
+function keyReply(st, now = Date.now()) {
+  const age = st ? now - Date.parse(st.at) : NaN;
+  if (!st || !(age < STATUS_STALE_MS)) {
+    const mins = Number.isFinite(age) ? `${Math.round(age / 60000)} min` : 'a while';
+    return `Key saved, but the collector has not reported for ${mins} — check \`/collect status\`.`;
+  }
+  switch (st.state) {
+    case 'key_expired':
+    case 'publishing':
+    case 'published':
+    case 'pruning':
+      return 'Key saved. The collector is publishing the database right now; collecting with this key ' +
+        'starts once that is done (from a few minutes to about two hours). The channel gets ▶️ when it starts.';
+    case 'collecting':
+      return 'Key saved. The collector is still running on the current key and switches to this one ' +
+        'when that key expires or the round ends.';
+    case 'disk_full':
+      return 'Key saved, but collecting is stopped: the server is low on disk. It resumes on its own once space is freed.';
+    default:
+      return 'Key accepted — the collector will pick it up within a minute and start collecting.';
+  }
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('collect')
@@ -64,10 +93,7 @@ module.exports = {
         await interaction.reply({ content: `Could not hand the key over: \`${e.message}\``, ephemeral: true });
         return;
       }
-      await interaction.reply({
-        content: 'Key accepted — the collector will pick it up within ~15s and start collecting.',
-        ephemeral: true
-      });
+      await interaction.reply({ content: keyReply(readStatus()), ephemeral: true });
       return;
     }
 
