@@ -317,11 +317,25 @@ static class TestMode
         RunesClient.UseMock = false;   // руны — настоящие, из базы
     }
 
+    // Почти все мидеры и саппорты — по доле игр на роли в базе (emerald, 16.18–
+    // 16.19): мид от четверти игр, саппорт от половины. Мидеры уходят другу,
+    // саппорты — мне: так пул «Друг» покрывает связку «я саппорт, он мид».
+    internal static readonly int[] MidAll =
+    [
+        103, 711, 61, 38, 268, 127, 4, 55, 90, 7, 166, 105, 805, 1, 134, 893, 13, 3, 112, 142,
+        8, 238, 84, 910, 69, 136, 34, 45, 157, 163, 800, 131, 101, 777, 245, 517, 39, 99, 246, 115,
+    ];
+    internal static readonly int[] SupportAll =
+    [
+        267, 902, 350, 201, 89, 412, 432, 117, 53, 888, 37, 526, 40, 555, 497, 16, 12, 111, 44, 43,
+        235, 147, 26, 25, 518, 161, 143, 57, 63, 50, 99, 78, 223, 80,
+    ];
+
     /// Тестовые пулы песочницы — если у её аккаунта пулов нет совсем.
     internal static void SeedTestPools()
     {
         var pools = PoolStore.Current();
-        if (pools.Pools.Count > 0 || pools.DuoPools.Count > 0) return;
+        if (pools.Pools.Count > 0 || pools.DuoPools.Count > 0) { WidenTestDuo(pools); return; }
         // Мид и саппорт — широкие, как их собрал владелец в песочнице: на них
         // и держится подменная история (см. MakeGamePreview).
         var mine = new Dictionary<string, List<int>>
@@ -329,11 +343,11 @@ static class TestMode
             ["top"] = [86, 122, 54], ["jungle"] = [64, 19, 32],
             ["mid"] = [103, 238, 99, 34, 101, 131, 45, 268, 166, 142, 3, 893, 8, 38, 805, 55, 69, 127, 711],
             ["adc"] = [222, 22, 51],
-            ["support"] = [89, 412, 16, 235, 223, 888, 518, 80, 526, 267, 50, 99, 161, 201, 43, 432, 53, 902, 40, 26],
+            ["support"] = [.. SupportAll],
         };
         var friend = new Dictionary<string, List<int>>
         {
-            ["top"] = [24, 92], ["jungle"] = [11, 60], ["mid"] = [4, 45],
+            ["top"] = [24, 92], ["jungle"] = [11, 60], ["mid"] = [.. MidAll],
             ["adc"] = [67, 236], ["support"] = [117, 40],
         };
         pools.Pools.Add(new ChampPool { Name = "Тест", ByRole = mine });
@@ -346,6 +360,24 @@ static class TestMode
         });
         PoolStore.Persist();
         PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
+    }
+
+    /// <summary>
+    /// Разово дописать в уже собранный тестовый дуо-пул всех мидеров другу и всех
+    /// саппортов мне — ПОВЕРХ того, что там собрано руками. Отметка в папке
+    /// песочницы: второй раз не дописываем, иначе убранный чемпион возвращался бы
+    /// при каждом запуске.
+    /// </summary>
+    private static void WidenTestDuo(AccountPools pools)
+    {
+        var mark = Path.Combine(Sandbox.Dir, "duo-widen-1");
+        if (File.Exists(mark)) return;
+        var d = pools.DuoPools.FirstOrDefault(x => x.FriendPuuid == MateOften);
+        if (d is null) return;
+        d.Friend["mid"]   = [.. d.FriendForRole("mid").Union(MidAll)];
+        d.Mine["support"] = [.. d.MineForRole("support").Union(SupportAll)];
+        PoolStore.Persist();
+        try { File.WriteAllText(mark, ""); } catch { /* допишем в следующий раз — Union повторов не даст */ }
     }
 
     // Напарники подменной истории. Постоянный — тот, на кого настроен тестовый
@@ -406,6 +438,31 @@ static class TestMode
         Pair(MateOften, H, "normal", 201, "support",  45, "mid",     "LL",        9, 11);  // Браум + Вейгар
         Pair(MateOften, H, "solo",   432, "support",   4, "mid",     "W",         3,  3);  // Бард + Твистед Фэйт
         Pair(MateOften, H, "flex",   161, "support",  45, "mid",     "WLLW",      8, 29);  // Вел'Коз + Вейгар
+
+        // ── Harribon: я саппорт, он мид — широко, по всему пулу ──
+        // Пар много, и вручную их не расписать: генерируем, но с постоянным
+        // зерном — история одна и та же от запуска к запуску. Большинство пар на
+        // одну-три игры, часть до восьми; винрейт пары от 30 до 75%. У каждой
+        // пятой есть игры старше месяца.
+        var rng = new Random(20261007);
+        var made = new HashSet<(int, int)>();
+        for (var n = 0; n < 90; n++)
+        {
+            var sup = SupportAll[rng.Next(SupportAll.Length)];
+            var mid = MidAll[rng.Next(MidAll.Length)];
+            if (sup == mid || !made.Add((sup, mid))) continue;
+            string Results(int count, double wr) =>
+                new([.. Enumerable.Range(0, count).Select(_ => rng.NextDouble() < wr ? 'W' : 'L')]);
+            var wr    = 0.30 + rng.NextDouble() * 0.45;
+            var count = 1 + rng.Next(rng.Next(3) == 0 ? 8 : 3);
+            var from  = 1 + rng.NextDouble() * 12;
+            var to    = Math.Min(29.5, from + rng.NextDouble() * 17);
+            var queue = rng.Next(10) switch { < 5 => "solo", < 8 => "flex", _ => "normal" };
+            Pair(MateOften, H, queue, sup, "support", mid, "mid", Results(count, wr), from, to);
+            if (rng.Next(5) == 0)
+                Pair(MateOften, H, queue, sup, "support", mid, "mid",
+                     Results(1 + rng.Next(3), wr), 32 + rng.NextDouble() * 5, 40 + rng.NextDouble() * 18);
+        }
 
         // ── Harribon, последний месяц: я мид, он лес ──
         Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "WLWWLWW",   2, 28);  // Ари + Элиза
