@@ -421,10 +421,16 @@ static class TestMode
         {
             var his = mate.Select(g => g with { MyChampionId = g.AllyChampionId, AllyChampionId = g.MyChampionId })
                           .ToList();
+            // Постоянному напарнику — ещё его игры без меня и пожизненные очки.
+            var often = mate.Key == MateOften;
+            if (often) his.AddRange(MakeMateSolo(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
             var hist = SessionTracker.PreviewHistory(his, RecommendationEngine.FreshDays, queues);
             var pts  = MakeMastery(his);
+            if (often)
+                foreach (var (id, life) in MateLifetimeMastery)
+                    pts[id] = Math.Max(pts.GetValueOrDefault(id), life);
             var map  = new Dictionary<int, MateComfort>();
-            foreach (var id in his.Select(g => g.MyChampionId).Where(x => x != 0).Distinct())
+            foreach (var id in his.Select(g => g.MyChampionId).Concat(pts.Keys).Where(x => x != 0).Distinct())
             {
                 var (g, w) = hist.Recent(id);
                 map[id] = new MateComfort(g, w, pts.GetValueOrDefault(id),
@@ -434,6 +440,51 @@ static class TestMode
         }
         return res;
     }
+
+    // Любимые чемпионы тестового дуэта: на них игр больше всего.
+    internal static readonly int[] MateMidMains   = [38, 134, 103, 61, 112, 7, 4, 45];      // Кассадин, Синдра, Ари, Орианна, Виктор, Ле Блан, Твистед Фэйт, Вейгар
+    internal static readonly int[] MySupportMains = [235, 267, 412, 89, 117, 902, 161, 147]; // Сенна, Нами, Треш, Леона, Лулу, Милио, Вел'Коз, Серафина
+    private const int MateRetiredMain = 84;   // Акали: много очков, полгода не брал
+
+    /// <summary>
+    /// Игры Harribon БЕЗ меня — его соло-очередь на миде. Наигранность человека
+    /// не сводится к играм со мной: в бою она приходит от него целиком. Тут и
+    /// мейны, и чемпионы «разок», и бывший мейн, которого он полгода не брал, —
+    /// чтобы было видно, как подбор гасит устаревший опыт.
+    /// </summary>
+    private static List<SessionTracker.PreviewGame> MakeMateSolo(long now)
+    {
+        var res = new List<SessionTracker.PreviewGame>();
+        var rng = new Random(20261008);
+        void Solo(int champ, int games, double wr, double fromDays, double toDays)
+        {
+            for (var i = 0; i < games; i++)
+            {
+                var days = games == 1 ? fromDays : fromDays + (toDays - fromDays) * i / (games - 1);
+                res.Add(new("", "", "solo", champ, 0, "mid", "",
+                            now - (long)(days * 86400) - 2700L * i, rng.NextDouble() < wr));
+            }
+        }
+        Solo( 38, 30, 0.57,   0.5,  29);   // Кассадин — главный мейн
+        Solo(134, 22, 0.55,   1,    28);   // Синдра
+        Solo(103, 18, 0.50,   1,    29);   // Ари
+        Solo( 61, 14, 0.52,   2,    27);   // Орианна
+        Solo(112, 10, 0.60,   3,    26);   // Виктор
+        Solo( 45, 12, 0.58,   1,    25);   // Вейгар
+        Solo(  4,  6, 0.50,   4,    22);   // Твистед Фэйт
+        Solo(  7,  8, 0.38,   2,    20);   // Ле Блан — играет, но не идёт
+        Solo(157,  3, 0.33,   5,    15);   // Ясуо — разок
+        Solo(MateRetiredMain, 25, 0.55, 100, 160);   // Акали — бывший мейн, полгода не брал
+        return res;
+    }
+
+    // Его пожизненные очки мастерства: в бою приходят от него вместе с играми.
+    // Берём большее из этого и «1000 за игру» по тестовой истории.
+    private static readonly Dictionary<int, long> MateLifetimeMastery = new()
+    {
+        [38] = 420_000, [134] = 260_000, [103] = 180_000, [61] = 150_000, [112] = 90_000,
+        [45] = 60_000, [4] = 70_000, [7] = 120_000, [157] = 40_000, [84] = 300_000,
+    };
 
     // Напарники подменной истории. Постоянный — тот, на кого настроен тестовый
     // дуо-пул «Друг» (см. SeedTestPools).
@@ -495,28 +546,36 @@ static class TestMode
         Pair(MateOften, H, "flex",   161, "support",  45, "mid",     "WLLW",      8, 29);  // Вел'Коз + Вейгар
 
         // ── Harribon: я саппорт, он мид — широко, по всему пулу ──
-        // Пар много, и вручную их не расписать: генерируем, но с постоянным
-        // зерном — история одна и та же от запуска к запуску. Большинство пар на
-        // одну-три игры, часть до восьми; винрейт пары от 30 до 75%. У каждой
-        // пятой есть игры старше месяца.
+        // Пар много, и вручную их не расписать: генерируем с постоянным зерном —
+        // история одна и та же от запуска к запуску. Как у настоящего дуэта, есть
+        // любимые: его мейны на миде и мои мейны в саппорте выпадают в половине
+        // случаев, и на паре «мейн + мейн» игр больше — от трёх до десяти.
+        // Остальные пары — одна-три игры, изредка до шести. Винрейт пары от 30
+        // до 75%; у каждой четвёртой есть игры старше месяца.
         var rng = new Random(20261007);
+        int PickOf(int[] mains, int[] all) =>
+            rng.Next(2) == 0 ? mains[rng.Next(mains.Length)] : all[rng.Next(all.Length)];
+        string Results(int count, double wr) =>
+            new([.. Enumerable.Range(0, count).Select(_ => rng.NextDouble() < wr ? 'W' : 'L')]);
         var made = new HashSet<(int, int)>();
-        for (var n = 0; n < 90; n++)
+        for (var n = 0; n < 260; n++)
         {
-            var sup = SupportAll[rng.Next(SupportAll.Length)];
-            var mid = MidAll[rng.Next(MidAll.Length)];
+            var sup = PickOf(MySupportMains, SupportAll);
+            var mid = PickOf(MateMidMains, MidAll);
+            // Бывший мейн друга заброшен и со мной тоже: иначе свежие общие игры
+            // на нём прятали бы, как подбор гасит устаревший опыт.
+            if (mid == MateRetiredMain) continue;
             if (sup == mid || !made.Add((sup, mid))) continue;
-            string Results(int count, double wr) =>
-                new([.. Enumerable.Range(0, count).Select(_ => rng.NextDouble() < wr ? 'W' : 'L')]);
+            var favourite = MySupportMains.Contains(sup) && MateMidMains.Contains(mid);
             var wr    = 0.30 + rng.NextDouble() * 0.45;
-            var count = 1 + rng.Next(rng.Next(3) == 0 ? 8 : 3);
-            var from  = 1 + rng.NextDouble() * 12;
-            var to    = Math.Min(29.5, from + rng.NextDouble() * 17);
+            var count = favourite ? 3 + rng.Next(8) : 1 + rng.Next(rng.Next(3) == 0 ? 6 : 3);
+            var from  = 0.5 + rng.NextDouble() * 10;
+            var to    = Math.Min(29.5, from + 5 + rng.NextDouble() * 18);
             var queue = rng.Next(10) switch { < 5 => "solo", < 8 => "flex", _ => "normal" };
             Pair(MateOften, H, queue, sup, "support", mid, "mid", Results(count, wr), from, to);
-            if (rng.Next(5) == 0)
+            if (rng.Next(4) == 0)
                 Pair(MateOften, H, queue, sup, "support", mid, "mid",
-                     Results(1 + rng.Next(3), wr), 32 + rng.NextDouble() * 5, 40 + rng.NextDouble() * 18);
+                     Results(1 + rng.Next(favourite ? 5 : 3), wr), 32 + rng.NextDouble() * 5, 40 + rng.NextDouble() * 18);
         }
 
         // ── Harribon, последний месяц: я мид, он лес ──
