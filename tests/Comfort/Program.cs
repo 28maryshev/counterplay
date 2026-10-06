@@ -246,6 +246,32 @@ internal static class Program
         Console.WriteLine($"  для сравнения: 3 победы из 3 → личная дельта {streak:F2}");
         Check("короткая серия гасится объёмом", streak < 2.0, $"{streak:F2}");
 
+        // Вес процента растёт с числом игр. Пример владельца: 56% на 100 играх
+        // лучше, чем 66% на 9. Прежняя формула ставила 56% на сотне, 6–0 и
+        // 8–2 на один и тот же потолок — подбор не видел между ними разницы.
+        Console.WriteLine("\n── процент и число игр ──");
+        double Pd(int games, int wins)
+        {
+            SessionTracker.HistoryOverride = Hist(champ, recent: games, daysSince: 1, span: 400, wins: wins);
+            return engine.PersonalDelta(champ);
+        }
+        var proven = Pd(100, 56);
+        var few    = Pd(9, 6);
+        var sixO   = Pd(6, 6);
+        var eight2 = Pd(10, 8);
+        Console.WriteLine($"  56% на 100 играх: {proven:F2}   66% на 9: {few:F2}   "
+                          + $"6–0: {sixO:F2}   8–2: {eight2:F2}");
+        Check("56% на 100 играх весят больше, чем 66% на 9", proven > few + 1.0,
+              $"{proven:F2} против {few:F2}");
+        Check("короткая серия не догоняет сотню игр", proven > sixO && proven > eight2,
+              $"{proven:F2} против 6–0 {sixO:F2} и 8–2 {eight2:F2}");
+        Check("и не упирается в потолок наравне с ней", proven < PersonalCapInCode - 0.5,
+              $"{proven:F2} при потолке {PersonalCapInCode:F1}");
+        var at60 = new[] { 10, 20, 50, 100 }.Select(g => Pd(g, g * 6 / 10)).ToList();
+        Console.WriteLine($"  60% на 10/20/50/100 играх: {string.Join(" / ", at60.Select(x => x.ToString("F2")))}");
+        Check("при том же проценте больше игр — больше вес",
+              at60.Zip(at60.Skip(1)).All(p => p.Second > p.First), "");
+
         // ── 4c. Против контры комфорт ужимается ─────────────────────────────
         // Нашлось живым замером: личная прибавка владельца на Соне перебивала
         // 4 пп матчапа, и Сона шла вторым номером против Леоны при 22-м месте
