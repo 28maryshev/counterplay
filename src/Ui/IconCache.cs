@@ -52,12 +52,19 @@ public static class IconCache
         try
         {
             Directory.CreateDirectory(cacheDir);
-            // Чистим кэши старых патчей, чтобы не копить мусор.
+            // Чистим кэши старых патчей, чтобы не копить мусор. Только папки
+            // ПАТЧЕЙ («16.20.1»): рядом живёт roles с иконками ролей, и прежняя
+            // чистка сносила её при каждом запуске — иконки ролей качались
+            // заново всякий раз, а при медленном Community Dragon не доезжали
+            // вовсе (см. RoleIcons).
             var parent = Directory.GetParent(cacheDir)?.FullName;
             if (parent is not null)
                 foreach (var d in Directory.GetDirectories(parent))
-                    if (!string.Equals(Path.GetFileName(d), DataDragon.Version, StringComparison.Ordinal))
+                {
+                    var name = Path.GetFileName(d);
+                    if (IsPatchDir(name) && !string.Equals(name, DataDragon.Version, StringComparison.Ordinal))
                         try { Directory.Delete(d, recursive: true); } catch { }
+                }
         }
         catch { /* кэш не критичен */ }
 
@@ -93,6 +100,10 @@ public static class IconCache
 
         await Task.WhenAll(tasks);
     }
+
+    /// Имя папки — номер патча Data Dragon: цифры через точку.
+    private static bool IsPatchDir(string name) =>
+        name.Length > 0 && name.All(c => char.IsAsciiDigit(c) || c == '.');
 
     /// Возвращает ImageSource из кэша. Должна вызываться из UI-потока.
     public static ImageSource? Get(int champId)

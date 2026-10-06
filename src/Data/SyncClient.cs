@@ -52,6 +52,10 @@ public static class SyncClient
     public static async Task<Result> SyncAsync(string? puuid, CancellationToken ct = default,
                                               int tries = 3)
     {
+        // Песочница не синхронизируется: синхронизация возит НАСТОЯЩИЕ файлы
+        // игрока, а песочница сидит под аккаунтом «test-account» — его файлы
+        // уезжали бы в чужую строку и сливались оттуда обратно.
+        if (Sandbox.Active) return new Result(false, "песочница не синхронизируется");
         if (!SyncPassword.IsSet) return new Result(false, Loc.T("sync.noPassword"));
         var id = IdFor(puuid);
         if (id is null) return new Result(false, Loc.T("sync.noAccount"));
@@ -130,7 +134,7 @@ public static class SyncClient
     /// </summary>
     public static async Task AutoAsync(string? puuid, string reason, CancellationToken ct = default)
     {
-        if (!SyncPassword.IsSet || string.IsNullOrEmpty(puuid)) return;
+        if (Sandbox.Active || !SyncPassword.IsSet || string.IsNullOrEmpty(puuid)) return;
         if (DateTime.UtcNow - _lastAuto < AutoQuiet) return;
         // Уже идём — второй заход только подрался бы с первым за ту же строку.
         if (Interlocked.Exchange(ref _autoRunning, 1) == 1) return;

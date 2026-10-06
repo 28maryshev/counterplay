@@ -98,6 +98,7 @@ public static class Autostart
     /// Включить/выключить. Возвращает фактическое состояние после попытки.
     public static bool Set(bool enabled)
     {
+        if (Sandbox.Active) return IsEnabled;   // реестр — общий с боевой программой
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);

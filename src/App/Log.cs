@@ -40,7 +40,10 @@ public static class Log
         _fileReady = true;
         try
         {
-            var dir = Path.Combine(
+            // У песочницы свой журнал: в общем её строки шли вперемешку со
+            // строками боевой программы, и чьё действие — не разобрать (на этом
+            // однажды приписали песочнице синхронизацию боевой).
+            var dir = Sandbox.Active ? Sandbox.Dir : Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "log.txt");

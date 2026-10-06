@@ -40,6 +40,7 @@ class Program
         // программа, и вместо неё разворачивалось уже запущенное окно. Смотреть
         // на изменения рядом с настоящим окном — обычное дело при разработке.
         var sandbox = args.Contains("test") || args.Contains("--test");
+        Sandbox.Active = sandbox;   // данные игрока — только чтением, см. Sandbox
         using var single = new Mutex(
             initiallyOwned: true,
             sandbox ? "Counterplay.SingleInstance.Test" : "Counterplay.SingleInstance",
@@ -76,14 +77,18 @@ class Program
 
         // Автозапуск с Windows: включаем при первом старте новой версии и один раз
         // сообщаем об этом в панели (молча прописываться в автозагрузку — дурной тон).
-        var autostartNotice = Autostart.ApplyOnStartup();
+        // Песочница систему не трогает: реестр прописал бы автозапуск и файлы
+        // пулов на тот exe, из которого её запустили.
+        var autostartNotice = !sandbox && Autostart.ApplyOnStartup();
 
         // Связка .cpool с программой: двойной клик по присланному файлу должен
         // открывать импорт, а не блокнот. Проверяем на каждом старте — путь
         // меняется при переустановке.
-        FileAssoc.EnsureRegistered();
+        if (!sandbox) FileAssoc.EnsureRegistered();
 
-        _ = Telemetry.PingAsync(); // анонимный пинг для статистики активных пользователей
+        // Анонимный пинг для статистики активных пользователей. Запуск
+        // песочницы — не пользователь.
+        if (!sandbox) _ = Telemetry.PingAsync();
 
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
@@ -436,13 +441,14 @@ class Program
     /// патч и на диске старый), и только потом тянем иконки — иначе скачали бы
     /// набор прошлого патча, а следом ещё раз новый.
     /// </summary>
-    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct) =>
+    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct)
+    {
+        StartRoleIcons(overlay, ct);
         _ = Task.Run(async () =>
         {
             try
             {
                 await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
-                await RoleIcons.PreloadAsync(ct);
                 await ItemIcons.PreloadAsync(ct);   // иконки контр-предметов
 
                 // Руны: справочник (имена/иконки) + названия предметов + манифест
@@ -457,6 +463,28 @@ class Program
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { Log.Write($"разогрев не доделан: {ex.Message}"); }
+        }, ct);
+    }
+
+    /// <summary>
+    /// Иконки ролей — отдельно от прогрева, своим ходом.
+    ///
+    /// Они живут на Community Dragon, а не на Data Dragon, и тот бывает
+    /// медленным: 7 октября отвечал за 19.5 с. Стоя первыми в цепочке прогрева,
+    /// иконки держали за собой руны, названия и свойства предметов — панель
+    /// сборки появлялась через минуту с лишним после запуска. Доехали — окно
+    /// перерисовывается, как после портретов.
+    /// </summary>
+    internal static void StartRoleIcons(OverlayWindow overlay, CancellationToken ct) =>
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RoleIcons.PreloadAsync(ct);
+                overlay.IconsArrived();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Log.Write($"иконки ролей не доехали: {ex.Message}"); }
         }, ct);
 
     /// <summary>

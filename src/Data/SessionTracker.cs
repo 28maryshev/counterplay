@@ -720,6 +720,10 @@ public static class SessionTracker
 
     private static void Save(Store s)
     {
+        // Песочница журнал не пишет: рядом работает боевая программа, и две
+        // записи одного файла теряли бы игры. Выбор очереди в песочнице так и
+        // остаётся в её окне, а не переключает график в боевом сайдбаре.
+        if (Sandbox.Active) return;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);

@@ -241,6 +241,9 @@ public sealed class AppSettings
     /// драфта дорога и заметна.
     public static void SaveQuiet()
     {
+        // Песочница настройки не пишет: она сохранила бы их целиком из своей
+        // памяти и откатила то, что успели поменять в боевой программе.
+        if (Sandbox.Active) return;
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
@@ -254,6 +257,8 @@ public sealed class AppSettings
     /// Сохранить и сообщить окну, что пора перерисоваться.
     public static void Save()
     {
+        // В песочнице — только в памяти, окно всё равно перерисовывается (см. SaveQuiet).
+        if (Sandbox.Active) { Changed?.Invoke(); return; }
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);

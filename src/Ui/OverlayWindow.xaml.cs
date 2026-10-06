@@ -2991,14 +2991,8 @@ public partial class OverlayWindow : Window
         _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); }, _engine);
         // Закрыли окно — отдаём правки на сервер. Пулы правят здесь и только
         // здесь, а ждать до конца следующей игры значит рисковать ими зря.
-        //
-        // В песочнице — нет: её пулы лежат в своей папке, а синхронизация возит
-        // НАСТОЯЩИЕ файлы игрока, да ещё под строкой «test-account» — то есть
-        // выгружала бы его данные в чужую строку и тянула оттуда обратно.
         _poolSettings.Closed += (_, _) =>
-        {
-            if (!SandboxMode) _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "правка пулов");
-        };
+            _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "правка пулов");
         _poolSettings.Show();
     }
 

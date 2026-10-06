@@ -63,7 +63,9 @@ static class TestMode
         await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
         overlay.ShowStatus(Loc.T("status.loadingIcons"));
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
-        await RoleIcons.PreloadAsync(ct);
+        // Иконки ролей — своим ходом, как в бою: при медленном Community Dragon
+        // песочница стояла на «загрузке иконок» по минуте с лишним.
+        Program.StartRoleIcons(overlay, ct);
         await ItemIcons.PreloadAsync(ct);
         // Бакет берём ТОТ ЖЕ, что и боевой режим (сохранённый ранг). Иначе теги
         // версий не совпадают ("all:…" против "gold:…") и база перекачивается
@@ -137,7 +139,7 @@ static class TestMode
         // переписывает целиком. Запись песочницы могла вернуть настоящие пулы к
         // виду на момент её запуска. Свои пулы игрока песочница теперь только
         // читает (PoolStore.ReadLive).
-        PoolStore.DirOverride = SandboxPoolsDir;
+        PoolStore.DirOverride = Sandbox.Dir;
         PoolStore.Reload();
         PoolStore.SetAccount("test-account", "TEST");
         SeedTestPools();
@@ -284,7 +286,9 @@ static class TestMode
         await Task.WhenAny(LiveRequested.Task, Task.Delay(Timeout.Infinite, ct));
         if (!SwitchToLive) return;
 
-        // Пулы — обратно к настоящему файлу игрока: дальше программа боевая.
+        // Дальше программа боевая: данные игрока снова пишутся, пулы — обратно
+        // к его настоящему файлу.
+        Sandbox.Active = false;
         PoolStore.DirOverride = null;
         PoolStore.Reload();
         SessionTracker.UseStoredAccount(false);   // аккаунт выставит клиент
@@ -312,9 +316,6 @@ static class TestMode
         });
         RunesClient.UseMock = false;   // руны — настоящие, из базы
     }
-
-    internal static readonly string SandboxPoolsDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "sandbox");
 
     /// Тестовые пулы песочницы — если у её аккаунта пулов нет совсем.
     internal static void SeedTestPools()
@@ -675,7 +676,7 @@ sealed class TestPanel : Window
         if (fiveGames) _profile.SelectedIndex = 2;
         // «Мой аккаунт» запоминается: кто тестирует на своих данных, тот и
         // следующий запуск хочет начать с них.
-        if (!firstGame && !fiveGames && Settings.GetBool(MyAccountKey) == true)
+        if (!firstGame && !fiveGames && File.Exists(MyAccountMark))
             _profile.SelectedIndex = MyAccountProfile;
         Recompute();
 
@@ -706,14 +707,22 @@ sealed class TestPanel : Window
     // напарником (подставные). Пулы приезжают КОПИЕЙ: правки в песочнице в
     // настоящие не попадают, а уход с профиля возвращает тестовые.
     private const int MyAccountProfile = 4;
-    private const string MyAccountKey = "sandboxMyAccount";
+    // Выбор помнится отметкой в папке песочницы: settings.json — файл игрока,
+    // песочница в него не пишет (см. Sandbox).
+    private static string MyAccountMark => Path.Combine(Sandbox.Dir, "my-account");
     private bool _myData;
 
     private void UseMyData(bool on)
     {
         if (on == _myData) return;
         _myData = on;
-        Settings.Set(MyAccountKey, on);
+        try
+        {
+            Directory.CreateDirectory(Sandbox.Dir);
+            if (on) File.WriteAllText(MyAccountMark, "");
+            else File.Delete(MyAccountMark);
+        }
+        catch { /* не запомнилось — выберут ещё раз */ }
         if (on)
         {
             PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));

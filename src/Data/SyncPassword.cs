@@ -34,6 +34,12 @@ public static class SyncPassword
     /// </summary>
     public static bool Set(string? password)
     {
+        // Пароль — общий для боевой программы; из песочницы его не меняем.
+        if (Sandbox.Active)
+        {
+            Log.Write("песочница: пароль синхронизации не сохраняю");
+            return false;
+        }
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);

@@ -18,16 +18,22 @@ public static class Settings
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Counterplay", "settings.json");
 
+    // Что поменяли в песочнице: живёт в памяти поверх файла (см. Sandbox).
+    private static readonly JsonObject SandboxValues = new();
+
     private static JsonObject Load()
     {
+        var obj = new JsonObject();
         try
         {
             if (File.Exists(Path_) &&
-                JsonNode.Parse(File.ReadAllText(Path_)) is JsonObject obj)
-                return obj;
+                JsonNode.Parse(File.ReadAllText(Path_)) is JsonObject read)
+                obj = read;
         }
         catch { /* битый файл — начинаем с чистых настроек */ }
-        return new JsonObject();
+        if (Sandbox.Active)
+            foreach (var (k, v) in SandboxValues) obj[k] = v?.DeepClone();
+        return obj;
     }
 
     public static string? GetString(string key)
@@ -53,6 +59,7 @@ public static class Settings
     {
         lock (Gate)
         {
+            if (Sandbox.Active) { SandboxValues[key] = value?.DeepClone(); return; }
             try
             {
                 var obj = Load();
