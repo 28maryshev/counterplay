@@ -209,17 +209,20 @@ internal static class Program
         // Наигранность считает ИГРЫ, а не победы: «ты им владеешь» и «у тебя на
         // нём идёт» — разные вопросы. На второй отвечает PersonalDelta, и до
         // общего журнала померить его было нечем.
-        Console.WriteLine("\n── личный винрейт на 12 играх ──");
+        //
+        // Тридцать игр — месяц на одном чемпионе, с них проценту верим целиком
+        // (PERSONAL_FULL_GAMES). На меньшей выборке до потолка не дойти и при 100%.
+        Console.WriteLine("\n── личный винрейт на 30 играх ──");
         var byWr = new List<(int Wins, double Score, int Rank, double Personal)>();
-        foreach (var w in new[] { 0, 3, 6, 9, 12 })
+        foreach (var w in new[] { 0, 12, 15, 18, 30 })
         {
-            SessionTracker.HistoryOverride = Hist(champ, recent: 12, daysSince: 1, span: 400, wins: w);
+            SessionTracker.HistoryOverride = Hist(champ, recent: 30, daysSince: 1, span: 400, wins: w);
             var all = Scored(engine, empty, null);
             var rank = all.Values.Count(r => r.Score > all[champ].Score) + 1;
             byWr.Add((w, all[champ].Score, rank, engine.PersonalDelta(champ)));
         }
         foreach (var (w, sc, rk, pd) in byWr)
-            Console.WriteLine($"  {w,2} побед из 12 ({100 * w / 12,3}%): личная дельта {pd,5:F2}, "
+            Console.WriteLine($"  {w,2} побед из 30 ({100 * w / 30,3}%): личная дельта {pd,5:F2}, "
                               + $"оценка {sc,6:F2}, место {rk}");
 
         var worst = byWr[0];
@@ -247,30 +250,40 @@ internal static class Program
         Check("короткая серия гасится объёмом", streak < 2.0, $"{streak:F2}");
 
         // Вес процента растёт с числом игр. Пример владельца: 56% на 100 играх
-        // лучше, чем 66% на 9. Прежняя формула ставила 56% на сотне, 6–0 и
-        // 8–2 на один и тот же потолок — подбор не видел между ними разницы.
+        // лучше, чем 66% на 9. И его же поправка: сотни игр на чемпионе за месяц
+        // не набрать, реально около тридцати, — значит, объём должен решать и в
+        // масштабе месяца. Сглаживание на 12 игр ставило 6–0, 8–2 и 56% на
+        // сотне на один потолок; сглаживание на 100 пускало 9–1 выше 60% на 30.
         Console.WriteLine("\n── процент и число игр ──");
         double Pd(int games, int wins)
         {
             SessionTracker.HistoryOverride = Hist(champ, recent: games, daysSince: 1, span: 400, wins: wins);
             return engine.PersonalDelta(champ);
         }
-        var proven = Pd(100, 56);
-        var few    = Pd(9, 6);
-        var sixO   = Pd(6, 6);
-        var eight2 = Pd(10, 8);
-        Console.WriteLine($"  56% на 100 играх: {proven:F2}   66% на 9: {few:F2}   "
-                          + $"6–0: {sixO:F2}   8–2: {eight2:F2}");
-        Check("56% на 100 играх весят больше, чем 66% на 9", proven > few + 1.0,
-              $"{proven:F2} против {few:F2}");
-        Check("короткая серия не догоняет сотню игр", proven > sixO && proven > eight2,
-              $"{proven:F2} против 6–0 {sixO:F2} и 8–2 {eight2:F2}");
-        Check("и не упирается в потолок наравне с ней", proven < PersonalCapInCode - 0.5,
-              $"{proven:F2} при потолке {PersonalCapInCode:F1}");
-        var at60 = new[] { 10, 20, 50, 100 }.Select(g => Pd(g, g * 6 / 10)).ToList();
-        Console.WriteLine($"  60% на 10/20/50/100 играх: {string.Join(" / ", at60.Select(x => x.ToString("F2")))}");
-        Check("при том же проценте больше игр — больше вес",
+        var month   = Pd(30, 18);   // 60% на 30 играх
+        var month57 = Pd(30, 17);
+        var hundred = Pd(100, 56);
+        var few     = Pd(9, 6);     // 66% на 9
+        var streaks = new (string Name, double D)[] { ("6–0", Pd(6, 6)), ("8–2", Pd(10, 8)), ("9–1", Pd(10, 9)) };
+        Console.WriteLine($"  60% на 30: {month:F2}   57% на 30: {month57:F2}   56% на 100: {hundred:F2}   "
+                          + $"66% на 9: {few:F2}");
+        Console.WriteLine($"  серии: {string.Join("   ", streaks.Select(x => $"{x.Name} {x.D:F2}"))}");
+        Check("57% на 30 играх весят больше, чем 66% на 9", month57 > few + 1.0,
+              $"{month57:F2} против {few:F2}");
+        Check("56% на 100 играх весят больше, чем 66% на 9", hundred > few + 1.0,
+              $"{hundred:F2} против {few:F2}");
+        Check("короткая серия не догоняет месяц игры", streaks.All(x => month > x.D + 1.0),
+              $"{month:F2} против {string.Join(", ", streaks.Select(x => $"{x.Name} {x.D:F2}"))}");
+        Check("60% за месяц — заметная прибавка, но ещё не потолок",
+              month >= 3.0 && month < PersonalCapInCode, $"{month:F2} при потолке {PersonalCapInCode:F1}");
+        var at60 = new[] { 5, 10, 20, 30 }.Select(g => Pd(g, g * 6 / 10)).ToList();
+        var past = Pd(60, 36);
+        Console.WriteLine($"  60% на 5/10/20/30 играх: {string.Join(" / ", at60.Select(x => x.ToString("F2")))}"
+                          + $", на 60: {past:F2}");
+        Check("при том же проценте больше игр — больше вес, до тридцати",
               at60.Zip(at60.Skip(1)).All(p => p.Second > p.First), "");
+        Check("после тридцати игр вес уже полный", Math.Abs(past - at60[^1]) < 1e-9,
+              $"{at60[^1]:F2} и {past:F2}");
 
         // ── 4c. Против контры комфорт ужимается ─────────────────────────────
         // Нашлось живым замером: личная прибавка владельца на Соне перебивала
