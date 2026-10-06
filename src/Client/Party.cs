@@ -196,6 +196,47 @@ public static class Party
         return Logged(0, Known ? "в команде никого из пати" : "состав пати неизвестен — пару не предлагаю");
     }
 
+    /// <summary>
+    /// Место напарника в драфте — ЧЕЛОВЕК, а не его чемпион.
+    ///
+    /// Нужно, чтобы знать его РОЛЬ до того, как он кого-то навёл: пару мы
+    /// подсказываем сразу после банов, а чемпиона у него тогда ещё нет.
+    /// <see cref="MateChampion"/> для этого не годится — он ищет среди тех, у
+    /// кого чемпион УЖЕ есть, и до ховера возвращает ноль. Из-за этого роль
+    /// брали не из драфта, а из того, под какую линию чемпион положен в
+    /// половину, и человеку на миде предлагали чемпиона из его джангл-набора.
+    ///
+    /// Путь опознания тот же, что у <see cref="MateChampion"/>: сперва хозяин
+    /// половины по puuid, затем единственный человек из пати. Запасного правила
+    /// «кто взял чемпиона из половины друга» здесь нет — оно про чемпиона,
+    /// которого на этом шаге ещё не существует.
+    /// </summary>
+    public static DraftPlayer? MateSeat(DraftState state, DuoPool? duo)
+    {
+        if (duo is null) return null;
+        var allies = state.MyTeam.Where(p => !p.IsLocalPlayer).ToList();
+
+        if (duo.FriendPuuid.Length > 0)
+        {
+            var owner = allies.FirstOrDefault(p =>
+                p.Puuid.Length > 0 &&
+                p.Puuid.Equals(duo.FriendPuuid, StringComparison.OrdinalIgnoreCase));
+            if (owner is not null) return owner;
+            // Хозяин известен, но его в команде нет — это другая игра.
+            if (Known) return null;
+        }
+
+        return allies.FirstOrDefault(IsMate);
+    }
+
+    /// <summary>
+    /// Роль напарника в терминах базы (top/jungle/mid/adc/support).
+    /// Пусто — роль не раскрыта (клиент её не отдал) или напарника в драфте нет;
+    /// тогда подсказка работает как раньше, по всей половине.
+    /// </summary>
+    public static string MateRole(DraftState state, DuoPool? duo) =>
+        RecommendationEngine.LcuToDbRole(MateSeat(state, duo)?.Position ?? "");
+
     /// Чемпионы половины друга: в ручном режиме — из связок, в авто — наборы по ролям.
     private static HashSet<int> FriendChampions(DuoPool d) =>
         d.Manual

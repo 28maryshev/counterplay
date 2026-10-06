@@ -712,6 +712,50 @@ internal static class Program
 
             Check("без половины друга предложения нет",
                   engine.BestPartner(state, mineId, myDb, new Dictionary<string, List<int>>()) == 0, "0");
+
+            // ── Предлагаем на ТОЙ линии, где напарник стоит ─────────────────
+            //
+            // Жалоба на 1.3.54: «не считывает роль напарника сходу? предлагает
+            // сиджуани на мид». Роль брали не из драфта, а из того, под какую
+            // линию чемпион положен в половину: половина разложена по ролям,
+            // а на какой линии человек СЕЙЧАС, никто не спрашивал. Заметно это
+            // было только до его ховера — потом подсказка сменялась его пиком,
+            // и ошибка пряталась.
+            var jungleIds = Scored(engine, Draft("jungle", [], []), "jungle", null, false).Values
+                            .OrderByDescending(r => r.Score).Select(r => r.ChampionId)
+                            .Where(id => !friendIds.Contains(id)).Take(5).ToList();
+            if (jungleIds.Count >= 3)
+            {
+                // Половина на ДВЕ линии: саппорты и джанглеры.
+                var wide = new Dictionary<string, List<int>>
+                {
+                    [friendDb] = [.. friendIds],
+                    ["jungle"] = [.. jungleIds],
+                };
+
+                var anyRole = Quiet(() => engine.PartnerScores(state, wide));
+                var asSup   = Quiet(() => engine.PartnerScores(state, wide, friendDb));
+                var asJgl   = Quiet(() => engine.PartnerScores(state, wide, "jungle"));
+
+                Console.WriteLine($"подбор напарника по ролям: без роли {anyRole.Count} кандидатов, "
+                                  + $"саппорт {asSup.Count}, лес {asJgl.Count}");
+
+                Check("роль напарника известна — считаем только её",
+                      asSup.Keys.All(friendIds.Contains) && asJgl.Keys.All(jungleIds.Contains),
+                      $"саппорт {asSup.Count}, лес {asJgl.Count}");
+                Check("роль не раскрыта — считаем всю половину, как раньше",
+                      anyRole.Count == asSup.Count + asJgl.Count,
+                      $"{anyRole.Count} против {asSup.Count}+{asJgl.Count}");
+
+                var pickSup = engine.BestPartner(state, mineId, myDb, wide, asSup, friendDb);
+                var pickJgl = engine.BestPartner(state, mineId, myDb, wide, asJgl, "jungle");
+                Console.WriteLine($"  он на саппорте → {pickSup}, он в лесу → {pickJgl}");
+                Check("напарнику на саппорте предлагаем саппорта",
+                      friendIds.Contains(pickSup), $"{pickSup}");
+                Check("напарнику в лесу предлагаем джанглера",
+                      jungleIds.Contains(pickJgl), $"{pickJgl}");
+            }
+            else Console.WriteLine("подбор напарника по ролям: мало джанглеров в срезе — пропускаю");
         }
         finally { SessionTracker.Preview = pairBak; }
         Console.WriteLine();

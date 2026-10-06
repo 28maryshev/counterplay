@@ -5675,6 +5675,13 @@ public partial class OverlayWindow : Window
                     // чемпиона, как и раньше.
                     if (duo != null && !mateOffPool)
                     {
+                        // На какой линии напарник СЕЙЧАС — из драфта, а не из того,
+                        // под какую линию чемпион положен в его половину. Иначе
+                        // человеку на миде предлагали чемпиона из его джангл-набора
+                        // (жалоба на 1.3.54). Пусто — роль клиент не раскрыл,
+                        // работаем по всей половине, как раньше.
+                        var mateRoleDb = Party.MateRole(draft, duo);
+
                         if (duo.Manual)
                         {
                             // Фиксированные связки: мой пик из связки, где вторая
@@ -5692,6 +5699,12 @@ public partial class OverlayWindow : Window
                                 else
                                     continue;
                                 if (mateTaken != 0 && mateId != mateTaken) continue;   // только связки с ним
+                                // Связка написана под его линию, а стоит он на другой —
+                                // пара не состоится, предлагать её нечестно. Отсекаем,
+                                // только когда известны ОБЕ роли: нераскрытая роль
+                                // напарника не повод прятать связку.
+                                if (mateTaken == 0 && mateRoleDb.Length > 0
+                                    && mp.FriendRole.Length > 0 && mp.FriendRole != mateRoleDb) continue;
 
                                 if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
                                     manual.Add((mr, mateId));
@@ -5718,13 +5731,13 @@ public partial class OverlayWindow : Window
                             // мой кандидат сейчас на карточке. Пара со мной
                             // добавляется уже поверх, на каждого кандидата.
                             var mateScores = mateTaken == 0
-                                ? _engine.PartnerScores(draft, duo.Friend)
+                                ? _engine.PartnerScores(draft, duo.Friend, mateRoleDb)
                                 : null;
                             foreach (var pr in _engine.TopFromPool(draft, duo.MineForRole(myRoleDb), 3))
                             {
                                 var suggested = mateScores is null ? 0
                                     : _engine.BestPartner(draft, pr.ChampionId, myRoleDb,
-                                                          duo.Friend, mateScores);
+                                                          duo.Friend, mateScores, mateRoleDb);
                                 var shownMate = mateTaken != 0 ? mateTaken : suggested;
                                 AddPoolCard(pr, Loc.T("pool.duoLabel"),
                                             shownMate != 0 ? IconCache.Get(shownMate) : null,

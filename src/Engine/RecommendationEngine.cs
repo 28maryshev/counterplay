@@ -1085,13 +1085,20 @@ public sealed class RecommendationEngine : IDisposable
     /// <see cref="BestPartner"/> добавляет только надбавку над ней.
     /// </summary>
     public IReadOnlyDictionary<int, double> PartnerScores(
-        DraftState state, IReadOnlyDictionary<string, List<int>> friendHalf)
+        DraftState state, IReadOnlyDictionary<string, List<int>> friendHalf,
+        string mateRole = "")
     {
         var res = new Dictionary<int, double>();
         if (friendHalf.Count == 0) return res;
 
         foreach (var (role, champs) in friendHalf)
         {
+            // Роль напарника видна в драфте — считаем ТОЛЬКО её. Половина
+            // разложена по линиям, а на какой он стоит сейчас, раньше никто не
+            // спрашивал: человеку на миде предлагали чемпиона из его
+            // джангл-набора. Роль не раскрыта — считаем всю половину, как раньше.
+            if (mateRole.Length > 0 && role != mateRole) continue;
+
             var ids = champs.Where(c => c != 0).Distinct().ToList();
             if (ids.Count == 0) continue;
 
@@ -1143,10 +1150,11 @@ public sealed class RecommendationEngine : IDisposable
     /// </summary>
     public int BestPartner(DraftState state, int mineId, string myRole,
                            IReadOnlyDictionary<string, List<int>> friendHalf,
-                           IReadOnlyDictionary<int, double>? partnerScores = null)
+                           IReadOnlyDictionary<int, double>? partnerScores = null,
+                           string mateRole = "")
     {
         if (mineId == 0 || friendHalf.Count == 0) return 0;
-        var scores = partnerScores ?? PartnerScores(state, friendHalf);
+        var scores = partnerScores ?? PartnerScores(state, friendHalf, mateRole);
         var conf   = MateConfidence();
 
         var taken = new HashSet<int>();
@@ -1162,6 +1170,12 @@ public sealed class RecommendationEngine : IDisposable
         var best = 0;
         var bestTotal = double.NegativeInfinity;
         foreach (var (role, champs) in friendHalf)
+        {
+            // Та же калитка, что в PartnerScores: кандидаты вне его роли там не
+            // считались вовсе, и сюда они приходили бы с нулём — а ненулевая
+            // надбавка за пару всё равно могла бы их вытащить вперёд.
+            if (mateRole.Length > 0 && role != mateRole) continue;
+
             foreach (var f in champs)
             {
                 if (f == 0 || f == mineId || taken.Contains(f)) continue;
@@ -1174,6 +1188,7 @@ public sealed class RecommendationEngine : IDisposable
                 var total = own + W_SYNERGY * (DUO_MATE_MULT - 1.0) * conf * pair;
                 if (total > bestTotal) { bestTotal = total; best = f; }
             }
+        }
         return best;
     }
 
