@@ -322,10 +322,14 @@ static class TestMode
     {
         var pools = PoolStore.Current();
         if (pools.Pools.Count > 0 || pools.DuoPools.Count > 0) return;
+        // Мид и саппорт — широкие, как их собрал владелец в песочнице: на них
+        // и держится подменная история (см. MakeGamePreview).
         var mine = new Dictionary<string, List<int>>
         {
-            ["top"] = [86, 122, 54], ["jungle"] = [64, 19, 32], ["mid"] = [103, 238, 99],
-            ["adc"] = [222, 22, 51], ["support"] = [89, 412, 16],
+            ["top"] = [86, 122, 54], ["jungle"] = [64, 19, 32],
+            ["mid"] = [103, 238, 99, 34, 101, 131, 45, 268, 166, 142, 3, 893, 8, 38, 805, 55, 69, 127, 711],
+            ["adc"] = [222, 22, 51],
+            ["support"] = [89, 412, 16, 235, 223, 888, 518, 80, 526, 267, 50, 99, 161, 201, 43, 432, 53, 902, 40, 26],
         };
         var friend = new Dictionary<string, List<int>>
         {
@@ -385,26 +389,64 @@ static class TestMode
         }
         const string H = MateOftenNick;
 
-        // ── Harribon, последний месяц, всё из пула ──
-        Pair(MateOften, H, "solo",    89, "support", 236, "adc",     "WWLWLWW", 2, 26);  // Леона + Люциан
-        Pair(MateOften, H, "solo",   412, "support",  67, "adc",     "WWWLW",   1, 20);  // Треш + Вейн
-        Pair(MateOften, H, "flex",   412, "support", 236, "adc",     "LWLW",    3, 24);  // Треш + Люциан
-        Pair(MateOften, H, "flex",    16, "support", 236, "adc",     "LLW",     5, 18);  // Сорака + Люциан
-        Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "WLWW",    4, 22);  // Ари + Элиза
-        Pair(MateOften, H, "normal",  99, "mid",      11, "jungle",  "LL",      9, 12);  // Люкс + Мастер Йи
-        Pair(MateOften, H, "flex",   222, "adc",     117, "support", "WWLW",    6, 27);  // Джинкс + Лулу
-        Pair(MateOften, H, "solo",    51, "adc",      40, "support", "WL",     10, 16);  // Кейтлин + Жанна
-        Pair(MateOften, H, "solo",    86, "top",      60, "jungle",  "W",       8,  8);  // Гарен + Элиза
+        // ── Harribon, последний месяц: я саппорт, он стрелок ──
+        Pair(MateOften, H, "solo",    89, "support", 236, "adc",     "WWLWLWWLW", 1, 28);  // Леона + Люциан
+        Pair(MateOften, H, "solo",   412, "support",  67, "adc",     "WWWLWLW",   1, 26);  // Треш + Вейн
+        Pair(MateOften, H, "flex",   412, "support", 236, "adc",     "LWLWW",     3, 24);  // Треш + Люциан
+        Pair(MateOften, H, "flex",    16, "support", 236, "adc",     "LLW",       5, 18);  // Сорака + Люциан
+        Pair(MateOften, H, "solo",   235, "support",  67, "adc",     "WLWW",      2, 21);  // Сенна + Вейн
+        Pair(MateOften, H, "flex",   201, "support", 236, "adc",     "LWL",       6, 19);  // Браум + Люциан
+
+        // ── Harribon, последний месяц: я саппорт, он мид ──
+        Pair(MateOften, H, "solo",   412, "support",   4, "mid",     "WLWWW",     1, 25);  // Треш + Твистед Фэйт
+        Pair(MateOften, H, "solo",    89, "support",  45, "mid",     "WWL",       4, 17);  // Леона + Вейгар
+        Pair(MateOften, H, "flex",   267, "support",   4, "mid",     "WWLW",      2, 23);  // Нами + Твистед Фэйт
+        Pair(MateOften, H, "flex",   235, "support",  45, "mid",     "LWW",       7, 20);  // Сенна + Вейгар
+        Pair(MateOften, H, "solo",    43, "support",   4, "mid",     "WLW",       5, 27);  // Карма + Твистед Фэйт
+        Pair(MateOften, H, "normal", 201, "support",  45, "mid",     "LL",        9, 11);  // Браум + Вейгар
+        Pair(MateOften, H, "solo",   432, "support",   4, "mid",     "W",         3,  3);  // Бард + Твистед Фэйт
+        Pair(MateOften, H, "flex",   161, "support",  45, "mid",     "WLLW",      8, 29);  // Вел'Коз + Вейгар
+
+        // ── Harribon, последний месяц: я мид, он лес ──
+        Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "WLWWLWW",   2, 28);  // Ари + Элиза
+        Pair(MateOften, H, "solo",   238, "mid",      11, "jungle",  "WWLLW",     3, 25);  // Зед + Мастер Йи
+        Pair(MateOften, H, "normal",  99, "mid",      11, "jungle",  "LLWL",      9, 21);  // Люкс + Мастер Йи
+        Pair(MateOften, H, "solo",    34, "mid",      60, "jungle",  "WWWLWW",    1, 27);  // Анивия + Элиза
+        Pair(MateOften, H, "flex",   101, "mid",      60, "jungle",  "LWLW",      5, 20);  // Зерат + Элиза
+        Pair(MateOften, H, "solo",   131, "mid",      11, "jungle",  "WLW",       6, 15);  // Диана + Мастер Йи
+        Pair(MateOften, H, "solo",    45, "mid",      60, "jungle",  "WWLWWLW",   2, 29);  // Вейгар + Элиза
+        Pair(MateOften, H, "flex",   268, "mid",      11, "jungle",  "LLLW",      4, 24);  // Азир + Мастер Йи
+        Pair(MateOften, H, "normal", 166, "mid",      60, "jungle",  "WL",        8, 12);  // Акшан + Элиза
+        Pair(MateOften, H, "solo",   142, "mid",      60, "jungle",  "WWWW",      3, 18);  // Зои + Элиза
+        Pair(MateOften, H, "flex",     3, "mid",      11, "jungle",  "WLWLW",     2, 26);  // Галио + Мастер Йи
+        Pair(MateOften, H, "solo",   893, "mid",      60, "jungle",  "LW",        7,  9);  // Аврора + Элиза
+        Pair(MateOften, H, "solo",     8, "mid",      11, "jungle",  "LWLLW",     5, 28);  // Владимир + Мастер Йи
+        Pair(MateOften, H, "flex",    38, "mid",      11, "jungle",  "WWLW",      6, 23);  // Кассадин + Мастер Йи
+        Pair(MateOften, H, "solo",   805, "mid",      60, "jungle",  "W",         4,  4);  // Локк + Элиза
+        Pair(MateOften, H, "solo",    55, "mid",      11, "jungle",  "LLWL",      9, 21);  // Катарина + Мастер Йи
+        Pair(MateOften, H, "flex",    69, "mid",      60, "jungle",  "WLW",      11, 19);  // Кассиопея + Элиза
+        Pair(MateOften, H, "solo",   127, "mid",      60, "jungle",  "WWLWW",     2, 24);  // Лиссандра + Элиза
+        Pair(MateOften, H, "normal", 711, "mid",      11, "jungle",  "LW",       13, 17);  // Векс + Мастер Йи
+
+        // ── Harribon, последний месяц: остальное из пула ──
+        Pair(MateOften, H, "flex",   222, "adc",     117, "support", "WWLW",      6, 27);  // Джинкс + Лулу
+        Pair(MateOften, H, "solo",    51, "adc",      40, "support", "WL",       10, 16);  // Кейтлин + Жанна
+        Pair(MateOften, H, "solo",    86, "top",      60, "jungle",  "W",         8,  8);  // Гарен + Элиза
 
         // ── Harribon, старше месяца: видно только «за всё время» ──
-        Pair(MateOften, H, "solo",    89, "support", 236, "adc",     "LLW",    35, 55);
-        Pair(MateOften, H, "flex",   412, "support",  67, "adc",     "WW",     40, 48);
-        Pair(MateOften, H, "flex",    89, "support",  67, "adc",     "WLW",    33, 45);  // Леона + Вейн
-        Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "L",      50, 50);
+        Pair(MateOften, H, "solo",    89, "support", 236, "adc",     "LLW",      35, 55);
+        Pair(MateOften, H, "flex",   412, "support",  67, "adc",     "WW",       40, 48);
+        Pair(MateOften, H, "flex",    89, "support",  67, "adc",     "WLW",      33, 45);  // Леона + Вейн
+        Pair(MateOften, H, "solo",   412, "support",   4, "mid",     "WWL",      36, 58);
+        Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "L",        50, 50);
+        Pair(MateOften, H, "solo",    34, "mid",      60, "jungle",  "WL",       35, 45);
+        Pair(MateOften, H, "flex",     3, "mid",      11, "jungle",  "W",        38, 38);
+        Pair(MateOften, H, "solo",    45, "mid",      60, "jungle",  "LW",       33, 52);
+        Pair(MateOften, H, "solo",   238, "mid",      11, "jungle",  "L",        40, 40);
 
         // ── Harribon мимо пула: в окне связок их нет, в сайдбаре есть ──
-        Pair(MateOften, H, "normal", 555, "support",  22, "adc",     "LLL",     7, 19);  // Пайк + Эш
-        Pair(MateOften, H, "flex",   412, "support",  21, "adc",     "WL",     11, 14);  // Треш + Мисс Фортуна
+        Pair(MateOften, H, "normal", 555, "support",  22, "adc",     "LLL",       7, 19);  // Пайк + Эш
+        Pair(MateOften, H, "flex",   412, "support",  21, "adc",     "WL",       11, 14);  // Треш + Мисс Фортуна
 
         // ── Другие люди ──
         Pair(MateRare, "Ozzy",  "normal", 103, "mid", 64,  "jungle", "WWLWLW", 10, 40);  // Ари + Ли Син
