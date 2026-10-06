@@ -38,6 +38,27 @@ public static class Party
     /// Ники сопартийцев — для журнала и показа в настройках.
     public static IReadOnlyList<string> Names { get; private set; } = [];
 
+    /// <summary>
+    /// Песочница: друг выбран в панели — он «в пати», ровно как в бою после
+    /// лобби. Дальше напарник опознаётся тем же путём, что и в настоящем
+    /// драфте, по puuid, а не запасным правилом «кто взял чемпиона из половины
+    /// друга». null — пати нет, и запасное правило снова работает.
+    /// </summary>
+    public static void SandboxMate(string? puuid, string name = "")
+    {
+        Ids.Clear();
+        Puuids.Clear();
+        if (string.IsNullOrEmpty(puuid))
+        {
+            Names = [];
+            Known = false;
+            return;
+        }
+        Puuids.Add(puuid);
+        Names = name.Length > 0 ? [name] : [];
+        Known = true;
+    }
+
     /// <summary>Разобрать ответ <c>/lol-lobby/v2/lobby</c>. Себя исключаем.</summary>
     public static void Update(JsonElement lobby)
     {

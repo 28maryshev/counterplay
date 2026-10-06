@@ -304,6 +304,7 @@ static class TestMode
             overlay.SetChampsPreview(null);
             SessionTracker.Preview = null;   // связки — только настоящие
             Party.Sandbox = false;           // в бою напарник только по пати
+            Party.SandboxMate(null);         // друг из панели — не пати; её пришлёт лобби
             overlay.ShowSession(null);
             overlay.UpdateRecommendations(null, null);
             overlay.ApplyRunesHandler = null;
@@ -436,6 +437,23 @@ sealed class TestPanel : Window
     // её владелец (я / союзник / враг) взял этого чемпиона в свою очередь. Для видео.
     private readonly Dictionary<int, int> _planned = new();
 
+    // ── Друг: дуо-напарник в драфте ─────────────────────────────────────────
+    //
+    // Выбираешь друга — включается дуо-пул, настроенный на него, а союзник на
+    // его роли становится им самим: у слота появляется его puuid. Программа
+    // опознаёт напарника тем же путём, что в настоящей игре, а не запасным
+    // правилом «кто взял чемпиона из половины друга». В авто-драфте друг
+    // пикает из своей половины пула.
+    private readonly ComboBox _mateCombo = new();
+    private readonly ComboBox _mateRoleCombo = new();
+    private readonly TextBlock _mateInfo = new();
+    private readonly TextBlock[] _mateMark = new TextBlock[5];
+    private readonly List<DuoPool?> _mateOptions = [];
+    private DuoPool? _mate;          // выбранный друг (его дуо-пул); null — играю один
+    private string _mateRole = "";   // его роль, LCU (top/jungle/middle/bottom/utility)
+    private bool _fillingMates;      // идёт заполнение списка — выбор не обрабатывать
+    private string _mateNote = "";   // строка о выбранном друге рядом со списком
+
     public TestPanel(OverlayWindow overlay, RecommendationEngine engine, List<int> allChampIds,
                      bool emptyProfile = false, bool firstGame = false, bool fiveGames = false)
     {
@@ -452,7 +470,7 @@ sealed class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 620; Height = 500;
+        Width  = 620; Height = 540;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
@@ -478,6 +496,18 @@ sealed class TestPanel : Window
             _meRadio[i].Checked += (_, _) => Recompute();
             DockPanel.SetDock(_meRadio[i], Dock.Left);
             row.Children.Add(_meRadio[i]);
+
+            // Пометка «это друг» — видна только у его строки.
+            _mateMark[i] = new TextBlock
+            {
+                Text = "друг", FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0x8A, 0xC8)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0),
+                Visibility = Visibility.Collapsed,
+                ToolTip = "Этот союзник — твой друг по дуо-пулу: программа опознаёт его по puuid, как в настоящей игре"
+            };
+            DockPanel.SetDock(_mateMark[i], Dock.Left);
+            row.Children.Add(_mateMark[i]);
 
             _roleCombos[i] = MakeRoleCombo(_rowRoles, _roleCombos, i, "#8AA0B2");
             DockPanel.SetDock(_roleCombos[i], Dock.Left);
@@ -658,12 +688,70 @@ sealed class TestPanel : Window
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(10, 0, 0, 0)
         });
+        // Друг — своей строкой под кнопками драфта: с ним и запускают авто-драфт.
+        var mateRow = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        mateRow.Children.Add(new TextBlock
+        {
+            Text = "Друг:",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
+        _mateCombo.Width = 200;
+        _mateCombo.VerticalAlignment = VerticalAlignment.Center;
+        _mateCombo.ToolTip = "С кем играешь в дуо. Список — твои дуо-пулы: выбор включает пул, "
+                           + "настроенный на этого друга. На профиле «мой аккаунт» это твои настоящие пулы";
+        _mateCombo.SelectionChanged += (_, _) =>
+        {
+            if (_fillingMates) return;
+            var i = _mateCombo.SelectedIndex;
+            SelectMate(i >= 0 && i < _mateOptions.Count ? _mateOptions[i] : null);
+        };
+        mateRow.Children.Add(_mateCombo);
+        mateRow.Children.Add(new TextBlock
+        {
+            Text = "на",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 6, 0)
+        });
+        _mateRoleCombo.ItemsSource = RoleNames;
+        _mateRoleCombo.Width = 54;
+        _mateRoleCombo.FontSize = 11;
+        _mateRoleCombo.FontWeight = FontWeights.Bold;
+        _mateRoleCombo.VerticalAlignment = VerticalAlignment.Center;
+        _mateRoleCombo.IsEnabled = false;
+        _mateRoleCombo.ToolTip = "Роль друга в этом драфте — его станет союзник на этой роли";
+        _mateRoleCombo.SelectionChanged += (_, _) =>
+        {
+            if (_fillingMates || _mate is null) return;
+            var i = _mateRoleCombo.SelectedIndex;
+            if (i < 0) return;
+            _mateRole = LcuRoles[i];
+            Recompute();
+        };
+        mateRow.Children.Add(_mateRoleCombo);
+        _mateInfo.Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x78, 0x86));
+        _mateInfo.VerticalAlignment = VerticalAlignment.Center;
+        _mateInfo.Margin = new Thickness(10, 0, 0, 0);
+        _mateInfo.FontSize = 11;
+        mateRow.Children.Add(_mateInfo);
+        FillMates();
+
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(profileRow, 7); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
+        Grid.SetRow(mateRow, 7); Grid.SetColumn(mateRow, 0); Grid.SetColumnSpan(mateRow, 3);
+        root.Children.Add(mateRow);
+
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(profileRow, 8); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
         root.Children.Add(profileRow);
 
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(liveRow, 8); Grid.SetColumn(liveRow, 0); Grid.SetColumnSpan(liveRow, 3);
+        Grid.SetRow(liveRow, 9); Grid.SetColumn(liveRow, 0); Grid.SetColumnSpan(liveRow, 3);
         root.Children.Add(liveRow);
 
 
@@ -736,6 +824,7 @@ sealed class TestPanel : Window
             SessionTracker.UseStoredAccount(false);
             SessionTracker.Preview = TestMode.MakePairPreview();
         }
+        FillMates();   // пулы другие — и друзья другие
         _overlay.RefreshPoolMode();
         Recompute();
     }
@@ -891,6 +980,111 @@ sealed class TestPanel : Window
         SyncRoleCombos(_enemyRoles, _enemyRoleCombos);
         Recompute();
     }
+
+    // ── Друг ─────────────────────────────────────────────────────────────────
+
+    /// Список друзей — дуо-пулы песочницы. Пулы сменились (другой профиль) —
+    /// список заполняется заново, и друг сбрасывается: прежний пул исчез.
+    private void FillMates()
+    {
+        _fillingMates = true;
+        _mateOptions.Clear();
+        var items = new List<string> { "— играю один" };
+        _mateOptions.Add(null);
+        foreach (var d in PoolStore.Current().DuoPools)
+        {
+            var nick = DuoNaming.PartnerNick(d, SessionTracker.TopPairs(d.FriendPuuid, 1));
+            var tile = d.FriendName.Length > 0 ? d.FriendName : "дуо-пул";
+            items.Add(nick.Length > 0 && nick != tile ? $"{nick} · {tile}" : tile);
+            _mateOptions.Add(d);
+        }
+        _mateCombo.ItemsSource = items;
+        _mateCombo.SelectedIndex = 0;
+        _fillingMates = false;
+        SelectMate(null);
+    }
+
+    private void SelectMate(DuoPool? duo)
+    {
+        _mate = duo;
+        if (duo is null)
+        {
+            Party.SandboxMate(null);
+            _mateRole = "";
+            _fillingMates = true;
+            _mateRoleCombo.SelectedIndex = -1;
+            _fillingMates = false;
+            _mateRoleCombo.IsEnabled = false;
+            _mateNote = PoolStore.Current().DuoPools.Count == 0
+                ? "дуо-пулов нет — настрой в окне пулов"
+                : "";
+            _mateInfo.Text = _mateNote;
+            Recompute();
+            return;
+        }
+
+        // Пул, настроенный на этого друга, — в дело, как кнопкой «Дуо».
+        PoolStore.SetActive(PoolKind.Duo, duo.Id);
+        _overlay.RefreshPoolMode();
+
+        var nick = DuoNaming.PartnerNick(duo, SessionTracker.TopPairs(duo.FriendPuuid, 1));
+        Party.SandboxMate(MatePuuid(duo), nick);
+
+        _mateRole = DefaultMateRole(duo);
+        _fillingMates = true;
+        _mateRoleCombo.SelectedIndex = Array.IndexOf(LcuRoles, _mateRole);
+        _fillingMates = false;
+        _mateRoleCombo.IsEnabled = true;
+
+        var together = duo.FriendPuuid.Length > 0
+            ? SessionTracker.MateStats(duo.FriendPuuid).Games : 0;
+        _mateNote = duo.FriendPuuid.Length > 0
+            ? $"пул включён · вместе {together} игр"
+            : "пул включён · напарник в пуле не записан, считаю его условным";
+        _mateInfo.Text = _mateNote;
+        Recompute();
+    }
+
+    /// puuid друга для его слота. У пула, собранного руками и ни разу не
+    /// игранного вместе, хозяина нет — даём условный, и программа опознает
+    /// его как человека из пати (запомнит в копии пула песочницы).
+    private static string MatePuuid(DuoPool d) =>
+        d.FriendPuuid.Length > 0 ? d.FriendPuuid : "TEST-friend-" + d.Id;
+
+    /// Его роль по пулу: где в его половине больше всего чемпионов (у
+    /// фиксированных связок — роль из первой пары). Мою роль пропускаем —
+    /// на одной линии вдвоём не стоят.
+    private string DefaultMateRole(DuoPool d)
+    {
+        var mine = _rowRoles[MeCell()];
+        var byPool = d.Manual
+            ? d.ManualPairs.Select(p => p.FriendRole).Where(r => r.Length > 0)
+            : d.Friend.Where(kv => kv.Value.Any(x => x != 0))
+                      .OrderByDescending(kv => kv.Value.Count(x => x != 0))
+                      .Select(kv => kv.Key);
+        foreach (var db in byPool)
+        {
+            var lcu = RecommendationEngine.DbToLcuRole(db);
+            if (LcuRoles.Contains(lcu) && lcu != mine) return lcu;
+        }
+        return LcuRoles.First(r => r != mine);
+    }
+
+    /// Строка друга: союзник на его роли. -1 — друга нет или его роль совпала
+    /// с моей.
+    private int MateCell()
+    {
+        if (_mate is null || _mateRole.Length == 0) return -1;
+        var i = Array.IndexOf(_rowRoles, _mateRole);
+        return i == MeCell() ? -1 : i;
+    }
+
+    /// Чемпионы его половины на эту роль — из них он и пикает в авто-драфте.
+    private static List<int> MatePicks(DuoPool d, string dbRole) =>
+        d.Manual
+            ? [.. d.ManualPairs.Where(p => p.FriendRole.Length == 0 || p.FriendRole == dbRole)
+                               .Select(p => p.Friend).Where(x => x != 0).Distinct()]
+            : [.. d.FriendForRole(dbRole).Where(x => x != 0)];
 
     // ── Авто-драфт ───────────────────────────────────────────────────────────
 
@@ -1057,9 +1251,15 @@ sealed class TestPanel : Window
         taken.UnionWith(_planned.Values);   // все заранее выбранные пики — ботам недоступны
         var dbRole = RecommendationEngine.LcuToDbRole(
             cell < 5 ? _rowRoles[cell] : _enemyRoles[cell - 5]);
-        var pool   = _idByName.Values
-            .Where(id => !taken.Contains(id) && _engine.RoleShare(id, dbRole) >= 0.20)
-            .ToList();
+        // Друг пикает из своей половины пула, как в жизни. Вся половина на эту
+        // роль занята или пуста — берёт кого-то с линии, как любой союзник.
+        var pool = _mate is not null && cell == MateCell()
+            ? MatePicks(_mate, dbRole).Where(id => !taken.Contains(id)).ToList()
+            : [];
+        if (pool.Count == 0)
+            pool = _idByName.Values
+                .Where(id => !taken.Contains(id) && _engine.RoleShare(id, dbRole) >= 0.20)
+                .ToList();
         if (pool.Count == 0)   // нет данных по ролям — фолбэк на любых свободных
             pool = _idByName.Values.Where(id => !taken.Contains(id)).ToList();
         if (pool.Count == 0) return;
@@ -1096,13 +1296,23 @@ sealed class TestPanel : Window
         int meIdx = Array.FindIndex(_meRadio, r => r.IsChecked == true);
         if (meIdx < 0) meIdx = 2;
 
+        // Друг — союзник на его роли, с его puuid: так его находит Party.
+        var mateCell = MateCell();
+        for (int i = 0; i < 5; i++)
+            _mateMark[i].Visibility = i == mateCell ? Visibility.Visible : Visibility.Collapsed;
+        _mateInfo.Text = _mate is not null && mateCell < 0
+            ? "роль друга совпала с твоей — выбери ему другую"
+            : _mateNote;
+
         var my = new List<DraftPlayer>();
         for (int i = 0; i < 5; i++)
         {
             var champ = ChampOf(_ally[i]);
             var isMe  = i == meIdx;
+            var puuid = i == mateCell ? MatePuuid(_mate!) : "";
             // Мой чемпион — как ховер (PickIntent): подбор продолжает показывать список.
-            my.Add(new DraftPlayer(i, isMe ? 0 : champ, isMe ? champ : 0, _rowRoles[i], isMe));
+            my.Add(new DraftPlayer(i, isMe ? 0 : champ, isMe ? champ : 0, _rowRoles[i], isMe,
+                                   Puuid: puuid));
         }
         var their = new List<DraftPlayer>();
         for (int i = 0; i < 5; i++)
