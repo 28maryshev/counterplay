@@ -154,9 +154,17 @@ public static class DuoShare
     /// Наигранность напарника ИЗ КЭША, без сети. Зовётся на старте драфта: нет
     /// ничего — вернёт null, и его половина посчитается без личных факторов.
     /// </summary>
+    /// <summary>
+    /// Песочница: наигранность напарников из её подменной истории — как будто
+    /// они поделились ею через обмен. Задана — главнее кэша на диске. В боевом
+    /// режиме всегда null.
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyDictionary<int, MateComfort>>? Preview { get; set; }
+
     public static IReadOnlyDictionary<int, MateComfort>? Cached(string? matePuuid)
     {
         if (string.IsNullOrEmpty(matePuuid)) return null;
+        if (Preview is { } preview) return preview.GetValueOrDefault(matePuuid);
         var all = ReadCache();
         if (!all.TryGetValue(matePuuid, out var e) || e.Champs.Count == 0) return null;
 

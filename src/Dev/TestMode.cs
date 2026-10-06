@@ -154,7 +154,7 @@ static class TestMode
         // по играм (см. MakeGamePreview): у частого напарника пар больше и
         // выборка крупнее, у редкого — одна-две игры; есть игры старше месяца и
         // мимо пула.
-        SessionTracker.PreviewGames = MakeGamePreview();
+        UseTestHistory(engine, true);
 
         // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
         // с кнопками режимов пула (в бою данные приходят из клиента).
@@ -302,6 +302,7 @@ static class TestMode
             overlay.SetChampsPreview(null);
             SessionTracker.Preview = null;   // связки — только настоящие
             SessionTracker.PreviewGames = null;
+            DuoShare.Preview = null;
             Party.Sandbox = false;           // в бою напарник только по пати
             Party.SandboxMate(null);         // друг из панели — не пати; её пришлёт лобби
             overlay.ShowSession(null);
@@ -378,6 +379,60 @@ static class TestMode
         d.Mine["support"] = [.. d.MineForRole("support").Union(SupportAll)];
         PoolStore.Persist();
         try { File.WriteAllText(mark, ""); } catch { /* допишем в следующий раз — Union повторов не даст */ }
+    }
+
+    /// <summary>
+    /// Тестовая история в дело (true) или прочь — профиль «мой аккаунт» (false).
+    ///
+    /// Подбор должен считать в песочнице так же, как в бою, поэтому из истории
+    /// берётся всё, что в бою приходит из клиента и от напарника: журнал игр
+    /// (личный винрейт, наигранность), очки мастерства и наигранность напарника
+    /// по обмену.
+    /// </summary>
+    internal static void UseTestHistory(RecommendationEngine engine, bool on)
+    {
+        var games = on ? MakeGamePreview() : null;
+        SessionTracker.PreviewGames = games;
+        engine.Mastery = games is null ? new Dictionary<int, long>() : MakeMastery(games);
+        DuoShare.Preview = games is null ? null : MakeMateComfort(games);
+    }
+
+    // Очков мастерства за игру. В бою они приходят из клиента; клиента в
+    // песочнице нет, и без них наигранность держалась бы на одних играх за
+    // месяц — не так, как в бою. Тысяча — порядок того, что Riot даёт за игру.
+    private const long PointsPerGame = 1000;
+
+    internal static Dictionary<int, long> MakeMastery(IEnumerable<SessionTracker.PreviewGame> games) =>
+        games.Where(g => g.MyChampionId != 0)
+             .GroupBy(g => g.MyChampionId)
+             .ToDictionary(x => x.Key, x => x.Count() * PointsPerGame);
+
+    /// <summary>
+    /// Наигранность напарников — тем же расчётом, что DuoShare.Snapshot у
+    /// настоящего напарника, только из его половины наших общих игр: его
+    /// чемпион становится «моим», и дальше всё как у меня.
+    /// </summary>
+    internal static Dictionary<string, IReadOnlyDictionary<int, MateComfort>> MakeMateComfort(
+        IReadOnlyList<SessionTracker.PreviewGame> games)
+    {
+        string[] queues = [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal];
+        var res = new Dictionary<string, IReadOnlyDictionary<int, MateComfort>>();
+        foreach (var mate in games.GroupBy(g => g.AllyPuuid))
+        {
+            var his = mate.Select(g => g with { MyChampionId = g.AllyChampionId, AllyChampionId = g.MyChampionId })
+                          .ToList();
+            var hist = SessionTracker.PreviewHistory(his, RecommendationEngine.FreshDays, queues);
+            var pts  = MakeMastery(his);
+            var map  = new Dictionary<int, MateComfort>();
+            foreach (var id in his.Select(g => g.MyChampionId).Where(x => x != 0).Distinct())
+            {
+                var (g, w) = hist.Recent(id);
+                map[id] = new MateComfort(g, w, pts.GetValueOrDefault(id),
+                                          hist.DaysSinceNth(id, RecommendationEngine.RegularGames));
+            }
+            res[mate.Key] = map;
+        }
+        return res;
     }
 
     // Напарники подменной истории. Постоянный — тот, на кого настроен тестовый
@@ -954,7 +1009,7 @@ sealed class TestPanel : Window
         if (on)
         {
             PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));
-            SessionTracker.PreviewGames = null;
+            TestMode.UseTestHistory(_engine, false);
             SessionTracker.UseStoredAccount(true);
         }
         else
@@ -962,7 +1017,7 @@ sealed class TestPanel : Window
             PoolStore.ReplaceCurrent(null);
             TestMode.SeedTestPools();
             SessionTracker.UseStoredAccount(false);
-            SessionTracker.PreviewGames = TestMode.MakeGamePreview();
+            TestMode.UseTestHistory(_engine, true);
         }
         FillMates();   // пулы другие — и друзья другие
         _overlay.RefreshPoolMode();
@@ -1458,10 +1513,12 @@ sealed class TestPanel : Window
         for (int i = 0; i < 5; i++)
             their.Add(new DraftPlayer(5 + i, ChampOf(_enemy[i]), 0, "", false)); // роли скрыты, как в Solo/Duo
 
-        // Прямой оппонент: враг, чья РОЛЬ совпадает с моей (порядки строк у
-        // команд после перемешивания разные, по номеру строки искать нельзя).
-        int oppIdx = Array.IndexOf(_enemyRoles, _rowRoles[meIdx]);
-        var opp = oppIdx >= 0 && their[oppIdx].EffectiveChampionId > 0 ? their[oppIdx] : null;
+        // Прямого оппонента НЕ подсказываем, как не подсказывает клиент в соло/дуо:
+        // роли врагов скрыты, и оверлей раскладывает их сам — по доле игр на роли
+        // или по ручной метке в карточке врага. Раньше песочница отдавала его
+        // движку из своих списков ролей и считала по сведениям, которых в бою нет.
+        // Роли врагов в панели нужны только авто-драфту — кого брать на линию.
+        DraftPlayer? opp = null;
 
         // В тесте считаем, что сейчас мой ход пикать (кроме банфазы) — чтобы
         // работала кнопка выбора чемпиона через интерфейс. actionId условный.

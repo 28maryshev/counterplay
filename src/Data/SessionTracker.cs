@@ -290,6 +290,14 @@ public static class SessionTracker
     public static IReadOnlyDictionary<int, (int Games, int Wins)> ChampStatsMap(int days, params string[] queues)
     {
         var since = days > 0 ? DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds() : 0;
+
+        // Песочница: свой винрейт — по её подменной истории игр (см. PreviewGames).
+        if (PreviewGames is { } preview)
+            return preview
+                .Where(g => g.MyChampionId != 0 && queues.Contains(g.Queue) && g.Ts >= since)
+                .GroupBy(g => g.MyChampionId)
+                .ToDictionary(x => x.Key, x => (x.Count(), x.Count(g => g.Win)));
+
         var key = days + "|" + string.Join(",", queues);
         lock (StatsCache)
         {
@@ -408,6 +416,7 @@ public static class SessionTracker
     public static PlayHistory History(int freshDays, params string[] queues)
     {
         if (HistoryOverride is { } fake) return fake;
+        if (PreviewGames is { } preview) return PreviewHistory(preview, freshDays, queues);
 
         var key = freshDays + "|" + string.Join(",", queues);
         if (_histCache is { } c && c.Key == key && (DateTime.UtcNow - c.At).TotalSeconds < 20)
@@ -563,9 +572,34 @@ public static class SessionTracker
     /// Подменная ИСТОРИЯ совместных игр — для песочницы. В отличие от
     /// <see cref="Preview"/>, у каждой игры есть время, поэтому работает окно
     /// «за 30 дней», а связки складываются из игр так же, как настоящие. Задана —
-    /// главнее <see cref="Preview"/>. В боевом режиме всегда null.
+    /// главнее <see cref="Preview"/>, и журнал игр (свой винрейт, наигранность,
+    /// мейны для банов) тоже берётся из неё, а не из настоящего. В боевом режиме
+    /// всегда null.
     /// </summary>
     public static IReadOnlyList<PreviewGame>? PreviewGames { get; set; }
+
+    /// <summary>
+    /// Журнал игр, собранный из подменной истории песочницы: в каждой записи о
+    /// совместной игре уже есть мой чемпион, очередь, время и исход. Без этого
+    /// песочница считала наигранность и личный винрейт по НАСТОЯЩЕМУ журналу
+    /// игрока, а связки — по подменному, и подбор выходил смесью двух историй.
+    /// </summary>
+    internal static PlayHistory PreviewHistory(IReadOnlyList<PreviewGame> preview, int freshDays,
+                                              string[] queues)
+    {
+        var now   = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var since = now - (long)freshDays * 86400;
+        var games = preview.Where(g => g.MyChampionId != 0 && g.Ts > 0 && queues.Contains(g.Queue)).ToList();
+        var recent = games.Where(g => g.Ts >= since)
+            .GroupBy(g => g.MyChampionId)
+            .ToDictionary(x => x.Key, x => (x.Count(), x.Count(g => g.Win)));
+        var times = games.GroupBy(g => g.MyChampionId)
+            .ToDictionary(x => x.Key,
+                          x => x.Select(g => g.Ts).OrderByDescending(t => t).Take(PlayHistory.KeepTimes).ToArray());
+        var oldest = games.Count > 0 ? games.Min(g => g.Ts) : 0;
+        var span   = oldest > 0 ? Math.Max(0.0, (now - oldest) / 86400.0) : 0.0;
+        return new PlayHistory(recent, times, span, now);
+    }
 
     /// Подменные связки не раньше <paramref name="since"/>: из игр, если они
     /// заданы, иначе готовые (у тех времени нет). null — подмены нет.
