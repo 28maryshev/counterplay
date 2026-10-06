@@ -2991,8 +2991,14 @@ public partial class OverlayWindow : Window
         _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); }, _engine);
         // Закрыли окно — отдаём правки на сервер. Пулы правят здесь и только
         // здесь, а ждать до конца следующей игры значит рисковать ими зря.
+        //
+        // В песочнице — нет: её пулы лежат в своей папке, а синхронизация возит
+        // НАСТОЯЩИЕ файлы игрока, да ещё под строкой «test-account» — то есть
+        // выгружала бы его данные в чужую строку и тянула оттуда обратно.
         _poolSettings.Closed += (_, _) =>
-            _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "правка пулов");
+        {
+            if (!SandboxMode) _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "правка пулов");
+        };
         _poolSettings.Show();
     }
 
@@ -5949,7 +5955,7 @@ public partial class OverlayWindow : Window
             // сделать полотно ещё пестрее, а так знак читается боковым зрением,
             // и глазу не нужно вчитываться, чтобы понять «за» это или «против».
             var raw  = reasons[i];
-            var sign = raw.Length > 0 ? raw[0] : ' ';
+            var sign = raw.Length > 0 ? raw[0] : '\0';
             var text = sign is RecommendationEngine.SIGN_GOOD or RecommendationEngine.SIGN_BAD
                                 or RecommendationEngine.SIGN_KEY
                 ? raw[1..] : raw;

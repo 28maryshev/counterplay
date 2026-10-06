@@ -1166,7 +1166,15 @@ public static class SessionTracker
 
         Save(store);
 
-        // 7) Представления по очередям.
+        return BuildView(acc, nick, ranked, history);
+    }
+
+    /// 7) Представления по очередям — из журнала аккаунта, ранга и истории
+    /// клиента. Отдельно от обновления, потому что тот же экран нужен песочнице
+    /// без клиента (<see cref="StoredView"/>).
+    private static SessionData BuildView(Account acc, string nick,
+        IReadOnlyDictionary<string, Ranked> ranked, IReadOnlyList<HistEntry> history)
+    {
         var views = new Dictionary<string, QueueView>();
         foreach (var key in QueueKeys)
         {
@@ -1219,6 +1227,55 @@ public static class SessionTracker
 
         var selected = QueueKeys.Contains(acc.SelectedQueue) ? acc.SelectedQueue : "solo";
         return new SessionData(nick, selected, views);
+    }
+
+    // ── Песочница: мои настоящие данные ─────────────────────────────────────
+    //
+    // Песочница работает без клиента, поэтому аккаунта у трекера в ней нет:
+    // журнал игр и личный винрейт читаются с последнего аккаунта сами, а
+    // связки и экран профиля — нет. Ниже — как дать ей и то и другое, ничего
+    // не записывая.
+
+    /// Аккаунт, с которым программа работала в последний раз (puuid).
+    public static string? LastAccountKey
+    {
+        get
+        {
+            Gate.Wait();
+            try { return Load().LastAccount; }
+            finally { Gate.Release(); }
+        }
+    }
+
+    /// Песочница: связки читать с последнего аккаунта (true) или снова
+    /// считать, что клиента нет (false).
+    public static void UseStoredAccount(bool on)
+    {
+        _account = on ? LastAccountKey : null;
+        DropCache();
+    }
+
+    /// <summary>
+    /// Экран профиля по тому, что лежит на диске: ник, журнал игр, график и
+    /// ранг из последнего снимка. Клиента не спрашивает и ничего не пишет.
+    /// null — на диске нет ни одного аккаунта.
+    /// </summary>
+    public static SessionData? StoredView()
+    {
+        Gate.Wait();
+        try
+        {
+            var store = Load();
+            if (store.LastAccount is not { Length: > 0 } key
+                || !store.Accounts.TryGetValue(key, out var acc)) return null;
+            var ranked = new Dictionary<string, Ranked>
+            {
+                ["solo"] = FromCache(acc.Ranked.GetValueOrDefault("solo")),
+                ["flex"] = FromCache(acc.Ranked.GetValueOrDefault("flex")),
+            };
+            return BuildView(acc, acc.Nick ?? "", ranked, []);
+        }
+        finally { Gate.Release(); }
     }
 
     private static Ranked FromCache(RankedCache? c) =>

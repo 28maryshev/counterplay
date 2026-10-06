@@ -130,25 +130,17 @@ static class TestMode
 
         // ТЕСТ пулов: обычный + дуо-пул, дуо активен — увидеть синий слот «пик из
         // пула» и иконку чемпиона дуо-друга. В бою пулы задаёт игрок в настройках.
+        //
+        // Пулы песочницы лежат в СВОЕЙ папке. Раньше она писала аккаунт
+        // «test-account» в настоящий pools.json — тот же файл, что держит в
+        // памяти запущенная рядом программа, и тот же, что синхронизация
+        // переписывает целиком. Запись песочницы могла вернуть настоящие пулы к
+        // виду на момент её запуска. Свои пулы игрока песочница теперь только
+        // читает (PoolStore.ReadLive).
+        PoolStore.DirOverride = SandboxPoolsDir;
+        PoolStore.Reload();
         PoolStore.SetAccount("test-account", "TEST");
-        var pools = PoolStore.Current();
-        if (pools.Pools.Count == 0 && pools.DuoPools.Count == 0)
-        {
-            var mine = new Dictionary<string, List<int>>
-            {
-                ["top"] = [86, 122, 54], ["jungle"] = [64, 19, 32], ["mid"] = [103, 238, 99],
-                ["adc"] = [222, 22, 51], ["support"] = [89, 412, 16],
-            };
-            var friend = new Dictionary<string, List<int>>
-            {
-                ["top"] = [24, 92], ["jungle"] = [11, 60], ["mid"] = [4, 45],
-                ["adc"] = [67, 236], ["support"] = [117, 40],
-            };
-            pools.Pools.Add(new ChampPool { Name = "Тест", ByRole = mine });
-            pools.DuoPools.Add(new DuoPool { FriendName = "Друг", Mine = mine, Friend = friend });
-            PoolStore.Persist();
-            PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
-        }
+        SeedTestPools();
 
         // ТЕСТ владения: по умолчанию доступны ВСЕ чемпионы (в песочнице «нет
         // чемпиона» обычно мешает). Проверить плашку можно галочкой в панели —
@@ -292,6 +284,11 @@ static class TestMode
         await Task.WhenAny(LiveRequested.Task, Task.Delay(Timeout.Infinite, ct));
         if (!SwitchToLive) return;
 
+        // Пулы — обратно к настоящему файлу игрока: дальше программа боевая.
+        PoolStore.DirOverride = null;
+        PoolStore.Reload();
+        SessionTracker.UseStoredAccount(false);   // аккаунт выставит клиент
+
         overlay.Dispatcher.Invoke(() =>
         {
             if (panel is not null) { panel.SwitchingToLive = true; panel.Close(); }
@@ -316,6 +313,30 @@ static class TestMode
         RunesClient.UseMock = false;   // руны — настоящие, из базы
     }
 
+    internal static readonly string SandboxPoolsDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "sandbox");
+
+    /// Тестовые пулы песочницы — если у её аккаунта пулов нет совсем.
+    internal static void SeedTestPools()
+    {
+        var pools = PoolStore.Current();
+        if (pools.Pools.Count > 0 || pools.DuoPools.Count > 0) return;
+        var mine = new Dictionary<string, List<int>>
+        {
+            ["top"] = [86, 122, 54], ["jungle"] = [64, 19, 32], ["mid"] = [103, 238, 99],
+            ["adc"] = [222, 22, 51], ["support"] = [89, 412, 16],
+        };
+        var friend = new Dictionary<string, List<int>>
+        {
+            ["top"] = [24, 92], ["jungle"] = [11, 60], ["mid"] = [4, 45],
+            ["adc"] = [67, 236], ["support"] = [117, 40],
+        };
+        pools.Pools.Add(new ChampPool { Name = "Тест", ByRole = mine });
+        pools.DuoPools.Add(new DuoPool { FriendName = "Друг", Mine = mine, Friend = friend });
+        PoolStore.Persist();
+        PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
+    }
+
     /// <summary>
     /// Подменные связки для песочницы.
     ///
@@ -327,7 +348,7 @@ static class TestMode
     /// Чемпионы взяты настоящими парами «саппорт + стрелок» и «мид + лес»:
     /// подставные числа на бессмысленных связках выглядели бы фальшиво.
     /// </summary>
-    private static List<SessionTracker.PairStat> MakePairPreview()
+    internal static List<SessionTracker.PairStat> MakePairPreview()
     {
         const string Main  = "TEST-mate-often-0000000000000000000000000000000000000000000000000";
         const string Rare  = "TEST-mate-rare-00000000000000000000000000000000000000000000000000";
@@ -517,11 +538,14 @@ sealed class TestPanel : Window
         _profile.Items.Add("Профиль: 1 игра");
         _profile.Items.Add("Профиль: 5 игр");
         _profile.Items.Add("Профиль: рывок серебро→платина");
+        _profile.Items.Add("Профиль: мой аккаунт");   // MyAccountProfile
         _profile.SelectedIndex = 0;
         _profile.VerticalAlignment = VerticalAlignment.Center;
         _profile.Margin = new Thickness(12, 0, 0, 0);
         _profile.Width = 150;
-        _profile.ToolTip = "Что видно на ready-экране при разном количестве сыгранных игр: график появляется с пятой";
+        _profile.ToolTip = "Что видно на ready-экране при разном количестве сыгранных игр: график появляется с пятой.\n"
+                         + "«Мой аккаунт» — песочница на твоих данных: копия твоих пулов, твои игры, винрейты и связки. "
+                         + "Твои настоящие пулы при этом не меняются.";
         _profile.SelectionChanged += (_, _) => ApplyProfileScenario();
 
         bottom.Children.Add(stages);
@@ -649,6 +673,10 @@ sealed class TestPanel : Window
         if (emptyProfile) _emptyProfile.IsChecked = true;
         if (firstGame) _profile.SelectedIndex = 1;
         if (fiveGames) _profile.SelectedIndex = 2;
+        // «Мой аккаунт» запоминается: кто тестирует на своих данных, тот и
+        // следующий запуск хочет начать с них.
+        if (!firstGame && !fiveGames && Settings.GetBool(MyAccountKey) == true)
+            _profile.SelectedIndex = MyAccountProfile;
         Recompute();
 
         // Закрыл панель — выходим из приложения целиком.
@@ -671,9 +699,42 @@ sealed class TestPanel : Window
             _overlay.SetOwnedChampions(_allChampIds);
     }
 
+    // ── Профиль «мой аккаунт»: песочница на настоящих данных ────────────────
+    //
+    // Журнал игр и личный винрейт песочница и так читает с последнего аккаунта.
+    // Не хватало пулов (у песочницы свой аккаунт «test-account») и связок с
+    // напарником (подставные). Пулы приезжают КОПИЕЙ: правки в песочнице в
+    // настоящие не попадают, а уход с профиля возвращает тестовые.
+    private const int MyAccountProfile = 4;
+    private const string MyAccountKey = "sandboxMyAccount";
+    private bool _myData;
+
+    private void UseMyData(bool on)
+    {
+        if (on == _myData) return;
+        _myData = on;
+        Settings.Set(MyAccountKey, on);
+        if (on)
+        {
+            PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));
+            SessionTracker.Preview = null;
+            SessionTracker.UseStoredAccount(true);
+        }
+        else
+        {
+            PoolStore.ReplaceCurrent(null);
+            TestMode.SeedTestPools();
+            SessionTracker.UseStoredAccount(false);
+            SessionTracker.Preview = TestMode.MakePairPreview();
+        }
+        _overlay.RefreshPoolMode();
+        Recompute();
+    }
+
     // Показ выбранного сценария профиля: пустой / первая игра / полная история.
     private void ApplyProfileScenario()
     {
+        UseMyData(_profile.SelectedIndex == MyAccountProfile);
         if (_emptyProfile.IsChecked == true)
         {
             _overlay.SetEmptyProfilePreview(true);
@@ -692,6 +753,10 @@ sealed class TestPanel : Window
                 break;
             case 3:
                 _overlay.ShowSession(TestMode.ClimbSession);
+                _overlay.SetChampsPreview(null);
+                break;
+            case MyAccountProfile:
+                _overlay.ShowSession(SessionTracker.StoredView() ?? TestMode.FullSession);
                 _overlay.SetChampsPreview(null);
                 break;
             default:

@@ -458,6 +458,51 @@ public static class PoolStore
         }
     }
 
+    /// <summary>
+    /// Пулы аккаунта <paramref name="key"/> из НАСТОЯЩЕГО файла игрока — даже
+    /// когда пулы работают с подменной папкой (<see cref="DirOverride"/>).
+    /// Только чтение: файл не открывается на запись, состояние в памяти не
+    /// меняется. null — нет файла, аккаунта или файл не читается.
+    ///
+    /// Нужно песочнице: она живёт в своей папке, а тестировать хочется на своих
+    /// пулах.
+    /// </summary>
+    public static AccountPools? ReadLive(string? key)
+    {
+        if (string.IsNullOrEmpty(key)) return null;
+        try
+        {
+            var path = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "pools.json");
+            if (!File.Exists(path)) return null;
+            var all = JsonSerializer.Deserialize<Dictionary<string, AccountPools>>(File.ReadAllText(path));
+            return all is not null && all.TryGetValue(key, out var a) ? a : null;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// Пулы ТЕКУЩЕГО аккаунта заменить копией <paramref name="src"/> — со
+    /// звёздами, напарниками и выбором по очередям. null — оставить пустым.
+    ///
+    /// В отличие от <see cref="ImportFrom"/>, который ДОБАВЛЯЕТ пулы без звёзд
+    /// и напарников, это точная копия: песочница должна вести себя так же, как
+    /// программа на настоящих пулах.
+    /// </summary>
+    public static void ReplaceCurrent(AccountPools? src)
+    {
+        lock (Gate)
+        {
+            EnsureLoaded();
+            var name = CurrentLocked().AccountName;
+            var copy = src is null ? new AccountPools()
+                : JsonSerializer.Deserialize<AccountPools>(JsonSerializer.Serialize(src, JsonOpts))!;
+            copy.AccountName = name;
+            _all[Key] = copy;
+            Save();
+        }
+    }
+
     private static Dictionary<string, List<int>> Clone(Dictionary<string, List<int>> src) =>
         src.ToDictionary(kv => kv.Key, kv => new List<int>(kv.Value));
 }
