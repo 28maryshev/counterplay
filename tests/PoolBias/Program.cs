@@ -628,24 +628,48 @@ internal static class Program
             Check("без совместных игр выбор = лучший по его силе в драфте",
                   ownOnlyOk, $"проверено драфтов: {emptyDrafts.Count}");
 
-            // А с наигранной связкой надбавка обязана хоть где-то сдвинуть выбор,
-            // иначе слагаемое пары ни на что не влияет и порог нечего ужимать.
-            var movedByPair = 0;
+            // А с наигранной связкой надбавка обязана ГДЕ-ТО менять выбор, иначе
+            // слагаемое пары ни на что не влияет и порог нечего ужимать.
+            //
+            // Первая версия смотрела полную половину на восьми драфтах и ждала,
+            // что победитель сменится сам. Это лотерея: надбавка мала
+            // (0.6 × доверие × дельта пары), и если двое лучших по собственной
+            // силе разошлись сильнее, порядок не перевернётся ни разу. 6 октября
+            // так и вышло — проверка упала на выросшей базе (4.7 млн матчей),
+            // хотя код не менялся: на коммите, где её написали, она падает ровно
+            // так же. Данные сдвинулись, проверка это назвала поломкой.
+            //
+            // Теперь перебираем ПАРЫ кандидатов: половина из двоих, и смотрим,
+            // меняется ли выбор. Формулу при этом не повторяем — ищем вслепую,
+            // но исчерпывающе. Если надбавка жива, где-то переворот найдётся;
+            // если ни на одной паре из сотен — слагаемое и правда мертво.
+            var flipped   = 0;
+            var pairsSeen = 0;
             foreach (var st in emptyDrafts)
             {
                 SessionTracker.Preview = [];
                 var scEmpty = Quiet(() => engine.PartnerScores(st, half));
-                var noGames = engine.BestPartner(st, mineId, myDb, half, scEmpty);
-                SessionTracker.Preview =
-                [
-                    new SessionTracker.PairStat(MatePuuid(1), "напарник", "solo", 0, 0,
-                                                MateGamesMeasured, MateGamesMeasured / 2)
-                ];
-                var played = engine.BestPartner(st, mineId, myDb, half, scEmpty);
-                if (noGames != played) movedByPair++;
+                var ids = friendIds.Where(f => f != mineId).ToList();
+
+                for (var i = 0; i < ids.Count && flipped == 0; i++)
+                    for (var j = i + 1; j < ids.Count; j++)
+                    {
+                        var two = new Dictionary<string, List<int>> { [friendDb] = [ids[i], ids[j]] };
+                        pairsSeen++;
+
+                        SessionTracker.Preview = [];
+                        var noGames = engine.BestPartner(st, mineId, myDb, two, scEmpty);
+                        SessionTracker.Preview =
+                        [
+                            new SessionTracker.PairStat(MatePuuid(1), "напарник", "solo", 0, 0,
+                                                        MateGamesMeasured, MateGamesMeasured / 2)
+                        ];
+                        var played = engine.BestPartner(st, mineId, myDb, two, scEmpty);
+                        if (noGames != played) { flipped++; break; }
+                    }
             }
-            Check("наигранная связка сдвигает выбор относительно пустой",
-                  movedByPair > 0, $"разошлось в {movedByPair} из {emptyDrafts.Count}");
+            Check("наигранная связка где-то меняет выбор напарника",
+                  flipped > 0, $"переворотов {flipped}, пар просмотрено {pairsSeen}");
 
             // ── Наигранность напарника входит в подбор ───────────────────────
             //
