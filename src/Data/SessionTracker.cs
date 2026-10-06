@@ -466,7 +466,7 @@ public static class SessionTracker
     public static (int Games, int Wins) PairStats(string? allyPuuid, int myChampion, int allyChampion)
     {
         if (myChampion == 0 || allyChampion == 0) return (0, 0);
-        if (Preview is { } fake)
+        if (Fake(0) is { } fake)
         {
             var p = fake.FirstOrDefault(x => x.MyChampionId == myChampion
                                              && x.AllyChampionId == allyChampion
@@ -492,7 +492,7 @@ public static class SessionTracker
     /// </summary>
     public static (int Games, int Wins) MateStats(string? allyPuuid)
     {
-        if (Preview is { } fake)
+        if (Fake(0) is { } fake)
         {
             var mine = fake.Where(p => string.IsNullOrEmpty(allyPuuid)
                                        || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -520,7 +520,16 @@ public static class SessionTracker
     /// </summary>
     public static (int Games, int Wins) MateStats(string? allyPuuid, int days)
     {
-        if (Preview is not null || days <= 0) return MateStats(allyPuuid);
+        // Подменные игры песочницы время знают — окно работает и на них. Готовые
+        // подменные связки (проверки) времени не знают и идут целиком.
+        if (days > 0 && PreviewGames is not null)
+        {
+            var fake = Fake(DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds())!
+                .Where(p => string.IsNullOrEmpty(allyPuuid)
+                            || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase)).ToList();
+            return (fake.Sum(p => p.Games), fake.Sum(p => p.Wins));
+        }
+        if (Fake(0) is not null || days <= 0) return MateStats(allyPuuid);
         if (string.IsNullOrEmpty(allyPuuid)) return (0, 0);
         var acc = CurrentAccount();
         if (acc is null) return (0, 0);
@@ -542,6 +551,36 @@ public static class SessionTracker
     /// выглядит с данными, было нельзя. В боевом режиме всегда null.
     /// </summary>
     public static IReadOnlyList<PairStat>? Preview { get; set; }
+
+    /// Одна подменная совместная игра: с кем, на чём, на каких ролях, когда и чем
+    /// кончилась.
+    public sealed record PreviewGame(
+        string AllyPuuid, string AllyName, string Queue,
+        int MyChampionId, int AllyChampionId, string MyRole, string AllyRole,
+        long Ts, bool Win);
+
+    /// <summary>
+    /// Подменная ИСТОРИЯ совместных игр — для песочницы. В отличие от
+    /// <see cref="Preview"/>, у каждой игры есть время, поэтому работает окно
+    /// «за 30 дней», а связки складываются из игр так же, как настоящие. Задана —
+    /// главнее <see cref="Preview"/>. В боевом режиме всегда null.
+    /// </summary>
+    public static IReadOnlyList<PreviewGame>? PreviewGames { get; set; }
+
+    /// Подменные связки не раньше <paramref name="since"/>: из игр, если они
+    /// заданы, иначе готовые (у тех времени нет). null — подмены нет.
+    private static IReadOnlyList<PairStat>? Fake(long since)
+    {
+        if (PreviewGames is { } games)
+            return games
+                .Where(g => g.Ts >= since)
+                .GroupBy(g => (g.AllyPuuid, g.Queue, g.MyChampionId, g.AllyChampionId, g.MyRole, g.AllyRole))
+                .Select(x => new PairStat(x.Key.AllyPuuid, x.Last().AllyName, x.Key.Queue,
+                                          x.Key.MyChampionId, x.Key.AllyChampionId,
+                                          x.Count(), x.Count(g => g.Win), x.Key.MyRole, x.Key.AllyRole))
+                .ToList();
+        return Preview;
+    }
 
     /// <summary>
     /// Убрать связки, которые ничего не значат.
@@ -583,7 +622,7 @@ public static class SessionTracker
     {
         var since = days > 0
             ? DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds() : 0L;
-        if (Preview is { } fake)
+        if (Fake(since) is { } fake)
             return fake.Where(p => (string.IsNullOrEmpty(allyPuuid)
                                     || p.AllyPuuid.Equals(allyPuuid, StringComparison.OrdinalIgnoreCase))
                                    && (queues is not { Length: > 0 } || queues.Contains(p.Queue)))

@@ -150,13 +150,11 @@ static class TestMode
         overlay.SetOwnedChampions(allIds);
 
         // ТЕСТ связок: без сыгранных игр раздел «Винрейт связок» всегда пуст, и
-        // посмотреть, как он выглядит с данными, было нельзя.
-        //
-        // Числа подобраны правдоподобно, а не случайно: у частого напарника пар
-        // больше и выборка крупнее, у редкого — одна-две игры. Так видно и то,
-        // ради чего цвет вообще нужен (0 из 2 красным рядом с 8 из 11 зелёным),
-        // и что мелкая выборка приглушается.
-        SessionTracker.Preview = MakePairPreview();
+        // посмотреть, как он выглядит с данными, было нельзя. Подменная история
+        // по играм (см. MakeGamePreview): у частого напарника пар больше и
+        // выборка крупнее, у редкого — одна-две игры; есть игры старше месяца и
+        // мимо пула.
+        SessionTracker.PreviewGames = MakeGamePreview();
 
         // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
         // с кнопками режимов пула (в бою данные приходят из клиента).
@@ -303,6 +301,7 @@ static class TestMode
             overlay.SetEmptyProfilePreview(false);
             overlay.SetChampsPreview(null);
             SessionTracker.Preview = null;   // связки — только настоящие
+            SessionTracker.PreviewGames = null;
             Party.Sandbox = false;           // в бою напарник только по пати
             Party.SandboxMate(null);         // друг из панели — не пати; её пришлёт лобби
             overlay.ShowSession(null);
@@ -334,43 +333,85 @@ static class TestMode
             ["adc"] = [67, 236], ["support"] = [117, 40],
         };
         pools.Pools.Add(new ChampPool { Name = "Тест", ByRole = mine });
-        pools.DuoPools.Add(new DuoPool { FriendName = "Друг", Mine = mine, Friend = friend });
+        // Дуо-пул сразу настроен на постоянного напарника подменной истории:
+        // иначе раздел «винрейт связок» ждал бы, пока его опознают в драфте.
+        pools.DuoPools.Add(new DuoPool
+        {
+            FriendName = "Друг", FriendPuuid = MateOften, FriendNick = MateOftenNick,
+            Mine = mine, Friend = friend,
+        });
         PoolStore.Persist();
         PoolStore.SetActive(PoolKind.Duo, pools.DuoPools[0].Id);
     }
 
-    /// <summary>
-    /// Подменные связки для песочницы.
-    ///
-    /// Три напарника с разной историей: постоянный, с которым сыграно много,
-    /// редкий и совсем случайный. У каждой пары свой счёт — от уверенно
-    /// выигрышной до откровенно провальной, плюс пары на одной-двух играх,
-    /// чтобы видеть, как приглушается мелкая выборка.
-    ///
-    /// Чемпионы взяты настоящими парами «саппорт + стрелок» и «мид + лес»:
-    /// подставные числа на бессмысленных связках выглядели бы фальшиво.
-    /// </summary>
-    internal static List<SessionTracker.PairStat> MakePairPreview()
-    {
-        const string Main  = "TEST-mate-often-0000000000000000000000000000000000000000000000000";
-        const string Rare  = "TEST-mate-rare-00000000000000000000000000000000000000000000000000";
-        const string Once  = "TEST-mate-once-00000000000000000000000000000000000000000000000000";
+    // Напарники подменной истории. Постоянный — тот, на кого настроен тестовый
+    // дуо-пул «Друг» (см. SeedTestPools).
+    internal const string MateOften = "TEST-mate-often-0000000000000000000000000000000000000000000000000";
+    internal const string MateRare  = "TEST-mate-rare-00000000000000000000000000000000000000000000000000";
+    internal const string MateOnce  = "TEST-mate-once-00000000000000000000000000000000000000000000000000";
+    internal const string MateOftenNick = "Harribon";
 
-        // (мой чемпион, его чемпион, игр, побед)
-        return
-        [
-            // Постоянный напарник: я на саппортах, он на стрелках.
-            new(Main, "Harribon", "flex",   412,  22, 11, 8),   // Треш + Эш
-            new(Main, "Harribon", "flex",   412,  21,  9, 5),   // Треш + Мисс Фортуна
-            new(Main, "Harribon", "flex",    89,  51,  7, 2),   // Леона + Кейтлин
-            new(Main, "Harribon", "solo",    89, 236,  4, 3),   // Леона + Люциан
-            new(Main, "Harribon", "normal", 555,  22,  3, 0),   // Пайк + Эш — провальная
-            // Изредка меняемся линиями: я мид, он лес.
-            new(Rare, "Ozzy",     "normal", 103,  64,  6, 4),   // Ари + Ли Син
-            new(Rare, "Ozzy",     "normal", 157, 254,  2, 1),   // Ясуо + Вай
-            // Разовый союзник.
-            new(Once, "Sanya",    "solo",    86, 122,  1, 1),   // Гарен + Дариус
-        ];
+    /// <summary>
+    /// Подменная история совместных игр для песочницы — по игре на запись, с
+    /// датой, ролями и исходом, как копит настоящий журнал.
+    ///
+    /// Раньше были готовые итоги по парам без дат, и почти все мимо тестового
+    /// пула: в разделе «винрейт связок» оставалась одна плитка, а переключатель
+    /// «за 30 дней / за всё время» ничего не менял.
+    ///
+    /// Постоянный напарник (Harribon): пары из обеих половин тестового пула «Друг»
+    /// — от уверенно выигрышных до провальных, — плюс игры старше месяца (их видно
+    /// только «за всё время») и пары мимо пула (их окно связок не показывает).
+    /// Редкий и разовый напарники — для списка людей и чтобы чужие связки не
+    /// лезли в пул.
+    /// </summary>
+    internal static List<SessionTracker.PreviewGame> MakeGamePreview()
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new List<SessionTracker.PreviewGame>();
+
+        // Игры одной пары: results — по букве на игру (W/L) от свежей к старой,
+        // разложены ровно между fromDays и toDays дней назад.
+        void Pair(string puuid, string nick, string queue, int mine, string myRole,
+                  int his, string hisRole, string results, double fromDays, double toDays)
+        {
+            for (var i = 0; i < results.Length; i++)
+            {
+                var days = results.Length == 1 ? fromDays
+                    : fromDays + (toDays - fromDays) * i / (results.Length - 1);
+                games.Add(new(puuid, nick, queue, mine, his, myRole, hisRole,
+                              now - (long)(days * 86400) - 1800L * i, results[i] == 'W'));
+            }
+        }
+        const string H = MateOftenNick;
+
+        // ── Harribon, последний месяц, всё из пула ──
+        Pair(MateOften, H, "solo",    89, "support", 236, "adc",     "WWLWLWW", 2, 26);  // Леона + Люциан
+        Pair(MateOften, H, "solo",   412, "support",  67, "adc",     "WWWLW",   1, 20);  // Треш + Вейн
+        Pair(MateOften, H, "flex",   412, "support", 236, "adc",     "LWLW",    3, 24);  // Треш + Люциан
+        Pair(MateOften, H, "flex",    16, "support", 236, "adc",     "LLW",     5, 18);  // Сорака + Люциан
+        Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "WLWW",    4, 22);  // Ари + Элиза
+        Pair(MateOften, H, "normal",  99, "mid",      11, "jungle",  "LL",      9, 12);  // Люкс + Мастер Йи
+        Pair(MateOften, H, "flex",   222, "adc",     117, "support", "WWLW",    6, 27);  // Джинкс + Лулу
+        Pair(MateOften, H, "solo",    51, "adc",      40, "support", "WL",     10, 16);  // Кейтлин + Жанна
+        Pair(MateOften, H, "solo",    86, "top",      60, "jungle",  "W",       8,  8);  // Гарен + Элиза
+
+        // ── Harribon, старше месяца: видно только «за всё время» ──
+        Pair(MateOften, H, "solo",    89, "support", 236, "adc",     "LLW",    35, 55);
+        Pair(MateOften, H, "flex",   412, "support",  67, "adc",     "WW",     40, 48);
+        Pair(MateOften, H, "flex",    89, "support",  67, "adc",     "WLW",    33, 45);  // Леона + Вейн
+        Pair(MateOften, H, "solo",   103, "mid",      60, "jungle",  "L",      50, 50);
+
+        // ── Harribon мимо пула: в окне связок их нет, в сайдбаре есть ──
+        Pair(MateOften, H, "normal", 555, "support",  22, "adc",     "LLL",     7, 19);  // Пайк + Эш
+        Pair(MateOften, H, "flex",   412, "support",  21, "adc",     "WL",     11, 14);  // Треш + Мисс Фортуна
+
+        // ── Другие люди ──
+        Pair(MateRare, "Ozzy",  "normal", 103, "mid", 64,  "jungle", "WWLWLW", 10, 40);  // Ари + Ли Син
+        Pair(MateRare, "Ozzy",  "normal", 157, "mid", 254, "jungle", "WL",     20, 25);  // Ясуо + Вай
+        Pair(MateOnce, "Sanya", "solo",    86, "top", 122, "jungle", "W",      15, 15);  // Гарен + Дариус
+
+        return games;
     }
 }
 
@@ -814,7 +855,7 @@ sealed class TestPanel : Window
         if (on)
         {
             PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));
-            SessionTracker.Preview = null;
+            SessionTracker.PreviewGames = null;
             SessionTracker.UseStoredAccount(true);
         }
         else
@@ -822,7 +863,7 @@ sealed class TestPanel : Window
             PoolStore.ReplaceCurrent(null);
             TestMode.SeedTestPools();
             SessionTracker.UseStoredAccount(false);
-            SessionTracker.Preview = TestMode.MakePairPreview();
+            SessionTracker.PreviewGames = TestMode.MakeGamePreview();
         }
         FillMates();   // пулы другие — и друзья другие
         _overlay.RefreshPoolMode();
