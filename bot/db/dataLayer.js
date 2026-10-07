@@ -6,8 +6,12 @@
 // ВАЖНО: patch — TEXT («16.9» > «16.13» лексикографически), поэтому патчи
 // сортируем численно и отбрасываем мусорные (< 5% объёма от максимального).
 const mainDb = require('./mainDb');
+const { READY_MIN_GAMES, READY_FRACTION, MAIN_BUCKET } = require('../lib/freshness');
 
-const PATCH_WEIGHTS = [1.0, 0.7, 0.45]; // текущий, предыдущий, пред-предыдущий
+// Окно патчей — как у движка программы (RecommendationEngine: PATCH_WINDOW = 2,
+// вес патча 1.0 и 0.6): два последних ГОТОВЫХ патча. Третий по счёту — данные
+// полуторамесячной давности, и своим объёмом он перевешивал свежую мету.
+const PATCH_WEIGHTS = [1.0, 0.6]; // свежий, предыдущий
 
 class DataUnavailableError extends Error {
   constructor() {
@@ -62,10 +66,36 @@ function patches() {
 const getCurrentPatch = () => patches().at(-1) ?? null;
 const getPreviousPatch = () => patches().at(-2) ?? null;
 
-/** Последние ≤3 патча (от свежего к старому) + веса. */
+/** Сколько «чемпион+роль» основного бакета набрали на патче достаточно игр. */
+function coverage(patch) {
+  const r = q((db) =>
+    db
+      .prepare(
+        `SELECT COUNT(*) n FROM (
+           SELECT champion_id, role FROM base_wr WHERE patch = ? AND tier_bucket = ?
+           GROUP BY champion_id, role HAVING SUM(games) >= ?)`
+      )
+      .get(patch, MAIN_BUCKET, READY_MIN_GAMES)
+  );
+  return r?.n ?? 0;
+}
+
+let _windowCache = { gen: -1, win: null };
+
+/** Окно патчей (от свежего к старому) + веса. Новейший патч не берётся, пока не
+ *  покроет 70% связок прошлого — удержание, как в программе и на сайте. */
 function getPatchWindow() {
-  const list = patches().slice(-PATCH_WEIGHTS.length).reverse();
-  return { patches: list, weights: PATCH_WEIGHTS.slice(0, list.length) };
+  if (_windowCache.gen === mainDb.generation() && _windowCache.win) return _windowCache.win;
+  const ready = patches().slice();
+  if (ready.length >= 2) {
+    const covNew = coverage(ready.at(-1));
+    const covPrev = coverage(ready.at(-2));
+    if (covPrev > 0 && covNew / covPrev < READY_FRACTION) ready.pop();
+  }
+  const list = ready.slice(-PATCH_WEIGHTS.length).reverse();
+  const win = { patches: list, weights: PATCH_WEIGHTS.slice(0, list.length) };
+  _windowCache = { gen: mainDb.generation(), win };
+  return win;
 }
 
 /** Всего матчей на патче (в каждом матче 10 участников base_wr). */
@@ -244,13 +274,57 @@ function wCountersAgainst(enemyId, role, minRawGames = 0) {
   });
 }
 
-/** Взвешенная синергия пары (роли обеих сторон известны из драфта). */
-function wSynergy(championId, role, allyId, allyRole) {
-  const r = wAgg('synergy', {
-    where: 'champion_id = ? AND role = ? AND ally_id = ? AND ally_role = ?',
-    whereParams: [championId, role, allyId, allyRole]
+/** Взвешенный кросс-ролевой матчап: мой чемпион (role) против врага на ДРУГОЙ
+ *  роли (enemyRole) — бот 2 на 2, лес против линий и т. д. (или null). */
+function wCross(championId, role, enemyId, enemyRole) {
+  const r = wAgg('botlane_matchup', {
+    where: 'champion_id = ? AND role = ? AND vs_champion_id = ? AND vs_role = ?',
+    whereParams: [championId, role, enemyId, enemyRole]
   });
   return r && r.g ? r : null;
+}
+
+/** Синергия пары: обе стороны записи (синергия симметрична, а записана одной
+ *  строкой на сторону). allyRole = null — по всем ролям союзника. */
+function synergyRows(championId, role, allyId, allyRole) {
+  const byRole = !!allyRole;
+  const mine = wAgg('synergy', {
+    where: `champion_id = ? AND role = ? AND ally_id = ?${byRole ? ' AND ally_role = ?' : ''}`,
+    whereParams: byRole ? [championId, role, allyId, allyRole] : [championId, role, allyId]
+  });
+  const theirs = wAgg('synergy', {
+    where: `champion_id = ? AND ally_id = ? AND ally_role = ?${byRole ? ' AND role = ?' : ''}`,
+    whereParams: byRole ? [allyId, championId, role, allyRole] : [allyId, championId, role]
+  });
+  return {
+    g: (mine?.g ?? 0) + (theirs?.g ?? 0),
+    w: (mine?.w ?? 0) + (theirs?.w ?? 0),
+    rawG: (mine?.rawG ?? 0) + (theirs?.rawG ?? 0)
+  };
+}
+
+/** Взвешенная синергия пары — как в программе: по роли союзника, если по этой
+ *  паре ролей есть свои игры, иначе по всем его ролям (или null). */
+function wSynergy(championId, role, allyId, allyRole) {
+  if (allyRole && allyRole !== role) {
+    const r = synergyRows(championId, role, allyId, allyRole);
+    if (r.g > 0) return r;
+  }
+  const r = synergyRows(championId, role, allyId, null);
+  return r.g > 0 ? r : null;
+}
+
+let _crossCache = { gen: -1, games: 0 };
+
+/** Сколько всего игр в кросс-ролевых матчапах базы: движок включает слагаемое
+ *  «бот 2 на 2», только когда этих данных достаточно. */
+function crossGames() {
+  if (_crossCache.gen === mainDb.generation()) return _crossCache.games;
+  const r = q((db) =>
+    db.prepare("SELECT COALESCE(SUM(games), 0) g FROM botlane_matchup WHERE patch <> 'all'").get()
+  );
+  _crossCache = { gen: mainDb.generation(), games: r?.g ?? 0 };
+  return _crossCache.games;
 }
 
 /** Сколько матчей обработано пайплайном (для /admin status). Тонкая база больше
@@ -291,5 +365,7 @@ module.exports = {
   wMatchupsFor,
   wCountersAgainst,
   wSynergy,
+  wCross,
+  crossGames,
   countMatches
 };
