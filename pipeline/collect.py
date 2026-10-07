@@ -955,7 +955,6 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     # бакетах, а при истечении ключа они прерываются исключением — собранное в
     # них терялось для отчёта. Прирост базы это учитывает.
     start_total = db_total(con)
-    interrupted = False
     # Ключ протух или кончился диск — пробросим ПОСЛЕ штатного сохранения базы.
     expired: KeyExpired | DiskLow | None = None
     total_lock = threading.Lock()
@@ -1010,7 +1009,6 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
             print('\nВсе бакеты и регионы пройдены за этот проход.')
     except KeyboardInterrupt:
         stop.set()
-        interrupted = True
         print('\nОстановка по Ctrl+C — сохраняю собранное…', flush=True)
     except KeyExpired as e:
         # Ключ протух посреди прогона — не теряем собранное: гасим потоки,
@@ -1037,9 +1035,6 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     added = max(session_total, final - start_total)
 
     print(f'\nГотово. За сессию собрано: {session_total}. Всего в базе: {final}. База: {db_path}')
-    if interrupted or added:
-        print('Чтобы выложить базу на сервер, выполни:')
-        print('  powershell -ExecutionPolicy Bypass -File .\\build\\publish-data.ps1')
 
     if expired:
         expired.collected = added  # сервису — для уведомления «+N за ключ»
@@ -1156,6 +1151,12 @@ if __name__ == '__main__':
         sys.exit(0)
 
     try:
-        run_continuous(key, args.db, regions, buckets, args.days, args.games)
+        added = run_continuous(key, args.db, regions, buckets, args.days, args.games)
     except KeyExpired as e:
         sys.exit(f'\n[{e.code}] {KeyExpired.HINT}')
+    # Подсказка только для ручного запуска: на сервере базу после каждого круга
+    # публикует демон коллектора сам.
+    if added:
+        print('Выложить эту базу для программы и бота:')
+        print(f'  python pipeline/publish_data.py --db {args.db}')
+        print('  (нужен GITHUB_TOKEN, для своего хранилища ещё R2_DATA_*)')

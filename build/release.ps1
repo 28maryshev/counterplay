@@ -142,7 +142,7 @@ if (-not $FeedOnly) {
 
   Write-Host ""
   Write-Host "Done: installer and release files are in .\Releases" -ForegroundColor Green
-  Write-Host "Note: database is published separately via build\publish-data.ps1 (data release)." -ForegroundColor Yellow
+  Write-Host "Note: the match database is published by the collector itself after each round (data release)." -ForegroundColor Yellow
 }
 else {
   Write-Host "Feed-only: refreshing the 'latest' feed for v$Version (no rebuild)" -ForegroundColor Cyan
@@ -183,7 +183,7 @@ if ($Upload) {
       # In the Discord announcement players only care about the app itself.
       # Commits that touched ONLY internal files (test sandbox, data pipeline,
       # Discord bot, build scripts, docs) are left out of the release notes.
-      $internal = '^(pipeline/|bot/|build/|docs/|tests/|ops/|\.claude/|\.github/|README|CLAUDE\.md|\.gitignore|src/Dev/)'
+      $internal = '^(pipeline/|bot/|build/|docs/|tests/|ops/|\.claude/|\.github/|README|CLAUDE\.md|PATCH_CHECKLIST\.md|\.gitignore|src/Dev/)'
 
       # Group commits by FEATURE = the "Area:" prefix before the first colon
       # (e.g. "Duo pool", "Pool settings", "Damage mix"). A big feature made of
