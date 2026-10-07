@@ -63,9 +63,6 @@ static class TestMode
         await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
         overlay.ShowStatus(Loc.T("status.loadingIcons"));
         await IconCache.PreloadAllAsync(msg => overlay.ShowStatus(msg), ct);
-        // Иконки ролей — своим ходом, как в бою: при медленном Community Dragon
-        // песочница стояла на «загрузке иконок» по минуте с лишним.
-        Program.StartRoleIcons(overlay, ct);
         await ItemIcons.PreloadAsync(ct);
         // Бакет берём ТОТ ЖЕ, что и боевой режим (сохранённый ранг). Иначе теги
         // версий не совпадают ("all:…" против "gold:…") и база перекачивается

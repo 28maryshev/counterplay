@@ -441,9 +441,7 @@ class Program
     /// патч и на диске старый), и только потом тянем иконки — иначе скачали бы
     /// набор прошлого патча, а следом ещё раз новый.
     /// </summary>
-    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct)
-    {
-        StartRoleIcons(overlay, ct);
+    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct) =>
         _ = Task.Run(async () =>
         {
             try
@@ -463,28 +461,6 @@ class Program
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { Log.Write($"разогрев не доделан: {ex.Message}"); }
-        }, ct);
-    }
-
-    /// <summary>
-    /// Иконки ролей — отдельно от прогрева, своим ходом.
-    ///
-    /// Они живут на Community Dragon, а не на Data Dragon, и тот бывает
-    /// медленным: 7 октября отвечал за 19.5 с. Стоя первыми в цепочке прогрева,
-    /// иконки держали за собой руны, названия и свойства предметов — панель
-    /// сборки появлялась через минуту с лишним после запуска. Доехали — окно
-    /// перерисовывается, как после портретов.
-    /// </summary>
-    internal static void StartRoleIcons(OverlayWindow overlay, CancellationToken ct) =>
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await RoleIcons.PreloadAsync(ct);
-                overlay.IconsArrived();
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { Log.Write($"иконки ролей не доехали: {ex.Message}"); }
         }, ct);
 
     /// <summary>

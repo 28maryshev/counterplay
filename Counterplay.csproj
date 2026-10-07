@@ -42,6 +42,8 @@
   <ItemGroup>
     <Resource Include="assets\ranks\*.png" />
     <Resource Include="assets\flags\*.png" />
+    <!-- Иконки ролей: свои, без сети (см. RoleIcons). -->
+    <Resource Include="assets\roles\*.png" />
   </ItemGroup>
 
   <!-- Строки локализации интерфейса (en/ru/es/pt/de/fr/tr/ko) -->
