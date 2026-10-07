@@ -1,6 +1,7 @@
 // Синхронизация снапшота базы с GitHub Releases (тег data).
-// Владелец публикует data.db + data-version.json скриптом build/publish-data.ps1;
-// бот раз в час сверяет version (hash содержимого) и атомарно подменяет файл.
+// Базу публикует коллектор сам после каждого круга сбора (pipeline/publish_data.py):
+// общую тонкую data.db и data-version.json. Бот раз в час сверяет version (хэш
+// содержимого) и атомарно подменяет файл.
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');

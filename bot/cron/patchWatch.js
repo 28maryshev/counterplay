@@ -2,8 +2,9 @@
 // нашей базы, и постит в #announcements ключевые переходы:
 //   • вышел новый патч LoL → «собираем данные, тир-лист держим на старом»;
 //   • следом — что именно Riot в этом патче изменил;
-//   • по новому патчу набралось достаточно данных → «готово, пора обновлять сайт».
-// Программа (data.db) обновляется сама после кругов сбора; сайт — вручную.
+//   • по новому патчу набралось достаточно данных → «готово, переходим».
+// Руками ничего делать не нужно: после каждой публикации базы коллектор сам
+// обновляет и программу (data.db), и сайт (тир-лист, контрпики, руны).
 // Первый прогон инициализируется молча (не спамим стартовым состоянием).
 const { COLORS, embed } = require('../lib/embeds');
 const { kvGet, kvSet } = require('../db/botDb');
@@ -52,7 +53,7 @@ async function run(ctx, { force = false } = {}) {
   }
   if (primary && primary !== lastReady && (!lastReady || freshness.cmpPatch(primary, lastReady) > 0)) {
     msgs.push(
-      `📊 **Patch ${dp(primary)} data is ready.** The app database updates itself; run the site deploy to move guides & tier list to **${dp(primary)}**.`
+      `📊 **Patch ${dp(primary)} data is ready.** The tier list, counter guides and the app move to **${dp(primary)}** with the next database update — no action needed.`
     );
     kvSet(KV_READY, primary);
   }
