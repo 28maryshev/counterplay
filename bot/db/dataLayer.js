@@ -189,7 +189,7 @@ function getMatchupPairs(patch, minGames) {
   );
 }
 
-// ── Взвешенное окно 3 патчей (скоринг дуэлей, Pick Coach) ────────────────
+// ── Взвешенное окно патчей (скоринг дуэлей, /counter, /matchup, /pool) ────
 
 // Хелпер: собрать CASE-выражение и параметры окна.
 function winSql(col = 'patch') {
