@@ -16,8 +16,7 @@ namespace Counterplay;
 public static class OpenRequest
 {
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "open-request.txt");
+        AppPaths.Root, "open-request.txt");
 
     /// Оставить запрос (вызывает второй экземпляр перед тем, как выйти).
     public static void Put(string file)

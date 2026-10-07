@@ -612,10 +612,9 @@ public sealed class RecommendationEngine : IDisposable
     // иначе пустой data.db в рабочей папке перекрывал бы настоящую базу.
     public static string? FindDb()
     {
-        // Скачанная база в профиле пользователя (её ведёт DataDb.EnsureAsync).
-        var downloaded = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Counterplay", "data.db");
+        // Скачанная база в профиле пользователя (её ведёт DataDb.EnsureAsync) —
+        // тем же путём, что у DataDb: у базы свой шов, у данных игрока свой.
+        var downloaded = DataDb.LocalPath;
 
         // По умолчанию — скачанная база (как у всех). Dev-базы рядом с проектом
         // берём в приоритет ТОЛЬКО в dev-режиме (COUNTERPLAY_DEV_DB=1), иначе они

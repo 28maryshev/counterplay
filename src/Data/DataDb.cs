@@ -23,7 +23,7 @@ public static class DataDb
 
     // Постоянное место БД — вне каталога установки, переживает обновления приложения.
     private static string Dir => DirOverride ??
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+        AppPaths.Root;
     public static string LocalPath        => Path.Combine(Dir, "data.db");
     private static string LocalVersionPath => Path.Combine(Dir, "data-version.txt");
 

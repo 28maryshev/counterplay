@@ -18,8 +18,7 @@ public static class IconCache
     /// один раз при старте.
     /// Папка кэша под текущий патч: %APPDATA%\Counterplay\icons\{version}\{id}.png
     private static string CacheDirFor(string version) => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "icons", version);
+        AppPaths.Root, "icons", version);
 
     /// <summary>
     /// Все ли портреты уже лежат на диске.

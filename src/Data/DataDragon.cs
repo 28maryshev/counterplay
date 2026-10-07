@@ -16,7 +16,7 @@ public static class DataDragon
     // Справочник на диске: %APPDATA%\Counterplay\ddragon\champion-<локаль>.json
     // рядом с файлом версии, к которой он относится.
     private static string CacheDir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "ddragon");
+        AppPaths.Root, "ddragon");
     private static string CachePath(string locale) => Path.Combine(CacheDir, $"champion-{locale}.json");
     private static string CacheVer(string locale)  => Path.Combine(CacheDir, $"champion-{locale}.ver");
 

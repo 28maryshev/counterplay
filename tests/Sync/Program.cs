@@ -26,13 +26,17 @@ internal static class Program
     private const string TestPuuid = "TEST-sync-e2e-000000000000000000000000000000000000000000000000000000";
     private const string TestPass = "проверка-синхронизации-e2e";
 
-    private static string Dir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+    private static string Dir => AppPaths.Root;
 
     private static readonly string[] Files = ["pools.json", "ui.json", "session.json", "sync.dat", "sync.rev"];
 
     private static async Task<int> Main()
     {
+        // Своя папка вместо папки игрока — до первого обращения к любому
+        // хранилищу. Раньше проверка писала в настоящие файлы и «возвращала
+        // как было»: правку, сделанную рядом работающей программой, это откатывало.
+        AppPaths.RootOverride = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "counterplay-test-root", "Sync");
+        System.IO.Directory.CreateDirectory(AppPaths.RootOverride);
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
 

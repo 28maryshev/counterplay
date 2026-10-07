@@ -22,11 +22,15 @@ internal static class Program
     private static int _fails;
 
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "session.json");
+        AppPaths.Root, "session.json");
 
     private static async Task<int> Main()
     {
+        // Своя папка вместо папки игрока — до первого обращения к любому
+        // хранилищу. Раньше проверка писала в настоящие файлы и «возвращала
+        // как было»: правку, сделанную рядом работающей программой, это откатывало.
+        AppPaths.RootOverride = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "counterplay-test-root", "DuoPairsLive");
+        System.IO.Directory.CreateDirectory(AppPaths.RootOverride);
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
 
@@ -47,6 +51,16 @@ internal static class Program
         {
             using var http = new LcuHttpClient(creds);
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            // Клиент открыт, но в аккаунт не вошли — спрашивать «кто играет»
+            // некого. Это не поломка, а то же «проверять нечего», что и без
+            // клиента: иначе проверка краснела всякий раз, когда клиент висит на
+            // экране входа. Вошли, а игрок не узнан, — по-прежнему провал ниже.
+            var (login, _) = await http.GetAsync("/lol-login/v1/session", cts.Token);
+            if (login != 200)
+            {
+                Console.WriteLine("клиент открыт, но вход в аккаунт не выполнен — проверять нечего");
+                return 0;
+            }
             await Run(http, cts.Token);
         }
         finally

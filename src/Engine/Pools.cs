@@ -143,8 +143,7 @@ public static class PoolStore
     public static string? DirOverride { get; set; }
 
     private static string Path_ => System.IO.Path.Combine(
-        DirOverride ?? System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay"),
+        DirOverride ?? AppPaths.Root,
         "pools.json");
 
     private static readonly object Gate = new();
@@ -473,7 +472,7 @@ public static class PoolStore
         try
         {
             var path = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "pools.json");
+                AppPaths.Root, "pools.json");
             if (!File.Exists(path)) return null;
             var all = JsonSerializer.Deserialize<Dictionary<string, AccountPools>>(File.ReadAllText(path));
             return all is not null && all.TryGetValue(key, out var a) ? a : null;

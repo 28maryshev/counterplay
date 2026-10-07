@@ -18,9 +18,7 @@ public static class Notice
 {
     private const string Url = "https://counterplays.com/api/notice";
 
-    private static readonly string CachePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "notice.json");
+    private static string CachePath => Path.Combine(AppPaths.Root, "notice.json");
 
     /// Готовое к показу сообщение: текст на языке интерфейса, ссылка (если есть)
     /// и вид — "info" (обычная плашка) или "alert" (красная, о неполадке).

@@ -42,8 +42,7 @@ public static class DuoShare
     /// а потолок не даёт превратить ком в выгрузку всей истории.
     private const int MaxChamps = 40;
 
-    private static string Dir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+    private static string Dir => AppPaths.Root;
 
 
     /// <summary>Шов для проверок: своя папка вместо боевой.</summary>

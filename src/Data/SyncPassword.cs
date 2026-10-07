@@ -22,8 +22,7 @@ namespace Counterplay;
 public static class SyncPassword
 {
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "sync.dat");
+        AppPaths.Root, "sync.dat");
 
     /// Пароль задан на этом компьютере.
     public static bool IsSet => File.Exists(Path_) && new FileInfo(Path_).Length > 0;

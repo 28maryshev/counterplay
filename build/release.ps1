@@ -63,6 +63,19 @@ if (-not $AllowInternal) {
   }
 }
 
+# Данные игрока: песочница и проверки не должны их трогать (tests/PlayerData).
+# Гоняется перед КАЖДЫМ выпуском и без неё сборка не начинается: 7 октября
+# песочница записала тестовый аккаунт в пулы владельца, синхронизация увезла его
+# на сервер, а проверки «восстанавливали» его файлы поверх свежих правок.
+# Проверка работает во временной папке и настоящие файлы только читает.
+if (-not $FeedOnly) {
+  Write-Host "Проверка данных игрока (tests/PlayerData)..." -ForegroundColor Cyan
+  dotnet run --project tests/PlayerData/PlayerData.csproj -c Release
+  if ($LASTEXITCODE -ne 0) {
+    throw "Проверка данных игрока не прошла — выпуск остановлен. Песочница или проверки трогают данные игрока."
+  }
+}
+
 $repo = "https://github.com/28maryshev/counterplay"
 
 # Auto version: latest vX.Y.Z tag from origin, patch + 1.

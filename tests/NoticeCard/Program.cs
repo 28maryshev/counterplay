@@ -31,12 +31,16 @@ internal static class Program
         + "два личных набора. Вся информация и инструменты теперь в настройках пула.";
 
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "notice.json");
+        AppPaths.Root, "notice.json");
 
     [STAThread]
     private static int Main()
     {
+        // Своя папка вместо папки игрока — до первого обращения к любому
+        // хранилищу. Раньше проверка писала в настоящие файлы и «возвращала
+        // как было»: правку, сделанную рядом работающей программой, это откатывало.
+        AppPaths.RootOverride = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "counterplay-test-root", "NoticeCard");
+        System.IO.Directory.CreateDirectory(AppPaths.RootOverride);
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
         Loc.SetLanguage("ru");

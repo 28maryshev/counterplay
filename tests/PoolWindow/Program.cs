@@ -31,6 +31,11 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        // Своя папка вместо папки игрока — до первого обращения к любому
+        // хранилищу. Раньше проверка писала в настоящие файлы и «возвращала
+        // как было»: правку, сделанную рядом работающей программой, это откатывало.
+        AppPaths.RootOverride = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "counterplay-test-root", "PoolWindow");
+        System.IO.Directory.CreateDirectory(AppPaths.RootOverride);
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
 

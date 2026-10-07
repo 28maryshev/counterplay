@@ -248,8 +248,7 @@ public static class SessionTracker
     }
 
     private static string StorePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                     "Counterplay", "session.json");
+        Path.Combine(AppPaths.Root, "session.json");
 
     // Один Refresh за раз: конец матча порождает шквал gameflow-событий, и
     // параллельные вызовы гонялись на файле журнала (затирали его пустым).

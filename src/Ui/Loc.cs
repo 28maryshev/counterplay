@@ -45,8 +45,7 @@ public static class Loc
     public static string DDragonLocale => CurrentLang.DDragon;
 
     private static string SettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "settings.json");
+        AppPaths.Root, "settings.json");
 
     /// Вызвать один раз при старте: сохранённый выбор → язык Windows → en.
     public static void Init()

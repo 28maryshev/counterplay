@@ -15,8 +15,7 @@ public static class Settings
     private static readonly object Gate = new();
 
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "settings.json");
+        AppPaths.Root, "settings.json");
 
     // Что поменяли в песочнице: живёт в памяти поверх файла (см. Sandbox).
     private static readonly JsonObject SandboxValues = new();

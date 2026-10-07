@@ -136,10 +136,7 @@ static class TestMode
         // переписывает целиком. Запись песочницы могла вернуть настоящие пулы к
         // виду на момент её запуска. Свои пулы игрока песочница теперь только
         // читает (PoolStore.ReadLive).
-        PoolStore.DirOverride = Sandbox.Dir;
-        PoolStore.Reload();
-        PoolStore.SetAccount("test-account", "TEST");
-        SeedTestPools();
+        EnterSandboxData(engine);
 
         // ТЕСТ владения: по умолчанию доступны ВСЕ чемпионы (в песочнице «нет
         // чемпиона» обычно мешает). Проверить плашку можно галочкой в панели —
@@ -151,8 +148,6 @@ static class TestMode
         // по играм (см. MakeGamePreview): у частого напарника пар больше и
         // выборка крупнее, у редкого — одна-две игры; есть игры старше месяца и
         // мимо пула.
-        UseTestHistory(engine, true);
-
         // ТЕСТ сессии: фейковый ник/ранг/W-L/график, чтобы был виден экран ready
         // с кнопками режимов пула (в бою данные приходят из клиента).
         // Список идёт от свежей игры к старой. Первой стоит поражение — на этом
@@ -281,12 +276,7 @@ static class TestMode
         await Task.WhenAny(LiveRequested.Task, Task.Delay(Timeout.Infinite, ct));
         if (!SwitchToLive) return;
 
-        // Дальше программа боевая: данные игрока снова пишутся, пулы — обратно
-        // к его настоящему файлу.
-        Sandbox.Active = false;
-        PoolStore.DirOverride = null;
-        PoolStore.Reload();
-        SessionTracker.UseStoredAccount(false);   // аккаунт выставит клиент
+        LeaveSandboxData();
 
         overlay.Dispatcher.Invoke(() =>
         {
@@ -297,11 +287,6 @@ static class TestMode
             overlay.SandboxMode = false;
             overlay.SetEmptyProfilePreview(false);
             overlay.SetChampsPreview(null);
-            SessionTracker.Preview = null;   // связки — только настоящие
-            SessionTracker.PreviewGames = null;
-            DuoShare.Preview = null;
-            Party.Sandbox = false;           // в бою напарник только по пати
-            Party.SandboxMate(null);         // друг из панели — не пати; её пришлёт лобби
             overlay.ShowSession(null);
             overlay.UpdateRecommendations(null, null);
             overlay.ApplyRunesHandler = null;
@@ -313,6 +298,57 @@ static class TestMode
             overlay.BanLockHandler = null;
         });
         RunesClient.UseMock = false;   // руны — настоящие, из базы
+    }
+
+    // ── Данные песочницы: вход, профиль, выход ─────────────────────────────
+    //
+    // Всё, что песочница делает с данными, — в трёх методах ниже. Их зовут и
+    // сама песочница, и проверка tests/PlayerData: она прогоняет те же шаги на
+    // подставных «данных игрока» и следит, что ни один его файл не изменился,
+    // а пулы и статистика после выхода видны, как были.
+
+    /// Вход: пулы — в своей папке, тестовые пулы и подменная история.
+    internal static void EnterSandboxData(RecommendationEngine engine)
+    {
+        PoolStore.DirOverride = Sandbox.Dir;
+        PoolStore.Reload();
+        PoolStore.SetAccount("test-account", "TEST");
+        SeedTestPools();
+        UseTestHistory(engine, true);
+    }
+
+    /// Профиль «мой аккаунт» (true) — копия пулов игрока и его настоящая
+    /// статистика, только чтением; false — снова тестовые пулы и история.
+    internal static void ApplyMyData(RecommendationEngine engine, bool on)
+    {
+        if (on)
+        {
+            PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));
+            UseTestHistory(engine, false);
+            SessionTracker.UseStoredAccount(true);
+        }
+        else
+        {
+            PoolStore.ReplaceCurrent(null);
+            SeedTestPools();
+            SessionTracker.UseStoredAccount(false);
+            UseTestHistory(engine, true);
+        }
+    }
+
+    /// Выход в боевой режим: данные игрока снова пишутся, пулы — обратно к
+    /// его настоящему файлу, все подмены сняты.
+    internal static void LeaveSandboxData()
+    {
+        Sandbox.Active = false;
+        PoolStore.DirOverride = null;
+        PoolStore.Reload();
+        SessionTracker.UseStoredAccount(false);   // аккаунт выставит клиент
+        SessionTracker.Preview = null;            // связки — только настоящие
+        SessionTracker.PreviewGames = null;
+        DuoShare.Preview = null;
+        Party.Sandbox = false;                    // в бою напарник только по пати
+        Party.SandboxMate(null);                  // друг из панели — не пати; её пришлёт лобби
     }
 
     // Почти все мидеры и саппорты — по доле игр на роли в базе (emerald, 16.18–
@@ -1062,19 +1098,7 @@ sealed class TestPanel : Window
             else File.Delete(MyAccountMark);
         }
         catch { /* не запомнилось — выберут ещё раз */ }
-        if (on)
-        {
-            PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));
-            TestMode.UseTestHistory(_engine, false);
-            SessionTracker.UseStoredAccount(true);
-        }
-        else
-        {
-            PoolStore.ReplaceCurrent(null);
-            TestMode.SeedTestPools();
-            SessionTracker.UseStoredAccount(false);
-            TestMode.UseTestHistory(_engine, true);
-        }
+        TestMode.ApplyMyData(_engine, on);
         FillMates();   // пулы другие — и друзья другие
         _overlay.RefreshPoolMode();
         Recompute();

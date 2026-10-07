@@ -27,6 +27,14 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        // Своя папка вместо папки игрока — до первого обращения к любому
+        // хранилищу. Раньше проверка писала в настоящие файлы и «возвращала
+        // как было»: правку, сделанную рядом работающей программой, это откатывало.
+        AppPaths.RootOverride = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "counterplay-test-root", "BanReason");
+        System.IO.Directory.CreateDirectory(AppPaths.RootOverride);
+        // А база матчей — скачанная, настоящая: её проверка только читает.
+        DataDb.DirOverride = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
 
@@ -158,8 +166,7 @@ internal static class Program
     private static void Mains(RecommendationEngine engine)
     {
         Console.WriteLine();
-        var dir = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+        var dir = AppPaths.Root;
         var path = System.IO.Path.Combine(dir, "session.json");
         var before = File.Exists(path) ? File.ReadAllText(path) : null;
         const string Puuid = "TEST-bans-mains-000000000000000000000000000000000000000000000000000000";

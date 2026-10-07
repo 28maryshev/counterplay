@@ -70,9 +70,7 @@ public static class Telemetry
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Counterplay");
+            var dir = AppPaths.Root;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return Directory.GetCreationTimeUtc(dir).ToString("o");
         }
@@ -102,8 +100,7 @@ public static class Telemetry
     public static string DeviceId()
     {
         var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Counterplay", "install.id");
+            AppPaths.Root, "install.id");
 
         // Сохранённый идентификатор — главный источник. Мусор в файле (пустой,
         // обрезанный) игнорируем и считаем заново: пустой id сервер всё равно

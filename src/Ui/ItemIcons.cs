@@ -20,8 +20,7 @@ public static class ItemIcons
     // Картинки кэшируем ПО ПАТЧУ: Riot их перерисовывает, а кэш по одному id
     // держал бы прошлую картинку вечно.
     private static string CacheDir() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "items", DataDragon.Version);
+        AppPaths.Root, "items", DataDragon.Version);
 
     /// Чистит картинки прошлых патчей — их больше никто не попросит.
     private static void SweepOldCaches()
@@ -29,8 +28,7 @@ public static class ItemIcons
         try
         {
             var root = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "Counterplay", "items");
+                AppPaths.Root, "items");
             if (!Directory.Exists(root)) return;
             foreach (var dir in Directory.GetDirectories(root))
                 if (Path.GetFileName(dir) != DataDragon.Version)

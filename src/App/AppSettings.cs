@@ -160,8 +160,7 @@ public sealed class AppSettings
     // класса в тот же файл затирала бы соседние ключи — язык слетал бы при
     // первом же изменении настроек интерфейса.
     private static string Path_ => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Counterplay", "ui.json");
+        AppPaths.Root, "ui.json");
 
     private static readonly JsonSerializerOptions JsonOpts = new()
         { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };

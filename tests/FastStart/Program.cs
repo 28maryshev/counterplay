@@ -21,12 +21,17 @@ internal static class Program
     private const string Fake = "zz_ZZ";   // такой локали не бывает
 
     private static string Dir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "ddragon");
+        AppPaths.Root, "ddragon");
     private static string Json => Path.Combine(Dir, $"champion-{Fake}.json");
     private static string Ver  => Path.Combine(Dir, $"champion-{Fake}.ver");
 
     private static int Main()
     {
+        // Своя папка вместо папки игрока — до первого обращения к любому
+        // хранилищу. Раньше проверка писала в настоящие файлы и «возвращала
+        // как было»: правку, сделанную рядом работающей программой, это откатывало.
+        AppPaths.RootOverride = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "counterplay-test-root", "FastStart");
+        System.IO.Directory.CreateDirectory(AppPaths.RootOverride);
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
 

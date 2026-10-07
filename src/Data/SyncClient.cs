@@ -22,8 +22,7 @@ public static class SyncClient
 {
     private const string Endpoint = "https://counterplays.com/api/sync/";
 
-    private static string Dir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+    private static string Dir => AppPaths.Root;
 
     /// Файлы, которые едут целиком. Порядок не важен, важен состав.
     private static readonly string[] Files = ["pools.json", "ui.json", "session.json"];

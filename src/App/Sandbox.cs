@@ -22,5 +22,5 @@ public static class Sandbox
 
     /// Папка песочницы: %APPDATA%\Counterplay\sandbox.
     public static string Dir => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "sandbox");
+        AppPaths.Root, "sandbox");
 }
