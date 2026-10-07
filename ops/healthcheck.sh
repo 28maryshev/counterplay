@@ -47,6 +47,7 @@ echo "db_age=$(( $(date -u +%s) - $(stat -c %Y counterplay-collector/data/data.d
 echo "key_present=$([ -f counterplay-collector/control/key ] && echo 1 || echo 0)"
 echo "ops_db=$([ -f counterplay-collector/data/ops.db ] && echo 1 || echo 0)"
 echo "journal_files=$(ls journal/*.md 2>/dev/null | wc -l)"
+echo "handbook_newest=$(find journal/handbook -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1 | cut -d. -f1)"
 echo "cron_backup=$(crontab -l 2>/dev/null | grep -c backup-collector.sh)"
 echo "cron_watch=$(crontab -l 2>/dev/null | grep -c site_watch.sh)"
 echo "cron_cleanup=$(crontab -l 2>/dev/null | grep -c cleanup.sh)"
@@ -141,6 +142,18 @@ else
   if [ "${jf:-0}" -lt "${lf:-0}" ]; then
     warn "журнал на сервере отстал: там ${jf}, здесь ${lf} — нужен ops/journal-push.sh"
   else ok "журнал на сервере: ${jf} записей"; fi
+
+  # Справочник сверяем по самому свежему файлу: tar при отправке сохраняет время
+  # правки, так что сервер старше локального — значит, правки не отправлены.
+  if [ -d "$DIR/handbook" ]; then
+    hr=$(val "$R" handbook_newest)
+    hl=$(find "$DIR/handbook" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1 | cut -d. -f1)
+    if [ -z "$hr" ]; then
+      warn "справочника на сервере нет — нужен ops/journal-push.sh"
+    elif [ "${hl:-0}" -gt $(( hr + 60 )) ]; then
+      warn "справочник на сервере отстал на $(( (hl - hr) / 3600 )) ч — нужен ops/journal-push.sh"
+    else ok "справочник на сервере свежий"; fi
+  fi
 
   for c in backup watch cleanup; do
     [ "$(val "$R" "cron_$c")" -ge 1 ] 2>/dev/null && ok "задача в cron: $c" || warn "нет задачи в cron: $c"
@@ -329,6 +342,18 @@ for repo in "$DIR" "${SITE_REPO:-/c/Indexcounterplay}"; do
 done
 n=$(ls "$DIR"/journal/*.md 2>/dev/null | wc -l)
 [ "$n" -gt 0 ] && ok "журнал на месте: $n записей" || bad "нет записей журнала"
+if [ -f "$DIR/handbook/check.py" ]; then
+  PY=""
+  for cand in python python3; do
+    command -v "$cand" >/dev/null 2>&1 &&
+      "$cand" -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1 && { PY="$cand"; break; }
+  done
+  if [ -z "$PY" ]; then warn "нет Python 3.10+ — справочник не проверить"
+  elif "$PY" "$DIR/handbook/check.py" >/dev/null 2>&1; then ok "справочник сходится с кодом"
+  else warn "справочник разошёлся с кодом — python handbook/check.py"; fi
+else
+  warn "нет справочника handbook/"
+fi
 for f in "$HOME/.ssh/config" "$HOME/.claude/projects/c--Counterplay/memory/MEMORY.md"; do
   [ -f "$f" ] && ok "на месте: $(basename "$f")" || warn "нет файла: $f"
 done
