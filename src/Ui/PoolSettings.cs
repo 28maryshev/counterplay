@@ -357,10 +357,10 @@ public sealed class PoolSettingsWindow : Window
         {
             // Слот чемпиона: рамка охватывает и иконку, и винрейт под ней, а её
             // цвет — цвет этого винрейта. Так результат читается по слоту целиком.
-            var (rg2, rw2) = ranked.GetValueOrDefault(id);
-            var (ng2, nw2) = normal.GetValueOrDefault(id);
-            var gAll  = rg2 + ng2;
-            var wrAll = gAll > 0 ? 100.0 * (rw2 + nw2) / gAll : 50.0;
+            var r = ranked.GetValueOrDefault(id);
+            var n = normal.GetValueOrDefault(id);
+            var gAll  = r.Games + n.Games;
+            var wrAll = gAll > 0 ? 100.0 * (r.Wins + n.Wins) / gAll : 50.0;
             var frame = WinrateColor.BrushForSample(wrAll, gAll);
 
             var inner = new StackPanel { Margin = new Thickness(4, 4, 4, 3) };
@@ -371,7 +371,7 @@ public sealed class PoolSettingsWindow : Window
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
                 });
-            if (PoolEditorWindow.WrChip(id) is { } chip)
+            if (PoolEditorWindow.WrChip(r, n) is { } chip)
             {
                 chip.Margin = new Thickness(0, 3, 0, 0);
                 inner.Children.Add(chip);
@@ -1596,10 +1596,18 @@ public sealed class PoolEditorWindow : Window
     /// Винрейт чемпиона одной цифрой — ранкед и нормалы ВМЕСТЕ (так виднее общая
     /// форма), а разбивка по очередям показывается при наведении.
     /// Возвращает null, если своих игр на чемпионе нет.
-    internal static FrameworkElement? WrChip(int championId)
+    internal static FrameworkElement? WrChip(int championId) => WrChip(
+        SessionTracker.ChampStats(championId, SessionTracker.QueuesRanked),
+        SessionTracker.ChampStats(championId, SessionTracker.QueuesNormal));
+
+    /// То же по уже посчитанным числам. Нижняя часть окна пулов красит рамку
+    /// слота по выбранному периоду, и подпись обязана стоять на тех же числах:
+    /// когда подпись считала месяц, а рамка всё время, «25% / 4» сидело в
+    /// оранжевой рамке.
+    internal static FrameworkElement? WrChip((int Games, int Wins) ranked, (int Games, int Wins) normal)
     {
-        var (rg, rw) = SessionTracker.ChampStats(championId, SessionTracker.QueuesRanked);
-        var (ng, nw) = SessionTracker.ChampStats(championId, SessionTracker.QueuesNormal);
+        var (rg, rw) = ranked;
+        var (ng, nw) = normal;
         var games = rg + ng;
         if (games == 0) return null;
 

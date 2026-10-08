@@ -78,7 +78,7 @@ internal static class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: период, ник, подвижная полоса и память места"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: период (и подпись по нему), ник, подвижная полоса и память места"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
@@ -246,6 +246,9 @@ internal static class Program
         w.Close();
         Pump();
 
+        ChipFollowsPeriod();
+        Pump();
+
         MateVisible(d1);
         Pump();
 
@@ -405,6 +408,58 @@ internal static class Program
               $"{w3.Height:0} (было 560)");
         w3.Close(); Pump();
     }
+
+    /// <summary>
+    /// Подпись под иконкой и рамка слота стоят на одних числах.
+    ///
+    /// Рамка красилась по выбранному периоду, а подпись всегда считала месяц.
+    /// «За всё время» давало «25% / 4» в оранжевой рамке: рамка видела 65% на
+    /// двадцати играх, подпись — только последние четыре. Со стороны это
+    /// выглядело как цветные рамки у чемпионов с плохим счётом.
+    /// </summary>
+    private static void ChipFollowsPeriod()
+    {
+        Console.WriteLine();
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new List<SessionTracker.PreviewGame>();
+        // Месяц: 1 из 4. Раньше: 12 из 16. Всё время: 13 из 20 — 65%.
+        for (var i = 0; i < 4; i++)
+            games.Add(new("ally", "Ally", "solo", 412, 22, "support", "adc", now - (i + 1) * 86400L, i == 0));
+        for (var i = 0; i < 16; i++)
+            games.Add(new("ally", "Ally", "solo", 412, 22, "support", "adc", now - (60 + i) * 86400L, i < 12));
+        SessionTracker.PreviewGames = games;
+        try
+        {
+            foreach (var (allTime, want) in new[] { (true, "65% / 20"), (false, "25% / 4") })
+            {
+                AppSettings.Current.WinratesAllTime = allTime;
+                var w = new PoolSettingsWindow(() => { });
+                ShowHidden(w); Pump();
+
+                var slots = Walk<Border>(w)
+                    .Select(b => (Frame: b, Chip: (b.Child as StackPanel)?.Children.OfType<TextBlock>()
+                                                   .FirstOrDefault(t => t.Text.Contains("% / "))))
+                    .Where(x => x.Chip is not null)
+                    .ToList();
+                var period = allTime ? "за всё время" : "за 30 дней";
+                var shown  = slots.Select(x => x.Chip!.Text).ToList();
+                Check($"{period}: подпись считает тот же период", shown.Contains(want),
+                      $"{(shown.Count > 0 ? string.Join(", ", shown) : "подписей нет")} (ждали {want})");
+                Check($"{period}: рамка того же цвета, что подпись",
+                      slots.Count > 0 && slots.All(x => SameColor(x.Frame.BorderBrush, x.Chip!.Foreground)),
+                      string.Join(", ", slots.Select(x =>
+                          $"{x.Chip!.Text}: рамка {Hex(x.Frame.BorderBrush)}, подпись {Hex(x.Chip.Foreground)}")));
+                w.Close(); Pump();
+            }
+        }
+        finally { SessionTracker.PreviewGames = null; }
+    }
+
+    private static bool SameColor(System.Windows.Media.Brush a, System.Windows.Media.Brush b) =>
+        a is SolidColorBrush x && b is SolidColorBrush y && x.Color == y.Color;
+
+    private static string Hex(System.Windows.Media.Brush b) =>
+        b is SolidColorBrush s ? $"#{s.Color.R:X2}{s.Color.G:X2}{s.Color.B:X2}" : "?";
 
     /// Нажать кнопку с таким текстом: первую (левая половина) или вторую (правая).
     private static void Click(List<Button> all, string text, bool first)
