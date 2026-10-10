@@ -217,7 +217,7 @@ internal static class Program
     [
         "reason.countersPoolPick", "reason.pickRate",
         "tier.modePicks", "tier.modeBans", "tier.titleBans", "tier.byBanRate",
-        "ban.ours", "ban.theirs", "ban.hiddenHint", "ban.doneStatus", "ban.doneTitle", "ban.rateTip",
+        "ban.ours", "ban.theirs", "ban.doneStatus", "ban.doneTitle", "ban.rateTip",
     ];
 
     private static void Strings()
@@ -302,29 +302,61 @@ internal static class Program
               $"{ours.Count}/{ours.Count(x => !x.IsEmpty)}");
         Check("у бана — бан-рейт патча", ours[0].Rate == $"{engine.BanRate(157):F1}%",
               $"{ours[0].Rate} против {engine.BanRate(157):F1}%");
+        // До раскрытия их половины нет, наша — по центру места под обе.
+        Check("их половины не видно", Opacity(w, "BansTheirHalf") == 0, $"{Opacity(w, "BansTheirHalf")}");
+        Check("наша сдвинута к центру", ShiftY(w, "BansOurHalf") > 20, $"{ShiftY(w, "BansOurHalf"):0}");
+        Check("наших не пять — волны нет", !Vis(w, "BansOurWave"), "");
+        Wait(0.6);
+        Check("новые баны допрыгнули", SlotOpacity(w, "BansOurList", 0) == 1, $"{SlotOpacity(w, "BansOurList", 0)}");
+        if (snap is { Length: > 0 }) Snap(w, snap, "2-done-ours.png");
+
+        // Свои добанили — синяя волна по нашей половине, их всё ещё нет.
+        var oursFull = Draft("utility", ours: [157, 64, 555, 238, 523], theirs: [], done: true);
+        w.UpdateBans([], oursFull, engine);
+        Pump();
+        Check("наших пять — синяя волна", Vis(w, "BansOurWave"), "");
+        Check("их половины по-прежнему нет", Opacity(w, "BansTheirHalf") == 0 && !Vis(w, "BansTheirWave"), "");
+        Wait(1.4);
+        if (snap is { Length: > 0 }) Snap(w, snap, "3-ours-wave.png");
+
+        // Таймер банов кончился: клиент раскрывает вражеские уже первым снимком
+        // пиков. Окно держит панель — их половина выезжает снизу.
+        var reveal = oursFull with
+        {
+            TheirTeamBans = [24, 893, 145, 119, 12], InBanPhase = false,
+            MyBanActionId = -1, MyBanInProgress = false,
+        };
+        w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
+        Pump();
+        Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
         var theirs = Slots(w, "BansTheirList");
-        Check("вражеские — пять знаков вопроса", theirs.Count == 5 && theirs.All(x => x.IsEmpty && x.Placeholder == "?"), "");
-        Check("подсказка «откроются в конце»", Vis(w, "BansDoneHint"), "");
-        if (snap is { Length: > 0 }) Snap(w, snap, "2-done-hidden.png");
+        Check("вражеские — пять с бан-рейтом", theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
+        Wait(1.2);
+        Check("их половина выехала", Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansTheirHalf") == 0,
+              $"{Opacity(w, "BansTheirHalf")} / {ShiftY(w, "BansTheirHalf"):0}");
+        Check("наша поднялась на место", ShiftY(w, "BansOurHalf") == 0, $"{ShiftY(w, "BansOurHalf"):0}");
+        Check("их пять — красная волна", Vis(w, "BansTheirWave"), "");
+        if (snap is { Length: > 0 }) Snap(w, snap, "4-revealed.png");
 
-        // Все добанили — вражеские раскрыты, фаза ещё идёт.
-        var reveal = Draft("utility", ours: [157, 64, 555, 238, 523], theirs: [24, 893, 145, 119, 12], done: true);
-        w.UpdateBans([], reveal, engine);
-        Pump();
-        theirs = Slots(w, "BansTheirList");
-        Check("вражеские раскрыты — пять с бан-рейтом",
-              theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
-        Check("подсказка ушла", !Vis(w, "BansDoneHint"), "");
-        s.BansTierMode = "picks";
-        w.UpdateBans([], reveal, engine);
-        Pump();
-        if (snap is { Length: > 0 }) Snap(w, snap, "3-done-revealed.png");
+        // Подержали — пики.
+        Wait(3.3);
+        Check("через 4 секунды — пики, панели банов нет", !Vis(w, "BansDonePanel") && Vis(w, "RecScroll"), "");
 
-        // Начались пики — панели банов нет.
-        var picks = reveal with { InBanPhase = false, MyBanDone = true, MyBanActionId = -1, MyBanInProgress = false };
-        w.UpdateRecommendations(engine.Recommend(picks, 6), picks, engine);
+        // Раскрытие внутри фазы банов (если клиент когда-то так сделает) —
+        // показано сразу, и на пиках держать уже нечего.
+        var w2 = new OverlayWindow();
+        ShowHidden(w2);
+        w2.SetEngine(engine);
+        var early = oursFull with { TheirTeamBans = [24, 893, 145, 119, 12] };
+        w2.UpdateBans([], early, engine);
         Pump();
-        Check("на пиках панели банов нет", !Vis(w, "BansDonePanel") && Vis(w, "RecScroll"), "");
+        Wait(1.0);
+        Check("раскрыты ещё в банах — видны сразу", Opacity(w2, "BansTheirHalf") == 1, "");
+        var picks2 = early with { InBanPhase = false, MyBanActionId = -1, MyBanInProgress = false };
+        w2.UpdateRecommendations(engine.Recommend(picks2, 6), picks2, engine);
+        Pump();
+        Check("…и пики без задержки", Vis(w2, "RecScroll") && !Vis(w2, "BansDonePanel"), "");
+        w2.Close();
 
         w.Close();
         Pump();
@@ -373,7 +405,7 @@ internal static class Program
         var names = hovered.Select(p => DataDragon.Name(p.PickIntentId)).ToList();
         Check("советы защищают их пики", reasons.Any(r => names.Any(r.Contains)),
               reasons.FirstOrDefault(r => names.Any(r.Contains)) ?? "ни слова о них");
-        if (snap is { Length: > 0 }) Snap(overlay, snap, "4-sandbox-advice.png");
+        if (snap is { Length: > 0 }) Snap(overlay, snap, "5-sandbox-advice.png");
 
         // Банлю первого из советов — как кнопкой в окне.
         var mine = Advice()?.FirstOrDefault()?.ChampionId ?? 0;
@@ -385,24 +417,34 @@ internal static class Program
         Check("мой бан среди наших", d?.MyTeamBans.Contains(mine) == true, "");
         Check("вражеские пока скрыты", d?.TheirTeamBans.Count == 0, $"{d?.TheirTeamBans.Count}");
 
-        // Боты добанивают к 14-й секунде, затем раскрытие.
-        Wait(11);
+        // Боты добанивают к 14-й секунде; через секунду таймер банов кончается,
+        // и вражеские раскрываются уже с пиками — как у клиента. Пока ждём,
+        // запоминаем последние наведения союзников: на пиках они уйдут в план.
+        var lastIntent = new Dictionary<int, int>();
+        var ended = WaitFor(() =>
+        {
+            var x = Last();
+            if (x is { InBanPhase: true })
+                foreach (var p in x.MyTeam.Where(p => !p.IsLocalPlayer && p.PickIntentId != 0))
+                    lastIntent[p.CellId] = p.PickIntentId;
+            return x is { InBanPhase: false };
+        }, 20);
         d = Last();
-        Check("все добанили — вражеские раскрыты, фаза ещё идёт",
-              d is { InBanPhase: true } && d.TheirTeamBans.Count == 5 && d.MyTeamBans.Count == 5,
+        Check("баны кончились — вражеские раскрыты с первым снимком пиков",
+              ended && d!.TheirTeamBans.Count == 5 && d.MyTeamBans.Count == 5,
               $"{d?.MyTeamBans.Count} + {d?.TheirTeamBans.Count}");
         Check("десять разных банов", d is not null && d.MyTeamBans.Concat(d.TheirTeamBans).Distinct().Count() == 10, "");
-        Check("на панели все десять с бан-рейтом",
-              Slots(overlay, "BansOurList").Concat(Slots(overlay, "BansTheirList")).Count(x => !x.IsEmpty) == 10, "");
-        if (snap is { Length: > 0 }) Snap(overlay, snap, "5-sandbox-revealed.png");
+        Check("окно держит панель банов", Vis(overlay, "BansDonePanel"), "");
+        Wait(1.2);
+        Check("на панели все десять с бан-рейтом, их половина выехала",
+              Slots(overlay, "BansOurList").Concat(Slots(overlay, "BansTheirList")).Count(x => !x.IsEmpty) == 10
+              && Opacity(overlay, "BansTheirHalf") == 1, "");
+        if (snap is { Length: > 0 }) Snap(overlay, snap, "6-sandbox-revealed.png");
         var allBans = d?.MyTeamBans.Concat(d.TheirTeamBans).ToHashSet() ?? [];
-        var lastIntent = d?.MyTeam.Where(p => !p.IsLocalPlayer && p.PickIntentId != 0)
-                              .ToDictionary(p => p.CellId, p => p.PickIntentId) ?? [];
 
-        // Через RevealHoldSeconds — авто-драфт.
-        Wait(4.5);
+        Wait(3.3);
         d = Last();
-        Check("баны кончились — пики, авто-драфт идёт", d is { InBanPhase: false } && Vis(overlay, "RecScroll"), "");
+        Check("через 4 секунды — подбор, авто-драфт идёт", d is { InBanPhase: false } && Vis(overlay, "RecScroll"), "");
         Check("баны ушли в драфт", d is not null && d.MyTeamBans.Count == 5 && d.TheirTeamBans.Count == 5, "");
 
         // Добираем всех разом: боты не берут забаненных, союзники — то, что наводили.
@@ -432,6 +474,18 @@ internal static class Program
         o.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
          .Invoke(o, args);
 
+    /// Ждать условия (не дольше seconds), проверяя каждые 0,25 с.
+    private static bool WaitFor(Func<bool> done, double seconds)
+    {
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        while (DateTime.UtcNow < until)
+        {
+            if (done()) return true;
+            Wait(0.25);
+        }
+        return done();
+    }
+
     /// Подождать, не останавливая очередь окна: таймеры песочницы тикают.
     private static void Wait(double seconds)
     {
@@ -445,6 +499,20 @@ internal static class Program
 
     private static bool Vis(Window w, string name) =>
         w.FindName(name) is FrameworkElement fe && fe.Visibility == Visibility.Visible;
+
+    private static double Opacity(Window w, string name) => ((UIElement)w.FindName(name)).Opacity;
+
+    private static double ShiftY(Window w, string name) =>
+        ((UIElement)w.FindName(name)).RenderTransform is TranslateTransform t ? t.Y : 0;
+
+    /// Прозрачность слота на экране — дорос ли «прыжок» нового бана.
+    private static double SlotOpacity(Window w, string list, int i)
+    {
+        var ic = (ItemsControl)w.FindName(list);
+        return ic.ItemContainerGenerator.ContainerFromIndex(i) is DependencyObject c
+               && VisualTreeHelper.GetChildrenCount(c) > 0 && VisualTreeHelper.GetChild(c, 0) is UIElement e
+            ? e.Opacity : -1;
+    }
 
     private static List<BanSlotVm> Slots(Window w, string name) =>
         (((ItemsControl)w.FindName(name)).ItemsSource as IEnumerable<BanSlotVm>)?.ToList() ?? [];

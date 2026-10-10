@@ -741,8 +741,11 @@ sealed class TestPanel : Window
     private readonly List<(int Cell, int Champ, DateTime At)> _hoverPlan = new();
     private readonly Dictionary<int, int> _intent = new();      // клетка союзника → наведённый
     private readonly Dictionary<int, HashSet<int>> _hoverHistory = new();
-    private DateTime? _revealAt;                              // раскрыты вражеские баны
-    private const int RevealHoldSeconds = 4;                  // сколько видно баны обеих команд
+    // Все добанили — через секунду таймер банов кончается: клиент раскрывает
+    // вражеские баны вместе с первым снимком пиков (так видит владелец).
+    // Показ раскрытых банов держит уже само окно (HoldBanReveal).
+    private DateTime? _banEndAt;
+    private const double BanEndSeconds = 1;
     // Итог фазы банов — уходит в драфт: эти чемпионы недоступны ни подбору, ни ботам.
     private List<int> _ourBans = [];
     private List<int> _theirBans = [];
@@ -1575,7 +1578,7 @@ sealed class TestPanel : Window
     {
         _bans.Clear(); _banAt.Clear(); _hoverPlan.Clear(); _hoversShown.Clear();
         _intent.Clear(); _hoverHistory.Clear();
-        _myBanDone = false; _revealAt = null;
+        _myBanDone = false; _banEndAt = null;
         _ourBans = []; _theirBans = [];
     }
 
@@ -1614,12 +1617,8 @@ sealed class TestPanel : Window
             }
 
         bool botsDone = _banAt.Keys.All(c => _bans.Any(b => b.Cell == c));
-        if (botsDone && _myBanDone && _revealAt is null)
-        {
-            _revealAt = now;   // все добанили — клиент раскрывает вражеские баны
-            changed = true;
-        }
-        if (_revealAt is { } r && now >= r.AddSeconds(RevealHoldSeconds))
+        if (botsDone && _myBanDone && _banEndAt is null) _banEndAt = now.AddSeconds(BanEndSeconds);
+        if (_banEndAt is { } end && now >= end)
         {
             EndBanPhase();
             return;
@@ -1898,13 +1897,11 @@ sealed class TestPanel : Window
             myTurn    = myPick;
         }
 
-        // Баны: в фазе банов — сделанные к этому моменту (вражеские скрыты, пока
-        // не раскрылись, как в рейтинге), на пиках — итог фазы.
+        // Баны: в фазе банов — наши, сделанные к этому моменту (вражеские клиент
+        // прячет до конца таймера банов), на пиках — итог фазы.
         List<int> ourBans = banPhase
             ? [.. _bans.Where(b => b.Cell < 5 && b.Champ > 0).Select(b => b.Champ)] : _ourBans;
-        List<int> theirBans = banPhase
-            ? (_revealAt is null ? [] : [.. _bans.Where(b => b.Cell >= 5 && b.Champ > 0).Select(b => b.Champ)])
-            : _theirBans;
+        List<int> theirBans = banPhase ? [] : _theirBans;
         if (banPhase) active = [];   // в банах пикает никто
 
         var draft = new DraftState(
@@ -1912,7 +1909,7 @@ sealed class TestPanel : Window
             opp, false, banPhase, [], false,
             myPick ? 1 : -1, myPick && myTurn, active, firstPick,
             banPhase && !_myBanDone ? 1 : -1, banPhase && !_myBanDone,
-            MyBanDone: banPhase && _myBanDone);
+            MyBanDone: _myBanDone);   // как у клиента: сделанный бан остаётся сделанным и на пиках
 
         if (banPhase)
         {
