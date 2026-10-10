@@ -396,7 +396,6 @@
     "failed": "Thất bại — đến lượt cấm của bạn chưa?",
     "ours": "Lượt cấm của ta",
     "theirs": "Lượt cấm của địch",
-    "hiddenHint": "Lượt cấm của địch sẽ hiện khi giai đoạn cấm kết thúc",
     "doneStatus": "Lượt cấm của hai đội",
     "doneTitle": "Cấm · tỉ lệ cấm ở phiên bản {0}",
     "rateTip": "{0}: bị cấm trong {1}% số trận (phiên bản {2})"

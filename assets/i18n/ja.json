@@ -396,7 +396,6 @@
     "failed": "失敗 — あなたのBANですか？",
     "ours": "味方のBAN",
     "theirs": "敵のBAN",
-    "hiddenHint": "敵のBANはバンフェーズ終了時に公開されます",
     "doneStatus": "両チームのBAN",
     "doneTitle": "BAN · パッチ {0} のBAN率",
     "rateTip": "{0}: パッチ {2} で{1}%の試合でBAN"

@@ -396,7 +396,6 @@
     "failed": "Nie udało się — twój ban?",
     "ours": "Nasze bany",
     "theirs": "Bany wrogów",
-    "hiddenHint": "Bany wrogów odkryją się na końcu fazy banów",
     "doneStatus": "Bany drużyn",
     "doneTitle": "Bany · ban rate w patchu {0}",
     "rateTip": "{0}: banowany w {1}% gier (patch {2})"

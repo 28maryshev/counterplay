@@ -122,7 +122,6 @@
     "failed": "Falhou — é o seu banimento?",
     "ours": "Nossos bans",
     "theirs": "Bans inimigos",
-    "hiddenHint": "Os bans inimigos são revelados no fim da fase de banimento",
     "doneStatus": "Bans das equipes",
     "doneTitle": "Bans · taxa de ban no patch {0}",
     "rateTip": "{0}: banido em {1}% dos jogos (patch {2})"

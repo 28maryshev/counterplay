@@ -352,7 +352,6 @@
     "failed": "Error — ¿es tu baneo?",
     "ours": "Nuestros baneos",
     "theirs": "Baneos enemigos",
-    "hiddenHint": "Los baneos enemigos se revelan al terminar la fase de baneos",
     "doneStatus": "Baneos de los equipos",
     "doneTitle": "Baneos · tasa de baneo en el parche {0}",
     "rateTip": "{0}: baneado en el {1}% de las partidas (parche {2})"

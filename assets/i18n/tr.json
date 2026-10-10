@@ -122,7 +122,6 @@
     "failed": "Başarısız — sıra sende mi?",
     "ours": "Bizim yasaklar",
     "theirs": "Rakip yasaklar",
-    "hiddenHint": "Rakip yasaklar, yasak aşaması bitince açılır",
     "doneStatus": "Takımların yasakları",
     "doneTitle": "Yasaklar · {0} yamasında yasak oranı",
     "rateTip": "{0}: {2} yamasında maçların %{1} kadarında yasaklanıyor"

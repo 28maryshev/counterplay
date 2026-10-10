@@ -5435,10 +5435,12 @@ public partial class OverlayWindow : Window
         RefreshBuildsForEnemies();
 
         // Фаза банов: показываем рекомендуемые баны (в том же разделе, что и пики).
-        // Свой бан сделан — советы уступают место банам обеих команд.
-        if (draft?.InBanPhase == true)
+        // Свой бан сделан — советы уступают место банам обеих команд. Вражеские
+        // клиент раскрывает только с концом таймера банов — уже на пиках, — и
+        // панель держится ещё BanRevealHold, чтобы их увидеть.
+        if (draft?.InBanPhase == true || HoldBanReveal(draft))
         {
-            var banDone = draft.MyBanDone && _engine is not null;
+            var banDone = draft!.MyBanDone && _engine is not null;
             if (!banDone && (_lastBans is null || _lastBans.Count == 0))
             {
                 IdleStatusText.Text = Loc.T("status.banPhase");
@@ -6097,8 +6099,9 @@ public partial class OverlayWindow : Window
     /// бан-рейтом в патче. Сверху наши пять, снизу вражеские; тир-лист под ними
     /// остаётся.
     ///
-    /// В рейтинге клиент прячет вражеские баны до конца фазы — их слоты стоят
-    /// со знаком вопроса, пока не откроются.
+    /// В рейтинге клиент прячет вражеские баны до конца таймера банов. До тех
+    /// пор видна только наша половина — по центру панели; раскрылись — наша
+    /// уезжает вверх, их выезжает снизу (PlaceBanHalves).
     /// </summary>
     private void RenderBansDone(DraftState draft)
     {
@@ -6106,9 +6109,27 @@ public partial class OverlayWindow : Window
         PickHint.Visibility = Visibility.Collapsed;
         BansDoneTitle.Text  = Loc.T("ban.doneTitle", _engine!.Patch);
 
+        // Панель только что появилась — всё на ней новое: баны «выпрыгивают»,
+        // волна проигрывается заново, если половина уже полна.
+        var fresh = BansDonePanel.Visibility != Visibility.Visible;
+        if (fresh)
+        {
+            _shownBans.Clear();
+            _ourWave = _theirWave = false;
+            _theirBansShown = 0;
+        }
+
         BansOurList.ItemsSource   = BanSlots(draft.MyTeamBans,    "#36D6E7", "…");
         BansTheirList.ItemsSource = BanSlots(draft.TheirTeamBans, "#FF5A4D", "?");
-        BansDoneHint.Visibility = draft.TheirTeamBans.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _shownBans.UnionWith(draft.MyTeamBans.Concat(draft.TheirTeamBans).Where(id => id > 0));
+        _theirBansShown = draft.TheirTeamBans.Count(id => id > 0);
+
+        // Их половина выезжает — красная волна ждёт, пока она доедет.
+        var sliding = PlaceBanHalves(_theirBansShown > 0, fresh);
+        BanWave(draft.MyTeamBans, ref _ourWave, BansOurWave, BansOurWaveFill,
+                BansOurWaveFlash, BansOurWaveSweep, BansOurHalf, 0);
+        BanWave(draft.TheirTeamBans, ref _theirWave, BansTheirWave, BansTheirWaveFill,
+                BansTheirWaveFlash, BansTheirWaveSweep, BansTheirHalf, sliding ? 0.45 : 0);
 
         RecScroll.Visibility     = Visibility.Collapsed;
         BanScroll.Visibility     = Visibility.Collapsed;
@@ -6124,6 +6145,153 @@ public partial class OverlayWindow : Window
         RenderTeams(draft);
     }
 
+    /// <summary>
+    /// Фаза банов кончилась, а вражеских банов панель ещё не показывала:
+    /// клиент раскрывает их вместе с концом таймера банов, то есть уже первым
+    /// снимком пиков (так видит владелец). Без задержки окно сразу переходило
+    /// к пикам, и их половину никто бы не увидел. Панель остаётся на
+    /// BanRevealHold — баны «выпрыгивают», половина заливается красной волной, —
+    /// затем пики. Подбор за это время уже посчитан и ждёт в _lastRecs.
+    /// </summary>
+    private bool HoldBanReveal(DraftState? draft)
+    {
+        if (draft is not { InBanPhase: false, IsAram: false, MyBanDone: true }) return false;
+        if (DateTime.UtcNow < _banRevealUntil) return true;
+        var theirs = draft.TheirTeamBans.Count(id => id > 0);
+        if (BansDonePanel.Visibility != Visibility.Visible || FullView.Visibility != Visibility.Visible
+            || theirs == 0 || theirs <= _theirBansShown)
+            return false;
+
+        _banRevealUntil = DateTime.UtcNow + BanRevealHold;
+        var t = new DispatcherTimer { Interval = BanRevealHold + TimeSpan.FromMilliseconds(50) };
+        t.Tick += (_, _) => { t.Stop(); RenderCurrentState(); };
+        t.Start();
+        Log.Write($"баны врагов раскрыты с концом фазы банов ({theirs}) — показываю {BanRevealHold.TotalSeconds:0.#} с");
+        return true;
+    }
+
+    private static readonly TimeSpan BanRevealHold = TimeSpan.FromSeconds(4);
+
+    // Сдвиги половин панели банов: создаются здесь, а не в разметке, — их
+    // анимируем, и прошлая анимация не должна держать значение.
+    private readonly TranslateTransform _ourShift = new(), _theirShift = new();
+    private bool _theirRevealed;   // их половина выехала (или едет)
+
+    /// <summary>
+    /// Раскладка половин панели банов. Вражеские не известны — их половина
+    /// прозрачна, наша сдвинута вниз ровно на середину места под обе: стоит по
+    /// центру. Известны — наша уезжает вверх, их выезжает снизу и проявляется.
+    /// Возвращает true, если переезд начался этим вызовом.
+    ///
+    /// Высоту их половины меряем сами: панель могла появиться этим же рендером,
+    /// и раскладки ещё не было — ActualHeight был бы нулём.
+    /// </summary>
+    private bool PlaceBanHalves(bool revealed, bool fresh)
+    {
+        BansOurHalf.RenderTransform   = _ourShift;
+        BansTheirHalf.RenderTransform = _theirShift;
+        if (fresh) _theirRevealed = false;
+
+        BansTheirHalf.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var center = (BansTheirHalf.DesiredSize.Height + BansDoneSep.Height
+                      + BansDoneSep.Margin.Top + BansDoneSep.Margin.Bottom) / 2;
+
+        static void Set(IAnimatable o, DependencyProperty p, double v)
+        {
+            o.BeginAnimation(p, null);
+            ((DependencyObject)o).SetValue(p, v);
+        }
+
+        if (!revealed)
+        {
+            _theirRevealed = false;
+            Set(_ourShift, TranslateTransform.YProperty, center);
+            Set(_theirShift, TranslateTransform.YProperty, 28);
+            Set(BansTheirHalf, OpacityProperty, 0);
+            Set(BansDoneSep, OpacityProperty, 0);
+            return false;
+        }
+        if (_theirRevealed) return false;   // уже на месте или едет
+        _theirRevealed = true;
+
+        // Стартовые значения — базой: до BeginTime анимация показывает базу.
+        Set(_ourShift, TranslateTransform.YProperty, center);
+        Set(_theirShift, TranslateTransform.YProperty, 28);
+        Set(BansTheirHalf, OpacityProperty, 0);
+        Set(BansDoneSep, OpacityProperty, 0);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        _ourShift.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(center, 0, TimeSpan.FromSeconds(0.5)) { EasingFunction = ease });
+        _theirShift.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(28, 0, TimeSpan.FromSeconds(0.5))
+            { BeginTime = TimeSpan.FromSeconds(0.12), EasingFunction = ease });
+        BansTheirHalf.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(0.12) });
+        BansDoneSep.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(0.2) });
+        return true;
+    }
+    private DateTime _banRevealUntil;
+    private int _theirBansShown;   // сколько вражеских банов уже стояло на панели
+
+    // Баны, уже показанные на панели: новые «выпрыгивают», старые стоят.
+    private readonly HashSet<int> _shownBans = [];
+    // Волна по половине команды уже проиграна (половина полна).
+    private bool _ourWave, _theirWave;
+
+    /// <summary>
+    /// Все пять банов команды известны — фон её половины заливается волной,
+    /// как строка пикающего игрока: вспышка, заливка от края, блик. Один раз на
+    /// заполнение; не полна (новый драфт) — слой убран.
+    ///
+    /// Трансформы создаём здесь, а не в разметке: каждая волна начинается с
+    /// нуля, и прошлая анимация не держит значение.
+    /// </summary>
+    private void BanWave(IReadOnlyList<int> bans, ref bool played, Border layer, Border fill,
+                         System.Windows.Shapes.Rectangle flash, System.Windows.Shapes.Rectangle sweep,
+                         FrameworkElement half, double delay)
+    {
+        if (bans.Count(id => id > 0) < 5)
+        {
+            played = false;
+            layer.Visibility = Visibility.Collapsed;
+            return;
+        }
+        layer.Visibility = Visibility.Visible;
+        if (played) return;
+        played = true;
+
+        var scale = new ScaleTransform(0, 1);
+        var move  = new TranslateTransform(-sweep.Width, 0);
+        fill.RenderTransform  = scale;
+        sweep.RenderTransform = move;
+        flash.Opacity = 0;
+
+        // Ширина половины известна только после раскладки — панель могла
+        // появиться этим же рендером.
+        Dispatcher.InvokeAsync(() =>
+        {
+            var width = Math.Max(half.ActualWidth, 300) + 16;
+            var blink = new DoubleAnimationUsingKeyFrames();
+            blink.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            blink.KeyFrames.Add(new EasingDoubleKeyFrame(0.45, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.12))));
+            blink.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.5)),
+                new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+            blink.BeginTime = TimeSpan.FromSeconds(delay);
+            flash.BeginAnimation(OpacityProperty, blink);
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.8))
+            {
+                BeginTime = TimeSpan.FromSeconds(delay + 0.15),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            });
+            move.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(-sweep.Width, width, TimeSpan.FromSeconds(1.2))
+            {
+                BeginTime = TimeSpan.FromSeconds(delay + 0.2),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut },
+            });
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
     /// Пять слотов команды: сделанные баны по порядку, остальное — пустые
     /// кружки (placeholder: «…» — ещё банят, «?» — скрыто клиентом).
     private List<BanSlotVm> BanSlots(IReadOnlyList<int> bans, string frame, string placeholder)
@@ -6133,6 +6301,7 @@ public partial class OverlayWindow : Window
             var rate = _engine!.BanRate(id);
             return new BanSlotVm
             {
+                IsNew     = !_shownBans.Contains(id),
                 Icon      = IconCache.Get(id),
                 Name      = DataDragon.Name(id),
                 Rate      = $"{rate:F1}%",
@@ -6486,6 +6655,10 @@ public sealed class BanSlotVm
     public string       Placeholder { get; init; } = "";          // «…» банят / «?» скрыто
     public string?      Tip         { get; init; }                // у пустого нет: пустая подсказка — рамка без текста
     public bool         IsEmpty     => Name.Length == 0;
+    // Бан только что появился — «выпрыгивает» в слот (см. шаблон BanSlot).
+    public bool         IsNew       { get; init; }
+    public double       PopScale    => IsNew ? 0.55 : 1.0;
+    public double       PopOpacity  => IsNew ? 0.0  : 1.0;
     public Visibility   IconVisibility  => IsEmpty ? Visibility.Collapsed : Visibility.Visible;
     public Visibility   EmptyVisibility => IsEmpty ? Visibility.Visible   : Visibility.Collapsed;
 }

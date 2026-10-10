@@ -1656,8 +1656,8 @@
 
             <!-- Баны команд — фаза банов, когда свой бан уже сделан. Советовать
                  больше нечего: показываем, кого забанили обе команды и как часто
-                 этих чемпионов банят в патче. Сверху наши, снизу враги; в
-                 рейтинге вражеские баны клиент раскрывает только в конце фазы. -->
+                 этих чемпионов банят в патче. Сверху наши, снизу враги; вражеские
+                 клиент раскрывает только с концом таймера банов. -->
             <Border x:Name="BansDonePanel" Grid.Row="0" Visibility="Collapsed"
                     Margin="0,6,0,0" Padding="14,12" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
@@ -1665,8 +1665,34 @@
                 <!-- Слот бана: перечёркнутый портрет, имя и бан-рейт под ним.
                      Пустой слот — пунктирный круг: бан ещё не сделан или скрыт. -->
                 <DataTemplate x:Key="BanSlot">
+                  <!-- Новый бан «выпрыгивает» в слот: стартует мельче и
+                       прозрачным, по Loaded дорастает до 1. У уже показанных
+                       старт сразу 1 — та же анимация ничего не меняет. Старт —
+                       через Binding: статичный трансформ в шаблоне WPF
+                       замораживает, и анимация бы падала. -->
                   <StackPanel HorizontalAlignment="Center" Margin="2,0" ToolTip="{Binding Tip}"
-                              Background="Transparent">
+                              Background="Transparent" Opacity="{Binding PopOpacity}"
+                              RenderTransformOrigin="0.5,0.4">
+                    <StackPanel.RenderTransform>
+                      <ScaleTransform ScaleX="{Binding PopScale}" ScaleY="{Binding PopScale}"/>
+                    </StackPanel.RenderTransform>
+                    <StackPanel.Triggers>
+                      <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                        <BeginStoryboard>
+                          <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.25"/>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                             To="1" Duration="0:0:0.4">
+                              <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.45"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                             To="1" Duration="0:0:0.4">
+                              <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.45"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                          </Storyboard>
+                        </BeginStoryboard>
+                      </EventTrigger>
+                    </StackPanel.Triggers>
                     <Grid Width="54" Height="54" HorizontalAlignment="Center">
                       <Grid Visibility="{Binding IconVisibility}">
                         <Ellipse StrokeThickness="2">
@@ -1699,26 +1725,94 @@
                 <TextBlock x:Name="BansDoneTitle" Text="" Margin="0,0,0,10"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                            Foreground="#C89B3C"/>
-                <TextBlock Text="{loc:T ban.ours}" Margin="0,0,0,6"
-                           FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
-                           Foreground="#36D6E7"/>
-                <ItemsControl x:Name="BansOurList" ItemTemplate="{StaticResource BanSlot}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                </ItemsControl>
-                <Border Height="1" Background="#22415568" Margin="0,12,0,10"/>
-                <TextBlock Text="{loc:T ban.theirs}" Margin="0,0,0,6"
-                           FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
-                           Foreground="#FF5A4D"/>
-                <ItemsControl x:Name="BansTheirList" ItemTemplate="{StaticResource BanSlot}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                </ItemsControl>
-                <TextBlock x:Name="BansDoneHint" Text="{loc:T ban.hiddenHint}" Margin="0,8,0,0"
-                           HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
-                           FontFamily="{StaticResource UiFont}" FontSize="11" Foreground="#6E8598"/>
+                <!-- Половина команды. Когда известны все пять её банов, фон
+                     заливается волной цвета команды — как строка игрока, который
+                     пикает: вспышка, заливка растёт от края, следом блик. Наши —
+                     синим слева, их — красным справа (слой зеркалится). Запуск —
+                     из кода (PlayBanWave), один раз на заполнение половины. -->
+                <!-- До раскрытия вражеских банов видна только наша половина, и
+                     стоит она по центру панели (сдвиг вниз — из кода). Раскрылись
+                     — наша уезжает вверх, их выезжает снизу. Место под обе
+                     половины держится всегда: тир-лист под панелью не прыгает. -->
+                <Grid x:Name="BansOurHalf">
+                  <Border x:Name="BansOurWave" Margin="-8,-6,-8,-6" CornerRadius="6"
+                          ClipToBounds="True" IsHitTestVisible="False" Visibility="Collapsed">
+                    <Grid>
+                      <Border x:Name="BansOurWaveFill" CornerRadius="6" RenderTransformOrigin="0,0.5">
+                        <Border.Background>
+                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#5C36D6E7" Offset="0"/>
+                            <GradientStop Color="#1A36D6E7" Offset="0.55"/>
+                            <GradientStop Color="#1236D6E7" Offset="1"/>
+                          </LinearGradientBrush>
+                        </Border.Background>
+                      </Border>
+                      <Rectangle x:Name="BansOurWaveFlash" Opacity="0" RadiusX="6" RadiusY="6" Fill="#36D6E7"/>
+                      <Rectangle x:Name="BansOurWaveSweep" Width="140" HorizontalAlignment="Left" Opacity="0.5">
+                        <Rectangle.Fill>
+                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#00FFFFFF" Offset="0"/>
+                            <GradientStop Color="#48FFFFFF" Offset="0.5"/>
+                            <GradientStop Color="#00FFFFFF" Offset="1"/>
+                          </LinearGradientBrush>
+                        </Rectangle.Fill>
+                      </Rectangle>
+                      <Border Width="3" HorizontalAlignment="Left" CornerRadius="2" Margin="1,4,0,4"
+                              Background="#36D6E7"/>
+                    </Grid>
+                  </Border>
+                  <StackPanel>
+                    <TextBlock Text="{loc:T ban.ours}" Margin="0,0,0,6"
+                               FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                               Foreground="#36D6E7"/>
+                    <ItemsControl x:Name="BansOurList" ItemTemplate="{StaticResource BanSlot}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                  </StackPanel>
+                </Grid>
+                <Border x:Name="BansDoneSep" Height="1" Background="#22415568" Margin="0,12,0,10"/>
+                <Grid x:Name="BansTheirHalf">
+                  <Border x:Name="BansTheirWave" Margin="-8,-6,-8,-6" CornerRadius="6"
+                          ClipToBounds="True" IsHitTestVisible="False" Visibility="Collapsed">
+                    <!-- Зеркало: волна, блик и полоска — от правого края -->
+                    <Grid RenderTransformOrigin="0.5,0.5">
+                      <Grid.RenderTransform><ScaleTransform ScaleX="-1"/></Grid.RenderTransform>
+                      <Border x:Name="BansTheirWaveFill" CornerRadius="6" RenderTransformOrigin="0,0.5">
+                        <Border.Background>
+                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#5CFF5A4D" Offset="0"/>
+                            <GradientStop Color="#1AFF5A4D" Offset="0.55"/>
+                            <GradientStop Color="#12FF5A4D" Offset="1"/>
+                          </LinearGradientBrush>
+                        </Border.Background>
+                      </Border>
+                      <Rectangle x:Name="BansTheirWaveFlash" Opacity="0" RadiusX="6" RadiusY="6" Fill="#FF5A4D"/>
+                      <Rectangle x:Name="BansTheirWaveSweep" Width="140" HorizontalAlignment="Left" Opacity="0.5">
+                        <Rectangle.Fill>
+                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#00FFFFFF" Offset="0"/>
+                            <GradientStop Color="#48FFFFFF" Offset="0.5"/>
+                            <GradientStop Color="#00FFFFFF" Offset="1"/>
+                          </LinearGradientBrush>
+                        </Rectangle.Fill>
+                      </Rectangle>
+                      <Border Width="3" HorizontalAlignment="Left" CornerRadius="2" Margin="1,4,0,4"
+                              Background="#FF5A4D"/>
+                    </Grid>
+                  </Border>
+                  <StackPanel>
+                    <TextBlock Text="{loc:T ban.theirs}" Margin="0,0,0,6"
+                               FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                               Foreground="#FF5A4D"/>
+                    <ItemsControl x:Name="BansTheirList" ItemTemplate="{StaticResource BanSlot}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                  </StackPanel>
+                </Grid>
               </StackPanel>
             </Border>
 

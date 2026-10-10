@@ -396,7 +396,6 @@
     "failed": "Failed — is it your ban?",
     "ours": "Our bans",
     "theirs": "Enemy bans",
-    "hiddenHint": "Enemy bans are revealed when the ban phase ends",
     "doneStatus": "Team bans",
     "doneTitle": "Bans · ban rate in patch {0}",
     "rateTip": "{0}: banned in {1}% of games in patch {2}"
