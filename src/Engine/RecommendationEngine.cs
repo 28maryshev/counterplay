@@ -1398,10 +1398,13 @@ public sealed class RecommendationEngine : IDisposable
                                       .OrderByDescending(kv => kv.Value).Take(MainsTake).Select(kv => kv.Key))
                 mainW[id] = POOL_MAIN_GAMES;
         var myMains = mainW.OrderByDescending(kv => kv.Value).Take(MAINS_FOR_BANS).ToList();
-        // Своих не баним: кого я сам беру на этой роли (журнал, пул) — того бан
+        // Своих не баним: на ком я играл за месяц на этой роли — того бан
         // отнимает у меня. С пулом в счёте Браум с 19 играми за месяц стоял
         // третьим баном у самого владельца — «контрит твой пул (Эш, Сона)».
-        taken.UnionWith(mainW.Keys);
+        // Пул целиком не исключаем (решение владельца): в нём бывает двадцать
+        // саппортов, и советы лишились бы Треша, Лулу, Нами. Чемпион пула без
+        // игр остаётся мейном — против него ищем контры, — но забанить его можно.
+        taken.UnionWith(MyHistory().Played.Where(p => p.Games > 0 && stats.ContainsKey(p.Id)).Select(p => p.Id));
 
         var scores  = new Dictionary<int, double>();
         // Доводы с приоритетом: карточка показывает первые два, и первыми
@@ -1445,6 +1448,7 @@ public sealed class RecommendationEngine : IDisposable
             var beaten = new List<(int Id, double Hit)>();
             foreach (var (m, wm) in myMains)
             {
+                if (m == x) continue;   // сам себе не контра (чемпион пула без игр — тоже кандидат)
                 var (mg, mw) = RawMatchup(m, myRole, x);
                 if (mg <= 0) continue;
                 // Чистая контра моего мейна: его WR в паре ниже его же среднего,
