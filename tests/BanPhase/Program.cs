@@ -479,20 +479,19 @@ internal static class Program
             MyBanActionId = -1, MyBanInProgress = false,
         };
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
-        // По очереди и с их стороны — справа налево: правый уже проявляется,
-        // а левый ещё не виден.
-        Poll(() => SlotOpacity(w, "BansTheirList", 4) > 0, 2);
+        // По очереди и с их стороны — справа налево: у каждого слота левее
+        // задержка больше. Меряем задержки, а не прозрачность в момент: окно в
+        // проверке невидимое, и под нагрузкой часы анимаций убегали — к
+        // первому замеру проявлялись все сразу.
+        Pump();
+        var delays = Slots(w, "BansTheirList").Select(x => x.Delay).ToList();
         Check("их баны появляются по очереди справа налево",
-              SlotOpacity(w, "BansTheirList", 4) > 0 && SlotOpacity(w, "BansTheirList", 0) == 0,
-              $"правый {SlotOpacity(w, "BansTheirList", 4):0.00}, левый {SlotOpacity(w, "BansTheirList", 0):0.00}");
+              delays.Count == 5 && delays.Zip(delays.Skip(1)).All(p => p.First > p.Second),
+              string.Join(" ", delays.Select(x => x.ToString("0.00"))));
         Check("вспышка по рамке — красная", FlashColor(w, "BansTheirList", 4) == "#FFFF5A4D",
               FlashColor(w, "BansTheirList", 4));
-        Poll(() => SlotOpacity(w, "BansTheirList", 2) > 0.5, 2);   // середина появления — для снимка
-        if (snap is { Length: > 0 }) Snap(w, snap, "4a-reveal-mid.png");
-        Check("у наших, показанных раньше, вспышки нет", FlashColor(w, "BansOurList", 0) == "",
-              FlashColor(w, "BansOurList", 0));
-        Pump();
-        Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
+        // Сразу, пока идут 4 секунды показа: со снимками прогон медленнее, и
+        // позже показ успевал кончиться — а после него полоса роли законна.
         // На пиках программа обновляет панель рун: рун ещё нет — «вернуть пул
         // роли». Пока держится панель банов, строка — за тир-листом: полоса
         // чемпионов роли наезжала на него (скриншот владельца).
@@ -501,6 +500,12 @@ internal static class Program
         Pump();
         Check("пока видны баны, полосы чемпионов роли нет", !Vis(w, "RolePoolBar") && Vis(w, "TierListBar"),
               $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
+        Poll(() => SlotOpacity(w, "BansTheirList", 2) > 0.5, 2);   // середина появления — для снимка
+        if (snap is { Length: > 0 }) Snap(w, snap, "4a-reveal-mid.png");
+        Check("у наших, показанных раньше, вспышки нет", FlashColor(w, "BansOurList", 0) == "",
+              FlashColor(w, "BansOurList", 0));
+        Pump();
+        Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
         var theirs = Slots(w, "BansTheirList");
         Check("вражеские — пять с бан-рейтом", theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
         // Забанили моего мейна — помечен он один: золотая рамка, золотое имя,
