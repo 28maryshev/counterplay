@@ -124,7 +124,8 @@
     "theirs": "Rakip yasaklar",
     "doneStatus": "Takımların yasakları",
     "doneTitle": "Yasaklar · {0} yamasında yasak oranı",
-    "rateTip": "{0}: {2} yamasında maçların %{1} kadarında yasaklanıyor"
+    "rateTip": "{0}: {2} yamasında maçların %{1} kadarında yasaklanıyor",
+    "yourMain": "Ana şampiyonun — bu ay {0} maç"
   },
   "tier": {
     "title": "Tier listesi · {0}",

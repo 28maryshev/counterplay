@@ -124,7 +124,8 @@
     "theirs": "Gegnerische Banns",
     "doneStatus": "Banns der Teams",
     "doneTitle": "Banns · Bannrate in Patch {0}",
-    "rateTip": "{0}: in {1}% der Spiele gebannt (Patch {2})"
+    "rateTip": "{0}: in {1}% der Spiele gebannt (Patch {2})",
+    "yourMain": "Dein Main — {0} Spiele in diesem Monat"
   },
   "tier": {
     "title": "Tier-Liste · {0}",

@@ -6202,6 +6202,43 @@ public partial class OverlayWindow : Window
     }
 
     /// <summary>
+    /// Рамка забаненного мейна: золотое свечение. Новый бан — рамка влетает
+    /// чуть крупнее и садится на место, свечение вспыхивает и остаётся мягким,
+    /// чтобы мейна было видно и после анимации.
+    /// </summary>
+    private void BanMain_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Shape frame || frame.DataContext is not BanSlotVm { IsMyMain: true } vm) return;
+        var glow = new DropShadowEffect
+        {
+            Color = Color.FromRgb(0xF5, 0xD7, 0x7A), BlurRadius = 14, ShadowDepth = 0, Opacity = 0.45,
+        };
+        frame.Effect = glow;
+        if (!vm.IsNew) return;
+
+        var begin = TimeSpan.FromSeconds(vm.Delay + 0.22);
+        var flare = new DoubleAnimationUsingKeyFrames { BeginTime = begin };
+        flare.KeyFrames.Add(new LinearDoubleKeyFrame(0.45, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        flare.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.1))));
+        flare.KeyFrames.Add(new EasingDoubleKeyFrame(0.45, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.7)),
+            new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+        glow.BeginAnimation(DropShadowEffect.OpacityProperty, flare);
+        glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty,
+            new DoubleAnimation(30, 14, TimeSpan.FromSeconds(0.7)) { BeginTime = begin });
+
+        var size = new ScaleTransform(1.3, 1.3);
+        frame.RenderTransformOrigin = new Point(0.5, 0.5);
+        frame.RenderTransform = size;
+        var settle = new DoubleAnimation(1.3, 1, TimeSpan.FromSeconds(0.35))
+        {
+            BeginTime = begin,
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        size.BeginAnimation(ScaleTransform.ScaleXProperty, settle);
+        size.BeginAnimation(ScaleTransform.ScaleYProperty, settle);
+    }
+
+    /// <summary>
     /// Быстрая вспышка по рамке нового бана цветом команды (синяя у наших,
     /// красная у врагов): кольцо со свечением вспыхивает и расходится чуть
     /// шире портрета, пока тот допрыгивает.
@@ -6410,21 +6447,25 @@ public partial class OverlayWindow : Window
                                      double baseDelay, bool fromRight)
     {
         var fresh = bans.Where(id => id > 0 && !_shownBans.Contains(id)).ToList();
+        var mains = RecommendationEngine.MyMains();
         var slots = bans.Where(id => id > 0).Select(id =>
         {
             var rate  = _engine!.BanRate(id);
             var k     = fresh.IndexOf(id);
             var turn  = fromRight ? fresh.Count - 1 - k : k;
+            var games = mains.GetValueOrDefault(id);
+            var tip   = Loc.T("ban.rateTip", DataDragon.Name(id), $"{rate:F1}", _engine.Patch);
             return new BanSlotVm
             {
                 IsNew     = k >= 0,
                 Delay     = k >= 0 ? baseDelay + BAN_STAGGER * turn : 0,
+                MainGames = games,
                 Icon      = IconCache.Get(id),
                 Name      = DataDragon.Name(id),
                 Rate      = $"{rate:F1}%",
                 RateBrush = BanRateBrush(rate),
                 Frame     = frame,
-                Tip       = Loc.T("ban.rateTip", DataDragon.Name(id), $"{rate:F1}", _engine.Patch),
+                Tip       = games > 0 ? tip + "\n" + Loc.T("ban.yourMain", games) : tip,
             };
         }).ToList();
         while (slots.Count < 5)
@@ -6789,6 +6830,12 @@ public sealed class BanSlotVm
     // Бан только что появился — «выпрыгивает» в слот (см. шаблон BanSlot).
     public bool         IsNew       { get; init; }
     public double       Delay       { get; init; }   // когда начать появление, с
+    // Забанили моего мейна: игр на нём за месяц (0 — не мейн). Золотая рамка
+    // со скошенными углами и золотое имя.
+    public int          MainGames   { get; init; }
+    public bool         IsMyMain    => MainGames > 0;
+    public Visibility   MainVisibility => IsMyMain ? Visibility.Visible : Visibility.Collapsed;
+    public string       NameBrush   => IsMyMain ? "#F5D77A" : "#9FB4C6";
     public Visibility   IconVisibility  => IsEmpty ? Visibility.Collapsed : Visibility.Visible;
     public Visibility   EmptyVisibility => IsEmpty ? Visibility.Visible   : Visibility.Collapsed;
 }

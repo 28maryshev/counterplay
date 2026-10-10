@@ -399,7 +399,8 @@
     "theirs": "Ban nemici",
     "doneStatus": "Ban delle squadre",
     "doneTitle": "Ban · ban rate nella patch {0}",
-    "rateTip": "{0}: bannato nel {1}% delle partite (patch {2})"
+    "rateTip": "{0}: bannato nel {1}% delle partite (patch {2})",
+    "yourMain": "Il tuo main — {0} partite questo mese"
   },
   "tier": {
     "title": "Tier list · {0}",

@@ -340,6 +340,25 @@ public sealed class RecommendationEngine : IDisposable
         SessionTracker.History(FreshDays,
             [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
 
+    // Мейн за месяц: не меньше MAIN_MIN_GAMES игр и не меньше MAIN_MIN_SHARE
+    // всех моих игр за то же окно. Доля — чтобы мейн был и у того, кто играет
+    // двадцать игр в месяц; минимум игр — чтобы три игры из десяти не делали
+    // мейном. У владельца: Сона 32, Браум 19, Эш 18, Вел'Коз 17 (из ~130).
+    private const int    MAIN_MIN_GAMES = 5;
+    private const double MAIN_MIN_SHARE = 0.10;
+
+    /// <summary>
+    /// Мои мейны за последний месяц: чемпион → игр. Окно банов по ним
+    /// помечает, что забанили именно моего чемпиона.
+    /// </summary>
+    public static IReadOnlyDictionary<int, int> MyMains()
+    {
+        var played = MyHistory().Played.Where(p => p.Games > 0).ToList();
+        var total  = played.Sum(p => p.Games);
+        return played.Where(p => p.Games >= MAIN_MIN_GAMES && p.Games >= MAIN_MIN_SHARE * total)
+                     .ToDictionary(p => p.Id, p => p.Games);
+    }
+
     // ── Против контры комфорт не советчик ───────────────────────────────────
     //
     // Замер на живом пуле владельца показал границу: его личная прибавка на

@@ -399,7 +399,8 @@
     "theirs": "Lượt cấm của địch",
     "doneStatus": "Lượt cấm của hai đội",
     "doneTitle": "Cấm · tỉ lệ cấm ở phiên bản {0}",
-    "rateTip": "{0}: bị cấm trong {1}% số trận (phiên bản {2})"
+    "rateTip": "{0}: bị cấm trong {1}% số trận (phiên bản {2})",
+    "yourMain": "Tướng tủ của bạn — {0} trận tháng này"
   },
   "tier": {
     "title": "Tier list · {0}",

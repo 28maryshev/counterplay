@@ -399,7 +399,8 @@
     "theirs": "Enemy bans",
     "doneStatus": "Team bans",
     "doneTitle": "Bans · ban rate in patch {0}",
-    "rateTip": "{0}: banned in {1}% of games in patch {2}"
+    "rateTip": "{0}: banned in {1}% of games in patch {2}",
+    "yourMain": "Your main — {0} games this month"
   },
   "tier": {
     "title": "Tier list · {0}",

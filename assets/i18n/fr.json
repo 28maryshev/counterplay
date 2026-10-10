@@ -340,7 +340,8 @@
     "theirs": "Bans ennemis",
     "doneStatus": "Bans des équipes",
     "doneTitle": "Bans · taux de ban au patch {0}",
-    "rateTip": "{0} : banni dans {1}% des parties (patch {2})"
+    "rateTip": "{0} : banni dans {1}% des parties (patch {2})",
+    "yourMain": "Ton main — {0} parties ce mois-ci"
   },
   "badge": {
     "ban": "BAN"

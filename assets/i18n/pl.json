@@ -399,7 +399,8 @@
     "theirs": "Bany wrogów",
     "doneStatus": "Bany drużyn",
     "doneTitle": "Bany · ban rate w patchu {0}",
-    "rateTip": "{0}: banowany w {1}% gier (patch {2})"
+    "rateTip": "{0}: banowany w {1}% gier (patch {2})",
+    "yourMain": "Twój main — {0} gier w tym miesiącu"
   },
   "tier": {
     "title": "Tier lista · {0}",
