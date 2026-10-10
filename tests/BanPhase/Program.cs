@@ -663,7 +663,8 @@ internal static class Program
               $"{d?.MyTeamBans.Count} + {d?.TheirTeamBans.Count}");
         Check("десять разных банов", d is not null && d.MyTeamBans.Concat(d.TheirTeamBans).Distinct().Count() == 10, "");
         Check("окно держит панель банов", Vis(overlay, "BansDonePanel"), "");
-        var mainBanned = d?.TheirTeamBans.Where(id => id is 37 or 201).ToList() ?? [];
+        var myMains = RecommendationEngine.MyMains();   // Сона, Браум и Эш (6 из 57 — тоже десятая часть)
+        var mainBanned = d?.TheirTeamBans.Where(myMains.ContainsKey).ToList() ?? [];
         Check("враг в песочнице забанил моего мейна", mainBanned.Count == 1,
               string.Join(", ", mainBanned.Select(DataDragon.Name)));
         Check("на панели он помечен", Slots(overlay, "BansTheirList").Count(x => x.IsMyMain) == 1, "");
@@ -756,8 +757,8 @@ internal static class Program
         while (stack.Count > 0)
         {
             var d = stack.Pop();
-            if (d is System.Windows.Shapes.Path { Visibility: Visibility.Visible,
-                                                  Effect: System.Windows.Media.Effects.DropShadowEffect fx })
+            if (d is System.Windows.Shapes.Rectangle { Visibility: Visibility.Visible,
+                                                       Effect: System.Windows.Media.Effects.DropShadowEffect fx })
                 return fx.Color.ToString();
             for (var k = 0; k < VisualTreeHelper.GetChildrenCount(d); k++) stack.Push(VisualTreeHelper.GetChild(d, k));
         }
