@@ -6073,7 +6073,7 @@ public partial class OverlayWindow : Window
             IsSelected = b.ChampionId == _banHoverId,
             Rank   = $"{i + 1}.",
             Name   = DataDragon.Name(b.ChampionId),
-            Reason = b.Reasons.FirstOrDefault() ?? "",
+            Reason = BanReasonText(b.Reasons),
             Icon   = IconCache.Get(b.ChampionId),
         }).ToList();
 
@@ -6313,6 +6313,20 @@ public partial class OverlayWindow : Window
         while (slots.Count < 5)
             slots.Add(new BanSlotVm { Frame = "#3A4B5F", Placeholder = placeholder });
         return slots;
+    }
+
+    /// <summary>
+    /// Подпись карточки бана: два первых довода, каждый с новой строки. Движок
+    /// уже расставил их по важности. Раньше показывался только первый, и вторая
+    /// причина — например, контра твоему пулу у того, кто ещё и бьёт союзника, —
+    /// пропадала. Невидимый знак довода в начале строки — служебный, убираем.
+    /// </summary>
+    private static string BanReasonText(IReadOnlyList<string> reasons)
+    {
+        var lines = reasons.Take(2).Select(r =>
+            r.Length > 0 && r[0] is RecommendationEngine.SIGN_GOOD or RecommendationEngine.SIGN_BAD
+                                     or RecommendationEngine.SIGN_KEY ? r[1..] : r).ToList();
+        return lines.Count > 1 ? string.Join("\n", lines.Select(l => "• " + l)) : lines.FirstOrDefault() ?? "";
     }
 
     // Команды по бокам (слоты, стиль, связки, линии) — общее для пиков и банов.

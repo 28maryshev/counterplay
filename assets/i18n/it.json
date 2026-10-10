@@ -288,6 +288,7 @@
     "countersPool": "Counter-a il tuo pool (batte {0})",
     "countersPoolPick": "Counter di {0} del tuo pool · pick rate {1}%",
     "pickRate": "Scelto nel {0}% delle partite in questa corsia",
+    "withPick": "{0} · pick rate {1}%",
     "countersAlly": "Counter-a il tuo alleato {0}",
     "countersMyPick": "Counter-a la tua scelta {0}",
     "botlaneGood": "Buono contro il bot nemico ({0})",

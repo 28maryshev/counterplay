@@ -391,6 +391,7 @@
     "countersPool": "Contre ton pool (bat {0})",
     "countersPoolPick": "Contre {0} de ton pool · pick rate {1}%",
     "pickRate": "Pick dans {0}% des parties sur cette lane",
+    "withPick": "{0} · pick rate {1}%",
     "countersAlly": "Contre ton allié {0}",
     "countersMyPick": "Contre ton pick {0}",
     "botlaneGood": "Bon contre le bot ennemi ({0})",

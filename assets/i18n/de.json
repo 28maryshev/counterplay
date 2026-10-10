@@ -161,6 +161,7 @@
     "countersPool": "Kontert deinen Champion-Pool (schlägt {0})",
     "countersPoolPick": "Kontert {0} aus deinem Pool · Pickrate {1}%",
     "pickRate": "In {0}% der Spiele auf dieser Lane gepickt",
+    "withPick": "{0} · Pickrate {1}%",
     "countersAlly": "Kontert deinen Verbündeten {0}",
     "countersMyPick": "Kontert deinen Pick {0}",
     "botlaneGood": "Gut gegen die gegnerische Botlane ({0})",

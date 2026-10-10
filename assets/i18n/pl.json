@@ -288,6 +288,7 @@
     "countersPool": "Kontruje twoją pulę (bije {0})",
     "countersPoolPick": "Kontruje twoją pulę ({0}) · pick rate {1}%",
     "pickRate": "Wybierany w {0}% gier na tej linii",
+    "withPick": "{0} · pick rate {1}%",
     "countersAlly": "Kontruje twojego sojusznika {0}",
     "countersMyPick": "Kontruje twój pick {0}",
     "botlaneGood": "Dobry przeciw botowi wroga ({0})",

@@ -288,6 +288,7 @@
     "countersPool": "あなたのプールをカウンター（{0} に有利）",
     "countersPoolPick": "プールの{0}に有利 · ピック率 {1}%",
     "pickRate": "このレーンで{0}%の試合でピック",
+    "withPick": "{0} · ピック率 {1}%",
     "countersAlly": "味方の {0} をカウンター",
     "countersMyPick": "あなたのピック {0} をカウンター",
     "botlaneGood": "敵ボット（{0}）に強い",

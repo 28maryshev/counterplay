@@ -288,6 +288,7 @@
     "countersPool": "Khắc chế pool của bạn (thắng {0})",
     "countersPoolPick": "Khắc chế {0} trong pool của bạn · tỉ lệ chọn {1}%",
     "pickRate": "Được chọn trong {0}% trận ở đường này",
+    "withPick": "{0} · tỉ lệ chọn {1}%",
     "countersAlly": "Khắc chế đồng đội {0}",
     "countersMyPick": "Khắc chế lựa chọn của bạn {0}",
     "countersMany": "Khắc chế: {0}",

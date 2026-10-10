@@ -391,6 +391,7 @@
     "countersPool": "Contrarresta tu pool (vence a {0})",
     "countersPoolPick": "Contrarresta a {0} de tu pool · {1}% de selección",
     "pickRate": "Elegido en el {0}% de las partidas en esta línea",
+    "withPick": "{0} · {1}% de selección",
     "countersAlly": "Contrarresta a tu aliado {0}",
     "countersMyPick": "Contrarresta tu pick {0}",
     "botlaneGood": "Bueno contra la bot enemiga ({0})",

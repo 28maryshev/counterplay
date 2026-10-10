@@ -161,6 +161,7 @@
     "countersPool": "당신의 챔프 폭을 카운터 ({0} 상대 우위)",
     "countersPoolPick": "내 풀의 {0} 카운터 · 픽률 {1}%",
     "pickRate": "이 라인 게임의 {0}%에서 픽됨",
+    "withPick": "{0} · 픽률 {1}%",
     "countersAlly": "아군 {0}을(를) 카운터",
     "countersMyPick": "당신의 픽 {0}을(를) 카운터",
     "botlaneGood": "상대 봇 ({0})에 강함",

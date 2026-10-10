@@ -314,6 +314,7 @@
     "countersPool": "Counters your pool (beats {0})",
     "countersPoolPick": "Counters {0} from your pool · {1}% pick rate",
     "pickRate": "Picked in {0}% of games in this lane",
+    "withPick": "{0} · {1}% pick rate",
     "countersAlly": "Counters your ally {0}",
     "countersMyPick": "Counters your pick {0}",
     "botlaneGood": "Good against the enemy bot ({0})",

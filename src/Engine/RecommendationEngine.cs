@@ -1355,6 +1355,14 @@ public sealed class RecommendationEngine : IDisposable
             if (p.EffectiveChampionId != 0) taken.Add(p.EffectiveChampionId);
         foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
             if (b != 0) taken.Add(b);
+        // Кого свои уже наводили за драфт — это их запасные пики, и банить их
+        // нельзя: отнимешь вариант у союзника. Раньше исключались только
+        // текущие наведения, и Вуконг, которого союзник навёл и сменил на Каина,
+        // стоял четвёртым баном и тут же — в «контрит ваших: Каин, Вуконг».
+        if (hoverHistory != null)
+            foreach (var p in state.MyTeam)
+                if (hoverHistory.TryGetValue(p.CellId, out var shownBy))
+                    taken.UnionWith(shownBy.Where(id => id != 0));
 
         // Мои мейны на этой роли — чтобы банить их контр-пики.
         //
@@ -1384,12 +1392,19 @@ public sealed class RecommendationEngine : IDisposable
         }
 
         var scores  = new Dictionary<int, double>();
-        var reasons = new Dictionary<int, List<string>>();
-        void AddReason(int id, string r)
+        // Доводы с приоритетом: карточка показывает первые два, и первыми
+        // должны идти те, ради которых бан и выбран, — защита моего пика, пиков
+        // союзников, угроза команде, — а «сильный в патче» уже потом.
+        const int R_MINE = 0, R_ALLY = 1, R_TEAM = 2, R_POOL = 3, R_META = 4, R_PICK = 5;
+        var reasons = new Dictionary<int, List<(int Prio, string Text)>>();
+        void AddReason(int id, string r, int prio)
         {
             if (!reasons.TryGetValue(id, out var l)) reasons[id] = l = [];
-            if (!l.Contains(r)) l.Add(r);
+            if (!l.Any(x => x.Text == r)) l.Add((prio, r));
         }
+        // Пикрейт кандидата на роли, где он встречает того, кого контрит, — в
+        // подпись: видно, что бан не на того, кого почти не берут.
+        var pickOn = new Dictionary<(int Champ, string Role), double>();
 
         // 1. Сила в патче + популярность + контр-пики моего пула (кандидаты моей роли).
         foreach (var x in stats.Keys)
@@ -1426,10 +1441,11 @@ public sealed class RecommendationEngine : IDisposable
             if (score <= 0) continue;
             scores[x] = score;
 
+            pickOn[(x, myRole)] = pick;
             if (counterMe >= 1.5 && beatMain != 0)
-                AddReason(x, Loc.T("reason.countersPoolPick", DataDragon.Name(beatMain), $"{pick:F1}"));
-            if (metaWr >= 1.5) AddReason(x, Good(Loc.T("reason.strongPatch", $"{50 + metaWr:F1}")));
-            if (pick >= myPicks.Ref * 1.5) AddReason(x, Loc.T("reason.pickRate", $"{pick:F1}"));
+                AddReason(x, Loc.T("reason.countersPoolPick", DataDragon.Name(beatMain), $"{pick:F1}"), R_POOL);
+            if (metaWr >= 1.5) AddReason(x, Good(Loc.T("reason.strongPatch", $"{50 + metaWr:F1}")), R_META);
+            if (pick >= myPicks.Ref * 1.5) AddReason(x, Loc.T("reason.pickRate", $"{pick:F1}"), R_PICK);
         }
 
         // 2. Защита заявленных пиков: банить тех, кто контрит уже наведённых/взятых
@@ -1470,7 +1486,7 @@ public sealed class RecommendationEngine : IDisposable
         var victimsOf = new Dictionary<int, HashSet<int>>(); // бан-кандидат → кого он контрит ЗАМЕТНО (для бонуса ширины)
         // Все, кого кандидат контрит хоть сколько-то: из этого строим подпись
         // «контрит Сону, Люкс и Морgану» — игрок должен видеть ВЕСЬ список.
-        var hitsOf = new Dictionary<int, List<(int Id, bool Mine)>>();
+        var hitsOf = new Dictionary<int, List<(int Id, bool Mine, string? Role)>>();
 
         // Пикрейт на роли защищаемого: контру на линии берут именно туда. Роль
         // неизвестна — встречаемость не учитываем (множитель 1).
@@ -1488,6 +1504,7 @@ public sealed class RecommendationEngine : IDisposable
                     var pick = rp.Pick.GetValueOrDefault(c);
                     if (pick < MIN_ROLE_SHARE * 100) continue;   // на этой линии его почти не берут
                     meet = Meet(pick, rp.Ref);
+                    pickOn[(c, prole)] = pick;
                 }
                 var (mg, mw) = prole != null ? RawMatchup(pid, prole, c) : RawMatchupAny(pid, c);
                 if (mg <= 0) continue;
@@ -1502,7 +1519,7 @@ public sealed class RecommendationEngine : IDisposable
                 var likely = strength * meet;
                 scores[c] = scores.GetValueOrDefault(c) + weight * likely;
                 if (!hitsOf.TryGetValue(c, out var hits)) hitsOf[c] = hits = [];
-                if (!hits.Any(h => h.Id == pid)) hits.Add((pid, mine));
+                if (!hits.Any(h => h.Id == pid)) hits.Add((pid, mine, prole));
                 if (!bestByProtectee.TryGetValue(pid, out var cur) || likely > cur.Strength)
                     bestByProtectee[pid] = (c, likely);
                 if (strength >= 0.3)
@@ -1556,7 +1573,7 @@ public sealed class RecommendationEngine : IDisposable
                 .Take(3)
                 .ToList();
             if (t.Threat >= 0.5 && named.Count >= 2)
-                AddReason(c, Loc.T("reason.teamThreat", string.Join(", ", named)));
+                AddReason(c, Loc.T("reason.teamThreat", string.Join(", ", named)), R_TEAM);
         }
 
         // Бонус за ширину: кандидат, контрящий 2+ РАЗНЫХ наших чемпионов,
@@ -1568,17 +1585,27 @@ public sealed class RecommendationEngine : IDisposable
 
         // Подписи «кого контрит этот бан». Одного называем как раньше, нескольких
         // перечисляем поимённо — видно, что одним баном закрывается пол-команды.
+        // С пикрейтом, как у контры моему пулу; на нескольких линиях — больший.
+        string WithPick(int c, IEnumerable<string?> roles, string text)
+        {
+            var pk = roles.Where(r => r != null).Select(r => pickOn.GetValueOrDefault((c, r!))).DefaultIfEmpty(0).Max();
+            return pk > 0 ? Loc.T("reason.withPick", text, $"{pk:F1}") : text;
+        }
         foreach (var (c, hits) in hitsOf)
         {
+            var roles = hits.Select(h => h.Role);
             if (hits.Count == 1)
             {
-                var (id, mine) = hits[0];
-                AddReason(c, Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(id)));
+                var (id, mine, _) = hits[0];
+                AddReason(c, WithPick(c, roles,
+                    Loc.T(mine ? "reason.countersMyPick" : "reason.countersAlly", DataDragon.Name(id))),
+                    mine ? R_MINE : R_ALLY);
                 continue;
             }
             // Свой пик — первым в списке: он важнее чужих.
             var names = hits.OrderByDescending(h => h.Mine).Select(h => DataDragon.Name(h.Id));
-            AddReason(c, Loc.T("reason.countersMany", string.Join(", ", names)));
+            AddReason(c, WithPick(c, roles, Loc.T("reason.countersMany", string.Join(", ", names))),
+                      hits.Any(h => h.Mine) ? R_MINE : R_ALLY);
         }
 
         // Резервируем места: по одному самому жёсткому контрпику на защищаемого
@@ -1629,7 +1656,11 @@ public sealed class RecommendationEngine : IDisposable
             .OrderByDescending(k => scores.GetValueOrDefault(k))
             .Select(k =>
             {
-                var rs = reasons.GetValueOrDefault(k) ?? [];
+                // Порядок — по приоритету, внутри него — как добавлялись.
+                var rs = (reasons.GetValueOrDefault(k) ?? [])
+                    .Select((r, i) => (r.Prio, i, r.Text))
+                    .OrderBy(r => r.Prio).ThenBy(r => r.i)
+                    .Select(r => r.Text).ToList();
                 if (rs.Count == 0) rs.Add(Loc.T("reason.notablePick"));
                 return new BanRec(k, scores.GetValueOrDefault(k), [.. rs]);
             })

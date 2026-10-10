@@ -284,6 +284,7 @@
     "countersPool": "克制你的英雄池（克制 {0}）",
     "countersPoolPick": "克制你英雄池中的{0} · 选取率 {1}%",
     "pickRate": "在该路 {0}% 的对局中被选",
+    "withPick": "{0} · 选取率 {1}%",
     "countersAlly": "克制你的队友 {0}",
     "botlaneGood": "对敌方下路有优势（{0}）",
     "botlaneBad": "对敌方下路吃力（{0}）",

@@ -161,6 +161,7 @@
     "countersPool": "Counter do seu pool (vence {0})",
     "countersPoolPick": "Counter de {0} do seu pool · pick rate {1}%",
     "pickRate": "Escolhido em {0}% dos jogos nesta rota",
+    "withPick": "{0} · pick rate {1}%",
     "countersAlly": "Counter do seu aliado {0}",
     "countersMyPick": "Counter do seu pick {0}",
     "botlaneGood": "Bom contra o bot inimigo ({0})",

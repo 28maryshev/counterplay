@@ -391,6 +391,7 @@
     "countersPool": "Pool'unu kontrluyor ({0}'i yeniyor)",
     "countersPoolPick": "Havuzundaki {0} karşısında güçlü · seçilme %{1}",
     "pickRate": "Bu koridordaki maçların %{0} kadarında seçiliyor",
+    "withPick": "{0} · seçilme %{1}",
     "countersAlly": "Müttefikin {0}'i kontrluyor",
     "countersMyPick": "Seçimin {0}'i kontrluyor",
     "botlaneGood": "Düşman bot hattına karşı iyi ({0})",
