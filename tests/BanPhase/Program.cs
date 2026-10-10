@@ -475,7 +475,7 @@ internal static class Program
         // пиков. Окно держит панель — их половина выезжает снизу.
         var reveal = oursFull with
         {
-            TheirTeamBans = [24, 893, 145, 119, 12], InBanPhase = false,
+            TheirTeamBans = [24, 893, 145, 119, 37], InBanPhase = false,
             MyBanActionId = -1, MyBanInProgress = false,
         };
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
@@ -503,11 +503,22 @@ internal static class Program
               $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
         var theirs = Slots(w, "BansTheirList");
         Check("вражеские — пять с бан-рейтом", theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
+        // Забанили моего мейна — помечен он один: золотая рамка, золотое имя,
+        // в подсказке — сколько игр.
+        var sona = theirs.FindIndex(x => x.Name == DataDragon.Name(37));
+        Check("забаненный мейн помечен, и только он",
+              sona >= 0 && theirs[sona] is { IsMyMain: true, MainGames: 20 } && theirs.Count(x => x.IsMyMain) == 1,
+              string.Join(", ", theirs.Where(x => x.IsMyMain).Select(x => $"{x.Name} {x.MainGames}")));
+        Check("в подсказке — «твой мейн»", sona >= 0 && (theirs[sona].Tip ?? "").Contains(Loc.T("ban.yourMain", 20)),
+              (theirs[sona].Tip ?? "").Replace("\n", " | "));
         Wait(1.2);
         Check("их половина выехала", Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansTheirHalf") == 0,
               $"{Opacity(w, "BansTheirHalf")} / {ShiftY(w, "BansTheirHalf"):0}");
         Check("наша поднялась на место", ShiftY(w, "BansOurHalf") == 0, $"{ShiftY(w, "BansOurHalf"):0}");
         Check("их пять — красная волна", Vis(w, "BansTheirWave"), "");
+        Check("у мейна — золотая рамка со свечением", MainGlow(w, "BansTheirList", sona) == "#FFF5D77A",
+              MainGlow(w, "BansTheirList", sona));
+        Check("у остальных рамки нет", MainGlow(w, "BansTheirList", sona == 0 ? 1 : 0) == "", "");
         if (snap is { Length: > 0 }) Snap(w, snap, "4-revealed.png");
 
         // Подержали — пики.
@@ -521,7 +532,7 @@ internal static class Program
         var w2 = new OverlayWindow();
         ShowHidden(w2);
         w2.SetEngine(engine);
-        var early = oursFull with { TheirTeamBans = [24, 893, 145, 119, 12] };
+        var early = oursFull with { TheirTeamBans = [24, 893, 145, 119, 37] };
         w2.UpdateBans([], early, engine);
         Pump();
         Wait(1.0);
@@ -727,6 +738,23 @@ internal static class Program
         return ic.ItemContainerGenerator.ContainerFromIndex(i) is DependencyObject c
                && VisualTreeHelper.GetChildrenCount(c) > 0 && VisualTreeHelper.GetChild(c, 0) is UIElement e
             ? e.Opacity : -1;
+    }
+
+    /// Свечение рамки мейна в слоте ("" — рамки нет: это не мой мейн).
+    private static string MainGlow(Window w, string list, int i)
+    {
+        var ic = (ItemsControl)w.FindName(list);
+        if (ic.ItemContainerGenerator.ContainerFromIndex(i) is not DependencyObject c) return "нет слота";
+        var stack = new Stack<DependencyObject>([c]);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is System.Windows.Shapes.Path { Visibility: Visibility.Visible,
+                                                  Effect: System.Windows.Media.Effects.DropShadowEffect fx })
+                return fx.Color.ToString();
+            for (var k = 0; k < VisualTreeHelper.GetChildrenCount(d); k++) stack.Push(VisualTreeHelper.GetChild(d, k));
+        }
+        return "";
     }
 
     /// Цвет вспышки по рамке слота ("" — вспышки нет: бан показан раньше).
