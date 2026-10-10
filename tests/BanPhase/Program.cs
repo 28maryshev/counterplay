@@ -65,6 +65,7 @@ internal static class Program
         // Имена и иконки: без них песочнице не из кого выбирать, а снимку нечего рисовать.
         Assets(playerDir);
         Shown(engine);
+        Lane(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -185,6 +186,71 @@ internal static class Program
         Check("защита пиков — раньше силы в патче", order.All(x => x.Guard < x.Meta), $"{order.Count} карточек с обоими");
         SessionTracker.HistoryOverride = null;
     }
+
+    // ── 1в. Бан прежде всего мой: линия первой, пул из профиля ───────────────
+
+    /// <summary>
+    /// Скриншот владельца-саппорта: союзники навели Ирелию и Мастера Йи, и
+    /// четыре бана из пяти были про них, один — про его линию. Теперь моей
+    /// линии — не меньше трёх мест, и они первые; защите союзников — не больше
+    /// двух. Веса журнала — как у владельца за месяц.
+    /// </summary>
+    private static void Lane(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("моя линия первой:");
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int> { [37] = 32, [201] = 19, [22] = 18, [161] = 17, [910] = 10, [101] = 8 });
+        var team = new List<DraftPlayer>
+        {
+            new(0, 0, 39, "top", false),       // Ирелия
+            new(1, 0, 11, "jungle", false),    // Мастер Йи
+            new(2, 0, 0, "middle", false),
+            new(3, 0, 0, "bottom", false),
+            new(4, 0, 0, "utility", true),
+        };
+        var state = Snapshot(team, team[4], "utility");
+        var bans = engine.RecommendBans(state, new Dictionary<int, HashSet<int>> { [0] = [39], [1] = [11] }, top: 5);
+        var sup = engine.PickRates("support");
+        foreach (var b in bans)
+            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {b.Reasons.FirstOrDefault()}");
+        bool OnLane(BanRec b) => sup.GetValueOrDefault(b.ChampionId) >= 0.5;
+        Check("не меньше трёх банов — на мою линию", bans.Count(OnLane) >= 3, $"{bans.Count(OnLane)} из {bans.Count}");
+        Check("и они первые", bans.Take(3).All(OnLane), string.Join(", ", bans.Take(3).Select(b => DataDragon.Name(b.ChampionId))));
+        int[] mineIds = [37, 201, 22, 161, 910, 101];
+        Check("своих мейнов не банит", !bans.Any(b => mineIds.Contains(b.ChampionId)),
+              string.Join(", ", bans.Where(b => mineIds.Contains(b.ChampionId)).Select(b => DataDragon.Name(b.ChampionId))));
+        var ally = Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
+        var many = Loc.T("reason.countersMany", "\u0001").Split('\u0001')[0];
+        var guard = bans.Count(b => !OnLane(b));
+        Check("защите союзников — не больше двух", guard <= 2, $"{guard}");
+        Check("защита союзников всё же есть", bans.Any(b => b.Reasons.Any(r =>
+                  r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal))), "");
+
+        // Пул из профиля: истории нет, в активном пуле саппорта — Сона и Браум.
+        // Раньше баны пул не читали, и контрить было бы некого.
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>());
+        var pool = new ChampPool { Name = "проверка", ByRole = new() { ["support"] = [37, 201] } };
+        PoolStore.Current().Pools.Add(pool);
+        PoolStore.SetActive(PoolKind.Pool, pool.Id);
+        var me = new List<DraftPlayer> { new(0, 0, 0, "utility", true) };
+        var head = Loc.T("reason.countersPoolPick", "\u0001", "").Split('\u0001')[0];
+        var poolReasons = engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 5)
+                                .SelectMany(b => b.Reasons).Where(r => r.StartsWith(head, StringComparison.Ordinal)).ToList();
+        Check("пул из профиля: контры ему есть без истории", poolReasons.Count > 0, poolReasons.FirstOrDefault() ?? "нет");
+        Check("называют чемпионов пула", poolReasons.All(r => r.Contains(DataDragon.Name(37)) || r.Contains(DataDragon.Name(201))), "");
+        Check("чемпионов пула не банит", !engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 5)
+                                              .Any(b => b.ChampionId is 37 or 201), "");
+        PoolStore.SetActive(PoolKind.Pool, null);
+        PoolStore.Current().Pools.Remove(pool);
+        SessionTracker.HistoryOverride = null;
+    }
+
+    private static DraftState Snapshot(List<DraftPlayer> team, DraftPlayer me, string pos) => new(
+        MyTeam: team, TheirTeam: [], MyTeamBans: [], TheirTeamBans: [],
+        Me: me, MyPosition: pos, DirectOpponent: null, ExposedToCounter: false,
+        InBanPhase: true, Bench: [], IsAram: false,
+        MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
+        FirstPickCell: -1, MyBanActionId: 0, MyBanInProgress: true);
 
     // ── 2. Бан-рейт и тир-лист банов ─────────────────────────────────────────
 
@@ -373,7 +439,9 @@ internal static class Program
         Check("наша сдвинута к центру", ShiftY(w, "BansOurHalf") > 20, $"{ShiftY(w, "BansOurHalf"):0}");
         Check("наших не пять — волны нет", !Vis(w, "BansOurWave"), "");
         Wait(0.6);
-        Check("новые баны допрыгнули", SlotOpacity(w, "BansOurList", 0) == 1, $"{SlotOpacity(w, "BansOurList", 0)}");
+        Check("новые баны допрыгнули", SlotOpacity(w, "BansOurList", 0) == 1 && SlotOpacity(w, "BansOurList", 1) == 1,
+              $"{SlotOpacity(w, "BansOurList", 0)} / {SlotOpacity(w, "BansOurList", 1)}");
+        Check("вспышка по рамке — синяя", FlashColor(w, "BansOurList", 1) == "#FF36D6E7", FlashColor(w, "BansOurList", 1));
         if (snap is { Length: > 0 }) Snap(w, snap, "2-done-ours.png");
 
         // Свои добанили — синяя волна по нашей половине, их всё ещё нет.
@@ -393,6 +461,17 @@ internal static class Program
             MyBanActionId = -1, MyBanInProgress = false,
         };
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
+        // По очереди: первый уже проявляется, а последний ещё не виден.
+        Poll(() => SlotOpacity(w, "BansTheirList", 0) > 0, 2);
+        Check("их баны появляются по очереди",
+              SlotOpacity(w, "BansTheirList", 0) > 0 && SlotOpacity(w, "BansTheirList", 4) == 0,
+              $"первый {SlotOpacity(w, "BansTheirList", 0):0.00}, последний {SlotOpacity(w, "BansTheirList", 4):0.00}");
+        Check("вспышка по рамке — красная", FlashColor(w, "BansTheirList", 0) == "#FFFF5A4D",
+              FlashColor(w, "BansTheirList", 0));
+        Poll(() => SlotOpacity(w, "BansTheirList", 2) > 0.5, 2);
+        if (snap is { Length: > 0 }) Snap(w, snap, "4a-reveal-mid.png");
+        Check("у наших, показанных раньше, вспышки нет", FlashColor(w, "BansOurList", 0) == "",
+              FlashColor(w, "BansOurList", 0));
         Pump();
         Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
         var theirs = Slots(w, "BansTheirList");
@@ -580,6 +659,33 @@ internal static class Program
             ? e.Opacity : -1;
     }
 
+    /// Цвет вспышки по рамке слота ("" — вспышки нет: бан показан раньше).
+    private static string FlashColor(Window w, string list, int i)
+    {
+        var ic = (ItemsControl)w.FindName(list);
+        if (ic.ItemContainerGenerator.ContainerFromIndex(i) is not DependencyObject c) return "нет слота";
+        var stack = new Stack<DependencyObject>([c]);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is System.Windows.Shapes.Ellipse { Effect: System.Windows.Media.Effects.DropShadowEffect fx })
+                return fx.Color.ToString();
+            for (var k = 0; k < VisualTreeHelper.GetChildrenCount(d); k++) stack.Push(VisualTreeHelper.GetChild(d, k));
+        }
+        return "";
+    }
+
+    /// Ждать условия мелким шагом (30 мс) — для проверок, где важен момент.
+    private static void Poll(Func<bool> done, double seconds)
+    {
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
+        t.Tick += (_, _) => { if (done() || DateTime.UtcNow > until) { t.Stop(); frame.Continue = false; } };
+        t.Start();
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
+
     private static List<BanSlotVm> Slots(Window w, string name) =>
         (((ItemsControl)w.FindName(name)).ItemsSource as IEnumerable<BanSlotVm>)?.ToList() ?? [];
 
@@ -620,14 +726,18 @@ internal static class Program
     // ── Общее ────────────────────────────────────────────────────────────────
 
     /// Журнал: на каждом мейне по двадцать свежих игр.
-    private static SessionTracker.PlayHistory Hist(int[] mains)
+    private static SessionTracker.PlayHistory Hist(int[] mains) =>
+        Hist(mains.ToDictionary(m => m, _ => 20));
+
+    /// Журнал с заданным числом игр на чемпионе.
+    private static SessionTracker.PlayHistory Hist(Dictionary<int, int> games)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var times = Enumerable.Range(0, SessionTracker.PlayHistory.KeepTimes)
                               .Select(i => now - i * 86400L).ToArray();
         return new SessionTracker.PlayHistory(
-            mains.ToDictionary(m => m, _ => (20, 10)),
-            mains.ToDictionary(m => m, _ => times),
+            games.ToDictionary(kv => kv.Key, kv => (kv.Value, kv.Value / 2)),
+            games.ToDictionary(kv => kv.Key, _ => times),
             60, now);
     }
 
