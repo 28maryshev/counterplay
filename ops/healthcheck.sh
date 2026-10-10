@@ -168,7 +168,13 @@ fi
 
 # ───────────────────────────── сервер сайта ─────────────────────────────
 head2 "СЕРВЕР САЙТА ($SITE)"
-S=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "$SITE" 'bash -s' <<'REMOTE' 2>/dev/null
+# Прямой ssh на сайт пускает только с домашнего адреса, а он у провайдера
+# меняется. Тогда идём через коллектор (его адрес в правилах постоянный): так
+# сменившийся адрес — одно предупреждение, а не ослепший раздел про сайт и
+# воронку. 10 октября так и было: сайт работал, а проверка его не видела.
+SITE_JUMP=()
+site_probe() {
+ssh -o BatchMode=yes -o ConnectTimeout=15 "${SITE_JUMP[@]}" "$SITE" 'bash -s' <<'REMOTE' 2>/dev/null
 cd "$HOME" || exit 1
 echo "up=1"
 echo "web=$(docker inspect -f '{{.State.Status}}' counterplay-site-web-1 2>/dev/null)"
@@ -184,10 +190,16 @@ echo "draft_age=$(( $(date -u +%s) - $(stat -c %Y counterplay-site/data/draft/ti
 TOK=$(curl -s -m 5 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null)
 echo "public_ip=$(curl -s -m 5 -H "X-aws-ec2-metadata-token: $TOK" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)"
 REMOTE
-)
+}
+S=$(site_probe)
+if [ -z "$S" ]; then
+  SITE_JUMP=(-J "$COLLECTOR")
+  S=$(site_probe)
+  [ -n "$S" ] && warn "прямой ssh не пускает, зашёл через коллектор — сменился домашний адрес? (CHECKLIST: «Домашний адрес НЕ постоянный»)"
+fi
 
 if [ -z "$S" ]; then
-  bad "не отвечает по ssh"
+  bad "не отвечает по ssh (ни напрямую, ни через коллектор)"
 else
   ok "доступен по ssh"
   [ "$(val "$S" web)" = running ] && ok "контейнер сайта работает" || bad "сайт не запущен: $(val "$S" web)"
@@ -274,7 +286,7 @@ fi
 
 # ────────────────────── настройки игроков (синхронизация) ─────────────────
 head2 "СИНХРОНИЗАЦИЯ НАСТРОЕК"
-SYNC=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "$SITE" "docker exec counterplay-site-db-1 \
+SYNC=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "${SITE_JUMP[@]}" "$SITE" "docker exec counterplay-site-db-1 \
   psql -U counterplay -d counterplay -t -A -F'|' -c \
   \"SELECT count(*),
             coalesce(pg_size_pretty(pg_total_relation_size('sync')),'0'),
@@ -297,6 +309,37 @@ else
   if [ "$(printf '%.0f' "${mb:-0}")" -gt 100 ]; then
     warn "таблица выросла до $size — стоит посмотреть, чем"
   fi
+fi
+
+# ───────────────────────── воронка установок ─────────────────────────
+# Загрузка и установка — разные события: первая пишется со страницы /download,
+# вторая — когда программа впервые выходит на связь. Обычно из загрузок выходит
+# больше половины установок, и приходят они через минуту-три. Загрузки есть, а
+# установок нет — значит, рвётся между ними: установщик блокируют (антивирус,
+# SmartScreen) или ломается первый запуск. 9–10 октября так прошло 9 загрузок
+# подряд, и заметили это только по пустой сводке.
+head2 "ВОРОНКА УСТАНОВОК (48 ч)"
+F=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "${SITE_JUMP[@]}" "$SITE" "docker exec counterplay-site-db-1 \
+  psql -U counterplay -d counterplay -t -A -F'|' -c \
+  \"SELECT (SELECT count(*) FROM downloads WHERE created_at > now() - interval '48 hours'),
+           (SELECT count(*) FROM installs WHERE fresh AND first_seen > now() - interval '48 hours'),
+           (SELECT coalesce(extract(epoch FROM now() - max(first_seen))::int / 3600, -1) FROM installs WHERE fresh),
+           (SELECT count(DISTINCT install_id) FROM heartbeats WHERE created_at > now() - interval '24 hours');\"" 2>/dev/null)
+
+if [ -z "$F" ]; then
+  warn "воронка не опрошена (сайт недоступен по ssh)"
+else
+  dls=$(echo "$F" | cut -d'|' -f1); ins=$(echo "$F" | cut -d'|' -f2)
+  last=$(echo "$F" | cut -d'|' -f3); act=$(echo "$F" | cut -d'|' -f4)
+  if   [ "${ins:-0}" -eq 0 ] && [ "${dls:-0}" -ge 5 ]; then
+    bad "загрузок $dls, установок 0 (последняя $last ч назад) — установщик блокируют или первый запуск падает"
+  elif [ "${ins:-0}" -eq 0 ] && [ "${dls:-0}" -ge 3 ]; then
+    warn "загрузок $dls, установок 0 (последняя $last ч назад) — присмотреться"
+  else ok "загрузок $dls, новых установок $ins"; fi
+  # Пинги действующих игроков. Ноль — сломан сам приём телеметрии (секрет,
+  # маршрут), и тогда пустая воронка выше ничего не говорит об установщике.
+  [ "${act:-0}" -gt 0 ] && ok "игроков на связи за сутки: $act" \
+    || bad "за сутки ни одного пинга от программы — приём телеметрии сломан"
 fi
 
 # ───────────────────────────── копии в R2 ─────────────────────────────

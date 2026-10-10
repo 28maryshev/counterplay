@@ -248,6 +248,9 @@ def index_sample(svc, n=15):
 
 
 if __name__ == "__main__":
+    # Консоль Windows по умолчанию в cp1251: первый же запрос с иероглифами или
+    # тайским ронял отчёт посреди Bing (10.10). Пишем UTF-8 всегда.
+    sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="Позиции сайта в поиске: Google + Bing")
     ap.add_argument("--index", action="store_true", help="проверить индексацию выборки адресов (Google)")
     ap.add_argument("--google", action="store_true", help="только Google")
