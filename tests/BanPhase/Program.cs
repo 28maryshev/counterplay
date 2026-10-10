@@ -415,7 +415,22 @@ internal static class Program
                    .All(c => c.Reason.Contains('\n')), "");
         Check("тир-лист под ними — пики", Vis(w, "TierList") && !Vis(w, "BanTierList"), "");
 
-        // Переключатель: тир-лист банов.
+        // Кнопка «Баны» над тир-листом: вид меняется на этот драфт, настройка —
+        // нет (она задаёт, с чего начинается каждый драфт).
+        var click = new System.Windows.Input.MouseButtonEventArgs(
+            System.Windows.Input.Mouse.PrimaryDevice, 0, System.Windows.Input.MouseButton.Left)
+            { RoutedEvent = UIElement.MouseLeftButtonDownEvent };
+        Call(w, "TierMode_Click", new Border { Tag = "bans" }, click);
+        Pump();
+        Check("кнопка «Баны» в драфте — тир-лист банов", Vis(w, "BanTierList") && !Vis(w, "TierList"), "");
+        Check("а настройка по умолчанию не тронута", s.BansTierMode == "picks", s.BansTierMode);
+        w.DraftEnded();
+        Pump();
+        w.UpdateBans(engine.RecommendBans(advice), advice, engine);
+        Pump();
+        Check("новый драфт — снова вид из настроек (пики)", Vis(w, "TierList") && !Vis(w, "BanTierList"), "");
+
+        // Умолчание «Баны» в настройках: драфт сразу с тир-листа банов.
         s.BansTierMode = "bans";
         w.UpdateBans(engine.RecommendBans(advice), advice, engine);
         Pump();
@@ -518,6 +533,47 @@ internal static class Program
         w2.Close();
 
         w.Close();
+        Pump();
+        s.BansTierMode = "picks";
+        Settings(snap);
+    }
+
+    /// Пункт в окне настроек: «Тир-лист по умолчанию» с выбором «Пики / Баны»,
+    /// по умолчанию — пики.
+    private static void Settings(string? snap)
+    {
+        Check("умолчание у новой установки — пики", AppSettings.Defaults().BansTierMode == "picks",
+              AppSettings.Defaults().BansTierMode);
+        var type = typeof(OverlayWindow).Assembly.GetType("Counterplay.SettingsWindow")!;
+        var win = (Window)Activator.CreateInstance(type, nonPublic: true)!;
+        ShowHidden(win);
+        Pump();
+        var texts = new List<string>();
+        var stack = new Stack<DependencyObject>([win]);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is TextBlock tb) texts.Add(tb.Text);
+            foreach (var c in LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>()) stack.Push(c);
+        }
+        var title = Loc.T("settings.bansTierMode");
+        Check("в настройках есть «" + title + "»", texts.Contains(title), "");
+        Check("с выбором «" + Loc.T("tier.modePicks") + " / " + Loc.T("tier.modeBans") + "»",
+              texts.Contains(Loc.T("tier.modePicks")) && texts.Contains(Loc.T("tier.modeBans")), "");
+        if (snap is { Length: > 0 })
+        {
+            // Раздел банов внизу — прокручиваем к пункту, чтобы он попал в снимок.
+            var stack2 = new Stack<DependencyObject>([win]);
+            while (stack2.Count > 0)
+            {
+                var d = stack2.Pop();
+                if (d is TextBlock tb && tb.Text == title) { tb.BringIntoView(new Rect(0, 0, 10, 220)); break; }
+                foreach (var c in LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>()) stack2.Push(c);
+            }
+            Pump();
+            Snap(win, snap, "0-settings.png");
+        }
+        win.Close();
         Pump();
     }
 
