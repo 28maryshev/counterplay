@@ -238,8 +238,11 @@ internal static class Program
                                 .SelectMany(b => b.Reasons).Where(r => r.StartsWith(head, StringComparison.Ordinal)).ToList();
         Check("пул из профиля: контры ему есть без истории", poolReasons.Count > 0, poolReasons.FirstOrDefault() ?? "нет");
         Check("называют чемпионов пула", poolReasons.All(r => r.Contains(DataDragon.Name(37)) || r.Contains(DataDragon.Name(201))), "");
-        Check("чемпионов пула не банит", !engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 5)
-                                              .Any(b => b.ChampionId is 37 or 201), "");
+        // Пул целиком банов не закрывает (решение владельца: только наигранные
+        // за месяц) — чемпион пула без игр в банах допустим, а с играми — нет.
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int> { [201] = 12 });
+        var withGames = engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 10);
+        Check("сыгранный за месяц из пула не банится", withGames.All(b => b.ChampionId != 201), "");
         PoolStore.SetActive(PoolKind.Pool, null);
         PoolStore.Current().Pools.Remove(pool);
         SessionTracker.HistoryOverride = null;
@@ -475,6 +478,14 @@ internal static class Program
               FlashColor(w, "BansOurList", 0));
         Pump();
         Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
+        // На пиках программа обновляет панель рун: рун ещё нет — «вернуть пул
+        // роли». Пока держится панель банов, строка — за тир-листом: полоса
+        // чемпионов роли наезжала на него (скриншот владельца).
+        w.HideRunes();
+        w.ShowRunes(null, 0, "", "support", null);
+        Pump();
+        Check("пока видны баны, полосы чемпионов роли нет", !Vis(w, "RolePoolBar") && Vis(w, "TierListBar"),
+              $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
         var theirs = Slots(w, "BansTheirList");
         Check("вражеские — пять с бан-рейтом", theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
         Wait(1.2);
@@ -487,6 +498,8 @@ internal static class Program
         // Подержали — пики.
         Wait(3.3);
         Check("через 4 секунды — пики, панели банов нет", !Vis(w, "BansDonePanel") && Vis(w, "RecScroll"), "");
+        Check("а пул роли — на своём месте", Vis(w, "RolePoolBar") && !Vis(w, "TierListBar"),
+              $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
 
         // Раскрытие внутри фазы банов (если клиент когда-то так сделает) —
         // показано сразу, и на пиках держать уже нечего.
