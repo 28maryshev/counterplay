@@ -153,14 +153,25 @@ class Program
                 else await RunLcuAsync(overlay, args, cts.Token);
             }
             catch (OperationCanceledException) { }
-            catch (Exception ex)
+            catch (Exception ex) when (!overlay.Dispatcher.HasShutdownStarted)
             {
-                overlay.Dispatcher.Invoke(() =>
-                    System.Windows.MessageBox.Show(ex.Message, "Counterplay", MessageBoxButton.OK, MessageBoxImage.Error));
+                try
+                {
+                    overlay.Dispatcher.Invoke(() =>
+                        System.Windows.MessageBox.Show(ex.Message, "Counterplay", MessageBoxButton.OK, MessageBoxImage.Error));
+                }
+                catch (TaskCanceledException) { /* окно закрыли, пока показывали */ }
             }
             finally
             {
-                overlay.Dispatcher.Invoke(() => app.Shutdown());
+                // Выход из программы: окно закрыли, его очередь уже остановлена,
+                // и синхронный Invoke бросал TaskCanceledException. Он уходил в
+                // Main, и программа «падала» на каждом выходе — Windows писала
+                // аварию (так было у 1.3.59 10.10 в 22:09). Очередь уже
+                // останавливается — значит, и так закрываемся; иначе просим
+                // закрыться, не дожидаясь.
+                if (!overlay.Dispatcher.HasShutdownStarted)
+                    overlay.Dispatcher.BeginInvoke(new Action(() => app.Shutdown()));
             }
         });
 
