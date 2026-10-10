@@ -1662,7 +1662,7 @@
                     Margin="0,6,0,0" Padding="14,12" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
               <Border.Resources>
-                <!-- Слот бана: перечёркнутый портрет, имя и бан-рейт под ним.
+                <!-- Слот бана: портрет с крестом, как в тир-листе, имя и бан-рейт под ним.
                      Пустой слот — пунктирный круг: бан ещё не сделан или скрыт. -->
                 <DataTemplate x:Key="BanSlot">
                   <!-- Новые баны появляются по очереди: «выпрыгивают» в слот, и
@@ -1678,9 +1678,10 @@
                           <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
                           <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
                         </Ellipse>
-                        <Ellipse Fill="#33000000"/>
-                        <Line X1="12" Y1="42" X2="42" Y2="12" Stroke="#E0584F" StrokeThickness="2.5"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        <!-- Забанен — так же, как в тир-листе: затемнение и красный крест -->
+                        <Ellipse Fill="#B0101820"/>
+                        <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="33" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <!-- Вспышка по рамке при появлении -->
                         <Ellipse StrokeThickness="3" Opacity="0" IsHitTestVisible="False"
                                  Loaded="BanFlash_Loaded">
