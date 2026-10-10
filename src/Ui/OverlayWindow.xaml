@@ -1672,12 +1672,12 @@
                        задержка, а показанные раньше стоят без анимации. -->
                   <StackPanel HorizontalAlignment="Center" Margin="2,0" ToolTip="{Binding Tip}"
                               Background="Transparent" Loaded="BanSlot_Loaded">
-                    <Grid Width="54" Height="54" HorizontalAlignment="Center">
+                    <Grid Width="54" Height="54" HorizontalAlignment="Center" Margin="0,18,0,0">
                       <!-- Забанили МОЕГО мейна (много игр за месяц): золотая
                            квадратная рамка со скруглением 5 вокруг портрета — цвет
                            моего слота в драфте, — со вспышкой при появлении
                            (BanMain_Loaded). -->
-                      <Rectangle Margin="-11" RadiusX="5" RadiusY="5" StrokeThickness="2"
+                      <Rectangle Margin="-22" RadiusX="5" RadiusY="5" StrokeThickness="2"
                                  IsHitTestVisible="False"
                                  Visibility="{Binding MainVisibility}" Loaded="BanMain_Loaded">
                         <Rectangle.Stroke><SolidColorBrush Color="#F5D77A"/></Rectangle.Stroke>
@@ -1707,7 +1707,7 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Grid>
                     </Grid>
-                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,13,0,0"
+                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,25,0,0"
                                MaxWidth="78" TextTrimming="CharacterEllipsis"
                                FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="{Binding NameBrush}"/>
                     <TextBlock Text="{Binding Rate}" HorizontalAlignment="Center" Margin="0,1,0,0"
