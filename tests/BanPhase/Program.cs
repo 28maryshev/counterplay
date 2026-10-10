@@ -64,6 +64,7 @@ internal static class Program
 
         // Имена и иконки: без них песочнице не из кого выбирать, а снимку нечего рисовать.
         Assets(playerDir);
+        Shown(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -126,6 +127,63 @@ internal static class Program
               reasons.FirstOrDefault() ?? "нет");
         Check("в ней число пикрейта", reasons.All(r => Regex.IsMatch(r, @"\d+[.,]\d%")),
               reasons.FirstOrDefault() ?? "");
+    }
+
+    // ── 1б. Наведённое своими не банится, доводы — по важности и с пикрейтом ──
+
+    /// <summary>
+    /// Сцена со скриншота владельца: союзники навели Ясуо и Каина, а до Каина
+    /// тот же союзник наводил Вуконга. Вуконг стоял четвёртым баном («обыгрывает
+    /// вашу команду») и тут же в подписи Шиваны «контрит ваших: Каин, Вуконг»:
+    /// программа защищала запасной пик союзника и сама же советовала его
+    /// забанить.
+    /// </summary>
+    private static void Shown(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("наведённое своими:");
+        SessionTracker.HistoryOverride = Hist([37, 201, 161]);
+        var team = new List<DraftPlayer>
+        {
+            new(0, 0, 157, "top", false),      // Ясуо
+            new(1, 0, 141, "jungle", false),   // Каин (до него — Вуконг)
+            new(2, 0, 0, "middle", false),
+            new(3, 0, 0, "bottom", false),
+            new(4, 0, 0, "utility", true),
+        };
+        var state = new DraftState(
+            MyTeam: team, TheirTeam: [], MyTeamBans: [], TheirTeamBans: [],
+            Me: team[4], MyPosition: "utility", DirectOpponent: null, ExposedToCounter: false,
+            InBanPhase: true, Bench: [], IsAram: false,
+            MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
+            FirstPickCell: -1, MyBanActionId: 0, MyBanInProgress: true);
+        var history = new Dictionary<int, HashSet<int>> { [0] = [157], [1] = [62, 141] };
+        var bans = engine.RecommendBans(state, history, top: 5);
+        Console.WriteLine($"  баны: {string.Join(", ", bans.Select(b => DataDragon.Name(b.ChampionId)))}");
+
+        var shown = history.Values.SelectMany(x => x).ToHashSet();
+        var bad = bans.Where(b => shown.Contains(b.ChampionId)).ToList();
+        Check("наведённых своими (и сменённых) в банах нет", bad.Count == 0,
+              string.Join(", ", bad.Select(b => DataDragon.Name(b.ChampionId))));
+        var all = bans.SelectMany(b => b.Reasons).ToList();
+        Check("сменённый пик союзника по-прежнему защищают", all.Any(r => r.Contains(DataDragon.Name(62))),
+              all.FirstOrDefault(r => r.Contains(DataDragon.Name(62))) ?? "о Вуконге ни слова");
+
+        // Контры пикам союзников называют пикрейт, как контры моему пулу.
+        var ally = Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
+        var many = Loc.T("reason.countersMany", "\u0001").Split('\u0001')[0];
+        var guard = all.Where(r => r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal)).ToList();
+        Check("контры пикам союзников есть", guard.Count > 0, $"{guard.Count}");
+        Check("и в них пикрейт", guard.All(r => Regex.IsMatch(r, @"\d+[.,]\d%$")), guard.FirstOrDefault() ?? "");
+
+        // Доводы по важности: защита пиков раньше «сильного в патче».
+        var strong = Loc.T("reason.strongPatch", "\u0001").Split('\u0001')[0];
+        int Pos(BanRec b, Func<string, bool> f) => Array.FindIndex(b.Reasons, r => f(r));
+        var order = bans.Select(b => (Guard: Pos(b, r => r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal)),
+                                      Meta: Pos(b, r => r.TrimStart(RecommendationEngine.SIGN_GOOD).StartsWith(strong, StringComparison.Ordinal))))
+                        .Where(x => x.Guard >= 0 && x.Meta >= 0).ToList();
+        Check("защита пиков — раньше силы в патче", order.All(x => x.Guard < x.Meta), $"{order.Count} карточек с обоими");
+        SessionTracker.HistoryOverride = null;
     }
 
     // ── 2. Бан-рейт и тир-лист банов ─────────────────────────────────────────
@@ -278,6 +336,14 @@ internal static class Program
         w.UpdateBans(engine.RecommendBans(advice), advice, engine);
         Pump();
         Check("до бана — советы", Vis(w, "BanScroll") && !Vis(w, "BansDonePanel"), "");
+        var cards = (((ItemsControl)w.FindName("BanFullList")).ItemsSource as IEnumerable<RecCard>)?.ToList() ?? [];
+        Check("на карточке до двух доводов, без служебных знаков",
+              cards.Count > 0 && cards.All(c => c.Reason.Split('\n').Length <= 2
+                  && !c.Reason.Any(ch => ch is RecommendationEngine.SIGN_GOOD or RecommendationEngine.SIGN_BAD or RecommendationEngine.SIGN_KEY)),
+              cards.FirstOrDefault()?.Reason.Replace("\n", " | ") ?? "");
+        Check("у кого доводов два — оба видны",
+              cards.Where(c => engine.RecommendBans(advice).First(b => b.ChampionId == c.ChampionId).Reasons.Length >= 2)
+                   .All(c => c.Reason.Contains('\n')), "");
         Check("тир-лист под ними — пики", Vis(w, "TierList") && !Vis(w, "BanTierList"), "");
 
         // Переключатель: тир-лист банов.
