@@ -1673,15 +1673,16 @@
                   <StackPanel HorizontalAlignment="Center" Margin="2,0" ToolTip="{Binding Tip}"
                               Background="Transparent" Loaded="BanSlot_Loaded">
                     <Grid Width="54" Height="54" HorizontalAlignment="Center">
-                      <!-- Забанили МОЕГО мейна (много игр за месяц): золотая рамка
-                           со скошенными углами вокруг портрета — цвет моего слота
-                           в драфте, — со вспышкой при появлении (BanMain_Loaded). -->
-                      <Path Margin="-8" Stretch="Fill" StrokeThickness="2" IsHitTestVisible="False"
-                            Visibility="{Binding MainVisibility}" Loaded="BanMain_Loaded"
-                            Data="M 11,0 L 59,0 70,11 70,59 59,70 11,70 0,59 0,11 Z">
-                        <Path.Stroke><SolidColorBrush Color="#F5D77A"/></Path.Stroke>
-                        <Path.Fill><SolidColorBrush Color="#26F5D77A"/></Path.Fill>
-                      </Path>
+                      <!-- Забанили МОЕГО мейна (много игр за месяц): золотая
+                           квадратная рамка со скруглением 5 вокруг портрета — цвет
+                           моего слота в драфте, — со вспышкой при появлении
+                           (BanMain_Loaded). -->
+                      <Rectangle Margin="-11" RadiusX="5" RadiusY="5" StrokeThickness="2"
+                                 IsHitTestVisible="False"
+                                 Visibility="{Binding MainVisibility}" Loaded="BanMain_Loaded">
+                        <Rectangle.Stroke><SolidColorBrush Color="#F5D77A"/></Rectangle.Stroke>
+                        <Rectangle.Fill><SolidColorBrush Color="#26F5D77A"/></Rectangle.Fill>
+                      </Rectangle>
                       <Grid Visibility="{Binding IconVisibility}">
                         <Ellipse StrokeThickness="2">
                           <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
@@ -1706,7 +1707,7 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Grid>
                     </Grid>
-                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,8,0,0"
+                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,13,0,0"
                                MaxWidth="78" TextTrimming="CharacterEllipsis"
                                FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="{Binding NameBrush}"/>
                     <TextBlock Text="{Binding Rate}" HorizontalAlignment="Center" Margin="0,1,0,0"
