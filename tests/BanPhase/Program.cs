@@ -602,7 +602,9 @@ internal static class Program
         asm.GetType("Counterplay.TestMode")!
            .GetMethod("EnterSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!
            .Invoke(null, [engine]);
-        SessionTracker.HistoryOverride = null;
+        // Журнал как у владельца-саппорта: Сона и Браум — мейны. Один враг в
+        // песочнице банит мейна, и это должно быть видно на панели.
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int> { [37] = 32, [201] = 19, [22] = 6 });
 
         var overlay = new OverlayWindow();
         ShowHidden(overlay);
@@ -661,6 +663,10 @@ internal static class Program
               $"{d?.MyTeamBans.Count} + {d?.TheirTeamBans.Count}");
         Check("десять разных банов", d is not null && d.MyTeamBans.Concat(d.TheirTeamBans).Distinct().Count() == 10, "");
         Check("окно держит панель банов", Vis(overlay, "BansDonePanel"), "");
+        var mainBanned = d?.TheirTeamBans.Where(id => id is 37 or 201).ToList() ?? [];
+        Check("враг в песочнице забанил моего мейна", mainBanned.Count == 1,
+              string.Join(", ", mainBanned.Select(DataDragon.Name)));
+        Check("на панели он помечен", Slots(overlay, "BansTheirList").Count(x => x.IsMyMain) == 1, "");
         Wait(1.2);
         Check("на панели все десять с бан-рейтом, их половина выехала",
               Slots(overlay, "BansOurList").Concat(Slots(overlay, "BansTheirList")).Count(x => !x.IsEmpty) == 10
@@ -671,6 +677,7 @@ internal static class Program
         Wait(3.3);
         d = Last();
         Check("через 4 секунды — подбор, авто-драфт идёт", d is { InBanPhase: false } && Vis(overlay, "RecScroll"), "");
+        SessionTracker.HistoryOverride = null;
         Check("баны ушли в драфт", d is not null && d.MyTeamBans.Count == 5 && d.TheirTeamBans.Count == 5, "");
 
         // Добираем всех разом: боты не берут забаненных, союзники — то, что наводили.

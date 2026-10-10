@@ -1545,6 +1545,10 @@ sealed class TestPanel : Window
             int me = MeCell();
             for (int cell = 0; cell < 10; cell++)
                 if (cell != me) _banAt[cell] = now.AddSeconds(4 + _rng.NextDouble() * 10);
+            // Один враг банит моего мейна — чтобы его отметку на панели банов было
+            // видно в первом же прогоне: сами по себе мейны банятся редко (у Соны
+            // бан-рейт 0,1%).
+            _mainBanCell = RecommendationEngine.MyMains().Count > 0 ? 5 + _rng.Next(5) : -1;
 
             _stage = TestStage.Bans; UpdateStageButtons();
             _overlay.RestoreFromTray(force: true);
@@ -1688,12 +1692,20 @@ sealed class TestPanel : Window
 
     /// Бан бота: из самых банимых в патче, с весом по бан-рейту. Союзник не
     /// банит то, что навели или запланировали свои, враг — свои планы.
+    private int _mainBanCell = -1;   // враг, который банит моего мейна (-1 — никто)
+
     private int BotBan(int cell)
     {
         bool ally = cell < 5;
         var keep = new HashSet<int>(_bans.Select(b => b.Champ));
         foreach (var (c, champ) in _planned)
             if ((c < 5) == ally) keep.Add(champ);
+        if (cell == _mainBanCell)
+        {
+            var mains = RecommendationEngine.MyMains().Keys
+                .Where(id => !keep.Contains(id) && _idByName.ContainsKey(DataDragon.Name(id))).ToList();
+            if (mains.Count > 0) return mains[_rng.Next(mains.Count)];
+        }
         if (ally) keep.UnionWith(_intent.Values);
         if (ally && CellChamp(MeCell()) is var mine and > 0) keep.Add(mine);
         var pool = _engine.BanRates()

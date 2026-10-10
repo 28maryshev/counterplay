@@ -78,7 +78,7 @@ internal static class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: период (и подпись по нему), ник, подвижная полоса и память места"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: период (и подпись по нему), ник, подвижная полоса, память места и подсказка выбора"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
@@ -252,7 +252,63 @@ internal static class Program
         MateVisible(d1);
         Pump();
 
+        PickerHint();
+        Pump();
+
         app.Shutdown();
+    }
+
+    /// <summary>
+    /// Окно выбора чемпиона при наборе пула: под поиском подсказка «выбирай тех,
+    /// на ком играешь уверенно» — пул чемпионы получают первыми в подборе, и
+    /// «все, на ком когда-то сыграл» его размывают. В выборе напарника по
+    /// одному подсказки нет. Снимок — в CP_SNAP, если задана.
+    /// </summary>
+    private static void PickerHint()
+    {
+        Console.WriteLine();
+        var type = typeof(OverlayWindow).Assembly.GetType("Counterplay.ChampionPickerWindow")!;
+        var names = new List<string> { "Ahri", "Sona" };
+        var ids = new Dictionary<string, int> { ["Ahri"] = 103, ["Sona"] = 37 };
+        var hint = Loc.T("pool.pickHint");
+        foreach (var multi in new[] { true, false })
+        {
+            var win = (Window)Activator.CreateInstance(type,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                null, [names, ids, Array.Empty<int>(), null, multi], null)!;
+            ShowHidden(win); Pump();
+            var texts = new List<string>();
+            var stack = new Stack<DependencyObject>([win]);
+            while (stack.Count > 0)
+            {
+                var d = stack.Pop();
+                if (d is TextBlock tb) texts.Add(tb.Text);
+                foreach (var c in LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>()) stack.Push(c);
+            }
+            if (multi)
+            {
+                Check("набор пула: под поиском подсказка «уверенные пики»", texts.Contains(hint), hint);
+                var snap = Environment.GetEnvironmentVariable("CP_SNAP");
+                if (snap is { Length: > 0 }) Snap(win, snap, "picker-hint.png");
+            }
+            else
+                Check("выбор напарника: подсказки нет", !texts.Contains(hint), "");
+            win.Close(); Pump();
+        }
+    }
+
+    private static void Snap(Window w, string dir, string file)
+    {
+        Directory.CreateDirectory(dir);
+        var root = (FrameworkElement)w.Content;
+        var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            (int)root.ActualWidth, (int)root.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        bmp.Render(root);
+        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
     }
 
     /// <summary>
