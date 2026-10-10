@@ -6123,9 +6123,11 @@ public partial class OverlayWindow : Window
         // Их половина сейчас поедет — их баны начнут появляться, когда она доедет.
         var theirCount = draft.TheirTeamBans.Count(id => id > 0);
         var willSlide  = theirCount > 0 && (fresh || !_theirRevealed);
-        var ourLast   = SetBanSlots(BansOurList, draft.MyTeamBans, "#36D6E7", "…", 0, ref _ourSlotsSig);
+        // Наши появляются слева направо, их — справа налево: с той стороны,
+        // откуда идёт их волна.
+        var ourLast   = SetBanSlots(BansOurList, draft.MyTeamBans, "#36D6E7", "…", 0, false, ref _ourSlotsSig);
         var theirLast = SetBanSlots(BansTheirList, draft.TheirTeamBans, "#FF5A4D", "?",
-                                    willSlide ? 0.3 : 0, ref _theirSlotsSig);
+                                    willSlide ? 0.3 : 0, true, ref _theirSlotsSig);
         _shownBans.UnionWith(draft.MyTeamBans.Concat(draft.TheirTeamBans).Where(id => id > 0));
         _theirBansShown = theirCount;
 
@@ -6363,31 +6365,33 @@ public partial class OverlayWindow : Window
     /// Слоты команды в список, если состав изменился. Возвращает задержку
     /// последнего из новых банов (−1 — новых нет).
     private double SetBanSlots(ItemsControl list, IReadOnlyList<int> bans, string frame,
-                               string placeholder, double baseDelay, ref string sig)
+                               string placeholder, double baseDelay, bool fromRight, ref string sig)
     {
         var now = string.Join(",", bans) + "|" + baseDelay;
         if (now == sig && list.ItemsSource is not null) return -1;
         sig = now;
-        var slots = BanSlots(bans, frame, placeholder, baseDelay);
+        var slots = BanSlots(bans, frame, placeholder, baseDelay, fromRight);
         list.ItemsSource = slots;
         return slots.Where(x => x.IsNew).Select(x => x.Delay).DefaultIfEmpty(-1).Max();
     }
 
     /// Пять слотов команды: сделанные баны по порядку, остальное — пустые
     /// кружки (placeholder: «…» — ещё банят, «?» — скрыто клиентом). Новые
-    /// появляются по очереди: у каждого следующего задержка на BAN_STAGGER больше.
+    /// появляются по очереди: у каждого следующего задержка на BAN_STAGGER больше;
+    /// fromRight — очередь идёт с правого края (у врагов).
     private List<BanSlotVm> BanSlots(IReadOnlyList<int> bans, string frame, string placeholder,
-                                     double baseDelay)
+                                     double baseDelay, bool fromRight)
     {
-        var order = 0;
+        var fresh = bans.Where(id => id > 0 && !_shownBans.Contains(id)).ToList();
         var slots = bans.Where(id => id > 0).Select(id =>
         {
             var rate  = _engine!.BanRate(id);
-            var isNew = !_shownBans.Contains(id);
+            var k     = fresh.IndexOf(id);
+            var turn  = fromRight ? fresh.Count - 1 - k : k;
             return new BanSlotVm
             {
-                IsNew     = isNew,
-                Delay     = isNew ? baseDelay + BAN_STAGGER * order++ : 0,
+                IsNew     = k >= 0,
+                Delay     = k >= 0 ? baseDelay + BAN_STAGGER * turn : 0,
                 Icon      = IconCache.Get(id),
                 Name      = DataDragon.Name(id),
                 Rate      = $"{rate:F1}%",
