@@ -461,14 +461,15 @@ internal static class Program
             MyBanActionId = -1, MyBanInProgress = false,
         };
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
-        // По очереди: первый уже проявляется, а последний ещё не виден.
-        Poll(() => SlotOpacity(w, "BansTheirList", 0) > 0, 2);
-        Check("их баны появляются по очереди",
-              SlotOpacity(w, "BansTheirList", 0) > 0 && SlotOpacity(w, "BansTheirList", 4) == 0,
-              $"первый {SlotOpacity(w, "BansTheirList", 0):0.00}, последний {SlotOpacity(w, "BansTheirList", 4):0.00}");
-        Check("вспышка по рамке — красная", FlashColor(w, "BansTheirList", 0) == "#FFFF5A4D",
-              FlashColor(w, "BansTheirList", 0));
-        Poll(() => SlotOpacity(w, "BansTheirList", 2) > 0.5, 2);
+        // По очереди и с их стороны — справа налево: правый уже проявляется,
+        // а левый ещё не виден.
+        Poll(() => SlotOpacity(w, "BansTheirList", 4) > 0, 2);
+        Check("их баны появляются по очереди справа налево",
+              SlotOpacity(w, "BansTheirList", 4) > 0 && SlotOpacity(w, "BansTheirList", 0) == 0,
+              $"правый {SlotOpacity(w, "BansTheirList", 4):0.00}, левый {SlotOpacity(w, "BansTheirList", 0):0.00}");
+        Check("вспышка по рамке — красная", FlashColor(w, "BansTheirList", 4) == "#FFFF5A4D",
+              FlashColor(w, "BansTheirList", 4));
+        Poll(() => SlotOpacity(w, "BansTheirList", 2) > 0.5, 2);   // середина появления — для снимка
         if (snap is { Length: > 0 }) Snap(w, snap, "4a-reveal-mid.png");
         Check("у наших, показанных раньше, вспышки нет", FlashColor(w, "BansOurList", 0) == "",
               FlashColor(w, "BansOurList", 0));
