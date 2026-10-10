@@ -442,6 +442,7 @@
     "reset": "Reset",
     "save": "Save",
     "pickChamp": "Pick a champion",
+    "pickHint": "Pick champions you play with confidence: one-game champions only dilute the pool.",
     "yes": "Yes",
     "no": "No",
     "confirmDelete": "Delete pool “{0}”?",

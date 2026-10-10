@@ -442,6 +442,7 @@
     "reset": "Réinitialiser",
     "save": "Enregistrer",
     "pickChamp": "Choisir un champion",
+    "pickHint": "Choisis des champions que tu maîtrises : ceux « d'une seule partie » ne font que diluer le pool.",
     "yes": "Oui",
     "no": "Non",
     "confirmDelete": "Supprimer le pool « {0} » ?",

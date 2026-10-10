@@ -442,6 +442,7 @@
     "reset": "Resetuj",
     "save": "Zapisz",
     "pickChamp": "Wybierz bohatera",
+    "pickHint": "Wybieraj czempionów, którymi grasz pewnie: czempioni „na jedną grę” tylko rozmywają pulę.",
     "yes": "Tak",
     "no": "Nie",
     "confirmDelete": "Usunąć pulę „{0}”?",

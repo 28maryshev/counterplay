@@ -442,6 +442,7 @@
     "reset": "Đặt lại",
     "save": "Lưu",
     "pickChamp": "Chọn tướng",
+    "pickHint": "Hãy chọn những tướng bạn chơi tự tin: tướng “chơi một trận” chỉ làm loãng pool.",
     "yes": "Có",
     "no": "Không",
     "confirmDelete": "Xóa pool «{0}»?",

@@ -442,6 +442,7 @@
     "reset": "Sıfırla",
     "save": "Kaydet",
     "pickChamp": "Bir şampiyon seç",
+    "pickHint": "Güvenle oynadığın şampiyonları seç: “tek maçlık” şampiyonlar havuzu sadece sulandırır.",
     "yes": "Evet",
     "no": "Hayır",
     "confirmDelete": "“{0}” havuzu silinsin mi?",

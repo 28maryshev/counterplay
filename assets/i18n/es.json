@@ -442,6 +442,7 @@
     "reset": "Restablecer",
     "save": "Guardar",
     "pickChamp": "Elige un campeón",
+    "pickHint": "Elige campeones que juegues con confianza: los de «una sola partida» solo diluyen el pool.",
     "yes": "Sí",
     "no": "No",
     "confirmDelete": "¿Eliminar el pool «{0}»?",

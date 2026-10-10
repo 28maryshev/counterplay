@@ -442,6 +442,7 @@
     "reset": "Reimposta",
     "save": "Salva",
     "pickChamp": "Scegli un campione",
+    "pickHint": "Scegli i champion che giochi con sicurezza: quelli «da una partita» annacquano solo il pool.",
     "yes": "Sì",
     "no": "No",
     "confirmDelete": "Eliminare il pool «{0}»?",

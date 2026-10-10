@@ -1963,6 +1963,16 @@ sealed class ChampionPickerWindow : Window
         DockPanel.SetDock(_search, Dock.Top);
         root.Children.Add(_search);
 
+        // Набирают пул — подсказка, кого в него класть. Пул чемпионы получают
+        // первыми в подборе, и «всех, на ком когда-то сыграл» превращает его в
+        // список случайных пиков. В выборе напарника по одному — не нужна.
+        if (multi)
+        {
+            var hint = PickHint();
+            DockPanel.SetDock(hint, Dock.Top);
+            root.Children.Add(hint);
+        }
+
         if (multi)
         {
             var bar = new StackPanel
@@ -2004,6 +2014,31 @@ sealed class ChampionPickerWindow : Window
         WindowScale.Apply(this, chrome, 460, multi ? 560 : 520, 360, 320);
         _search.Focus();
         Render();
+    }
+
+    /// Синий кружок с «!» и строка серым: «выбирай тех, на ком играешь уверенно».
+    private static UIElement PickHint()
+    {
+        var row = new DockPanel { Margin = new Thickness(2, 8, 2, 0) };
+        var mark = new Border
+        {
+            Width = 16, Height = 16, CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(PoolSettingsWindow.Blue),
+            VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 1, 7, 0),
+            Child = new TextBlock
+            {
+                Text = "!", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            },
+        };
+        DockPanel.SetDock(mark, Dock.Left);
+        row.Children.Add(mark);
+        row.Children.Add(new TextBlock
+        {
+            Text = Loc.T("pool.pickHint"), FontSize = 11.5, TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8)),
+        });
+        return row;
     }
 
     // Пока никого не отметили — добавлять нечего, и кнопка это показывает.

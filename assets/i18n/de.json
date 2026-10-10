@@ -442,6 +442,7 @@
     "reset": "Zurücksetzen",
     "save": "Speichern",
     "pickChamp": "Champion auswählen",
+    "pickHint": "Wähle Champions, die du sicher spielst: Champions „für ein Spiel“ verwässern nur den Pool.",
     "yes": "Ja",
     "no": "Nein",
     "confirmDelete": "Pool „{0}“ löschen?",
