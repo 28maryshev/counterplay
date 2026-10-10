@@ -2367,7 +2367,7 @@ public partial class OverlayWindow : Window
             TierTitle.Text = Loc.T("tier.title", Loc.T(_engine.TierBucketLocKey));
         }
         // Тир-лист банов — по требованию: пока игрок его не открыл, не считаем.
-        var byBans = AppSettings.Current.BansTierMode == "bans";
+        var byBans = (_tierModeNow ?? AppSettings.Current.BansTierMode) == "bans";
         if (byBans && _banTierCols is null)
         {
             var byRole = _engine.BanTierList(15).GroupBy(t => t.Role)
@@ -2440,13 +2440,17 @@ public partial class OverlayWindow : Window
         Paint(TierModeBans,  TierModeBansText,  byBans);
     }
 
+    /// Вид тир-листа, выбранный кнопкой в этом драфте; null — как в настройках
+    /// (BansTierMode). Раньше кнопка писала прямо в настройки, но с выбором «по
+    /// умолчанию» в окне настроек они спорили бы: один щелчок в драфте молча
+    /// менял бы умолчание. Сбрасывается с концом драфта.
+    private string? _tierModeNow;
+
     private void TierMode_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: string mode }) return;
         e.Handled = true;
-        if (AppSettings.Current.BansTierMode == mode) return;
-        AppSettings.Current.BansTierMode = mode;
-        AppSettings.SaveQuiet();   // вид не меняется целиком — перерисуем сами
+        _tierModeNow = mode;
         RenderTierList(_lastDraft);
     }
 
@@ -2998,6 +3002,7 @@ public partial class OverlayWindow : Window
         Dispatcher.InvokeAsync(() =>
         {
             PickHint.Visibility = Visibility.Collapsed;
+            _tierModeNow = null;   // следующий драфт — снова с вида из настроек
 
             var phase = _readyPhaseRaw ?? _phaseRaw;
             var inGame = phase is "GameStart" or "InProgress" or "Reconnect";

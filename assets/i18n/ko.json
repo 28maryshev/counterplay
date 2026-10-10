@@ -594,6 +594,8 @@
     "draftRunesHint": "픽 후 나오는 룬, 소환사 주문, 아이템",
     "bansTier": "티어 리스트",
     "bansTierHint": "밴 목록 아래 역할별 최강 챔피언",
+    "bansTierMode": "기본 티어 리스트",
+    "bansTierModeHint": "밴 목록 아래 티어 리스트의 기본 화면: 픽 — 티어와 승률, 밴 — 패치에서 가장 많이 밴된 챔피언. 드래프트 중에는 목록 위 버튼으로 전환",
     "general": "프로그램 창",
     "chartDays": "그래프 기간",
     "chartDaysHint": "최근 며칠치를 그릴지",

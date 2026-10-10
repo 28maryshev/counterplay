@@ -594,6 +594,8 @@
     "draftRunesHint": "选定英雄后显示符文、技能与装备",
     "bansTier": "梯队榜",
     "bansTierHint": "Ban 位下方按位置列出版本最强英雄",
+    "bansTierMode": "默认梯队榜",
+    "bansTierModeHint": "禁用列表下方梯队榜的默认显示：选取 — 梯队与胜率，禁用 — 本版本禁用最多的英雄。选人阶段可用榜单上方的按钮切换",
     "general": "程序窗口",
     "chartDays": "图表周期",
     "chartDaysHint": "统计最近多少天",

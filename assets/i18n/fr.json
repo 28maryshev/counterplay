@@ -594,6 +594,8 @@
     "draftRunesHint": "Runes, sorts d'invocateur et objets une fois le champion pris",
     "bansTier": "Tier list",
     "bansTierHint": "Les champions les plus forts du patch par rôle, sous les bans",
+    "bansTierMode": "Tier list par défaut",
+    "bansTierModeHint": "Ce qu'affiche d'abord la tier list sous les bans : picks — tier et winrate, bans — les plus bannis du patch. Pendant la draft, bascule avec le bouton au-dessus",
     "general": "Fenêtre du programme",
     "chartDays": "Période de la courbe",
     "chartDaysHint": "Combien de jours récents la courbe couvre",

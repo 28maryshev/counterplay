@@ -594,6 +594,8 @@
     "draftRunesHint": "Runas, hechizos y objetos cuando ya tienes campeón",
     "bansTier": "Tier list",
     "bansTierHint": "Los campeones más fuertes del parche por rol, bajo los baneos",
+    "bansTierMode": "Tier list por defecto",
+    "bansTierModeHint": "Con qué abre la tier list bajo los baneos: picks — tier y winrate, baneos — los más baneados del parche. Durante el draft se cambia con el botón sobre la lista",
     "general": "Ventana del programa",
     "chartDays": "Periodo de la gráfica",
     "chartDaysHint": "Cuántos días recientes abarca la línea",

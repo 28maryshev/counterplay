@@ -594,6 +594,8 @@
     "draftRunesHint": "Ngọc, phép bổ trợ và trang bị sau khi đã chọn tướng",
     "bansTier": "Tier list",
     "bansTierHint": "Tướng mạnh nhất bản này theo vị trí, nằm dưới danh sách cấm",
+    "bansTierMode": "Tier list mặc định",
+    "bansTierModeHint": "Tier list dưới danh sách cấm mở bằng gì: chọn — tier và tỉ lệ thắng, cấm — tướng bị cấm nhiều nhất phiên bản. Trong draft, đổi bằng nút phía trên danh sách",
     "general": "Cửa sổ ứng dụng",
     "chartDays": "Khoảng thời gian biểu đồ",
     "chartDaysHint": "Đường biểu đồ gồm bao nhiêu ngày gần nhất",

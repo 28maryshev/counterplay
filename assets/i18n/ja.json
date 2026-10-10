@@ -594,6 +594,8 @@
     "draftRunesHint": "ピック後に表示されるルーン・スペル・アイテム",
     "bansTier": "Tierリスト",
     "bansTierHint": "バン一覧の下にロール別の最強チャンピオン",
+    "bansTierMode": "デフォルトのTierリスト",
+    "bansTierModeHint": "BAN一覧の下のTierリストの初期表示：ピック — Tierと勝率、BAN — パッチで最もBANされているチャンピオン。ドラフト中はリスト上のボタンで切り替え",
     "general": "アプリのウィンドウ",
     "chartDays": "グラフの期間",
     "chartDaysHint": "直近何日分を線にするか",

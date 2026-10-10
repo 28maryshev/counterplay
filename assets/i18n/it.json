@@ -594,6 +594,8 @@
     "draftRunesHint": "Rune, summoner e item quando il campione è scelto",
     "bansTier": "Tier list",
     "bansTierHint": "I campioni più forti della patch per ruolo, sotto i ban",
+    "bansTierMode": "Tier list predefinita",
+    "bansTierModeHint": "Con cosa si apre la tier list sotto i ban: pick — tier e winrate, ban — i più bannati della patch. Durante il draft si cambia col pulsante sopra la lista",
     "general": "Finestra del programma",
     "chartDays": "Periodo del grafico",
     "chartDaysHint": "Quanti giorni recenti copre la linea",

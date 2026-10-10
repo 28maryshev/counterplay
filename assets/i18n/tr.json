@@ -594,6 +594,8 @@
     "draftRunesHint": "Şampiyon seçildikten sonra rünler, büyüler ve eşyalar",
     "bansTier": "Tier listesi",
     "bansTierHint": "Ban listesinin altında, role göre yamanın en güçlüleri",
+    "bansTierMode": "Varsayılan tier listesi",
+    "bansTierModeHint": "Yasakların altındaki tier listesi neyle açılır: seçimler — tier ve kazanma oranı, yasaklar — yamada en çok yasaklananlar. Draft sırasında listenin üstündeki düğmeyle değiştir",
     "general": "Program penceresi",
     "chartDays": "Grafik aralığı",
     "chartDaysHint": "Çizginin son kaç günü kapsadığı",

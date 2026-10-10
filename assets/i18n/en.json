@@ -594,6 +594,8 @@
     "draftRunesHint": "Runes, summoner spells and items once a champion is picked",
     "bansTier": "Tier list",
     "bansTierHint": "Strongest champions of the patch by role, under the ban list",
+    "bansTierMode": "Default tier list",
+    "bansTierModeHint": "What the tier list under bans opens with: picks — tier and win rate, bans — the most banned champions this patch. During the draft, switch it with the button above the list",
     "general": "Application window",
     "chartDays": "Chart period",
     "chartDaysHint": "How many recent days the line covers",

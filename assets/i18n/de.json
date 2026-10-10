@@ -594,6 +594,8 @@
     "draftRunesHint": "Runen, Beschwörerzauber und Items nach deinem Pick",
     "bansTier": "Tier-Liste",
     "bansTierHint": "Die stärksten Champions des Patches pro Rolle, unter den Banns",
+    "bansTierMode": "Standard-Tier-Liste",
+    "bansTierModeHint": "Womit die Tier-Liste unter den Banns startet: Picks — Tier und Winrate, Banns — die meistgebannten Champions im Patch. Im Draft per Knopf über der Liste umschalten",
     "general": "Programmfenster",
     "chartDays": "Zeitraum des Graphen",
     "chartDaysHint": "Wie viele der letzten Tage die Linie abdeckt",

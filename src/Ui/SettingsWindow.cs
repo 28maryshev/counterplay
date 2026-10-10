@@ -307,6 +307,10 @@ sealed class SettingsWindow : Window
         body.Children.Add(Section(Loc.T("settings.bans")));
         body.Children.Add(Row(Loc.T("settings.bansTier"), Loc.T("settings.bansTierHint"),
             s.BansTierList, v => { s.BansTierList = v; MarkDirty(); }));
+        // С чего тир-лист начинает драфт; в самом драфте — кнопка над ним.
+        body.Children.Add(Choice(Loc.T("settings.bansTierMode"), Loc.T("settings.bansTierModeHint"),
+            [("picks", Loc.T("tier.modePicks")), ("bans", Loc.T("tier.modeBans"))],
+            s.BansTierMode, v => { s.BansTierMode = v; MarkDirty(); }));
 
         body.Children.Add(Section(Loc.T("settings.general")));
         body.Children.Add(Choice(Loc.T("settings.opacity"), Loc.T("settings.opacityHint"),

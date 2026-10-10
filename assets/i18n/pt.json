@@ -594,6 +594,8 @@
     "draftRunesHint": "Runas, feitiços e itens depois que o campeão é escolhido",
     "bansTier": "Tier list",
     "bansTierHint": "Os campeões mais fortes do patch por rota, abaixo dos bans",
+    "bansTierMode": "Tier list padrão",
+    "bansTierModeHint": "Com o que a tier list sob os bans abre: picks — tier e winrate, bans — os mais banidos do patch. Durante o draft, troque pelo botão acima da lista",
     "general": "Janela do programa",
     "chartDays": "Período do gráfico",
     "chartDaysHint": "Quantos dias recentes a linha cobre",

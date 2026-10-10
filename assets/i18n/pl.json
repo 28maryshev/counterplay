@@ -594,6 +594,8 @@
     "draftRunesHint": "Runy, czary przywoływacza i przedmioty po wyborze bohatera",
     "bansTier": "Tier lista",
     "bansTierHint": "Najsilniejsi bohaterowie patcha wg ról, pod listą banów",
+    "bansTierMode": "Domyślna tier lista",
+    "bansTierModeHint": "Od czego tier lista pod banami zaczyna draft: picki — tier i winrate, bany — najczęściej banowani w patchu. W drafcie przełączasz przyciskiem nad listą",
     "general": "Okno programu",
     "chartDays": "Okres wykresu",
     "chartDaysHint": "Z ilu ostatnich dni rysowana jest linia",
