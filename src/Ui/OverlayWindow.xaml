@@ -1665,34 +1665,13 @@
                 <!-- Слот бана: перечёркнутый портрет, имя и бан-рейт под ним.
                      Пустой слот — пунктирный круг: бан ещё не сделан или скрыт. -->
                 <DataTemplate x:Key="BanSlot">
-                  <!-- Новый бан «выпрыгивает» в слот: стартует мельче и
-                       прозрачным, по Loaded дорастает до 1. У уже показанных
-                       старт сразу 1 — та же анимация ничего не меняет. Старт —
-                       через Binding: статичный трансформ в шаблоне WPF
-                       замораживает, и анимация бы падала. -->
+                  <!-- Новые баны появляются по очереди: «выпрыгивают» в слот, и
+                       по рамке пробегает быстрая вспышка цвета команды (синяя у
+                       наших, красная у врагов). Анимации — из кода
+                       (BanSlot_Loaded, BanFlash_Loaded): у каждого слота своя
+                       задержка, а показанные раньше стоят без анимации. -->
                   <StackPanel HorizontalAlignment="Center" Margin="2,0" ToolTip="{Binding Tip}"
-                              Background="Transparent" Opacity="{Binding PopOpacity}"
-                              RenderTransformOrigin="0.5,0.4">
-                    <StackPanel.RenderTransform>
-                      <ScaleTransform ScaleX="{Binding PopScale}" ScaleY="{Binding PopScale}"/>
-                    </StackPanel.RenderTransform>
-                    <StackPanel.Triggers>
-                      <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                        <BeginStoryboard>
-                          <Storyboard>
-                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.25"/>
-                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                                             To="1" Duration="0:0:0.4">
-                              <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.45"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                                             To="1" Duration="0:0:0.4">
-                              <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.45"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                          </Storyboard>
-                        </BeginStoryboard>
-                      </EventTrigger>
-                    </StackPanel.Triggers>
+                              Background="Transparent" Loaded="BanSlot_Loaded">
                     <Grid Width="54" Height="54" HorizontalAlignment="Center">
                       <Grid Visibility="{Binding IconVisibility}">
                         <Ellipse StrokeThickness="2">
@@ -1702,6 +1681,11 @@
                         <Ellipse Fill="#33000000"/>
                         <Line X1="12" Y1="42" X2="42" Y2="12" Stroke="#E0584F" StrokeThickness="2.5"
                               StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        <!-- Вспышка по рамке при появлении -->
+                        <Ellipse StrokeThickness="3" Opacity="0" IsHitTestVisible="False"
+                                 Loaded="BanFlash_Loaded">
+                          <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
+                        </Ellipse>
                       </Grid>
                       <Grid Visibility="{Binding EmptyVisibility}">
                         <Ellipse StrokeThickness="1.5" StrokeDashArray="3 2" Fill="#0CFFFFFF">
