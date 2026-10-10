@@ -1,0 +1,539 @@
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Counterplay;
+
+namespace Counterplay.Tests;
+
+/// <summary>
+/// Фаза банов.
+///
+/// 1. Контры к моим мейнам весят столько, насколько вероятно их встретить.
+///    Было: первым баном стоял Зилеан на топе (0,09% игр роли) за то, что «бьёт
+///    Дариуса», Тарик в саппортах (0,6%) — за Брауна. Бан на того, кого почти
+///    не берут, потрачен. Теперь офф-мета не кандидат вовсе, а сила контры
+///    умножается на встречаемость (корень из пикрейта к среднему по роли).
+/// 2. Тир-лист банов: на роли — кого банят чаще, роль чемпиону даёт четверть
+///    его игр, бан-рейт полный. Без порога Ясуо вставал бы в стрелки.
+/// 3. После своего бана окно показывает баны обеих команд с бан-рейтом.
+///
+/// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
+/// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
+/// </summary>
+internal static class Program
+{
+    private static int _fails;
+
+    [STAThread]
+    private static int Main()
+    {
+        // Своя папка вместо папки игрока — до первого обращения к хранилищам.
+        var root = Path.Combine(Path.GetTempPath(), "counterplay-test-root", "BanPhase");
+        AppPaths.RootOverride = root;
+        Directory.CreateDirectory(root);
+        var playerDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+        DataDb.DirOverride = playerDir;   // база матчей — настоящая, только чтение
+        PoolStore.DirOverride = Path.Combine(root, "pools");
+        Directory.CreateDirectory(PoolStore.DirOverride);
+        PoolStore.Reload();
+        Console.OutputEncoding = Encoding.UTF8;
+        Log.FileDisabled = true;
+        Loc.SetLanguage("ru");
+
+        Strings();
+        Parser();
+
+        var db = RecommendationEngine.FindDb();
+        if (db is null) { Console.WriteLine("базы нет — движок и окно проверять нечем"); return Done(); }
+        Console.WriteLine($"база: {db}");
+        using var engine = RecommendationEngine.Create(db, "emerald");
+        engine.Mastery = new Dictionary<int, long>();
+        Console.WriteLine($"патч: {engine.Patch}   бакет: {engine.TierBucket}");
+
+        Meet(engine);
+        Rates(engine);
+        BanTier(engine);
+        SessionTracker.HistoryOverride = null;
+
+        // Имена и иконки: без них песочнице не из кого выбирать, а снимку нечего рисовать.
+        Assets(playerDir);
+        var snap = Environment.GetEnvironmentVariable("CP_SNAP");
+        var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        Window(engine, snap);
+        Sandbox(engine, snap);
+        app.Shutdown();
+        return Done();
+    }
+
+    private static int Done()
+    {
+        Console.WriteLine();
+        Console.WriteLine(_fails == 0 ? "ИТОГ: фаза банов считает и показывает как задумано"
+                                      : $"ИТОГ: провалено — {_fails}");
+        return _fails == 0 ? 0 : 1;
+    }
+
+    // ── 1. Контры к мейнам — с поправкой на пикрейт ─────────────────────────
+
+    /// Мейны по ролям — те, на ком старая формула давала офф-мета первым баном.
+    private static readonly (string Lcu, string Db, int[] Mains)[] Cases =
+    [
+        ("top",     "top",     [86, 122]),            // Гарен, Дариус → был Зилеан 0,09%
+        ("middle",  "mid",     [103, 134, 61]),       // Ари, Синдра, Орианна → Триндамир 0,18%
+        ("utility", "support", [37, 201, 161]),       // Сона, Браум, Вел'Коз → Тарик 0,6%
+        ("jungle",  "jungle",  [64, 254]),            // Ли Син, Вай
+        ("bottom",  "adc",     [222, 51]),            // Джинкс, Кейтлин
+    ];
+
+    private static void Meet(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("контры к мейнам взвешены пикрейтом:");
+        foreach (var (lcu, role, mains) in Cases)
+        {
+            SessionTracker.HistoryOverride = Hist(mains);
+            var picks = engine.PickRates(role);
+            var bans  = engine.RecommendBans(Draft(lcu), top: 5);
+            var line  = string.Join(", ", bans.Select(b => $"{b.ChampionId}:{picks.GetValueOrDefault(b.ChampionId):F1}%"));
+            Console.WriteLine($"  {role,-8} {line}");
+
+            Check($"{role}: банов пять", bans.Count == 5, $"{bans.Count}");
+            // Без союзников в счёте только моя роль: кандидат обязан на ней играться.
+            var rare = bans.Where(b => picks.GetValueOrDefault(b.ChampionId) < 0.5).ToList();
+            Check($"{role}: нет офф-меты (< 0,5% игр роли)", rare.Count == 0,
+                  rare.Count == 0 ? "все играются" : string.Join(", ", rare.Select(b => b.ChampionId)));
+            // Встречаемость сдвигает список к тем, кого берут: средний пикрейт
+            // пятёрки выше среднего пикрейта регулярного пика роли.
+            var regular = picks.Values.Where(p => p >= 0.5).Average();
+            var avg = bans.Average(b => picks.GetValueOrDefault(b.ChampionId));
+            Check($"{role}: пятёрка банов берётся чаще среднего пика роли", avg > regular,
+                  $"{avg:F2}% против {regular:F2}%");
+        }
+
+        // Подпись о контре называет пикрейт — видно, почему этот бан, а не другой.
+        SessionTracker.HistoryOverride = Hist([37, 201, 161]);
+        var head = Loc.T("reason.countersPoolPick", "\u0001", "\u0002").Split('\u0001')[0];
+        var reasons = engine.RecommendBans(Draft("utility"), top: 8).SelectMany(b => b.Reasons)
+                            .Where(r => r.StartsWith(head, StringComparison.Ordinal)).ToList();
+        Check("подпись «контрит … · пик N%» встречается", reasons.Count > 0,
+              reasons.FirstOrDefault() ?? "нет");
+        Check("в ней число пикрейта", reasons.All(r => Regex.IsMatch(r, @"\d+[.,]\d%")),
+              reasons.FirstOrDefault() ?? "");
+    }
+
+    // ── 2. Бан-рейт и тир-лист банов ─────────────────────────────────────────
+
+    private static void Rates(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        var rates = engine.BanRates();
+        // В матче десять банов, часть пропускают: сумма бан-рейтов — это банов
+        // на матч, умноженное на сто.
+        var perMatch = rates.Values.Sum() / 100.0;
+        Check("банов на матч — от 8 до 10", perMatch is > 8 and <= 10, $"{perMatch:F2}");
+        Check("бан-рейт не выше 100%", rates.Values.All(r => r is > 0 and <= 100),
+              $"макс {rates.Values.DefaultIfEmpty().Max():F1}%");
+        var top = rates.OrderByDescending(kv => kv.Value).First();
+        Check("BanRate отдаёт то же, что BanRates", Math.Abs(engine.BanRate(top.Key) - top.Value) < 1e-9,
+              $"{top.Key}: {top.Value:F1}%");
+        Check("неизвестный чемпион — 0", engine.BanRate(999_999) == 0, "0");
+    }
+
+    private static void BanTier(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        var list = engine.BanTierList(15);
+        var games = RoleGames(engine);
+        foreach (var role in new[] { "top", "jungle", "mid", "adc", "support" })
+        {
+            var col = list.Where(t => t.Role == role).ToList();
+            Console.WriteLine($"  {role,-8} {string.Join(", ", col.Take(6).Select(t => $"{t.ChampionId}:{t.BanRate:F1}%"))}");
+            Check($"{role}: 15 строк", col.Count == 15, $"{col.Count}");
+            Check($"{role}: по убыванию бан-рейта",
+                  col.Zip(col.Skip(1)).All(p => p.First.BanRate >= p.Second.BanRate), "");
+            Check($"{role}: бан-рейт полный, как у чемпиона",
+                  col.All(t => Math.Abs(t.BanRate - engine.BanRate(t.ChampionId)) < 1e-9), "");
+            // Банят чемпиона, а не роль: в колонку роли он попадает, только если
+            // играется на ней хотя бы в четверти своих игр.
+            var stray = col.Where(t =>
+            {
+                var g = games.GetValueOrDefault(t.ChampionId);
+                return g is null || g.GetValueOrDefault(role) < 0.25 * g.Values.Sum();
+            }).ToList();
+            Check($"{role}: нет чужих для роли", stray.Count == 0,
+                  string.Join(", ", stray.Select(t => t.ChampionId)));
+        }
+    }
+
+    /// Игры чемпиона по ролям в текущем патче — прямо из базы.
+    private static Dictionary<int, Dictionary<string, double>> RoleGames(RecommendationEngine engine)
+    {
+        var res = new Dictionary<int, Dictionary<string, double>>();
+        using var con = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={RecommendationEngine.FindDb()}");
+        con.Open();
+        var cmd = con.CreateCommand();
+        cmd.CommandText = "SELECT champion_id, role, SUM(games) FROM base_wr WHERE tier_bucket=@t AND patch=@p GROUP BY 1, 2";
+        cmd.Parameters.AddWithValue("@t", engine.TierBucket);
+        cmd.Parameters.AddWithValue("@p", engine.Patch);
+        using var rd = cmd.ExecuteReader();
+        while (rd.Read())
+        {
+            if (!res.TryGetValue(rd.GetInt32(0), out var m)) res[rd.GetInt32(0)] = m = [];
+            m[rd.GetString(1)] = rd.GetDouble(2);
+        }
+        return res;
+    }
+
+    // ── 3. Разбор клиента: мой бан сделан ────────────────────────────────────
+
+    private static void Parser()
+    {
+        Console.WriteLine();
+        bool Done(string actions) => ChampSelectParser.Parse(JsonDocument.Parse(
+            $"{{\"localPlayerCellId\":2,\"myTeam\":[],\"theirTeam\":[],\"actions\":{actions}}}").RootElement).MyBanDone;
+
+        Check("бан в процессе — не сделан",
+              !Done("[[{\"id\":3,\"actorCellId\":2,\"type\":\"ban\",\"completed\":false,\"isInProgress\":true,\"championId\":157}]]"), "");
+        Check("бан завершён — сделан",
+              Done("[[{\"id\":3,\"actorCellId\":2,\"type\":\"ban\",\"completed\":true,\"isInProgress\":false,\"championId\":157}]]"), "");
+        Check("пустой бан по таймеру — тоже сделан",
+              Done("[[{\"id\":3,\"actorCellId\":2,\"type\":\"ban\",\"completed\":true,\"championId\":0}]]"), "");
+        // Планирование: действий ещё нет. «Нет незавершённого» здесь не значит «забанил».
+        Check("действий ещё нет — не сделан", !Done("[]"), "");
+        Check("чужой бан не мой",
+              !Done("[[{\"id\":4,\"actorCellId\":1,\"type\":\"ban\",\"completed\":true,\"championId\":64}]]"), "");
+    }
+
+    // ── 4. Строки на всех языках ─────────────────────────────────────────────
+
+    private static readonly string[] NewKeys =
+    [
+        "reason.countersPoolPick", "reason.pickRate",
+        "tier.modePicks", "tier.modeBans", "tier.titleBans", "tier.byBanRate",
+        "ban.ours", "ban.theirs", "ban.hiddenHint", "ban.doneStatus", "ban.doneTitle", "ban.rateTip",
+    ];
+
+    private static void Strings()
+    {
+        Console.WriteLine("строки фазы банов на всех языках:");
+        var dir = Path.Combine(AppContext.BaseDirectory, "assets", "i18n");
+        if (!Directory.Exists(dir)) dir = Path.Combine(Repo(), "assets", "i18n");
+        var docs = Directory.GetFiles(dir, "*.json")
+            .ToDictionary(Path.GetFileNameWithoutExtension, f => JsonDocument.Parse(File.ReadAllText(f)).RootElement);
+        Check("языков 15", docs.Count == 15, $"{docs.Count}");
+        foreach (var key in NewKeys)
+        {
+            var en = Get(docs["en"], key);
+            var holes = Regex.Matches(en ?? "", @"\{\d\}").Select(m => m.Value).OrderBy(x => x).ToList();
+            var bad = docs.Where(kv =>
+            {
+                var s = Get(kv.Value, key);
+                return s is null || !Regex.Matches(s, @"\{\d\}").Select(m => m.Value).OrderBy(x => x).SequenceEqual(holes);
+            }).Select(kv => kv.Key).ToList();
+            Check($"  {key}", bad.Count == 0, bad.Count == 0 ? $"{holes.Count} подстановки" : string.Join(",", bad));
+        }
+    }
+
+    private static string? Get(JsonElement root, string key)
+    {
+        var e = root;
+        foreach (var part in key.Split('.'))
+            if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(part, out e)) return null;
+        return e.ValueKind == JsonValueKind.String ? e.GetString() : null;
+    }
+
+    private static string Repo()
+    {
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d != null && !File.Exists(Path.Combine(d.FullName, "Counterplay.csproj"))) d = d.Parent;
+        return d?.FullName ?? ".";
+    }
+
+    // ── 5. Окно: советы → баны команд → пики ─────────────────────────────────
+
+    private static void Window(RecommendationEngine engine, string? snap)
+    {
+        Console.WriteLine();
+        Console.WriteLine("окно:");
+        var s = AppSettings.Current;
+        s.BansTierMode = "picks";
+        s.DraftWidth = 1400; s.DraftHeight = 900; s.DraftPlacement = "remember";
+        s.DraftLeft = -32000; s.DraftTop = -32000;
+
+        var w = new OverlayWindow();
+        ShowHidden(w);
+        w.SetEngine(engine);
+        Pump();
+
+        SessionTracker.HistoryOverride = Hist([37, 201, 161]);
+        // Советы по банам: мой ход.
+        var advice = Draft("utility", ours: [], theirs: [], done: false);
+        w.UpdateBans(engine.RecommendBans(advice), advice, engine);
+        Pump();
+        Check("до бана — советы", Vis(w, "BanScroll") && !Vis(w, "BansDonePanel"), "");
+        Check("тир-лист под ними — пики", Vis(w, "TierList") && !Vis(w, "BanTierList"), "");
+
+        // Переключатель: тир-лист банов.
+        s.BansTierMode = "bans";
+        w.UpdateBans(engine.RecommendBans(advice), advice, engine);
+        Pump();
+        var banCols = ((ItemsControl)w.FindName("BanTierList")).ItemsSource as IEnumerable<TierRoleCol>;
+        Check("режим «Баны» — тир-лист банов", Vis(w, "BanTierList") && !Vis(w, "TierList"), "");
+        Check("в нём пять ролей", banCols?.Count() == 5, $"{banCols?.Count()}");
+        var first = banCols?.First().TierCells.First();
+        Check("под иконкой бан-рейт", first is not null && first.WrText.EndsWith('%'), first?.WrText ?? "");
+        if (snap is { Length: > 0 }) Snap(w, snap, "1-advice-bans-tier.png");
+
+        // Свой бан сделан, союзники добанивают, вражеские скрыты.
+        var done = Draft("utility", ours: [157, 64], theirs: [], done: true);
+        w.UpdateBans([], done, engine);
+        Pump();
+        Check("после бана — баны команд вместо советов", Vis(w, "BansDonePanel") && !Vis(w, "BanScroll"), "");
+        Check("тир-лист остался", Vis(w, "TierListBar"), "");
+        var ours = Slots(w, "BansOurList");
+        Check("наших слотов пять, два заняты", ours.Count == 5 && ours.Count(x => !x.IsEmpty) == 2,
+              $"{ours.Count}/{ours.Count(x => !x.IsEmpty)}");
+        Check("у бана — бан-рейт патча", ours[0].Rate == $"{engine.BanRate(157):F1}%",
+              $"{ours[0].Rate} против {engine.BanRate(157):F1}%");
+        var theirs = Slots(w, "BansTheirList");
+        Check("вражеские — пять знаков вопроса", theirs.Count == 5 && theirs.All(x => x.IsEmpty && x.Placeholder == "?"), "");
+        Check("подсказка «откроются в конце»", Vis(w, "BansDoneHint"), "");
+        if (snap is { Length: > 0 }) Snap(w, snap, "2-done-hidden.png");
+
+        // Все добанили — вражеские раскрыты, фаза ещё идёт.
+        var reveal = Draft("utility", ours: [157, 64, 555, 238, 523], theirs: [24, 893, 145, 119, 12], done: true);
+        w.UpdateBans([], reveal, engine);
+        Pump();
+        theirs = Slots(w, "BansTheirList");
+        Check("вражеские раскрыты — пять с бан-рейтом",
+              theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
+        Check("подсказка ушла", !Vis(w, "BansDoneHint"), "");
+        s.BansTierMode = "picks";
+        w.UpdateBans([], reveal, engine);
+        Pump();
+        if (snap is { Length: > 0 }) Snap(w, snap, "3-done-revealed.png");
+
+        // Начались пики — панели банов нет.
+        var picks = reveal with { InBanPhase = false, MyBanDone = true, MyBanActionId = -1, MyBanInProgress = false };
+        w.UpdateRecommendations(engine.Recommend(picks, 6), picks, engine);
+        Pump();
+        Check("на пиках панели банов нет", !Vis(w, "BansDonePanel") && Vis(w, "RecScroll"), "");
+
+        w.Close();
+        Pump();
+    }
+
+    // ── 6. Песочница: кнопка «Баны» — живая фаза банов и пики после неё ──────
+
+    /// Панель песочницы — та же, что открывает «dotnet run -- test»; кнопки
+    /// нажимаем событием, как мышью. Время настоящее: боты банят до 14-й
+    /// секунды, баны обеих команд держатся 4 секунды.
+    private static void Sandbox(RecommendationEngine engine, string? snap)
+    {
+        Console.WriteLine();
+        Console.WriteLine("песочница, кнопка «Баны»:");
+        var asm = typeof(OverlayWindow).Assembly;
+        Counterplay.Sandbox.Active = true;   // ничего не пишет в данные игрока (их тут и нет)
+        asm.GetType("Counterplay.TestMode")!
+           .GetMethod("EnterSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!
+           .Invoke(null, [engine]);
+        SessionTracker.HistoryOverride = null;
+
+        var overlay = new OverlayWindow();
+        ShowHidden(overlay);
+        overlay.SetEngine(engine);
+        var allIds = DataDragon.GetAllIconUrls().Keys.ToList();
+        var panelType = asm.GetType("Counterplay.TestPanel")!;
+        var panel = (Window)Activator.CreateInstance(panelType,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null,
+            [overlay, engine, allIds, false, false, false], null)!;
+        overlay.BanLockHandler = id => { Call(panel, "LockMyBan", id); return Task.FromResult(200); };
+        Pump();
+
+        DraftState? Last() => Get<DraftState>(overlay, "_lastDraft");
+        IReadOnlyList<BanRec>? Advice() => Get<IReadOnlyList<BanRec>>(overlay, "_lastBans");
+
+        Get<System.Windows.Controls.Button>(panel, "_stageBans")!
+            .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Wait(4.5);
+
+        var d = Last();
+        Check("фаза банов, мой ход", d is { InBanPhase: true, MyBanInProgress: true, MyBanDone: false }, "");
+        var hovered = d?.MyTeam.Where(p => !p.IsLocalPlayer && p.PickIntentId != 0).ToList() ?? [];
+        Check("двое союзников навели пики", hovered.Count == 2,
+              string.Join(", ", hovered.Select(p => DataDragon.Name(p.PickIntentId))));
+        var reasons = Advice()?.SelectMany(b => b.Reasons).ToList() ?? [];
+        var names = hovered.Select(p => DataDragon.Name(p.PickIntentId)).ToList();
+        Check("советы защищают их пики", reasons.Any(r => names.Any(r.Contains)),
+              reasons.FirstOrDefault(r => names.Any(r.Contains)) ?? "ни слова о них");
+        if (snap is { Length: > 0 }) Snap(overlay, snap, "4-sandbox-advice.png");
+
+        // Банлю первого из советов — как кнопкой в окне.
+        var mine = Advice()?.FirstOrDefault()?.ChampionId ?? 0;
+        Call(panel, "LockMyBan", mine);
+        Pump();
+        d = Last();
+        Check("после моего бана — баны команд", d is { InBanPhase: true, MyBanDone: true } && Vis(overlay, "BansDonePanel"),
+              DataDragon.Name(mine));
+        Check("мой бан среди наших", d?.MyTeamBans.Contains(mine) == true, "");
+        Check("вражеские пока скрыты", d?.TheirTeamBans.Count == 0, $"{d?.TheirTeamBans.Count}");
+
+        // Боты добанивают к 14-й секунде, затем раскрытие.
+        Wait(11);
+        d = Last();
+        Check("все добанили — вражеские раскрыты, фаза ещё идёт",
+              d is { InBanPhase: true } && d.TheirTeamBans.Count == 5 && d.MyTeamBans.Count == 5,
+              $"{d?.MyTeamBans.Count} + {d?.TheirTeamBans.Count}");
+        Check("десять разных банов", d is not null && d.MyTeamBans.Concat(d.TheirTeamBans).Distinct().Count() == 10, "");
+        Check("на панели все десять с бан-рейтом",
+              Slots(overlay, "BansOurList").Concat(Slots(overlay, "BansTheirList")).Count(x => !x.IsEmpty) == 10, "");
+        if (snap is { Length: > 0 }) Snap(overlay, snap, "5-sandbox-revealed.png");
+        var allBans = d?.MyTeamBans.Concat(d.TheirTeamBans).ToHashSet() ?? [];
+        var lastIntent = d?.MyTeam.Where(p => !p.IsLocalPlayer && p.PickIntentId != 0)
+                              .ToDictionary(p => p.CellId, p => p.PickIntentId) ?? [];
+
+        // Через RevealHoldSeconds — авто-драфт.
+        Wait(4.5);
+        d = Last();
+        Check("баны кончились — пики, авто-драфт идёт", d is { InBanPhase: false } && Vis(overlay, "RecScroll"), "");
+        Check("баны ушли в драфт", d is not null && d.MyTeamBans.Count == 5 && d.TheirTeamBans.Count == 5, "");
+
+        // Добираем всех разом: боты не берут забаненных, союзники — то, что наводили.
+        Call(panel, "InstantDraft");
+        Pump();
+        d = Last();
+        var picked = d?.MyTeam.Concat(d.TheirTeam).Select(p => p.EffectiveChampionId).Where(x => x != 0).ToList() ?? [];
+        Check("в драфте ни одного забаненного", picked.Count >= 9 && !picked.Any(allBans.Contains),
+              $"{picked.Count} пиков");
+        var kept = lastIntent.Where(kv => !allBans.Contains(kv.Value))
+                             .Count(kv => d?.MyTeam.First(p => p.CellId == kv.Key).EffectiveChampionId == kv.Value);
+        Check("союзники взяли то, что наводили", kept == lastIntent.Count(kv => !allBans.Contains(kv.Value)),
+              $"{kept} из {lastIntent.Count}");
+
+        panel.Hide();
+        overlay.Close();
+        Pump();
+        asm.GetType("Counterplay.TestMode")!
+           .GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!
+           .Invoke(null, null);
+    }
+
+    private static T? Get<T>(object o, string field) where T : class =>
+        o.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(o) as T;
+
+    private static void Call(object o, string method, params object[] args) =>
+        o.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
+         .Invoke(o, args);
+
+    /// Подождать, не останавливая очередь окна: таймеры песочницы тикают.
+    private static void Wait(double seconds)
+    {
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+        t.Tick += (_, _) => { t.Stop(); frame.Continue = false; };
+        t.Start();
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+        Pump();
+    }
+
+    private static bool Vis(Window w, string name) =>
+        w.FindName(name) is FrameworkElement fe && fe.Visibility == Visibility.Visible;
+
+    private static List<BanSlotVm> Slots(Window w, string name) =>
+        (((ItemsControl)w.FindName(name)).ItemsSource as IEnumerable<BanSlotVm>)?.ToList() ?? [];
+
+    /// Снимок содержимого окна — посмотреть глазами. Окно невидимо, но дерево
+    /// рисуется как обычно.
+    private static void Snap(Window w, string dir, string file)
+    {
+        Directory.CreateDirectory(dir);
+        var root = (FrameworkElement)w.Content;
+        var bmp = new RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(root);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
+    }
+
+    /// Для снимка: имена и иконки чемпионов. Кэш игрока копируем к себе — его
+    /// папку не трогаем.
+    private static void Assets(string playerDir)
+    {
+        foreach (var sub in new[] { "ddragon", "icons" })
+        {
+            var from = Path.Combine(playerDir, sub);
+            if (!Directory.Exists(from)) continue;
+            foreach (var f in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
+            {
+                var to = Path.Combine(AppPaths.Root, Path.GetRelativePath(playerDir, f));
+                Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                if (!File.Exists(to)) File.Copy(f, to);
+            }
+        }
+        DataDragon.LoadAsync(Loc.DDragonLocale, CancellationToken.None).GetAwaiter().GetResult();
+        IconCache.PreloadAllAsync(null, CancellationToken.None).GetAwaiter().GetResult();
+    }
+
+    // ── Общее ────────────────────────────────────────────────────────────────
+
+    /// Журнал: на каждом мейне по двадцать свежих игр.
+    private static SessionTracker.PlayHistory Hist(int[] mains)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var times = Enumerable.Range(0, SessionTracker.PlayHistory.KeepTimes)
+                              .Select(i => now - i * 86400L).ToArray();
+        return new SessionTracker.PlayHistory(
+            mains.ToDictionary(m => m, _ => (20, 10)),
+            mains.ToDictionary(m => m, _ => times),
+            60, now);
+    }
+
+    private static DraftState Draft(string pos, List<int>? ours = null, List<int>? theirs = null, bool done = false)
+    {
+        var team = new List<DraftPlayer> { new(0, 0, 0, pos, true) };
+        return new DraftState(
+            MyTeam: team, TheirTeam: [], MyTeamBans: ours ?? [], TheirTeamBans: theirs ?? [],
+            Me: team[0], MyPosition: pos, DirectOpponent: null, ExposedToCounter: false,
+            InBanPhase: true, Bench: [], IsAram: false,
+            MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
+            FirstPickCell: -1, MyBanActionId: done ? -1 : 0, MyBanInProgress: !done, MyBanDone: done);
+    }
+
+    private static void Pump()
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            Thread.Sleep(60);
+        }
+    }
+
+    /// Окно показываем так, чтобы человек его не увидел (см. AramWindow).
+    private static void ShowHidden(Window w)
+    {
+        w.ShowInTaskbar = false;
+        w.ShowActivated = false;
+        w.WindowStartupLocation = WindowStartupLocation.Manual;
+        w.Left = -32000; w.Top = -32000;
+        w.WindowStyle = WindowStyle.None;
+        w.AllowsTransparency = true;
+        w.Opacity = 0;
+        w.Show();
+    }
+
+    private static void Check(string what, bool ok, string detail)
+    {
+        Console.WriteLine($"  [{(ok ? "ок" : "ПЛОХО")}] {what}{(detail.Length > 0 ? "  — " + detail : "")}");
+        if (!ok) _fails++;
+    }
+}

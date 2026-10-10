@@ -111,7 +111,8 @@ static class TestMode
         // Баны: без этих хендлеров кнопка бана в песочнице не появлялась вовсе
         // (клик по тир-листу/карточке молча выходил, а UpdateBanBar их проверяет).
         overlay.BanHoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
-        overlay.BanLockHandler  = async _ => { await Task.Delay(300, ct); return 200; };
+        // Бан — в фазу банов панели: мой бан сделан, окно переходит к банам команд.
+        overlay.BanLockHandler  = async id => { await Task.Delay(300, ct); panel?.LockMyBan(id); return 200; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)
@@ -724,6 +725,28 @@ sealed class TestPanel : Window
     // её владелец (я / союзник / враг) взял этого чемпиона в свою очередь. Для видео.
     private readonly Dictionary<int, int> _planned = new();
 
+    // ── Фаза банов, как в рейтинге ──────────────────────────────────────────
+    //
+    // «Баны» запускают живую фазу на МОИХ данных (профиль «мой аккаунт», моя
+    // основная роль по журналу). Двое союзников наводят, кого возьмут, — один
+    // передумывает, — и подбор банов защищает их пики. Боты банят каждый в свой
+    // момент из самых банимых в патче. Сделал свой бан — окно показывает баны
+    // команд с бан-рейтом; когда добанят все, вражеские баны раскрываются, а
+    // через несколько секунд начинается авто-драфт с этими банами.
+    private DispatcherTimer? _banTimer;
+    private bool _banSim;                                     // фаза банов идёт
+    private bool _myBanDone;
+    private readonly Dictionary<int, DateTime> _banAt = new();   // клетка бота → момент бана
+    private readonly List<(int Cell, int Champ)> _bans = new();  // сделанные баны по порядку
+    private readonly List<(int Cell, int Champ, DateTime At)> _hoverPlan = new();
+    private readonly Dictionary<int, int> _intent = new();      // клетка союзника → наведённый
+    private readonly Dictionary<int, HashSet<int>> _hoverHistory = new();
+    private DateTime? _revealAt;                              // раскрыты вражеские баны
+    private const int RevealHoldSeconds = 4;                  // сколько видно баны обеих команд
+    // Итог фазы банов — уходит в драфт: эти чемпионы недоступны ни подбору, ни ботам.
+    private List<int> _ourBans = [];
+    private List<int> _theirBans = [];
+
     // ── Друг: дуо-напарник в драфте ─────────────────────────────────────────
     //
     // Выбираешь друга — включается дуо-пул, настроенный на него, а союзник на
@@ -876,6 +899,8 @@ sealed class TestPanel : Window
         reset.Click += (_, _) =>
         {
             StopSim();
+            StopBanSim();
+            ClearBans();
             _ready = false;
             foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
             _autoPicked.Clear();
@@ -1142,6 +1167,9 @@ sealed class TestPanel : Window
     // ── Тестовые этапы: Драфт · Баны · Ready/пул ─────────────────────────────
     private void SetStage(TestStage s)
     {
+        // «Баны» — это живая фаза банов, а не статичный кадр.
+        if (s == TestStage.Bans) { StartBanSim(); return; }
+        if (_banSim) StopBanSim();
         _stage = s;
         UpdateStageButtons();
         // Оверлей могли закрыть крестиком — это помечает его «свёрнут вручную»,
@@ -1365,15 +1393,24 @@ sealed class TestPanel : Window
 
     private void ToggleSim()
     {
+        if (_banSim) { StopBanSim(); Recompute(); return; }
         if (_simTurn >= 0) { StopSim(); return; }
 
         // Старт: чистим клетки прошлого авто-драфта. Мой заранее выбранный пик
         // ЗАПОМИНАЕМ и ПРЯЧЕМ — он появится сам на моём ходу (для видео «человек
         // взял этот пик»), а не светится с начала. Прочие ручные пики сохраняем.
         _ready = false;
-        // Захватываем РУЧНЫЕ пики (заполнены пользователем, не ботом) как «план»:
-        // прячем их и покажем каждый на ходу своей клетки. Бот-пики прошлого
-        // раунда — чистим (пересоберутся заново).
+        ClearBans();   // драфт с нуля — без банов прошлой фазы
+        CapturePlanned();
+        _ready = true;
+        StartPickSim();
+    }
+
+    /// Захватываем РУЧНЫЕ пики (заполнены пользователем, не ботом) как «план»:
+    /// прячем их и покажем каждый на ходу своей клетки. Бот-пики прошлого
+    /// раунда — чистим (пересоберутся заново).
+    private void CapturePlanned()
+    {
         _planned.Clear();
         for (int c = 0; c < 10; c++)
             if (CellChamp(c) > 0 && !_autoPicked.Contains(c))
@@ -1383,9 +1420,13 @@ sealed class TestPanel : Window
         _autoPicked.Clear();
         foreach (var cell in _planned.Keys.ToList())
             (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;   // прячем до хода
+    }
+
+    /// Пики по очереди LoL — с нуля или сразу после фазы банов.
+    private void StartPickSim()
+    {
         _stage = TestStage.Draft; UpdateStageButtons();
         _overlay.RestoreFromTray(force: true);   // закрытый крестиком оверлей — вернуть
-        _ready = true;
 
         // Монетка: кто пикает первым — мы или враги (50/50, синяя сторона).
         _simGroups = _rng.Next(2) == 0 ? GroupsMyFirst : GroupsEnemyFirst;
@@ -1479,6 +1520,224 @@ sealed class TestPanel : Window
         Recompute();
     }
 
+    // ── Фаза банов ───────────────────────────────────────────────────────────
+
+    private void StartBanSim()
+    {
+        StopSim();
+        StopBanSim();
+        _ready = false;
+        try
+        {
+            // Мои данные: подбор банов смотрит на то, чем я играю на самом деле.
+            if (_profile.SelectedIndex != MyAccountProfile) _profile.SelectedIndex = MyAccountProfile;
+            SetMyRole(MyMainRole());
+
+            // Драфт только начинается: слоты пусты, ручные пики — в план на пики.
+            ClearBans();
+            CapturePlanned();
+
+            var now = DateTime.UtcNow;
+            PlanHovers(now);
+            int me = MeCell();
+            for (int cell = 0; cell < 10; cell++)
+                if (cell != me) _banAt[cell] = now.AddSeconds(4 + _rng.NextDouble() * 10);
+
+            _stage = TestStage.Bans; UpdateStageButtons();
+            _overlay.RestoreFromTray(force: true);
+            _banSim = true;
+        }
+        finally { _ready = true; }
+
+        _simBtn.Content = "■ Стоп";
+        if (_banTimer is null)
+        {
+            _banTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
+            _banTimer.Tick += BanTick;
+        }
+        _banTimer.Start();
+        Log.Write($"песочница: фаза банов, роль {_rowRoles[MeCell()]}, " +
+                  $"наводят: {string.Join(", ", _hoverPlan.Select(h => $"{h.Cell}:{DataDragon.Name(h.Champ)}"))}");
+        Recompute();
+    }
+
+    /// Остановить фазу банов. Сделанные баны не нужны: драфт не дошёл до пиков.
+    private void StopBanSim()
+    {
+        _banTimer?.Stop();
+        if (!_banSim) return;
+        _banSim = false;
+        ClearBans();
+        _simBtn.Content = "▶ Авто-драфт";
+    }
+
+    private void ClearBans()
+    {
+        _bans.Clear(); _banAt.Clear(); _hoverPlan.Clear(); _hoversShown.Clear();
+        _intent.Clear(); _hoverHistory.Clear();
+        _myBanDone = false; _revealAt = null;
+        _ourBans = []; _theirBans = [];
+    }
+
+    /// Кнопка «Забанить» в окне: мой бан сделан.
+    public void LockMyBan(int champId)
+    {
+        if (!_banSim || _myBanDone || champId <= 0) return;
+        if (_bans.Any(b => b.Champ == champId)) return;   // уже забанен — клиент не дал бы
+        _bans.Add((MeCell(), champId));
+        _myBanDone = true;
+        Recompute();
+    }
+
+    private bool IsBanned(int champ) => _bans.Any(b => b.Champ == champ);
+
+    private void BanTick(object? sender, EventArgs e)
+    {
+        if (!_banSim) { _banTimer?.Stop(); return; }
+        var now = DateTime.UtcNow;
+        bool changed = false;
+
+        // Наведения союзников — по порядку времени: позднее перебивает раннее.
+        for (int i = 0; i < _hoverPlan.Count; i++)
+            if (now >= _hoverPlan[i].At && _hoversShown.Add(i))
+            {
+                _intent[_hoverPlan[i].Cell] = _hoverPlan[i].Champ;
+                changed = true;
+            }
+
+        foreach (var (cell, at) in _banAt)
+            if (now >= at && _bans.All(b => b.Cell != cell))
+            {
+                var champ = BotBan(cell);
+                if (champ > 0) { _bans.Add((cell, champ)); changed = true; }
+                else _bans.Add((cell, 0));   // некого — бан пропущен, как по таймеру
+            }
+
+        bool botsDone = _banAt.Keys.All(c => _bans.Any(b => b.Cell == c));
+        if (botsDone && _myBanDone && _revealAt is null)
+        {
+            _revealAt = now;   // все добанили — клиент раскрывает вражеские баны
+            changed = true;
+        }
+        if (_revealAt is { } r && now >= r.AddSeconds(RevealHoldSeconds))
+        {
+            EndBanPhase();
+            return;
+        }
+
+        _simBtn.Content = !_myBanDone ? (botsDone ? "⏸ Ваш бан…" : "■ Стоп") : "■ Стоп";
+        if (changed) Recompute();
+    }
+
+    private readonly HashSet<int> _hoversShown = new();   // показанные пункты _hoverPlan
+
+    /// Фаза банов кончилась: баны уходят в драфт, союзники берут то, что
+    /// наводили (если это не забанили), и начинаются пики.
+    private void EndBanPhase()
+    {
+        _banTimer?.Stop();
+        _banSim = false;
+        _ourBans   = [.. _bans.Where(b => b.Cell < 5  && b.Champ > 0).Select(b => b.Champ)];
+        _theirBans = [.. _bans.Where(b => b.Cell >= 5 && b.Champ > 0).Select(b => b.Champ)];
+        foreach (var (cell, champ) in _intent)
+            if (!_planned.ContainsKey(cell)) _planned[cell] = champ;
+        foreach (var cell in _planned.Where(p => IsBanned(p.Value)).Select(p => p.Key).ToList())
+            _planned.Remove(cell);   // его пик забанили — возьмёт кого-то другого
+        Log.Write($"песочница: баны {string.Join(", ", _ourBans.Select(DataDragon.Name))} | " +
+                  $"{string.Join(", ", _theirBans.Select(DataDragon.Name))} — начинаются пики");
+        _intent.Clear();
+        StartPickSim();
+    }
+
+    /// Двое союзников (не я) показывают, кого возьмут: популярных на своей роли
+    /// чаще, как в жизни. Первый через несколько секунд передумывает — история
+    /// наведений тоже участвует в подборе банов. Заранее выбранный руками пик
+    /// союзника и есть его наведение.
+    private void PlanHovers(DateTime now)
+    {
+        int me = MeCell();
+        var allies = Enumerable.Range(0, 5).Where(c => c != me).OrderBy(_ => _rng.Next()).Take(2).ToList();
+        var used = new HashSet<int>(_planned.Values);
+        for (int k = 0; k < allies.Count; k++)
+        {
+            int cell = allies[k];
+            var first = _planned.TryGetValue(cell, out var plan) ? plan : PopularOn(cell, used);
+            if (first <= 0) continue;
+            used.Add(first);
+            _hoverPlan.Add((cell, first, now.AddSeconds(1 + k + _rng.NextDouble() * 2)));
+            if (k == 0 && !_planned.ContainsKey(cell))
+            {
+                var second = PopularOn(cell, used);
+                if (second > 0)
+                {
+                    used.Add(second);
+                    _hoverPlan.Add((cell, second, now.AddSeconds(6 + _rng.NextDouble() * 2)));
+                }
+            }
+        }
+    }
+
+    /// Случайный чемпион роли клетки, с весом по пикрейту за последние патчи.
+    private int PopularOn(int cell, HashSet<int> exclude)
+    {
+        var dbRole = RecommendationEngine.LcuToDbRole(_rowRoles[cell]);
+        var pool = _engine.PickRates(dbRole)
+            .Where(kv => kv.Value >= 1.5 && !exclude.Contains(kv.Key) && _idByName.ContainsKey(DataDragon.Name(kv.Key)))
+            .ToList();
+        return Weighted(pool);
+    }
+
+    /// Бан бота: из самых банимых в патче, с весом по бан-рейту. Союзник не
+    /// банит то, что навели или запланировали свои, враг — свои планы.
+    private int BotBan(int cell)
+    {
+        bool ally = cell < 5;
+        var keep = new HashSet<int>(_bans.Select(b => b.Champ));
+        foreach (var (c, champ) in _planned)
+            if ((c < 5) == ally) keep.Add(champ);
+        if (ally) keep.UnionWith(_intent.Values);
+        if (ally && CellChamp(MeCell()) is var mine and > 0) keep.Add(mine);
+        var pool = _engine.BanRates()
+            .Where(kv => !keep.Contains(kv.Key) && _idByName.ContainsKey(DataDragon.Name(kv.Key)))
+            .OrderByDescending(kv => kv.Value)
+            .Take(20)
+            .ToList();
+        return Weighted(pool);
+    }
+
+    private int Weighted(List<KeyValuePair<int, double>> pool)
+    {
+        var total = pool.Sum(kv => kv.Value);
+        if (total <= 0) return 0;
+        var x = _rng.NextDouble() * total;
+        foreach (var kv in pool)
+            if ((x -= kv.Value) <= 0) return kv.Key;
+        return pool[^1].Key;
+    }
+
+    /// Моя основная роль по журналу за месяц: у каждого сыгранного чемпиона —
+    /// его главная роль, с весом по числу игр. Журнала нет — роль строки «я».
+    private string MyMainRole()
+    {
+        var hist = SessionTracker.History(RecommendationEngine.FreshDays,
+            [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        var best = hist.Played
+            .Where(p => p.Games > 0)
+            .GroupBy(p => _engine.PrimaryRole(p.Id))
+            .Where(g => g.Key.Length > 0)
+            .OrderByDescending(g => g.Sum(p => p.Games))
+            .Select(g => g.Key)
+            .FirstOrDefault();
+        return best is null ? _rowRoles[MeCell()] : RecommendationEngine.DbToLcuRole(best);
+    }
+
+    /// Встать в строку с этой ролью.
+    private void SetMyRole(string lcuRole)
+    {
+        var i = Array.IndexOf(_rowRoles, lcuRole);
+        if (i >= 0) _meRadio[i].IsChecked = true;
+    }
+
     private int MeCell()
     {
         int i = Array.FindIndex(_meRadio, r => r.IsChecked == true);
@@ -1524,6 +1783,8 @@ sealed class TestPanel : Window
 
         var taken  = _ally.Concat(_enemy).Select(ChampOf).Where(id => id != 0).ToHashSet();
         taken.UnionWith(_planned.Values);   // все заранее выбранные пики — ботам недоступны
+        taken.UnionWith(_ourBans);          // и забаненные в фазе банов
+        taken.UnionWith(_theirBans);
         var dbRole = RecommendationEngine.LcuToDbRole(
             cell < 5 ? _rowRoles[cell] : _enemyRoles[cell - 5]);
         // Друг пикает из своей половины пула, как в жизни. Вся половина на эту
@@ -1579,12 +1840,27 @@ sealed class TestPanel : Window
             ? "роль друга совпала с твоей — выбери ему другую"
             : _mateNote;
 
+        bool banPhase = _stage == TestStage.Bans;
         var my = new List<DraftPlayer>();
         for (int i = 0; i < 5; i++)
         {
             var champ = ChampOf(_ally[i]);
             var isMe  = i == meIdx;
             var puuid = i == mateCell ? MatePuuid(_mate!) : "";
+            if (banPhase)
+            {
+                // В банах никто ещё не взят: у союзников — наведение, у меня —
+                // выбранный руками или запланированный пик.
+                var intent = champ != 0 ? champ
+                    : isMe ? _planned.GetValueOrDefault(i) : _intent.GetValueOrDefault(i);
+                my.Add(new DraftPlayer(i, 0, intent, _rowRoles[i], isMe, Puuid: puuid));
+                if (intent != 0)
+                {
+                    if (!_hoverHistory.TryGetValue(i, out var seen)) _hoverHistory[i] = seen = [];
+                    seen.Add(intent);
+                }
+                continue;
+            }
             // Мой чемпион — как ховер (PickIntent): подбор продолжает показывать список.
             my.Add(new DraftPlayer(i, isMe ? 0 : champ, isMe ? champ : 0, _rowRoles[i], isMe,
                                    Puuid: puuid));
@@ -1622,16 +1898,25 @@ sealed class TestPanel : Window
             myTurn    = myPick;
         }
 
-        bool banPhase = _stage == TestStage.Bans;
+        // Баны: в фазе банов — сделанные к этому моменту (вражеские скрыты, пока
+        // не раскрылись, как в рейтинге), на пиках — итог фазы.
+        List<int> ourBans = banPhase
+            ? [.. _bans.Where(b => b.Cell < 5 && b.Champ > 0).Select(b => b.Champ)] : _ourBans;
+        List<int> theirBans = banPhase
+            ? (_revealAt is null ? [] : [.. _bans.Where(b => b.Cell >= 5 && b.Champ > 0).Select(b => b.Champ)])
+            : _theirBans;
+        if (banPhase) active = [];   // в банах пикает никто
+
         var draft = new DraftState(
-            my, their, [], [], my[meIdx], _rowRoles[meIdx],
+            my, their, ourBans, theirBans, my[meIdx], _rowRoles[meIdx],
             opp, false, banPhase, [], false,
             myPick ? 1 : -1, myPick && myTurn, active, firstPick,
-            banPhase ? 1 : -1, banPhase);   // в тесте банфазы считаем, что мой ход банить
+            banPhase && !_myBanDone ? 1 : -1, banPhase && !_myBanDone,
+            MyBanDone: banPhase && _myBanDone);
 
         if (banPhase)
         {
-            _overlay.UpdateBans(_engine.RecommendBans(draft), draft, _engine);
+            _overlay.UpdateBans(_myBanDone ? [] : _engine.RecommendBans(draft, _hoverHistory), draft, _engine);
             _overlay.HideRunes();
         }
         else

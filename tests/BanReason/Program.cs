@@ -205,7 +205,8 @@ internal static class Program
     /// Подписи «контрит твой пул» — их и питают мейны.
     private static HashSet<string> Reasons(RecommendationEngine engine)
     {
-        var head = Loc.T("reason.countersPool", "").Split('')[0];
+        // С 10.10 подпись называет и пикрейт контры: «Контрит твой пул (Сона) · пик 3,5%».
+        var head = Loc.T("reason.countersPoolPick", "", "").Split('')[0];
         return engine.RecommendBans(Draft([157, 64, 103]), top: 10)
                      .SelectMany(b => b.Reasons)
                      .Where(r => r.StartsWith(head, StringComparison.Ordinal))
