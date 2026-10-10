@@ -119,7 +119,13 @@
   "ban": {
     "confirm": "{0} bannen",
     "banning": "Banne...",
-    "failed": "Fehlgeschlagen — bist du dran?"
+    "failed": "Fehlgeschlagen — bist du dran?",
+    "ours": "Unsere Banns",
+    "theirs": "Gegnerische Banns",
+    "hiddenHint": "Gegnerische Banns werden am Ende der Bannphase aufgedeckt",
+    "doneStatus": "Banns der Teams",
+    "doneTitle": "Banns · Bannrate in Patch {0}",
+    "rateTip": "{0}: in {1}% der Spiele gebannt (Patch {2})"
   },
   "tier": {
     "title": "Tier-Liste · {0}",
@@ -127,7 +133,11 @@
     "ban": "Bann",
     "games": "Spiele",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Picks",
+    "modeBans": "Banns",
+    "titleBans": "Am häufigsten gebannt · {0} · Patch {1}",
+    "byBanRate": "Bannrate"
   },
   "bucket": {
     "silver": "Silber",
@@ -150,12 +160,13 @@
     "dontStack": "Nicht {0} stapeln — {1}.",
     "exploit": "Gegner hat {0} gestapelt — du bestrafst ihr erzwungenes Item.",
     "countersPool": "Kontert deinen Champion-Pool (schlägt {0})",
+    "countersPoolPick": "Kontert {0} aus deinem Pool · Pickrate {1}%",
+    "pickRate": "In {0}% der Spiele auf dieser Lane gepickt",
     "countersAlly": "Kontert deinen Verbündeten {0}",
     "countersMyPick": "Kontert deinen Pick {0}",
     "botlaneGood": "Gut gegen die gegnerische Botlane ({0})",
     "botlaneBad": "Schwer gegen die gegnerische Botlane ({0})",
     "strongPatch": "Stark in diesem Patch — WR {0}%",
-    "oftenPicked": "Oft gepickt — ein häufiger Gegner",
     "notablePick": "Bemerkenswerter Pick in diesem Patch",
     "jgSetup": "Jungler {0} ist aggressiv ohne CC — du lieferst Gank-Setup.",
     "adcEngage": "ADC {0} will Engage — du eröffnest die Kämpfe für ihn.",

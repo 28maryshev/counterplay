@@ -349,7 +349,13 @@
   "ban": {
     "confirm": "Banear {0}",
     "banning": "Baneando...",
-    "failed": "Error — ¿es tu baneo?"
+    "failed": "Error — ¿es tu baneo?",
+    "ours": "Nuestros baneos",
+    "theirs": "Baneos enemigos",
+    "hiddenHint": "Los baneos enemigos se revelan al terminar la fase de baneos",
+    "doneStatus": "Baneos de los equipos",
+    "doneTitle": "Baneos · tasa de baneo en el parche {0}",
+    "rateTip": "{0}: baneado en el {1}% de las partidas (parche {2})"
   },
   "tier": {
     "title": "Tier list · {0}",
@@ -357,7 +363,11 @@
     "ban": "baneo",
     "games": "partidas",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Picks",
+    "modeBans": "Baneos",
+    "titleBans": "Más baneados · {0} · parche {1}",
+    "byBanRate": "% de baneo"
   },
   "bucket": {
     "silver": "Plata",
@@ -380,12 +390,13 @@
     "dontStack": "No acumules {0} — {1}.",
     "exploit": "El enemigo acumuló {0} — castigas su objeto forzado.",
     "countersPool": "Contrarresta tu pool (vence a {0})",
+    "countersPoolPick": "Contrarresta a {0} de tu pool · {1}% de selección",
+    "pickRate": "Elegido en el {0}% de las partidas en esta línea",
     "countersAlly": "Contrarresta a tu aliado {0}",
     "countersMyPick": "Contrarresta tu pick {0}",
     "botlaneGood": "Bueno contra la bot enemiga ({0})",
     "botlaneBad": "Sufre contra la bot enemiga ({0})",
     "strongPatch": "Fuerte este parche — WR {0}%",
-    "oftenPicked": "Muy elegido — un rival común",
     "notablePick": "Pick destacado este parche",
     "jgSetup": "El jungla {0} es agresivo sin CC — tú preparas las ganks.",
     "adcEngage": "El ADC {0} quiere enganche — tú abres las peleas por él.",

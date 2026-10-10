@@ -1654,6 +1654,74 @@
               </ItemsControl>
             </ScrollViewer>
 
+            <!-- Баны команд — фаза банов, когда свой бан уже сделан. Советовать
+                 больше нечего: показываем, кого забанили обе команды и как часто
+                 этих чемпионов банят в патче. Сверху наши, снизу враги; в
+                 рейтинге вражеские баны клиент раскрывает только в конце фазы. -->
+            <Border x:Name="BansDonePanel" Grid.Row="0" Visibility="Collapsed"
+                    Margin="0,6,0,0" Padding="14,12" CornerRadius="8"
+                    Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
+              <Border.Resources>
+                <!-- Слот бана: перечёркнутый портрет, имя и бан-рейт под ним.
+                     Пустой слот — пунктирный круг: бан ещё не сделан или скрыт. -->
+                <DataTemplate x:Key="BanSlot">
+                  <StackPanel HorizontalAlignment="Center" Margin="2,0" ToolTip="{Binding Tip}"
+                              Background="Transparent">
+                    <Grid Width="54" Height="54" HorizontalAlignment="Center">
+                      <Grid Visibility="{Binding IconVisibility}">
+                        <Ellipse StrokeThickness="2">
+                          <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
+                          <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
+                        </Ellipse>
+                        <Ellipse Fill="#33000000"/>
+                        <Line X1="12" Y1="42" X2="42" Y2="12" Stroke="#E0584F" StrokeThickness="2.5"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                      </Grid>
+                      <Grid Visibility="{Binding EmptyVisibility}">
+                        <Ellipse StrokeThickness="1.5" StrokeDashArray="3 2" Fill="#0CFFFFFF">
+                          <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
+                        </Ellipse>
+                        <TextBlock Text="{Binding Placeholder}" Foreground="#6E8598"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Grid>
+                    </Grid>
+                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,4,0,0"
+                               MaxWidth="78" TextTrimming="CharacterEllipsis"
+                               FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#9FB4C6"/>
+                    <TextBlock Text="{Binding Rate}" HorizontalAlignment="Center" Margin="0,1,0,0"
+                               FontFamily="{StaticResource NumberFont}" FontSize="14" FontWeight="Bold"
+                               Foreground="{Binding RateBrush}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </Border.Resources>
+              <StackPanel>
+                <TextBlock x:Name="BansDoneTitle" Text="" Margin="0,0,0,10"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
+                           Foreground="#C89B3C"/>
+                <TextBlock Text="{loc:T ban.ours}" Margin="0,0,0,6"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                           Foreground="#36D6E7"/>
+                <ItemsControl x:Name="BansOurList" ItemTemplate="{StaticResource BanSlot}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <Border Height="1" Background="#22415568" Margin="0,12,0,10"/>
+                <TextBlock Text="{loc:T ban.theirs}" Margin="0,0,0,6"
+                           FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                           Foreground="#FF5A4D"/>
+                <ItemsControl x:Name="BansTheirList" ItemTemplate="{StaticResource BanSlot}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <TextBlock x:Name="BansDoneHint" Text="{loc:T ban.hiddenHint}" Margin="0,8,0,0"
+                           HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                           FontFamily="{StaticResource UiFont}" FontSize="11" Foreground="#6E8598"/>
+              </StackPanel>
+            </Border>
+
             <!-- Кнопка выбора чемпиона: наведён кликом по карточке → лочим
                  в клиенте. Плавает над списком, показывается только в свой ход. -->
             <Border x:Name="PickBar" Grid.Row="0" VerticalAlignment="Bottom"
@@ -1834,13 +1902,60 @@
               </Border.Resources>
 
               <DockPanel>
-                <TextBlock DockPanel.Dock="Top" x:Name="TierTitle" Text="" Margin="2,0,0,7"
-                           FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
-                           Foreground="#C89B3C"/>
+                <!-- Заголовок и переключатель: «Пики» — тир и винрейт (кого
+                     брать), «Баны» — кого чаще всего банят в патче. -->
+                <DockPanel DockPanel.Dock="Top" Margin="2,0,0,7">
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="TierModePicks" Tag="picks" CornerRadius="4,0,0,4"
+                            BorderThickness="1" Padding="9,2,9,3" Cursor="Hand"
+                            MouseLeftButtonDown="TierMode_Click">
+                      <TextBlock x:Name="TierModePicksText" Text="{loc:T tier.modePicks}"
+                                 FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
+                    </Border>
+                    <Border x:Name="TierModeBans" Tag="bans" CornerRadius="0,4,4,0"
+                            BorderThickness="0,1,1,1" Padding="9,2,9,3" Cursor="Hand"
+                            MouseLeftButtonDown="TierMode_Click">
+                      <TextBlock x:Name="TierModeBansText" Text="{loc:T tier.modeBans}"
+                                 FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
+                    </Border>
+                  </StackPanel>
+                  <TextBlock x:Name="TierTitle" Text="" VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis"
+                             FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
+                             Foreground="#C89B3C"/>
+                </DockPanel>
                 <!-- Роли — колонками. Внутри каждой роли два столбца: слева Тир
                      (с грейдами), справа WR (без грейдов). Листается вниз —
                      ниже грейды B, C, D. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <Grid>
+                  <!-- Режим «Баны»: на каждой роли один столбец — кого банят
+                       чаще всего, под иконкой бан-рейт в патче. -->
+                  <ItemsControl x:Name="BanTierList" Visibility="Collapsed">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border BorderBrush="#22415568" BorderThickness="0,0,1,0" VerticalAlignment="Top">
+                        <StackPanel HorizontalAlignment="Center">
+                          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                            <Image Source="{Binding RoleIcon}" Width="22" Height="22" Margin="0,0,6,0"
+                                   Opacity="0.95" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <TextBlock Text="{Binding RoleLabel}" Foreground="#9FB4C6"
+                                       FontFamily="{StaticResource DisplayFont}" FontSize="14" FontWeight="Bold"
+                                       VerticalAlignment="Center"/>
+                          </StackPanel>
+                          <TextBlock Text="{loc:T tier.byBanRate}" HorizontalAlignment="Center" Margin="0,0,0,3"
+                                     FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                                     Foreground="#B0584F"/>
+                          <ItemsControl ItemsSource="{Binding TierCells}"
+                                        ItemTemplate="{StaticResource TierEmblem}"/>
+                        </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                   <ItemsControl x:Name="TierList">
                     <!-- 5 ролей равными долями на всю ширину: UniformGrid делит
                          область поровну, роли раздвигаются и заполняют место
@@ -1890,6 +2005,7 @@
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
+                  </Grid>
                 </ScrollViewer>
               </DockPanel>
             </Border>

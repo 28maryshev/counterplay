@@ -38,7 +38,10 @@ public sealed record DraftState(
     IReadOnlyList<int> ActiveCells,// cellId'ы, чей ход пикать прямо сейчас (мигание)
     int FirstPickCell,             // cellId первого пика в порядке драфта (-1 = неизвестно)
     int MyBanActionId,             // id действия моего бана (-1 = нет; для бана из оверлея)
-    bool MyBanInProgress);         // мой ход банить прямо сейчас
+    bool MyBanInProgress,          // мой ход банить прямо сейчас
+    // Мой бан уже сделан (действие завершено, в том числе пустым): советовать
+    // больше нечего, окно показывает баны обеих команд с бан-рейтом.
+    bool MyBanDone = false);
 
 public static class ChampSelectParser
 {
@@ -64,9 +67,29 @@ public static class ChampSelectParser
         var (pickId, pickNow) = FindMyAction(session, localCell, "pick");
         var (banId,  banNow)  = FindMyAction(session, localCell, "ban");
         var (active, firstCell) = ParsePickTurns(session);
+        var banDone = MyBanCompleted(session, localCell);
 
         return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan,
-                              bench, isAram, pickId, pickNow, active, firstCell, banId, banNow);
+                              bench, isAram, pickId, pickNow, active, firstCell, banId, banNow, banDone);
+    }
+
+    // Мой бан завершён. Смотрим именно завершённое действие, а не «незавершённого
+    // нет»: в фазе планирования действий может ещё не быть вовсе, и «нет
+    // незавершённого» там значило бы «уже забанил».
+    private static bool MyBanCompleted(JsonElement session, int localCell)
+    {
+        if (localCell < 0 || !session.TryGetProperty("actions", out var actions)
+            || actions.ValueKind != JsonValueKind.Array)
+            return false;
+        foreach (var group in actions.EnumerateArray())
+        {
+            if (group.ValueKind != JsonValueKind.Array) continue;
+            foreach (var a in group.EnumerateArray())
+                if (GetStr(a, "type") == "ban" && GetInt(a, "actorCellId", -1) == localCell
+                    && IsTrue(a, "completed"))
+                    return true;
+        }
+        return false;
     }
 
     // Чей ход пикать прямо сейчас (in-progress pick) + кто пикает первым по

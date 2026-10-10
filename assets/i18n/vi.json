@@ -286,13 +286,14 @@
     "dontStack": "Đừng dồn {0} — {1}.",
     "exploit": "Địch đã dồn {0} — bạn trừng phạt món đồ bắt buộc của họ.",
     "countersPool": "Khắc chế pool của bạn (thắng {0})",
+    "countersPoolPick": "Khắc chế {0} trong pool của bạn · tỉ lệ chọn {1}%",
+    "pickRate": "Được chọn trong {0}% trận ở đường này",
     "countersAlly": "Khắc chế đồng đội {0}",
     "countersMyPick": "Khắc chế lựa chọn của bạn {0}",
     "countersMany": "Khắc chế: {0}",
     "botlaneGood": "Tốt trước bot địch ({0})",
     "botlaneBad": "Vất vả trước bot địch ({0})",
     "strongPatch": "Mạnh bản này — WR {0}%",
-    "oftenPicked": "Hay được chọn — đối thủ phổ biến",
     "notablePick": "Lựa chọn đáng chú ý bản này",
     "jgSetup": "Đi rừng {0} hổ báo nhưng thiếu khống chế — bạn tạo bàn đạp gank.",
     "adcEngage": "Xạ thủ {0} cần mở giao tranh — bạn mở trận cho họ.",
@@ -392,7 +393,13 @@
   "ban": {
     "confirm": "Cấm {0}",
     "banning": "Đang cấm...",
-    "failed": "Thất bại — đến lượt cấm của bạn chưa?"
+    "failed": "Thất bại — đến lượt cấm của bạn chưa?",
+    "ours": "Lượt cấm của ta",
+    "theirs": "Lượt cấm của địch",
+    "hiddenHint": "Lượt cấm của địch sẽ hiện khi giai đoạn cấm kết thúc",
+    "doneStatus": "Lượt cấm của hai đội",
+    "doneTitle": "Cấm · tỉ lệ cấm ở phiên bản {0}",
+    "rateTip": "{0}: bị cấm trong {1}% số trận (phiên bản {2})"
   },
   "tier": {
     "title": "Tier list · {0}",
@@ -400,7 +407,11 @@
     "ban": "cấm",
     "games": "trận",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Chọn",
+    "modeBans": "Cấm",
+    "titleBans": "Bị cấm nhiều nhất · {0} · phiên bản {1}",
+    "byBanRate": "Tỉ lệ cấm"
   },
   "bucket": {
     "silver": "Bạc",

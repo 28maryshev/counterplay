@@ -1348,6 +1348,7 @@ public sealed class RecommendationEngine : IDisposable
         var stats = RoleStats(myRole);            // champId → (games, wins)
         if (stats.Count == 0) return [];
         var maxGames = stats.Values.Max(v => v.Games);
+        var myPicks  = RolePicks(myRole);         // пикрейт моей роли за последние патчи
 
         var taken = new HashSet<int>();
         foreach (var p in state.MyTeam.Concat(state.TheirTeam))
@@ -1394,9 +1395,15 @@ public sealed class RecommendationEngine : IDisposable
         foreach (var x in stats.Keys)
         {
             if (taken.Contains(x)) continue;
+            // Офф-мета на этой роли — не кандидат в бан вовсе: Зилеан на топе
+            // (0,09% игр) стоял первым баном за то, что «бьёт Дариуса», хотя
+            // встретить его там почти невозможно.
+            var pick = myPicks.Pick.GetValueOrDefault(x);
+            if (pick < MIN_ROLE_SHARE * 100) continue;
             var (g, w) = stats[x];
             var metaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100 * (g / (g + BASE_CONF));
             var pop    = maxGames > 0 ? g / maxGames : 0;
+            var meet   = Meet(pick, myPicks.Ref);
 
             // Насколько x бьёт мой пул: берём САМЫЙ контрящий мейн (не среднее) —
             // чтобы поймать «против Соны/Сораки стабильно выигрывает Леона».
@@ -1412,14 +1419,17 @@ public sealed class RecommendationEngine : IDisposable
                 if (s > counterMe) { counterMe = s; beatMain = m; }
             }
 
-            var score = W_BAN_META * metaWr + W_BAN_POP * (pop * 10) + W_BAN_COUNTER * counterMe;
+            // Контра весит столько, насколько вероятно её встретить: та же сила
+            // против моего мейна у чемпиона, которого берут в 7% игр, стоит
+            // бана, а у взятого в 0,6% — почти нет.
+            var score = W_BAN_META * metaWr + W_BAN_POP * (pop * 10) + W_BAN_COUNTER * counterMe * meet;
             if (score <= 0) continue;
             scores[x] = score;
 
             if (counterMe >= 1.5 && beatMain != 0)
-                AddReason(x, Loc.T("reason.countersPool", DataDragon.Name(beatMain)));
+                AddReason(x, Loc.T("reason.countersPoolPick", DataDragon.Name(beatMain), $"{pick:F1}"));
             if (metaWr >= 1.5) AddReason(x, Good(Loc.T("reason.strongPatch", $"{50 + metaWr:F1}")));
-            if (pop >= 0.6)    AddReason(x, Loc.T("reason.oftenPicked"));
+            if (pick >= myPicks.Ref * 1.5) AddReason(x, Loc.T("reason.pickRate", $"{pick:F1}"));
         }
 
         // 2. Защита заявленных пиков: банить тех, кто контрит уже наведённых/взятых
@@ -1462,10 +1472,23 @@ public sealed class RecommendationEngine : IDisposable
         // «контрит Сону, Люкс и Морgану» — игрок должен видеть ВЕСЬ список.
         var hitsOf = new Dictionary<int, List<(int Id, bool Mine)>>();
 
+        // Пикрейт на роли защищаемого: контру на линии берут именно туда. Роль
+        // неизвестна — встречаемость не учитываем (множитель 1).
+        var picksByRole = new Dictionary<string, (Dictionary<int, double> Pick, double Ref)>
+            { [myRole] = myPicks };
+
         foreach (var (pid, prole, weight, mine) in protectees)
             foreach (var c in TopCounters(pid, prole, 8, minGames: 20, minEdge: 0.48))
             {
                 if (taken.Contains(c)) continue;
+                var meet = 1.0;
+                if (prole != null && DbRoles.Contains(prole))
+                {
+                    if (!picksByRole.TryGetValue(prole, out var rp)) picksByRole[prole] = rp = RolePicks(prole);
+                    var pick = rp.Pick.GetValueOrDefault(c);
+                    if (pick < MIN_ROLE_SHARE * 100) continue;   // на этой линии его почти не берут
+                    meet = Meet(pick, rp.Ref);
+                }
                 var (mg, mw) = prole != null ? RawMatchup(pid, prole, c) : RawMatchupAny(pid, c);
                 if (mg <= 0) continue;
                 // Насколько c бьёт нашего чемпиона: чистая дельта против его же
@@ -1474,11 +1497,14 @@ public sealed class RecommendationEngine : IDisposable
                 var (pbg, pbw) = prole != null ? RawBase(pid, prole) : RawBaseAny(pid);
                 var strength = (Delta(pbg, pbw, K) - Delta(mg, mw, K_PAIR)) * (mg / (mg + MATCHUP_CONF));
                 if (strength < 0.15) continue;
-                scores[c] = scores.GetValueOrDefault(c) + weight * strength;
+                // В счёт и в «самую жёсткую контру» — с поправкой на то, как
+                // часто её берут; пороги «контрит ли вообще» — по чистой силе.
+                var likely = strength * meet;
+                scores[c] = scores.GetValueOrDefault(c) + weight * likely;
                 if (!hitsOf.TryGetValue(c, out var hits)) hitsOf[c] = hits = [];
                 if (!hits.Any(h => h.Id == pid)) hits.Add((pid, mine));
-                if (!bestByProtectee.TryGetValue(pid, out var cur) || strength > cur.Strength)
-                    bestByProtectee[pid] = (c, strength);
+                if (!bestByProtectee.TryGetValue(pid, out var cur) || likely > cur.Strength)
+                    bestByProtectee[pid] = (c, likely);
                 if (strength >= 0.3)
                 {
                     if (!victimsOf.TryGetValue(c, out var vs)) victimsOf[c] = vs = [];
@@ -1609,6 +1635,34 @@ public sealed class RecommendationEngine : IDisposable
             })
             .ToList();
     }
+
+    /// <summary>
+    /// Встречаемость кандидата в бан: корень из отношения его пикрейта на роли
+    /// к среднему пикрейту регулярного пика этой роли, в пределах 0,3…2.
+    ///
+    /// Корень, а не прямая пропорция: популярный в семь раз не должен в семь
+    /// раз перевешивать силу контры — иначе список банов превращается в
+    /// список популярных. Средний пикрейт свой у каждой роли (у стрелков пиков
+    /// меньше и каждый берут чаще: 3,3% против 1,8% на топе).
+    /// </summary>
+    private static double Meet(double pickPct, double refPct) =>
+        refPct > 0 ? Math.Clamp(Math.Sqrt(pickPct / refPct), 0.3, 2.0) : 1.0;
+
+    /// Пикрейт чемпионов роли за последние патчи (% игр роли, с весами патчей)
+    /// и средний пикрейт регулярного пика — тех, кого берут хотя бы в
+    /// MIN_ROLE_SHARE игр.
+    private (Dictionary<int, double> Pick, double Ref) RolePicks(string role)
+    {
+        var stats = RoleStats(role);
+        var total = stats.Values.Sum(v => v.Games);
+        var pick  = stats.ToDictionary(kv => kv.Key, kv => total > 0 ? 100.0 * kv.Value.Games / total : 0.0);
+        var regular = pick.Values.Where(p => p >= MIN_ROLE_SHARE * 100).ToList();
+        return (pick, regular.Count > 0 ? regular.Average() : 0.0);
+    }
+
+    /// Пикрейт чемпионов роли за последние патчи, % игр роли. Песочнице — кого
+    /// союзнику «навести» в фазе банов: популярных чаще, как в жизни.
+    public IReadOnlyDictionary<int, double> PickRates(string role) => RolePicks(role).Pick;
 
     // Суммарные (games, wins) по всем кандидатам роли за окно патчей.
     private Dictionary<int, (double Games, double Wins)> RoleStats(string role)
@@ -1835,11 +1889,7 @@ public sealed class RecommendationEngine : IDisposable
         // совпадал с тем, что видят игроки на других сайтах. Смесь остаётся у
         // движка рекомендаций (там выборки тоньше); удержание патча (см. Create)
         // гарантирует, что @p1 уже набрал достаточно данных.
-        // Знаменатель бан-рейта — число матчей: сумма участников base_wr / 10.
-        double totalMatches = ScalarD($@"
-            SELECT COALESCE(SUM(games),0)/10.0 FROM base_wr
-            WHERE tier_bucket=@t AND patch=@p1");
-        var bansByChamp = BansByChampion();
+        var banRates = BanRates();
 
         foreach (var role in roles)
         {
@@ -1877,8 +1927,7 @@ public sealed class RecommendationEngine : IDisposable
                 double wr   = 100.0 * x.W / x.G;
                 double lb   = WilsonLower(x.W, x.G) * 100.0;   // сила (штраф за малую выборку)
                 double pick = 100.0 * x.G / roleTotal;          // пик-рейт роли, %
-                double ban  = totalMatches > 0
-                    ? 100.0 * bansByChamp.GetValueOrDefault(x.Id) / totalMatches : 0.0;
+                double ban  = banRates.GetValueOrDefault(x.Id);
                 double meta = (lb - 50.0) + W_PICK * pick + W_BAN * Math.Min(ban, BAN_CAP);
                 return (x.Id, wr, Games: (int)Math.Round(x.G), pick, ban, lb, meta);
             })
@@ -1894,6 +1943,86 @@ public sealed class RecommendationEngine : IDisposable
                 var s = scored[i];
                 char grade = GradeOfRank((double)i / scored.Count);
                 result.Add(new TierEntry(s.Id, role, s.wr, s.Games, s.pick, s.ban, grade));
+            }
+        }
+        return result;
+    }
+
+    /// Патч, по которому считаются тир-листы и бан-рейт (с учётом удержания).
+    public string Patch => _p1;
+
+    private Dictionary<int, double>? _banRates;
+
+    /// <summary>
+    /// Бан-рейт в текущем патче: в скольких процентах матчей бакета чемпиона
+    /// банят. Знаменатель — число матчей, сумма участников base_wr / 10.
+    ///
+    /// Кэш на жизнь движка: движок пересобирается при смене базы и бакета.
+    /// </summary>
+    public IReadOnlyDictionary<int, double> BanRates()
+    {
+        if (_banRates is { } cached) return cached;
+        var matches = ScalarD(@"
+            SELECT COALESCE(SUM(games),0)/10.0 FROM base_wr
+            WHERE tier_bucket=@t AND patch=@p1");
+        var bans = BansByChampion();
+        return _banRates = matches > 0
+            ? bans.ToDictionary(kv => kv.Key, kv => 100.0 * kv.Value / matches)
+            : new Dictionary<int, double>();
+    }
+
+    /// Бан-рейт одного чемпиона в текущем патче, %. Нет данных — 0.
+    public double BanRate(int champId) => BanRates().GetValueOrDefault(champId);
+
+    // Чемпион попадает в роль тир-листа банов, если на ней четверть его игр и больше.
+    private const double BAN_ROLE_SHARE = 0.25;
+
+    /// <summary>
+    /// Тир-лист банов: на каждой роли — кого банят чаще всего в текущем патче.
+    ///
+    /// Банят чемпиона, а не чемпиона на роли, поэтому роль ему даём по играм:
+    /// он стоит там, где играется хотя бы в четверти своих игр, и с ПОЛНЫМ
+    /// бан-рейтом — тем, что видит игрок. Делить баны по долям ролей значило бы
+    /// показывать «Ясуо 6%» на топе при 25% на деле. Без порога вышло бы как в
+    /// мета-тир-листе, где Ясуо с 1% игр на боте стоит в топе стрелков.
+    /// </summary>
+    public IReadOnlyList<TierEntry> BanTierList(int perRole = 15)
+    {
+        var rates = BanRates();
+        var rows  = new List<(int Id, string Role, double G, double W)>();
+        try
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = @"
+                SELECT champion_id, role, SUM(games), SUM(wins) FROM base_wr
+                WHERE tier_bucket=@t AND patch=@p1
+                GROUP BY champion_id, role";
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+                rows.Add((rd.GetInt32(0), rd.GetString(1), rd.GetDouble(2), rd.GetDouble(3)));
+        }
+        catch { return []; }
+
+        var champTotal = rows.GroupBy(r => r.Id).ToDictionary(g => g.Key, g => g.Sum(r => r.G));
+        var roleTotal  = rows.GroupBy(r => r.Role).ToDictionary(g => g.Key, g => g.Sum(r => r.G));
+
+        var result = new List<TierEntry>();
+        foreach (var role in new[] { "top", "jungle", "mid", "adc", "support" })
+        {
+            var list = rows
+                .Where(r => r.Role == role && r.G >= TIER_MIN_GAMES
+                            && r.G >= BAN_ROLE_SHARE * champTotal[r.Id]
+                            && rates.GetValueOrDefault(r.Id) > 0)
+                .OrderByDescending(r => rates.GetValueOrDefault(r.Id))
+                .ToList();
+            for (int i = 0; i < list.Count && i < perRole; i++)
+            {
+                var r = list[i];
+                result.Add(new TierEntry(r.Id, role, 100.0 * r.W / r.G, (int)Math.Round(r.G),
+                                         100.0 * r.G / roleTotal[role], rates.GetValueOrDefault(r.Id),
+                                         GradeOfRank((double)i / list.Count)));
             }
         }
         return result;

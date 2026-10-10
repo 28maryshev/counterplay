@@ -119,7 +119,13 @@
   "ban": {
     "confirm": "Banir {0}",
     "banning": "Banindo...",
-    "failed": "Falhou — é o seu banimento?"
+    "failed": "Falhou — é o seu banimento?",
+    "ours": "Nossos bans",
+    "theirs": "Bans inimigos",
+    "hiddenHint": "Os bans inimigos são revelados no fim da fase de banimento",
+    "doneStatus": "Bans das equipes",
+    "doneTitle": "Bans · taxa de ban no patch {0}",
+    "rateTip": "{0}: banido em {1}% dos jogos (patch {2})"
   },
   "tier": {
     "title": "Tier list · {0}",
@@ -127,7 +133,11 @@
     "ban": "ban",
     "games": "jogos",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Picks",
+    "modeBans": "Bans",
+    "titleBans": "Mais banidos · {0} · patch {1}",
+    "byBanRate": "Taxa de ban"
   },
   "bucket": {
     "silver": "Prata",
@@ -150,12 +160,13 @@
     "dontStack": "Não acumule {0} — {1}.",
     "exploit": "O inimigo acumulou {0} — você pune o item forçado dele.",
     "countersPool": "Counter do seu pool (vence {0})",
+    "countersPoolPick": "Counter de {0} do seu pool · pick rate {1}%",
+    "pickRate": "Escolhido em {0}% dos jogos nesta rota",
     "countersAlly": "Counter do seu aliado {0}",
     "countersMyPick": "Counter do seu pick {0}",
     "botlaneGood": "Bom contra o bot inimigo ({0})",
     "botlaneBad": "Sofre contra o bot inimigo ({0})",
     "strongPatch": "Forte neste patch — WR {0}%",
-    "oftenPicked": "Muito escolhido — um oponente comum",
     "notablePick": "Pick notável neste patch",
     "jgSetup": "O caçador {0} é agressivo sem CC — você prepara as ganks.",
     "adcEngage": "O ADC {0} quer engage — você abre as lutas para ele.",

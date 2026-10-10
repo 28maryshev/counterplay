@@ -312,12 +312,13 @@
     "dontStack": "Don't stack {0} — {1}.",
     "exploit": "Enemy stacked {0} — you punish their forced item.",
     "countersPool": "Counters your pool (beats {0})",
+    "countersPoolPick": "Counters {0} from your pool · {1}% pick rate",
+    "pickRate": "Picked in {0}% of games in this lane",
     "countersAlly": "Counters your ally {0}",
     "countersMyPick": "Counters your pick {0}",
     "botlaneGood": "Good against the enemy bot ({0})",
     "botlaneBad": "Struggles against the enemy bot ({0})",
     "strongPatch": "Strong this patch — WR {0}%",
-    "oftenPicked": "Often picked — a common opponent",
     "notablePick": "Notable pick this patch",
     "jgSetup": "Jungler {0} is aggressive without cc — you provide gank setup.",
     "adcEngage": "ADC {0} wants engage — you open fights for them.",
@@ -392,7 +393,13 @@
   "ban": {
     "confirm": "Ban {0}",
     "banning": "Banning...",
-    "failed": "Failed — is it your ban?"
+    "failed": "Failed — is it your ban?",
+    "ours": "Our bans",
+    "theirs": "Enemy bans",
+    "hiddenHint": "Enemy bans are revealed when the ban phase ends",
+    "doneStatus": "Team bans",
+    "doneTitle": "Bans · ban rate in patch {0}",
+    "rateTip": "{0}: banned in {1}% of games in patch {2}"
   },
   "tier": {
     "title": "Tier list · {0}",
@@ -400,7 +407,11 @@
     "ban": "ban",
     "games": "games",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Picks",
+    "modeBans": "Bans",
+    "titleBans": "Most banned · {0} · patch {1}",
+    "byBanRate": "Ban rate"
   },
   "bucket": {
     "silver": "Silver",

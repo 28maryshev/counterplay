@@ -282,11 +282,12 @@
     "dontStack": "不要堆叠 {0} —— {1}。",
     "exploit": "敌方堆叠了 {0} —— 你惩罚他们被迫的装备。",
     "countersPool": "克制你的英雄池（克制 {0}）",
+    "countersPoolPick": "克制你英雄池中的{0} · 选取率 {1}%",
+    "pickRate": "在该路 {0}% 的对局中被选",
     "countersAlly": "克制你的队友 {0}",
     "botlaneGood": "对敌方下路有优势（{0}）",
     "botlaneBad": "对敌方下路吃力（{0}）",
     "strongPatch": "本版本强势——胜率 {0}%",
-    "oftenPicked": "常被选——常见对手",
     "notablePick": "本版本值得一选",
     "jgSetup": "打野 {0} 有攻击性但缺控制——你提供 gank 控制。",
     "adcEngage": "ADC {0} 需要开团——你为他们开启团战。",
@@ -392,7 +393,13 @@
   "ban": {
     "confirm": "禁用 {0}",
     "banning": "禁用中...",
-    "failed": "失败 — 轮到你禁用了吗？"
+    "failed": "失败 — 轮到你禁用了吗？",
+    "ours": "我方禁用",
+    "theirs": "敌方禁用",
+    "hiddenHint": "敌方禁用将在禁用阶段结束时公布",
+    "doneStatus": "双方禁用",
+    "doneTitle": "禁用 · 版本 {0} 禁用率",
+    "rateTip": "{0}：版本 {2} 中 {1}% 的对局被禁用"
   },
   "tier": {
     "title": "梯队榜 · {0}",
@@ -400,7 +407,11 @@
     "ban": "禁用",
     "games": "场",
     "byWr": "胜率",
-    "byTier": "梯队"
+    "byTier": "梯队",
+    "modePicks": "选取",
+    "modeBans": "禁用",
+    "titleBans": "禁用最多 · {0} · 版本 {1}",
+    "byBanRate": "禁用率"
   },
   "bucket": {
     "silver": "白银",

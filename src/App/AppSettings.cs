@@ -140,6 +140,9 @@ public sealed class AppSettings
 
     // ── Баны ────────────────────────────────────────────────────────────────
     public bool BansTierList { get; set; } = true;     // тир-лист под списком банов
+    /// Что показывает тир-лист в фазе банов: "picks" — тир и винрейт (кого брать),
+    /// "bans" — кого чаще всего банят в патче. Переключается прямо над тир-листом.
+    public string BansTierMode { get; set; } = "picks";
 
     // ── Ревизия файла ───────────────────────────────────────────────────────
     /// Версия схемы ui.json. Нужна для разовых миграций: без неё не отличить
@@ -199,6 +202,7 @@ public sealed class AppSettings
         if (ClientSize is not ("auto" or "1024" or "1280" or "1600" or "1920")) ClientSize = "auto";
         if (DraftPlacement is not ("right" or "cover" or "allies" or "center" or "remember"))
             DraftPlacement = "remember";
+        if (BansTierMode is not ("picks" or "bans")) BansTierMode = "picks";
 
         // Запомненная геометрия: мусор здесь — это окно нулевого размера или
         // окно за пределами всех мониторов. Просто забываем её, тогда раскладка

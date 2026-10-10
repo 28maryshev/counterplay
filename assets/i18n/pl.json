@@ -286,12 +286,13 @@
     "dontStack": "Nie kumuluj {0} — {1}.",
     "exploit": "Wróg nakumulował {0} — ty karzesz jego wymuszony przedmiot.",
     "countersPool": "Kontruje twoją pulę (bije {0})",
+    "countersPoolPick": "Kontruje twoją pulę ({0}) · pick rate {1}%",
+    "pickRate": "Wybierany w {0}% gier na tej linii",
     "countersAlly": "Kontruje twojego sojusznika {0}",
     "countersMyPick": "Kontruje twój pick {0}",
     "botlaneGood": "Dobry przeciw botowi wroga ({0})",
     "botlaneBad": "Ma trudno przeciw botowi wroga ({0})",
     "strongPatch": "Silny w tym patchu — WR {0}%",
-    "oftenPicked": "Często wybierany — częsty przeciwnik",
     "notablePick": "Znaczący pick w tym patchu",
     "jgSetup": "Jungler {0} jest agresywny bez cc — ty przygotowujesz ganki.",
     "adcEngage": "ADC {0} chce inicjacji — ty otwierasz dla niego walki.",
@@ -392,7 +393,13 @@
   "ban": {
     "confirm": "Zbanuj {0}",
     "banning": "Banowanie...",
-    "failed": "Nie udało się — twój ban?"
+    "failed": "Nie udało się — twój ban?",
+    "ours": "Nasze bany",
+    "theirs": "Bany wrogów",
+    "hiddenHint": "Bany wrogów odkryją się na końcu fazy banów",
+    "doneStatus": "Bany drużyn",
+    "doneTitle": "Bany · ban rate w patchu {0}",
+    "rateTip": "{0}: banowany w {1}% gier (patch {2})"
   },
   "tier": {
     "title": "Tier lista · {0}",
@@ -400,7 +407,11 @@
     "ban": "ban",
     "games": "gier",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Picki",
+    "modeBans": "Bany",
+    "titleBans": "Najczęściej banowani · {0} · patch {1}",
+    "byBanRate": "Ban rate"
   },
   "bucket": {
     "silver": "Srebro",

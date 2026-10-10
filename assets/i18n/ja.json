@@ -286,12 +286,13 @@
     "dontStack": "{0} を偏らせない — {1}。",
     "exploit": "敵は {0} を偏らせた — 強制されたアイテムを咎めます。",
     "countersPool": "あなたのプールをカウンター（{0} に有利）",
+    "countersPoolPick": "プールの{0}に有利 · ピック率 {1}%",
+    "pickRate": "このレーンで{0}%の試合でピック",
     "countersAlly": "味方の {0} をカウンター",
     "countersMyPick": "あなたのピック {0} をカウンター",
     "botlaneGood": "敵ボット（{0}）に強い",
     "botlaneBad": "敵ボット（{0}）に苦戦",
     "strongPatch": "このパッチで強い — WR {0}%",
-    "oftenPicked": "よく選ばれる — よくいる相手",
     "notablePick": "このパッチで注目のピック",
     "jgSetup": "ジャングラー {0} はCCなしで攻撃的 — あなたがガンクの起点を作ります。",
     "adcEngage": "ADC {0} はエンゲージを求める — あなたが戦闘の口火を切ります。",
@@ -392,7 +393,13 @@
   "ban": {
     "confirm": "{0} をBAN",
     "banning": "BAN中...",
-    "failed": "失敗 — あなたのBANですか？"
+    "failed": "失敗 — あなたのBANですか？",
+    "ours": "味方のBAN",
+    "theirs": "敵のBAN",
+    "hiddenHint": "敵のBANはバンフェーズ終了時に公開されます",
+    "doneStatus": "両チームのBAN",
+    "doneTitle": "BAN · パッチ {0} のBAN率",
+    "rateTip": "{0}: パッチ {2} で{1}%の試合でBAN"
   },
   "tier": {
     "title": "Tierリスト · {0}",
@@ -400,7 +407,11 @@
     "ban": "BAN",
     "games": "試合",
     "byWr": "勝率",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "ピック",
+    "modeBans": "BAN",
+    "titleBans": "BAN率上位 · {0} · パッチ {1}",
+    "byBanRate": "BAN率"
   },
   "bucket": {
     "silver": "シルバー",

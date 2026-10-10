@@ -119,7 +119,13 @@
   "ban": {
     "confirm": "{0} yasakla",
     "banning": "Yasaklanıyor...",
-    "failed": "Başarısız — sıra sende mi?"
+    "failed": "Başarısız — sıra sende mi?",
+    "ours": "Bizim yasaklar",
+    "theirs": "Rakip yasaklar",
+    "hiddenHint": "Rakip yasaklar, yasak aşaması bitince açılır",
+    "doneStatus": "Takımların yasakları",
+    "doneTitle": "Yasaklar · {0} yamasında yasak oranı",
+    "rateTip": "{0}: {2} yamasında maçların %{1} kadarında yasaklanıyor"
   },
   "tier": {
     "title": "Tier listesi · {0}",
@@ -127,7 +133,11 @@
     "ban": "yasak",
     "games": "maç",
     "byWr": "WR",
-    "byTier": "Tier"
+    "byTier": "Tier",
+    "modePicks": "Seçimler",
+    "modeBans": "Yasaklar",
+    "titleBans": "En çok yasaklananlar · {0} · yama {1}",
+    "byBanRate": "Yasak oranı"
   },
   "bucket": {
     "silver": "Gümüş",
@@ -380,12 +390,13 @@
     "dontStack": "{0} biriktirme — {1}.",
     "exploit": "Düşman {0} biriktirdi — zorunlu eşyalarını cezalandırıyorsun.",
     "countersPool": "Pool'unu kontrluyor ({0}'i yeniyor)",
+    "countersPoolPick": "Havuzundaki {0} karşısında güçlü · seçilme %{1}",
+    "pickRate": "Bu koridordaki maçların %{0} kadarında seçiliyor",
     "countersAlly": "Müttefikin {0}'i kontrluyor",
     "countersMyPick": "Seçimin {0}'i kontrluyor",
     "botlaneGood": "Düşman bot hattına karşı iyi ({0})",
     "botlaneBad": "Düşman bot hattına karşı zorlanıyor ({0})",
     "strongPatch": "Bu yamada güçlü — WR %{0}",
-    "oftenPicked": "Sık seçiliyor — yaygın bir rakip",
     "notablePick": "Bu yamada dikkat çeken bir seçim",
     "jgSetup": "Ormancı {0} cc'siz agresif — sen gank setup'ı sağlıyorsun.",
     "adcEngage": "ADC {0} engage istiyor — fightleri onun için açıyorsun.",

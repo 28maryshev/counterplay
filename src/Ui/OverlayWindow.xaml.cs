@@ -73,6 +73,7 @@ public partial class OverlayWindow : Window
         if (engine is null || ReferenceEquals(engine, _engine)) return;
         _engine = engine;
         _tierCols = null;
+        _banTierCols = null;
         _rolePoolCells = null;
         _rolePoolRole = "";
     }
@@ -194,6 +195,7 @@ public partial class OverlayWindow : Window
             // пределах патча». Собрался он до разогрева — и пустые слоты
             // остались бы до смены патча, никакая перерисовка бы не помогла.
             _tierCols = null;
+            _banTierCols = null;
 
             // Экран ожидания рисуется один раз и сам себя не обновляет. Пустая
             // лента винрейтов держалась там до конца игры: владелец это и
@@ -2359,10 +2361,34 @@ public partial class OverlayWindow : Window
             // Заголовок с именем бакета игрока: «Тир-лист · Изумруд».
             TierTitle.Text = Loc.T("tier.title", Loc.T(_engine.TierBucketLocKey));
         }
+        // Тир-лист банов — по требованию: пока игрок его не открыл, не считаем.
+        var byBans = AppSettings.Current.BansTierMode == "bans";
+        if (byBans && _banTierCols is null)
+        {
+            var byRole = _engine.BanTierList(15).GroupBy(t => t.Role)
+                                .ToDictionary(g => g.Key, g => g.ToList());
+            _banTierCols = [.. new[] { "top", "jungle", "mid", "adc", "support" }
+                .Where(byRole.ContainsKey)
+                .Select(role => new TierRoleCol
+                {
+                    RoleLabel = RoleNameDb(role),
+                    RoleIcon  = RoleIcons.Get(DbToLcuRole(role)),
+                    TierCells = byRole[role].Select(BanTierCellOf).ToList(),
+                })];
+        }
+
         // Источник ставим ОДИН раз (список статичен в пределах патча) — иначе
         // переприсвоение на каждом событии драфта зря пересобирало бы 150 эмблем.
         if (!ReferenceEquals(TierList.ItemsSource, _tierCols))
             TierList.ItemsSource = _tierCols;
+        if (byBans && !ReferenceEquals(BanTierList.ItemsSource, _banTierCols))
+            BanTierList.ItemsSource = _banTierCols;
+        TierList.Visibility    = byBans ? Visibility.Collapsed : Visibility.Visible;
+        BanTierList.Visibility = byBans ? Visibility.Visible   : Visibility.Collapsed;
+        TierTitle.Text = byBans
+            ? Loc.T("tier.titleBans", Loc.T(_engine.TierBucketLocKey), _engine.Patch)
+            : Loc.T("tier.title", Loc.T(_engine.TierBucketLocKey));
+        PaintTierMode(byBans);
         TierListBar.Visibility = _tierCols.Count > 0 && AppSettings.Current.BansTierList
             ? Visibility.Visible : Visibility.Collapsed;
 
@@ -2370,11 +2396,53 @@ public partial class OverlayWindow : Window
         // банфазы, когда список банов растёт.
         var banned = draft is null ? new HashSet<int>()
             : new HashSet<int>(draft.MyTeamBans.Concat(draft.TheirTeamBans).Where(id => id != 0));
-        foreach (var col in _tierCols)
+        foreach (var col in _tierCols.Concat(_banTierCols ?? []))
         {
             foreach (var c in col.WrCells)   c.Banned = banned.Contains(c.ChampionId);
             foreach (var c in col.TierCells) c.Banned = banned.Contains(c.ChampionId);
         }
+    }
+
+    // ── Тир-лист банов и переключатель «Пики / Баны» ─────────────────────────
+    private IReadOnlyList<TierRoleCol>? _banTierCols;   // кэш, как у тир-листа пиков
+
+    /// Цвет бан-рейта: чем чаще банят, тем краснее. Пороги — по живой базе:
+    /// десяток самых банимых держится выше 10%, единицы — выше 20%.
+    private static string BanRateBrush(double rate) =>
+        rate >= 20 ? "#FF6B5E" : rate >= 10 ? "#F0A04B" : rate >= 3 ? "#E6C068" : "#8AA0B2";
+
+    private static TierCell BanTierCellOf(RecommendationEngine.TierEntry t) => new()
+    {
+        ChampionId = t.ChampionId,
+        Icon       = IconCache.Get(t.ChampionId),
+        WrText     = $"{t.BanRate:F1}%",
+        WrBrush    = BanRateBrush(t.BanRate),
+        ShowGrade  = false,
+        Tip        = $"{DataDragon.Name(t.ChampionId)}\n"
+                   + $"{Loc.T("tier.ban")} {t.BanRate:F1}%  ·  {Loc.T("tier.pick")} {t.PickRate:F1}%"
+                   + $"  ·  WR {t.Winrate:F1}%  ·  {t.Games} " + Loc.T("tier.games"),
+    };
+
+    private void PaintTierMode(bool byBans)
+    {
+        static void Paint(Border b, TextBlock t, bool on)
+        {
+            b.Background  = Brush(on ? "#33C89B3C" : "#0FFFFFFF");
+            b.BorderBrush = Brush(on ? "#C89B3C"   : "#3A4B5F");
+            t.Foreground  = Brush(on ? "#F0D9A0"   : "#7F93A6");
+        }
+        Paint(TierModePicks, TierModePicksText, !byBans);
+        Paint(TierModeBans,  TierModeBansText,  byBans);
+    }
+
+    private void TierMode_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string mode }) return;
+        e.Handled = true;
+        if (AppSettings.Current.BansTierMode == mode) return;
+        AppSettings.Current.BansTierMode = mode;
+        AppSettings.SaveQuiet();   // вид не меняется целиком — перерисуем сами
+        RenderTierList(_lastDraft);
     }
 
     // db-роль (mid/adc/support) → lcu-позиция (middle/bottom/utility) для иконок.
@@ -2701,6 +2769,7 @@ public partial class OverlayWindow : Window
     private void OnLanguageChanged()
     {
         _tierCols = null;             // роли/тултипы тир-листа под новую локаль
+        _banTierCols = null;
         // Полоса чемпионов роли кэшируется по роли и при простой перерисовке не
         // пересобирается — иначе её заголовок и подсказки остаются на прежнем
         // языке, пока игрок не сменит роль. Сбрасываем кэш вместе с языком.
@@ -5366,24 +5435,32 @@ public partial class OverlayWindow : Window
         RefreshBuildsForEnemies();
 
         // Фаза банов: показываем рекомендуемые баны (в том же разделе, что и пики).
+        // Свой бан сделан — советы уступают место банам обеих команд.
         if (draft?.InBanPhase == true)
         {
-            if (_lastBans is null || _lastBans.Count == 0)
+            var banDone = draft.MyBanDone && _engine is not null;
+            if (!banDone && (_lastBans is null || _lastBans.Count == 0))
             {
                 IdleStatusText.Text = Loc.T("status.banPhase");
                 ShowIdle();
                 return;
             }
             RestoreModeSize();
-            if (_isFullMode)
+            if (banDone && _isFullMode)
             {
-                RenderBansFull(_lastBans, draft);
+                RenderBansDone(draft);
+                CompactScroll.Visibility = Visibility.Collapsed;
+                FullView.Visibility      = Visibility.Visible;
+            }
+            else if (_isFullMode)
+            {
+                RenderBansFull(_lastBans ?? [], draft);
                 CompactScroll.Visibility = Visibility.Collapsed;
                 FullView.Visibility      = Visibility.Visible;
             }
             else
             {
-                RenderBansCompact(_lastBans, draft);
+                RenderBansCompact(_lastBans ?? [], draft);
                 FullView.Visibility      = Visibility.Collapsed;
                 CompactScroll.Visibility = Visibility.Visible;
             }
@@ -5863,6 +5940,7 @@ public partial class OverlayWindow : Window
         ApplyScale();                                // масштаб под текущую ширину
         RecScroll.Visibility = Visibility.Visible;   // показываем пики
         BanScroll.Visibility = Visibility.Collapsed;
+        BansDonePanel.Visibility = Visibility.Collapsed;
         BanBar.Visibility      = Visibility.Collapsed;  // бан-плашка — только в банфазе
         TierListBar.Visibility = Visibility.Collapsed;  // тир-лист — только под банами
         // Пока рун нет (чемпион не выбран) — показываем пул роли в той же строке.
@@ -5999,6 +6077,7 @@ public partial class OverlayWindow : Window
 
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
         BanScroll.Visibility = Visibility.Visible;
+        BansDonePanel.Visibility = Visibility.Collapsed;
         PickBar.Visibility   = Visibility.Collapsed;  // пик в банфазе не нужен
         // Баны — 100% приоритет: их строка занимает всю нужную высоту (Auto),
         // тир-лист довольствуется остатком (звёздная строка со скроллом внутри).
@@ -6011,6 +6090,60 @@ public partial class OverlayWindow : Window
         RolePoolBar.Visibility = Visibility.Collapsed;   // в банфазе строку занимает тир-лист
         RenderTierList(draft);
         RenderTeams(draft);
+    }
+
+    /// <summary>
+    /// Фаза банов после своего бана: вместо советов — баны обеих команд с
+    /// бан-рейтом в патче. Сверху наши пять, снизу вражеские; тир-лист под ними
+    /// остаётся.
+    ///
+    /// В рейтинге клиент прячет вражеские баны до конца фазы — их слоты стоят
+    /// со знаком вопроса, пока не откроются.
+    /// </summary>
+    private void RenderBansDone(DraftState draft)
+    {
+        StatusText.Text     = Loc.T("ban.doneStatus");
+        PickHint.Visibility = Visibility.Collapsed;
+        BansDoneTitle.Text  = Loc.T("ban.doneTitle", _engine!.Patch);
+
+        BansOurList.ItemsSource   = BanSlots(draft.MyTeamBans,    "#36D6E7", "…");
+        BansTheirList.ItemsSource = BanSlots(draft.TheirTeamBans, "#FF5A4D", "?");
+        BansDoneHint.Visibility = draft.TheirTeamBans.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        RecScroll.Visibility     = Visibility.Collapsed;
+        BanScroll.Visibility     = Visibility.Collapsed;
+        BansDonePanel.Visibility = Visibility.Visible;
+        PickBar.Visibility       = Visibility.Collapsed;
+        _banHoverId = 0;                                   // банить больше нечего
+        BanBar.Visibility        = Visibility.Collapsed;
+        // Раскладка как у советов: панель по содержимому, тир-лист — остаток.
+        CenterGrid.RowDefinitions[0].Height = GridLength.Auto;
+        CenterGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
+        RolePoolBar.Visibility = Visibility.Collapsed;
+        RenderTierList(draft);
+        RenderTeams(draft);
+    }
+
+    /// Пять слотов команды: сделанные баны по порядку, остальное — пустые
+    /// кружки (placeholder: «…» — ещё банят, «?» — скрыто клиентом).
+    private List<BanSlotVm> BanSlots(IReadOnlyList<int> bans, string frame, string placeholder)
+    {
+        var slots = bans.Where(id => id > 0).Select(id =>
+        {
+            var rate = _engine!.BanRate(id);
+            return new BanSlotVm
+            {
+                Icon      = IconCache.Get(id),
+                Name      = DataDragon.Name(id),
+                Rate      = $"{rate:F1}%",
+                RateBrush = BanRateBrush(rate),
+                Frame     = frame,
+                Tip       = Loc.T("ban.rateTip", DataDragon.Name(id), $"{rate:F1}", _engine.Patch),
+            };
+        }).ToList();
+        while (slots.Count < 5)
+            slots.Add(new BanSlotVm { Frame = "#3A4B5F", Placeholder = placeholder });
+        return slots;
     }
 
     // Команды по бокам (слоты, стиль, связки, линии) — общее для пиков и банов.
@@ -6340,6 +6473,21 @@ public sealed class RecCard
     public string       ScoreColor { get; init; } = "#C89B3C";
     public string       Reason     { get; init; } = "";
     public ImageSource? Icon       { get; init; }
+}
+
+/// <summary>Слот в панели банов команд: забаненный чемпион с бан-рейтом или пустой кружок.</summary>
+public sealed class BanSlotVm
+{
+    public ImageSource? Icon        { get; init; }
+    public string       Name        { get; init; } = "";
+    public string       Rate        { get; init; } = "";
+    public string       RateBrush   { get; init; } = "#8AA0B2";
+    public string       Frame       { get; init; } = "#3A4B5F";   // цвет команды
+    public string       Placeholder { get; init; } = "";          // «…» банят / «?» скрыто
+    public string?      Tip         { get; init; }                // у пустого нет: пустая подсказка — рамка без текста
+    public bool         IsEmpty     => Name.Length == 0;
+    public Visibility   IconVisibility  => IsEmpty ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility   EmptyVisibility => IsEmpty ? Visibility.Visible   : Visibility.Collapsed;
 }
 
 /// <summary>Ячейка тир-листа (лучшие по WR на роль) под банами.</summary>

@@ -990,6 +990,10 @@ class Program
         // союзники в фазе банов перебирают несколько чемпионов — баны считаются
         // по всему показанному пулу, а не только по текущему наведению.
         var hoverHistory = new Dictionary<int, HashSet<int>>();
+        // Вражеские баны уже показывались в этом драфте. Нужно одной строке
+        // журнала: когда клиент их раскрывает — ещё в фазе банов или уже с
+        // первым пиком (от этого зависит, увидит ли их панель банов).
+        bool theirBansSeen = false;
 
         await foreach (var ev in socket.ReadEventsAsync(ct))
         {
@@ -1051,6 +1055,7 @@ class Program
                         lastHash = "";
                         draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
+                        theirBansSeen = false;
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
                     // обработчиком champ-select и флагом _inTray. Иначе разворачивали бы
@@ -1074,6 +1079,7 @@ class Program
                         lastHash = "";
                         draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
+                        theirBansSeen = false;
                     }
                     else
                     {
@@ -1115,6 +1121,13 @@ class Program
                         if (hash == lastHash) break;
                         lastHash = hash;
 
+                        if (!theirBansSeen && draft.TheirTeamBans.Count > 0)
+                        {
+                            theirBansSeen = true;
+                            Log.Write($"баны врагов открылись: {draft.TheirTeamBans.Count}, " +
+                                      $"фаза банов {(draft.InBanPhase ? "ещё идёт" : "уже кончилась")}");
+                        }
+
                         // Копим показанных командой чемпионов (пул на этот драфт).
                         foreach (var p in draft.MyTeam)
                         {
@@ -1133,7 +1146,10 @@ class Program
                         }
                         else if (draft.InBanPhase)
                         {
-                            overlay.UpdateBans(engine?.RecommendBans(draft, hoverHistory), draft, engine);
+                            // Свой бан сделан — советовать нечего: окно показывает баны
+                            // обеих команд, а подбор банов не считаем зря.
+                            overlay.UpdateBans(draft.MyBanDone ? [] : engine?.RecommendBans(draft, hoverHistory),
+                                               draft, engine);
                             overlay.HideRunes();               // руны — на этапе пика, не банов
                             _runesShownFor = "";               // сбросить, чтобы после банов показать заново
                         }
@@ -1384,5 +1400,8 @@ class Program
         string.Join(",", s.Bench) + "|" +
         (s.InBanPhase ? "ban" : "pick") + "|" +
         $"{s.MyPickActionId}:{s.MyPickInProgress}|" +
+        // Пустой бан (время вышло) не меняет списков банов, а окно обязано
+        // перейти от советов к банам команд.
+        $"{s.MyBanActionId}:{s.MyBanInProgress}:{s.MyBanDone}|" +
         string.Join(",", s.ActiveCells) + $":{s.FirstPickCell}";
 }
