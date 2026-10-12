@@ -759,6 +759,23 @@ internal static class Program
         Check("«Драфт» — драфт снова в окне, с настроенным слотом",
               Vis(overlay, "FullView") && d?.MyTeam.Any(p => p.EffectiveChampionId == 86) == true, "");
 
+        // Встал руками в лес — «Баны» не переставляют на основную роль (саппорт):
+        // так смотрят окно на линии, где игр нет вовсе.
+        Call(panel, "ResetDraft");
+        var rows = (string[])panelType.GetField("_rowRoles", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!;
+        var radios = (System.Windows.Controls.RadioButton[])panelType
+            .GetField("_meRadio", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!;
+        var jungleRow = Array.IndexOf(rows, "jungle");
+        radios[jungleRow].IsChecked = true;
+        radios[jungleRow].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Get<System.Windows.Controls.Button>(panel, "_stageBans")!
+            .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Wait(1);
+        d = Last();
+        Check("выбрал лес руками — «Баны» оставляют лес", d is { InPlanning: true, MyPosition: "jungle" }
+              && Vis(overlay, "PlanPanel"), d?.MyPosition ?? "");
+        Call(panel, "StopBanSim");
+
         panel.Hide();
         overlay.Close();
         Pump();

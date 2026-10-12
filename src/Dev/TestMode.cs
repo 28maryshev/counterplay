@@ -690,6 +690,10 @@ sealed class TestPanel : Window
     private readonly ComboBox[]   _ally  = new ComboBox[5];
     private readonly ComboBox[]   _enemy = new ComboBox[5];
     private readonly RadioButton[] _meRadio = new RadioButton[5];
+    // Строку «я» или её роль выбрали руками — «Баны» её не переставляют на
+    // основную роль по журналу: так смотрят, как окно работает на чужой линии,
+    // в том числе без единой игры на ней. Пока не выбирали — основная роль.
+    private bool _meChosen;
     private enum TestStage { Draft, Bans, Ready }
     // По умолчанию — экран Ready (ник/ранг/пул). Драфт и баны — ТОЛЬКО по кнопке.
     private TestStage _stage = TestStage.Ready;
@@ -816,6 +820,7 @@ sealed class TestPanel : Window
                 ToolTip = "Мой слот"
             };
             _meRadio[i].Checked += (_, _) => { if (_banSim) ReseatBans(); Recompute(); };
+            _meRadio[i].Click += (_, _) => _meChosen = true;   // только клик мышью, не установка из кода
             DockPanel.SetDock(_meRadio[i], Dock.Left);
             row.Children.Add(_meRadio[i]);
 
@@ -1279,6 +1284,8 @@ sealed class TestPanel : Window
         var newRole = LcuRoles[sel];
         if (roles[i] == newRole) return;
         int j = Array.IndexOf(roles, newRole);   // строка, у которой сейчас эта роль
+        // Сменили роль своей строки — это тоже выбор роли «я».
+        if (ReferenceEquals(roles, _rowRoles) && (i == MeCell() || j == MeCell())) _meChosen = true;
         if (j >= 0) (roles[i], roles[j]) = (roles[j], roles[i]);   // меняем местами
         else roles[i] = newRole;
         SyncRoleCombos(roles, combos);
@@ -1561,7 +1568,7 @@ sealed class TestPanel : Window
         {
             // Мои данные: подбор банов смотрит на то, чем я играю на самом деле.
             if (_profile.SelectedIndex != MyAccountProfile) _profile.SelectedIndex = MyAccountProfile;
-            SetMyRole(MyMainRole());
+            if (!_meChosen) SetMyRole(MyMainRole());
 
             // Драфт только начинается: слоты пусты, ручные пики — в план на пики.
             ClearBans();
@@ -1592,7 +1599,8 @@ sealed class TestPanel : Window
             _banTimer.Tick += BanTick;
         }
         _banTimer.Start();
-        Log.Write($"песочница: объявление пиков {PlanSeconds:0} с, затем баны; роль {_rowRoles[MeCell()]}, " +
+        Log.Write($"песочница: объявление пиков {PlanSeconds:0} с, затем баны; роль {_rowRoles[MeCell()]}" +
+                  $"{(_meChosen ? " (выбрана руками)" : " (основная по журналу)")}, " +
                   $"наводят: {string.Join(", ", _hoverPlan.Select(h => $"{h.Cell}:{DataDragon.Name(h.Champ)}"))}");
         Recompute();
     }
