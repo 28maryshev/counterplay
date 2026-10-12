@@ -481,50 +481,44 @@ internal static class Program
         // До раскрытия их половины нет, наша — по центру места под обе.
         Check("их половины не видно", Opacity(w, "BansTheirHalf") == 0, $"{Opacity(w, "BansTheirHalf")}");
         Check("наша сдвинута к центру", ShiftY(w, "BansOurHalf") > 20, $"{ShiftY(w, "BansOurHalf"):0}");
-        Check("наших не пять — волны нет", !Vis(w, "BansOurWave"), "");
-        Wait(0.6);
-        Check("новые баны допрыгнули", SlotOpacity(w, "BansOurList", 0) == 1 && SlotOpacity(w, "BansOurList", 1) == 1,
+        // Без анимации: баны видны сразу, в кольце цвета команды (владелец:
+        // «убери волну и поочерёдное появление, пусть появляются сразу все»).
+        Check("баны видны сразу", SlotOpacity(w, "BansOurList", 0) == 1 && SlotOpacity(w, "BansOurList", 1) == 1,
               $"{SlotOpacity(w, "BansOurList", 0)} / {SlotOpacity(w, "BansOurList", 1)}");
-        Check("вспышка по рамке — синяя", FlashColor(w, "BansOurList", 1) == "#FF36D6E7", FlashColor(w, "BansOurList", 1));
+        Check("наши — в синем кольце", RingColor(w, "BansOurList", 1) == "#FF36D6E7", RingColor(w, "BansOurList", 1));
+        Check("волн нет вовсе", w.FindName("BansOurWave") is null && w.FindName("BansTheirWave") is null, "");
         if (snap is { Length: > 0 }) Snap(w, snap, "2-done-ours.png");
 
-        // Свои добанили — синяя волна по нашей половине, их всё ещё нет.
+        // Свои добанили, их всё ещё нет.
         var oursFull = Draft("utility", ours: [157, 64, 555, 238, 523], theirs: [], done: true);
         w.UpdateBans([], oursFull, engine);
         Pump();
-        Check("наших пять — синяя волна", Vis(w, "BansOurWave"), "");
-        Check("их половины по-прежнему нет", Opacity(w, "BansTheirHalf") == 0 && !Vis(w, "BansTheirWave"), "");
-        Wait(1.4);
-        if (snap is { Length: > 0 }) Snap(w, snap, "3-ours-wave.png");
+        Check("наших пять — все видны сразу", Enumerable.Range(0, 5).All(k => SlotOpacity(w, "BansOurList", k) == 1), "");
+        Check("их половины по-прежнему нет", Opacity(w, "BansTheirHalf") == 0, "");
+        if (snap is { Length: > 0 }) Snap(w, snap, "3-ours-full.png");
 
         // Таймер банов кончился: клиент раскрывает вражеские уже первым снимком
-        // пиков. Окно держит панель — их половина выезжает снизу.
+        // пиков. Окно держит панель, обе половины сразу на местах.
         var reveal = oursFull with
         {
             TheirTeamBans = [24, 893, 145, 119, 37], InBanPhase = false,
             MyBanActionId = -1, MyBanInProgress = false,
         };
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
-        // По очереди и с их стороны — справа налево: у каждого слота левее
-        // задержка больше. Меряем задержки, а не прозрачность в момент: окно в
-        // проверке невидимое, и под нагрузкой часы анимаций убегали — к
-        // первому замеру проявлялись все сразу.
         Pump();
-        var delays = Slots(w, "BansTheirList").Select(x => x.Delay).ToList();
-        Check("их баны появляются по очереди справа налево",
-              delays.Count == 5 && delays.Zip(delays.Skip(1)).All(p => p.First > p.Second),
-              string.Join(" ", delays.Select(x => x.ToString("0.00"))));
-        // Следующее событие драфта посреди появления (в бою их несколько в
-        // секунду) слоты не пересобирает. Пересобирало: в подписи слотов была
-        // задержка, она менялась с 0,3 на 0, и все пять вставали разом.
+        Check("раскрыли — их половина сразу на месте, наша поднялась",
+              Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansOurHalf") == 0,
+              $"{Opacity(w, "BansTheirHalf")} / {ShiftY(w, "BansOurHalf"):0}");
+        Check("их баны видны сразу, все пять", Enumerable.Range(0, 5).All(k => SlotOpacity(w, "BansTheirList", k) == 1),
+              string.Join(" ", Enumerable.Range(0, 5).Select(k => SlotOpacity(w, "BansTheirList", k).ToString("0.0"))));
+        Check("их — в красном кольце", RingColor(w, "BansTheirList", 4) == "#FFFF5A4D", RingColor(w, "BansTheirList", 4));
+        // Следующее событие драфта (в бою их несколько в секунду) слоты не
+        // пересобирает: состав тот же.
         var theirSrc = ((ItemsControl)w.FindName("BansTheirList")).ItemsSource;
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
         Pump();
-        Check("второе событие посреди появления слоты не пересобирает",
-              ReferenceEquals(((ItemsControl)w.FindName("BansTheirList")).ItemsSource, theirSrc)
-              && Slots(w, "BansTheirList").All(x => x.IsNew), "");
-        Check("вспышка по рамке — красная", FlashColor(w, "BansTheirList", 4) == "#FFFF5A4D",
-              FlashColor(w, "BansTheirList", 4));
+        Check("второе событие слоты не пересобирает",
+              ReferenceEquals(((ItemsControl)w.FindName("BansTheirList")).ItemsSource, theirSrc), "");
         // Сразу, пока идут 4 секунды показа: со снимками прогон медленнее, и
         // позже показ успевал кончиться — а после него полоса роли законна.
         // На пиках программа обновляет панель рун: рун ещё нет — «вернуть пул
@@ -535,11 +529,6 @@ internal static class Program
         Pump();
         Check("пока видны баны, полосы чемпионов роли нет", !Vis(w, "RolePoolBar") && Vis(w, "TierListBar"),
               $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
-        Poll(() => SlotOpacity(w, "BansTheirList", 2) > 0.5, 2);   // середина появления — для снимка
-        if (snap is { Length: > 0 }) Snap(w, snap, "4a-reveal-mid.png");
-        Check("у наших, показанных раньше, вспышки нет", FlashColor(w, "BansOurList", 0) == "",
-              FlashColor(w, "BansOurList", 0));
-        Pump();
         Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
         var theirs = Slots(w, "BansTheirList");
         Check("вражеские — пять с бан-рейтом", theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
@@ -551,18 +540,13 @@ internal static class Program
               string.Join(", ", theirs.Where(x => x.IsMyMain).Select(x => $"{x.Name} {x.MainGames}")));
         Check("в подсказке — «твой мейн»", sona >= 0 && (theirs[sona].Tip ?? "").Contains(Loc.T("ban.yourMain", 20)),
               (theirs[sona].Tip ?? "").Replace("\n", " | "));
-        Wait(1.2);
-        Check("их половина выехала", Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansTheirHalf") == 0,
-              $"{Opacity(w, "BansTheirHalf")} / {ShiftY(w, "BansTheirHalf"):0}");
-        Check("наша поднялась на место", ShiftY(w, "BansOurHalf") == 0, $"{ShiftY(w, "BansOurHalf"):0}");
-        Check("их пять — красная волна", Vis(w, "BansTheirWave"), "");
         Check("у мейна — золотая рамка со свечением", MainGlow(w, "BansTheirList", sona) == "#FFF5D77A",
               MainGlow(w, "BansTheirList", sona));
         Check("у остальных рамки нет", MainGlow(w, "BansTheirList", sona == 0 ? 1 : 0) == "", "");
         if (snap is { Length: > 0 }) Snap(w, snap, "4-revealed.png");
 
         // Подержали — пики.
-        Wait(3.3);
+        Wait(4.3);
         Check("через 4 секунды — пики, панели банов нет", !Vis(w, "BansDonePanel") && Vis(w, "RecScroll"), "");
         Check("а пул роли — на своём месте", Vis(w, "RolePoolBar") && !Vis(w, "TierListBar"),
               $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
@@ -575,37 +559,24 @@ internal static class Program
         var early = oursFull with { TheirTeamBans = [24, 893, 145, 119, 37] };
         w2.UpdateBans([], early, engine);
         Pump();
-        // Наши пять пришли тем же снимком — их половина выезжает после нашей волны.
-        Poll(() => Opacity(w2, "BansTheirHalf") == 1, 4);
-        Check("раскрыты ещё в банах — видны без удержания, после нашей волны", Opacity(w2, "BansTheirHalf") == 1, "");
+        Check("раскрыты ещё в банах — видны сразу", Opacity(w2, "BansTheirHalf") == 1, "");
         var picks2 = early with { InBanPhase = false, MyBanActionId = -1, MyBanInProgress = false };
         w2.UpdateRecommendations(engine.Recommend(picks2, 6), picks2, engine);
         Pump();
         Check("…и пики без задержки", Vis(w2, "RecScroll") && !Vis(w2, "BansDonePanel"), "");
-        w2.Close();
-
-        // Раскрытие сразу за нашим пятым баном: их половина ждёт, пока доиграет
-        // наша волна, — раньше половины разъезжались посреди неё.
-        var w3 = new OverlayWindow();
-        ShowHidden(w3);
-        w3.SetEngine(engine);
-        w3.UpdateBans([], oursFull, engine);
-        Pump();
-        w3.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
-        Pump();
-        var firstDelay = Slots(w3, "BansTheirList").Select(x => x.Delay).DefaultIfEmpty(0).Max();
-        Check("их баны ждут конца нашей волны", firstDelay > 1.0, $"первый появляется через {firstDelay:0.00} с");
         // Драфт кончился, пока панель была на экране (дродж, «Сброс» в
-        // песочнице), — следующий начинает панель с чистого листа: баны снова
-        // появляются, а не стоят сразу.
-        w3.UpdateRecommendations(null, null);
-        w3.DraftEnded();
+        // песочнице), — следующий начинает панель с чистого листа: вражеских
+        // ещё не видно, наша половина по центру.
+        w2.UpdateBans([], early, engine);
         Pump();
-        w3.UpdateBans([], oursFull, engine);
+        w2.UpdateRecommendations(null, null);
+        w2.DraftEnded();
         Pump();
-        Check("новый драфт — баны снова появляются", Slots(w3, "BansOurList").All(x => x.IsNew),
-              string.Join("", Slots(w3, "BansOurList").Select(x => x.IsNew ? "н" : "-")));
-        w3.Close();
+        w2.UpdateBans([], oursFull, engine);
+        Pump();
+        Check("новый драфт — панель с чистого листа", Opacity(w2, "BansTheirHalf") == 0
+              && Slots(w2, "BansTheirList").All(x => x.IsEmpty) && ShiftY(w2, "BansOurHalf") > 20, "");
+        w2.Close();
 
         w.Close();
         Pump();
@@ -882,8 +853,8 @@ internal static class Program
         return "";
     }
 
-    /// Цвет вспышки по рамке слота ("" — вспышки нет: бан показан раньше).
-    private static string FlashColor(Window w, string list, int i)
+    /// Цвет кольца команды у слота: обводка без заливки поверх портрета.
+    private static string RingColor(Window w, string list, int i)
     {
         var ic = (ItemsControl)w.FindName(list);
         if (ic.ItemContainerGenerator.ContainerFromIndex(i) is not DependencyObject c) return "нет слота";
@@ -891,8 +862,8 @@ internal static class Program
         while (stack.Count > 0)
         {
             var d = stack.Pop();
-            if (d is System.Windows.Shapes.Ellipse { Effect: System.Windows.Media.Effects.DropShadowEffect fx })
-                return fx.Color.ToString();
+            if (d is System.Windows.Shapes.Ellipse { Fill: null, Stroke: SolidColorBrush b, StrokeDashArray.Count: 0 })
+                return b.Color.ToString();
             for (var k = 0; k < VisualTreeHelper.GetChildrenCount(d); k++) stack.Push(VisualTreeHelper.GetChild(d, k));
         }
         return "";

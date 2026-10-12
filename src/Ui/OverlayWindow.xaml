@@ -1674,36 +1674,32 @@
                 <!-- Слот бана: портрет с крестом, как в тир-листе, имя и бан-рейт под ним.
                      Пустой слот — пунктирный круг: бан ещё не сделан или скрыт. -->
                 <DataTemplate x:Key="BanSlot">
-                  <!-- Новые баны появляются по очереди: «выпрыгивают» в слот, и
-                       по рамке пробегает быстрая вспышка цвета команды (синяя у
-                       наших, красная у врагов). Анимации — из кода
-                       (BanSlot_Loaded, BanFlash_Loaded): у каждого слота своя
-                       задержка, а показанные раньше стоят без анимации. -->
+                  <!-- Баны стоят сразу, без анимации: кольцо цвета команды
+                       (синее у наших, красное у врагов) поверх затемнения. -->
                   <StackPanel HorizontalAlignment="Center" Margin="2,0" ToolTip="{Binding Tip}"
-                              Background="Transparent" Loaded="BanSlot_Loaded">
+                              Background="Transparent">
                     <Grid Width="54" Height="54" HorizontalAlignment="Center" Margin="0,18,0,0">
                       <!-- Забанили МОЕГО мейна (много игр за месяц): золотая
                            квадратная рамка со скруглением 5 вокруг портрета — цвет
-                           моего слота в драфте, — со вспышкой при появлении
-                           (BanMain_Loaded). -->
+                           моего слота в драфте — с мягким свечением. -->
                       <Rectangle Margin="-22" RadiusX="5" RadiusY="5" StrokeThickness="2"
-                                 IsHitTestVisible="False"
-                                 Visibility="{Binding MainVisibility}" Loaded="BanMain_Loaded">
+                                 IsHitTestVisible="False" Visibility="{Binding MainVisibility}">
                         <Rectangle.Stroke><SolidColorBrush Color="#F5D77A"/></Rectangle.Stroke>
                         <Rectangle.Fill><SolidColorBrush Color="#26F5D77A"/></Rectangle.Fill>
+                        <Rectangle.Effect>
+                          <DropShadowEffect Color="#F5D77A" BlurRadius="14" ShadowDepth="0" Opacity="0.45"/>
+                        </Rectangle.Effect>
                       </Rectangle>
                       <Grid Visibility="{Binding IconVisibility}">
-                        <Ellipse StrokeThickness="2">
+                        <Ellipse>
                           <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
-                          <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
                         </Ellipse>
                         <!-- Забанен — так же, как в тир-листе: затемнение и красный крест -->
                         <Ellipse Fill="#B0101820"/>
                         <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="33" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <!-- Вспышка по рамке при появлении -->
-                        <Ellipse StrokeThickness="3" Opacity="0" IsHitTestVisible="False"
-                                 Loaded="BanFlash_Loaded">
+                        <!-- Кольцо команды — поверх затемнения, чтобы не тускнело -->
+                        <Ellipse StrokeThickness="2.5" IsHitTestVisible="False">
                           <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
                         </Ellipse>
                       </Grid>
@@ -1729,42 +1725,11 @@
                 <TextBlock x:Name="BansDoneTitle" Text="" Margin="0,0,0,10"
                            FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
                            Foreground="#C89B3C"/>
-                <!-- Половина команды. Когда известны все пять её банов, фон
-                     заливается волной цвета команды — как строка игрока, который
-                     пикает: вспышка, заливка растёт от края, следом блик. Наши —
-                     синим слева, их — красным справа (слой зеркалится). Запуск —
-                     из кода (PlayBanWave), один раз на заполнение половины. -->
                 <!-- До раскрытия вражеских банов видна только наша половина, и
                      стоит она по центру панели (сдвиг вниз — из кода). Раскрылись
-                     — наша уезжает вверх, их выезжает снизу. Место под обе
-                     половины держится всегда: тир-лист под панелью не прыгает. -->
+                     — обе на своих местах, сразу. Место под обе половины
+                     держится всегда: тир-лист под панелью не прыгает. -->
                 <Grid x:Name="BansOurHalf">
-                  <Border x:Name="BansOurWave" Margin="-8,-6,-8,-6" CornerRadius="6"
-                          ClipToBounds="True" IsHitTestVisible="False" Visibility="Collapsed">
-                    <Grid>
-                      <Border x:Name="BansOurWaveFill" CornerRadius="6" RenderTransformOrigin="0,0.5">
-                        <Border.Background>
-                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#5C36D6E7" Offset="0"/>
-                            <GradientStop Color="#1A36D6E7" Offset="0.55"/>
-                            <GradientStop Color="#1236D6E7" Offset="1"/>
-                          </LinearGradientBrush>
-                        </Border.Background>
-                      </Border>
-                      <Rectangle x:Name="BansOurWaveFlash" Opacity="0" RadiusX="6" RadiusY="6" Fill="#36D6E7"/>
-                      <Rectangle x:Name="BansOurWaveSweep" Width="140" HorizontalAlignment="Left" Opacity="0.5">
-                        <Rectangle.Fill>
-                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#00FFFFFF" Offset="0"/>
-                            <GradientStop Color="#48FFFFFF" Offset="0.5"/>
-                            <GradientStop Color="#00FFFFFF" Offset="1"/>
-                          </LinearGradientBrush>
-                        </Rectangle.Fill>
-                      </Rectangle>
-                      <Border Width="3" HorizontalAlignment="Left" CornerRadius="2" Margin="1,4,0,4"
-                              Background="#36D6E7"/>
-                    </Grid>
-                  </Border>
                   <StackPanel>
                     <TextBlock Text="{loc:T ban.ours}" Margin="0,0,0,6"
                                FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
@@ -1778,34 +1743,6 @@
                 </Grid>
                 <Border x:Name="BansDoneSep" Height="1" Background="#22415568" Margin="0,12,0,10"/>
                 <Grid x:Name="BansTheirHalf">
-                  <Border x:Name="BansTheirWave" Margin="-8,-6,-8,-6" CornerRadius="6"
-                          ClipToBounds="True" IsHitTestVisible="False" Visibility="Collapsed">
-                    <!-- Зеркало: волна, блик и полоска — от правого края -->
-                    <Grid RenderTransformOrigin="0.5,0.5">
-                      <Grid.RenderTransform><ScaleTransform ScaleX="-1"/></Grid.RenderTransform>
-                      <Border x:Name="BansTheirWaveFill" CornerRadius="6" RenderTransformOrigin="0,0.5">
-                        <Border.Background>
-                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#5CFF5A4D" Offset="0"/>
-                            <GradientStop Color="#1AFF5A4D" Offset="0.55"/>
-                            <GradientStop Color="#12FF5A4D" Offset="1"/>
-                          </LinearGradientBrush>
-                        </Border.Background>
-                      </Border>
-                      <Rectangle x:Name="BansTheirWaveFlash" Opacity="0" RadiusX="6" RadiusY="6" Fill="#FF5A4D"/>
-                      <Rectangle x:Name="BansTheirWaveSweep" Width="140" HorizontalAlignment="Left" Opacity="0.5">
-                        <Rectangle.Fill>
-                          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#00FFFFFF" Offset="0"/>
-                            <GradientStop Color="#48FFFFFF" Offset="0.5"/>
-                            <GradientStop Color="#00FFFFFF" Offset="1"/>
-                          </LinearGradientBrush>
-                        </Rectangle.Fill>
-                      </Rectangle>
-                      <Border Width="3" HorizontalAlignment="Left" CornerRadius="2" Margin="1,4,0,4"
-                              Background="#FF5A4D"/>
-                    </Grid>
-                  </Border>
                   <StackPanel>
                     <TextBlock Text="{loc:T ban.theirs}" Margin="0,0,0,6"
                                FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
