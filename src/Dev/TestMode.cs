@@ -798,7 +798,11 @@ sealed class TestPanel : Window
         Title  = "Counterplay — тестовый драфт";
         Width  = 620; Height = 540;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        // В левый верхний угол рабочей области, с отступом от краёв (просьба
+        // владельца; раньше — по центру экрана).
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = SystemParameters.WorkArea.Left + 8;
+        Top  = SystemParameters.WorkArea.Top + 8;
 
         var root = new Grid { Margin = new Thickness(14) };
         root.ColumnDefinitions.Add(new ColumnDefinition());
