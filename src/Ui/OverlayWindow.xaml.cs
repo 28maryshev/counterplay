@@ -2159,6 +2159,8 @@ public partial class OverlayWindow : Window
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
         if (BanHoverHandler is null) return;
+        // Его уже забанил союзник — второй раз клиент не даст.
+        if (_lastDraft is { } now && !StillAvailable(now, champId)) { e.Handled = true; return; }
         e.Handled = true;
         _banHoverId = champId;
         RenderCurrentState();          // перерисуем баны — рамка выбранного краснеет
@@ -3005,6 +3007,7 @@ public partial class OverlayWindow : Window
         {
             PickHint.Visibility = Visibility.Collapsed;
             _tierModeNow = null;   // следующий драфт — снова с вида из настроек
+            _banAdviceShown = [];  // советы банов — свои у каждого драфта
 
             var phase = _readyPhaseRaw ?? _phaseRaw;
             var inGame = phase is "GameStart" or "InProgress" or "Reconnect";
@@ -6119,14 +6122,15 @@ public partial class OverlayWindow : Window
             draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : ""));
         PickHint.Visibility = Visibility.Collapsed;
 
-        BanFullList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
+        BanFullList.ItemsSource = ComposeBanAdvice(bans, draft).Select((b, i) => new RecCard
         {
-            ChampionId = b.ChampionId,
-            IsSelected = b.ChampionId == _banHoverId,
+            ChampionId = b.Id,
+            IsSelected = b.Rec is not null && b.Id == _banHoverId,
+            Gone   = b.Rec is null,
             Rank   = $"{i + 1}.",
-            Name   = DataDragon.Name(b.ChampionId),
-            Reason = BanReasonText(b.Reasons),
-            Icon   = IconCache.Get(b.ChampionId),
+            Name   = DataDragon.Name(b.Id),
+            Reason = b.Rec is { } r ? BanReasonText(r.Reasons) : Loc.T("ban.allyBanned"),
+            Icon   = IconCache.Get(b.Id),
         }).ToList();
 
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
@@ -6145,6 +6149,35 @@ public partial class OverlayWindow : Window
         RolePoolBar.Visibility = Visibility.Collapsed;   // в банфазе строку занимает тир-лист
         RenderTierList(draft);
         RenderTeams(draft);
+    }
+
+    // Советы банов, показанные в этом драфте, по порядку на экране.
+    private List<int> _banAdviceShown = [];
+    // Живых советов — сколько дал движок (пять), перечёркнутых — не больше двух.
+    private const int BanAdviceGoneMax = 2;
+
+    /// <summary>
+    /// Советы банов на экран. Союзник забанил одного из показанных — карточка
+    /// остаётся на своём месте перечёркнутой («уже забанил союзник»), а
+    /// следующий кандидат встаёт вниз. Раньше движок просто выбрасывал
+    /// забаненного, и карточка молча подменялась другим чемпионом: в песочнице
+    /// союзники-боты банят с 4-й секунды, и владелец видел «через пять секунд
+    /// поменялся один чемпион» почти в каждом прогоне. Rec = null — перечёркнутый.
+    /// </summary>
+    private List<(int Id, BanRec? Rec)> ComposeBanAdvice(IReadOnlyList<BanRec> bans, DraftState draft)
+    {
+        var ours = draft.MyTeamBans.Where(id => id > 0).ToHashSet();
+        var list = bans.Take(6).Select(b => (b.ChampionId, (BanRec?)b)).ToList();
+        int gone = 0;
+        for (int i = 0; i < _banAdviceShown.Count && gone < BanAdviceGoneMax; i++)
+        {
+            var id = _banAdviceShown[i];
+            if (!ours.Contains(id) || list.Any(x => x.Item1 == id)) continue;
+            list.Insert(Math.Min(i, list.Count), (id, null));
+            gone++;
+        }
+        _banAdviceShown = [.. list.Select(x => x.Item1)];
+        return list;
     }
 
     /// <summary>
@@ -6997,6 +7030,12 @@ public sealed class RecCard
 {
     public int          ChampionId { get; init; }   // для бана из оверлея
     public bool         IsSelected { get; init; }   // наведён кликом (рамка)
+    // Совет бана, который уже забанил союзник: карточка на месте, но
+    // затемнена и перечёркнута, как забаненные в тир-листе.
+    public bool         Gone       { get; init; }
+    public double       CardOpacity     => Gone ? 0.5 : 1;
+    public Visibility   GoneVisibility  => Gone ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility   BadgeVisibility => Gone ? Visibility.Collapsed : Visibility.Visible;
     public string       CardBg     => IsSelected ? "#2AC84040" : "#1EC84040";
     public string       CardBorder => IsSelected ? "#F0684F" : "#00000000";
     public string       Rank       { get; init; } = "";

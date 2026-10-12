@@ -1605,9 +1605,11 @@
               <ItemsControl x:Name="BanFullList">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <!-- Клик по карточке наводит бан в клиенте; рамка краснеет -->
+                    <!-- Клик по карточке наводит бан в клиенте; рамка краснеет.
+                         Уже забанил союзник — карточка на месте, затемнена и
+                         перечёркнута, «БАН» справа нет (Gone). -->
                     <Border Margin="0,3" CornerRadius="4" Padding="12,10" Cursor="Hand"
-                            Background="{Binding CardBg}" BorderThickness="1.5"
+                            Background="{Binding CardBg}" BorderThickness="1.5" Opacity="{Binding CardOpacity}"
                             MouseLeftButtonDown="BanCard_Click" Tag="{Binding ChampionId}">
                       <Border.Style>
                         <Style TargetType="Border">
@@ -1633,11 +1635,18 @@
                         <TextBlock Grid.Column="0" Text="{Binding Rank}"
                                    FontFamily="{StaticResource NumberFont}" FontSize="30" FontWeight="Bold"
                                    Foreground="#E0584F" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <Ellipse Grid.Column="1" Width="56" Height="56" VerticalAlignment="Center" Margin="0,0,12,0">
-                          <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
-                          <Ellipse.Stroke><SolidColorBrush Color="#C84040"/></Ellipse.Stroke>
-                          <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
-                        </Ellipse>
+                        <Grid Grid.Column="1" Width="56" Height="56" VerticalAlignment="Center" Margin="0,0,12,0">
+                          <Ellipse>
+                            <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
+                            <Ellipse.Stroke><SolidColorBrush Color="#C84040"/></Ellipse.Stroke>
+                            <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
+                          </Ellipse>
+                          <Grid Visibility="{Binding GoneVisibility}">
+                            <Ellipse Fill="#B0101820"/>
+                            <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="33" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </Grid>
+                        </Grid>
                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                           <TextBlock Text="{Binding Name}" Foreground="White"
                                      FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="Bold"/>
@@ -1646,7 +1655,7 @@
                         </StackPanel>
                         <TextBlock Grid.Column="3" Text="{loc:T draft.banBadge}" Foreground="#E0584F"
                                    FontFamily="{StaticResource DisplayFont}" FontSize="16" FontWeight="Bold"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center" Visibility="{Binding BadgeVisibility}"/>
                       </Grid>
                     </Border>
                   </DataTemplate>

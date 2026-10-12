@@ -125,7 +125,8 @@
     "doneStatus": "Bans das equipes",
     "doneTitle": "Bans · taxa de ban no patch {0}",
     "rateTip": "{0}: banido em {1}% dos jogos (patch {2})",
-    "yourMain": "Seu main — {0} jogos este mês"
+    "yourMain": "Seu main — {0} jogos este mês",
+    "allyBanned": "Já banido por um aliado"
   },
   "tier": {
     "title": "Tier list · {0}",

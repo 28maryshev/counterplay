@@ -401,7 +401,8 @@
     "doneStatus": "両チームのBAN",
     "doneTitle": "BAN · パッチ {0} のBAN率",
     "rateTip": "{0}: パッチ {2} で{1}%の試合でBAN",
-    "yourMain": "あなたのメイン — 今月{0}試合"
+    "yourMain": "あなたのメイン — 今月{0}試合",
+    "allyBanned": "味方がすでにBAN済み"
   },
   "tier": {
     "title": "Tierリスト · {0}",

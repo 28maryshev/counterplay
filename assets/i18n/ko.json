@@ -125,7 +125,8 @@
     "doneStatus": "양 팀 밴",
     "doneTitle": "밴 · 패치 {0} 밴률",
     "rateTip": "{0}: 패치 {2}에서 게임의 {1}% 밴",
-    "yourMain": "당신의 주챔 — 이번 달 {0}게임"
+    "yourMain": "당신의 주챔 — 이번 달 {0}게임",
+    "allyBanned": "아군이 이미 밴함"
   },
   "tier": {
     "title": "티어 리스트 · {0}",

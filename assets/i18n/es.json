@@ -356,7 +356,8 @@
     "doneStatus": "Baneos de los equipos",
     "doneTitle": "Baneos · tasa de baneo en el parche {0}",
     "rateTip": "{0}: baneado en el {1}% de las partidas (parche {2})",
-    "yourMain": "Tu main — {0} partidas este mes"
+    "yourMain": "Tu main — {0} partidas este mes",
+    "allyBanned": "Ya lo baneó un aliado"
   },
   "tier": {
     "title": "Tier list · {0}",

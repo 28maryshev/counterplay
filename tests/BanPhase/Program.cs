@@ -344,7 +344,7 @@ internal static class Program
     [
         "reason.countersPoolPick", "reason.pickRate",
         "tier.modePicks", "tier.modeBans", "tier.titleBans", "tier.byBanRate",
-        "ban.ours", "ban.theirs", "ban.doneStatus", "ban.doneTitle", "ban.rateTip",
+        "ban.ours", "ban.theirs", "ban.doneStatus", "ban.doneTitle", "ban.rateTip", "ban.allyBanned",
     ];
 
     private static void Strings()
@@ -440,6 +440,32 @@ internal static class Program
         var first = banCols?.First().TierCells.First();
         Check("под иконкой бан-рейт", first is not null && first.WrText.EndsWith('%'), first?.WrText ?? "");
         if (snap is { Length: > 0 }) Snap(w, snap, "1-advice-bans-tier.png");
+
+        // Союзник забанил второй совет. Раньше карточку молча подменял
+        // следующий кандидат — «через пять секунд поменялся один чемпион».
+        // Теперь она на месте, перечёркнута, а новый кандидат — внизу.
+        List<RecCard> Cards() => (((ItemsControl)w.FindName("BanFullList")).ItemsSource as IEnumerable<RecCard>)?.ToList() ?? [];
+        var shown = Cards();
+        var allyBan = shown.Count > 1 ? shown[1].ChampionId : 0;
+        var afterAlly = Draft("utility", ours: [allyBan], theirs: [], done: false);
+        w.UpdateBans(engine.RecommendBans(afterAlly), afterAlly, engine);
+        Pump();
+        var now = Cards();
+        Check("забаненный союзником совет — на своём месте, перечёркнут",
+              now.Count > 1 && now[1] is { Gone: true } g && g.ChampionId == allyBan && g.Reason == Loc.T("ban.allyBanned"),
+              string.Join(", ", now.Select(c => (c.Gone ? "✕" : "") + c.Name)));
+        Check("остальные советы не сдвинулись, новый — внизу",
+              now.Count == shown.Count + 1 && now.Where(c => !c.Gone).Count() == shown.Count
+              && shown.Where(c => c.ChampionId != allyBan).Select(c => c.ChampionId)
+                      .SequenceEqual(now.Where(c => !c.Gone).Take(shown.Count - 1).Select(c => c.ChampionId)),
+              $"было: {string.Join(", ", shown.Select(c => c.Name))}");
+        var banClicks = 0;
+        w.BanHoverHandler = _ => { banClicks++; return Task.FromResult(200); };
+        Call(w, "BanCard_Click", new Border { Tag = allyBan }, click);
+        Pump();
+        Check("клик по перечёркнутому ничего не наводит", banClicks == 0, $"{banClicks}");
+        w.BanHoverHandler = null;
+        if (snap is { Length: > 0 }) Snap(w, snap, "1b-ally-banned.png");
 
         // Свой бан сделан, союзники добанивают, вражеские скрыты.
         var done = Draft("utility", ours: [157, 64], theirs: [], done: true);
@@ -643,8 +669,14 @@ internal static class Program
               && Vis(overlay, "BanScroll"), "");
         Check("фаза банов, мой ход", d is { InBanPhase: true, MyBanInProgress: true, MyBanDone: false }, "");
         var hovered = d?.MyTeam.Where(p => !p.IsLocalPlayer && p.PickIntentId != 0).ToList() ?? [];
-        Check("двое союзников навели пики", hovered.Count == 2,
-              string.Join(", ", hovered.Select(p => DataDragon.Name(p.PickIntentId))));
+        // Сколько союзников показывают пик — случайно, от двух до четырёх.
+        var plan = panelType.GetField("_hoverPlan", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(panel) as System.Collections.IEnumerable;
+        var planCells = plan?.Cast<object>().Select(x => (int)x.GetType().GetField("Item1")!.GetValue(x)!)
+                             .Distinct().Count() ?? 0;
+        Check("союзники навели пики — от двух до четырёх, все, кто собирался",
+              hovered.Count is >= 2 and <= 4 && hovered.Count == planCells,
+              $"{hovered.Count} из {planCells}: " + string.Join(", ", hovered.Select(p => DataDragon.Name(p.PickIntentId))));
         var reasons = Advice()?.SelectMany(b => b.Reasons).ToList() ?? [];
         var names = hovered.Select(p => DataDragon.Name(p.PickIntentId)).ToList();
         Check("советы защищают их пики", reasons.Any(r => names.Any(r.Contains)),
