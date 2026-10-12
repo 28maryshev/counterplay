@@ -1809,7 +1809,7 @@ sealed class TestPanel : Window
     private string MyMainRole()
     {
         var best = new[] { "top", "jungle", "mid", "adc", "support" }
-            .Select(r => (Role: r, Games: SessionTracker.LaneChamps(r, _engine.PrimaryRole).Sum(c => c.Games)))
+            .Select(r => (Role: r, Games: SessionTracker.LaneChamps(r, _engine.RoleShare).Sum(c => c.Games)))
             .Where(x => x.Games > 0)
             .OrderByDescending(x => x.Games)
             .Select(x => x.Role)

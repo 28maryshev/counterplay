@@ -150,7 +150,13 @@ internal static class Program
 
     // ── 3. Журнал с ролями ───────────────────────────────────────────────────
 
-    private const int Sona = 37, Ashe = 22, Amumu = 32, Hwei = 910, Lux = 99;
+    private const int Sona = 37, Ashe = 22, Amumu = 32, Hwei = 910, Lux = 99, Xerath = 101, Kassadin = 38;
+    // Союзники Зерата в игре без ролей — как у владельца 28.09.
+    private const int Aphelios = 523, Malphite = 54, Yone = 777, Fiddlesticks = 9;
+    // Трандл владельца: 2.10 — саппорт (связка с ролями), 28.09 — состав без ролей.
+    private const int Trundle = 48, Mordekaiser = 82, ChoGath = 31, MissFortune = 21;
+    private const int Caitlyn = 51, LeeSin = 64, Jax = 24, Vayne = 67, Sett = 875, XinZhao = 5, Syndra = 134,
+                      Samira = 360, Ornn = 516, BelVeth = 200, VelKoz = 161, Shen = 98;
     private static long Day(double d) => Now - (long)(d * 86400);
 
     // Время, когда программа увидела игру, — через полчаса после её начала
@@ -162,6 +168,7 @@ internal static class Program
     private static void WriteJournal(string root)
     {
         var solo = new JsonArray();
+        var flex = new JsonArray();
         void Game(JsonArray q, double day, int champ, bool win, int? lp, string? role)
         {
             var g = new JsonObject { ["Ts"] = Day(day), ["ChampionId"] = champ, ["Win"] = win, ["Wr"] = 50.0 };
@@ -185,8 +192,24 @@ internal static class Program
         // Хвей: две игры без роли, связки говорят — одна мид, другая саппорт.
         Game(solo, 7, Hwei, false, -19, null);
         Game(solo, 8, Hwei, true, 22, null);
-        // Люкс: игра без роли и без связок — главная роль из базы.
+        // Люкс: игра без роли и без связок — главная роль из базы (саппорт 0,61).
+        // То, что я почти всегда саппорт, не учитывается намеренно.
         Game(solo, 9, Lux, false, -16, null);
+        // Зерат: игра без роли, но в связках без ролей (до 30.09) есть её
+        // состав — Афелий, Мальфит, Ёнэ, Фиддлстикс. Жадная раскладка отдавала
+        // мид Зерату (0,51 против 0,47 у Ёнэ, топ забрал Мальфит); вероятнее —
+        // Ёнэ в миде, Зерат в саппорте. И игра совсем без сведений — как обычно
+        // я его играю.
+        Game(solo, 13, Xerath, true, 20, null);
+        Game(solo, 14, Xerath, false, -18, null);
+        // Кассадин без сведений: главная роль — мид, даже у саппорта-мейна.
+        Game(solo, 15, Kassadin, true, 19, null);
+        // Трандл: 16-й день — связка с ролями (я саппорт); 17-й — только состав
+        // (Мордекайзер, Чо'Гат, Люкс, Мисс Фортуна). По одному составу Трандл —
+        // лесник; с его игрой на саппорте — саппорт.
+        Game(solo, 16, Trundle, true, 21, null);
+        Game(flex, 17, Trundle, false, null, null);
+        Game(solo, 18, Shen, true, 18, null);
 
         var normal = new JsonArray();
         Game(normal, 4, Amumu, false, null, "jungle");
@@ -209,8 +232,31 @@ internal static class Program
             // Хвей: 7-й день — мид (поражение), 8-й — саппорт (победа).
             [SessionTracker.PairKey("ally1", "solo", Hwei, 24, "mid", "top")] = Pair([], [Start(7)]),
             [SessionTracker.PairKey("ally3", "solo", Hwei, 51, "support", "adc")] = Pair([Start(8)], []),
-            // Старая связка без ролей — её роли не знает никто, и мешать она не должна.
+            // Старая связка без ролей у игры, где роль уже есть по другой связке, —
+            // мешать она не должна.
             [SessionTracker.PairKey("ally4", "solo", Hwei, 67)] = Pair([Start(7)], []),
+            // Трандл, 16-й день: связка с ролями и полным составом (ясно — саппорт);
+            // 17-й, флекс: состав без ролей.
+            [SessionTracker.PairKey("t1", "solo", Trundle, Sett, "support", "top")] = Pair([Start(16)], []),
+            [SessionTracker.PairKey("t6", "solo", Trundle, XinZhao, "support", "jungle")] = Pair([Start(16)], []),
+            [SessionTracker.PairKey("t7", "solo", Trundle, Syndra, "support", "mid")] = Pair([Start(16)], []),
+            [SessionTracker.PairKey("t8", "solo", Trundle, Samira, "support", "adc")] = Pair([Start(16)], []),
+            // Шен, 18-й день: в связке записан мид (жадная раскладка отдала
+            // Вел'Козу саппорт), а по составу вероятнее Вел'Коз в миде, Шен —
+            // саппорт; так и было у владельца.
+            [SessionTracker.PairKey("s1", "solo", Shen, Ornn, "mid", "top")] = Pair([Start(18)], []),
+            [SessionTracker.PairKey("s2", "solo", Shen, BelVeth, "mid", "jungle")] = Pair([Start(18)], []),
+            [SessionTracker.PairKey("s3", "solo", Shen, VelKoz, "mid", "support")] = Pair([Start(18)], []),
+            [SessionTracker.PairKey("s4", "solo", Shen, Caitlyn, "mid", "adc")] = Pair([Start(18)], []),
+            [SessionTracker.PairKey("t2", "flex", Trundle, Mordekaiser)] = Pair([], [Start(17)]),
+            [SessionTracker.PairKey("t3", "flex", Trundle, ChoGath)] = Pair([], [Start(17)]),
+            [SessionTracker.PairKey("t4", "flex", Trundle, Lux)] = Pair([], [Start(17)]),
+            [SessionTracker.PairKey("t5", "flex", Trundle, MissFortune)] = Pair([], [Start(17)]),
+            // Зерат, 13-й день: состав без ролей.
+            [SessionTracker.PairKey("a1", "solo", Xerath, Aphelios)] = Pair([Start(13)], []),
+            [SessionTracker.PairKey("a2", "solo", Xerath, Malphite)] = Pair([Start(13)], []),
+            [SessionTracker.PairKey("a3", "solo", Xerath, Yone)] = Pair([Start(13)], []),
+            [SessionTracker.PairKey("a4", "solo", Xerath, Fiddlesticks)] = Pair([Start(13)], []),
         };
 
         var store = new JsonObject
@@ -224,6 +270,7 @@ internal static class Program
                     ["Queues"] = new JsonObject
                     {
                         ["solo"] = new JsonObject { ["Games"] = solo },
+                        ["flex"] = new JsonObject { ["Games"] = flex },
                         ["normal"] = new JsonObject { ["Games"] = normal },
                         ["aram"] = new JsonObject { ["Games"] = aram },
                     },
@@ -234,9 +281,34 @@ internal static class Program
         File.WriteAllText(Path.Combine(root, "session.json"), store.ToJsonString());
     }
 
-    private static string PrimaryRoleStub(int champ) => champ switch
+    // Доли ролей, как в базе (порядок величин живой базы, изумруд 16.19).
+    private static double ShareStub(int champ, string role) => (champ, role) switch
     {
-        Lux => "mid", Ashe => "adc", Hwei => "mid", _ => "",
+        (Sona, "support") => 0.95, (Sona, "mid") => 0.05,
+        (Ashe, "adc") => 0.85, (Ashe, "support") => 0.15,
+        (Amumu, "jungle") => 0.9, (Amumu, "support") => 0.1,
+        (Hwei, "mid") => 0.7, (Hwei, "support") => 0.3,
+        (Lux, "mid") => 0.33, (Lux, "support") => 0.61, (Lux, "adc") => 0.05,
+        (Trundle, "top") => 0.65, (Trundle, "jungle") => 0.30, (Trundle, "support") => 0.03, (Trundle, "mid") => 0.01,
+        (Mordekaiser, "top") => 0.91, (Mordekaiser, "jungle") => 0.05, (Mordekaiser, "mid") => 0.03,
+        (Mordekaiser, "support") => 0.01,
+        (ChoGath, "top") => 0.32, (ChoGath, "jungle") => 0.60, (ChoGath, "mid") => 0.05,
+        (ChoGath, "support") => 0.02, (ChoGath, "adc") => 0.01,
+        (MissFortune, "adc") => 0.95, (MissFortune, "support") => 0.04, (MissFortune, "mid") => 0.01,
+        (Caitlyn, "adc") => 0.95, (LeeSin, "jungle") => 0.95,
+        (Jax, "top") => 0.6, (Jax, "jungle") => 0.35, (Vayne, "adc") => 0.6, (Vayne, "top") => 0.35,
+        (Sett, "top") => 0.8, (Sett, "support") => 0.03, (Sett, "jungle") => 0.05,
+        (XinZhao, "jungle") => 0.95, (Syndra, "mid") => 0.9, (Samira, "adc") => 0.95,
+        (Ornn, "top") => 0.9, (BelVeth, "jungle") => 0.95,
+        (VelKoz, "support") => 0.6, (VelKoz, "mid") => 0.4,
+        (Shen, "top") => 0.62, (Shen, "support") => 0.3, (Shen, "jungle") => 0.05, (Shen, "mid") => 0.01,
+        (Xerath, "mid") => 0.51, (Xerath, "support") => 0.39, (Xerath, "adc") => 0.1,
+        (Kassadin, "mid") => 0.94, (Kassadin, "top") => 0.05,
+        (Aphelios, "adc") => 0.97,
+        (Malphite, "top") => 0.77, (Malphite, "mid") => 0.09, (Malphite, "jungle") => 0.08, (Malphite, "support") => 0.05,
+        (Yone, "top") => 0.5, (Yone, "mid") => 0.47,
+        (Fiddlesticks, "jungle") => 0.9, (Fiddlesticks, "support") => 0.05,
+        _ => 0,
     };
 
     private static void Lanes()
@@ -246,15 +318,28 @@ internal static class Program
         string Show(IEnumerable<SessionTracker.LaneChamp> l) =>
             string.Join(", ", l.Select(c => $"{c.ChampionId}×{c.Games}"));
 
-        var jungle = SessionTracker.LaneChamps("jungle", PrimaryRoleStub);
+        var jungle = SessionTracker.LaneChamps("jungle", ShareStub);
         Check("выкинуло в лес — только лесные игры, саппортов нет",
               jungle.Count == 1 && jungle[0] is { ChampionId: Amumu, Games: 3 }, Show(jungle));
         Check("LP — только из ранкеда (нормал без очков)", jungle.FirstOrDefault()?.Lp == 38,
               $"{jungle.FirstOrDefault()?.Lp}");
 
-        var sup = SessionTracker.LaneChamps("support", PrimaryRoleStub);
-        Check("саппорт: Сона, Эш, Хвей — самые игранные первыми",
-              sup.Select(c => c.ChampionId).SequenceEqual([Sona, Ashe, Hwei]), Show(sup));
+        var sup = SessionTracker.LaneChamps("support", ShareStub);
+        Check("саппорт: Сона, Эш, Зерат, Трандл, Хвей, Люкс, Шен — самые игранные, потом свежие",
+              sup.Select(c => c.ChampionId).SequenceEqual([Sona, Ashe, Xerath, Trundle, Hwei, Lux, Shen]), Show(sup));
+        Check("Шен — саппорт: записанный в связке мид перебит ясным составом",
+              sup.Any(c => c.ChampionId == Shen), "");
+        Check("Трандл по составу — саппорт: так я играл его в другой игре",
+              sup.FirstOrDefault(c => c.ChampionId == Trundle)?.Games == 2, "");
+        // Сам состав, без моих игр на Трандле, говорит «лес»: склонности
+        // игрока «вообще» в раскладку не входят.
+        var best = typeof(SessionTracker).GetMethod("BestRoles", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var plain = (string[]?)best.Invoke(null, [new List<int> { Trundle, Mordekaiser, ChoGath, Lux, MissFortune },
+                                                  (Func<int, string, double>)ShareStub, null, null]);
+        Check("без моих игр на чемпионе — решает состав (Трандл-лесник)", plain?[0] == "jungle",
+              string.Join(" ", plain ?? []));
+        Check("Зерат по составу игры — саппорт (жадная раскладка давала мид), и без сведений — тоже",
+              sup.FirstOrDefault(c => c.ChampionId == Xerath)?.Games == 2, "");
         var sona = sup.FirstOrDefault(c => c.ChampionId == Sona);
         Check("старая игра и ARAM в счёт не идут", sona?.Games == 6, $"{sona?.Games}");
         Check("форма — от старых к новым", sona is not null && sona.Form.SequenceEqual([true, true, false, true, false, true]),
@@ -265,12 +350,12 @@ internal static class Program
               ashe?.Games == 3, $"{ashe?.Games}");
         Check("Хвей: в саппорты — только игра со связкой саппорта", sup.FirstOrDefault(c => c.ChampionId == Hwei)?.Games == 1, "");
 
-        var mid = SessionTracker.LaneChamps("mid", PrimaryRoleStub);
-        Check("мид: Хвей по связке той же игры, Люкс по главной роли",
-              mid.Select(c => c.ChampionId).OrderBy(x => x).SequenceEqual([Lux, Hwei]), Show(mid));
-        var adc = SessionTracker.LaneChamps("adc", PrimaryRoleStub);
+        var mid = SessionTracker.LaneChamps("mid", ShareStub);
+        Check("мид: Хвей по связке той же игры и Кассадин по главной роли; ни Люкс, ни Зерата",
+              mid.Select(c => c.ChampionId).OrderBy(x => x).SequenceEqual([Kassadin, Hwei]), Show(mid));
+        var adc = SessionTracker.LaneChamps("adc", ShareStub);
         Check("стрелок пуст: Эш туда не попала", adc.Count == 0, Show(adc));
-        Check("роль неизвестна — пусто", SessionTracker.LaneChamps("", PrimaryRoleStub).Count == 0, "");
+        Check("роль неизвестна — пусто", SessionTracker.LaneChamps("", ShareStub).Count == 0, "");
     }
 
     /// Новая игра получает роль из драфта, если драфт был прямо перед ней и на
@@ -378,18 +463,19 @@ internal static class Program
         w.UpdateBans([], sup, engine);
         Pump();
         rows = Rows();
-        // Люкс без роли и связок — по главной роли в живой базе (там она бывает саппортом).
-        int[] supExpected = engine.PrimaryRole(Lux) == "support" ? [Sona, Ashe, Hwei, Lux] : [Sona, Ashe, Hwei];
-        Check("саппорт: Сона, Эш, Хвей (и Люкс, если база числит её саппортом)",
-              rows.Select(r => r.ChampionId).SequenceEqual(supExpected),
-              string.Join(", ", rows.Select(r => r.Name)) + $"; Люкс в базе — {engine.PrimaryRole(Lux)}");
+        // Доли ролей — из живой базы: Зерат по составу игры — саппорт.
+        Check("саппорт: Сона, Эш, Зерат, Трандл первыми, Амуму и Кассадина нет",
+              rows.Take(4).Select(r => r.ChampionId).SequenceEqual([Sona, Ashe, Xerath, Trundle])
+              && !rows.Any(r => r.ChampionId is Amumu or Kassadin),
+              string.Join(", ", rows.Select(r => r.Name)));
         var sona = rows.FirstOrDefault(r => r.ChampionId == Sona);
         Check("у Соны: винрейт и игры, форма, LP, патч",
               sona is { WrText: "67%", GamesText: "· 6", LpText: "+44" } && sona.Form.Count == 6
               && sona.PatchText.EndsWith('%'),
               sona is null ? "нет" : $"{sona.WrText} {sona.GamesText} {sona.LpText} {sona.PatchText} {sona.DeltaText}");
-        var hwei = rows.FirstOrDefault(r => r.ChampionId == Hwei);
-        Check("одна игра — винрейт без цвета", hwei?.WrBrush == "#8AA0B2", hwei?.WrBrush ?? "");
+        var few = rows.Where(r => r.Games is > 0 and < 5).ToList();
+        Check("меньше пяти игр — винрейт без цвета", few.Count > 0 && few.All(r => r.WrBrush == "#8AA0B2"),
+              string.Join(", ", few.Select(r => $"{r.Name} {r.Games}: {r.WrBrush}")));
         Check("в подсказке — победы и поражения, последняя игра",
               sona?.Tip?.Contains(Loc.T("plan.tipRecord", 4, 2)) == true && sona.Tip.Contains(Loc.T("plan.tipLast", 1)),
               (sona?.Tip ?? "").Replace("\n", " | "));

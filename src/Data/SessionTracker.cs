@@ -365,12 +365,15 @@ public static class SessionTracker
     /// если меня выкинуло в лес, саппорты, которыми я играю, там ни к чему.
     ///
     /// Роль игры: записанная в журнал (с 1.3.61) → из связок той же игры (в них
-    /// роль есть с 30.09) → на какой роли я чаще играю этого чемпиона по связкам →
-    /// его главная роль в базе (<paramref name="primaryRole"/>). Одной главной
-    /// роли мало: у владельца Эш — саппорт (8 игр по связкам), а база числит её
-    /// стрелком.
+    /// роль есть с 30.09) → по составу той же игры: в связках до 30.09 ролей
+    /// нет, но есть чемпионы союзников, и пятёрка раскладывается по доле ролей
+    /// (<see cref="RolesOfTeam"/>) → на какой роли я чаще играю этого чемпиона
+    /// по связкам → его главная роль в базе. Одной главной роли мало: у
+    /// владельца Эш — саппорт (8 игр по связкам), а база числит её стрелком;
+    /// Зерат шёл в мид, хотя с ним были Кассадин, Мастер Йи, Зери и Атрокс.
+    /// <paramref name="roleShare"/> — доля игр чемпиона на роли (из базы).
     /// </summary>
-    public static IReadOnlyList<LaneChamp> LaneChamps(string dbRole, Func<int, string>? primaryRole,
+    public static IReadOnlyList<LaneChamp> LaneChamps(string dbRole, Func<int, string, double>? roleShare,
                                                       int days = RecentDays)
     {
         if (dbRole.Length == 0) return [];
@@ -391,7 +394,7 @@ public static class SessionTracker
                 var s = Load();
                 var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
                     ? a : s.Accounts.Values.FirstOrDefault();
-                if (acc != null) games.AddRange(LaneGames(acc, since, primaryRole));
+                if (acc != null) games.AddRange(LaneGames(acc, since, roleShare));
             }
             catch { /* журнала нет или он битый — показывать нечего */ }
         }
@@ -412,61 +415,232 @@ public static class SessionTracker
     }
 
     // Игры журнала за окно — каждая со своей ролью (см. LaneChamps).
+    //
+    // По шагам, по ВСЕМ играм журнала, не только за окно:
+    // 1) записанная роль (из драфта, с 1.3.61) — окончательная;
+    // 2) остальным — по составу той же игры из связок (`MyRoleByTeam`): вся
+    //    пятёрка раскладывается по долям ролей. Роль, записанная в связке
+    //    (с 30.09), — только перевес (`Team.Hint`);
+    // 3) где состав не решает уверенно (UnsureRatio) — пересчёт с учётом того,
+    //    на каких ролях я уверенно играл ЭТОГО чемпиона: Трандл 28.09 по одному
+    //    составу — лесник, а 2.10 он ясно саппорт;
+    // 4) игры без связок — как я обычно играю этого чемпиона, иначе его главная
+    //    роль в базе.
+    //
+    // Склонности игрока «вообще» (саппорт-мейн — значит, всё саппорт) не
+    // учитываются намеренно: у того, кто берёт нишевые пики на разных линиях,
+    // они ломали бы ровно эти игры (владелец, 12.10). Только сама игра и сам
+    // чемпион.
     private static IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role)> LaneGames(
-        Account acc, long since, Func<int, string>? primaryRole)
+        Account acc, long since, Func<int, string, double>? roleShare)
     {
-        // Отметки связок с ролями: (очередь, мой чемпион) → (время начала игры,
-        // моя роль). У одной игры до четырёх союзников — и столько же одинаковых
-        // отметок, поэтому «обычная роль» считается по разным временам.
-        var marks = new Dictionary<(string Queue, int Champ), List<(long Ts, string Role)>>();
+        // Состав игр из связок: (очередь, мой чемпион) → (время начала игры,
+        // чемпион союзника, моя роль из связки или "").
+        var comps = new Dictionary<(string Queue, int Champ), List<(long Ts, int Ally, string Mine)>>();
         foreach (var (key, rec) in acc.Pairs)
         {
-            if (ParsePairKey(key) is not { MyRole.Length: > 0 } p) continue;
-            if (!marks.TryGetValue((p.Queue, p.Mine), out var list)) marks[(p.Queue, p.Mine)] = list = [];
-            foreach (var ts in rec.Won.Concat(rec.Lost)) list.Add((ts, p.MyRole));
+            if (ParsePairKey(key) is not { } p) continue;
+            if (!comps.TryGetValue((p.Queue, p.Mine), out var list)) comps[(p.Queue, p.Mine)] = list = [];
+            foreach (var ts in rec.Won.Concat(rec.Lost)) list.Add((ts, p.His, p.MyRole));
         }
-        var usual = marks
-            .SelectMany(kv => kv.Value.Select(m => (Champ: kv.Key.Champ, m.Ts, m.Role)))
-            .DistinctBy(m => (m.Champ, m.Ts))
-            .GroupBy(m => m.Champ)
-            .ToDictionary(x => x.Key,
-                          x => x.GroupBy(m => m.Role).MaxBy(r => r.Count())!.Key);
 
+        var all = new List<Lane>();
         foreach (var queue in LaneQueues)
         {
             if (!acc.Queues.TryGetValue(queue, out var ql)) continue;
-            bool ranked = QueuesRanked.Contains(queue);
             foreach (var g in ql.Games)
             {
-                if (g.ChampionId == 0 || g.Ts <= 0 || g.Ts < since) continue;
-                var role = g.Role is { Length: > 0 } r ? r
-                    : RoleByMark(marks.GetValueOrDefault((queue, g.ChampionId)), g.Ts)
-                      ?? usual.GetValueOrDefault(g.ChampionId)
-                      ?? primaryRole?.Invoke(g.ChampionId) ?? "";
-                yield return (g.Ts, g.ChampionId, g.Win, ranked ? g.Lp : null, role);
+                if (g.ChampionId == 0 || g.Ts <= 0) continue;
+                var game = new Lane(g, queue);
+                if (g.Role is { Length: > 0 } r) game.Role = r;
+                else if (TeamOf(comps.GetValueOrDefault((queue, g.ChampionId)), g.Ts) is { } team)
+                {
+                    game.Team = team;
+                    if (roleShare is not null
+                        && MyRoleByTeam(team.Champs(g.ChampionId), roleShare, team.Hint) is { } t)
+                        (game.Role, game.Sure) = (t.Role, t.Confidence >= UnsureRatio);
+                }
+                all.Add(game);
             }
         }
+
+        // Неуверенные по составу — ещё раз, с тем, на каких ролях я уверенно
+        // играл этого чемпиона (доли сглажены: одна игра — подсказка, не приговор).
+        var sure = all.Where(x => x.Role is not null && (x.G.Role is { Length: > 0 } || x.Sure))
+            .GroupBy(x => x.G.ChampionId)
+            .ToDictionary(g => g.Key, g => Roles.ToDictionary(
+                r => r, r => (g.Count(x => x.Role == r) + 1.0) / (g.Count() + Roles.Length)));
+        foreach (var x in all)
+        {
+            if (x.Team is not { } team || x.Sure || roleShare is null) continue;
+            if (!sure.TryGetValue(x.G.ChampionId, out var played)) continue;
+            if (MyRoleByTeam(team.Champs(x.G.ChampionId), roleShare, r => team.Hint(r) * played[r]) is { } t)
+                x.Role = t.Role;
+        }
+
+        // Как я обычно играю чемпиона — по играм, где роль нашлась.
+        var usual = all.Where(x => x.Role is not null).GroupBy(x => x.G.ChampionId)
+            .ToDictionary(x => x.Key, x => x.GroupBy(y => y.Role!).MaxBy(y => y.Count())!.Key);
+
+        foreach (var x in all)
+        {
+            if (x.G.Ts < since) continue;
+            var r = x.Role ?? usual.GetValueOrDefault(x.G.ChampionId) ?? PrimaryRole(x.G.ChampionId, roleShare) ?? "";
+            yield return (x.G.Ts, x.G.ChampionId, x.G.Win, QueuesRanked.Contains(x.Queue) ? x.G.Lp : null, r);
+        }
     }
 
-    // Роль игры по отметке связки. Время в журнале — момент, когда программа
-    // УВИДЕЛА игру (её конец или позже), в связке — начало игры. Берём ближайшую
-    // отметку не позже записи и не раньше чем за RoleMarkWindow: игру, которую
-    // программа увидела через сутки, честнее отдать следующему правилу.
+    private static readonly string[] Roles = ["top", "jungle", "mid", "adc", "support"];
+
+    // Игра журнала на пути к роли (см. LaneGames).
+    private sealed class Lane(GameLog g, string queue)
+    {
+        public GameLog G { get; } = g;
+        public string Queue { get; } = queue;
+        public Team? Team { get; set; }
+        public string? Role { get; set; }
+        public bool Sure { get; set; }    // состав решил уверенно
+    }
+
+    // Состав одной игры: союзники и моя роль, записанная в связке ("" — нет).
+    private sealed record Team(IReadOnlyList<int> Allies, string Stored)
+    {
+        public List<int> Champs(int mine) => [mine, .. Allies.Where(a => a != mine)];
+
+        // Перевес записанной в связке роли (см. BotLaneHint, GuessHint).
+        public double Hint(string role) =>
+            Stored.Length == 0 || role != Stored ? 1
+            : Stored is "adc" or "support" ? BotLaneHint : GuessHint;
+    }
+
+    // Записанная в связке роль бывает двух сортов. Стрелка и саппорта размечал
+    // сам клиент (бот-линию он метит верно; RolesOfTeam, шаг 1) — это
+    // свидетельство, перевес большой. Топ, лес и мид угадывала жадная раскладка
+    // по тому же составу — это не новое знание, а та же догадка, перевес
+    // маленький: Шен владельца так попал в мид (Вел'Коз — «саппорт»), а был
+    // саппортом. Ясный состав перебивает и то и другое.
+    private const double BotLaneHint = 6, GuessHint = 1.5;
+
+    // Состав решил уверенно, если лучшая раскладка с моей ролью вероятнее
+    // лучшей с любой другой моей ролью хотя бы во столько раз.
+    private const double UnsureRatio = 3;
+
+    // Время в журнале — момент, когда программа УВИДЕЛА игру (её конец или
+    // позже), в связке — начало игры. Берём ближайшую отметку не позже записи и
+    // не раньше чем за RoleMarkWindow: игру, которую программа увидела через
+    // сутки, честнее отдать следующему правилу.
     private const long RoleMarkWindow = 6 * 3600;
 
-    private static string? RoleByMark(List<(long Ts, string Role)>? marks, long ts)
+    // Состав игры по связкам: все союзники с ближайшей отметкой (одна игра —
+    // одно время начала). Союзников меньше четырёх (связки с одной игрой
+    // забываются) — состав из тех, кто есть.
+    private static Team? TeamOf(List<(long Ts, int Ally, string Mine)>? marks, long ts)
     {
         if (marks is null) return null;
-        string? best = null;
-        long bestLag = long.MaxValue;
-        foreach (var (at, role) in marks)
+        long at = 0, bestLag = long.MaxValue;
+        foreach (var (t, _, _) in marks)
         {
-            var lag = ts - at;
+            var lag = ts - t;
             if (lag < -60 || lag > RoleMarkWindow || lag >= bestLag) continue;
-            bestLag = lag; best = role;
+            bestLag = lag; at = t;
         }
-        return best;
+        if (bestLag == long.MaxValue) return null;
+        var same = marks.Where(m => m.Ts == at).ToList();
+        return new Team([.. same.Select(m => m.Ally).Distinct()],
+                        same.Select(m => m.Mine).FirstOrDefault(m => m.Length > 0) ?? "");
     }
+
+    /// <summary>
+    /// Самая вероятная раскладка ролей команды: перебор всех (их не больше 120),
+    /// вероятность — произведение долей ролей чемпионов. Жадная раскладка, как в
+    /// <see cref="RolesOfTeam"/>, тут ошибалась: Мальфит забирал топ, и Зерат
+    /// (мид 0,51) обходил Ёнэ (мид 0,47) — хотя Ёнэ в миде, а Зерат в саппорте
+    /// вероятнее вместе. Ноль доли — не запрет, а очень мало (бывает и такое).
+    /// </summary>
+    internal static string[]? BestRoles(IReadOnlyList<int> champs, Func<int, string, double> roleShare,
+                                        IReadOnlyList<string>? roles = null,
+                                        IReadOnlyDictionary<string, double>? myRoles = null)
+    {
+        var pool = roles ?? Roles;   // свободные роли (бот-линию мог уже назвать клиент)
+        if (champs.Count == 0 || champs.Count > pool.Count) return null;
+        // myRoles — на каких ролях я играл этого чемпиона (я — первый в списке).
+        var logs = champs.Select((c, k) => pool.Select(r =>
+                             Math.Log(Math.Max(roleShare(c, r), 0.005))
+                             + (k == 0 && myRoles is not null ? Math.Log(myRoles.GetValueOrDefault(r, 0.005)) : 0))
+                         .ToArray())
+                         .ToArray();
+        int[]? best = null;
+        double bestScore = double.NegativeInfinity;
+        var pick = new int[champs.Count];
+        var used = new bool[pool.Count];
+        void Go(int k, double score)
+        {
+            if (k == champs.Count)
+            {
+                if (score > bestScore) { bestScore = score; best = (int[])pick.Clone(); }
+                return;
+            }
+            for (int r = 0; r < pool.Count; r++)
+            {
+                if (used[r]) continue;
+                used[r] = true; pick[k] = r;
+                Go(k + 1, score + logs[k][r]);
+                used[r] = false;
+            }
+        }
+        Go(0, 0);
+        return best?.Select(r => pool[r]).ToArray();
+    }
+
+    /// <summary>
+    /// Моя роль в игре по её составу (я — первый в списке): перебор всех
+    /// раскладок, вероятность — произведение долей ролей, моя роль ещё взвешена
+    /// <paramref name="myWeight"/>. Уверенность — во сколько раз лучшая раскладка
+    /// с этой моей ролью вероятнее лучшей с любой другой моей ролью.
+    /// </summary>
+    internal static (string Role, double Confidence)? MyRoleByTeam(
+        IReadOnlyList<int> champs, Func<int, string, double> roleShare, Func<string, double>? myWeight = null)
+    {
+        if (champs.Count == 0 || champs.Count > Roles.Length) return null;
+        var logs = champs.Select((c, k) => Roles.Select(r =>
+                             Math.Log(Math.Max(roleShare(c, r), 0.005))
+                             + (k == 0 && myWeight is not null ? Math.Log(Math.Max(myWeight(r), 1e-6)) : 0))
+                         .ToArray())
+                         .ToArray();
+        var bestFor = Enumerable.Repeat(double.NegativeInfinity, Roles.Length).ToArray();
+        var used = new bool[Roles.Length];
+        int mine = -1;
+        void Go(int k, double score)
+        {
+            if (k == champs.Count)
+            {
+                if (score > bestFor[mine]) bestFor[mine] = score;
+                return;
+            }
+            for (int r = 0; r < Roles.Length; r++)
+            {
+                if (used[r]) continue;
+                used[r] = true;
+                if (k == 0) mine = r;
+                Go(k + 1, score + logs[k][r]);
+                used[r] = false;
+            }
+        }
+        Go(0, 0);
+        var order = Enumerable.Range(0, Roles.Length).OrderByDescending(r => bestFor[r]).ToList();
+        var conf = Math.Exp(bestFor[order[0]] - bestFor[order[1]]);
+        return (Roles[order[0]], conf);
+    }
+
+    // Главная роль чемпиона — где у него больше всего игр по базе: когда ни о
+    // самой игре, ни о том, как я играю этого чемпиона, ничего не известно.
+    private static string? PrimaryRole(int champ, Func<int, string, double>? roleShare) =>
+        roleShare is null ? null
+        : Roles.Select(r => (Role: r, Share: roleShare(champ, r)))
+               .Where(x => x.Share > 0)
+               .OrderByDescending(x => x.Share)
+               .Select(x => x.Role)
+               .FirstOrDefault();
 
     // ── Роль из драфта ───────────────────────────────────────────────────────
 
@@ -1616,16 +1790,14 @@ public static class SessionTracker
         if (carry.Count == 1) res[carry[0].Pid] = "adc";
         if (sup.Count == 1)   res[sup[0].Pid]   = "support";
 
-        // 2. Остальные — жадно по доле роли: сперва самые однозначные пары.
+        // 2. Остальные — самой вероятной раскладкой по доле роли (BestRoles).
+        //    Жадно («сперва самые однозначные пары») ошибалось: Мальфит забирал
+        //    топ, и Зерат обходил Ёнэ в миде, хотя вместе вероятнее наоборот.
         if (roleShare is null) return res;
         var free  = team.Where(t => !res.ContainsKey(t.Pid)).ToList();
-        var roles = new[] { "top", "jungle", "mid", "adc", "support" }
-                    .Where(r => !res.ContainsValue(r)).ToList();
-        var pairs = free.SelectMany(t => roles.Select(r => (t.Pid, Role: r, Share: roleShare(t.Champ, r))))
-                        .Where(x => x.Share > 0)
-                        .OrderByDescending(x => x.Share).ToList();
-        foreach (var (pid, role, _) in pairs)
-            if (!res.ContainsKey(pid) && !res.ContainsValue(role)) res[pid] = role;
+        var roles = Roles.Where(r => !res.ContainsValue(r)).ToList();
+        if (BestRoles(free.Select(t => t.Champ).ToList(), roleShare, roles) is { } best)
+            for (int k = 0; k < free.Count; k++) res[free[k].Pid] = best[k];
         return res;
     }
 

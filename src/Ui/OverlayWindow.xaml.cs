@@ -6259,7 +6259,7 @@ public partial class OverlayWindow : Window
         if (_engine is null || role.Length == 0) return [];
         var selected = _pickHoverId > 0 ? _pickHoverId : draft.Me?.PickIntentId ?? 0;
 
-        var lane = SessionTracker.LaneChamps(role, _engine.PrimaryRole).Take(PlanRowCount).ToList();
+        var lane = SessionTracker.LaneChamps(role, _engine.RoleShare).Take(PlanRowCount).ToList();
         if (lane.Count > 0)
             return [.. lane.Select(c => PlanRowOf(c.ChampionId, c, role, selected))];
 
