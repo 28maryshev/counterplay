@@ -514,6 +514,15 @@ internal static class Program
         Check("их баны появляются по очереди справа налево",
               delays.Count == 5 && delays.Zip(delays.Skip(1)).All(p => p.First > p.Second),
               string.Join(" ", delays.Select(x => x.ToString("0.00"))));
+        // Следующее событие драфта посреди появления (в бою их несколько в
+        // секунду) слоты не пересобирает. Пересобирало: в подписи слотов была
+        // задержка, она менялась с 0,3 на 0, и все пять вставали разом.
+        var theirSrc = ((ItemsControl)w.FindName("BansTheirList")).ItemsSource;
+        w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
+        Pump();
+        Check("второе событие посреди появления слоты не пересобирает",
+              ReferenceEquals(((ItemsControl)w.FindName("BansTheirList")).ItemsSource, theirSrc)
+              && Slots(w, "BansTheirList").All(x => x.IsNew), "");
         Check("вспышка по рамке — красная", FlashColor(w, "BansTheirList", 4) == "#FFFF5A4D",
               FlashColor(w, "BansTheirList", 4));
         // Сразу, пока идут 4 секунды показа: со снимками прогон медленнее, и
@@ -566,13 +575,37 @@ internal static class Program
         var early = oursFull with { TheirTeamBans = [24, 893, 145, 119, 37] };
         w2.UpdateBans([], early, engine);
         Pump();
-        Wait(1.0);
-        Check("раскрыты ещё в банах — видны сразу", Opacity(w2, "BansTheirHalf") == 1, "");
+        // Наши пять пришли тем же снимком — их половина выезжает после нашей волны.
+        Poll(() => Opacity(w2, "BansTheirHalf") == 1, 4);
+        Check("раскрыты ещё в банах — видны без удержания, после нашей волны", Opacity(w2, "BansTheirHalf") == 1, "");
         var picks2 = early with { InBanPhase = false, MyBanActionId = -1, MyBanInProgress = false };
         w2.UpdateRecommendations(engine.Recommend(picks2, 6), picks2, engine);
         Pump();
         Check("…и пики без задержки", Vis(w2, "RecScroll") && !Vis(w2, "BansDonePanel"), "");
         w2.Close();
+
+        // Раскрытие сразу за нашим пятым баном: их половина ждёт, пока доиграет
+        // наша волна, — раньше половины разъезжались посреди неё.
+        var w3 = new OverlayWindow();
+        ShowHidden(w3);
+        w3.SetEngine(engine);
+        w3.UpdateBans([], oursFull, engine);
+        Pump();
+        w3.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
+        Pump();
+        var firstDelay = Slots(w3, "BansTheirList").Select(x => x.Delay).DefaultIfEmpty(0).Max();
+        Check("их баны ждут конца нашей волны", firstDelay > 1.0, $"первый появляется через {firstDelay:0.00} с");
+        // Драфт кончился, пока панель была на экране (дродж, «Сброс» в
+        // песочнице), — следующий начинает панель с чистого листа: баны снова
+        // появляются, а не стоят сразу.
+        w3.UpdateRecommendations(null, null);
+        w3.DraftEnded();
+        Pump();
+        w3.UpdateBans([], oursFull, engine);
+        Pump();
+        Check("новый драфт — баны снова появляются", Slots(w3, "BansOurList").All(x => x.IsNew),
+              string.Join("", Slots(w3, "BansOurList").Select(x => x.IsNew ? "н" : "-")));
+        w3.Close();
 
         w.Close();
         Pump();

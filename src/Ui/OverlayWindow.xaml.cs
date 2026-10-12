@@ -3012,6 +3012,10 @@ public partial class OverlayWindow : Window
             // рамки на чемпионе прошлого.
             _pickHoverId = 0;
             _banHoverId = 0;
+            // Панель банов команд — с чистого листа: «свежесть» мерится по её
+            // видимости, а кончиться драфт мог и при ней на экране.
+            BansDonePanel.Visibility = Visibility.Collapsed;
+            ResetBanPanel();
 
             var phase = _readyPhaseRaw ?? _phaseRaw;
             var inGame = phase is "GameStart" or "InProgress" or "Reconnect";
@@ -6202,29 +6206,29 @@ public partial class OverlayWindow : Window
         // Панель только что появилась — всё на ней новое: баны «выпрыгивают»,
         // волна проигрывается заново, если половина уже полна.
         var fresh = BansDonePanel.Visibility != Visibility.Visible;
-        if (fresh)
-        {
-            _shownBans.Clear();
-            _ourWave = _theirWave = false;
-            _theirBansShown = 0;
-            _ourSlotsSig = _theirSlotsSig = "";
-        }
+        if (fresh) ResetBanPanel();
 
-        // Их половина сейчас поедет — их баны начнут появляться, когда она доедет.
+        // Наши появляются слева направо, их — справа налево: с той стороны,
+        // откуда идёт их волна. Волна — когда последний из новых банов
+        // появился и вспыхнул.
+        var ourLast = SetBanSlots(BansOurList, draft.MyTeamBans, "#36D6E7", "…", 0, false, ref _ourSlotsSig);
+        var ourEnd  = BanWave(draft.MyTeamBans, ref _ourWave, BansOurWave, BansOurWaveFill,
+                              BansOurWaveFlash, BansOurWaveSweep, BansOurHalf, ourLast < 0 ? 0 : ourLast + 0.45);
+        if (ourEnd >= 0) _ourWaveEndsAt = DateTime.UtcNow.AddSeconds(ourEnd);
+
+        // Их половина сейчас поедет — их баны начнут появляться, когда она
+        // доедет. А поедет она, когда доиграет наша волна: раскрытие часто
+        // приходит сразу за нашим пятым баном, и половины разъезжались посреди
+        // волны (владелец: «подглючивает анимация волн»).
         var theirCount = draft.TheirTeamBans.Count(id => id > 0);
         var willSlide  = theirCount > 0 && (fresh || !_theirRevealed);
-        // Наши появляются слева направо, их — справа налево: с той стороны,
-        // откуда идёт их волна.
-        var ourLast   = SetBanSlots(BansOurList, draft.MyTeamBans, "#36D6E7", "…", 0, false, ref _ourSlotsSig);
-        var theirLast = SetBanSlots(BansTheirList, draft.TheirTeamBans, "#FF5A4D", "?",
-                                    willSlide ? 0.3 : 0, true, ref _theirSlotsSig);
+        var wait       = willSlide ? OurWaveLeft() : 0;
+        var theirLast  = SetBanSlots(BansTheirList, draft.TheirTeamBans, "#FF5A4D", "?",
+                                     willSlide ? 0.3 + wait : 0, true, ref _theirSlotsSig);
         _shownBans.UnionWith(draft.MyTeamBans.Concat(draft.TheirTeamBans).Where(id => id > 0));
         _theirBansShown = theirCount;
 
-        PlaceBanHalves(theirCount > 0, fresh);
-        // Волна — когда последний из новых банов появился и вспыхнул.
-        BanWave(draft.MyTeamBans, ref _ourWave, BansOurWave, BansOurWaveFill,
-                BansOurWaveFlash, BansOurWaveSweep, BansOurHalf, ourLast < 0 ? 0 : ourLast + 0.45);
+        PlaceBanHalves(theirCount > 0, fresh, wait);
         BanWave(draft.TheirTeamBans, ref _theirWave, BansTheirWave, BansTheirWaveFill,
                 BansTheirWaveFlash, BansTheirWaveSweep, BansTheirHalf, theirLast < 0 ? 0 : theirLast + 0.45);
 
@@ -6512,11 +6516,15 @@ public partial class OverlayWindow : Window
             || theirs == 0 || theirs <= _theirBansShown)
             return false;
 
-        _banRevealUntil = DateTime.UtcNow + BanRevealHold;
-        var t = new DispatcherTimer { Interval = BanRevealHold + TimeSpan.FromMilliseconds(50) };
-        t.Tick += (_, _) => { t.Stop(); RenderCurrentState(); };
+        // Их половина ждёт, пока доиграет наша волна, — показ дольше на столько же.
+        var hold = BanRevealHold + TimeSpan.FromSeconds(OurWaveLeft());
+        _banRevealUntil = DateTime.UtcNow + hold;
+        var t = new DispatcherTimer { Interval = hold + TimeSpan.FromMilliseconds(50) };
+        // Окно могли закрыть посреди показа (выход из программы): тогда
+        // перерисовывать нечего, а Show на закрытом окне — исключение.
+        t.Tick += (_, _) => { t.Stop(); if (PresentationSource.FromVisual(this) is not null) RenderCurrentState(); };
         t.Start();
-        Log.Write($"баны врагов раскрыты с концом фазы банов ({theirs}) — показываю {BanRevealHold.TotalSeconds:0.#} с");
+        Log.Write($"баны врагов раскрыты с концом фазы банов ({theirs}) — показываю {hold.TotalSeconds:0.#} с");
         return true;
     }
 
@@ -6536,7 +6544,7 @@ public partial class OverlayWindow : Window
     /// Высоту их половины меряем сами: панель могла появиться этим же рендером,
     /// и раскладки ещё не было — ActualHeight был бы нулём.
     /// </summary>
-    private bool PlaceBanHalves(bool revealed, bool fresh)
+    private bool PlaceBanHalves(bool revealed, bool fresh, double wait = 0)
     {
         BansOurHalf.RenderTransform   = _ourShift;
         BansTheirHalf.RenderTransform = _theirShift;
@@ -6571,15 +6579,41 @@ public partial class OverlayWindow : Window
         Set(BansDoneSep, OpacityProperty, 0);
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         _ourShift.BeginAnimation(TranslateTransform.YProperty,
-            new DoubleAnimation(center, 0, TimeSpan.FromSeconds(0.5)) { EasingFunction = ease });
+            new DoubleAnimation(center, 0, TimeSpan.FromSeconds(0.5))
+            { BeginTime = TimeSpan.FromSeconds(wait), EasingFunction = ease });
         _theirShift.BeginAnimation(TranslateTransform.YProperty,
             new DoubleAnimation(28, 0, TimeSpan.FromSeconds(0.5))
-            { BeginTime = TimeSpan.FromSeconds(0.12), EasingFunction = ease });
+            { BeginTime = TimeSpan.FromSeconds(wait + 0.12), EasingFunction = ease });
         BansTheirHalf.BeginAnimation(OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(0.12) });
+            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(wait + 0.12) });
         BansDoneSep.BeginAnimation(OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(0.2) });
+            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(wait + 0.2) });
         return true;
+    }
+
+    // Наша волна кончается тогда (см. BanWave). Раскрытие их половины ждёт её
+    // конца без последних RevealOverlap секунд — блик ещё бежит, а половины
+    // уже поехали, и переход выглядит одним движением.
+    private DateTime _ourWaveEndsAt;
+    private const double RevealOverlap = 0.2;
+
+    private double OurWaveLeft() =>
+        Math.Max(0, (_ourWaveEndsAt - DateTime.UtcNow).TotalSeconds - RevealOverlap);
+
+    /// <summary>
+    /// Панель банов команд с чистого листа: ничего не показано, волн не было,
+    /// слоты не собраны. Новый драфт, а не продолжение прошлого: без сброса
+    /// баны следующего драфта стояли бы сразу, без появления и волн, если
+    /// прошлый кончился, пока панель была на экране (дродж, «Сброс» в
+    /// песочнице), — «свежесть» панели мерилась по её видимости.
+    /// </summary>
+    private void ResetBanPanel()
+    {
+        _shownBans.Clear();
+        _ourWave = _theirWave = false;
+        _theirBansShown = 0;
+        _ourSlotsSig = _theirSlotsSig = "";
+        _ourWaveEndsAt = default;
     }
     private DateTime _banRevealUntil;
     private int _theirBansShown;   // сколько вражеских банов уже стояло на панели
@@ -6597,18 +6631,18 @@ public partial class OverlayWindow : Window
     /// Трансформы создаём здесь, а не в разметке: каждая волна начинается с
     /// нуля, и прошлая анимация не держит значение.
     /// </summary>
-    private void BanWave(IReadOnlyList<int> bans, ref bool played, Border layer, Border fill,
-                         System.Windows.Shapes.Rectangle flash, System.Windows.Shapes.Rectangle sweep,
-                         FrameworkElement half, double delay)
+    private double BanWave(IReadOnlyList<int> bans, ref bool played, Border layer, Border fill,
+                           System.Windows.Shapes.Rectangle flash, System.Windows.Shapes.Rectangle sweep,
+                           FrameworkElement half, double delay)
     {
         if (bans.Count(id => id > 0) < 5)
         {
             played = false;
             layer.Visibility = Visibility.Collapsed;
-            return;
+            return -1;
         }
         layer.Visibility = Visibility.Visible;
-        if (played) return;
+        if (played) return -1;
         played = true;
 
         var scale = new ScaleTransform(0, 1);
@@ -6646,7 +6680,11 @@ public partial class OverlayWindow : Window
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut },
             });
         }, System.Windows.Threading.DispatcherPriority.Loaded);
+        return delay + BanWaveSeconds;   // последним кончается блик
     }
+
+    // Волна после своей задержки: блик стартует через 0,2 с и бежит 1,2 с.
+    private const double BanWaveSeconds = 1.4;
 
     // Состав, с которым слоты уже собраны: тот же — не пересобираем. Окно
     // перерисовывается на каждом событии драфта (наведения, таймер), и
@@ -6656,10 +6694,16 @@ public partial class OverlayWindow : Window
 
     /// Слоты команды в список, если состав изменился. Возвращает задержку
     /// последнего из новых банов (−1 — новых нет).
+    ///
+    /// В подписи только состав. Задержка в ней была, и это обрывало появление:
+    /// при раскрытии их баны собирались с задержкой 0,3 с, а на следующем же
+    /// событии драфта (в бою их несколько в секунду) задержка становилась 0,
+    /// подпись менялась, и слоты пересобирались уже без анимации — все пять
+    /// вставали разом, не успев появиться по очереди.
     private double SetBanSlots(ItemsControl list, IReadOnlyList<int> bans, string frame,
                                string placeholder, double baseDelay, bool fromRight, ref string sig)
     {
-        var now = string.Join(",", bans) + "|" + baseDelay;
+        var now = string.Join(",", bans);
         if (now == sig && list.ItemsSource is not null) return -1;
         sig = now;
         var slots = BanSlots(bans, frame, placeholder, baseDelay, fromRight);
