@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Дымовая проверка собранной программы: собирает её так же, как выпуск
+       (самодостаточная, win-x64), во временную папку и запускает с ключом
+       ‑‑smoke. Программу не подключает ссылкой: проверяется именно exe. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+  </PropertyGroup>
+
+</Project>

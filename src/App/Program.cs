@@ -22,6 +22,11 @@ class Program
         // Диагностический прогон движка рекомендаций (настройка весов), затем выход.
         if (args.Contains("--drafttest")) { DraftTest.Run().GetAwaiter().GetResult(); return; }
 
+        // Дымовая проверка собранной программы (release.ps1, tests/Smoke): окна
+        // скрыты, данные во временной папке, итог — кодом выхода. До замка
+        // единственного экземпляра: рядом может работать настоящая программа.
+        if (args.Contains("--smoke")) { Environment.Exit(Smoke.Run(args)); return; }
+
         // Диагностика автозапуска (поддержка, отладка): показать состояние и выйти.
         if (args.Contains("--autostart-info"))
         {
@@ -93,17 +98,7 @@ class Program
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        var app     = new System.Windows.Application();
-        // Общий вид для всех окон: подсказки в фирменной плашке, а не системной.
-        // Окна пулов, настроек и подтверждения собраны кодом, своей разметки у
-        // них нет, и стиль до них доходит только отсюда.
-        app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
-        {
-            // Путь с именем сборки, а не просто "/src/...": короткий вид
-            // разрешается относительно точки входа, и вне приложения (в
-            // проверке) словарь по нему не находится.
-            Source = new Uri("/Counterplay;component/src/Ui/Theme.xaml", UriKind.Relative),
-        });
+        var app     = CreateApplication();
         var overlay = new OverlayWindow();
 
         // Автозапуск с Windows: стартуем свёрнутыми в трей. Показывать окно
@@ -180,6 +175,23 @@ class Program
 
         cts.Cancel();
         lcuTask.GetAwaiter().GetResult();
+    }
+
+    /// Приложение WPF с общим видом для всех окон: подсказки в фирменной
+    /// плашке, а не системной. Окна пулов, настроек и подтверждения собраны
+    /// кодом, своей разметки у них нет, и стиль до них доходит только отсюда.
+    /// Дымовая проверка поднимает программу этим же путём.
+    internal static System.Windows.Application CreateApplication()
+    {
+        var app = new System.Windows.Application();
+        app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+        {
+            // Путь с именем сборки, а не просто "/src/...": короткий вид
+            // разрешается относительно точки входа, и вне приложения (в
+            // проверке) словарь по нему не находится.
+            Source = new Uri("/Counterplay;component/src/Ui/Theme.xaml", UriKind.Relative),
+        });
+        return app;
     }
 
     // ── Руны и билд ────────────────────────────────────────────────────────

@@ -134,6 +134,20 @@ if (-not $FeedOnly) {
   }
 
   dotnet publish Counterplay.csproj -c Release -r win-x64 --self-contained true -o $pub @secretArgs
+  if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
+
+  # Дымовая проверка СОБРАННОЙ программы: тот самый exe, что уедет игрокам,
+  # проходит путь игрока скрытым окном (профиль, драфт, окна пулов и настроек).
+  # Так 1.3.48 не ушла бы с падением при показе профиля. GUI-программа не
+  # держит консоль — ждём её через Start-Process.
+  Write-Host "Smoke check of the built app..." -ForegroundColor Cyan
+  $smokeReport = Join-Path ([System.IO.Path]::GetTempPath()) "counterplay-smoke-$Version.txt"
+  $smoke = Start-Process -FilePath (Join-Path $pub "Counterplay.exe") `
+             -ArgumentList @("--smoke", "`"$smokeReport`"") -Wait -PassThru
+  if (Test-Path $smokeReport) { Get-Content -Encoding UTF8 $smokeReport | ForEach-Object { Write-Host "  $_" } }
+  if ($smoke.ExitCode -ne 0) {
+    throw "Дымовая проверка собранной программы не прошла (код $($smoke.ExitCode)). Выпуск остановлен."
+  }
 
   # 3. Build Setup.exe and update package (with logo icon if present)
   $iconArgs = @()
