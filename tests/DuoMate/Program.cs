@@ -141,8 +141,10 @@ internal static class Program
         if (root is null) Check("корень репозитория найден", false, "не найден");
         else
         {
-            var src = File.ReadAllText(Path.Combine(root, "src", "Ui", "OverlayWindow.xaml.cs"),
-                                       Encoding.UTF8);
+            // Окно драфта разложено на части по областям — читаем их все.
+            var parts = Directory.GetFiles(Path.Combine(root, "src", "Ui", "Overlay"), "OverlayWindow*.cs");
+            Check("части окна драфта найдены", parts.Length > 10, $"{parts.Length}");
+            var src = string.Join("\n", parts.Select(p => File.ReadAllText(p, Encoding.UTF8)));
             var body = Code(src);
             Check("оверлей сверяет пик напарника с его половиной",
                   body.Contains("FriendHas(mateTaken)"), "FriendHas(mateTaken)");

@@ -27,14 +27,12 @@ internal static class Program
 {
     private static int _fails;
 
-    /// Разметка окна и код-behind рядом с ней.
-    private static readonly string[] Sources =
-    [
-        @"src\Ui\OverlayWindow.xaml.cs",
-        @"src\Ui\PoolSettings.cs",
-        @"src\Ui\SettingsWindow.cs",
-        @"src\Ui\ConfirmWindow.cs",
-    ];
+    /// Код окон — весь `src\Ui`, со вложенными папками. Список файлов здесь
+    /// раньше был перечислен руками и молча пропускал отсутствующие: после
+    /// разбора окна драфта на части (`src\Ui\Overlay\OverlayWindow.*.cs`)
+    /// проверка смотрела бы мимо него и оставалась зелёной.
+    private static IEnumerable<string> Sources(string root) =>
+        Directory.GetFiles(Path.Combine(root, "src", "Ui"), "*.cs", SearchOption.AllDirectories);
 
     [STAThread]
     private static int Main()
@@ -77,10 +75,12 @@ internal static class Program
         // спрашивает: часть ресурсов объявлена не в окне, а внутри элемента
         // (шаблон варианта рун живёт в ресурсах полосы рун), и у окна их нет.
         var asked = new SortedSet<(string Owner, string Key)>();
-        foreach (var rel in Sources)
+        var files = Sources(root).ToList();
+        Check("код окна драфта среди прочитанного",
+              files.Any(f => f.EndsWith("OverlayWindow.xaml.cs")) && files.Count(f => f.Contains("OverlayWindow.")) > 10,
+              $"файлов {files.Count}, частей окна {files.Count(f => f.Contains("OverlayWindow."))}");
+        foreach (var path in files)
         {
-            var path = Path.Combine(root, rel);
-            if (!File.Exists(path)) continue;
             // Комментарии выбрасываем: упоминание ключа в пояснении — не вызов.
             var text = Regex.Replace(File.ReadAllText(path, Encoding.UTF8), @"//[^\n]*", "");
             foreach (Match m in Regex.Matches(text, @"(?:(\w+)\.)?(?:Try)?FindResource\(""([^""]+)""\)"))
