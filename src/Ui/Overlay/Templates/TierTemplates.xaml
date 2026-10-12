@@ -1,0 +1,97 @@
+﻿<ResourceDictionary x:Class="Counterplay.TierTemplates"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:loc="clr-namespace:Counterplay">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Иконка в полосе чемпионов роли и ячейка тир-листа. -->
+  <DataTemplate x:Key="RolePoolCellTemplate">
+    <!-- Подложка бирюзой у чемпионов моей половины пула -->
+    <Grid x:Name="PoolCellRoot" Width="34" Height="34" Margin="0,0,4,4"
+          ToolTip="{Binding Tip}" Cursor="Hand"
+          Opacity="{Binding CellOpacity}"
+          MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}"
+          MouseEnter="PoolCell_Enter" MouseLeave="PoolCell_Leave">
+      <!-- Пометка пула: КРУГ по форме иконки. Заливка квадрата
+           под круглым портретом читалась как случайная плашка. -->
+      <Ellipse Margin="-2">
+        <Ellipse.Fill><SolidColorBrush Color="{Binding PoolTint}"/></Ellipse.Fill>
+      </Ellipse>
+      <Ellipse x:Name="PoolIcon" StrokeThickness="1.5">
+        <Ellipse.Fill>
+          <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+        </Ellipse.Fill>
+        <Ellipse.Stroke><SolidColorBrush Color="{Binding FrameColor}"/></Ellipse.Stroke>
+      </Ellipse>
+      <!-- Грейд тир-листа — маленьким бейджем в углу -->
+      <Border CornerRadius="3" Padding="1,0" Height="11" MinWidth="11"
+              HorizontalAlignment="Right" VerticalAlignment="Bottom">
+        <Border.Background><SolidColorBrush Color="{Binding GradeColor}"/></Border.Background>
+        <TextBlock Text="{Binding Grade}" Foreground="#10141A"
+                   FontFamily="{StaticResource DisplayFont}" FontSize="8" FontWeight="Bold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <!-- Уже забанен или взят -->
+      <Grid Visibility="{Binding BannedVisibility}">
+        <Ellipse Fill="#B0101820"/>
+        <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="19" FontWeight="Bold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+    </Grid>
+    <DataTemplate.Triggers>
+      <Trigger SourceName="PoolCellRoot" Property="IsMouseOver" Value="True">
+        <Setter TargetName="PoolIcon" Property="StrokeThickness" Value="2.5"/>
+        <Setter TargetName="PoolIcon" Property="Stroke" Value="#FF4A4A"/>
+      </Trigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
+  <!-- Круглая иконка чемпиона + рамка (цвет грейда или нейтральный
+       у WR-столбца) + WR%. Бейдж грейда скрывается, когда грейда
+       нет (ShowGrade=false). Общий шаблон для обоих столбцов. -->
+  <DataTemplate x:Key="TierEmblem">
+    <!-- Клик: в банфазе наводит бан, в фазе пиков — пик. Background
+         прозрачный, но задан — иначе клики по пустоте не ловятся. -->
+    <StackPanel x:Name="TierCellRoot" Margin="0,0,0,4" HorizontalAlignment="Center"
+                ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
+                MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
+      <Grid Width="36" Height="36" HorizontalAlignment="Center">
+        <!-- Иконка чемпиона. При наведении её обводка краснеет и
+             толстеет (см. триггер) — видно, что можно пикнуть/забанить. -->
+        <Ellipse x:Name="TierIcon" StrokeThickness="1.5">
+          <Ellipse.Fill>
+            <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+          </Ellipse.Fill>
+          <Ellipse.Stroke><SolidColorBrush Color="{Binding FrameColor}"/></Ellipse.Stroke>
+        </Ellipse>
+        <Border CornerRadius="3" Padding="2,0" Height="13" MinWidth="13"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,-1,0" Visibility="{Binding GradeVisibility}">
+          <Border.Background><SolidColorBrush Color="{Binding GradeColor}"/></Border.Background>
+          <TextBlock Text="{Binding Grade}" Foreground="#10141A"
+                     FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <!-- Уже забанен: затемнение + красный крест -->
+        <Grid Visibility="{Binding BannedVisibility}">
+          <Ellipse Fill="#B0101820"/>
+          <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="22" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+      </Grid>
+      <TextBlock Text="{Binding WrText}" HorizontalAlignment="Center" Margin="0,2,0,0"
+                 FontFamily="{StaticResource DisplayFont}" FontSize="9" FontWeight="Bold"
+                 Foreground="{Binding WrBrush}"/>
+    </StackPanel>
+    <!-- Наведение: обводка иконки краснеет и толстеет. Простой
+         переключатель свойств (без анимации) — нагрузки почти ноль. -->
+    <DataTemplate.Triggers>
+      <Trigger SourceName="TierCellRoot" Property="IsMouseOver" Value="True">
+        <Setter TargetName="TierIcon" Property="StrokeThickness" Value="2.5"/>
+        <Setter TargetName="TierIcon" Property="Stroke" Value="#FF4A4A"/>
+      </Trigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+</ResourceDictionary>

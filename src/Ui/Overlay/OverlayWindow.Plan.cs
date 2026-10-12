@@ -170,7 +170,7 @@ public partial class OverlayWindow
     /// в championPickIntent). Исход пишется в журнал: в настоящем драфте путь
     /// проверен не был, первая игра покажет, принимает ли клиент показ.
     /// </summary>
-    private async void PlanCard_Click(object sender, MouseButtonEventArgs e)
+    internal async void PlanCard_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
         if (HoverHandler is null) return;

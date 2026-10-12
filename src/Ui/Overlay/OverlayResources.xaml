@@ -1,0 +1,339 @@
+﻿<!-- Ресурсы окна драфта: кисти, шрифты, стили, мелкие шаблоны. Окно и словари
+     шаблонов (Templates/) подключают его к себе. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:loc="clr-namespace:Counterplay">
+
+  <!-- Штриховка «ещё не набранных» очков на полосе LP: косые полоски в цвет
+       самой полосы, но вполовину прозрачные. Готовой кисти для штриховки в
+       WPF нет — рисуем плитку 6×6 из двух диагоналей и размножаем. -->
+  <DrawingBrush x:Key="LpGhostHatch" TileMode="Tile" Opacity="0.5"
+                Viewport="0,0,6,6" ViewportUnits="Absolute"
+                Viewbox="0,0,6,6" ViewboxUnits="Absolute">
+    <DrawingBrush.Drawing>
+      <GeometryDrawing>
+        <GeometryDrawing.Pen>
+          <Pen Brush="#36D6E7" Thickness="2"/>
+        </GeometryDrawing.Pen>
+        <GeometryDrawing.Geometry>
+          <GeometryGroup>
+            <LineGeometry StartPoint="-1,7" EndPoint="7,-1"/>
+            <LineGeometry StartPoint="-1,13" EndPoint="13,-1"/>
+          </GeometryGroup>
+        </GeometryDrawing.Geometry>
+      </GeometryDrawing>
+    </DrawingBrush.Drawing>
+  </DrawingBrush>
+
+  <!-- Очки, которые можно потерять: не штриховка, а цвет. Они УЖЕ набраны,
+       поэтому полоса остаётся сплошной — меняется только её оттенок, и сразу
+       видно, какая часть уйдёт с поражением. -->
+  <SolidColorBrush x:Key="LpRiskFill" Color="#E8503F"/>
+
+  <!-- Основной текст — Geist (встроен в сборку), как на сайте. Запасной Segoe UI. -->
+  <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+  <!-- Заголовки/имена — тоже Geist, чтобы весь интерфейс был единым шрифтом. -->
+  <FontFamily x:Key="DisplayFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+  <!-- Цифры позиции — тоже Geist (единый шрифт). -->
+  <FontFamily x:Key="NumberFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+
+  <!-- Выпадающий список ролей врага — в цветах кнопки-чипа (тёмный фон,
+       рамка #557089, золотая подсветка выбранного/наведённого пункта). -->
+  <Style x:Key="RoleMenuStyle" TargetType="ContextMenu">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContextMenu">
+          <Border Background="#101823" BorderBrush="#557089" BorderThickness="1"
+                  CornerRadius="6" Padding="4" Margin="0,2,6,6">
+            <Border.Effect>
+              <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="2" Opacity="0.6"/>
+            </Border.Effect>
+            <StackPanel IsItemsHost="True"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="RoleMenuItemStyle" TargetType="MenuItem">
+    <Setter Property="Foreground" Value="#C9D2DC"/>
+    <Setter Property="FontFamily" Value="{StaticResource DisplayFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="bd" CornerRadius="4" Padding="12,5" Background="Transparent">
+            <ContentPresenter ContentSource="Header" RecognizesAccessKey="False"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <!-- Наведение: лёгкий фон + золото, как ховер чипа -->
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#26FFFFFF"/>
+              <Setter Property="Foreground" Value="#F5D77A"/>
+            </Trigger>
+            <!-- Текущий выбор — золотом -->
+            <Trigger Property="IsChecked" Value="True">
+              <Setter Property="Foreground" Value="#F5D77A"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Сине-красный «волновой» градиент (как на сайте): cyan → синий → красный.
+       Используется для рамки окна и фоновых «дымок». -->
+  <LinearGradientBrush x:Key="WaveBrush" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="#36D6E7" Offset="0"/>
+    <GradientStop Color="#3B82C4" Offset="0.5"/>
+    <!-- красный приглушён прозрачностью, чтобы не «кричал» -->
+    <GradientStop Color="#88F0685E" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- Шестигранная эмблема тир-листа: иконка чемпиона в форме гекса, рамка
+       красится по грейду. Геометрия на прямоугольник 40×44 (клип и обводка). -->
+  <PathGeometry x:Key="HexEmblem"
+                Figures="M20,1 L39,11.5 L39,32.5 L20,43 L1,32.5 L1,11.5 Z"/>
+
+  <!-- Тонкий скролл в стиле интерфейса: едва заметная дорожка, скруглённый
+       ползунок сине-серого цвета с подсветкой при наведении, без стрелок.
+       Шаблон не зависит от ориентации (Track сам разворачивается), поэтому
+       годится и для вертикального (тир-лист), и для горизонтальных (роли). -->
+  <Style TargetType="RepeatButton" x:Key="CpScrollNoArrow">
+    <Setter Property="Opacity" Value="0"/>
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="IsTabStop" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="Thumb" x:Key="CpScrollThumb">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Thumb">
+          <Border x:Name="Th" CornerRadius="3" Margin="2" Background="#3E5064"/>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Th" Property="Background" Value="#5E7488"/>
+            </Trigger>
+            <Trigger Property="IsDragging" Value="True">
+              <Setter TargetName="Th" Property="Background" Value="#C89B3C"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Width" Value="9"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Grid Background="Transparent">
+            <Border CornerRadius="2" Margin="3" Background="#12FFFFFF"/>
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+              <Track.Thumb>
+                <Thumb Style="{StaticResource CpScrollThumb}"/>
+              </Track.Thumb>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Style="{StaticResource CpScrollNoArrow}" Command="ScrollBar.PageDownCommand"/>
+              </Track.IncreaseRepeatButton>
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Style="{StaticResource CpScrollNoArrow}" Command="ScrollBar.PageUpCommand"/>
+              </Track.DecreaseRepeatButton>
+            </Track>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <!-- Горизонтальный скролл: направление не инвертируем. -->
+            <Trigger Property="Orientation" Value="Horizontal">
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property="Orientation" Value="Horizontal">
+        <Setter Property="Width" Value="Auto"/>
+        <Setter Property="Height" Value="9"/>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
+       Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
+       а не смыканием дуг. Левая половина синяя, правая красная. -->
+  <!-- Фирменный вид подсказок переехал в src/Ui/Theme.xaml и стал стилем БЕЗ
+       ключа: теперь его подхватывает каждая подсказка сама, в любом окне. -->
+
+  <DrawingImage x:Key="BrandMark">
+    <DrawingImage.Drawing>
+      <DrawingGroup>
+        <!-- Плитка -->
+        <GeometryDrawing Brush="#0B1322">
+          <GeometryDrawing.Geometry>
+            <RectangleGeometry Rect="8,8,240,240" RadiusX="54" RadiusY="54"/>
+          </GeometryDrawing.Geometry>
+          <GeometryDrawing.Pen><Pen Thickness="2" Brush="#1E2A3A"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <!-- Синяя половина (обрезка слева, разрыв 120..136) -->
+        <DrawingGroup>
+          <DrawingGroup.ClipGeometry><RectangleGeometry Rect="0,0,120,256"/></DrawingGroup.ClipGeometry>
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="7">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#6FE6F2" Offset="0"/>
+                    <GradientStop Color="#36D6E7" Offset="0.5"/>
+                    <GradientStop Color="#2B6FD0" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="90" RadiusY="90"/></GeometryDrawing.Geometry>
+          </GeometryDrawing>
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="21">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#6FE6F2" Offset="0"/>
+                    <GradientStop Color="#36D6E7" Offset="0.5"/>
+                    <GradientStop Color="#2B6FD0" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="64" RadiusY="64"/></GeometryDrawing.Geometry>
+          </GeometryDrawing>
+        </DrawingGroup>
+        <!-- Красная половина (обрезка справа) -->
+        <DrawingGroup>
+          <DrawingGroup.ClipGeometry><RectangleGeometry Rect="136,0,120,256"/></DrawingGroup.ClipGeometry>
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="7">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                    <GradientStop Color="#FF8A66" Offset="0"/>
+                    <GradientStop Color="#FF5A4D" Offset="0.5"/>
+                    <GradientStop Color="#B8232B" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="90" RadiusY="90"/></GeometryDrawing.Geometry>
+          </GeometryDrawing>
+          <GeometryDrawing>
+            <GeometryDrawing.Pen>
+              <Pen Thickness="21">
+                <Pen.Brush>
+                  <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                    <GradientStop Color="#FF8A66" Offset="0"/>
+                    <GradientStop Color="#FF5A4D" Offset="0.5"/>
+                    <GradientStop Color="#B8232B" Offset="1"/>
+                  </LinearGradientBrush>
+                </Pen.Brush>
+              </Pen>
+            </GeometryDrawing.Pen>
+            <GeometryDrawing.Geometry><EllipseGeometry Center="128,128" RadiusX="64" RadiusY="64"/></GeometryDrawing.Geometry>
+          </GeometryDrawing>
+        </DrawingGroup>
+      </DrawingGroup>
+    </DrawingImage.Drawing>
+  </DrawingImage>
+
+  <!-- Карточка командной связки (комбо) — общая для союзников и врагов -->
+  <DataTemplate x:Key="ComboTemplate">
+    <Border Background="#22FFFFFF" CornerRadius="4" Margin="0,5,0,0"
+            Opacity="{Binding CardOpacity}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="4"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <!-- Цветная метка связки = цвет её коннектор-линии -->
+        <Border Grid.Column="0" Background="{Binding LineColor}" CornerRadius="4,0,0,4"/>
+        <StackPanel Grid.Column="1" Margin="8,7,8,7">
+        <TextBlock Text="{Binding Title}" Foreground="{Binding AccentColor}"
+                   FontFamily="{StaticResource DisplayFont}" FontSize="12" FontWeight="Bold"
+                   TextWrapping="Wrap"/>
+        <ItemsControl ItemsSource="{Binding Icons}" Margin="0,6,0,0">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Width="30" Height="30" CornerRadius="15"
+                      ClipToBounds="True" Margin="0,0,5,0">
+                <Image Source="{Binding}" Stretch="UniformToFill"/>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding Description}" Foreground="#9AB2C6"
+                   FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                   TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="15"/>
+        <TextBlock Text="{Binding TipLabel}" Foreground="{Binding AccentColor}"
+                   FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                   Margin="0,6,0,1"/>
+        <TextBlock Text="{Binding Tip}" Foreground="#6A8AA0"
+                   FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                   TextWrapping="Wrap" LineHeight="15"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </DataTemplate>
+
+  <!-- Выпадающий список выбора пула / связки — в тёмном стиле программы -->
+  <Style x:Key="PoolMenuItemStyle" TargetType="MenuItem">
+    <Setter Property="Foreground" Value="#D7DEE6"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Padding" Value="12,7"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="mib" Background="Transparent" CornerRadius="4"
+                  Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+            <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="mib" Property="Background" Value="#22364F"/>
+              <Setter Property="Foreground" Value="#FFFFFF"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="PoolMenuStyle" TargetType="ContextMenu">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HasDropShadow" Value="False"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContextMenu">
+          <Border Background="#121A24" BorderBrush="#35485A" BorderThickness="1"
+                  CornerRadius="6" Padding="4" Margin="4" SnapsToDevicePixels="True">
+            <Border.Effect>
+              <DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.55"/>
+            </Border.Effect>
+            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

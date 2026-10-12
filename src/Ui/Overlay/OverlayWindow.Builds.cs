@@ -354,7 +354,7 @@ public partial class OverlayWindow
     }
 
     /// Клик по строке сборки — выбор (подсветка золотом), без экспорта.
-    private void BuildRow_Click(object sender, MouseButtonEventArgs e)
+    internal void BuildRow_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
         if (_runeStats is null) return;
@@ -408,7 +408,7 @@ public partial class OverlayWindow
         }
     }
 
-    private async void ExportBuild_Click(object sender, MouseButtonEventArgs e)
+    internal async void ExportBuild_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
         if (ExportBuildHandler is null || _runeStats is null) return;

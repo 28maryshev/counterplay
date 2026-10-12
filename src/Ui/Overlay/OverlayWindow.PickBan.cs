@@ -34,7 +34,7 @@ public partial class OverlayWindow
 
     private DateTime _pickMsgUntil; // до этого времени не затирать текст ошибки
 
-    private async void RecCard_Click(object sender, MouseButtonEventArgs e)
+    internal async void RecCard_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
         if (HoverHandler is null) return;   // не боевой режим/нет actionId
@@ -141,7 +141,7 @@ public partial class OverlayWindow
 
     private DateTime _banMsgUntil;
 
-    private async void BanCard_Click(object sender, MouseButtonEventArgs e)
+    internal async void BanCard_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
         if (BanHoverHandler is null) return;
@@ -218,7 +218,7 @@ public partial class OverlayWindow
     // Клик по чемпиону в тир-листе: в банфазе — наводим бан, иначе — пик.
     // В фазе объявления банить ещё нельзя — клик показывает пик союзникам.
     // Переиспользуем те же обработчики, что и карточки рекомендаций.
-    private void TierCell_Click(object sender, MouseButtonEventArgs e)
+    internal void TierCell_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int champId || champId <= 0) return;
         e.Handled = true;

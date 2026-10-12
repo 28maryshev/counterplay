@@ -204,7 +204,7 @@ public partial class OverlayWindow
     private static string FormatGames(int g) =>
         g >= 1000 ? $"{g / 1000.0:0.#}k" : g.ToString();
 
-    private void RuneOption_Click(object sender, MouseButtonEventArgs e)
+    internal void RuneOption_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
         if (idx < 0 || idx >= _runeChoices.Count) return;

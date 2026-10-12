@@ -1,0 +1,241 @@
+﻿<ResourceDictionary x:Class="Counterplay.TeamSlotTemplates"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:loc="clr-namespace:Counterplay">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Слот состава — один шаблон для союзников и врагов. До 13 октября 2026
+       это были две одинаковые копии по 230 строк прямо в разметке окна. -->
+  <DataTemplate x:Key="TeamSlotTemplate">
+    <Border BorderBrush="#22FFFFFF" BorderThickness="0,0,0,1"
+            Padding="0,3,0,9" Margin="0,1">
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="76"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <!-- Подсветка «сейчас пикает». Появление: короткая ВСПЫШКА,
+           затем ВОЛНА вбок — заливка-градиент растёт от края к
+           центру (затухание неполное), следом бежит блик. У
+           союзников волна идёт с левого края, у врагов — с
+           правого: блок зеркалится через PickMirror (ScaleX -1).
+           Анимация — по Loaded (контейнеры пересоздаются на
+           каждом рендере, появление проигрывается надёжно).
+           ScaleX/X — через Binding: статичный трансформ в шаблоне
+           WPF замораживает, и анимация бы падала. -->
+      <Border Grid.ColumnSpan="2" Margin="-4,-3,-4,-8" CornerRadius="6"
+              IsHitTestVisible="False" ClipToBounds="True"
+              Visibility="{Binding PickVisibility}">
+        <Border.Triggers>
+          <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+              <Storyboard>
+                <!-- 1. Вспышка цветом команды: быстро вспыхнула и угасла -->
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="PickFlash"
+                                               Storyboard.TargetProperty="Opacity">
+                  <LinearDoubleKeyFrame  KeyTime="0:0:0"    Value="0"/>
+                  <EasingDoubleKeyFrame  KeyTime="0:0:0.12" Value="0.55"/>
+                  <EasingDoubleKeyFrame  KeyTime="0:0:0.5"  Value="0">
+                    <EasingDoubleKeyFrame.EasingFunction>
+                      <QuadraticEase EasingMode="EaseOut"/>
+                    </EasingDoubleKeyFrame.EasingFunction>
+                  </EasingDoubleKeyFrame>
+                </DoubleAnimationUsingKeyFrames>
+                <!-- 2. Волна: заливка растёт от края -->
+                <DoubleAnimation Storyboard.TargetName="PickFill"
+                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                 To="1" BeginTime="0:0:0.15" Duration="0:0:0.6">
+                  <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                  </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+                <!-- 3. Блик — «гребень волны» -->
+                <DoubleAnimation Storyboard.TargetName="PickSweep"
+                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                 To="360" BeginTime="0:0:0.2" Duration="0:0:0.9">
+                  <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseInOut"/>
+                  </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+              </Storyboard>
+            </BeginStoryboard>
+          </EventTrigger>
+        </Border.Triggers>
+        <!-- У врагов весь блок зеркалится: волна и градиент справа -->
+        <Grid RenderTransformOrigin="0.5,0.5">
+          <Grid.RenderTransform>
+            <ScaleTransform ScaleX="{Binding PickMirror}"/>
+          </Grid.RenderTransform>
+          <!-- Волна-градиент: ярко у края, к центру гаснет не до нуля -->
+          <Border x:Name="PickFill" CornerRadius="6"
+                  RenderTransformOrigin="0,0.5">
+            <Border.Background>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="{Binding PickGradStrong}" Offset="0"/>
+                <GradientStop Color="{Binding PickGradWeak}"   Offset="0.55"/>
+                <GradientStop Color="{Binding PickGradWeak}"   Offset="1"/>
+              </LinearGradientBrush>
+            </Border.Background>
+            <Border.RenderTransform>
+              <ScaleTransform ScaleX="{Binding PickScaleX}"/>
+            </Border.RenderTransform>
+          </Border>
+          <!-- Вспышка (перекрывает строку, гаснет после старта) -->
+          <Rectangle x:Name="PickFlash" Opacity="0" RadiusX="6" RadiusY="6">
+            <Rectangle.Fill>
+              <SolidColorBrush Color="{Binding PickAccentColor}"/>
+            </Rectangle.Fill>
+          </Rectangle>
+          <!-- Световой блик, пробегающий по строке -->
+          <Rectangle x:Name="PickSweep" Width="90" HorizontalAlignment="Left"
+                     Opacity="0.5">
+            <Rectangle.RenderTransform>
+              <TranslateTransform X="{Binding SweepStartX}"/>
+            </Rectangle.RenderTransform>
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#00FFFFFF" Offset="0"/>
+                <GradientStop Color="#48FFFFFF" Offset="0.5"/>
+                <GradientStop Color="#00FFFFFF" Offset="1"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+          </Rectangle>
+          <!-- Акцентная полоска у края-источника волны -->
+          <Border Width="3" HorizontalAlignment="Left" CornerRadius="2"
+                  Margin="1,3,0,3">
+            <Border.Background>
+              <SolidColorBrush Color="{Binding PickAccentColor}"/>
+            </Border.Background>
+          </Border>
+        </Grid>
+      </Border>
+      <Grid Width="72" Height="72" VerticalAlignment="Top"
+            HorizontalAlignment="Left" Margin="0,2,0,2">
+        <Ellipse Opacity="{Binding Opacity}"
+                 StrokeThickness="{Binding BorderThickness}">
+          <Ellipse.Fill>
+            <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+          </Ellipse.Fill>
+          <Ellipse.Stroke>
+            <SolidColorBrush Color="{Binding BorderColor}"/>
+          </Ellipse.Stroke>
+          <Ellipse.Style>
+            <Style TargetType="Ellipse">
+              <Style.Triggers>
+                <!-- Золотое свечение моего слота -->
+                <DataTrigger Binding="{Binding IsMe}" Value="True">
+                  <Setter Property="Effect">
+                    <Setter.Value>
+                      <DropShadowEffect Color="#F5D77A" BlurRadius="18"
+                                        ShadowDepth="0" Opacity="0.95"/>
+                    </Setter.Value>
+                  </Setter>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Ellipse.Style>
+        </Ellipse>
+        <!-- Иконка роли в пустом моём слоте -->
+        <Image Source="{Binding RoleIcon}" Width="34" Height="34"
+               Stretch="Uniform" Opacity="0.9"
+               HorizontalAlignment="Center" VerticalAlignment="Center"
+               Visibility="{Binding RoleIconVisibility}"/>
+        <!-- Значок архетипа (камень/ножницы/бумага) в левом верхнем углу -->
+        <Border Width="27" Height="27" CornerRadius="13"
+                Opacity="{Binding ArchOpacity}"
+                BorderBrush="{Binding ArchRing}"
+                BorderThickness="{Binding ArchRingWidth}"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                Margin="0,0,0,0" Visibility="{Binding ArchVisibility}"
+                ToolTip="{Binding ArchTip}">
+          <Border.Style>
+            <Style TargetType="Border">
+              <Style.Triggers>
+                <!-- Задаёт стиль команды — золотое размытое свечение -->
+                <DataTrigger Binding="{Binding ArchStrong}" Value="True">
+                  <Setter Property="Effect">
+                    <Setter.Value>
+                      <DropShadowEffect Color="#F5D77A" BlurRadius="14"
+                                        ShadowDepth="0" Opacity="0.95"/>
+                    </Setter.Value>
+                  </Setter>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
+          <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
+                     FontSize="14" Foreground="#10141A"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </Grid>
+      <StackPanel Grid.Column="1" Margin="34,4,0,3">
+        <!-- Роль (+ бейдж «1st pick»): у врага роль — кнопка-чип -->
+        <StackPanel Orientation="Horizontal">
+        <Border HorizontalAlignment="Left" VerticalAlignment="Center"
+                Tag="{Binding RoleCellId}" ToolTip="{Binding RoleTip}"
+                MouseLeftButtonDown="EnemyRole_Click">
+          <Border.Style>
+            <Style TargetType="Border">
+              <Setter Property="CornerRadius" Value="4"/>
+              <Setter Property="BorderBrush" Value="#557089"/>
+              <Setter Property="BorderThickness" Value="1"/>
+              <Setter Property="Background" Value="#1AFFFFFF"/>
+              <Setter Property="Padding" Value="7,1,7,2"/>
+              <Setter Property="Cursor" Value="Hand"/>
+              <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter Property="Background" Value="#33FFFFFF"/>
+                  <Setter Property="BorderBrush" Value="#F5D77A"/>
+                </Trigger>
+                <!-- Союзник (RoleCellId=-1): обычный текст без рамки/клика -->
+                <DataTrigger Binding="{Binding RoleCellId}" Value="-1">
+                  <Setter Property="BorderThickness" Value="0"/>
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="Cursor" Value="Arrow"/>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <TextBlock Text="{Binding Role}" Foreground="{Binding RoleColor}"
+                     FontFamily="{StaticResource DisplayFont}"
+                     FontSize="12" FontWeight="Bold"/>
+        </Border>
+        <!-- Бейдж «1st pick»: кто пикает первым в очереди драфта -->
+        <Border Visibility="{Binding FirstPickVisibility}" Margin="6,0,0,0"
+                CornerRadius="4" Background="#2236D6E7"
+                BorderBrush="#5536D6E7" BorderThickness="1"
+                Padding="6,0,6,1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding FirstPickLabel}" Foreground="#7FE3F0"
+                     FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"/>
+        </Border>
+        </StackPanel>
+        <TextBlock Text="{Binding Name}" Foreground="{Binding NameColor}"
+                   FontFamily="{StaticResource DisplayFont}"
+                   FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+        <StackPanel Visibility="{Binding SideVisibility}" Margin="0,5,0,0">
+          <TextBlock Text="{Binding SideLabel}" Foreground="#4A6880"
+                     FontFamily="{StaticResource UiFont}"
+                     FontSize="9" FontWeight="Bold" Margin="0,0,0,2"/>
+          <ItemsControl ItemsSource="{Binding SideIcons}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Width="24" Height="24" CornerRadius="12"
+                        ClipToBounds="True" Margin="0,0,4,0">
+                  <Image Source="{Binding}" Stretch="UniformToFill"/>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+    </Border>
+  </DataTemplate>
+</ResourceDictionary>

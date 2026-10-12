@@ -33,14 +33,14 @@ public partial class OverlayWindow
     // Наведение на иконку в пуле роли: те же подсветки, что и у карточки
     // (связки, синергия с союзниками, матчапы против врагов), плюс строка
     // показателей — у чемпиона из пула карточки со шкалами нет.
-    private void PoolCell_Enter(object sender, System.Windows.Input.MouseEventArgs e)
+    internal void PoolCell_Enter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int id || id <= 0) return;
         DrawSynergyLinks(id);
         ShowPoolMetrics(id);
     }
 
-    private void PoolCell_Leave(object sender, System.Windows.Input.MouseEventArgs e)
+    internal void PoolCell_Leave(object sender, System.Windows.Input.MouseEventArgs e)
     {
         ClearHoverArt();
         RolePoolHint.Inlines.Clear();
@@ -81,12 +81,12 @@ public partial class OverlayWindow
     private static SolidColorBrush Brush(string hex) => new(
         (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
 
-    private void RecCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
+    internal void RecCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id);
     }
 
-    private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
+    internal void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
 
     // Чья подсветка сейчас нарисована (0 — ничья).
     private int _hoverArtId;

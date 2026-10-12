@@ -1,0 +1,287 @@
+﻿<ResourceDictionary x:Class="Counterplay.PickCardTemplates"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:loc="clr-namespace:Counterplay">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Карточка кандидата в списке пиков (FullRecList). -->
+  <DataTemplate x:Key="PickCardTemplate">
+    <!-- Клик по карточке наводит чемпиона в клиенте (hover).
+         При наведении курсора — тонкая золотая рамка: подсказка,
+         что чемпиона можно выбрать прямо здесь. BorderBrush задан
+         в стиле (не инлайном), иначе локальное значение перебило
+         бы триггер наведения. -->
+    <Border Margin="0,3" CornerRadius="4" Padding="10,9" Cursor="Hand"
+            Background="{Binding CardBg}" BorderThickness="1.5"
+            MouseLeftButtonDown="RecCard_Click" Tag="{Binding ChampionId}"
+            MouseEnter="RecCard_Enter" MouseLeave="RecCard_Leave">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="BorderBrush" Value="{Binding CardBorder}"/>
+          <Style.Triggers>
+            <MultiDataTrigger>
+              <MultiDataTrigger.Conditions>
+                <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                <Condition Binding="{Binding IsSelected}" Value="False"/>
+              </MultiDataTrigger.Conditions>
+              <Setter Property="BorderBrush" Value="#A0C89B3C"/>
+            </MultiDataTrigger>
+            <!-- Чемпиона нет на аккаунте — красная рамка (после наведения → перебивает) -->
+            <DataTrigger Binding="{Binding NotOwned}" Value="True">
+              <Setter Property="BorderBrush" Value="#F0402F"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>  <!-- Ранг + очки      -->
+              <ColumnDefinition Width="Auto"/>  <!-- Иконка           -->
+              <ColumnDefinition Width="Auto"/>  <!-- Имя/WR/описание  -->
+              <ColumnDefinition Width="*"/>     <!-- Распорка         -->
+              <ColumnDefinition Width="Auto"/>  <!-- Показатели       -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Ранг (крупно, отдельный шрифт) + очки под ним -->
+            <StackPanel Grid.Column="0" VerticalAlignment="Center"
+                        HorizontalAlignment="Center" Margin="0,0,14,0" MinWidth="46">
+              <TextBlock Text="{Binding Rank}" Foreground="#C89B3C"
+                         FontFamily="{StaticResource NumberFont}"
+                         FontSize="36" FontWeight="Bold" HorizontalAlignment="Center"/>
+              <TextBlock Text="{Binding Score}" Foreground="{Binding ScoreColor}"
+                         FontFamily="{StaticResource NumberFont}"
+                         FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Иконка + значок архетипа; под иконкой — полоски связок -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+              <Grid>
+                <Ellipse Width="64" Height="64">
+                  <Ellipse.Fill>
+                    <ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/>
+                  </Ellipse.Fill>
+                  <Ellipse.Stroke><SolidColorBrush Color="#C89B3C"/></Ellipse.Stroke>
+                  <Ellipse.StrokeThickness>2</Ellipse.StrokeThickness>
+                </Ellipse>
+                <Border Width="27" Height="27" CornerRadius="13"
+                Opacity="{Binding ArchOpacity}"
+                BorderBrush="{Binding ArchRing}"
+                BorderThickness="{Binding ArchRingWidth}"
+                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                        Visibility="{Binding ArchVisibility}" ToolTip="{Binding ArchTip}">
+                  <Border.Style>
+            <Style TargetType="Border">
+              <Style.Triggers>
+                <!-- Задаёт стиль команды — золотое размытое свечение -->
+                <DataTrigger Binding="{Binding ArchStrong}" Value="True">
+                  <Setter Property="Effect">
+                    <Setter.Value>
+                      <DropShadowEffect Color="#F5D77A" BlurRadius="14"
+                                        ShadowDepth="0" Opacity="0.95"/>
+                    </Setter.Value>
+                  </Setter>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <Border.Background><SolidColorBrush Color="{Binding ArchColor}"/></Border.Background>
+                  <TextBlock Text="{Binding ArchGlyph}" FontFamily="Segoe UI Emoji"
+                             FontSize="14" Foreground="#10141A"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <!-- Дуо-пул: иконка чемпиона друга (кого назвать пикнуть) -->
+                <Border Width="36" Height="36" CornerRadius="18"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Background="#101823" BorderBrush="#6AB0FF" BorderThickness="1.5"
+                        Visibility="{Binding DuoVisibility}" ToolTip="{Binding DuoName}">
+                  <Ellipse Width="30" Height="30">
+                    <Ellipse.Fill><ImageBrush ImageSource="{Binding DuoIcon}" Stretch="UniformToFill"/></Ellipse.Fill>
+                  </Ellipse>
+                </Border>
+              </Grid>
+              <!-- Полоски связок кандидата с союзниками — во всю ширину иконки -->
+              <ItemsControl ItemsSource="{Binding SynDashes}" Margin="0,4,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Width="64" Height="4" CornerRadius="2" Margin="0,1,0,0">
+                      <Border.Background><SolidColorBrush Color="{Binding}"/></Border.Background>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <!-- Имя + WR + описание: фиксированная ширина, отдельный столбец -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Center"
+                        Width="230" Margin="0,0,14,0">
+              <TextBlock Text="{Binding PoolLabel}" Foreground="#6AB0FF"
+                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                         FontWeight="Bold" Visibility="{Binding PoolLabelVisibility}"
+                         Margin="0,0,0,2"/>
+              <TextBlock Text="{Binding MineLabel}" Foreground="#36D6E7"
+                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                         FontWeight="Bold" Visibility="{Binding MineVisibility}"
+                         Margin="0,0,0,2"/>
+              <TextBlock Text="{Binding Name}" Foreground="White"
+                         FontFamily="{StaticResource DisplayFont}"
+                         FontSize="21" FontWeight="Bold"
+                         TextTrimming="CharacterEllipsis"/>
+              <!-- Нет чемпиона на аккаунте -->
+              <Border Background="#22F0402F" BorderBrush="#F0402F" BorderThickness="1"
+                      CornerRadius="3" Padding="5,1" HorizontalAlignment="Left"
+                      Margin="0,2,0,1" Visibility="{Binding NotOwnedVisibility}">
+                <TextBlock Text="{Binding NotOwnedLabel}" Foreground="#FF6A5A"
+                           FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"/>
+              </Border>
+              <TextBlock Text="{Binding WinRate}" Foreground="#4A6880"
+                         FontFamily="{StaticResource UiFont}" FontSize="12"/>
+              <TextBlock Foreground="#8AA6BC"
+                         loc:ReasonInlines.Segments="{Binding ReasonSegs}"
+                         FontFamily="{StaticResource UiFont}" FontSize="12"
+                         TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/>
+
+              <!-- Итемы, которыми враг контрит состав -->
+              <StackPanel Margin="0,8,0,0" Visibility="{Binding CounterItemsVisibility}">
+                <TextBlock Text="{loc:T draft.counterItems}" Foreground="#7C97AC"
+                           FontFamily="{StaticResource UiFont}" FontSize="10"/>
+                <ItemsControl ItemsSource="{Binding CounterItems}" Margin="0,3,0,0">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border CornerRadius="3" Margin="0,0,4,0"
+                              BorderBrush="#4A3A22" BorderThickness="1"
+                              ToolTip="{Binding Name}">
+                        <Image Source="{Binding Icon}" Width="22" Height="22"/>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </StackPanel>
+
+            <!-- Показатели: справа, по центру бокса -->
+            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center"
+                        Visibility="{Binding MetricsVisibility}">
+              <StackPanel.Resources>
+                <!-- Золотой прямоугольник у сильнейшей метрики (лейбл + число + бар) -->
+                <Style x:Key="MetricBox" TargetType="Border">
+                  <Setter Property="CornerRadius" Value="4"/>
+                  <Setter Property="Padding" Value="6,3"/>
+                  <Setter Property="Margin" Value="0,0,0,5"/>
+                  <Setter Property="BorderThickness" Value="1"/>
+                  <Setter Property="BorderBrush" Value="Transparent"/>
+                </Style>
+                <Style x:Key="StrongBase" TargetType="Border" BasedOn="{StaticResource MetricBox}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding BaseStrong}" Value="True">
+                      <Setter Property="Background" Value="#33F0C64A"/>
+                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+                <Style x:Key="StrongDirect" TargetType="Border" BasedOn="{StaticResource MetricBox}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding DirectStrong}" Value="True">
+                      <Setter Property="Background" Value="#33F0C64A"/>
+                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+                <Style x:Key="StrongOther" TargetType="Border" BasedOn="{StaticResource MetricBox}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding OtherStrong}" Value="True">
+                      <Setter Property="Background" Value="#33F0C64A"/>
+                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+                <Style x:Key="StrongSyn" TargetType="Border" BasedOn="{StaticResource MetricBox}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding SynStrong}" Value="True">
+                      <Setter Property="Background" Value="#33F0C64A"/>
+                      <Setter Property="BorderBrush" Value="#B0F0C64A"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </StackPanel.Resources>
+
+              <!-- Винрейт в патче -->
+              <Border Style="{StaticResource StrongBase}">
+                <StackPanel>
+                  <Grid>
+                    <TextBlock Text="{loc:T metric.base}" Foreground="#7C97AC"
+                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                    <TextBlock Text="{Binding BaseText}" Foreground="{Binding BaseColor}"
+                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                  </Grid>
+                  <Grid Height="6" Margin="0,3,0,0">
+                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                    <Border HorizontalAlignment="Left" Width="{Binding BaseBar}"
+                            Background="#4080C0" CornerRadius="3"/>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <!-- Против оппонента -->
+              <Border Style="{StaticResource StrongDirect}">
+                <StackPanel>
+                  <Grid>
+                    <TextBlock Text="{loc:T metric.direct}" Foreground="#7C97AC"
+                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                    <TextBlock Text="{Binding DirectText}" Foreground="{Binding DirectColor}"
+                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                  </Grid>
+                  <Grid Height="6" Margin="0,3,0,0">
+                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                    <Border HorizontalAlignment="Left" Width="{Binding DirectBar}"
+                            Background="#C84040" CornerRadius="3"/>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <!-- Против вражеской команды -->
+              <Border Style="{StaticResource StrongOther}">
+                <StackPanel>
+                  <Grid>
+                    <TextBlock Text="{loc:T metric.style}" Foreground="#7C97AC"
+                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                    <TextBlock Text="{Binding OtherText}" Foreground="{Binding OtherColor}"
+                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                  </Grid>
+                  <Grid Height="6" Margin="0,3,0,0">
+                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                    <Border HorizontalAlignment="Left" Width="{Binding OtherBar}"
+                            Background="#C87030" CornerRadius="3"/>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <!-- Синергия с союзниками -->
+              <Border Style="{StaticResource StrongSyn}">
+                <StackPanel>
+                  <Grid>
+                    <TextBlock Text="{loc:T metric.synergy}" Foreground="#7C97AC"
+                               FontFamily="{StaticResource UiFont}" FontSize="11"/>
+                    <TextBlock Text="{Binding SynText}" Foreground="{Binding SynColor}"
+                               FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                  </Grid>
+                  <Grid Height="6" Margin="0,3,0,0">
+                    <Border Background="#1AFFFFFF" CornerRadius="3"/>
+                    <Border HorizontalAlignment="Left" Width="{Binding SynBar}"
+                            Background="#40A060" CornerRadius="3"/>
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+      </Grid>
+    </Border>
+  </DataTemplate>
+</ResourceDictionary>

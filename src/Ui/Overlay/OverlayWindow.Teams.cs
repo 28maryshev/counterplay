@@ -197,7 +197,7 @@ public partial class OverlayWindow
     }
 
     // Клик по роли в карточке врага — выпадающий список: Авто / ТОП / ЛЕС / МИД / БОТ / САПП.
-    private void EnemyRole_Click(object sender, MouseButtonEventArgs e)
+    internal void EnemyRole_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement el || el.Tag is not int cellId || cellId < 0) return;
         e.Handled = true;

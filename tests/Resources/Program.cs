@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -100,9 +100,46 @@ internal static class Program
         Check("подсказки оформлены приложением", tipStyle is not null,
               tipStyle is null ? "стиля нет" : $"{tipStyle.Setters.Count} свойств");
 
+        Templates(w);
         w.Close();
 
         return Done();
+    }
+
+    /// <summary>
+    /// Шаблоны окна вынесены в словари (OverlayResources.xaml, Templates/*.xaml).
+    /// Ошибка в шаблоне — ключ ресурса, которого словарь не видит, обработчик,
+    /// которого нет у словаря, — всплывает только когда шаблон показан, то есть
+    /// у игрока на том экране, где он встречается. Поэтому каждый шаблон из
+    /// ресурсов окна (со всеми подключёнными словарями) здесь разворачивается.
+    /// </summary>
+    private static void Templates(FrameworkElement w)
+    {
+        var all = new List<(string Where, object Key, DataTemplate T)>();
+        void Walk(ResourceDictionary d, string where)
+        {
+            foreach (var key in d.Keys)
+                if (d[key] is DataTemplate t) all.Add((where, key, t));
+            foreach (var m in d.MergedDictionaries)
+                Walk(m, m.Source?.OriginalString.Split('/').Last() ?? m.GetType().Name);
+        }
+        Walk(w.Resources, "окно");
+
+        var broken = new List<string>();
+        foreach (var (where, key, t) in all)
+        {
+            try { _ = t.LoadContent(); }
+            catch (Exception ex) { broken.Add($"{where}:{key} — {ex.GetBaseException().Message}"); }
+        }
+        Console.WriteLine($"  (шаблонов в ресурсах окна: {all.Count}: "
+            + string.Join(", ", all.Select(a => a.Key).Distinct()) + ")");
+        Check("вынесенные шаблоны на месте",
+              new[] { "PickCardTemplate", "TeamSlotTemplate", "BuildRowTemplate", "BanCardTemplate",
+                      "BanSlot", "PlanCardTemplate", "RolePoolCellTemplate", "TierEmblem",
+                      "RuneOptionTemplate" }
+                  .All(k => all.Any(a => Equals(a.Key, k))), "");
+        Check("каждый шаблон окна разворачивается", broken.Count == 0,
+              broken.Count == 0 ? $"{all.Count}" : string.Join("; ", broken));
     }
 
     private static int Done()

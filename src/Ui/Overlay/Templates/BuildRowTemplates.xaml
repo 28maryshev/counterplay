@@ -1,0 +1,239 @@
+﻿<ResourceDictionary x:Class="Counterplay.BuildRowTemplates"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:loc="clr-namespace:Counterplay">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Строка сборки предметов на панели рун и сборки (BuildList). -->
+  <DataTemplate x:Key="BuildRowTemplate">
+   <Grid>
+    <!-- Клик по строке выбирает сборку: она подсвечивается
+         золотом, и видно, какую именно отправишь в клиент. -->
+    <Border Margin="0,0,0,3" Padding="4,2" CornerRadius="6" Cursor="Hand"
+            VerticalAlignment="Stretch" Opacity="{Binding RowOpacity}"
+            Background="{Binding RowBg}"
+            BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
+            MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}"
+            ToolTipService.ShowDuration="30000">
+    <!-- Подсказка строки — ровно та же, что у знака вопроса:
+         заголовок и причины. Системная подсказка одной строкой
+         выглядела чужой рядом с нашей. -->
+    <Border.ToolTip>
+      <ToolTip>
+        <StackPanel MaxWidth="270">
+          <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
+                     FontFamily="{StaticResource UiFont}" FontSize="11"
+                     FontWeight="Bold" Foreground="#F0D48A"/>
+          <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
+                     Visibility="{Binding ReasonVis}" Margin="0,5,0,0"
+                     FontFamily="{StaticResource UiFont}" FontSize="11"
+                     LineHeight="16" Foreground="#D7DEE6"/>
+        </StackPanel>
+      </ToolTip>
+    </Border.ToolTip>
+    <!-- Правое выравнивание группы; при нехватке ширины сжимается
+         колонка предметов (обрезка СПРАВА — ситуативные уходят
+         первыми, кор-предметы в начале ряда остаются видны),
+         а винрейт и кнопка экспорта не прячутся никогда. -->
+    <Grid HorizontalAlignment="Right">
+      <Grid.ColumnDefinitions>
+        <!-- Фиксированная ширина, а не Auto: у подбора подпись
+             длиннее числа игр, и на узком окне ряды предметов
+             начинались с разного места. -->
+        <!-- Хватает и знаку с подписью, и проценту: у́же — и лого
+             обрезается, ши́ре — ряд предметов уезжает вправо. -->
+        <ColumnDefinition Width="86"/>     <!-- WR + игры / знак подбора -->
+        <ColumnDefinition Width="*"/>      <!-- слоты (сжимаемые) -->
+        <ColumnDefinition Width="Auto"/>   <!-- экспорт    -->
+      </Grid.ColumnDefinitions>
+
+      <!-- Слева: у обычной сборки винрейт и число игр, у подбора —
+           фирменный знак. Подбор — это наша работа, а не цифра
+           из статистики, и подписан он так же, как кнопка пика. -->
+      <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,7,0">
+        <!-- Пустое место под будущий подбор: те же две строки,
+             что у винрейта, только пустыми плашками. Без них
+             колонка схлопывалась, и ряды предметов у соседних
+             строк начинались с разных мест. -->
+        <StackPanel Visibility="{Binding SkelVis}" HorizontalAlignment="Right">
+          <Border Width="46" Height="13" CornerRadius="3"
+                  Background="#12FFFFFF" BorderBrush="#33557089"
+                  BorderThickness="1"/>
+          <Border Width="30" Height="9" CornerRadius="3" Margin="0,3,0,0"
+                  HorizontalAlignment="Right"
+                  Background="#12FFFFFF" BorderBrush="#33557089"
+                  BorderThickness="1"/>
+        </StackPanel>
+        <StackPanel Visibility="{Binding WrVis}">
+          <TextBlock Text="{Binding WrText}" TextAlignment="Right"
+                     FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
+                     Foreground="{Binding WrBrush}"/>
+          <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
+                     TextTrimming="CharacterEllipsis"
+                     FontFamily="{StaticResource UiFont}" FontSize="9"
+                     Foreground="#6A8296"/>
+        </StackPanel>
+        <StackPanel Visibility="{Binding AiVis}" HorizontalAlignment="Right"
+                    VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Image Source="{StaticResource BrandMark}" Width="11" Height="11"
+                   VerticalAlignment="Center" Margin="0,0,3,0"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                       FontWeight="Bold" VerticalAlignment="Center">
+              <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/><Run Text=" AI" Foreground="#36D6E7"/>
+            </TextBlock>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                      Margin="0,1,0,0">
+            <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
+                       TextTrimming="CharacterEllipsis"
+                       FontFamily="{StaticResource UiFont}" FontSize="9"
+                       VerticalAlignment="Center" Foreground="#6A8296"/>
+            <!-- Почему выбран именно такой набор. Причины живут здесь,
+                 а не подписью под предметами: строкой они раздвигали
+                 ряд, а панель и так узкая. -->
+            <Border Width="13" Height="13" CornerRadius="7" Margin="4,0,0,0"
+                    Visibility="{Binding HintVis}"
+                    Background="#2236D6E7" BorderBrush="#5536D6E7"
+                    BorderThickness="1" Cursor="Help"
+                    ToolTipService.InitialShowDelay="120"
+                    ToolTipService.ShowDuration="30000">
+              <TextBlock Text="?" FontFamily="{StaticResource UiFont}"
+                         FontSize="9" FontWeight="Bold" Foreground="#36D6E7"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <Border.ToolTip>
+                <ToolTip>
+                  <StackPanel MaxWidth="270">
+                    <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
+                               FontFamily="{StaticResource UiFont}" FontSize="11"
+                               FontWeight="Bold" Foreground="#F0D48A"
+                               Margin="0,0,0,5"/>
+                    <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
+                               FontFamily="{StaticResource UiFont}" FontSize="11"
+                               LineHeight="16" Foreground="#D7DEE6"/>
+                  </StackPanel>
+                </ToolTip>
+              </Border.ToolTip>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+
+      <!-- Только слоты. Причина подбора живёт в подсказке всей
+           строки: подписью она раздвигала ряд предметов, а
+           ширина панели и так на пределе. -->
+      <Border Grid.Column="1" ClipToBounds="True">
+        <ItemsControl ItemsSource="{Binding Slots}"
+                      HorizontalAlignment="Left" VerticalAlignment="Center">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <!-- Подсказка предмета — как у рун: название и что
+                   он делает. По одной иконке не вспомнить, что
+                   даёт предмет, а ряд из шести незнакомых
+                   значков не объясняет ничего.
+                   У пустых рамок подсказки нет — IsEnabled. -->
+              <Border Width="26" Height="26" Margin="0,0,3,0" CornerRadius="4"
+                      BorderThickness="{Binding Thickness}"
+                      BorderBrush="{Binding Stroke}"
+                      Background="#12FFFFFF"
+                      ToolTipService.IsEnabled="{Binding HasTip}"
+                      ToolTipService.InitialShowDelay="200"
+                      ToolTipService.ShowDuration="30000">
+                <Border.ToolTip>
+                  <ToolTip>
+                    <StackPanel MaxWidth="300">
+                      <!-- Шапка как в клиенте: иконка, название,
+                           цена с монетой справа. -->
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="30" Height="30" CornerRadius="5"
+                                BorderBrush="#55557089" BorderThickness="1"
+                                ClipToBounds="True" VerticalAlignment="Top">
+                          <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                                 RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="{Binding Tip}" TextWrapping="Wrap"
+                                   Margin="8,1,8,0" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource UiFont}" FontSize="11"
+                                   FontWeight="Bold" Foreground="#F0D48A"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding CostVis}">
+                          <Ellipse Width="10" Height="10" Fill="#F0C24B"
+                                   Stroke="#8A6A1E" StrokeThickness="1"
+                                   VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding CostText}" Margin="4,0,0,0"
+                                     VerticalAlignment="Center"
+                                     FontFamily="{StaticResource UiFont}" FontSize="10"
+                                     FontWeight="Bold" Foreground="#F0C24B"/>
+                        </StackPanel>
+                      </Grid>
+                      <!-- Разделитель: характеристики отделены от
+                           названия так же, как в клиенте. -->
+                      <Border Height="1" Background="#33557089" Margin="0,7,0,0"
+                              Visibility="{Binding DescVis}"/>
+                      <TextBlock TextWrapping="Wrap" Margin="0,6,0,0"
+                                 Visibility="{Binding DescVis}"
+                                 loc:InlineText.Parts="{Binding DescParts}"
+                                 FontFamily="{StaticResource UiFont}" FontSize="10"
+                                 LineHeight="15" Foreground="#9FB3C8"/>
+                    </StackPanel>
+                  </ToolTip>
+                </Border.ToolTip>
+                <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                       Opacity="{Binding Dim}"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+
+      <!-- Кнопка экспорта. У пустой строки это она же — та же
+             рамка, те же отступы и тот же текст, только без
+             цвета: так место под кнопку совпадает с кнопкой
+             точно, а не на глаз. Подобранная числом плашка
+             сдвигала весь ряд предметов на несколько пикселей. -->
+      <!-- Размер кнопки задан явно: 66×28. Раньше её меряли по
+             тексту, и «Export» против «Dışa aktar» давали разную
+             ширину — а вместе с ней разную ширину ряда предметов.
+             MinWidth, а не Width: длинному переводу есть куда
+             вырасти, но ниже этого кнопка не съёживается. -->
+      <Border Grid.Column="2" Margin="8,0,0,0" MinWidth="66" Height="28"
+              Padding="9,0" CornerRadius="6"
+              Cursor="Hand" VerticalAlignment="Center"
+              Background="{Binding ExportBg}" BorderBrush="{Binding ExportStroke}"
+              BorderThickness="1.5"
+              MouseLeftButtonDown="ExportBuild_Click" Tag="{Binding Index}"
+              ToolTip="{Binding TipHead}">
+        <TextBlock Text="{Binding ExportText}"
+                   FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="{Binding ExportFg}"/>
+      </Border>
+    </Grid>
+    </Border>
+
+    <!-- Кольцо вспышки. Свет идёт от собственной обводки, а не
+         от иконок сборки: у строки прозрачный фон, и свечение,
+         построенное по её содержимому, расходилось жидким.
+         Обводка сплошная — вспышка от неё яркая и ровная.
+         Живёт только у подбора и по умолчанию невидима; всё
+         остальное делает анимация. -->
+    <Border x:Name="AiGlowRing" CornerRadius="7" Margin="-2,-2,-2,1"
+            Background="Transparent" BorderBrush="#8CE6FF" BorderThickness="2"
+            Opacity="0" IsHitTestVisible="False"
+            Visibility="{Binding HintVis}"/>
+   </Grid>
+  </DataTemplate>
+</ResourceDictionary>
