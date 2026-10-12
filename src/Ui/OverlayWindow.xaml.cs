@@ -6207,9 +6207,9 @@ public partial class OverlayWindow : Window
         // волна проигрывается заново, если половина уже полна.
         if (BansDonePanel.Visibility != Visibility.Visible) ResetBanPanel();
 
-        // Баны встают сразу, без анимации: наши — в синем кольце, их — в
-        // красном. Волны и появление по очереди были, но глючили (владелец:
-        // «убери, пусть появляются сразу все»).
+        // Баны встают сразу: наши — в синем кольце, их — в красном. Волны и
+        // появление по очереди были, но глючили (владелец: «убери, пусть
+        // появляются сразу все»); остался только сдвиг половин при раскрытии.
         SetBanSlots(BansOurList, draft.MyTeamBans, "#36D6E7", "…", ref _ourSlotsSig);
         SetBanSlots(BansTheirList, draft.TheirTeamBans, "#FF5A4D", "?", ref _theirSlotsSig);
         var theirCount = draft.TheirTeamBans.Count(id => id > 0);
@@ -6425,23 +6425,64 @@ public partial class OverlayWindow : Window
 
     private static readonly TimeSpan BanRevealHold = TimeSpan.FromSeconds(4);
 
+    // Сдвиги половин панели банов: создаются здесь, а не в разметке, — их
+    // анимируем, и прошлая анимация не должна держать значение.
+    private readonly TranslateTransform _ourShift = new(), _theirShift = new();
+    private bool _theirRevealed;   // их половина выехала (или едет)
+    // Откуда их половина поднимается на место при раскрытии, px.
+    private const double BanSlideFrom = 28;
+
     /// <summary>
-    /// Раскладка половин панели банов, сразу, без анимации. Вражеские не
-    /// известны — их половины не видно, наша сдвинута вниз ровно на середину
-    /// места под обе: стоит по центру. Известны — обе на своих местах. Место под
-    /// обе половины держится всегда: тир-лист под панелью не прыгает.
+    /// Раскладка половин панели банов. Вражеские не известны — их половины не
+    /// видно, наша сдвинута вниз ровно на середину места под обе: стоит по
+    /// центру. Раскрылись — единственная анимация панели: наша поднимается на
+    /// своё место, их пять разом выезжают снизу и проявляются (владелец:
+    /// «пусть останется анимация сдвига»). Один раз на раскрытие: следующие
+    /// события драфта переезд не перезапускают. Место под обе половины
+    /// держится всегда: тир-лист под панелью не прыгает.
     ///
     /// Высоту их половины меряем сами: панель могла появиться этим же рендером,
     /// и раскладки ещё не было — ActualHeight был бы нулём.
     /// </summary>
     private void PlaceBanHalves(bool revealed)
     {
+        BansOurHalf.RenderTransform   = _ourShift;
+        BansTheirHalf.RenderTransform = _theirShift;
         BansTheirHalf.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var center = (BansTheirHalf.DesiredSize.Height + BansDoneSep.Height
                       + BansDoneSep.Margin.Top + BansDoneSep.Margin.Bottom) / 2;
-        BansOurHalf.RenderTransform = new TranslateTransform(0, revealed ? 0 : center);
-        BansTheirHalf.Opacity = revealed ? 1 : 0;
-        BansDoneSep.Opacity   = revealed ? 1 : 0;
+
+        static void Set(IAnimatable o, DependencyProperty p, double v)
+        {
+            o.BeginAnimation(p, null);
+            ((DependencyObject)o).SetValue(p, v);
+        }
+
+        if (!revealed)
+        {
+            _theirRevealed = false;
+            Set(_ourShift, TranslateTransform.YProperty, center);
+            Set(_theirShift, TranslateTransform.YProperty, BanSlideFrom);
+            Set(BansTheirHalf, OpacityProperty, 0);
+            Set(BansDoneSep, OpacityProperty, 0);
+            return;
+        }
+        if (_theirRevealed) return;   // уже на месте или едет
+        _theirRevealed = true;
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        _ourShift.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(center, 0, TimeSpan.FromSeconds(0.5)) { EasingFunction = ease });
+        _theirShift.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(BanSlideFrom, 0, TimeSpan.FromSeconds(0.5))
+            { BeginTime = TimeSpan.FromSeconds(0.12), EasingFunction = ease });
+        // Стартовые значения — базой: до BeginTime анимация показывает базу.
+        Set(BansTheirHalf, OpacityProperty, 0);
+        Set(BansDoneSep, OpacityProperty, 0);
+        BansTheirHalf.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(0.12) });
+        BansDoneSep.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.4)) { BeginTime = TimeSpan.FromSeconds(0.2) });
     }
 
     /// <summary>
@@ -6452,6 +6493,7 @@ public partial class OverlayWindow : Window
     private void ResetBanPanel()
     {
         _theirBansShown = 0;
+        _theirRevealed = false;
         // null, а не "": у пустого списка банов подпись — пустая строка, и
         // слоты нового драфта не пересобрались бы — держали бы баны прошлого.
         _ourSlotsSig = _theirSlotsSig = null;

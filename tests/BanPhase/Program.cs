@@ -506,19 +506,24 @@ internal static class Program
         };
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
         Pump();
-        Check("раскрыли — их половина сразу на месте, наша поднялась",
-              Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansOurHalf") == 0,
-              $"{Opacity(w, "BansTheirHalf")} / {ShiftY(w, "BansOurHalf"):0}");
+        // Единственная анимация панели — сдвиг: их половина поднимается снизу,
+        // все пять разом (слоты сами по себе видны сразу).
+        Check("раскрыли — их половина едет на место", Moving(w, "BansTheirHalf") && Moving(w, "BansOurHalf"), "");
         Check("их баны видны сразу, все пять", Enumerable.Range(0, 5).All(k => SlotOpacity(w, "BansTheirList", k) == 1),
               string.Join(" ", Enumerable.Range(0, 5).Select(k => SlotOpacity(w, "BansTheirList", k).ToString("0.0"))));
+        Wait(0.8);
+        Check("доехали: их половина на месте, наша поднялась",
+              Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansTheirHalf") == 0 && ShiftY(w, "BansOurHalf") == 0,
+              $"{Opacity(w, "BansTheirHalf")} / {ShiftY(w, "BansTheirHalf"):0} / {ShiftY(w, "BansOurHalf"):0}");
         Check("их — в красном кольце", RingColor(w, "BansTheirList", 4) == "#FFFF5A4D", RingColor(w, "BansTheirList", 4));
         // Следующее событие драфта (в бою их несколько в секунду) слоты не
         // пересобирает: состав тот же.
         var theirSrc = ((ItemsControl)w.FindName("BansTheirList")).ItemsSource;
         w.UpdateRecommendations(engine.Recommend(reveal, 6), reveal, engine);
         Pump();
-        Check("второе событие слоты не пересобирает",
-              ReferenceEquals(((ItemsControl)w.FindName("BansTheirList")).ItemsSource, theirSrc), "");
+        Check("второе событие слоты не пересобирает и сдвиг не перезапускает",
+              ReferenceEquals(((ItemsControl)w.FindName("BansTheirList")).ItemsSource, theirSrc)
+              && ShiftY(w, "BansTheirHalf") == 0 && Opacity(w, "BansTheirHalf") == 1, "");
         // Сразу, пока идут 4 секунды показа: со снимками прогон медленнее, и
         // позже показ успевал кончиться — а после него полоса роли законна.
         // На пиках программа обновляет панель рун: рун ещё нет — «вернуть пул
@@ -559,7 +564,8 @@ internal static class Program
         var early = oursFull with { TheirTeamBans = [24, 893, 145, 119, 37] };
         w2.UpdateBans([], early, engine);
         Pump();
-        Check("раскрыты ещё в банах — видны сразу", Opacity(w2, "BansTheirHalf") == 1, "");
+        Poll(() => Opacity(w2, "BansTheirHalf") == 1 && ShiftY(w2, "BansTheirHalf") == 0, 2);
+        Check("раскрыты ещё в банах — на месте без удержания", Opacity(w2, "BansTheirHalf") == 1, "");
         var picks2 = early with { InBanPhase = false, MyBanActionId = -1, MyBanInProgress = false };
         w2.UpdateRecommendations(engine.Recommend(picks2, 6), picks2, engine);
         Pump();
@@ -852,6 +858,10 @@ internal static class Program
         }
         return "";
     }
+
+    /// Половина панели сейчас под анимацией сдвига.
+    private static bool Moving(Window w, string name) =>
+        ((UIElement)w.FindName(name)).RenderTransform is TranslateTransform { HasAnimatedProperties: true };
 
     /// Цвет кольца команды у слота: обводка без заливки поверх портрета.
     private static string RingColor(Window w, string list, int i)
