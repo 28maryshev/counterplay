@@ -839,17 +839,22 @@ internal static class Program
     /// одного числа, а движок работал бы с другим.
     private static void CheckMultInSource()
     {
+        // Движок разложен на части (src/Engine/Recommendation/RecommendationEngine.*.cs),
+        // веса лежат в одной из них — читаем все.
         var root = FindRepoRoot();
-        var path = root is null ? null : Path.Combine(root, "src", "Engine", "RecommendationEngine.cs");
-        if (path is null || !File.Exists(path))
+        var dir = root is null ? null : Path.Combine(root, "src", "Engine", "Recommendation");
+        var parts = dir is not null && Directory.Exists(dir)
+            ? Directory.GetFiles(dir, "RecommendationEngine*.cs") : [];
+        if (parts.Length == 0)
         {
             Check("множитель прочитан из исходника движка", false,
-                  "RecommendationEngine.cs не найден — проверять нечего");
+                  "части RecommendationEngine не найдены — проверять нечего");
             return;
         }
+        var source = string.Join("\n", parts.Select(File.ReadAllText));
 
         var m = System.Text.RegularExpressions.Regex.Match(
-            File.ReadAllText(path), @"DUO_MATE_MULT\s*=\s*([0-9]+(?:\.[0-9]+)?)");
+            source, @"DUO_MATE_MULT\s*=\s*([0-9]+(?:\.[0-9]+)?)");
         if (!m.Success)
         {
             Check("множитель прочитан из исходника движка", false,
@@ -867,7 +872,7 @@ internal static class Program
               $"{inSource:F2}");
 
         var ws = System.Text.RegularExpressions.Regex.Match(
-            File.ReadAllText(path), @"W_SYNERGY\s*=\s*([0-9]+(?:\.[0-9]+)?)");
+            source, @"W_SYNERGY\s*=\s*([0-9]+(?:\.[0-9]+)?)");
         Check("копия веса синергии совпадает с кодом движка",
               ws.Success && Math.Abs(double.Parse(ws.Groups[1].Value,
                   System.Globalization.CultureInfo.InvariantCulture) - WSynergyInCode) < 1e-9,
