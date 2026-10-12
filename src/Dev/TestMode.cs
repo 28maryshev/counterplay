@@ -906,20 +906,11 @@ sealed class TestPanel : Window
         var reset = new Button
         {
             Content = "Сброс", Width = 90, HorizontalAlignment = HorizontalAlignment.Right,
-            Padding = new Thickness(0, 3, 0, 3)
+            Padding = new Thickness(0, 3, 0, 3),
+            ToolTip = "Остановить драфт и очистить слоты. Окно уходит с драфта на экран ожидания — "
+                    + "настрой слоты, роль и друга и запусти заново: «Драфт», «Баны» или «Авто-драфт»",
         };
-        reset.Click += (_, _) =>
-        {
-            StopSim();
-            StopBanSim();
-            ClearBans();
-            _ready = false;
-            foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
-            _autoPicked.Clear();
-            _planned.Clear();
-            _ready = true;
-            Recompute();
-        };
+        reset.Click += (_, _) => ResetDraft();
         DockPanel.SetDock(reset, Dock.Right);
         bottom.Children.Insert(0, reset);
 
@@ -1189,6 +1180,33 @@ sealed class TestPanel : Window
         // поэтому возвращаем принудительно, иначе окно драфта не появится.
         _overlay.RestoreFromTray(force: true);
         Recompute();
+    }
+
+    /// <summary>
+    /// «Сброс»: драфт кончился, как дродж в клиенте. Симуляции стоп, слоты
+    /// пусты, окно уходит с драфта на экран ожидания тем же путём, что в бою
+    /// (конец драфта: запомнить положение, сбросить метки ролей и выбранного).
+    /// Этап — «Ready»: пока настраиваешь слоты, роль и друга, драфт в окно не
+    /// идёт (раньше каждая правка тут же открывала его снова). Запуск —
+    /// «Драфт», «Баны» или «Авто-драфт»; роль, друг и профиль остаются.
+    /// </summary>
+    private void ResetDraft()
+    {
+        StopSim();
+        StopBanSim();
+        ClearBans();
+        _ready = false;
+        foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
+        _autoPicked.Clear();
+        _planned.Clear();
+        _ready = true;
+        _overlay.UpdateRecommendations(null, null);
+        _overlay.DraftEnded();
+        _overlay.HideRunes();
+        _stage = TestStage.Ready;
+        UpdateStageButtons();
+        Recompute();
+        Log.Write("песочница: сброс — драфт закрыт, этап Ready");
     }
 
     private void UpdateStageButtons()

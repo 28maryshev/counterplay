@@ -3008,6 +3008,10 @@ public partial class OverlayWindow : Window
             PickHint.Visibility = Visibility.Collapsed;
             _tierModeNow = null;   // следующий драфт — снова с вида из настроек
             _banAdviceShown = [];  // советы банов — свои у каждого драфта
+            // Выбранный кликом — тоже: иначе новый драфт начинался бы с золотой
+            // рамки на чемпионе прошлого.
+            _pickHoverId = 0;
+            _banHoverId = 0;
 
             var phase = _readyPhaseRaw ?? _phaseRaw;
             var inGame = phase is "GameStart" or "InProgress" or "Reconnect";

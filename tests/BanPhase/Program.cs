@@ -741,6 +741,24 @@ internal static class Program
         Check("союзники взяли то, что наводили", kept == lastIntent.Count(kv => !allBans.Contains(kv.Value)),
               $"{kept} из {lastIntent.Count}");
 
+        // «Сброс»: драфт в окне закрыт, слоты пусты; пока настраиваешь слоты,
+        // драфт не открывается; «Драфт» открывает его снова.
+        Call(panel, "ResetDraft");
+        Pump();
+        Check("сброс — окно ушло с драфта", !Vis(overlay, "FullView") && Vis(overlay, "IdlePanel"), "");
+        var allyCombos = panelType.GetField("_ally", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(panel) as System.Windows.Controls.ComboBox[];
+        Check("слоты пусты", allyCombos?.All(c => c.SelectedIndex <= 0) == true, "");
+        allyCombos![0].SelectedItem = DataDragon.Name(86);   // Гарен на топ — настройка перед запуском
+        Pump();
+        Check("правка слота драфт не открывает", !Vis(overlay, "FullView"), "");
+        Get<System.Windows.Controls.Button>(panel, "_stageDraft")!
+            .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Pump();
+        d = Last();
+        Check("«Драфт» — драфт снова в окне, с настроенным слотом",
+              Vis(overlay, "FullView") && d?.MyTeam.Any(p => p.EffectiveChampionId == 86) == true, "");
+
         panel.Hide();
         overlay.Close();
         Pump();
