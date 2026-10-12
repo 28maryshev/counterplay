@@ -30,7 +30,7 @@
 пороги в них должны совпадать:
 
 - `pipeline/freshness.py` — выгрузки для сайта;
-- `src/Engine/RecommendationEngine.cs` — движок программы;
+- `src/Engine/Recommendation/` — движок программы (веса — `RecommendationEngine.Weights.cs`);
 - `bot/lib/freshness.js` — бот.
 
 ## Как проверить свежесть
