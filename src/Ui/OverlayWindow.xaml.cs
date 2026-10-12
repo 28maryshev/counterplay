@@ -1708,26 +1708,42 @@ public partial class OverlayWindow : Window
 
     private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
 
+    // Чья подсветка сейчас нарисована (0 — ничья).
+    private int _hoverArtId;
+
     // Подсветка нарисована в абсолютных координатах канваса, поэтому живёт ровно
-    // до следующего изменения раскладки: прокрутка списка команды или перерисовка
-    // драфта сдвигают портреты, и оставленные дуги/цифры повисают не на месте.
+    // до следующего изменения раскладки: перерисовка драфта сдвигает портреты, и
+    // оставленные дуги/цифры повисают не на месте.
     private void ClearHoverArt()
     {
+        _hoverArtId = 0;
         if (SynLinks.Children.Count > 0) SynLinks.Children.Clear();
         if (!ReferenceEquals(MyTeamCombos.ItemsSource, _myComboCards))
         {
+            PinTeamScroll();
             MyTeamCombos.ItemsSource  = _myComboCards;
             MyCombosHeader.Visibility = _myComboCards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
+    // Список команды сдвинулся — подсветку перерисовываем на новых местах, а не
+    // стираем. Стирание давало «через одного»: кандидат со связкой добавляет
+    // в этот же список её бледную карточку, список сдвигается, и его подсветка
+    // тут же пропадала, а у соседа без связки — оставалась.
     private void TeamScroll_Changed(object sender, ScrollChangedEventArgs e)
     {
-        if (e.VerticalChange != 0) ClearHoverArt();
+        if (e.VerticalChange != 0 && _hoverArtId != 0) DrawSynergyLinks(_hoverArtId);
     }
+
+    // Колесо у дна списка запоминает позицию ниже дна, и ScrollViewer доезжает
+    // до неё, как только список вырастет: от одной бледной карточки связки
+    // состав уезжал вверх на её высоту. Прибиваем запомненную позицию к
+    // нынешней — список растёт вниз, портреты стоят на месте.
+    private void PinTeamScroll() => TeamScroll.ScrollToVerticalOffset(TeamScroll.VerticalOffset);
 
     private void DrawSynergyLinks(int champId)
     {
+        _hoverArtId = champId;
         SynLinks.Children.Clear();
         if (!AppSettings.Current.DraftHover) return;
         if (champId == 0 || _engine is null || _lastDraft is null) return;
@@ -1779,6 +1795,7 @@ public partial class OverlayWindow : Window
         // подпись налезала на состав и не читалась.
         if (fresh.Count > 0)
         {
+            PinTeamScroll();
             MyTeamCombos.ItemsSource = _myComboCards
                 .Concat(ToCards(fresh, ally: true, ghost: true, colorFrom: _myComboCards.Count))
                 .ToList();

@@ -1057,7 +1057,7 @@
               </StackPanel>
             </StackPanel>
 
-            <ScrollViewer VerticalScrollBarVisibility="Hidden"
+            <ScrollViewer x:Name="TeamScroll" VerticalScrollBarVisibility="Hidden"
                           ScrollChanged="TeamScroll_Changed">
               <StackPanel>
               <Grid>
