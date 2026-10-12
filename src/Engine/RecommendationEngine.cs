@@ -2073,6 +2073,50 @@ public sealed class RecommendationEngine : IDisposable
     /// Бан-рейт одного чемпиона в текущем патче, %. Нет данных — 0.
     public double BanRate(int champId) => BanRates().GetValueOrDefault(champId);
 
+    /// <summary>
+    /// Винрейт чемпиона на роли в текущем патче и его сдвиг к прошлому — для
+    /// фазы планирования: видно, что мейна понерфили, ещё до того, как его
+    /// показал. Порог выборки тот же, что у тир-листа (TIER_MIN_GAMES): меньше —
+    /// null, сдвига нет, если прошлого патча нет или он не набран.
+    /// </summary>
+    public (double Wr, double? Delta)? PatchWr(int champId, string role)
+    {
+        var key = (champId, role);
+        if (_patchWr.TryGetValue(key, out var cached)) return cached;
+        (double G, double W) now = (0, 0), prev = (0, 0);
+        try
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = @"
+                SELECT patch, SUM(games), SUM(wins) FROM base_wr
+                WHERE champion_id=@c AND role=@r AND tier_bucket=@t AND patch IN (@p1, @p2)
+                GROUP BY patch";
+            cmd.Parameters.AddWithValue("@c",  champId);
+            cmd.Parameters.AddWithValue("@r",  role);
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                var row = (rd.GetDouble(1), rd.GetDouble(2));
+                if (rd.GetString(0) == _p1) now = row; else prev = row;
+            }
+        }
+        catch { /* нет данных — без числа */ }
+
+        (double, double?)? res = null;
+        if (now.G >= TIER_MIN_GAMES)
+        {
+            var wr = 100.0 * now.W / now.G;
+            double? delta = _p2 != _p1 && prev.G >= TIER_MIN_GAMES ? wr - 100.0 * prev.W / prev.G : null;
+            res = (wr, delta);
+        }
+        return _patchWr[key] = res;
+    }
+
+    private readonly Dictionary<(int, string), (double Wr, double? Delta)?> _patchWr = new();
+
     // Чемпион попадает в роль тир-листа банов, если на ней четверть его игр и больше.
     private const double BAN_ROLE_SHARE = 0.25;
 

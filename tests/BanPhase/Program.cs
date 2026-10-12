@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -625,11 +625,22 @@ internal static class Program
         DraftState? Last() => Get<DraftState>(overlay, "_lastDraft");
         IReadOnlyList<BanRec>? Advice() => Get<IReadOnlyList<BanRec>>(overlay, "_lastBans");
 
+        // Объявление пиков укорочено до 3 секунд (в песочнице — 15, как в клиенте).
+        var planField = panelType.GetField("PlanSeconds", BindingFlags.NonPublic | BindingFlags.Static)!;
+        planField.SetValue(null, 3.0);
+
         Get<System.Windows.Controls.Button>(panel, "_stageBans")!
             .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Wait(1);
+        var d = Last();
+        Check("сначала объявление пиков: мои чемпионы, банить рано",
+              d is { InPlanning: true, InBanPhase: true, MyBanInProgress: false }
+              && Vis(overlay, "PlanPanel") && !Vis(overlay, "BanScroll"), "");
         Wait(4.5);
 
-        var d = Last();
+        d = Last();
+        Check("объявление кончилось — советы банов", d is { InPlanning: false } && !Vis(overlay, "PlanPanel")
+              && Vis(overlay, "BanScroll"), "");
         Check("фаза банов, мой ход", d is { InBanPhase: true, MyBanInProgress: true, MyBanDone: false }, "");
         var hovered = d?.MyTeam.Where(p => !p.IsLocalPlayer && p.PickIntentId != 0).ToList() ?? [];
         Check("двое союзников навели пики", hovered.Count == 2,
@@ -701,6 +712,7 @@ internal static class Program
         panel.Hide();
         overlay.Close();
         Pump();
+        planField.SetValue(null, 15.0);
         asm.GetType("Counterplay.TestMode")!
            .GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!
            .Invoke(null, null);

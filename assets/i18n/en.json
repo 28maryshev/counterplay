@@ -113,7 +113,8 @@
     "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked.",
     "aram": "ARAM — best pick from the bench:",
     "counterItems": "Items that counter you & the team:",
-    "banBadge": "BAN"
+    "banBadge": "BAN",
+    "rolePlan": "Role: {0} — show your pick:"
   },
   "pair": {
     "airborne": {
@@ -711,5 +712,23 @@
     "noAccount": "Profile not known yet — open the game client",
     "failedNet": "Could not reach the server",
     "pulled": "Files received: {0}"
+  },
+  "plan": {
+    "title": "My champions · {0} · last 30 days",
+    "titlePool": "Pool · {0} — no games on this lane in 30 days",
+    "hint": "Click — your team will see who you’ll take",
+    "colGames": "winrate · games",
+    "colPool": "my games",
+    "colForm": "recent games",
+    "colPatch": "patch {0}",
+    "banned": "banned {0}%",
+    "fromPool": "from pool",
+    "empty": "No games on {0} in the last 30 days and no pool for it — pick from the tier list below.",
+    "failed": "The client didn’t accept it",
+    "tipRecord": "Wins / losses in 30 days: {0} / {1}",
+    "tipToday": "Last game — today",
+    "tipLast": "Last game — {0} d ago",
+    "tipPatch": "Lane winrate in patch {0}: {1}%",
+    "tipPrev": "Previous patch: {0}%"
   }
 }

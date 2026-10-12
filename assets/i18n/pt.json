@@ -244,7 +244,8 @@
     "pickHint": "⚠ Você escolhe antes dos inimigos — um counter é possível. Pegue um pick neutro ou troque com alguém cujo oponente já está definido.",
     "aram": "ARAM — melhor pick do banco:",
     "counterItems": "Itens que counteram você e o time:",
-    "banBadge": "BAN"
+    "banBadge": "BAN",
+    "rolePlan": "Rota: {0} — mostre seu pick:"
   },
   "pair": {
     "airborne": {
@@ -711,5 +712,23 @@
     "noAccount": "Perfil ainda desconhecido — abre o cliente do jogo",
     "failedNet": "Não foi possível contactar o servidor",
     "pulled": "Ficheiros recebidos: {0}"
+  },
+  "plan": {
+    "title": "Meus campeões · {0} · 30 dias",
+    "titlePool": "Pool · {0} — sem partidas nesta rota em 30 dias",
+    "hint": "Clique — seu time verá quem você vai pegar",
+    "colGames": "winrate · partidas",
+    "colPool": "minhas partidas",
+    "colForm": "últimas partidas",
+    "colPatch": "patch {0}",
+    "banned": "banido {0}%",
+    "fromPool": "do pool",
+    "empty": "Sem partidas de {0} nos últimos 30 dias e sem pool para essa rota — escolha pela tier list abaixo.",
+    "failed": "O cliente não aceitou",
+    "tipRecord": "Vitórias / derrotas em 30 dias: {0} / {1}",
+    "tipToday": "Última partida — hoje",
+    "tipLast": "Última partida — há {0} d",
+    "tipPatch": "Winrate na rota no patch {0}: {1}%",
+    "tipPrev": "Patch anterior: {0}%"
   }
 }

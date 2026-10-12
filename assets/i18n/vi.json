@@ -87,7 +87,8 @@
     "pickHint": "⚠ Bạn chọn trước địch — có thể bị khắc chế. Chọn tướng an toàn hoặc đổi với người đã có đối thủ khóa cứng.",
     "aram": "ARAM — lựa chọn tốt nhất từ ghế chờ:",
     "counterItems": "Đồ khắc chế bạn và đội:",
-    "banBadge": "CẤM"
+    "banBadge": "CẤM",
+    "rolePlan": "Vị trí: {0} — cho đồng đội thấy tướng của bạn:"
   },
   "pair": {
     "airborne": {
@@ -711,5 +712,23 @@
     "noAccount": "Chưa xác định hồ sơ — hãy mở client game",
     "failedNet": "Không liên hệ được máy chủ",
     "pulled": "Số tệp đã nhận: {0}"
+  },
+  "plan": {
+    "title": "Tướng của tôi · {0} · 30 ngày",
+    "titlePool": "Pool · {0} — 30 ngày không có trận ở vị trí này",
+    "hint": "Bấm — đồng đội sẽ thấy bạn định chọn ai",
+    "colGames": "tỉ lệ thắng · trận",
+    "colPool": "trận của tôi",
+    "colForm": "trận gần đây",
+    "colPatch": "phiên bản {0}",
+    "banned": "bị cấm {0}%",
+    "fromPool": "từ pool",
+    "empty": "30 ngày qua không có trận ở vị trí {0} và cũng không có pool — hãy chọn từ tier list bên dưới.",
+    "failed": "Client không chấp nhận",
+    "tipRecord": "Thắng / thua trong 30 ngày: {0} / {1}",
+    "tipToday": "Trận gần nhất — hôm nay",
+    "tipLast": "Trận gần nhất — {0} ngày trước",
+    "tipPatch": "Tỉ lệ thắng ở vị trí này, phiên bản {0}: {1}%",
+    "tipPrev": "Phiên bản trước: {0}%"
   }
 }

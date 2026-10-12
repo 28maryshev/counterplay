@@ -91,7 +91,8 @@
     "pickHint": "⚠ Tu pick avant les ennemis — un counter est possible. Prends un pick neutre ou échange avec un allié dont l'adversaire est déjà verrouillé.",
     "aram": "ARAM — meilleur pick du banc :",
     "counterItems": "Objets qui te counter toi et l'équipe :",
-    "banBadge": "BAN"
+    "banBadge": "BAN",
+    "rolePlan": "Rôle : {0} — montre ton pick :"
   },
   "pair": {
     "airborne": {
@@ -711,5 +712,23 @@
     "noAccount": "Profil inconnu — ouvre le client du jeu",
     "failedNet": "Serveur injoignable",
     "pulled": "Fichiers reçus : {0}"
+  },
+  "plan": {
+    "title": "Mes champions · {0} · 30 jours",
+    "titlePool": "Pool · {0} — aucune partie sur cette lane en 30 jours",
+    "hint": "Clique — ton équipe verra qui tu prends",
+    "colGames": "winrate · parties",
+    "colPool": "mes parties",
+    "colForm": "dernières parties",
+    "colPatch": "patch {0}",
+    "banned": "banni {0}%",
+    "fromPool": "du pool",
+    "empty": "Aucune partie en {0} sur les 30 derniers jours et pas de pool pour ce rôle — choisis dans la tier list ci-dessous.",
+    "failed": "Le client ne l’a pas accepté",
+    "tipRecord": "Victoires / défaites sur 30 jours : {0} / {1}",
+    "tipToday": "Dernière partie — aujourd’hui",
+    "tipLast": "Dernière partie — il y a {0} j",
+    "tipPatch": "Winrate sur la lane au patch {0} : {1}%",
+    "tipPrev": "Patch précédent : {0}%"
   }
 }

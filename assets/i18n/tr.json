@@ -199,7 +199,8 @@
     "pickHint": "⚠ Düşmanlardan önce seçim yapıyorsun — kontrlenmen mümkün. Nötr bir seçim yap ya da rakibi zaten kilitlenmiş biriyle sırayı değiştir.",
     "aram": "ARAM — kadrodaki en iyi seçim:",
     "counterItems": "Seni ve takımı kontrleyen eşyalar:",
-    "banBadge": "BAN"
+    "banBadge": "BAN",
+    "rolePlan": "Rol: {0} — seçimini göster:"
   },
   "pair": {
     "airborne": {
@@ -711,5 +712,23 @@
     "noAccount": "Profil henüz bilinmiyor — oyun istemcisini aç",
     "failedNet": "Sunucuya ulaşılamadı",
     "pulled": "Alınan dosyalar: {0}"
+  },
+  "plan": {
+    "title": "Şampiyonlarım · {0} · 30 gün",
+    "titlePool": "Havuz · {0} — 30 gündür bu koridorda maç yok",
+    "hint": "Tıkla — takımın kimi alacağını görür",
+    "colGames": "kazanma · maç",
+    "colPool": "maçlarım",
+    "colForm": "son maçlar",
+    "colPatch": "yama {0}",
+    "banned": "yasaklanma %{0}",
+    "fromPool": "havuzdan",
+    "empty": "Son 30 günde {0} rolünde maç yok, bu rol için havuz da yok — aşağıdaki tier listesinden seç.",
+    "failed": "İstemci kabul etmedi",
+    "tipRecord": "30 günde galibiyet / mağlubiyet: {0} / {1}",
+    "tipToday": "Son maç — bugün",
+    "tipLast": "Son maç — {0} gün önce",
+    "tipPatch": "{0} yamasında koridor kazanma oranı: %{1}",
+    "tipPrev": "Önceki yama: %{0}"
   }
 }

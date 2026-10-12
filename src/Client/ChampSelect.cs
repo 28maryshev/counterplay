@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace Counterplay;
 
@@ -41,7 +41,11 @@ public sealed record DraftState(
     bool MyBanInProgress,          // мой ход банить прямо сейчас
     // Мой бан уже сделан (действие завершено, в том числе пустым): советовать
     // больше нечего, окно показывает баны обеих команд с бан-рейтом.
-    bool MyBanDone = false);
+    bool MyBanDone = false,
+    // Фаза объявления (PLANNING, 15 с до банов): все показывают, кого возьмут.
+    // InBanPhase в ней тоже true — баны следующий шаг, — но окно показывает не
+    // советы банов, а моих чемпионов на выданной роли.
+    bool InPlanning = false);
 
 public static class ChampSelectParser
 {
@@ -68,9 +72,11 @@ public static class ChampSelectParser
         var (banId,  banNow)  = FindMyAction(session, localCell, "ban");
         var (active, firstCell) = ParsePickTurns(session);
         var banDone = MyBanCompleted(session, localCell);
+        var planning = IsPlanning(session);
 
         return new DraftState(myTeam, theirTeam, myBans, theirBans, me, pos, opp, exposed, inBan,
-                              bench, isAram, pickId, pickNow, active, firstCell, banId, banNow, banDone);
+                              bench, isAram, pickId, pickNow, active, firstCell, banId, banNow, banDone,
+                              planning);
     }
 
     // Мой бан завершён. Смотрим именно завершённое действие, а не «незавершённого
@@ -164,15 +170,16 @@ public static class ChampSelectParser
         return (bench, enabled);
     }
 
+    private static bool IsPlanning(JsonElement session) =>
+        session.TryGetProperty("timer", out var timer) && GetStr(timer, "phase") == "PLANNING";
+
     // Идёт ли сейчас фаза банов: есть активное (in-progress) действие типа "ban".
     private static bool ComputeInBanPhase(JsonElement session)
     {
         // Фаза планирования (все объявляют намерения ДО таймера банов): пикнуть
         // ещё нельзя, а баны — следующий шаг. Советы по банам актуальны уже здесь,
         // по показанным чемпионам команды.
-        if (session.TryGetProperty("timer", out var timer) &&
-            GetStr(timer, "phase") == "PLANNING")
-            return true;
+        if (IsPlanning(session)) return true;
 
         if (!session.TryGetProperty("actions", out var actions) || actions.ValueKind != JsonValueKind.Array)
             return false;

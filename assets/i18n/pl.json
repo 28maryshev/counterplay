@@ -87,7 +87,8 @@
     "pickHint": "⚠ Wybierasz przed wrogami — możliwa kontra. Weź neutralny pick lub zamień się z kimś, czyj przeciwnik jest już zablokowany.",
     "aram": "ARAM — najlepszy wybór z ławki:",
     "counterItems": "Przedmioty kontrujące ciebie i drużynę:",
-    "banBadge": "BAN"
+    "banBadge": "BAN",
+    "rolePlan": "Rola: {0} — pokaż swój pick:"
   },
   "pair": {
     "airborne": {
@@ -711,5 +712,23 @@
     "noAccount": "Profil jeszcze nieznany — otwórz klienta gry",
     "failedNet": "Nie udało się połączyć z serwerem",
     "pulled": "Odebrane pliki: {0}"
+  },
+  "plan": {
+    "title": "Moi bohaterowie · {0} · 30 dni",
+    "titlePool": "Pula · {0} — brak gier na tej linii od 30 dni",
+    "hint": "Kliknij — drużyna zobaczy, kogo weźmiesz",
+    "colGames": "winrate · gier",
+    "colPool": "moje gry",
+    "colForm": "ostatnie gry",
+    "colPatch": "patch {0}",
+    "banned": "banowany {0}%",
+    "fromPool": "z puli",
+    "empty": "Brak gier na roli {0} w ostatnich 30 dniach i brak puli na nią — wybierz z tier listy poniżej.",
+    "failed": "Klient tego nie przyjął",
+    "tipRecord": "Wygrane / przegrane w 30 dni: {0} / {1}",
+    "tipToday": "Ostatnia gra — dziś",
+    "tipLast": "Ostatnia gra — {0} dn. temu",
+    "tipPatch": "Winrate na linii w patchu {0}: {1}%",
+    "tipPrev": "Poprzedni patch: {0}%"
   }
 }

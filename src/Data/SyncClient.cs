@@ -384,11 +384,22 @@ public static class SyncClient
             if (gt is null) continue;
             if (gm is null) { m["Games"] = gt.DeepClone(); continue; }
 
-            var seen = new HashSet<long>();
-            foreach (var g in gm) if (g?["Ts"] is { } ts) seen.Add((long)ts);
+            var byTs = new Dictionary<long, JsonObject>();
+            foreach (var g in gm)
+                if (g is JsonObject o && o["Ts"] is { } ts) byTs.TryAdd((long)ts, o);
             foreach (var g in gt)
-                if (g?["Ts"] is { } ts && seen.Add((long)ts))
-                    gm.Add(g.DeepClone());
+            {
+                if (g?["Ts"] is not { } ts) continue;
+                if (!byTs.TryGetValue((long)ts, out var own))
+                {
+                    var copy = g.DeepClone();
+                    gm.Add(copy);
+                    if (copy is JsonObject c) byTs[(long)ts] = c;
+                }
+                // Та же игра: роль (её пишут с 1.3.61) берём оттуда, где она есть.
+                else if (own["Role"] is null && g["Role"] is { } role)
+                    own["Role"] = role.DeepClone();
+            }
         }
     }
 

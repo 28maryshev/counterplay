@@ -1098,6 +1098,11 @@ class Program
                         var draft = ChampSelectParser.Parse(ev.Data);
                         myPickActionId = draft.MyPickActionId;
                         myBanActionId  = draft.MyBanActionId;
+                        // Выданная роль — в журнал игр: по ней следующая игра
+                        // ляжет на свою линию (фаза планирования их и показывает).
+                        if (!draft.IsAram && draft.Me is { ChampionId: > 0 } meNow)
+                            SessionTracker.NoteDraftRole(meNow.ChampionId,
+                                RecommendationEngine.LcuToDbRole(draft.MyPosition));
 
                         // За 5 секунд до конца финализации прячем оверлей в трей.
                         var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);
@@ -1158,8 +1163,11 @@ class Program
                         else if (draft.InBanPhase)
                         {
                             // Свой бан сделан — советовать нечего: окно показывает баны
-                            // обеих команд, а подбор банов не считаем зря.
-                            overlay.UpdateBans(draft.MyBanDone ? [] : engine?.RecommendBans(draft, hoverHistory),
+                            // обеих команд, а подбор банов не считаем зря. В
+                            // планировании окно показывает моих чемпионов на роли —
+                            // советы банов посчитаются со стартом таймера банов.
+                            overlay.UpdateBans(draft.MyBanDone || draft.InPlanning
+                                                   ? [] : engine?.RecommendBans(draft, hoverHistory),
                                                draft, engine);
                             overlay.HideRunes();               // руны — на этапе пика, не банов
                             _runesShownFor = "";               // сбросить, чтобы после банов показать заново
@@ -1409,7 +1417,8 @@ class Program
         string.Join(",", s.MyTeamBans) + "|" +
         string.Join(",", s.TheirTeamBans) + "|" +
         string.Join(",", s.Bench) + "|" +
-        (s.InBanPhase ? "ban" : "pick") + "|" +
+        // Планирование → баны: окно меняет моих чемпионов на советы банов.
+        (s.InPlanning ? "plan" : s.InBanPhase ? "ban" : "pick") + "|" +
         $"{s.MyPickActionId}:{s.MyPickInProgress}|" +
         // Пустой бан (время вышло) не меняет списков банов, а окно обязано
         // перейти от советов к банам команд.

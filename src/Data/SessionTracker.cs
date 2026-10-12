@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Counterplay;
 
@@ -76,6 +77,10 @@ public static class SessionTracker
         public bool Win { get; set; }
         public int? Lp { get; set; }            // LP-дельта (только ранкед-очереди)
         public double Wr { get; set; }          // винрейт очереди на момент игры
+        // Моя роль в этой игре (top/jungle/mid/adc/support). Пишется с 1.3.61:
+        // у старых игр её нет, и роль достраивается по связкам (LaneChamps).
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Role { get; set; }
     }
 
     private sealed class QueueLog
@@ -332,6 +337,164 @@ public static class SessionTracker
     {
         var m = ChampStatsMap(queues);
         return m.TryGetValue(championId, out var v) ? v : (0, 0);
+    }
+
+    // ── Мои чемпионы на линии (фаза планирования) ───────────────────────────
+
+    /// Очереди для «моих чемпионов на линии» — те же, что у винрейта за 30 дней:
+    /// ранкед и нормалы, без ARAM (там чемпион случайный).
+    private static readonly string[] LaneQueues = [.. QueuesRanked, .. QueuesNormal];
+
+    /// Сколько последних исходов показывать полосой формы.
+    public const int FormGames = 8;
+
+    /// <summary>
+    /// Чемпион на линии за окно: игры, победы, сумма LP в ранкеде (null — ни
+    /// одной ранкед-игры с известным LP), форма — исходы последних
+    /// <see cref="FormGames"/> игр от старых к новым, время последней игры.
+    /// </summary>
+    public sealed record LaneChamp(int ChampionId, int Games, int Wins, int? Lp,
+                                   IReadOnlyList<bool> Form, long LastTs)
+    {
+        public double WinRate => Games > 0 ? 100.0 * Wins / Games : 0;
+    }
+
+    /// <summary>
+    /// Мои чемпионы на роли за <paramref name="days"/> дней, самые игранные
+    /// первыми. Для фазы планирования: показываются только игры ВЫДАННОЙ роли —
+    /// если меня выкинуло в лес, саппорты, которыми я играю, там ни к чему.
+    ///
+    /// Роль игры: записанная в журнал (с 1.3.61) → из связок той же игры (в них
+    /// роль есть с 30.09) → на какой роли я чаще играю этого чемпиона по связкам →
+    /// его главная роль в базе (<paramref name="primaryRole"/>). Одной главной
+    /// роли мало: у владельца Эш — саппорт (8 игр по связкам), а база числит её
+    /// стрелком.
+    /// </summary>
+    public static IReadOnlyList<LaneChamp> LaneChamps(string dbRole, Func<int, string>? primaryRole,
+                                                      int days = RecentDays)
+    {
+        if (dbRole.Length == 0) return [];
+        var since = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds();
+        var games = new List<(long Ts, int Champ, bool Win, int? Lp, string Role)>();
+
+        if (PreviewGames is { } preview)
+        {
+            // Песочница: в подменной истории у каждой игры уже есть моя роль.
+            games.AddRange(preview
+                .Where(g => g.MyChampionId != 0 && g.Ts >= since && LaneQueues.Contains(g.Queue))
+                .Select(g => (g.Ts, g.MyChampionId, g.Win, (int?)null, g.MyRole)));
+        }
+        else
+        {
+            try
+            {
+                var s = Load();
+                var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
+                    ? a : s.Accounts.Values.FirstOrDefault();
+                if (acc != null) games.AddRange(LaneGames(acc, since, primaryRole));
+            }
+            catch { /* журнала нет или он битый — показывать нечего */ }
+        }
+
+        return games.Where(g => g.Role == dbRole)
+            .GroupBy(g => g.Champ)
+            .Select(x =>
+            {
+                var ordered = x.OrderBy(g => g.Ts).ToList();
+                var lps = ordered.Where(g => g.Lp is not null).Select(g => g.Lp!.Value).ToList();
+                return new LaneChamp(x.Key, ordered.Count, ordered.Count(g => g.Win),
+                                     lps.Count > 0 ? lps.Sum() : null,
+                                     ordered.TakeLast(FormGames).Select(g => g.Win).ToList(),
+                                     ordered[^1].Ts);
+            })
+            .OrderByDescending(c => c.Games).ThenByDescending(c => c.LastTs)
+            .ToList();
+    }
+
+    // Игры журнала за окно — каждая со своей ролью (см. LaneChamps).
+    private static IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role)> LaneGames(
+        Account acc, long since, Func<int, string>? primaryRole)
+    {
+        // Отметки связок с ролями: (очередь, мой чемпион) → (время начала игры,
+        // моя роль). У одной игры до четырёх союзников — и столько же одинаковых
+        // отметок, поэтому «обычная роль» считается по разным временам.
+        var marks = new Dictionary<(string Queue, int Champ), List<(long Ts, string Role)>>();
+        foreach (var (key, rec) in acc.Pairs)
+        {
+            if (ParsePairKey(key) is not { MyRole.Length: > 0 } p) continue;
+            if (!marks.TryGetValue((p.Queue, p.Mine), out var list)) marks[(p.Queue, p.Mine)] = list = [];
+            foreach (var ts in rec.Won.Concat(rec.Lost)) list.Add((ts, p.MyRole));
+        }
+        var usual = marks
+            .SelectMany(kv => kv.Value.Select(m => (Champ: kv.Key.Champ, m.Ts, m.Role)))
+            .DistinctBy(m => (m.Champ, m.Ts))
+            .GroupBy(m => m.Champ)
+            .ToDictionary(x => x.Key,
+                          x => x.GroupBy(m => m.Role).MaxBy(r => r.Count())!.Key);
+
+        foreach (var queue in LaneQueues)
+        {
+            if (!acc.Queues.TryGetValue(queue, out var ql)) continue;
+            bool ranked = QueuesRanked.Contains(queue);
+            foreach (var g in ql.Games)
+            {
+                if (g.ChampionId == 0 || g.Ts <= 0 || g.Ts < since) continue;
+                var role = g.Role is { Length: > 0 } r ? r
+                    : RoleByMark(marks.GetValueOrDefault((queue, g.ChampionId)), g.Ts)
+                      ?? usual.GetValueOrDefault(g.ChampionId)
+                      ?? primaryRole?.Invoke(g.ChampionId) ?? "";
+                yield return (g.Ts, g.ChampionId, g.Win, ranked ? g.Lp : null, role);
+            }
+        }
+    }
+
+    // Роль игры по отметке связки. Время в журнале — момент, когда программа
+    // УВИДЕЛА игру (её конец или позже), в связке — начало игры. Берём ближайшую
+    // отметку не позже записи и не раньше чем за RoleMarkWindow: игру, которую
+    // программа увидела через сутки, честнее отдать следующему правилу.
+    private const long RoleMarkWindow = 6 * 3600;
+
+    private static string? RoleByMark(List<(long Ts, string Role)>? marks, long ts)
+    {
+        if (marks is null) return null;
+        string? best = null;
+        long bestLag = long.MaxValue;
+        foreach (var (at, role) in marks)
+        {
+            var lag = ts - at;
+            if (lag < -60 || lag > RoleMarkWindow || lag >= bestLag) continue;
+            bestLag = lag; best = role;
+        }
+        return best;
+    }
+
+    // ── Роль из драфта ───────────────────────────────────────────────────────
+
+    // Последний драфт: на ком я стою и какую роль мне выдали. Живёт в памяти:
+    // игра попадает в историю через минуты после драфта, а если программу
+    // перезапустили посередине — роль возьмётся из подробностей игры.
+    private static (int Champ, string Role, long At)? _draftRole;
+
+    // Игра создаётся сразу после драфта, так что отметка драфта стоит в паре
+    // минут до её начала. Шире — уже другая игра на том же чемпионе.
+    private const long DraftRoleWindow = 15 * 60;
+
+    /// <summary>
+    /// Запомнить выданную роль: Program зовёт на каждом снимке драфта, где мой
+    /// чемпион подтверждён. По ней новая игра получает роль точно, а не по
+    /// подробностям игры, где топ и лес угадываются по доле ролей.
+    /// </summary>
+    public static void NoteDraftRole(int championId, string dbRole)
+    {
+        if (championId <= 0 || dbRole.Length == 0) return;
+        _draftRole = (championId, dbRole, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    }
+
+    private static string? DraftRoleOf(HistEntry h)
+    {
+        if (_draftRole is not { } d || d.Champ != h.ChampionId || h.CreatedSec <= 0) return null;
+        var lag = h.CreatedSec - d.At;
+        return lag is >= -300 and <= DraftRoleWindow ? d.Role : null;
     }
 
     // ── Свежесть наигранности ────────────────────────────────────────────────
@@ -1033,6 +1196,7 @@ public static class SessionTracker
         //    Первый запуск: журнал не наполняем задним числом, только запоминаем,
         //    что всё это уже было.
         var appended = new Dictionary<string, GameLog>(); // очередь → последняя добавленная игра
+        var added    = new Dictionary<long, GameLog>();   // номер игры → её новая запись (для роли)
         var seen = new HashSet<long>(acc.SeenGames);
 
         if (seen.Count == 0)
@@ -1055,8 +1219,10 @@ public static class SessionTracker
         foreach (var h in history.Where(h => !seen.Contains(h.GameId)).OrderBy(h => h.CreatedSec))
         {
             var q = GetQueue(acc, h.Queue);
-            var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win };
+            var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win,
+                                    Role = DraftRoleOf(h) };
             q.Games.Add(log);
+            added[h.GameId] = log;
             // Журнал держим на весь сезон: 3000 игр на очередь хватает даже
             // самым активным; страховка от бесконечного роста файла.
             if (q.Games.Count > 3000) q.Games.RemoveRange(0, q.Games.Count - 3000);
@@ -1086,6 +1252,11 @@ public static class SessionTracker
                 // чемпионам. Заодно экономим запрос подробной игры.
                 if (h.Queue == "aram") continue;
                 var (mates, myRole) = await FetchAlliesAsync(http, h.GameId, who!.Puuid, roleShare, ct);
+                // Роль из драфта главнее: там она выдана, а здесь угадана по
+                // доле ролей (клиент путает топ с лесом).
+                if (added.TryGetValue(h.GameId, out var fresh) && string.IsNullOrEmpty(fresh.Role)
+                    && myRole.Length > 0)
+                    fresh.Role = myRole;
                 foreach (var a in mates)
                 {
                     var key = PairKey(a.Puuid, h.Queue, h.ChampionId, a.ChampionId, myRole, a.Role);
@@ -1556,7 +1727,7 @@ public static class SessionTracker
     /// Порядок частей фиксирован, мой чемпион всегда первым.
     /// </summary>
     /// <summary>
-    /// Разбор ключа связки. null —形а незнакомая, запись пропускаем.
+    /// Разбор ключа связки. null — форма незнакомая, запись пропускаем.
     ///
     /// Публичен ради проверки: формат ключа — то, чем связка хранится годами, и
     /// ошибка в нём тихо теряет накопленный счёт.
