@@ -5,8 +5,13 @@
 # не говорит: он её не видит и проверить не может. Такие строки выглядят шумом и
 # обесценивают соседние, настоящие.
 #
+# И патчноут — сводка, а не рассказ: что поменялось и на что обратить внимание,
+# по короткой строке на изменение. Как загорается рамка и откуда въезжает бан,
+# игрок увидит сам; абзац про каждую анимацию топит главное.
+#
 # Скрипт зовётся из release.ps1 перед публикацией и РОНЯЕТ релиз, если находит
-# внутреннюю лексику. Осознанное исключение — ключ -AllowInternal.
+# внутреннюю лексику или слишком длинный текст. Осознанное исключение — ключ
+# -AllowInternal.
 #
 #   .\build\check-notes.ps1 -Text "..."            проверить текст
 #   .\build\check-notes.ps1 -Path notes.md         проверить файл
@@ -49,18 +54,65 @@ foreach ($rx in $banned.Keys) {
   }
 }
 
-if ($found.Count -eq 0) {
-  if (-not $Quiet) { Write-Host "Заметки к релизу: внутренней лексики нет." -ForegroundColor DarkGreen }
+# Длина. 1.3.40–1.3.50 были одной строкой в 10–20 слов, а 1.3.59 и 1.3.61
+# вышли по 230–250 — абзацами про каждую вспышку и волну, и владелец попросил
+# так не писать. Пункт длиннее 25 слов — это уже объяснение, а не строка.
+$maxItemWords  = 25    # пункт — одно предложение
+$maxTotalWords = 100   # весь патчноут — несколько пунктов
+
+# Пункт — абзац или строка списка; перенос строки внутри абзаца пункт не рвёт
+# (заметки бывают свёрстаны с жёсткими переносами).
+$items = @()
+foreach ($para in (($Text -replace "`r", '') -split "\n\s*\n")) {
+  $cur = ''
+  foreach ($line in ($para -split "\n")) {
+    if ($line -match '^\s*([-*•]|\d+\.)\s') {
+      if ($cur.Trim()) { $items += $cur.Trim() }
+      $cur = $line
+    } else { $cur += ' ' + $line }
+  }
+  if ($cur.Trim()) { $items += $cur.Trim() }
+}
+
+# Слово — кусок с буквой или цифрой: маркер списка и тире словами не считаются.
+$total = 0
+$long = @()
+foreach ($it in $items) {
+  $n = @($it -split '\s+' | Where-Object { $_ -match '\w' }).Count
+  $total += $n
+  if ($n -gt $maxItemWords) { $long += [pscustomobject]@{ N = $n; Text = $it } }
+}
+$tooLong = $total -gt $maxTotalWords -or $long.Count -gt 0
+
+if ($found.Count -eq 0 -and -not $tooLong) {
+  if (-not $Quiet) { Write-Host "Заметки к релизу: внутренней лексики нет, длина $total слов." -ForegroundColor DarkGreen }
   return
 }
 
 Write-Host ""
-Write-Host "СТОП: в заметках к релизу внутренняя информация." -ForegroundColor Red
-foreach ($f in ($found | Sort-Object Word -Unique)) {
-  Write-Host ("  «{0}» — {1}" -f $f.Word, $f.Why) -ForegroundColor Yellow
+if ($found.Count -gt 0) {
+  Write-Host "СТОП: в заметках к релизу внутренняя информация." -ForegroundColor Red
+  foreach ($f in ($found | Sort-Object Word -Unique)) {
+    Write-Host ("  «{0}» — {1}" -f $f.Word, $f.Why) -ForegroundColor Yellow
+  }
+  Write-Host ""
+  Write-Host "Патчноут читает игрок. Перепиши так, чтобы каждая строка говорила," -ForegroundColor Gray
+  Write-Host "что он УВИДИТ в программе, — либо убери её совсем." -ForegroundColor Gray
+  Write-Host ""
 }
-Write-Host ""
-Write-Host "Патчноут читает игрок. Перепиши так, чтобы каждая строка говорила," -ForegroundColor Gray
-Write-Host "что он УВИДИТ в программе, — либо убери её совсем." -ForegroundColor Gray
+if ($tooLong) {
+  Write-Host "СТОП: патчноут слишком длинный." -ForegroundColor Red
+  if ($total -gt $maxTotalWords) {
+    Write-Host ("  всего {0} слов, предел {1}" -f $total, $maxTotalWords) -ForegroundColor Yellow
+  }
+  foreach ($l in $long) {
+    $head = if ($l.Text.Length -gt 60) { $l.Text.Substring(0, 60) + '…' } else { $l.Text }
+    Write-Host ("  {0} слов в пункте, предел {1}: «{2}»" -f $l.N, $maxItemWords, $head) -ForegroundColor Yellow
+  }
+  Write-Host ""
+  Write-Host "Пиши в общих словах: что поменялось и на что обратить внимание, одной" -ForegroundColor Gray
+  Write-Host "строкой на изменение. Как это выглядит и анимируется — игрок увидит сам." -ForegroundColor Gray
+  Write-Host ""
+}
 Write-Host "Осознанное исключение: release.ps1 -AllowInternal" -ForegroundColor DarkGray
-throw "Заметки к релизу содержат внутреннюю информацию."
+throw "Заметки к релизу не прошли проверку."
