@@ -38,12 +38,13 @@ internal static class Smoke
             ? args[at + 1]
             : Path.Combine(Path.GetTempPath(), "counterplay-smoke.txt");
 
-        // Своя папка вместо папки игрока — до первого обращения к хранилищам.
+        // Настоящая папка игрока — только чтобы читать из неё базу и справочник;
+        // берём её у AppPaths ДО подмены (мимо AppPaths пути не собираем —
+        // tests/PlayerData). Дальше своя папка — до первого обращения к хранилищам.
+        var player = AppPaths.Root;
         var root = Path.Combine(Path.GetTempPath(), "counterplay-smoke", Environment.ProcessId.ToString());
         AppPaths.RootOverride = root;
         Directory.CreateDirectory(root);
-        var player = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
         if (File.Exists(Path.Combine(player, "data.db"))) DataDb.DirOverride = player;   // только чтение
         PoolStore.DirOverride = Path.Combine(root, "pools");
         Directory.CreateDirectory(PoolStore.DirOverride);
