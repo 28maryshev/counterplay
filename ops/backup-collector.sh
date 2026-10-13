@@ -106,7 +106,10 @@ log "── бэкап коллектора $DAY ──"
 snapshot() {  # $1 — исходная база, $2 — куда положить снимок
   python3 - "$1" "$2" <<'PY'
 import sqlite3, sys
-src = sqlite3.connect('file:%s?mode=ro' % sys.argv[1], uri=True)
+# Ждать базу до 15 минут, а не 5 секунд по умолчанию: если журнал записи не
+# свёрнут, открытие базы перечитывает его целиком, и пока кто-то это делает,
+# остальные получают «database is locked». 13 октября так пропал бэкап.
+src = sqlite3.connect('file:%s?mode=ro' % sys.argv[1], uri=True, timeout=900)
 dst = sqlite3.connect(sys.argv[2])
 with dst:
     src.backup(dst)

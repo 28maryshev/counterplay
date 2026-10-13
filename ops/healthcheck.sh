@@ -52,6 +52,10 @@ echo "cron_backup=$(crontab -l 2>/dev/null | grep -c backup-collector.sh)"
 echo "cron_watch=$(crontab -l 2>/dev/null | grep -c site_watch.sh)"
 echo "cron_cleanup=$(crontab -l 2>/dev/null | grep -c cleanup.sh)"
 echo "backup_last=$(grep 'готово. занято' backup.log 2>/dev/null | tail -1 | cut -c1-10)"
+# Последний запуск бэкапа упал? «Копия за вчера» при этом выглядит как норма.
+echo "backup_fail=$(grep -E 'готово. занято|ОШИБКА' backup.log 2>/dev/null | tail -1 | grep 'ОШИБКА' | cut -c1-160)"
+# Журнал записи рабочей базы: после уборки он ноль, несвёрнутый — размером с базу.
+echo "wal_mb=$(( $(stat -c %s counterplay-collector/data/data.db-wal 2>/dev/null || echo 0) / 1048576 ))"
 # Сторож патчей: что он помнит. Цикл патча начинается с него, и молчащий сторож
 # внешне неотличим от «патча не было».
 echo "patch_seen=$(docker exec counterplay-bot node -e '
@@ -135,6 +139,16 @@ else
     bad "база не менялась $(( dba / 60 )) мин при активном сборе"
   else ok "база писалась $(( ${dba:-0} / 60 )) мин назад"; fi
 
+  # Несвёрнутый журнал при стоящем сборе: каждое открытие базы перечитывает его
+  # целиком (минуты на этом диске), бэкап и старт сбора ловят «database is
+  # locked». Пока сбор пишет, он свернётся сам. Журнал 2026-10-13.
+  wal=$(val "$R" wal_mb)
+  if [ "${wal:-0}" -gt 1024 ] && [ "$st" != collecting ]; then
+    bad "журнал записи базы ${wal} МБ при состоянии $st — не свернулся после уборки, бэкап и старт сбора будут падать с «database is locked»"
+  elif [ "${wal:-0}" -gt 1024 ]; then
+    warn "журнал записи базы ${wal} МБ — сбор пишет, должен свернуться"
+  else ok "журнал записи базы: ${wal:-0} МБ"; fi
+
   [ "$(val "$R" ops_db)" = 1 ] && ok "журнал эксплуатации ведётся" || warn "нет ops.db"
 
   jf=$(val "$R" journal_files)
@@ -164,6 +178,8 @@ else
   if [ "$bl" = "$today" ] || { [ -n "$yday" ] && [ "$bl" = "$yday" ]; }; then
     ok "копия делалась: $bl"
   else bad "последняя удачная копия: ${bl:-нет записи} — бэкап не отрабатывает"; fi
+  bf=$(val "$R" backup_fail)
+  [ -n "$bf" ] && warn "последний запуск бэкапа упал: $bf (~/backup.log)"
 fi
 
 # ───────────────────────────── сервер сайта ─────────────────────────────

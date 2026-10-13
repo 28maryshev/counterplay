@@ -102,6 +102,10 @@ PUBLISH_TIMEOUT = int(os.environ.get('PUBLISH_TIMEOUT', '5400'))
 # SQLite обрывает запрос и ничего не оставляет висеть.
 BUILD_TIMEOUT = int(os.environ.get('BUILD_TIMEOUT', '10800'))
 
+# Журнал записи больше этого после уборки — повод сказать в Discord. Свёрнутый
+# журнал — ноль; после сжатия несвёрнутый — размером со всю базу.
+WAL_ALARM_MB = 256
+
 
 def notify(text: str):
     """Сообщение в Discord. Молча игнорируем сбой — сбор важнее уведомления."""
@@ -139,6 +143,14 @@ def db_size_mb() -> float | None:
         return round(total / 1e6, 1)
     except Exception:
         return None
+
+
+def wal_mb() -> float:
+    """Размер журнала записи рабочей базы. После уборки он должен быть нулём."""
+    try:
+        return Path(str(DB_PATH) + '-wal').stat().st_size / 1048576
+    except OSError:
+        return 0.0
 
 
 def disk() -> tuple[float, float] | None:
@@ -391,7 +403,8 @@ def _announce_published(info: dict, session_total: int, started: float, late: bo
                         why: str = 'round'):
     """Всё, что делается после удачной публикации: объявить, записать, позвать
     обновление сайта. Одно место на оба исхода — вовремя и с опозданием, — чтобы
-    поздний успех не оказался беднее обычного, как 2 октября."""
+    поздний успех не оказался беднее обычного, как 2 октября. Сайт вовремя
+    зовёт publish_db, после уборки; здесь — только с опозданием."""
     minutes = round((time.monotonic() - started) / 60)
     buckets = info.get('buckets', {})
     bsizes = ' · '.join(f'{b} {buckets[b]["size_mb"]}МБ' for b in buckets)
@@ -412,7 +425,10 @@ def _announce_published(info: dict, session_total: int, started: float, late: bo
                    slim_mb=info.get('slim_mb'),
                    buckets={b: buckets[b]['size_mb'] for b in buckets},
                    collected=session_total, minutes=minutes, late=late)
-    request_site_update(info['patch'])
+    if late:
+        # Уборки за поздним успехом нет (она отложена до следующей публикации),
+        # так что сайт можно звать сразу.
+        request_site_update(info['patch'])
 
 
 # Повод публикации — в словах сообщений. 5 октября на истёкшем ключе бот написал
@@ -439,6 +455,7 @@ def publish_db(session_total: int, why: str = 'round'):
         return
 
     started = time.monotonic()
+    site_patch = None
 
     def late_ok(info):
         _announce_published(info, session_total, started, late=True, why=why)
@@ -471,6 +488,7 @@ def publish_db(session_total: int, why: str = 'round'):
                                                      on_late=late_ok, on_late_error=late_err),
             workdir=tmp, build_timeout=BUILD_TIMEOUT)
         _announce_published(info, session_total, started, why=why)
+        site_patch = info['patch']
     except publish_data.BuildTimeout as e:
         notify(f'⚠️ Сбор прошёл (+{session_total}), но сборка базы не уложилась в '
                f'{BUILD_TIMEOUT // 3600} ч и прервана. Сбор продолжаю, база выложится '
@@ -496,6 +514,13 @@ def publish_db(session_total: int, why: str = 'round'):
         # отложенная уборка случится после следующей публикации.
         if _publishing is None or not _publishing.is_alive():
             prune_db()
+        # Отметку для сайта — только ПОСЛЕ уборки. Выгрузки сайта читают живую
+        # базу около часа, и, стартовав по отметке посреди уборки, держали
+        # старый срез как раз тогда, когда сжатая база сворачивалась из журнала
+        # в файл: через раз журнал на 3,5 ГБ оставался до следующего ключа
+        # (журнал, 13 октября).
+        if site_patch:
+            request_site_update(site_patch)
 
 
 def request_site_update(patch: str):
@@ -525,14 +550,22 @@ def prune_db():
         after = os.path.getsize(DB_PATH) / 1048576
         for line in tail:
             print(f'[уборка] {line}', flush=True)
+        wal = wal_mb()
         ops_log.record('prune', db_mb=round(after, 1),
-                       before_mb=round(before, 1), after_mb=round(after, 1))
+                       before_mb=round(before, 1), after_mb=round(after, 1), wal_mb=round(wal, 1))
         ops_log.prune()          # заодно подрезаем старые снимки в ops.db
         if before - after > 50:
             free = disk()
             notify(f'🧹 Уборка базы: {before:,.0f} → {after:,.0f} МБ '
                    f'(освободилось {before - after:,.0f} МБ)'
                    + (f' · свободно на диске {free[0]:.1f} ГБ' if free else ''))
+        if wal > WAL_ALARM_MB:
+            # Молча так нельзя: пока журнал не свёрнут, каждое открытие базы без
+            # пишущего сбора перечитывает его целиком, и 13 октября бэкап и старт
+            # сбора упали с «database is locked», а причину пришлось раскапывать.
+            notify(f'⚠️ После уборки журнал базы не свернулся: {wal / 1024:.1f} ГБ — '
+                   'базу всё время кто-то читал. Пока он такой, бэкап и старт сбора '
+                   'могут падать с «database is locked»; свернётся, когда сбор начнёт писать.')
     except Exception as e:
         print(f'[уборка] не удалась: {e}', flush=True)
 
