@@ -208,35 +208,9 @@ public sealed partial class RecommendationEngine
                 var otherDelta = PureVs(omg, omw);
                 var crossDelta = PureVs(oxg, oxw);
 
-                // Синергия с союзниками: то же — дельта по каждому + ПУЛ для скора.
-                // Тоже ЧИСТАЯ (минус собственная база): «пара играет лучше, чем этот
-                // чемпион в среднем», а не «сильный чемпион хорош с кем угодно».
-                var synRaw = allyData
-                    .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id, a.Role); return (a.Id, a.Role, G: g, W: w); })
-                    .ToList();
-                var synByAlly = synRaw.Select(x => (x.Id, x.Role, Delta: PureVs(x.G, x.W))).ToList();
-                var synGames = synRaw.Sum(x => x.G);
-                // Темпер по выборке: мало совместных игр → синергии меньше доверия,
-                // чтобы «чемпионы на 8 играх» не доминировали при высоком весе без врагов.
-                var synConf  = synGames / (synGames + CONF_GAMES);
-                var synDelta = synRaw.Count > 0 && synGames > 0
-                    ? (Delta(synGames, synRaw.Sum(x => x.W), K_PAIR) - rawBase) * synConf : 0.0;
-
-                // Надбавка за напарника: его связка со мной весит больше, чем связка
-                // со случайным союзником. Кладём в ТУ ЖЕ полосу синергии, а не в скор
-                // отдельным слагаемым, — иначе оценка росла бы, а объяснение в
-                // карточке осталось прежним. Дельта напарника уже сглажена по объёму
-                // выборки (PureVs), второй раз не темперим.
-                if (mateId != 0)
-                {
-                    var mate = synByAlly.FirstOrDefault(x => x.Id == mateId);
-                    // Умножаем на доверие к связке: пока вы вдвоём не наиграли,
-                    // надбавка почти не слышна, и напарник весит как обычный
-                    // союзник. Это и есть ответ на «случайный сопартиец гнёт
-                    // совет не хуже настоящего напарника».
-                    if (mate.Id != 0)
-                        synDelta += (DUO_MATE_MULT - 1.0) * mate.Delta * mateConf;
-                }
+                // Синергия с союзниками — общий расчёт (AllySynergy): им же советы
+                // банов взвешивают мой пул.
+                var (synDelta, synByAlly) = AllySynergy(champId, myRole, rawBase, allyData, mateId, mateConf);
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
@@ -361,6 +335,45 @@ public sealed partial class RecommendationEngine
                 (ChampionTraits.LongRange(champId) ? 2 : 0) + ChampionTraits.Burst(champId),
         };
         return W_TRIFECTA * want + W_STYLE * style;
+    }
+
+    /// <summary>
+    /// Синергия чемпиона моей роли с показанными союзниками — полоска «синергия»
+    /// в карточке пика. Совместные игры со всеми союзниками складываются, и от их
+    /// винрейта отнимается собственная база чемпиона (rawBase): «пара играет
+    /// лучше, чем этот чемпион в среднем», а не «сильный чемпион хорош с кем
+    /// угодно». Доверие — по объёму (CONF_GAMES): мало совместных игр — меньше
+    /// доверия, чтобы «чемпионы на 8 играх» не доминировали при высоком весе без
+    /// врагов. По каждому союзнику — его чистая дельта (для доводов).
+    ///
+    /// Надбавка за напарника: его связка со мной весит больше, чем связка со
+    /// случайным союзником, и ложится в ТУ ЖЕ полосу, а не в скор отдельным
+    /// слагаемым — иначе оценка росла бы, а объяснение в карточке осталось
+    /// прежним. Дельта напарника уже сглажена по объёму, второй раз не
+    /// темперим; умножаем на доверие к связке (mateConf): пока вы вдвоём не
+    /// наиграли, надбавка почти не слышна — ответ на «случайный сопартиец гнёт
+    /// совет не хуже настоящего напарника».
+    ///
+    /// Зовут подбор пика и советы банов (вес моего пула): синергия одна и та же.
+    /// </summary>
+    private (double Delta, List<(int Id, string Role, double Delta)> ByAlly) AllySynergy(
+        int champId, string myRole, double rawBase,
+        IReadOnlyList<(int Id, string Role)> allies, int mateId, double mateConf)
+    {
+        var raw = allies
+            .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id, a.Role); return (a.Id, a.Role, G: g, W: w); })
+            .ToList();
+        var byAlly = raw.Select(x => (x.Id, x.Role,
+            Delta: x.G > 0 ? (Delta(x.G, x.W, K_PAIR) - rawBase) * (x.G / (x.G + MATCHUP_CONF)) : 0.0)).ToList();
+        var games = raw.Sum(x => x.G);
+        var delta = raw.Count > 0 && games > 0
+            ? (Delta(games, raw.Sum(x => x.W), K_PAIR) - rawBase) * (games / (games + CONF_GAMES)) : 0.0;
+        if (mateId != 0)
+        {
+            var mate = byAlly.FirstOrDefault(x => x.Id == mateId);
+            if (mate.Id != 0) delta += (DUO_MATE_MULT - 1.0) * mate.Delta * mateConf;
+        }
+        return (delta, byAlly);
     }
 
     /// Чистая синергия ПАРЫ (m ↔ f), как дельта: WR пары минус база m, темпер по

@@ -26,7 +26,7 @@ namespace Counterplay.Tests;
 ///    пики союзников, поднимается; жёсткая контра моему — в пятёрке всегда.
 /// 1г. Каждый бан учитывает мой пул (14.10): союзные баны набирают очки и за
 ///    него, прямых контр пулу в пятёрке не меньше двух.
-/// 1д. Мейн в синергии под портретами союзников весит в банах больше.
+/// 1д. Вес мейна в банах растёт с его синергией с союзниками (та же, что на пиках).
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -371,20 +371,25 @@ internal static class Program
         SessionTracker.HistoryOverride = null;
     }
 
-    // ── 1д. Мейн в синергии у союзников весит больше ─────────────────────────
+    // ── 1д. Синергия мейна с союзниками — вес в банах ────────────────────────
 
     /// <summary>
     /// Скриншот владельца 14.10: союзники выбрали Ирелию, Катарину и Тристану, и
-    /// под каждым в «синергии» стоит Браум — «на пиках мне скорее всего
-    /// предложат Браума, контрам ему — немного повышенный рейтинг». Вес мейна в
-    /// банах × (1 + 0,15 за каждого союзника, у которого он в этих иконках).
-    /// Иконки берём той же функцией, что окно (TopSynergies), веса — из
-    /// внутреннего списка «наших» через отражение.
+    /// у них уже видна синергия с моим пулом — «на пиках мне предложат того, кто
+    /// с ними сочетается, контрам ему — повышенный рейтинг». Первым заходом вес
+    /// поднимали по иконкам под портретами, и надбавка доставалась одному-двум
+    /// (Браум ×1,45, Сона ×1,15); владелец: «не по иконкам, а по синергии в
+    /// целом — тем же алгоритмом, что на пиках, в пропорциях».
+    ///
+    /// Держим: вес мейна в банах × (1 + 0,15 × синергия), где синергия — ровно
+    /// полоска «синергия» из подбора пика (Recommend → SynergyDelta) на том же
+    /// драфте; надбавку получают несколько чемпионов пула, больше — у кого
+    /// синергия выше. Веса — из внутреннего списка «наших» через отражение.
     /// </summary>
     private static void Partners(RecommendationEngine engine)
     {
         Console.WriteLine();
-        Console.WriteLine("мейн в синергии у союзников:");
+        Console.WriteLine("синергия мейна с союзниками:");
         int[] mains = [37, 201, 22, 161, 910, 101, 78, 117];
         SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>
             { [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6 });
@@ -396,20 +401,23 @@ internal static class Program
             new(3, 0, 18, "bottom", false),    // Тристана
             new(4, 0, 0, "utility", true),
         };
-        (int Id, string Role)[] allies = [(39, "top"), (55, "mid"), (18, "adc")];
-        var icons = mains.ToDictionary(m => m, m => allies.Count(a => engine.TopSynergies(a.Id, "support", 3, a.Role).Contains(m)));
-        Console.WriteLine("  в иконках: " + string.Join(", ", icons.Where(kv => kv.Value > 0).Select(kv => $"{DataDragon.Name(kv.Key)} ×{kv.Value}")));
+        var state = Snapshot(team, team[4], "utility");
+        // Синергия из подбора пика на том же драфте.
+        var syn = engine.Recommend(state with { InBanPhase = false }, mains.Length, mains)
+                        .ToDictionary(r => r.ChampionId, r => r.SynergyDelta);
 
-        var withAllies = PoolWeights(engine, Snapshot(team, team[4], "utility"));
+        var withAllies = PoolWeights(engine, state);
         var me = new List<DraftPlayer> { new(4, 0, 0, "utility", true) };
         var alone = PoolWeights(engine, Snapshot(me, me[0], "utility"));
-        Check("у кого-то из пула синергия с союзниками есть", icons.Values.Any(n => n > 0), "");
-        foreach (var m in mains.Where(m => alone.ContainsKey(m)))
+        var got = mains.Where(alone.ContainsKey).ToDictionary(m => m, m => withAllies.GetValueOrDefault(m) / alone[m]);
+        foreach (var m in got.Keys.OrderByDescending(m => syn.GetValueOrDefault(m)))
         {
-            var want = 1 + 0.15 * icons[m];
-            var got = withAllies.GetValueOrDefault(m) / alone[m];
-            Check($"   {DataDragon.Name(m)}: вес × {want:F2}", Math.Abs(got - want) < 1e-9, $"× {got:F2}");
+            var want = 1 + 0.15 * Math.Max(0, syn.GetValueOrDefault(m));
+            Check($"   {DataDragon.Name(m)}: синергия {syn.GetValueOrDefault(m):+0.00;-0.00} → вес × {want:F2}",
+                  Math.Abs(got[m] - want) < 1e-9, $"× {got[m]:F2}");
         }
+        Check("надбавку получает не один чемпион пула", got.Values.Count(x => x > 1.0) >= 3,
+              $"{got.Values.Count(x => x > 1.0)} из {got.Count}");
         SessionTracker.HistoryOverride = null;
     }
 
