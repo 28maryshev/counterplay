@@ -712,7 +712,15 @@
     "noPassword": "Sem palavra-passe",
     "noAccount": "Perfil ainda desconhecido — abre o cliente do jogo",
     "failedNet": "Não foi possível contactar o servidor",
-    "pulled": "Ficheiros recebidos: {0}"
+    "never": "Ainda não sincronizado",
+    "ok": "Sincronizado {0}",
+    "today": "hoje às {0}",
+    "onDate": "em {0} às {1}",
+    "got": "De outro computador {0}: {1}",
+    "gotGames": "partidas: {0}",
+    "gotPools": "pools",
+    "gotSettings": "definições",
+    "empty": "O servidor estava vazio: este é o primeiro computador com esta palavra-passe"
   },
   "plan": {
     "title": "Meus campeões · {0} · 30 dias",

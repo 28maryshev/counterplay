@@ -712,7 +712,15 @@
     "noPassword": "Brak hasła",
     "noAccount": "Profil jeszcze nieznany — otwórz klienta gry",
     "failedNet": "Nie udało się połączyć z serwerem",
-    "pulled": "Odebrane pliki: {0}"
+    "never": "Jeszcze nie zsynchronizowano",
+    "ok": "Zsynchronizowano {0}",
+    "today": "dziś o {0}",
+    "onDate": "{0} o {1}",
+    "got": "Z innego komputera {0}: {1}",
+    "gotGames": "gry: {0}",
+    "gotPools": "pule",
+    "gotSettings": "ustawienia",
+    "empty": "Serwer był pusty: to pierwszy komputer z tym hasłem"
   },
   "plan": {
     "title": "Moi bohaterowie · {0} · 30 dni",

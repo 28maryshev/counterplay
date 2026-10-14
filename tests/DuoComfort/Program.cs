@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Counterplay;
@@ -35,8 +33,6 @@ internal static class Program
     // пустой — его в коме быть не должно.
     private const int Played = 101, MasteredOnly = 102, Nothing = 103;
 
-    /// Строки «сервера»: id → (версия, ком). Ровно то, что хранит настоящий.
-    private static readonly Dictionary<string, (int Rev, byte[] Blob)> _rows = [];
 
     private static int Main()
     {
@@ -48,23 +44,19 @@ internal static class Program
         Try(() => Directory.Delete(dir, true));
         Directory.CreateDirectory(dir);
 
-        var port = FreePort();
-        var listener = new HttpListener();
-        listener.Prefixes.Add($"http://localhost:{port}/");
-        listener.Start();
-        _ = Task.Run(() => Serve(listener));
+        var server = new FakeSyncServer();
 
         DuoShare.DirOverride = dir;
-        DuoShare.EndpointOverride = $"http://localhost:{port}/";
+        DuoShare.EndpointOverride = server.Url;
 
         var histBak = SessionTracker.HistoryOverride;
-        try { Run(listener); }
+        try { Run(server); }
         finally
         {
             SessionTracker.HistoryOverride = histBak;
             DuoShare.DirOverride = null;
             DuoShare.EndpointOverride = null;
-            try { listener.Close(); } catch { }
+            server.Dispose();
             Try(() => Directory.Delete(dir, true));
         }
 
@@ -75,7 +67,7 @@ internal static class Program
         return _fails == 0 ? 0 : 1;
     }
 
-    private static void Run(HttpListener listener)
+    private static void Run(FakeSyncServer server)
     {
         var secret = DuoShare.NewSecret();
         Check("секрет дуо — 32 знака шестнадцатеричных", secret.Length == 32
@@ -107,9 +99,9 @@ internal static class Program
         // ── Выкладка и приём ────────────────────────────────────────────────
         var pushed = DuoShare.PushAsync(secret, PuuidA, "1.3.53", "master", snap)
                               .GetAwaiter().GetResult();
-        Check("своё выложилось", pushed, $"строк на сервере {_rows.Count}");
+        Check("своё выложилось", pushed, $"строк на сервере {server.Count}");
         Check("сервер не видит, чьё это и что внутри",
-              _rows.Count == 1 && !Encoding.UTF8.GetString(_rows.First().Value.Blob).Contains(PuuidA),
+              server.Count == 1 && !Encoding.UTF8.GetString(server.Rows()[0].Blob).Contains(PuuidA),
               "ком зашифрован");
 
         var pulled = DuoShare.PullAsync(secret, PuuidA).GetAwaiter().GetResult();
@@ -197,7 +189,7 @@ internal static class Program
         // Владелец: «можно раз синхронизировать и работать на старых данных в
         // следующей сессии, если новые не успеют подтянуться». Гасим сервер
         // совсем и проверяем, что прошлый снимок на месте и читается.
-        listener.Stop();
+        server.Stop();
         var offlinePull = DuoShare.PullAsync(secret, PuuidA).GetAwaiter().GetResult();
         Check("без сети забрать не выходит (и это ожидаемо)", !offlinePull, "");
 
@@ -225,71 +217,6 @@ internal static class Program
         for (var i = 4; i >= 0; i--)
             ts.Add(now - (long)((daysSince + i) * 86400));
         return [.. ts];
-    }
-
-    // ── свой сервер: тот же контракт, что у /api/sync/{id} ──────────────────
-
-    private static void Serve(HttpListener l)
-    {
-        while (l.IsListening)
-        {
-            HttpListenerContext c;
-            try { c = l.GetContext(); } catch { return; }
-            try
-            {
-                var id = c.Request.Url!.AbsolutePath.Trim('/');
-                byte[] body;
-
-                if (c.Request.HttpMethod == "GET")
-                {
-                    // Нет строки — это не ошибка: так выглядит первый заход.
-                    body = _rows.TryGetValue(id, out var row)
-                        ? Encoding.UTF8.GetBytes(
-                            $"{{\"rev\":{row.Rev},\"blob\":\"{Convert.ToBase64String(row.Blob)}\"}}")
-                        : Encoding.UTF8.GetBytes("{\"rev\":0,\"blob\":null}");
-                }
-                else if (c.Request.HttpMethod == "PUT")
-                {
-                    using var sr = new StreamReader(c.Request.InputStream, Encoding.UTF8);
-                    using var doc = JsonDocument.Parse(sr.ReadToEnd());
-                    var rev = doc.RootElement.GetProperty("rev").GetInt32();
-                    var blob = Convert.FromBase64String(doc.RootElement.GetProperty("blob").GetString()!);
-
-                    var have = _rows.TryGetValue(id, out var cur) ? cur.Rev : 0;
-                    if (have != rev)
-                    {
-                        // Как настоящий: версия не та — 409 и текущий номер.
-                        c.Response.StatusCode = 409;
-                        body = Encoding.UTF8.GetBytes($"{{\"error\":\"stale\",\"rev\":{have}}}");
-                    }
-                    else
-                    {
-                        _rows[id] = (have + 1, blob);
-                        body = Encoding.UTF8.GetBytes($"{{\"rev\":{have + 1}}}");
-                    }
-                }
-                else
-                {
-                    c.Response.StatusCode = 405;
-                    body = [];
-                }
-
-                c.Response.ContentType = "application/json";
-                c.Response.ContentLength64 = body.Length;
-                c.Response.OutputStream.Write(body, 0, body.Length);
-            }
-            catch { /* проверка не про устойчивость сервера */ }
-            finally { try { c.Response.Close(); } catch { } }
-        }
-    }
-
-    private static int FreePort()
-    {
-        var l = new TcpListener(IPAddress.Loopback, 0);
-        l.Start();
-        var port = ((IPEndPoint)l.LocalEndpoint).Port;
-        l.Stop();
-        return port;
     }
 
     private static void Try(Action a) { try { a(); } catch { } }

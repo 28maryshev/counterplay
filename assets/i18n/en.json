@@ -712,7 +712,15 @@
     "noPassword": "No password set",
     "noAccount": "Profile not known yet — open the game client",
     "failedNet": "Could not reach the server",
-    "pulled": "Files received: {0}"
+    "never": "Not synced yet",
+    "ok": "Synced {0}",
+    "today": "today at {0}",
+    "onDate": "{0} at {1}",
+    "got": "From another computer {0}: {1}",
+    "gotGames": "games: {0}",
+    "gotPools": "pools",
+    "gotSettings": "settings",
+    "empty": "The server was empty: this is the first computer with this password"
   },
   "plan": {
     "title": "My champions · {0} · last 30 days",

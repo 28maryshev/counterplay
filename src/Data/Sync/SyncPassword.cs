@@ -42,9 +42,12 @@ public static class SyncPassword
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
+            // Новый пароль — новая строка на сервере: «синхронизировано вчера»
+            // относилось к прежней.
             if (string.IsNullOrEmpty(password))
             {
                 File.Delete(Path_);
+                SyncStatus.Reset();
                 Log.Write("пароль синхронизации убран");
                 return true;
             }
@@ -52,6 +55,7 @@ public static class SyncPassword
             var blob = ProtectedData.Protect(
                 Encoding.UTF8.GetBytes(password), null, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(Path_, blob);
+            SyncStatus.Reset();
             Log.Write("пароль синхронизации задан");
             return true;
         }

@@ -302,20 +302,37 @@ public static partial class SessionTracker
     /// </summary>
     private static void PrunePairs(Account acc, long now)
     {
+        foreach (var key in PairsToForget(
+                     acc.Pairs.Select(kv => (kv.Key, kv.Value.Count(0).Games, kv.Value.Last())), now))
+            acc.Pairs.Remove(key);
+    }
+
+    /// <summary>
+    /// Само правило чистки — отдельно от журнала, потому что его применяет и
+    /// синхронизация (<see cref="SyncClient"/>): она складывает связки двух
+    /// компьютеров и без этого правила возвращала бы всё, что журнал уже
+    /// забыл. Так и было: 400 после чистки → 461 после слияния, после каждой
+    /// игры, и копия на сервере только росла.
+    ///
+    /// При равной давности порядок решает ключ: оба места обязаны выбрать
+    /// ОДНИ И ТЕ ЖЕ связки, иначе компьютеры перекидывались бы ими по кругу.
+    /// </summary>
+    internal static HashSet<string> PairsToForget(
+        IEnumerable<(string Key, int Games, long Last)> pairs, long now)
+    {
         const int MaxPairs = 400;          // с запасом: у постоянной пары их десятки
         const int OneOffDays = 30;
 
         var cutoff = now - OneOffDays * 86400L;
-        foreach (var key in acc.Pairs
-                     .Where(kv => kv.Value.Count(0).Games <= 1 && kv.Value.Last() < cutoff)
-                     .Select(kv => kv.Key).ToList())
-            acc.Pairs.Remove(key);
+        var all = pairs.ToList();
+        var drop = all.Where(p => p.Games <= 1 && p.Last < cutoff).Select(p => p.Key).ToHashSet();
 
-        if (acc.Pairs.Count <= MaxPairs) return;
-        foreach (var key in acc.Pairs.OrderBy(kv => kv.Value.Last())
-                                     .Take(acc.Pairs.Count - MaxPairs)
-                                     .Select(kv => kv.Key).ToList())
-            acc.Pairs.Remove(key);
+        var left = all.Where(p => !drop.Contains(p.Key)).ToList();
+        if (left.Count > MaxPairs)
+            foreach (var p in left.OrderBy(p => p.Last).ThenBy(p => p.Key, StringComparer.Ordinal)
+                                  .Take(left.Count - MaxPairs))
+                drop.Add(p.Key);
+        return drop;
     }
 
     /// <summary>

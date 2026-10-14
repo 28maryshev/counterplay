@@ -712,7 +712,15 @@
     "noPassword": "Aucun mot de passe",
     "noAccount": "Profil inconnu — ouvre le client du jeu",
     "failedNet": "Serveur injoignable",
-    "pulled": "Fichiers reçus : {0}"
+    "never": "Pas encore synchronisé",
+    "ok": "Synchronisé {0}",
+    "today": "aujourd’hui à {0}",
+    "onDate": "le {0} à {1}",
+    "got": "Depuis un autre ordinateur {0} : {1}",
+    "gotGames": "parties : {0}",
+    "gotPools": "pools",
+    "gotSettings": "réglages",
+    "empty": "Le serveur était vide : c’est le premier ordinateur avec ce mot de passe"
   },
   "plan": {
     "title": "Mes champions · {0} · 30 jours",

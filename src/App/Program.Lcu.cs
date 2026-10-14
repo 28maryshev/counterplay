@@ -24,12 +24,26 @@ partial class Program
 
         overlay.SetVersion(Log.Version);
 
-        // Пришло чужое — перечитать пулы и перерисовать. В потоке окна: на
-        // экране они живут в памяти и о подмене файлов сами не узнают.
-        SyncClient.Pulled = () => overlay.Dispatcher.InvokeAsync(() =>
+        // Синхронизация переписала файлы — перечитать их и перерисовать. В
+        // потоке окна: на экране всё живёт в памяти и о подмене файлов само не
+        // узнает. Раньше перечитывались только пулы: график и LP с другого
+        // компьютера ждали минутного обновления профиля, а настройки — до
+        // перезапуска (и до него их затирало сохранение из памяти).
+        SyncClient.Pulled = files => overlay.Dispatcher.InvokeAsync(() =>
         {
-            PoolStore.Reload();
-            overlay.RefreshPoolMode();
+            if (files.Contains("pools.json"))
+            {
+                PoolStore.Reload();
+                overlay.RefreshPoolMode();
+            }
+            if (files.Contains("ui.json")) AppSettings.Reload();
+            if (files.Contains("session.json"))
+            {
+                SessionTracker.DropCache();
+                if (_refreshSession is { } refresh) _ = Task.Run(refresh);
+            }
+            // Открытое окно пулов показывает и пулы, и винрейты из журнала игр.
+            overlay.ReloadPoolWindow();
         });
 
         // Обновления НИЧЕГО не задерживают: сайдбар показывается сразу, а новая

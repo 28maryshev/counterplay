@@ -15,6 +15,11 @@ partial class Program
     // драфт, а не на каждый ховер, поэтому сеть не мешает.
     private static string _runesShownFor = "";   // связка, для которой уже показали руны
 
+    /// Обновить профиль игрока (ранг, LP, график) текущей сессии клиента;
+    /// null — клиента нет. Нужно синхронизации: приехали игры с другого
+    /// компьютера — профиль перерисовывается сразу, а не через минуту.
+    private static Func<Task>? _refreshSession;
+
     public static async Task UpdateRunesAsync(OverlayWindow overlay, DraftState? draft, CancellationToken ct)
     {
         // Только залоченный чемпион, не наведённый. Раньше руны и сборка
@@ -362,6 +367,7 @@ partial class Program
             catch { /* LCU временно недоступен — пропускаем обновление */ }
         }
         await RefreshSessionAsync();
+        _refreshSession = RefreshSessionAsync;
 
         // Периодическое обновление трекера: история матчей LCU появляется с
         // задержкой после конца игры — событие EndOfGame может прийти раньше её.
@@ -600,6 +606,7 @@ partial class Program
 
         hideCts?.Cancel();
         engine?.Dispose();
+        _refreshSession = null;
     }
 
     // Достаёт фазу таймера чемп-селекта и остаток времени (мс).

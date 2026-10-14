@@ -712,7 +712,15 @@
     "noPassword": "Parola yok",
     "noAccount": "Profil henüz bilinmiyor — oyun istemcisini aç",
     "failedNet": "Sunucuya ulaşılamadı",
-    "pulled": "Alınan dosyalar: {0}"
+    "never": "Henüz eşitlenmedi",
+    "ok": "Eşitlendi: {0}",
+    "today": "bugün {0}",
+    "onDate": "{0} {1}",
+    "got": "Başka bir bilgisayardan ({0}): {1}",
+    "gotGames": "maç: {0}",
+    "gotPools": "havuzlar",
+    "gotSettings": "ayarlar",
+    "empty": "Sunucu boştu: bu parolayı kullanan ilk bilgisayar bu"
   },
   "plan": {
     "title": "Şampiyonlarım · {0} · 30 gün",

@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeSyncServer.cs" />
   </ItemGroup>
 
 </Project>

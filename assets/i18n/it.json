@@ -712,7 +712,15 @@
     "noPassword": "Nessuna password",
     "noAccount": "Profilo non ancora noto: apri il client di gioco",
     "failedNet": "Server irraggiungibile",
-    "pulled": "File ricevuti: {0}"
+    "never": "Non ancora sincronizzato",
+    "ok": "Sincronizzato {0}",
+    "today": "oggi alle {0}",
+    "onDate": "il {0} alle {1}",
+    "got": "Da un altro computer {0}: {1}",
+    "gotGames": "partite: {0}",
+    "gotPools": "pool",
+    "gotSettings": "impostazioni",
+    "empty": "Il server era vuoto: questo è il primo computer con questa password"
   },
   "plan": {
     "title": "I miei campioni · {0} · 30 giorni",

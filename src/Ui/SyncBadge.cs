@@ -12,8 +12,9 @@ using Dock = System.Windows.Controls.Dock;
 
 namespace Counterplay;
 
-/// <summary>
-/// Пароль синхронизации: состояние и кнопка. Один вид на все окна.
+//// <summary>
+/// Пароль синхронизации: состояние, кнопки и строка «когда ходили и чем
+/// кончилось». Один вид на все окна.
 ///
 /// Жил в окне пулов — и это была ошибка. На НОВОМ компьютере человек идёт в
 /// настройки, а не в пулы: пулов у него там ещё нет, он за ними и пришёл.
@@ -23,26 +24,38 @@ public static class SyncBadge
 {
     private static readonly Color Blue = Color.FromRgb(0x5A, 0x8A, 0xC8);
     private static readonly Color Muted = Color.FromRgb(0x8A, 0xA0, 0xB2);
+    private static readonly Color Text = Color.FromRgb(0xD7, 0xDE, 0xE6);
+    private static readonly Color Warn = Color.FromRgb(0xE0, 0xA8, 0x5A);
 
     /// <summary>
-    /// Ряд «кнопка + знак вопроса». <paramref name="ask"/> открывает окно ввода
-    /// (у каждого окна свои кнопки и стиль), <paramref name="changed"/> зовётся
-    /// после смены пароля — перерисовать ряд.
+    /// Ряд «кнопка + знак вопроса» и под ним строка состояния.
+    /// <paramref name="ask"/> открывает окно ввода (у каждого окна свои кнопки
+    /// и стиль), <paramref name="changed"/> зовётся после смены пароля.
     /// </summary>
     public static FrameworkElement Row(Func<bool> ask, Action? changed = null)
     {
+        var box = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        Fill(box, ask, changed);
+
+        // Синхронизация ходит и сама — после игры, при входе в аккаунт, — и
+        // строка обязана меняться, пока окно открыто, а не только по кнопке.
+        // Подписка живёт, пока ряд на экране: закрытое окно не держится в
+        // памяти ради события.
+        void OnChanged() => box.Dispatcher.InvokeAsync(() => Fill(box, ask, changed));
+        box.Loaded += (_, _) => { SyncStatus.Changed -= OnChanged; SyncStatus.Changed += OnChanged; };
+        box.Unloaded += (_, _) => SyncStatus.Changed -= OnChanged;
+        return box;
+    }
+
+    private static void Fill(StackPanel box, Func<bool> ask, Action? changed)
+    {
+        box.Children.Clear();
         var row = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center
         };
-        Fill(row, ask, changed);
-        return row;
-    }
-
-    private static void Fill(StackPanel row, Func<bool> ask, Action? changed)
-    {
-        row.Children.Clear();
+        box.Children.Add(row);
 
         if (SyncPassword.IsSet)
         {
@@ -54,23 +67,29 @@ public static class SyncBadge
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             });
-            row.Children.Add(MakeButton(Loc.T("sync.change"), row, ask, changed));
+            row.Children.Add(MakeButton(Loc.T("sync.change"), box, ask, changed));
 
             // Сам перенос. Только при заданном пароле: без него жать не на что.
-            var now = MakeButton(Loc.T("sync.now"), row, () => false, null);
+            // На время прохода — любого, и по кнопке, и тихого — кнопка гаснет:
+            // второе нажатие посреди первого всё равно ждало бы его конца.
+            var running = SyncStatus.Running;
+            var now = MakeButton(Loc.T(running ? "sync.doing" : "sync.now"), box, () => false, null);
             now.Margin = new Thickness(6, 0, 0, 0);
-            now.Click += async (_, _) => await RunSync(now, changed);
+            now.IsEnabled = !running;
+            now.Click += (_, _) => Run("кнопка");
             row.Children.Add(now);
         }
-        else row.Children.Add(MakeButton(Loc.T("sync.add"), row, ask, changed));
+        else row.Children.Add(MakeButton(Loc.T("sync.add"), box, ask, changed));
 
         // «?» нужен в обоих состояниях: и тому, кто ещё не завёл пароль, и тому,
         // кто забыл, зачем он.
         row.Children.Add(Help());
+
+        if (SyncPassword.IsSet) box.Children.Add(StatusLines());
     }
 
     private static Button MakeButton(
-        string text, StackPanel row, Func<bool> ask, Action? changed)
+        string text, StackPanel box, Func<bool> ask, Action? changed)
     {
         var b = new Button
         {
@@ -84,46 +103,78 @@ public static class SyncBadge
         b.Click += (_, _) =>
         {
             if (!ask()) return;
-            Fill(row, ask, changed);   // состояние поменялось — перерисовать
+            Fill(box, ask, changed);   // состояние поменялось — перерисовать
             changed?.Invoke();
+            // Пароль задан — синхронизироваться сразу, а не ждать конца игры.
+            if (SyncPassword.IsSet) Run("новый пароль");
         };
         return b;
     }
 
-    /// <summary>
-    /// Один проход синхронизации по нажатию.
-    ///
-    /// Кнопка на время работы гаснет: перенос идёт по сети, и второе нажатие
-    /// посреди первого устроило бы гонку за одну и ту же строку.
-    /// </summary>
-    private static async Task RunSync(Button btn, Action? changed)
+    /// Проход по просьбе человека. Чем кончился, покажет строка состояния.
+    private static async void Run(string reason)
     {
-        var was = btn.Content;
-        btn.IsEnabled = false;
-        btn.Content = Loc.T("sync.doing");
-        try
-        {
-            var res = await SyncClient.SyncAsync(PoolStore.AccountPuuid);
-            btn.Content = res.Ok ? "✓ " + Loc.T("sync.now") : was;
+        try { await SyncClient.NowAsync(PoolStore.AccountPuuid, reason); }
+        catch (Exception e) { Log.Write($"синхронизация ({reason}): {e.Message}"); }
+    }
 
-            if (!res.Ok)
-                Confirm.Tell(Window.GetWindow(btn)!, Loc.T("sync.title"), res.Message);
-            else if (res.Pulled > 0)
-            {
-                // Забрали чужое — перечитать всё, что уже в памяти, иначе на
-                // экране останется прежнее, а на диске будет новое.
-                PoolStore.Reload();
-                changed?.Invoke();
-                Confirm.Tell(Window.GetWindow(btn)!, Loc.T("sync.title"),
-                             Loc.T("sync.pulled", res.Pulled));
-            }
-        }
-        finally
+    /// <summary>
+    /// Под кнопкой: когда синхронизировались и чем кончилось (<see cref="SyncStatus"/>).
+    ///
+    /// Первая строка — последний проход: «синхронизировано сегодня в 12:41»
+    /// или причина неудачи. Ниже, мельче — то, по чему видно, доехало ли:
+    /// когда в последний раз пришло что-то с другого компьютера и что именно, и
+    /// «на сервере было пусто», если этот компьютер первый с таким паролем.
+    /// Последнее — подсказка тому, кто ждёт данные с первого компьютера, а
+    /// пароль набрал иначе: другой пароль — другая строка на сервере.
+    /// </summary>
+    private static FrameworkElement StatusLines()
+    {
+        var s = SyncStatus.Current;
+        var panel = new StackPanel
         {
-            btn.IsEnabled = true;
-            // Галочку держим до следующего открытия окна — видно, что сходило.
-            if ((string?)btn.Content == Loc.T("sync.doing")) btn.Content = was;
-        }
+            Margin = new Thickness(0, 5, 0, 0), MaxWidth = 420,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+
+        if (SyncStatus.Running) panel.Children.Add(Line(Loc.T("sync.doing"), Muted, 11));
+        else if (s.Failed)
+            panel.Children.Add(Line($"{Loc.T(s.FailKey ?? "sync.failedNet")} · {When(s.FailAt)}", Warn, 11));
+        else if (s.OkAt > 0) panel.Children.Add(Line(Loc.T("sync.ok", When(s.OkAt)), Text, 11));
+        else panel.Children.Add(Line(Loc.T("sync.never"), Muted, 11));
+
+        if (s.Failed && s.OkAt > 0) panel.Children.Add(Line(Loc.T("sync.ok", When(s.OkAt)), Muted, 10));
+        if (!s.Failed && s.OkAt > 0 && s.WasEmpty) panel.Children.Add(Line(Loc.T("sync.empty"), Muted, 10));
+        if (s.GotAt > 0) panel.Children.Add(Line(Loc.T("sync.got", When(s.GotAt), What(s)), Muted, 10));
+        return panel;
+    }
+
+    private static TextBlock Line(string text, Color color, double size) => new()
+    {
+        Text = text, Foreground = new SolidColorBrush(color), FontSize = size,
+        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 1)
+    };
+
+    /// «сегодня в 12:41» или «13.10 в 23:51». Без культуры: двоеточие в формате
+    /// времени — разделитель культуры, а не буква.
+    private static string When(long unix)
+    {
+        var t = DateTimeOffset.FromUnixTimeSeconds(unix).LocalDateTime;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var time = t.ToString("HH:mm", inv);
+        return t.Date == DateTime.Today
+            ? Loc.T("sync.today", time)
+            : Loc.T("sync.onDate", t.ToString("d.MM", inv), time);
+    }
+
+    /// «игр: 6, пулы, настройки».
+    private static string What(SyncStatus.State s)
+    {
+        var parts = new List<string>();
+        if (s.GotGames > 0) parts.Add(Loc.T("sync.gotGames", s.GotGames));
+        if (s.GotPools) parts.Add(Loc.T("sync.gotPools"));
+        if (s.GotSettings) parts.Add(Loc.T("sync.gotSettings"));
+        return string.Join(", ", parts);
     }
 
     /// «?» с пояснением: что это за пароль и зачем.

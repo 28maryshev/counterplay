@@ -712,7 +712,15 @@
     "noPassword": "Kein Passwort gesetzt",
     "noAccount": "Profil noch unbekannt — öffne den Spiel-Client",
     "failedNet": "Server nicht erreichbar",
-    "pulled": "Empfangene Dateien: {0}"
+    "never": "Noch nicht abgeglichen",
+    "ok": "Abgeglichen {0}",
+    "today": "heute um {0}",
+    "onDate": "am {0} um {1}",
+    "got": "Von einem anderen Computer {0}: {1}",
+    "gotGames": "Spiele: {0}",
+    "gotPools": "Pools",
+    "gotSettings": "Einstellungen",
+    "empty": "Der Server war leer: Dies ist der erste Computer mit diesem Passwort"
   },
   "plan": {
     "title": "Meine Champions · {0} · 30 Tage",

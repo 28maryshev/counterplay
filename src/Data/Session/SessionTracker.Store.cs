@@ -123,6 +123,7 @@ public static partial class SessionTracker
     /// </summary>
     private sealed class PairRec
     {
+
         public List<long> Won  { get; set; } = new();
         public List<long> Lost { get; set; } = new();
         /// Ник напарника, каким он был в последней совместной игре. Только для
@@ -138,18 +139,24 @@ public static partial class SessionTracker
         }
 
         /// Время последней совместной игры; 0 — игр нет.
-        public long Last() => Math.Max(Won.Count > 0 ? Won[^1] : 0,
-                                       Lost.Count > 0 ? Lost[^1] : 0);
+        /// Наибольшая отметка, а не последняя в списке: по этому времени связки
+        /// чистит и журнал, и синхронизация, и обязаны выбрать одни и те же.
+        public long Last() => Math.Max(Won.Count > 0 ? Won.Max() : 0,
+                                       Lost.Count > 0 ? Lost.Max() : 0);
 
         /// Связка живёт годами, а нужны из неё последние игры: держим последние
         /// PairKeep с каждой стороны, чтобы файл не рос без конца.
         public void Trim()
         {
-            const int PairKeep = 200;
             if (Won.Count  > PairKeep) Won.RemoveRange(0, Won.Count - PairKeep);
             if (Lost.Count > PairKeep) Lost.RemoveRange(0, Lost.Count - PairKeep);
         }
     }
+
+    /// Сколько последних игр связки держать с каждой стороны (см.
+    /// <c>PairRec.Trim</c>). Снаружи нужно слиянию синхронизации: оно
+    /// складывает отметки двух компьютеров.
+    internal const int PairKeep = 200;
 
     /// Одна связка наружу: с кем, на ком, с каким счётом.
     public sealed record PairStat(

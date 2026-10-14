@@ -712,7 +712,15 @@
     "noPassword": "Chưa đặt mật khẩu",
     "noAccount": "Chưa xác định hồ sơ — hãy mở client game",
     "failedNet": "Không liên hệ được máy chủ",
-    "pulled": "Số tệp đã nhận: {0}"
+    "never": "Chưa đồng bộ",
+    "ok": "Đã đồng bộ {0}",
+    "today": "hôm nay lúc {0}",
+    "onDate": "lúc {1} ngày {0}",
+    "got": "Từ máy tính khác {0}: {1}",
+    "gotGames": "trận: {0}",
+    "gotPools": "pool",
+    "gotSettings": "cài đặt",
+    "empty": "Máy chủ đang trống: đây là máy tính đầu tiên dùng mật khẩu này"
   },
   "plan": {
     "title": "Tướng của tôi · {0} · 30 ngày",

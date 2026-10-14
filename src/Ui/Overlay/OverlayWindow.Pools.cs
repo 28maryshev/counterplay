@@ -212,6 +212,14 @@ public partial class OverlayWindow
         return (m, f) => mine.Contains(m) && friend.Contains(f);
     }
 
+    /// Синхронизация переписала пулы или журнал игр — перечитать открытое окно
+    /// пулов: иначе оно показывало бы прежнее, а правка в нём сохранила бы
+    /// прежнее поверх пришедшего.
+    public void ReloadPoolWindow() => Dispatcher.InvokeAsync(() =>
+    {
+        if (_poolSettings is { IsVisible: true } w) w.ReloadPools();
+    });
+
     /// Сменилась очередь лобби — подтянуть запомненный для неё режим пула.
     public void RefreshPoolMode() => Dispatcher.InvokeAsync(() =>
     {

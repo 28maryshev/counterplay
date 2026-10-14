@@ -169,6 +169,21 @@ public sealed class AppSettings
     private static readonly JsonSerializerOptions JsonOpts = new()
         { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
+    /// Как записан файл — для синхронизации: она правит его в обход класса и
+    /// пишет тем же видом, чтобы не плодить различий на пустом месте.
+    internal static JsonSerializerOptions FileJson => JsonOpts;
+
+    /// <summary>
+    /// Поля, которые принадлежат КОМПЬЮТЕРУ, а не человеку: где и какого
+    /// размера окна. Синхронизация их не переносит — мониторы у компьютеров
+    /// разные, и окно со второго монитора одного оказалось бы за краем другого.
+    /// </summary>
+    public static readonly string[] MachineKeys =
+    [
+        nameof(DraftLeft), nameof(DraftTop), nameof(DraftWidth), nameof(DraftHeight),
+        nameof(PoolWinLeft), nameof(PoolWinTop), nameof(PoolWinWidth), nameof(PoolWinHeight),
+    ];
+
     private static AppSettings? _current;
 
     public static AppSettings Current
@@ -305,6 +320,19 @@ public sealed class AppSettings
         Log.Write("настройки сброшены к значениям по умолчанию");
         _current = Defaults();
         Save();
+    }
+
+    /// <summary>
+    /// Файл подменила синхронизация — забыть то, что в памяти, и перерисоваться.
+    ///
+    /// Без этого пришедшие настройки не применялись до перезапуска, а до него
+    /// их затирало первое же сохранение из памяти (файл пишется после каждого
+    /// драфта: запоминается место окна) — и они уезжали обратно старыми.
+    /// </summary>
+    public static void Reload()
+    {
+        _current = null;
+        Changed?.Invoke();
     }
 
     /// Настройки изменились — оверлей применяет их без перезапуска.
