@@ -308,6 +308,12 @@ sealed partial class TestPanel : Window
         _profile.Items.Add("Профиль: 5 игр");
         _profile.Items.Add("Профиль: рывок серебро→платина");
         _profile.Items.Add("Профиль: мой аккаунт");   // MyAccountProfile
+        _profile.Items.Add("Профиль: без ранга");     // UnrankedProfile
+        // Аккаунты из журнала на этом компьютере — их экраны как есть (только
+        // чтение): так видно настоящий аккаунт без ранговых, с нормалами и ARAM.
+        _storedAccounts = SessionTracker.StoredAccounts();
+        foreach (var (_, nick) in _storedAccounts)
+            _profile.Items.Add($"Профиль: из журнала — {nick}");
         _profile.SelectedIndex = 0;
         _profile.VerticalAlignment = VerticalAlignment.Center;
         _profile.Margin = new Thickness(12, 0, 0, 0);

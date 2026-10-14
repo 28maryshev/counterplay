@@ -36,6 +36,9 @@ static partial class TestMode
     /// график рейтинга ведёт себя на широком диапазоне — подписи дивизионов там
     /// перестают помещаться и должны прореживаться.
     internal static SessionTracker.SessionData? ClimbSession;
+    /// Аккаунт без ранга: отборочные не сыграны, ранговых игр нет. На месте
+    /// эмблемы — её скелетон; нормалы и ARAM — как в полном профиле.
+    internal static SessionTracker.SessionData? UnrankedSession;
 
     /// Нажали «Боевой режим»: песочница завершается, и Program подключается к
     /// настоящему клиенту. Нужно, чтобы проверять свежую сборку на своих данных
@@ -193,7 +196,31 @@ static partial class TestMode
                     // не горит — там речь о том, что можно набрать, а не потерять.
                     HasRank: true, Tier: "EMERALD", Division: "II", Lp: 73, ProgressPct: 73,
                     Wins: 63, Losses: 55, Winrate: 53.4, Last5: last5, WinrateHistory: hist, RatingHistory: rating),
+                // Очереди без ранга — выбираются в списке очередей профиля: на
+                // месте эмблемы силуэт карты, под играми W/L, график по винрейту.
+                ["normal"] = Unranked("WLLWWLWWLWWLWW", [222, 222, 222, 39, 17]),
+                ["aram"] = Unranked("WWLWLWWLLWWWLWLWWLWLW", [86, 103, 238, 99, 222]),
             });
+
+        // Очередь без ранга: W/L и винрейт — по своим играм, точки графика так
+        // же, как их считает журнал (со сглаживанием к 50%), игра в день.
+        static SessionTracker.QueueView Unranked(string results, int[] champs)
+        {
+            var points = new List<SessionTracker.WrPoint>();
+            int w = 0;
+            for (int i = 0; i < results.Length; i++)
+            {
+                if (results[i] == 'W') w++;
+                points.Add(new(DateTime.Now.AddDays(-results.Length + i + 1), 100.0 * (w + 3) / (i + 1 + 6)));
+            }
+            // Последние пять — от свежей к старой, без LP: в этих очередях его нет.
+            var recent = Enumerable.Range(0, 5)
+                .Select(k => new SessionTracker.RecentGame(champs[k], results[results.Length - 1 - k] == 'W', null))
+                .ToList();
+            int l = results.Length - w;
+            return new SessionTracker.QueueView(false, "", "", 0, 0, w, l, 100.0 * w / results.Length,
+                                                recent, points, []);
+        }
 
         // Сценарий «поставил программу и сыграл одну игру»: ранг из клиента уже
         // есть, а СВОЯ история только началась — одна игра из пяти, одна точка
@@ -220,6 +247,17 @@ static partial class TestMode
                     RatingHistory: [new(DateTime.Now, 2412)]),
             });
         FullSession = fakeSession;
+
+        var noRank = new SessionTracker.QueueView(false, "", "", 0, 0, 0, 0, 0, [], [], []);
+        UnrankedSession = new SessionTracker.SessionData(
+            "TestSummoner", "solo",
+            new Dictionary<string, SessionTracker.QueueView>
+            {
+                ["solo"] = noRank,
+                ["flex"] = noRank,
+                ["normal"] = fakeSession.Queues["normal"],
+                ["aram"] = fakeSession.Queues["aram"],
+            });
 
         // Тот самый «рывок»: 800 → 1660 LP (Silver IV → Platinum I) за 14 дней.
         var climb = new List<SessionTracker.LpPoint>();
@@ -328,13 +366,21 @@ static partial class TestMode
 
     /// Профиль «мой аккаунт» (true) — копия пулов игрока и его настоящая
     /// статистика, только чтением; false — снова тестовые пулы и история.
-    internal static void ApplyMyData(RecommendationEngine engine, bool on)
+    internal static void ApplyMyData(RecommendationEngine engine, bool on) =>
+        ApplyAccountData(engine, on ? SessionTracker.LastAccountKey : null);
+
+    /// <summary>
+    /// Песочница на данных любого аккаунта из журнала: его пулы (копией; нет —
+    /// пусто, как у него и есть), его игры, винрейты и связки. null — снова
+    /// тестовые пулы и история.
+    /// </summary>
+    internal static void ApplyAccountData(RecommendationEngine engine, string? account)
     {
-        if (on)
+        if (account is not null)
         {
-            PoolStore.ReplaceCurrent(PoolStore.ReadLive(SessionTracker.LastAccountKey));
+            PoolStore.ReplaceCurrent(PoolStore.ReadLive(account));
             UseTestHistory(engine, false);
-            SessionTracker.UseStoredAccount(true);
+            SessionTracker.UseStoredAccount(true, account);
         }
         else
         {

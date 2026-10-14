@@ -18,6 +18,9 @@ namespace Counterplay.Tests;
 /// сохранённым при записи числам: игры, добитые из истории на новом
 /// компьютере, сохраняли «сырой» винрейт, и линия начиналась со 100%.
 ///
+/// И на месте эмблемы ранга в этих очередях — силуэт карты (Ущелье или
+/// Бездна), а не пустота.
+///
 /// Своя папка (<c>AppPaths.RootOverride</c>), окно — невидимое.
 /// </summary>
 internal static class Program
@@ -123,13 +126,25 @@ internal static class Program
             var chart = (Canvas)w.FindName("WrChart");
             var hint = (TextBlock)w.FindName("SessionHint");
 
+            var map = (System.Windows.Controls.Image)w.FindName("QueueMap");
+            var box = (FrameworkElement)w.FindName("QueueMapBox");
+            var lpBar = (FrameworkElement)w.FindName("RankProgressTrack");
+
             Show(w, stored, "normal");
+            Check("нормалы — на месте эмблемы силуэт Ущелья",
+                  box.Visibility == Visibility.Visible && MapUri(map).EndsWith("/maps/rift.png")
+                  && map.Source is { Width: > 0 }, MapUri(map));
+            Check("нормалы — без полосы LP", lpBar.Visibility == Visibility.Collapsed, $"{lpBar.Visibility}");
             Check("нормалы при режиме «рейтинг» — линия винрейта",
                   chart.Children.OfType<System.Windows.Shapes.Polyline>().Any(), Texts(chart));
             Check("нормалы — без подсказки про рейтинговые игры",
                   !Texts(chart).Contains(Loc.T("chart.noRating")), Texts(chart));
 
             Show(w, stored, "aram");
+            Check("ARAM — силуэт Бездны",
+                  box.Visibility == Visibility.Visible && MapUri(map).EndsWith("/maps/abyss.png")
+                  && map.Source is { Width: > 0 }, MapUri(map));
+            Check("ARAM — без полосы LP", lpBar.Visibility == Visibility.Collapsed, $"{lpBar.Visibility}");
             Check("ARAM, игр мало — подсказка не обещает LP",
                   hint.Visibility == Visibility.Visible && hint.Text == Loc.T("session.needGamesWr"), hint.Text);
 
@@ -138,6 +153,26 @@ internal static class Program
                 new Dictionary<string, SessionTracker.QueueView> { ["solo"] = solo }), "solo");
             Check("соло без истории LP — подсказка про рейтинговые игры, как и было",
                   Texts(chart).Contains(Loc.T("chart.noRating")), Texts(chart));
+            Check("соло с рангом — эмблема, силуэта карты нет", box.Visibility == Visibility.Collapsed, "");
+            Check("соло с рангом — полоса LP на месте", lpBar.Visibility == Visibility.Visible, $"{lpBar.Visibility}");
+
+            // Соло без ранга (отборочные не сыграны): скелетон эмблемы, а не карта.
+            var skel = (FrameworkElement)w.FindName("RankEmblemSkel");
+            var none = new SessionTracker.QueueView(false, "", "", 0, 0, 0, 0, 0, [], [], []);
+            Show(w, new SessionTracker.SessionData("проверка", "solo",
+                new Dictionary<string, SessionTracker.QueueView> { ["solo"] = none }), "solo");
+            Check("соло без ранга — скелетон эмблемы формы эмблемы",
+                  skel.Visibility == Visibility.Visible && skel.GetValue(UIElement.OpacityMaskProperty) is System.Windows.Media.ImageBrush,
+                  $"{skel.Visibility}");
+            Check("соло без ранга — ни карты, ни полосы LP",
+                  box.Visibility == Visibility.Collapsed && lpBar.Visibility == Visibility.Collapsed, "");
+
+            // Данных нет вовсе (только поставили программу): тот же силуэт эмблемы,
+            // а не квадратная плашка — «без игр» и «без ранга» выглядели по-разному.
+            w.ShowSession(null);
+            for (var i = 0; i < 10; i++) Pump();
+            Check("профиль без данных — тот же скелетон эмблемы", skel.Visibility == Visibility.Visible,
+                  $"{skel.Visibility}"); 
         }
         finally { w.Close(); }
     }
@@ -151,6 +186,11 @@ internal static class Program
         w.ShowSession(d with { SelectedQueue = queue });
         for (var i = 0; i < 10; i++) Pump();
     }
+
+    /// Откуда взята картинка силуэта: пустой источник на пустой ресурс не меняем
+    /// — так проверка однажды прошла, когда картинки в сборку ещё не попали.
+    private static string MapUri(System.Windows.Controls.Image i) =>
+        (i.Source as System.Windows.Media.Imaging.BitmapImage)?.UriSource?.ToString() ?? "нет";
 
     private static string Texts(Canvas c) =>
         string.Join(" | ", c.Children.OfType<TextBlock>().Select(t => t.Text));

@@ -151,9 +151,7 @@ public partial class OverlayWindow
 
         // Компактная карточка ранга: эмблема мельче, полосы прогресса нет.
         RankEmblem.Height = s.ReadyCompact ? 46 : 74;
-        RankProgressTrack.Visibility = V(s.ReadyRank && !s.ReadyCompact);
-        // Засечки живут вместе с полосой: без неё они висели бы в пустоте.
-        RankTicks.Visibility = V(s.ReadyRank && !s.ReadyCompact);
+        ApplyLpBarVisibility();
 
         // Команды местами: моя команда справа, враги слева.
         Grid.SetColumn(MyTeamPanel,    s.DraftMirror ? 2 : 0);

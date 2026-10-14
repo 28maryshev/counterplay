@@ -169,11 +169,11 @@ public static partial class SessionTracker
         }
     }
 
-    /// Песочница: связки читать с последнего аккаунта (true) или снова
-    /// считать, что клиента нет (false).
-    public static void UseStoredAccount(bool on)
+    /// Песочница: связки и личный винрейт читать с аккаунта из журнала (true;
+    /// по умолчанию — с последнего) или снова считать, что клиента нет (false).
+    public static void UseStoredAccount(bool on, string? account = null)
     {
-        _account = on ? LastAccountKey : null;
+        _account = on ? account ?? LastAccountKey : null;
         DropCache();
     }
 
@@ -182,13 +182,14 @@ public static partial class SessionTracker
     /// ранг из последнего снимка. Клиента не спрашивает и ничего не пишет.
     /// null — на диске нет ни одного аккаунта.
     /// </summary>
-    public static SessionData? StoredView()
+    /// <param name="account">Чей экран: puuid из журнала; по умолчанию — последний аккаунт.</param>
+    public static SessionData? StoredView(string? account = null)
     {
         Gate.Wait();
         try
         {
             var store = Load();
-            if (store.LastAccount is not { Length: > 0 } key
+            if ((account ?? store.LastAccount) is not { Length: > 0 } key
                 || !store.Accounts.TryGetValue(key, out var acc)) return null;
             var ranked = new Dictionary<string, Ranked>
             {
@@ -196,6 +197,23 @@ public static partial class SessionTracker
                 ["flex"] = FromCache(acc.Ranked.GetValueOrDefault("flex")),
             };
             return BuildView(acc, acc.Nick ?? "", ranked, []);
+        }
+        finally { Gate.Release(); }
+    }
+
+    /// <summary>
+    /// Аккаунты в журнале на этом компьютере: puuid и ник. Песочнице — показать
+    /// экран любого из них (например, аккаунта без ранговых игр). Только чтение.
+    /// </summary>
+    public static IReadOnlyList<(string Key, string Nick)> StoredAccounts()
+    {
+        Gate.Wait();
+        try
+        {
+            return Load().Accounts
+                .Select(kv => (kv.Key, kv.Value.Nick ?? kv.Key[..Math.Min(8, kv.Key.Length)]))
+                .OrderBy(a => a.Item2, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
         }
         finally { Gate.Release(); }
     }

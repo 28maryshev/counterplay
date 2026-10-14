@@ -101,6 +101,24 @@ public partial class OverlayWindow
         return baseLp + d * 100 + lp;
     }
 
+    /// Есть ли у показанной очереди LP: в нормалах и ARAM очков нет.
+    private bool _lpBarShown = true;
+
+    /// <summary>
+    /// Полоса LP и засечки над ней — по настройкам и только там, где есть LP.
+    /// В нормалах и ARAM под названием очереди висела пустая полоса, как будто
+    /// ранг не загрузился. Одно место на обоих: настройки перерисовывают окно и
+    /// вернули бы спрятанную при показе профиля полосу.
+    /// </summary>
+    private void ApplyLpBarVisibility()
+    {
+        var s = AppSettings.Current;
+        var on = s.ReadyRank && !s.ReadyCompact && _lpBarShown;
+        RankProgressTrack.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        // Засечки живут вместе с полосой: без неё они висели бы в пустоте.
+        RankTicks.Visibility = RankProgressTrack.Visibility;
+    }
+
     /// Прячет прогноз (штриховку и засечки) до конца перехода.
     private void HideLpHints()
     {

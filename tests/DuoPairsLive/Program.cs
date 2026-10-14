@@ -102,6 +102,21 @@ internal static class Program
         var alien = await HistoryFor("someone-else-0000");
         Check("другому аккаунту история не отдаётся", alien == 0, $"{alien}");
 
+        // Ранг — тоже того, о ком спросили: по puuid, а не «кто в клиенте».
+        var ranked = typeof(SessionTracker).GetMethod("FetchRankedAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        async Task<string> RankFor(string owner)
+        {
+            var task = (Task)ranked.Invoke(null, [http, owner, ct])!;
+            await task;
+            var map = task.GetType().GetProperty("Result")!.GetValue(task) as System.Collections.IDictionary;
+            return map?["solo"]?.ToString() ?? "нет ответа";
+        }
+        var mine = await RankFor(me);
+        Check("ранг своего аккаунта читается по puuid", mine.Contains("HasRank = True") || mine.Contains("HasRank = False"), mine);
+        var other = await RankFor("00000000-0000-0000-0000-000000000000");
+        Check("чужой puuid не получает мой ранг", other != mine, other);
+
         // Берём ВСЁ: при маленьком срезе печатались обрезанные числа («связок
         // 200» ровно по лимиту), и по ним казалось, будто связок меньше, чем есть.
         var pairs = SessionTracker.TopPairs(take: 10_000);

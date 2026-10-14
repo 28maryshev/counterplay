@@ -131,6 +131,9 @@ public partial class OverlayWindow
             _lpShown = null;
             _rankKey = "";
             ApplyRankProgress();
+            QueueMapBox.Visibility = Visibility.Collapsed;
+            _lpBarShown = true;                   // скелетон: полоса на своём месте
+            ApplyLpBarVisibility();
             SessionHint.Text = Loc.T("session.needGames");
             SessionHint.Visibility = Visibility.Visible;
             ShowSkeletons(true);                  // плашки на месте будущих данных
@@ -144,6 +147,21 @@ public partial class OverlayWindow
         ShowSkeletons(false);
 
         // Ранг есть только у Solo/Flex; для Normal/ARAM — имя очереди вместо тира.
+        // На месте эмблемы там силуэт карты — пустое место выглядело недоделкой.
+        // Без ранга бывает двух видов. Нормалы и ARAM — ранга там не бывает:
+        // силуэт карты. Соло и флекс без отборочных — ранг будет: скелетон
+        // эмблемы.
+        var rankedQueue = _selectedQueue is "solo" or "flex";
+        QueueMapBox.Visibility = !v.HasRank && !rankedQueue ? Visibility.Visible : Visibility.Collapsed;
+        ShowEmblemSkeleton(!v.HasRank && rankedQueue);
+        _lpBarShown = v.HasRank;
+        ApplyLpBarVisibility();
+        if (!v.HasRank && !rankedQueue)
+        {
+            var aram = _selectedQueue == "aram";
+            QueueMap.Source = QueueMapSource(aram ? "abyss" : "rift");
+            QueueMap.Width = QueueMap.Height = aram ? 44 : 50;
+        }
         if (v.HasRank)
         {
             var emblem = RankEmblemSource(v.Tier);
@@ -311,6 +329,44 @@ public partial class OverlayWindow
     // Эмблема ранга из встроенных ресурсов (assets/ranks/{tier}.png).
     private static readonly Dictionary<string, ImageSource> _emblemCache = new();
 
+    /// <summary>
+    /// Скелетон эмблемы для ранговой очереди без ранга: форма золотой эмблемы,
+    /// залитая общим бликом скелетонов. Форма — маской по прозрачности картинки,
+    /// так что силуэт точный, со всеми крыльями.
+    /// </summary>
+    private void ShowEmblemSkeleton(bool on)
+    {
+        if (on && RankEmblemSkel.OpacityMask is null && RankEmblemSource("gold") is { } shape)
+        {
+            RankEmblemSkel.Fill = Skeleton.Shimmer;
+            RankEmblemSkel.OpacityMask = new ImageBrush(shape) { Stretch = Stretch.Uniform };
+        }
+        RankEmblemSkel.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Силуэт карты очереди без ранга: «rift» — Ущелье призывателей, «abyss» —
+    /// Воющая бездна. Сделаны из миникарт Data Dragon (`build/maps/make_maps.py`):
+    /// настоящий контур со всеми неровностями, у Ущелья яркие только три линии,
+    /// лес — с дырками.
+    /// </summary>
+    internal static ImageSource? QueueMapSource(string map)
+    {
+        var key = "map:" + map;
+        if (_emblemCache.TryGetValue(key, out var cached)) return cached;
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri($"pack://application:,,,/Counterplay;component/assets/maps/{map}.png");
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            _emblemCache[key] = bmp;
+            return bmp;
+        }
+        catch { return null; }
+    }
+
     private static ImageSource? RankEmblemSource(string tier)
     {
         var key = (tier ?? "").ToLowerInvariant();
@@ -320,7 +376,7 @@ public partial class OverlayWindow
         {
             var bmp = new BitmapImage();
             bmp.BeginInit();
-            bmp.UriSource = new Uri($"pack://application:,,,/assets/ranks/{key}.png");
+            bmp.UriSource = new Uri($"pack://application:,,,/Counterplay;component/assets/ranks/{key}.png");
             bmp.CacheOption = BitmapCacheOption.OnLoad;
             bmp.EndInit();
             _emblemCache[key] = bmp;
@@ -373,11 +429,14 @@ public partial class OverlayWindow
     private void ShowSkeletons(bool on)
     {
         var v = on ? Visibility.Visible : Visibility.Collapsed;
-        EmblemSkel.Visibility   = v;
+        // Эмблема — силуэтом эмблемы, тем же, что у ранговой очереди без ранга:
+        // «только поставил программу» и «ещё не сыграл отборочные» выглядели по-
+        // разному (квадратная плашка и силуэт), хотя ранга не видно в обоих.
+        ShowEmblemSkeleton(on);
         RankSkel.Visibility     = v;
         RankLpSkel.Visibility   = v;
         WinrateSkel.Visibility  = v;
-        RankSkel.Background     = WlSkelBar.Background = EmblemSkel.Background =
+        RankSkel.Background     = WlSkelBar.Background =
         WrSkelBar.Background    = RankLpSkel.Background = Skeleton.Shimmer;
 
         // Настоящие подписи прячем, чтобы они не просвечивали сквозь плашки.

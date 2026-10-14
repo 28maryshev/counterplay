@@ -42,7 +42,7 @@ public static partial class SessionTracker
         // 2) Ранги обеих ранкед-очередей. Если LCU не ответил (рестарт после
         // обновления и т.п.) — берём последний снимок аккаунта: панель никогда
         // не пустеет, пока на диске есть данные.
-        var fetched = await FetchRankedAsync(http, ct);
+        var fetched = await FetchRankedAsync(http, accountKey, ct);
         var ranked = fetched ?? new Dictionary<string, Ranked>
         {
             ["solo"] = FromCache(acc.Ranked.GetValueOrDefault("solo")),
@@ -332,9 +332,20 @@ public static partial class SessionTracker
         catch { return null; }
     }
 
-    private static async Task<Dictionary<string, Ranked>?> FetchRankedAsync(LcuHttpClient http, CancellationToken ct)
+    /// <summary>
+    /// Ранги соло и флекса — именно аккаунта <paramref name="owner"/>, а не «того,
+    /// кто сейчас в клиенте».
+    ///
+    /// Раньше спрашивали current-ranked-stats, и при смене аккаунта выходила та же
+    /// гонка, что с историей: «кто в клиенте» ещё отвечал прежним, а ранг — уже
+    /// новым. 14 октября так в журнал аккаунта без единой ранговой игры лёг ранг
+    /// владельца — Изумруд II, 196–186. Запрос по puuid отвечает за того, кого
+    /// спросили (проверено на живом клиенте).
+    /// </summary>
+    private static async Task<Dictionary<string, Ranked>?> FetchRankedAsync(
+        LcuHttpClient http, string owner, CancellationToken ct)
     {
-        var (rs, body) = await http.GetAsync("/lol-ranked/v1/current-ranked-stats", ct);
+        var (rs, body) = await http.GetAsync($"/lol-ranked/v1/ranked-stats/{Uri.EscapeDataString(owner)}", ct);
         if (rs != 200) return null;
         try
         {
@@ -358,7 +369,13 @@ public static partial class SessionTracker
                 q.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 0;
             // У LCU дивизион "NA" у безранговых/мастера+.
             if (div == "NA") div = "";
-            return new Ranked(!string.IsNullOrEmpty(tier), tier, div, Get("leaguePoints"), Get("wins"), Get("losses"));
+            // Без ранга (отборочные не сыграны) лига приходит пустой, а у части
+            // клиентов — словом «NONE» или «UNRANKED». Принять слово за лигу
+            // значило бы искать эмблему «none» и оставить на её месте пустоту
+            // вместо скелетона.
+            var ranked = tier.Length > 0 && !tier.Equals("NONE", StringComparison.OrdinalIgnoreCase)
+                         && !tier.Equals("UNRANKED", StringComparison.OrdinalIgnoreCase);
+            return new Ranked(ranked, ranked ? tier : "", div, Get("leaguePoints"), Get("wins"), Get("losses"));
         }
     }
 

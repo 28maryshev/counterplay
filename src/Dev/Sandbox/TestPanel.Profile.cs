@@ -33,25 +33,36 @@ sealed partial class TestPanel
     // напарником (подставные). Пулы приезжают КОПИЕЙ: правки в песочнице в
     // настоящие не попадают, а уход с профиля возвращает тестовые.
     private const int MyAccountProfile = 4;
+    private const int UnrankedProfile = 5;
+    /// С этого места в списке — аккаунты из журнала (<see cref="_storedAccounts"/>).
+    private const int FirstStoredProfile = 6;
+    private IReadOnlyList<(string Key, string Nick)> _storedAccounts = [];
 
     // Выбор помнится отметкой в папке песочницы: settings.json — файл игрока,
     // песочница в него не пишет (см. Sandbox).
     private static string MyAccountMark => Path.Combine(Sandbox.Dir, "my-account");
 
-    private bool _myData;
+    /// Чьи данные сейчас в песочнице: puuid из журнала; null — тестовые.
+    private string? _dataAccount;
 
-    private void UseMyData(bool on)
+    /// <summary>
+    /// Песочница на данных аккаунта из журнала (null — на тестовых). «Мой
+    /// аккаунт» — последний аккаунт, и только его выбор помнится до следующего
+    /// запуска; остальные аккаунты журнала — посмотреть, как выглядит чужой
+    /// экран целиком: без пулов, без ранга, с одними нормалами.
+    /// </summary>
+    private void UseAccountData(string? account, bool remember)
     {
-        if (on == _myData) return;
-        _myData = on;
+        if (account == _dataAccount) return;
+        _dataAccount = account;
         try
         {
             Directory.CreateDirectory(Sandbox.Dir);
-            if (on) File.WriteAllText(MyAccountMark, "");
+            if (remember) File.WriteAllText(MyAccountMark, "");
             else File.Delete(MyAccountMark);
         }
         catch { /* не запомнилось — выберут ещё раз */ }
-        TestMode.ApplyMyData(_engine, on);
+        TestMode.ApplyAccountData(_engine, account);
         FillMates();   // пулы другие — и друзья другие
         _overlay.RefreshPoolMode();
         Recompute();
@@ -60,7 +71,13 @@ sealed partial class TestPanel
     // Показ выбранного сценария профиля: пустой / первая игра / полная история.
     private void ApplyProfileScenario()
     {
-        UseMyData(_profile.SelectedIndex == MyAccountProfile);
+        var idx = _profile.SelectedIndex;
+        var stored = idx - FirstStoredProfile;
+        UseAccountData(
+            idx == MyAccountProfile ? SessionTracker.LastAccountKey
+            : stored >= 0 && stored < _storedAccounts.Count ? _storedAccounts[stored].Key
+            : null,
+            remember: idx == MyAccountProfile);
         if (_emptyProfile.IsChecked == true)
         {
             _overlay.SetEmptyProfilePreview(true);
@@ -79,6 +96,15 @@ sealed partial class TestPanel
                 break;
             case 3:
                 _overlay.ShowSession(TestMode.ClimbSession);
+                _overlay.SetChampsPreview(null);
+                break;
+            case UnrankedProfile:
+                _overlay.ShowSession(TestMode.UnrankedSession);
+                _overlay.SetChampsPreview(null);
+                break;
+            case >= FirstStoredProfile when _profile.SelectedIndex - FirstStoredProfile < _storedAccounts.Count:
+                _overlay.ShowSession(SessionTracker.StoredView(
+                    _storedAccounts[_profile.SelectedIndex - FirstStoredProfile].Key));
                 _overlay.SetChampsPreview(null);
                 break;
             case MyAccountProfile:

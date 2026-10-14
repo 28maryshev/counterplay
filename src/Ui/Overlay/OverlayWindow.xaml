@@ -277,6 +277,37 @@
                   </TransformGroup>
                 </Image.RenderTransform>
               </Image>
+              <!-- Ранга не видно — ранговая очередь без отборочных, только нормалы
+                   или данных ещё нет (только поставили программу): на месте
+                   эмблемы — её силуэт скелетоном, с бегущим бликом. Заливка и
+                   маска формы задаются кодом (Skeleton.Shimmer, золотая эмблема). -->
+              <Rectangle x:Name="RankEmblemSkel" Grid.Column="0" Width="90" Height="74"
+                         HorizontalAlignment="Left" Margin="-6,0,0,-4" Visibility="Collapsed"/>
+              <!-- В очередях без ранга (нормалы, ARAM) на месте эмблемы — силуэт
+                   карты (assets/maps) в рамке: квадрат со скошенными углами.
+                   Обводка и свечение — цвета полосы LP. Размер силуэта внутри
+                   задаёт код: Бездна — узкая диагональ — чуть меньше Ущелья. -->
+              <Grid x:Name="QueueMapBox" Grid.Column="0" Width="66" Height="66"
+                    HorizontalAlignment="Left" Margin="0,4,0,0" Visibility="Collapsed">
+                <Path Stretch="Fill" StrokeThickness="1.5"
+                      Data="M10,0 L56,0 L66,10 L66,56 L56,66 L10,66 L0,56 L0,10 Z">
+                  <Path.Stroke>
+                    <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+                      <GradientStop Color="#2E7DD1" Offset="0"/>
+                      <GradientStop Color="#36D6E7" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Path.Stroke>
+                  <Path.Fill>
+                    <SolidColorBrush Color="#36D6E7" Opacity="0.07"/>
+                  </Path.Fill>
+                </Path>
+                <Image x:Name="QueueMap" Width="50" Height="50" Stretch="Uniform"
+                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Image.Effect>
+                    <DropShadowEffect Color="#36D6E7" BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
+                  </Image.Effect>
+                </Image>
+              </Grid>
               <!-- Сборка эмблемы при переходе в НОВУЮ ЛИГУ. Новый знак приезжает
                    сверху двумя половинами и сваривается посередине: луч, вспышка
                    и короткий скачок размера. Обе половины — одна и та же
@@ -321,10 +352,6 @@
                 </Border>
               </Grid>
 
-              <!-- Скелетон эмблемы ранга -->
-              <Border x:Name="EmblemSkel" Grid.Column="0" Width="62" Height="62" CornerRadius="10"
-                      HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,0"
-                      Visibility="Collapsed"/>
               <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
                           Margin="0,2,2,0">
                 <!-- Ник в обрамлении половинок ранговой эмблемы (левое/правое крыло) -->
