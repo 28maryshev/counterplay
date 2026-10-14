@@ -36,6 +36,15 @@ public partial class OverlayWindow
 
     private const double MinW     = 1240;
 
+    // Запомненное окно уже этого — не раскладка драфта: три колонки (две по
+    // 282 и центр) в него не влезают. Так выглядит панель профиля (IdleW),
+    // снятая концом драфта, — с ней следующий драфт открывался одной колонкой
+    // своих, а центр и враги уезжали за край.
+    private const double RememberMinW = 800;
+
+    private static bool HasRememberedDraftSize(AppSettings s) =>
+        s.DraftWidth >= RememberMinW && s.DraftHeight > 100;
+
     private const double MinH     = 200;
 
     // Запоминаем размер полного режима при переключении в компактный
@@ -211,6 +220,13 @@ public partial class OverlayWindow
         // применялась, окно стоит в виде сайдбара, и такие размеры вспоминать
         // на следующем драфте бессмысленно.
         if (!_placementApplied || Width <= 100 || Height <= 100) return;
+        // Окно сейчас панель профиля, а не драфт: посреди драфта его ужимал
+        // экран ожидания. Запомнить такое — открыть следующий драфт в 340 px.
+        if (IdlePanel.Visibility == Visibility.Visible || Width < RememberMinW)
+        {
+            Log.Write($"раскладку не запоминаю: окно {Width:0}×{Height:0} — не вид драфта");
+            return;
+        }
         var s = AppSettings.Current;
         // Пишем, ЧТО запоминаем и что было до этого: размер иногда подменялся
         // между раскладкой и концом драфта, и по одному лишь «раскладка
@@ -255,7 +271,9 @@ public partial class OverlayWindow
         if (mode == "remember")
         {
             var s = AppSettings.Current;
-            if (s.DraftWidth > 100 && s.DraftHeight > 100)
+            // Узкое запомненное (см. RememberMinW) — как будто не запоминали:
+            // такие уже лежат у игроков в настройках и ездят синхронизацией.
+            if (HasRememberedDraftSize(s))
             {
                 // Режим окна обязательно ручной: на экране ожидания высота
                 // считается по контенту, и присвоенная высота просто терялась —
@@ -433,8 +451,7 @@ public partial class OverlayWindow
             // осталось где стояло». Дальше он поправлял размер руками, и конец
             // драфта запоминал уже испорченное.
             var place = AppSettings.Current;
-            if (place.DraftPlacement == "remember"
-                && place.DraftWidth > 100 && place.DraftHeight > 100)
+            if (place.DraftPlacement == "remember" && HasRememberedDraftSize(place))
                 (w, h) = (place.DraftWidth, place.DraftHeight);
 
             _settingSize = true;

@@ -73,6 +73,7 @@
     "readyLine": "準備完了 · {0} · {1}",
     "readyPhase": "準備完了 · フェーズ: {0}",
     "banPhase": "バンフェーズ…",
+    "pickPhase": "ピックフェーズ…",
     "waitDraft": "チャンピオン選択を待機中…",
     "waitClient": "クライアントを待機中…",
     "updatingDb": "データベースを更新中…",

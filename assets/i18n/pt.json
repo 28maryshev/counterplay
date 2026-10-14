@@ -235,6 +235,7 @@
     "readyIdle": "Pronto",
     "readyPhase": "Pronto · fase: {0}",
     "banPhase": "Fase de banimento…",
+    "pickPhase": "Fase de escolha…",
     "waitDraft": "Aguardando seleção de campeões…",
     "waitClient": "Aguardando o cliente…",
     "updatingDb": "Atualizando banco de dados…",

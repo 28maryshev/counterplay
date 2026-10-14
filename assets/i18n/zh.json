@@ -74,6 +74,7 @@
     "readyLine": "就绪 · {0} · {1}",
     "readyPhase": "就绪 · 阶段：{0}",
     "banPhase": "Ban 阶段…",
+    "pickPhase": "选人阶段…",
     "waitDraft": "正在等待选英雄…",
     "waitClient": "正在等待客户端…",
     "updatingDb": "正在更新数据库…",

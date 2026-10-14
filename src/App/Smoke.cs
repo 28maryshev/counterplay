@@ -141,6 +141,14 @@ internal static class Smoke
                 w.SetEngine(engine);
             });
 
+            await Step("заглушка центра", async () =>
+            {
+                // Банфаза, советы ещё не посчитаны: центр — заглушка, не экран ожидания.
+                w.UpdateBans([], Draft(ban: true), engine);
+                await Settle();
+                if (((FrameworkElement)w.FindName("CenterSkeleton")).Visibility != Visibility.Visible)
+                    throw new InvalidOperationException("центру показать нечего, а заглушки нет");
+            });
             await Step("объявление пиков", () =>
                 w.UpdateBans([], Draft(ban: true, planning: true), engine));
             await Step("советы банов", () =>

@@ -235,6 +235,7 @@
     "readyIdle": "Bereit",
     "readyPhase": "Bereit · Phase: {0}",
     "banPhase": "Bannphase…",
+    "pickPhase": "Pickphase…",
     "waitDraft": "Warten auf Championauswahl…",
     "waitClient": "Warten auf den Client…",
     "updatingDb": "Datenbank wird aktualisiert…",

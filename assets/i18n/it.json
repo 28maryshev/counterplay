@@ -73,6 +73,7 @@
     "readyLine": "Pronto · {0} · {1}",
     "readyPhase": "Pronto · fase: {0}",
     "banPhase": "Fase ban…",
+    "pickPhase": "Fase pick…",
     "waitDraft": "In attesa della selezione campioni…",
     "waitClient": "In attesa del client…",
     "updatingDb": "Aggiornamento del database…",

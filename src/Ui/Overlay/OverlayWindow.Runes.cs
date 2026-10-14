@@ -74,7 +74,7 @@ public partial class OverlayWindow
             {
                 _runesWaiting = false;
                 RunesBar.Visibility = Visibility.Collapsed;
-                if (BanViewShown) return;                        // строку держит тир-лист под банами
+                if (CenterNotPicks) return;                        // строку держит вид банов или заглушка
                 TierListBar.Visibility = Visibility.Collapsed;   // тир-лист — только под банами
                 RenderRolePool(_lastDraft);                      // рун нет — вернём пул роли
                 return;
@@ -92,7 +92,7 @@ public partial class OverlayWindow
             RunesStatus.Visibility = Visibility.Collapsed;
             // Ещё видна панель банов (первые секунды пиков) — руны готовы, но
             // строку не трогаем: покажет RenderFull, когда окно перейдёт к пикам.
-            if (BanViewShown) { _runesWaiting = true; return; }
+            if (CenterNotPicks) { _runesWaiting = true; return; }
             RunesBar.Visibility = AppSettings.Current.DraftRunes
                 ? Visibility.Visible : Visibility.Collapsed;
             TierListBar.Visibility = Visibility.Collapsed;   // руны заняли Row 1 — тир-лист прячем
@@ -251,7 +251,7 @@ public partial class OverlayWindow
     {
         _runesWaiting = false;
         RunesBar.Visibility = Visibility.Collapsed;
-        if (_lastDraft?.InBanPhase != true && !BanViewShown) RenderRolePool(_lastDraft);
+        if (_lastDraft?.InBanPhase != true && !CenterNotPicks) RenderRolePool(_lastDraft);
     });
 
     // Руны пришли, пока на экране были баны: показать, когда окно перейдёт к пикам.

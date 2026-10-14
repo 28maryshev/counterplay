@@ -100,6 +100,7 @@
     "readyIdle": "Готов",
     "readyPhase": "Готов · фаза: {0}",
     "banPhase": "Фаза банов…",
+    "pickPhase": "Фаза пиков…",
     "waitDraft": "Жду чемп-выбор…",
     "waitClient": "Жду запуска клиента…",
     "updatingDb": "Обновляю базу данных…",

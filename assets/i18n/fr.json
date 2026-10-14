@@ -78,6 +78,7 @@
     "readyIdle": "Prêt",
     "readyPhase": "Prêt · phase : {0}",
     "banPhase": "Phase de bans…",
+    "pickPhase": "Phase de picks…",
     "waitDraft": "En attente de la sélection des champions…",
     "waitClient": "En attente du client…",
     "updatingDb": "Mise à jour de la base de données…",

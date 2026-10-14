@@ -74,6 +74,7 @@
     "readyLine": "Gotowe · {0} · {1}",
     "readyPhase": "Gotowe · faza: {0}",
     "banPhase": "Faza banów…",
+    "pickPhase": "Faza wyboru…",
     "waitDraft": "Oczekiwanie na wybór postaci…",
     "waitClient": "Oczekiwanie na klienta…",
     "updatingDb": "Aktualizacja bazy danych…",

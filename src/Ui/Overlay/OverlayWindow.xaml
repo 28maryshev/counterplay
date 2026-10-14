@@ -872,6 +872,22 @@
               </StackPanel>
             </Border>
 
+            <!-- Заглушка центра: драфт идёт, а показать в центре пока нечего —
+                 советы банов не посчитаны, подбор пуст, база не загружена. Две
+                 плашки на месте будущих разделов (сверху советы, снизу тир-лист),
+                 рамки как у настоящих панелей. Занимает обе строки центра; блик —
+                 общая кисть Skeleton.Shimmer, ставится из кода. -->
+            <Grid x:Name="CenterSkeleton" Grid.Row="0" Grid.RowSpan="2" Visibility="Collapsed">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="2*"/>
+                <RowDefinition Height="3*"/>
+              </Grid.RowDefinitions>
+              <Border x:Name="CenterSkelTop" Grid.Row="0" Margin="0,6,0,0"
+                      CornerRadius="8" BorderBrush="#2A3A4F" BorderThickness="1"/>
+              <Border x:Name="CenterSkelBottom" Grid.Row="1" Margin="0,12,0,8"
+                      CornerRadius="8" BorderBrush="#2A3A4F" BorderThickness="1"/>
+            </Grid>
+
             <!-- Кнопка выбора чемпиона: наведён кликом по карточке → лочим
                  в клиенте. Плавает над списком, показывается только в свой ход. -->
             <Border x:Name="PickBar" Grid.Row="0" VerticalAlignment="Bottom"

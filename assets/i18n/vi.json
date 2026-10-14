@@ -73,6 +73,7 @@
     "readyLine": "Sẵn sàng · {0} · {1}",
     "readyPhase": "Sẵn sàng · giai đoạn: {0}",
     "banPhase": "Giai đoạn cấm…",
+    "pickPhase": "Giai đoạn chọn…",
     "waitDraft": "Đang chờ chọn tướng…",
     "waitClient": "Đang chờ client…",
     "updatingDb": "Đang cập nhật cơ sở dữ liệu…",

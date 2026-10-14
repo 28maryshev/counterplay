@@ -235,6 +235,7 @@
     "readyIdle": "준비됨",
     "readyPhase": "준비됨 · 단계: {0}",
     "banPhase": "밴 단계…",
+    "pickPhase": "픽 단계…",
     "waitDraft": "챔피언 선택 대기 중…",
     "waitClient": "클라이언트 대기 중…",
     "updatingDb": "데이터베이스 업데이트 중…",

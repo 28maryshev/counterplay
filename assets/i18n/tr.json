@@ -188,6 +188,7 @@
     "readyIdle": "Hazır",
     "readyPhase": "Hazır · aşama: {0}",
     "banPhase": "Ban aşaması…",
+    "pickPhase": "Seçim aşaması…",
     "waitDraft": "Şampiyon seçimi bekleniyor…",
     "waitClient": "İstemci bekleniyor…",
     "updatingDb": "Veritabanı güncelleniyor…",

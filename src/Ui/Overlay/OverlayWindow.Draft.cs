@@ -182,6 +182,10 @@ public partial class OverlayWindow
         var recs  = _lastRecs;
         var draft = _lastDraft;
 
+        // Заглушку центра ставит только ветка «показать нечего»; любой другой
+        // вид начинается без неё — снимаем здесь один раз, а не в каждом.
+        CenterSkeleton.Visibility = Visibility.Collapsed;
+
         // Плашки подтверждения пересчитываем на каждом снимке драфта, а не
         // только в ответ на клик по нашей карточке.
         //
@@ -229,8 +233,7 @@ public partial class OverlayWindow
             var banDone = draft.MyBanDone && _engine is not null;
             if (!banDone && (_lastBans is null || _lastBans.Count == 0))
             {
-                IdleStatusText.Text = Loc.T("status.banPhase");
-                ShowIdle();
+                ShowDraftSkeleton(draft);
                 return;
             }
             RestoreModeSize();
@@ -260,6 +263,7 @@ public partial class OverlayWindow
 
         if (recs == null || recs.Count == 0)
         {
+            if (draft is not null) { ShowDraftSkeleton(draft); return; }
             // Плашка про порядок пика живёт в шапке, вне переключаемых видов, —
             // без этого она оставалась висеть над экраном ожидания.
             PickHint.Visibility = Visibility.Collapsed;
@@ -316,6 +320,52 @@ public partial class OverlayWindow
         AnchorIfNotMoved();
         KeepReachable();
         ApplyScale();
+    }
+
+    /// <summary>
+    /// Драфт идёт, а центру показать нечего: советы банов ещё не посчитаны,
+    /// подбор пуст (роль не раздана, скамейки ARAM ещё нет) или база не
+    /// загружена. Окно остаётся видом драфта — команды по бокам, в центре две
+    /// плашки-заглушки на месте советов и тир-листа.
+    ///
+    /// Раньше здесь звали экран ожидания, а он ужимает окно до ширины панели
+    /// профиля. Кончался такой драфт — запоминалась раскладка 340×784, и каждый
+    /// следующий открывался окном, куда влезает одна колонка своих: центр и
+    /// враги уезжали за край (скриншот владельца, 15.10).
+    /// </summary>
+    private void ShowDraftSkeleton(DraftState draft)
+    {
+        RestoreModeSize();
+        StatusText.Text     = SkeletonStatus(draft);
+        PickHint.Visibility = Visibility.Collapsed;
+
+        // Руны, если уже стояли, вернёт подбор (RenderFull) — как после банов.
+        if (RunesBar.Visibility == Visibility.Visible) _runesWaiting = true;
+        foreach (var part in new UIElement[] { RecScroll, BanScroll, BansDonePanel, PlanPanel,
+                                               PickBar, BanBar, RolePoolBar, TierListBar, RunesBar })
+            part.Visibility = Visibility.Collapsed;
+        CenterSkelTop.Background = CenterSkelBottom.Background = Skeleton.Shimmer;
+        CenterSkeleton.Visibility = Visibility.Visible;
+        RenderTeams(draft);
+
+        CompactScroll.Visibility = Visibility.Collapsed;   // компактный вид не используется
+        FullView.Visibility      = Visibility.Visible;
+        if (_inTray) return;
+        Show();
+        AnchorIfNotMoved();
+    }
+
+    /// Строка статуса над заглушкой — та же, что встанет с данными: заглушка
+    /// обещает именно этот вид. Роль не раздана — только фаза, без «Роль: —».
+    private static string SkeletonStatus(DraftState draft)
+    {
+        if (draft.IsAram) return Loc.T("draft.aram");
+        var role = draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : "";
+        if (role.Length == 0) return Loc.T(draft.InBanPhase ? "status.banPhase" : "status.pickPhase");
+        var name = RoleNameDb(role);
+        return draft.InPlanning ? Loc.T("draft.rolePlan", name)
+             : draft.InBanPhase ? Loc.T("draft.roleBans", name)
+             : Loc.T("draft.roleByTeam", name);
     }
 
     // ── Фаза банов ─────────────────────────────────────────────────────────

@@ -63,6 +63,7 @@
     "readyIdle": "Listo",
     "readyPhase": "Listo · fase: {0}",
     "banPhase": "Fase de baneos…",
+    "pickPhase": "Fase de selección…",
     "waitDraft": "Esperando la selección de campeones…",
     "waitClient": "Esperando al cliente…",
     "updatingDb": "Actualizando base de datos…",
