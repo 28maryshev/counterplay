@@ -2,109 +2,10 @@
 
 namespace Counterplay;
 
-// Движок подбора — подсказки и доводы: угрозы врагов, контры и синергии под портретами,
+// Движок подбора — подсказки и доводы: контры и синергии под портретами,
 // строки доводов на карточках.
 public sealed partial class RecommendationEngine
 {
-    // (champion_id, games, wins) → ранг по нижней границе Уилсона. minEdge отсекает
-    // «неуверенные» пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
-    /// «Кто бьёт нашу команду в целом»: для каждого чемпиона — насколько он играет
-    /// против НАШИХ лучше, чем против всех подряд, и скольких наших это покрывает.
-    /// Отличается от списка контрпиков конкретного игрока: чемпион может не быть
-    /// топ-контрой ни для кого по отдельности, но стабильно обыгрывать всю
-    /// команду — такой бан помогает всем сразу.
-    // Возвращает по каждому кандидату: насколько он опасен нашей команде и КОГО
-    // именно из неё бьёт. Список нужен подписи: в счёт идут не только пики на
-    // экране, но и чемпионы, которых союзники наводили раньше, — писать про них
-    // «твои пики» нельзя, игрок их уже не видит.
-    /// <summary>
-    /// Чем кандидат опасен для нашей команды: общая угроза, список пострадавших
-    /// и насколько он бьёт КАЖДОГО из них.
-    ///
-    /// Разбивка по именам нужна подписи в банах: «силён против 2 ваших пиков» —
-    /// число без имён, по нему нельзя ни проверить, ни решить. Сила указана в
-    /// тех же очках, что на карточках драфта.
-    /// </summary>
-    private sealed record TeamThreat(double Threat, List<int> Victims, Dictionary<int, double> Edge);
-
-    private Dictionary<int, TeamThreat> TeamThreats(
-        IReadOnlyCollection<(int Id, string? Role)> allies)
-    {
-        var res = new Dictionary<int, TeamThreat>();
-        var allyIds = allies.Select(a => a.Id).Where(x => x > 0).Distinct().ToList();
-        if (allyIds.Count < 2) return res;   // «командная» угроза начинается с двоих
-        try
-        {
-            // Роль союзника сужает выборку до его линии. Роли может не быть
-            // (ranked solo/duo, блайнд) — тогда берём по всем, как раньше:
-            // приблизительно, но лучше, чем молчать.
-            var parts = new List<string>();
-            foreach (var (id, role) in allies)
-            {
-                if (id <= 0) continue;
-                if (!string.IsNullOrEmpty(role) && DbRoles.Contains(role))
-                    parts.Add($"(vs_champion_id = {id} AND role = '{role}')");
-                else
-                    parts.Add($"vs_champion_id = {id}");
-            }
-            if (parts.Count == 0) return res;
-            var ids = string.Join(" OR ", parts);
-
-            // Строка на КАЖДУЮ пару, а не одна на кандидата: сумму обратно по
-            // именам не разложить, а подпись именно этого и требует. Складываем
-            // сами, тем же способом, чтобы порядок банов не изменился.
-            var cmd = _db.CreateCommand();
-            cmd.CommandText = $@"
-                SELECT champion_id, vs_champion_id,
-                       SUM(games*{PW}) AS g,
-                       SUM(wins*{PW})  AS w
-                FROM   matchup
-                WHERE  ({ids}) AND patch IN (@p1, @p2, @p3)
-                GROUP  BY champion_id, vs_champion_id";
-            cmd.Parameters.AddWithValue("@p1", _p1);
-            cmd.Parameters.AddWithValue("@p2", _p2);
-            cmd.Parameters.AddWithValue("@p3", _p3);
-
-            var rows = new Dictionary<int, List<(int Vs, double G, double W)>>();
-            using (var rd = cmd.ExecuteReader())
-                while (rd.Read())
-                {
-                    var id = rd.GetInt32(0);
-                    var vs = rd.GetInt32(1);
-                    if (vs <= 0) continue;
-                    if (!rows.TryGetValue(id, out var list)) rows[id] = list = [];
-                    list.Add((vs, Convert.ToDouble(rd.GetValue(2)), Convert.ToDouble(rd.GetValue(3))));
-                }
-
-            foreach (var (id, list) in rows)
-            {
-                var victims = list.Select(r => r.Vs).Distinct().ToList();
-                var n = victims.Count;
-                var g = list.Sum(r => r.G);
-                var w = list.Sum(r => r.W);
-                if (n < 2 || g < 150) continue;      // прежние HAVING, теперь у нас
-
-                // Чистая угроза: WR против наших минус собственный средний WR —
-                // иначе наверх лезли бы просто сильные чемпионы патча.
-                var (bg, bw) = RawBaseAny(id);
-                if (bg <= 0) continue;
-                var mine = Delta(bg, bw, K);
-                var threat = (Delta(g, w, K_PAIR) - mine) * (g / (g + MATCHUP_CONF));
-                if (threat <= 0) continue;
-
-                // По каждому пострадавшему — тот же перевес, только по его паре.
-                var edge = new Dictionary<int, double>();
-                foreach (var r in list)
-                    if (r.G > 0) edge[r.Vs] = Delta(r.G, r.W, K_PAIR) - mine;
-
-                // Масштабируем по охвату: бьёт троих — весомее, чем двоих.
-                res[id] = new TeamThreat(threat * n / allyIds.Count, victims, edge);
-            }
-        }
-        catch { /* нет данных — фактор молчит */ }
-        return res;
-    }
-
     // Одна строка подсказки: кандидат, объём пары и её винрейт.
     private readonly record struct HintRow(int Id, double Games, double Wins)
     {
@@ -122,6 +23,8 @@ public sealed partial class RecommendationEngine
         return rows;
     }
 
+    // (champion_id, games, wins) → ранг по нижней границе Уилсона. minEdge отсекает
+    // «неуверенные» пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
     private static List<int> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE) =>
         ReadHintRows(cmd)
             .Select(r => (r.Id, Lb: WilsonLower(r.Wins, r.Games)))
@@ -132,7 +35,7 @@ public sealed partial class RecommendationEngine
     /// <summary>
     /// Топ N чемпионов той же роли, лучше всего контрящих данного врага.
     /// Если роль неизвестна — запрос по всем ролям. minGames/minEdge можно
-    /// ослабить (защитные баны: данные по паре разрежены, а показать надо).
+    /// ослабить, когда данные по паре разрежены, а показать надо.
     /// </summary>
     /// <param name="fill">
     /// Добрать до N, если по строгим порогам набралось меньше. Нужно боковым

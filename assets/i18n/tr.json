@@ -401,6 +401,8 @@
     "botlaneGood": "Düşman bot hattına karşı iyi ({0})",
     "botlaneBad": "Düşman bot hattına karşı zorlanıyor ({0})",
     "strongPatch": "Bu yamada güçlü — WR %{0}",
+    "hardCounter": "Sert counter: {0} WR −%{1}",
+    "tierGrade": "Bu yamada {0} tier",
     "notablePick": "Bu yamada dikkat çeken bir seçim",
     "jgSetup": "Ormancı {0} cc'siz agresif — sen gank setup'ı sağlıyorsun.",
     "adcEngage": "ADC {0} engage istiyor — fightleri onun için açıyorsun.",
@@ -420,8 +422,7 @@
     "baseLow": "Düşük WR %{0} — şampiyonu bilmen gerekiyor",
     "baseNeutral": "Nötr seçim, WR ≈%{0}",
     "countersMany": "Takımından {0} karşı koz",
-    "personalWr": "Bu şampiyonla kazanma oranın — {1} maçta %{0}",
-    "teamThreat": "Takımını genel olarak yeniyor — {0} karşısında güçlü"
+    "personalWr": "Bu şampiyonla kazanma oranın — {1} maçta %{0}"
   },
   "pool": {
     "slotLabel": "Havuzundan seçim",

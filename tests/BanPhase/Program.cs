@@ -22,6 +22,8 @@ namespace Counterplay.Tests;
 /// 2. Тир-лист банов: на роли — кого банят чаще, роль чемпиону даёт четверть
 ///    его игр, бан-рейт полный. Без порога Ясуо вставал бы в стрелки.
 /// 3. После своего бана окно показывает баны обеих команд с бан-рейтом.
+/// 1в. Один рейтинг вместо закреплённых мест (14.10): кто бьёт и мой пул, и
+///    пики союзников, поднимается; жёсткая контра моему — в пятёрке всегда.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -167,8 +169,12 @@ internal static class Program
         Check("наведённых своими (и сменённых) в банах нет", bad.Count == 0,
               string.Join(", ", bad.Select(b => DataDragon.Name(b.ChampionId))));
         var all = bans.SelectMany(b => b.Reasons).ToList();
-        Check("сменённый пик союзника по-прежнему защищают", all.Any(r => r.Contains(DataDragon.Name(62))),
-              all.FirstOrDefault(r => r.Contains(DataDragon.Name(62))) ?? "о Вуконге ни слова");
+        // Защищать — значит учитывать в рейтинге, а не держать за ним место: с
+        // 14.10 мест у защиты союзников нет, и в пятёрку контра Вуконгу
+        // проходит, только если набрала больше контр моему пулу.
+        var wide = engine.RecommendBans(state, history, top: 30).SelectMany(b => b.Reasons).ToList();
+        Check("сменённый пик союзника по-прежнему защищают", wide.Any(r => r.Contains(DataDragon.Name(62))),
+              wide.FirstOrDefault(r => r.Contains(DataDragon.Name(62))) ?? "о Вуконге ни слова");
 
         // Контры пикам союзников называют пикрейт, как контры моему пулу.
         var ally = Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
@@ -187,19 +193,26 @@ internal static class Program
         SessionTracker.HistoryOverride = null;
     }
 
-    // ── 1в. Бан прежде всего мой: линия первой, пул из профиля ───────────────
+    // ── 1в. Один рейтинг: пул и союзники вместе, жёсткие контры — в пятёрке ──
 
     /// <summary>
-    /// Скриншот владельца-саппорта: союзники навели Ирелию и Мастера Йи, и
-    /// четыре бана из пяти были про них, один — про его линию. Теперь моей
-    /// линии — не меньше трёх мест, и они первые; защите союзников — не больше
-    /// двух. Веса журнала — как у владельца за месяц.
+    /// Было: моей линии три первых места, защите союзников — не больше двух
+    /// (после скриншота владельца-саппорта, где четыре бана из пяти были про
+    /// Ирелию и Мастера Йи). Владелец 14.10: «убери фиксированное расположение
+    /// — если персонаж контрит пару из моего пула и пару союзников, он должен
+    /// подниматься на первое место», и следом: «у жёстких контр на линии против
+    /// моих персонажей должен быть буст, и они по-любому должны быть в топах».
+    ///
+    /// Теперь порядок — по очкам; кто бьёт и мой пул, и показанные пики
+    /// союзников, складывает очки и поднимается; жёсткая контра моему чемпиону
+    /// в пятёрке всегда. Веса журнала — как у владельца за месяц.
     /// </summary>
     private static void Lane(RecommendationEngine engine)
     {
         Console.WriteLine();
-        Console.WriteLine("моя линия первой:");
-        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int> { [37] = 32, [201] = 19, [22] = 18, [161] = 17, [910] = 10, [101] = 8 });
+        Console.WriteLine("один рейтинг:");
+        var owner = new Dictionary<int, int> { [37] = 32, [201] = 19, [22] = 18, [161] = 17, [910] = 10, [101] = 8 };
+        SessionTracker.HistoryOverride = Hist(owner);
         var team = new List<DraftPlayer>
         {
             new(0, 0, 39, "top", false),       // Ирелия
@@ -210,32 +223,50 @@ internal static class Program
         };
         var state = Snapshot(team, team[4], "utility");
         var bans = engine.RecommendBans(state, new Dictionary<int, HashSet<int>> { [0] = [39], [1] = [11] }, top: 5);
-        var sup = engine.PickRates("support");
         foreach (var b in bans)
             Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {b.Reasons.FirstOrDefault()}");
-        bool OnLane(BanRec b) => sup.GetValueOrDefault(b.ChampionId) >= 0.5;
-        Check("не меньше трёх банов — на мою линию", bans.Count(OnLane) >= 3, $"{bans.Count(OnLane)} из {bans.Count}");
-        Check("и они первые", bans.Take(3).All(OnLane), string.Join(", ", bans.Take(3).Select(b => DataDragon.Name(b.ChampionId))));
-        int[] mineIds = [37, 201, 22, 161, 910, 101];
+
+        Check("порядок — по очкам, без закреплённых мест",
+              bans.Zip(bans.Skip(1)).All(p => p.First.Score >= p.Second.Score),
+              string.Join(" ≥ ", bans.Select(b => $"{b.Score:F1}")));
+        int[] mineIds = [.. owner.Keys];
         Check("своих мейнов не банит", !bans.Any(b => mineIds.Contains(b.ChampionId)),
               string.Join(", ", bans.Where(b => mineIds.Contains(b.ChampionId)).Select(b => DataDragon.Name(b.ChampionId))));
+        var pool = Loc.T("reason.countersPoolPick", "\u0001", "").Split('\u0001')[0];
+        var hard = Loc.T("reason.hardCounter", "\u0001", "").Split('\u0001')[0];
         var ally = Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
         var many = Loc.T("reason.countersMany", "\u0001").Split('\u0001')[0];
-        var guard = bans.Count(b => !OnLane(b));
-        Check("защите союзников — не больше двух", guard <= 2, $"{guard}");
-        Check("защита союзников всё же есть", bans.Any(b => b.Reasons.Any(r =>
-                  r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal))), "");
+        bool Has(BanRec b, params string[] heads) => b.Reasons.Any(r => heads.Any(h => r.StartsWith(h, StringComparison.Ordinal)));
+        Check("в пятёрке есть контры моему пулу", bans.Any(b => Has(b, pool, hard)), "");
+        Check("и контры пикам союзников", bans.Any(b => Has(b, ally, many)), "");
+
+        // Жёсткие контры моему пулу: на этой сцене они есть (Блицкранк бьёт Эш
+        // на 6 с лишним очков) — значит, хоть одна обязана стоять в пятёрке,
+        // даже когда союзники показали чемпионов с сильными контрами.
+        var wide = engine.RecommendBans(state, new Dictionary<int, HashSet<int>> { [0] = [39], [1] = [11] }, top: 40);
+        Check("жёсткие контры моим вообще находятся", wide.Any(b => Has(b, hard)), $"{wide.Count(b => Has(b, hard))} из {wide.Count}");
+        Check("жёсткая контра моему — в пятёрке", bans.Any(b => Has(b, hard)),
+              bans.FirstOrDefault(b => Has(b, hard)) is { } h ? $"{DataDragon.Name(h.ChampionId)}: {h.Reasons[0]}" : "нет");
+        // И стоят выше, чем стояли бы без надбавки: первая жёсткая — в первой тройке.
+        var firstHard = bans.ToList().FindIndex(b => Has(b, hard));
+        Check("и стоит в первой тройке", firstHard is >= 0 and < 3, $"место {firstHard + 1}");
+
+        CrossLane(engine, owner, "utility", "support");
+        CrossLane(engine, new Dictionary<int, int> { [86] = 25, [122] = 12 }, "top", "top");
+        CrossLane(engine, new Dictionary<int, int> { [103] = 20, [134] = 15, [61] = 8 }, "middle", "mid");
+        Check("перекрёстный кандидат поднимается на первое место (хоть на одной из трёх ролей)",
+              _crossFirst > 0, $"{_crossFirst} раз");
 
         // Пул из профиля: истории нет, в активном пуле саппорта — Сона и Браум.
         // Раньше баны пул не читали, и контрить было бы некого.
         SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>());
-        var pool = new ChampPool { Name = "проверка", ByRole = new() { ["support"] = [37, 201] } };
-        PoolStore.Current().Pools.Add(pool);
-        PoolStore.SetActive(PoolKind.Pool, pool.Id);
+        var poolDef = new ChampPool { Name = "проверка", ByRole = new() { ["support"] = [37, 201] } };
+        PoolStore.Current().Pools.Add(poolDef);
+        PoolStore.SetActive(PoolKind.Pool, poolDef.Id);
         var me = new List<DraftPlayer> { new(0, 0, 0, "utility", true) };
-        var head = Loc.T("reason.countersPoolPick", "\u0001", "").Split('\u0001')[0];
         var poolReasons = engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 5)
-                                .SelectMany(b => b.Reasons).Where(r => r.StartsWith(head, StringComparison.Ordinal)).ToList();
+                                .SelectMany(b => b.Reasons)
+                                .Where(r => r.StartsWith(pool, StringComparison.Ordinal) || r.StartsWith(hard, StringComparison.Ordinal)).ToList();
         Check("пул из профиля: контры ему есть без истории", poolReasons.Count > 0, poolReasons.FirstOrDefault() ?? "нет");
         Check("называют чемпионов пула", poolReasons.All(r => r.Contains(DataDragon.Name(37)) || r.Contains(DataDragon.Name(201))), "");
         // Пул целиком банов не закрывает (решение владельца: только наигранные
@@ -244,8 +275,56 @@ internal static class Program
         var withGames = engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 10);
         Check("сыгранный за месяц из пула не банится", withGames.All(b => b.ChampionId != 201), "");
         PoolStore.SetActive(PoolKind.Pool, null);
-        PoolStore.Current().Pools.Remove(pool);
+        PoolStore.Current().Pools.Remove(poolDef);
         SessionTracker.HistoryOverride = null;
+    }
+
+    private static int _crossFirst;
+
+    /// <summary>
+    /// Пример владельца на живой базе: кандидат моей линии, которого берут и на
+    /// другой линии, бьёт там двоих — союзник с этой линии показывает обоих
+    /// (одного сейчас, второго наводил). Его очки обязаны вырасти, а места —
+    /// подниматься (у отдельного кандидата место может и не вырасти: тех же
+    /// жертв бьёт кто-то сильнее). Кандидатов и жертв выбираем по базе: патч
+    /// меняется, а правило — нет.
+    /// </summary>
+    private static void CrossLane(RecommendationEngine engine, Dictionary<int, int> games, string pos, string role)
+    {
+        string[] lanes = ["top", "jungle", "mid", "adc", "support"];
+        string[] lcu   = ["top", "jungle", "middle", "bottom", "utility"];
+        SessionTracker.HistoryOverride = Hist(games);
+        var me = new List<DraftPlayer> { new(0, 0, 0, pos, true) };
+        var alone = engine.RecommendBans(Snapshot(me, me[0], pos), null, top: 40);
+        int found = 0, rose = 0;
+        foreach (var x in alone.Take(30))
+            for (int li = 0; li < lanes.Length && found < 6; li++)
+            {
+                var lane = lanes[li];
+                if (lane == role || engine.PickRates(lane).GetValueOrDefault(x.ChampionId) < 0.5) continue;
+                // Кого он бьёт на той линии: он в топе контрпиков у них.
+                var victims = engine.PickRates(lane)
+                    .Where(kv => kv.Value >= 1.0 && kv.Key != x.ChampionId && !games.ContainsKey(kv.Key))
+                    .OrderByDescending(kv => kv.Value)
+                    .Select(kv => kv.Key)
+                    .Where(v => engine.TopCounters(v, lane, 5).Contains(x.ChampionId))
+                    .Take(2).ToList();
+                if (victims.Count < 2) continue;
+                found++;
+                var team = new List<DraftPlayer> { me[0], new(1, victims[0], 0, lcu[li], false) };
+                var hist = new Dictionary<int, HashSet<int>> { [1] = [victims[0], victims[1]] };
+                var with = engine.RecommendBans(Snapshot(team, team[0], pos), hist, top: 40);
+                var after = with.FirstOrDefault(b => b.ChampionId == x.ChampionId);
+                var rankBefore = alone.ToList().IndexOf(x) + 1;
+                var rankAfter  = after is null ? 99 : with.ToList().IndexOf(after) + 1;
+                Console.WriteLine($"  {role}: {DataDragon.Name(x.ChampionId)} бьёт пул и {lane} {DataDragon.Name(victims[0])}+{DataDragon.Name(victims[1])}: место {rankBefore} → {rankAfter}");
+                Check($"   очки выросли ({DataDragon.Name(x.ChampionId)})", after is not null && after.Score > x.Score,
+                      $"{x.Score:F1} → {after?.Score:F1}");
+                if (rankAfter < rankBefore) rose++;
+                if (rankAfter == 1) _crossFirst++;
+            }
+        Check($"{role}: перекрёстные кандидаты нашлись", found > 0, $"{found}");
+        Check($"{role}: и поднялись", rose > 0, $"{rose} из {found}");
     }
 
     private static DraftState Snapshot(List<DraftPlayer> team, DraftPlayer me, string pos) => new(
@@ -687,8 +766,11 @@ internal static class Program
         Check("союзники навели пики — от двух до четырёх, все, кто собирался",
               hovered.Count is >= 2 and <= 4 && hovered.Count == planCells,
               $"{hovered.Count} из {planCells}: " + string.Join(", ", hovered.Select(p => DataDragon.Name(p.PickIntentId))));
-        var reasons = Advice()?.SelectMany(b => b.Reasons).ToList() ?? [];
+        // Пики союзников учтены в рейтинге: их контры набирают очки. В пятёрку
+        // такая контра проходит, только если бьёт сильнее, чем контры моему
+        // пулу, — пики в песочнице случайные, поэтому смотрим рейтинг шире.
         var names = hovered.Select(p => DataDragon.Name(p.PickIntentId)).ToList();
+        var reasons = d is null ? [] : engine.RecommendBans(d, null, 30).SelectMany(b => b.Reasons).ToList();
         Check("советы защищают их пики", reasons.Any(r => names.Any(r.Contains)),
               reasons.FirstOrDefault(r => names.Any(r.Contains)) ?? "ни слова о них");
         if (snap is { Length: > 0 }) Snap(overlay, snap, "5-sandbox-advice.png");

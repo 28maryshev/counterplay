@@ -120,6 +120,51 @@ public sealed partial class RecommendationEngine
             ("@c", champId), ("@r", role), ("@v", vsId)));
     }
 
+    private readonly Dictionary<(int, string), Dictionary<int, (double g, double w)>> _matchupsOf = new();
+
+    /// <summary>
+    /// Все матчапы чемпиона на роли разом: соперник → (games, wins) нашего
+    /// чемпиона против него — то же, что RawMatchup по каждой паре, со сводкой
+    /// по дивизионам. Советам банов нужны все соперники каждого защищаемого, и
+    /// по запросу на пару выходили сотни запросов на каждое событие драфта.
+    /// Кэш на жизнь движка.
+    /// </summary>
+    private Dictionary<int, (double g, double w)> MatchupsOf(int champId, string role)
+    {
+        if (_matchupsOf.TryGetValue((champId, role), out var cached)) return cached;
+        var own = new Dictionary<int, (double g, double w)>();
+        var pool = new Dictionary<int, (double g, double w)>();
+        // Свой бакет — с весами патчей, сводка — как есть (у неё патч 'all').
+        void Read(Dictionary<int, (double g, double w)> into, string where, string weight)
+        {
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = $@"
+                SELECT vs_champion_id, COALESCE(SUM(games*{weight}),0), COALESCE(SUM(wins*{weight}),0)
+                FROM matchup WHERE champion_id=@c AND role=@r AND {where}
+                GROUP BY vs_champion_id";
+            cmd.Parameters.AddWithValue("@c",  champId);
+            cmd.Parameters.AddWithValue("@r",  role);
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+                into[rd.GetInt32(0)] = (Convert.ToDouble(rd.GetValue(1)), Convert.ToDouble(rd.GetValue(2)));
+        }
+        try
+        {
+            Read(own, "tier_bucket=@t AND patch IN (@p1,@p2,@p3)", PW);
+            if (HasPool) Read(pool, "tier_bucket='all' AND patch='all'", "1.0");
+        }
+        catch { /* нет данных — пусто */ }
+
+        var res = new Dictionary<int, (double g, double w)>();
+        foreach (var vs in own.Keys.Union(pool.Keys))
+            res[vs] = WithPool(own.GetValueOrDefault(vs), pool.GetValueOrDefault(vs));
+        return _matchupsOf[(champId, role)] = res;
+    }
+
     // Кросс-ролевой матчап на боте: мой чемпион (role) против вражеского дуо-партнёра
     // (vsRole). Защищено try/catch — в старых базах таблицы может не быть.
     private (double g, double w) RawBotlane(int champId, string role, int vsId, string vsRole)

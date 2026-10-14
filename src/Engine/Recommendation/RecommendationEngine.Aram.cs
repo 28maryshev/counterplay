@@ -110,21 +110,4 @@ public sealed partial class RecommendationEngine
         cmd.Parameters.AddWithValue("@p3", _p3);
         return RawAgg(cmd);
     }
-
-    // Матчап без учёта роли (сумма по всем ролям) — для банов, когда роль своя или
-    // союзника ещё не назначена (ranked solo/duo, блайнд): защиту всё равно считаем.
-    private (double g, double w) RawMatchupAny(int champId, int vsId)
-    {
-        var cmd = _db.CreateCommand();
-        cmd.CommandText = $@"
-            SELECT COALESCE(SUM(games*{PW}),0), COALESCE(SUM(wins*{PW}),0) FROM matchup
-            WHERE champion_id=@c AND vs_champion_id=@v AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
-        cmd.Parameters.AddWithValue("@c",  champId);
-        cmd.Parameters.AddWithValue("@v",  vsId);
-        cmd.Parameters.AddWithValue("@t",  TierBucket);
-        cmd.Parameters.AddWithValue("@p1", _p1);
-        cmd.Parameters.AddWithValue("@p2", _p2);
-        cmd.Parameters.AddWithValue("@p3", _p3);
-        return RawAgg(cmd);
-    }
 }

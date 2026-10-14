@@ -401,6 +401,8 @@
     "botlaneGood": "Bueno contra la bot enemiga ({0})",
     "botlaneBad": "Sufre contra la bot enemiga ({0})",
     "strongPatch": "Fuerte este parche — WR {0}%",
+    "hardCounter": "Counter duro: {0} −{1}% WR",
+    "tierGrade": "Tier {0} este parche",
     "notablePick": "Pick destacado este parche",
     "jgSetup": "El jungla {0} es agresivo sin CC — tú preparas las ganks.",
     "adcEngage": "El ADC {0} quiere enganche — tú abres las peleas por él.",
@@ -420,8 +422,7 @@
     "baseLow": "WR bajo {0}% — necesitas dominar al campeón",
     "baseNeutral": "Pick neutral, WR ≈{0}%",
     "countersMany": "Contrarresta a: {0}",
-    "personalWr": "Tu winrate con este campeón: {0}% en {1} partidas",
-    "teamThreat": "Gana a tu equipo en general: fuerte contra {0}"
+    "personalWr": "Tu winrate con este campeón: {0}% en {1} partidas"
   },
   "pool": {
     "slotLabel": "Pick de tu pool",

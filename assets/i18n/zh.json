@@ -290,6 +290,8 @@
     "botlaneGood": "对敌方下路有优势（{0}）",
     "botlaneBad": "对敌方下路吃力（{0}）",
     "strongPatch": "本版本强势——胜率 {0}%",
+    "hardCounter": "硬克制：{0} 胜率 −{1}%",
+    "tierGrade": "本版本 {0} 级",
     "notablePick": "本版本值得一选",
     "jgSetup": "打野 {0} 有攻击性但缺控制——你提供 gank 控制。",
     "adcEngage": "ADC {0} 需要开团——你为他们开启团战。",
@@ -314,8 +316,7 @@
     "countersMyPick": "克制你的选择 {0}",
     "womboAoe": "你的 AoE 大招与队伍的团战连招叠加——一次抱团开战就能团灭他们。",
     "countersMany": "克制你方：{0}",
-    "personalWr": "你使用该英雄的胜率 — {1} 场 {0}%",
-    "teamThreat": "整体压制你方——克制 {0}"
+    "personalWr": "你使用该英雄的胜率 — {1} 场 {0}%"
   },
   "rec": {
     "yourPick": "你的选择",

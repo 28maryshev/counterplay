@@ -295,6 +295,8 @@
     "botlaneGood": "Buono contro il bot nemico ({0})",
     "botlaneBad": "In difficoltà contro il bot nemico ({0})",
     "strongPatch": "Forte in questa patch — WR {0}%",
+    "hardCounter": "Counter netto: {0} −{1}% WR",
+    "tierGrade": "Tier {0} in questa patch",
     "notablePick": "Scelta rilevante in questa patch",
     "jgSetup": "Il jungler {0} è aggressivo senza cc — tu prepari i gank.",
     "adcEngage": "L'ADC {0} vuole ingaggio — tu apri gli scontri per lui.",
@@ -314,8 +316,7 @@
     "baseLow": "WR basso {0}% — devi conoscere il campione",
     "baseNeutral": "Scelta neutrale, WR ≈{0}%",
     "countersMany": "Contrasta i vostri: {0}",
-    "personalWr": "Il tuo winrate con questo campione: {0}% su {1} partite",
-    "teamThreat": "Batte la tua squadra in generale: forte contro {0}"
+    "personalWr": "Il tuo winrate con questo campione: {0}% su {1} partite"
   },
   "rec": {
     "yourPick": "LA TUA SCELTA",

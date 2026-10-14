@@ -170,6 +170,8 @@
     "botlaneGood": "Bom contra o bot inimigo ({0})",
     "botlaneBad": "Sofre contra o bot inimigo ({0})",
     "strongPatch": "Forte neste patch — WR {0}%",
+    "hardCounter": "Counter forte: {0} −{1}% WR",
+    "tierGrade": "Tier {0} neste patch",
     "notablePick": "Pick notável neste patch",
     "jgSetup": "O caçador {0} é agressivo sem CC — você prepara as ganks.",
     "adcEngage": "O ADC {0} quer engage — você abre as lutas para ele.",
@@ -189,8 +191,7 @@
     "baseLow": "WR baixo {0}% — você precisa dominar o campeão",
     "baseNeutral": "Pick neutro, WR ≈{0}%",
     "countersMany": "Counter dos seus: {0}",
-    "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas",
-    "teamThreat": "Vence seu time no geral — forte contra {0}"
+    "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas"
   },
   "metric": {
     "base": "Taxa de vitória neste patch",

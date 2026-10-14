@@ -296,6 +296,8 @@
     "botlaneGood": "Tốt trước bot địch ({0})",
     "botlaneBad": "Vất vả trước bot địch ({0})",
     "strongPatch": "Mạnh bản này — WR {0}%",
+    "hardCounter": "Khắc chế cứng: {0} −{1}% WR",
+    "tierGrade": "Bậc {0} bản này",
     "notablePick": "Lựa chọn đáng chú ý bản này",
     "jgSetup": "Đi rừng {0} hổ báo nhưng thiếu khống chế — bạn tạo bàn đạp gank.",
     "adcEngage": "Xạ thủ {0} cần mở giao tranh — bạn mở trận cho họ.",
@@ -314,8 +316,7 @@
     "baseGood": "WR cơ bản tốt {0}%",
     "baseLow": "WR thấp {0}% — bạn cần thạo tướng này",
     "baseNeutral": "Lựa chọn trung lập, WR ≈{0}%",
-    "personalWr": "Tỉ lệ thắng của bạn với tướng này — {0}% qua {1} trận",
-    "teamThreat": "Thắng đội bạn nói chung — mạnh trước {0}"
+    "personalWr": "Tỉ lệ thắng của bạn với tướng này — {0}% qua {1} trận"
   },
   "rec": {
     "yourPick": "LỰA CHỌN CỦA BẠN",

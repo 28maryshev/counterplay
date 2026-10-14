@@ -321,6 +321,8 @@
     "botlaneGood": "Good against the enemy bot ({0})",
     "botlaneBad": "Struggles against the enemy bot ({0})",
     "strongPatch": "Strong this patch — WR {0}%",
+    "hardCounter": "Hard counter: {0} −{1}% WR",
+    "tierGrade": "{0} tier this patch",
     "notablePick": "Notable pick this patch",
     "jgSetup": "Jungler {0} is aggressive without cc — you provide gank setup.",
     "adcEngage": "ADC {0} wants engage — you open fights for them.",
@@ -340,8 +342,7 @@
     "baseLow": "Low WR {0}% — you need to know the champion",
     "baseNeutral": "Neutral pick, WR ≈{0}%",
     "countersMany": "Counters your team's {0}",
-    "personalWr": "Your win rate on this champion — {0}% over {1} games",
-    "teamThreat": "Beats your team overall — strong against {0}"
+    "personalWr": "Your win rate on this champion — {0}% over {1} games"
   },
   "rec": {
     "yourPick": "YOUR PICK",

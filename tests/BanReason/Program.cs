@@ -6,14 +6,21 @@ using Counterplay;
 namespace Counterplay.Tests;
 
 /// <summary>
-/// Подпись бана про «угрозу всей команде» называет имена и цифры.
+/// Подписи банов про союзников называют поимённо тех, кого бан защищает, и не
+/// врут.
 ///
-/// Было: «Обыгрывает вашу команду — силён против 2 ваших пиков». По такому
-/// числу нельзя ни проверить совет, ни выбрать между двумя кандидатами: против
-/// КОГО и насколько — не сказано.
+/// История: сначала было «Обыгрывает вашу команду — силён против 2 ваших
+/// пиков» — число без имён, по нему нельзя ни проверить совет, ни выбрать между
+/// двумя кандидатами. Потом «силён против Экко (+0,5), Синджед (+3,4)», и среди
+/// имён попадались те, против кого он слаб. С 14.10 отдельной «угрозы команде»
+/// нет: рейтинг банов складывает контры каждому нашему, и подпись одна —
+/// «Контрит ваших: Ирелия, Мастер Йи · пик 3,6%».
 ///
-/// Стало: «силён против Экко (+0,5), Синджед (+3,4)» — те же очки и в том же
-/// виде, что на карточках драфта.
+/// Держим: (1) подпись про нескольких встречается и называет их по именам;
+/// (2) каждый названный правда проигрывает кандидату — его винрейт в паре ниже
+/// его же среднего; (3) пара есть именно на роли союзника: matchup — это
+/// противостояние на линии, и без роли лесной Скарнер числился угрозой Грагасу
+/// на топе.
 ///
 /// Считаем на живой базе игрока. Нет базы — проверять нечего, выходим молча.
 /// </summary>
@@ -21,8 +28,10 @@ internal static class Program
 {
     private static int _fails;
 
-    // Слово «против» из подписи — по нему отличаем нужные строки от прочих.
-    private static string Head => Loc.T("reason.teamThreat", "\u0001").Split('\u0001')[0];
+    // Начала подписей про союзников — по ним отличаем нужные строки от прочих.
+    private static string Many => Loc.T("reason.countersMany", "\u0001").Split('\u0001')[0];
+
+    private static string One => Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
 
     [STAThread]
     private static int Main()
@@ -58,9 +67,11 @@ internal static class Program
         Console.WriteLine($"база: {db}");
 
         using var engine = RecommendationEngine.Create(db, "emerald");
+        engine.Mastery = new Dictionary<int, long>();
 
         // Несколько составов: подпись выдаётся не на каждый драфт, и одного
-        // набора может не хватить, чтобы она вообще появилась.
+        // набора может не хватить, чтобы она вообще появилась. Имена чемпионов
+        // не загружены — в подписи они «id=N», по ним и разбираем.
         var teams = new[]
         {
             new[] { 157, 64,  103 },   // Ясуо, Ли Син, Ари
@@ -69,76 +80,79 @@ internal static class Program
             new[] { 39,  20,  22  },   // Ирелия, Нунду, Эш
         };
 
-        var seen = 0;
-        foreach (var team in teams)
-        {
-            var bans = engine.RecommendBans(Draft(team), top: 8);
-            foreach (var reason in bans.SelectMany(b => b.Reasons)
-                                       .Where(r => r.StartsWith(Head, StringComparison.Ordinal)))
-            {
-                seen++;
-                var tail = reason[Head.Length..];
-
-                // Имена с числами в скобках: «Экко (+0,5), Синджед (+3,4)».
-                var named = Regex.Matches(tail, @"\(([+-]\d+[.,]\d)\)").Count;
-                Check($"подпись называет поимённо: «{Short(reason)}»", named >= 2, $"{named} с цифрами");
-
-                // Под словом «силён против» не должно стоять отрицательных:
-                // общая угроза складывается из всех матчапов, и слабые для него
-                // тоже попадали в список.
-                var weak = Regex.Matches(tail, @"\(-\d").Count;
-                Check("   и без тех, против кого он слаб", weak == 0, $"{weak} с минусом");
-
-                // И никакого голого счётчика вместо имён.
-                Check("   это не «против N ваших пиков»",
-                      !Regex.IsMatch(tail, @"^\s*\d+\s"), tail.TrimStart()[..Math.Min(20, tail.TrimStart().Length)]);
-            }
-        }
-
-        Check($"подпись вообще встречается (составов: {teams.Length})", seen > 0, $"{seen} шт.");
-
-        // ── Роль союзника участвует в счёте ────────────────────────────────
-        //
-        // matchup — это противостояние НА ЛИНИИ. Значит у каждой названной пары
-        // «кандидат против союзника» ОБЯЗАНЫ быть строки именно в роли этого
-        // союзника. Без учёта роли туда попадал, например, лесной Скарнер как
-        // угроза Грагасу на топе: строки есть, но лес против леса.
-        //
-        // Первая версия этой проверки сравнивала подписи «с ролями» и «без
-        // ролей» и проходила в обоих случаях: роль влияет и на другие слагаемые,
-        // так что разница была всегда. Выброшена.
-        var checkedPairs = 0;
+        int many = 0, pairs = 0;
         foreach (var team in teams)
         {
             var roleOf = new Dictionary<int, string>();
             for (var i = 0; i < team.Length; i++) roleOf[team[i]] = DbRole(i);
 
             foreach (var ban in engine.RecommendBans(Draft(team), top: 8))
-                foreach (var reason in ban.Reasons.Where(r => r.StartsWith(Head, StringComparison.Ordinal)))
-                    foreach (Match m in Regex.Matches(reason, @"id=(\d+) \("))
+                foreach (var reason in ban.Reasons.Where(r => r.StartsWith(Many, StringComparison.Ordinal)
+                                                           || r.StartsWith(One, StringComparison.Ordinal)))
+                {
+                    var named = Regex.Matches(reason, @"id=(\d+)").Select(m => int.Parse(m.Groups[1].Value)).ToList();
+                    if (reason.StartsWith(Many, StringComparison.Ordinal))
                     {
-                        var victim = int.Parse(m.Groups[1].Value);
-                        if (!roleOf.TryGetValue(victim, out var role)) continue;
-                        checkedPairs++;
-                        Check($"   {ban.ChampionId} против {victim} есть на роли {role}",
-                              Games(db, ban.ChampionId, victim, role) > 0, "строки есть");
+                        many++;
+                        Check($"подпись называет поимённо: «{Short(reason)}»", named.Count >= 2, $"{named.Count} имён");
+                        Check("   и это не «N ваших пиков»", !Regex.IsMatch(reason[Many.Length..], @"^\s*\d+\s"), "");
                     }
+                    foreach (var victim in named)
+                    {
+                        if (!roleOf.TryGetValue(victim, out var role)) continue;
+                        pairs++;
+                        var (g, w) = Rows(db, engine, "matchup", victim, role, ban.ChampionId);
+                        var (bg, bw) = Rows(db, engine, "base_wr", victim, role);
+                        Check($"   {ban.ChampionId} против {victim} есть на роли {role}", g > 0, $"{g:F0} игр");
+                        Check($"   и {victim} ему проигрывает", g > 0 && w / g < bw / bg,
+                              g > 0 ? $"{100 * w / g:F1}% в паре против {100 * bw / bg:F1}% в среднем" : "пары нет");
+                    }
+                }
         }
-        Check("пар проверено на роль", checkedPairs > 0, $"{checkedPairs}");
+        Check($"подпись про нескольких союзников встречается (составов: {teams.Length})", many > 0, $"{many} шт.");
+        Check("пар проверено на роль", pairs > 0, $"{pairs}");
 
         Mains(engine);
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: бан объясняет, против кого и насколько"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: бан объясняет, кого защищает, и не врёт"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Пара (союзник против кандидата) и средний винрейт союзника на роли — в
+    /// бакете и окне патчей движка, с теми же весами патчей (1; 0,6; 0,3). По
+    /// всем патчам базы сравнивать нельзя: Люкс в 16.18 выигрывала у Талона
+    /// 56%, а в окне 16.20 + 16.19 проигрывает, и движок прав.
+    /// </summary>
+    private static (double G, double W) Rows(string db, RecommendationEngine engine, string table,
+                                             int champ, string role, int? vs = null)
+    {
+        var patches = engine.PatchDisplay.Split(", ");
+        using var con = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db}");
+        con.Open();
+        var cmd = con.CreateCommand();
+        var weight = "CASE patch " + string.Join(" ", patches.Select((p, i) => $"WHEN @p{i} THEN {new[] { "1.0", "0.6", "0.3" }[Math.Min(i, 2)]}")) + " END";
+        cmd.CommandText = $@"SELECT COALESCE(SUM(games*{weight}),0), COALESCE(SUM(wins*{weight}),0) FROM {table}
+                             WHERE champion_id=@c AND role=@r AND tier_bucket=@t
+                               {(vs is null ? "" : "AND vs_champion_id=@v")}
+                               AND patch IN ({string.Join(",", patches.Select((_, i) => $"@p{i}"))})";
+        for (int i = 0; i < patches.Length; i++) cmd.Parameters.AddWithValue($"@p{i}", patches[i]);
+        cmd.Parameters.AddWithValue("@c", champ);
+        cmd.Parameters.AddWithValue("@r", role);
+        cmd.Parameters.AddWithValue("@t", engine.TierBucket);
+        if (vs is not null) cmd.Parameters.AddWithValue("@v", vs.Value);
+        using var rd = cmd.ExecuteReader();
+        rd.Read();
+        return (Convert.ToDouble(rd.GetValue(0)), Convert.ToDouble(rd.GetValue(1)));
     }
 
     /// Драфт: своя роль известна, союзники уже показали пики, врагов нет.
     private static DraftState Draft(IReadOnlyList<int> allies, bool withRole = true)
     {
         // Роли союзникам задаём НАРОЧНО: matchup — это противостояние на линии,
-        // и без роли угроза складывалась по всем ролям сразу (лесной матчап
+        // и без роли контра складывалась по всем ролям сразу (лесной матчап
         // приписывался топ-лейнеру). Проверка должна гонять именно этот путь.
         string[] pos = ["top", "jungle", "middle"];   // см. DbRole
         var team = new List<DraftPlayer> { new(0, 0, 0, "utility", true) };
@@ -216,20 +230,6 @@ internal static class Program
     /// Роль союзника по его месту в составе — в том виде, как её хранит база.
     /// «middle» у клиента и «mid» в базе — разные слова, и путать их нельзя.
     private static string DbRole(int i) => (i % 3) switch { 0 => "top", 1 => "jungle", _ => "mid" };
-
-    /// Сколько игр у пары именно на этой роли.
-    private static long Games(string db, int champ, int vs, string role)
-    {
-        using var con = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db}");
-        con.Open();
-        var cmd = con.CreateCommand();
-        cmd.CommandText = @"SELECT COALESCE(SUM(games),0) FROM matchup
-                            WHERE champion_id=@c AND vs_champion_id=@v AND role=@r";
-        cmd.Parameters.AddWithValue("@c", champ);
-        cmd.Parameters.AddWithValue("@v", vs);
-        cmd.Parameters.AddWithValue("@r", role);
-        return Convert.ToInt64(cmd.ExecuteScalar());
-    }
 
     private static string Short(string s) => s.Length <= 64 ? s : s[..61] + "…";
 

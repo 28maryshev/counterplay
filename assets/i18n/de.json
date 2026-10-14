@@ -170,6 +170,8 @@
     "botlaneGood": "Gut gegen die gegnerische Botlane ({0})",
     "botlaneBad": "Schwer gegen die gegnerische Botlane ({0})",
     "strongPatch": "Stark in diesem Patch — WR {0}%",
+    "hardCounter": "Harter Konter: {0} −{1}% WR",
+    "tierGrade": "{0}-Tier in diesem Patch",
     "notablePick": "Bemerkenswerter Pick in diesem Patch",
     "jgSetup": "Jungler {0} ist aggressiv ohne CC — du lieferst Gank-Setup.",
     "adcEngage": "ADC {0} will Engage — du eröffnest die Kämpfe für ihn.",
@@ -189,8 +191,7 @@
     "baseLow": "Niedriger WR {0}% — du musst den Champion beherrschen",
     "baseNeutral": "Neutraler Pick, WR ≈{0}%",
     "countersMany": "Kontert eure {0}",
-    "personalWr": "Deine Winrate mit diesem Champion — {0}% über {1} Spiele",
-    "teamThreat": "Schlägt euer Team generell — stark gegen {0}"
+    "personalWr": "Deine Winrate mit diesem Champion — {0}% über {1} Spiele"
   },
   "metric": {
     "base": "Winrate in diesem Patch",
