@@ -26,6 +26,7 @@ namespace Counterplay.Tests;
 ///    пики союзников, поднимается; жёсткая контра моему — в пятёрке всегда.
 /// 1г. Каждый бан учитывает мой пул (14.10): союзные баны набирают очки и за
 ///    него, прямых контр пулу в пятёрке не меньше двух.
+/// 1д. Мейн в синергии под портретами союзников весит в банах больше.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -71,6 +72,7 @@ internal static class Program
         Shown(engine);
         Lane(engine);
         AllyPool(engine);
+        Partners(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -367,6 +369,60 @@ internal static class Program
                   bare.TryGetValue(b.ChampionId, out var without) && b.Score > without,
                   $"{(bare.TryGetValue(b.ChampionId, out var w0) ? w0.ToString("F1") : "—")} → {b.Score:F1}");
         SessionTracker.HistoryOverride = null;
+    }
+
+    // ── 1д. Мейн в синергии у союзников весит больше ─────────────────────────
+
+    /// <summary>
+    /// Скриншот владельца 14.10: союзники выбрали Ирелию, Катарину и Тристану, и
+    /// под каждым в «синергии» стоит Браум — «на пиках мне скорее всего
+    /// предложат Браума, контрам ему — немного повышенный рейтинг». Вес мейна в
+    /// банах × (1 + 0,15 за каждого союзника, у которого он в этих иконках).
+    /// Иконки берём той же функцией, что окно (TopSynergies), веса — из
+    /// внутреннего списка «наших» через отражение.
+    /// </summary>
+    private static void Partners(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("мейн в синергии у союзников:");
+        int[] mains = [37, 201, 22, 161, 910, 101, 78, 117];
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>
+            { [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6 });
+        var team = new List<DraftPlayer>
+        {
+            new(0, 0, 39, "top", false),       // Ирелия
+            new(1, 0, 0, "jungle", false),
+            new(2, 0, 55, "middle", false),    // Катарина
+            new(3, 0, 18, "bottom", false),    // Тристана
+            new(4, 0, 0, "utility", true),
+        };
+        (int Id, string Role)[] allies = [(39, "top"), (55, "mid"), (18, "adc")];
+        var icons = mains.ToDictionary(m => m, m => allies.Count(a => engine.TopSynergies(a.Id, "support", 3, a.Role).Contains(m)));
+        Console.WriteLine("  в иконках: " + string.Join(", ", icons.Where(kv => kv.Value > 0).Select(kv => $"{DataDragon.Name(kv.Key)} ×{kv.Value}")));
+
+        var withAllies = PoolWeights(engine, Snapshot(team, team[4], "utility"));
+        var me = new List<DraftPlayer> { new(4, 0, 0, "utility", true) };
+        var alone = PoolWeights(engine, Snapshot(me, me[0], "utility"));
+        Check("у кого-то из пула синергия с союзниками есть", icons.Values.Any(n => n > 0), "");
+        foreach (var m in mains.Where(m => alone.ContainsKey(m)))
+        {
+            var want = 1 + 0.15 * icons[m];
+            var got = withAllies.GetValueOrDefault(m) / alone[m];
+            Check($"   {DataDragon.Name(m)}: вес × {want:F2}", Math.Abs(got - want) < 1e-9, $"× {got:F2}");
+        }
+        SessionTracker.HistoryOverride = null;
+    }
+
+    /// Вес каждого чемпиона моего пула в банах на этом драфте (BanVictims).
+    private static Dictionary<int, double> PoolWeights(RecommendationEngine engine, DraftState state)
+    {
+        var t = typeof(RecommendationEngine);
+        var stats = t.GetMethod("RoleStats", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(engine, ["support"])!;
+        var list = (System.Collections.IEnumerable)t.GetMethod("BanVictims", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(engine, [state, null, "support", stats])!;
+        object P(object o, string n) => o.GetType().GetProperty(n)!.GetValue(o)!;
+        return list.Cast<object>().Where(v => P(v, "Kind").ToString() == "Pool")
+                   .ToDictionary(v => (int)P(v, "Id"), v => (double)P(v, "Weight"));
     }
 
     private static int _crossFirst;

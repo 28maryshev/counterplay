@@ -112,7 +112,8 @@ public sealed partial class RecommendationEngine
     /// чемпионе, которого не трогали полгода). Весь пул весит W_BAN_POOL и
     /// делится по корню из игр: чемпион с 32 играми важнее того, что лежит в
     /// пуле, но не в десять раз — иначе контра второму-третьему мейну ничего
-    /// бы не значила.
+    /// бы не значила. Мейн, который стоит в синергии под портретами союзников,
+    /// весит больше — его, скорее всего, и предложат на пиках.
     ///
     /// Пики союзников и мой — по наведению сейчас; то, что наводили раньше, —
     /// меньшим весом. Союзники вместе весят не больше, чем двое
@@ -138,8 +139,23 @@ public sealed partial class RecommendationEngine
                 mainW[id] = POOL_MAIN_GAMES;
         var mains = mainW.OrderByDescending(kv => kv.Value).Take(MAINS_FOR_BANS).ToList();
         var roots = mains.Sum(kv => Math.Sqrt(kv.Value));
+        // Связки с союзниками: мейн, которого окно показывает в синергии под
+        // портретом союзника (те же иконки — TopSynergies), скорее всего мне и
+        // предложат на пиках, и контры ему чуть важнее: + BAN_SYN_BOOST за
+        // каждого такого союзника. Владелец 14.10: «союзники выбрали — у них уже
+        // синергия с моим пулом, мне предложат Браума; контрам Брауму —
+        // немного повышенный рейтинг» (Браум стоял под Ирелией, Катариной и
+        // Тристаной).
+        var partners = state.MyTeam
+            .Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
+            .SelectMany(p => TopSynergies(p.EffectiveChampionId, myRole, 3,
+                                          RoleOf(p, p.EffectiveChampionId) is { Length: > 0 } r ? r : null))
+            .GroupBy(id => id)
+            .ToDictionary(g => g.Key, g => g.Count());
         foreach (var (id, w) in mains)
-            list.Add(new BanVictim(id, myRole, W_BAN_POOL * Math.Sqrt(w) / roots, BanVictimKind.Pool));
+            list.Add(new BanVictim(id, myRole,
+                W_BAN_POOL * Math.Sqrt(w) / roots * (1 + BAN_SYN_BOOST * partners.GetValueOrDefault(id)),
+                BanVictimKind.Pool));
 
         string RoleOf(DraftPlayer p, int champ)
         {

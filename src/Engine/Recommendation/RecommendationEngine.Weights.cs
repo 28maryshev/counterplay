@@ -245,6 +245,11 @@ public sealed partial class RecommendationEngine
     // каждый весит половину W_BAN_ALLY.
     private const double BAN_ALLY_SHARE = 2.0;
 
+    // Мейн стоит в синергии под портретом союзника (иконки TopSynergies) — его
+    // вес в банах × (1 + BAN_SYN_BOOST за каждого такого союзника): у Браума под
+    // тремя союзниками — × 1,45.
+    private const double BAN_SYN_BOOST = 0.15;
+
     // На ком у меня столько игр за месяц на этой роли — того не баню (мой).
     private const int BAN_OWN_GAMES = 3;
 
