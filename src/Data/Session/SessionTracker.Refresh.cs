@@ -53,8 +53,8 @@ public static partial class SessionTracker
                 acc.Ranked[k] = new RankedCache
                 { HasRank = r.HasRank, Tier = r.Tier, Div = r.Div, Lp = r.Lp, Wins = r.Wins, Losses = r.Losses };
 
-        // 3) Последние игры из истории (все очереди).
-        var history = await FetchHistoryAsync(http, ct);
+        // 3) Последние игры из истории (все очереди) — только этого аккаунта.
+        var history = await FetchHistoryAsync(http, accountKey, ct);
 
         // 3b) Очередь по умолчанию: пока пользователь не выбрал сам — та, где
         //     больше всего игр за последнее время (история лаунчера, ~20 игр).
@@ -68,6 +68,13 @@ public static partial class SessionTracker
         }
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // 3c) Копии одних и тех же игр — свести, пока история под рукой (см.
+        //     SameGames): синхронизация до 1.3.63 удваивала последние игры.
+        var folded = FoldSameGames(acc, history);
+        if (folded > 0) Log.Write($"журнал игр: убрано копий одних и тех же игр — {folded}");
+        var foreign = DropForeignGames(store, accountKey, history);
+        if (foreign > 0) Log.Write($"журнал игр: убрано чужих игр из журналов других аккаунтов — {foreign}");
 
         // 4) Новые игры — те, чьих номеров мы ещё не видели. Порядок берём по
         //    времени начала: номера игр по времени не упорядочены (см. SeenGames).
@@ -97,8 +104,12 @@ public static partial class SessionTracker
         foreach (var h in history.Where(h => !seen.Contains(h.GameId)).OrderBy(h => h.CreatedSec))
         {
             var q = GetQueue(acc, h.Queue);
+            // Эту игру уже записал другой компьютер, и она приехала синхронизацией.
+            // Своя запись была бы копией — без LP и с нашим «сейчас».
+            if (q.Games.Any(g => g.Id == h.GameId)) { seen.Add(h.GameId); continue; }
             var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win,
-                                    Role = DraftRoleOf(h) };
+                                    Role = DraftRoleOf(h), Id = h.GameId,
+                                    Start = h.CreatedSec > 0 ? h.CreatedSec : null };
             q.Games.Add(log);
             added[h.GameId] = log;
             // Журнал держим на весь сезон: 3000 игр на очередь хватает даже
@@ -189,6 +200,8 @@ public static partial class SessionTracker
                     ChampionId = past[i].ChampionId,
                     Win = past[i].Win,
                     Wr = 100.0 * wins / (i + 1),
+                    Id = past[i].GameId,
+                    Start = past[i].CreatedSec > 0 ? past[i].CreatedSec : null,
                 });
             }
         }
@@ -437,10 +450,20 @@ public static partial class SessionTracker
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
             ? v.GetInt32() : fallback;
 
-    // Последние игры из истории LCU: gameId, очередь, чемпион, победа.
-    private static async Task<List<HistEntry>> FetchHistoryAsync(LcuHttpClient http, CancellationToken ct)
+    /// <summary>
+    /// Последние игры из истории LCU: gameId, очередь, чемпион, победа — только
+    /// игры <paramref name="owner"/>.
+    ///
+    /// Владельца сверяем по каждой игре: при смене аккаунта клиент отдаёт
+    /// историю нового, когда «кто в клиенте» ещё отвечает прежним (или не
+    /// отвечает, и журнал берёт последний аккаунт). Так 14 октября восемнадцать
+    /// игр владельца легли в журнал другого аккаунта, все одним временем и без LP.
+    /// </summary>
+    private static async Task<List<HistEntry>> FetchHistoryAsync(
+        LcuHttpClient http, string owner, CancellationToken ct)
     {
         var result = new List<HistEntry>();
+        var alien = 0;
         try
         {
             var (s, body) = await http.GetAsync(
@@ -456,6 +479,14 @@ public static partial class SessionTracker
                 long gameId = g.TryGetProperty("gameId", out var gid) && gid.ValueKind == JsonValueKind.Number ? gid.GetInt64() : 0;
                 if (gameId == 0) continue;
                 if (!g.TryGetProperty("participants", out var parts) || parts.ValueKind != JsonValueKind.Array || parts.GetArrayLength() == 0) continue;
+                if (g.TryGetProperty("participantIdentities", out var ids) && ids.ValueKind == JsonValueKind.Array
+                    && ids.GetArrayLength() > 0 && ids[0].TryGetProperty("player", out var pl)
+                    && pl.TryGetProperty("puuid", out var pu) && pu.GetString() is { Length: > 0 } puuid
+                    && puuid != owner)
+                {
+                    alien++;
+                    continue;
+                }
                 var p = parts[0];
                 int champ = p.TryGetProperty("championId", out var cid) && cid.ValueKind == JsonValueKind.Number ? cid.GetInt32() : 0;
                 bool win = p.TryGetProperty("stats", out var st) && st.TryGetProperty("win", out var w) && w.ValueKind == JsonValueKind.True;
@@ -469,6 +500,7 @@ public static partial class SessionTracker
             }
             // Новейшие первыми (как отдаёт LCU) — гарантируем сортировкой.
             result.Sort((a, b) => b.GameId.CompareTo(a.GameId));
+            if (alien > 0) Log.Write($"история клиента не этого аккаунта — пропущено игр: {alien}");
         }
         catch { /* история недоступна */ }
         return result;

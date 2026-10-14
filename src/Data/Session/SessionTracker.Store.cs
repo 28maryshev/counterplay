@@ -19,6 +19,13 @@ public static partial class SessionTracker
         // у старых игр её нет, и роль достраивается по связкам (LaneChamps).
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Role { get; set; }
+        // Номер игры в клиенте и время её начала. Пишутся с 1.3.63: по ним
+        // узнаётся та же игра, записанная двумя компьютерами, — время записи
+        // (Ts) у них разное (см. SameGames).
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public long? Id { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public long? Start { get; set; }
     }
 
     private sealed class QueueLog

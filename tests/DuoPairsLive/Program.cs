@@ -85,6 +85,23 @@ internal static class Program
         var session = await SessionTracker.RefreshAsync(http, ct);
         Check("клиент ответил, кто играет", session is not null, session is null ? "нет" : "да");
 
+        // История клиента — только того, кто в клиенте. При смене аккаунта
+        // клиент отдаёт историю нового, пока «кто в клиенте» ещё отвечает
+        // прежним, и 14 октября игры владельца легли в журнал другого аккаунта.
+        var fetch = typeof(SessionTracker).GetMethod("FetchHistoryAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        async Task<int> HistoryFor(string owner)
+        {
+            var task = (Task)fetch.Invoke(null, [http, owner, ct])!;
+            await task;
+            return ((System.Collections.ICollection)task.GetType().GetProperty("Result")!.GetValue(task)!).Count;
+        }
+        var me = SessionTracker.LastAccountKey ?? "";
+        var own = await HistoryFor(me);
+        Check("история клиента читается своему аккаунту", own > 0, $"{own}");
+        var alien = await HistoryFor("someone-else-0000");
+        Check("другому аккаунту история не отдаётся", alien == 0, $"{alien}");
+
         // Берём ВСЁ: при маленьком срезе печатались обрезанные числа («связок
         // 200» ровно по лимиту), и по ним казалось, будто связок меньше, чем есть.
         var pairs = SessionTracker.TopPairs(take: 10_000);

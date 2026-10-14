@@ -146,7 +146,9 @@ public static partial class SyncClient
     /// На двух компьютерах играют РАЗНЫЕ игры, и взять файл целиком означает
     /// потерять половину истории. Поэтому сливаем по составу: игры — по номеру,
     /// связки — объединением отметок времени. После этого связки чистятся по
-    /// тому же правилу, что и в журнале (<see cref="ForgetPairs"/>).
+    /// тому же правилу, что и в журнале (<see cref="ForgetPairs"/>), а копии одних
+    /// и тех же игр сводятся (<see cref="FoldSameGames"/>), а чужие игры из
+    /// журналов других аккаунтов убираются (<see cref="DropForeignGames"/>).
     ///
     /// Ничего не пришло и нечего чистить — возвращается свой текст байт в байт:
     /// проход без новостей не должен переписывать журнал и считаться «забравшим».
@@ -172,7 +174,12 @@ public static partial class SyncClient
 
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (var (_, acc) in accА)
-                if (acc is JsonObject o) ForgetPairs(o, now);
+                if (acc is JsonObject o)
+                {
+                    FoldSameGames(o);
+                    ForgetPairs(o, now);
+                }
+            DropForeignGames(accА);
 
             return JsonNode.DeepEquals(a, JsonNode.Parse(mine)) ? mine : a.ToJsonString();
         }
@@ -224,9 +231,12 @@ public static partial class SyncClient
                     added = true;
                     if (copy is JsonObject c) byTs[(long)ts] = c;
                 }
-                // Та же игра: роль (её пишут с 1.3.61) берём оттуда, где она есть.
-                else if (own["Role"] is null && g["Role"] is { } role)
-                    own["Role"] = role.DeepClone();
+                // Та же игра: роль (её пишут с 1.3.61), номер и начало (с 1.3.63)
+                // берём оттуда, где они есть.
+                else
+                    foreach (var field in new[] { "Role", "Id", "Start" })
+                        if (own[field] is null && g[field] is { } v)
+                            own[field] = v.DeepClone();
             }
             if (added) Reorder(gm, g => (long?)g?["Ts"] ?? 0);
         }
@@ -262,6 +272,86 @@ public static partial class SyncClient
                 foreach (var x in all) am.Add(x);
             }
         }
+    }
+
+    /// <summary>
+    /// Свести копии одних и тех же игр — по тому же правилу, что журнал
+    /// (<see cref="SessionTracker.SameGames"/>).
+    ///
+    /// Сведение по времени записи их не узнаёт: компьютер, где играли, пишет
+    /// игру по её концу и с LP, новый компьютер берёт её из истории клиента со
+    /// временем начала, и у владельца после синхронизации каждая игра лежала
+    /// дважды. Опоры здесь — записи, где номер и начало уже есть; записи без
+    /// них журнал сводит сам, по истории клиента.
+    /// </summary>
+    private static void FoldSameGames(JsonObject account)
+    {
+        if (account["Queues"] is not JsonObject queues) return;
+        foreach (var byQueue in SessionTracker.SameGames(GameRefs(queues), []).GroupBy(s => s.Queue))
+        {
+            var games = queues[byQueue.Key]!["Games"]!.AsArray();
+            var drop = new HashSet<int>();
+            foreach (var s in byQueue)
+            {
+                var keep = games[s.Keep]!.AsObject();
+                keep["Id"] = s.Id;
+                keep["Start"] = s.Start;
+                foreach (var d in s.Drop)
+                {
+                    if (keep["Role"] is null && games[d]?["Role"] is { } role)
+                        keep["Role"] = role.DeepClone();
+                    drop.Add(d);
+                }
+            }
+            foreach (var d in drop.OrderByDescending(x => x)) games.RemoveAt(d);
+            Reorder(games, g => (long?)g?["Ts"] ?? 0);
+        }
+    }
+
+    /// <summary>
+    /// Убрать из журнала каждого аккаунта игры других аккаунтов — по тому же
+    /// правилу, что журнал (<see cref="SessionTracker.ForeignGames"/>). Опоры —
+    /// записи других аккаунтов с номером и началом.
+    ///
+    /// Здесь нужно так же, как в журнале: иначе убранное на одном компьютере
+    /// слияние вернуло бы с копии другого.
+    /// </summary>
+    private static void DropForeignGames(JsonObject accounts)
+    {
+        var refs = new Dictionary<string, List<SessionTracker.GameRef>>();
+        foreach (var (puuid, node) in accounts)
+            refs[puuid] = node?["Queues"] is JsonObject q ? GameRefs(q) : [];
+
+        foreach (var (puuid, node) in accounts)
+        {
+            if (node is not JsonObject acc || acc["Queues"] is not JsonObject queues) continue;
+            var seen = acc["SeenGames"]?.AsArray().Where(x => x is not null).Select(x => (long)x!).ToHashSet() ?? [];
+            if (seen.Count == 0) continue;
+            var others = refs.Where(kv => kv.Key != puuid).SelectMany(kv => kv.Value)
+                .Where(g => g.Id is not null && g.Start is not null)
+                .Select(g => new SessionTracker.GameAnchor(g.Id!.Value, g.Start!.Value, g.Queue, g.ChampionId, g.Win));
+            foreach (var byQueue in SessionTracker.ForeignGames(refs[puuid], seen, others).GroupBy(x => x.Queue))
+            {
+                var games = queues[byQueue.Key]!["Games"]!.AsArray();
+                foreach (var i in byQueue.Select(x => x.Index).OrderByDescending(x => x))
+                    games.RemoveAt(i);
+            }
+        }
+    }
+
+    /// Записи журнала аккаунта глазами правил <see cref="SessionTracker"/>.
+    private static List<SessionTracker.GameRef> GameRefs(JsonObject queues)
+    {
+        var refs = new List<SessionTracker.GameRef>();
+        foreach (var (queue, node) in queues)
+        {
+            if (node?["Games"] is not JsonArray games) continue;
+            for (var i = 0; i < games.Count; i++)
+                if (games[i] is JsonObject g && g["Ts"] is { } ts && g["ChampionId"] is { } champ
+                    && g["Win"] is { } win)
+                    refs.Add(new(queue, i, (long)ts, (int)champ, (bool)win, (long?)g["Id"], (long?)g["Start"]));
+        }
+        return refs;
     }
 
     /// <summary>

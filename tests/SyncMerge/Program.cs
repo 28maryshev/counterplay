@@ -23,6 +23,10 @@ namespace Counterplay.Tests;
 ///   списка считаются «последние 5» и график рейтинга;
 /// - проход, после которого ничего не пришло, не переписывает файлы;
 /// - пришедшие настройки берутся, но место окон остаётся своим;
+/// - одна игра, записанная двумя компьютерами по-разному (по концу и по
+///   началу), остаётся одной записью — с LP того, кто её видел;
+/// - игры одного аккаунта, легшие при смене аккаунта в журнал другого,
+///   убираются и не возвращаются синхронизацией;
 /// - строка состояния под кнопкой знает, когда ходили, что пришло и почему
 ///   не вышло, а ввод пароля сразу запускает проход.
 ///
@@ -61,6 +65,10 @@ internal static class Program
             PairsStayCleaned().GetAwaiter().GetResult();
             SettingsKeepOwnWindows().GetAwaiter().GetResult();
             StatusLine().GetAwaiter().GetResult();
+            SameGameRule();
+            SameGameSync().GetAwaiter().GetResult();
+            ForeignRule();
+            ForeignSync().GetAwaiter().GetResult();
             PasswordStartsSync();
 
             // Сеть пропала — причина видна, прошлый удачный проход не забыт.
@@ -323,6 +331,222 @@ internal static class Program
         w.Opacity = 0;
         w.Show();
     }
+
+    // ── 5. Та же игра с двух компьютеров ────────────────────────────────────
+
+    /// <summary>
+    /// Как у владельца 14 октября: компьютер А играл и записал игры по их концу
+    /// с LP; новый компьютер Б взял те же игры из истории клиента со временем
+    /// начала и без LP. После синхронизации каждая игра лежала дважды, и
+    /// «последние пять» показывали копии без LP.
+    /// </summary>
+    private static void SameGameRule()
+    {
+        Console.WriteLine("\nта же игра — правило (по истории клиента):");
+        long s1 = Now - 86400, s2 = s1 + 2400, s3 = s1 - 86400, s4 = s1 + 7200, s5 = s4 + 2400;
+        const int Jinx = 222, Lux = 99, Ahri = 103;
+        var games = new List<SessionTracker.GameRef>
+        {
+            // А: записи по концу игры, номеров нет (до 1.3.63).
+            new("solo", 0, s1 + 2280, Jinx, true, null, null),
+            new("solo", 1, s2 + 2200, Jinx, true, null, null),   // подряд тот же чемпион и исход
+            // Две игры, пока программа была закрыта: обе записаны одним «сейчас».
+            new("solo", 2, s5 + 4000, Ahri, true, null, null),
+            new("solo", 3, s5 + 4000, Ahri, true, null, null),
+            // Б: из истории клиента, время начала.
+            new("solo", 4, s1, Jinx, true, null, null),
+            new("solo", 5, s2, Jinx, true, null, null),
+            new("solo", 6, s3, Lux, false, null, null),          // этой игры у А нет
+        };
+        var history = new[]
+        {
+            new SessionTracker.GameAnchor(1, s1, "solo", Jinx, true),
+            new SessionTracker.GameAnchor(2, s2, "solo", Jinx, true),
+            new SessionTracker.GameAnchor(3, s3, "solo", Lux, false),
+            new SessionTracker.GameAnchor(4, s4, "solo", Ahri, true),
+            new SessionTracker.GameAnchor(5, s5, "solo", Ahri, true),
+        };
+        var plan = SessionTracker.SameGames(games, history);
+        var dropped = plan.SelectMany(p => p.Drop).ToHashSet();
+        var kept = games.Where(g => !dropped.Contains(g.Index)).ToList();
+
+        Check("копии из истории убраны, остались записи с концом игры",
+              dropped.SetEquals([4, 5]), string.Join(",", dropped.Order()));
+        Check("две игры подряд на одном чемпионе не слились в одну",
+              plan.Any(p => p.Id == 1 && p.Keep == 0) && plan.Any(p => p.Id == 2 && p.Keep == 1),
+              string.Join(" ", plan.Select(p => $"{p.Id}→{p.Keep}")));
+        Check("игра, которая есть только у одного, осталась",
+              kept.Any(g => g.Index == 6) && plan.Any(p => p.Id == 3 && p.Keep == 6), "");
+        Check("две игры одним «сейчас» не съели друг друга",
+              kept.Count(g => g.ChampionId == Ahri) == 2, $"{kept.Count(g => g.ChampionId == Ahri)}");
+    }
+
+    /// <summary>
+    /// То же через синхронизацию. На сервере — записи Б: старые, из истории
+    /// (время начала, без номера), и одна новая — игру А Б увидел в истории
+    /// через сутки и записал своим «сейчас» с чужим LP. У А — его записи с
+    /// номерами. После слияния — по одной записи на игру, LP от очевидца.
+    /// </summary>
+    private static async Task SameGameSync()
+    {
+        Console.WriteLine("\nта же игра — через синхронизацию:");
+        long s1 = Now - 3 * 86400, s2 = s1 + 2400, s3 = s1 - 86400;
+
+        SyncPassword.Set("та-же-игра-" + Guid.NewGuid().ToString("N"));
+        WipeLocal();
+        Write("session.json", GamesSession(
+            G(s1, 222, true, null, null, null),
+            G(s2, 222, true, null, null, null),
+            G(s3, 99, false, null, null, null),
+            G(s2 + 86400, 222, true, 38, 2, s2)));
+        var up = await SyncClient.SyncAsync(Me);
+        Check("Б выложил свои записи", up.Ok, up.Message);
+
+        WipeLocal();
+        Write("session.json", GamesSession(
+            G(s1 + 2280, 222, true, 19, 1, s1),
+            G(s2 + 2200, 222, true, 19, 2, s2)));
+        var r = await SyncClient.SyncAsync(Me);
+        var games = Account()["Queues"]!["solo"]!["Games"]!.AsArray();
+        var lp = games.Select(g => (int?)g!["Lp"]).ToList();
+        Check("по одной записи на игру", games.Count == 3, $"{games.Count}");
+        Check("у игр А осталось LP очевидца", lp.Count(x => x == 19) == 2 && !lp.Contains(38),
+              string.Join(" ", lp.Select(x => x?.ToString() ?? "—")));
+        Check("игра Б без копии у А тоже на месте",
+              games.Any(g => (int?)g!["ChampionId"] == 99), "");
+        Check("игры по времени", games.Select(g => (long)g!["Ts"]!).SequenceEqual(
+              games.Select(g => (long)g!["Ts"]!).Order()), "");
+
+        var again = await SyncClient.SyncAsync(Me);
+        Check("следующий проход копий не возвращает", again.Pulled == 0
+              && Account()["Queues"]!["solo"]!["Games"]!.AsArray().Count == 3,
+              $"файлов {again.Pulled}");
+    }
+
+    private static JsonObject G(long ts, int champ, bool win, int? lp, long? id, long? start)
+    {
+        var o = new JsonObject { ["Ts"] = ts, ["ChampionId"] = champ, ["Win"] = win, ["Wr"] = 50.0 };
+        if (lp is not null) o["Lp"] = lp;
+        if (id is not null) o["Id"] = id;
+        if (start is not null) o["Start"] = start;
+        return o;
+    }
+
+    private static string GamesSession(params JsonObject[] games) => new JsonObject
+    {
+        ["Accounts"] = new JsonObject
+        {
+            [Me] = new JsonObject
+            {
+                ["Queues"] = new JsonObject
+                {
+                    ["solo"] = new JsonObject { ["Games"] = new JsonArray(games.Cast<JsonNode>().ToArray()) }
+                }
+            }
+        }
+    }.ToJsonString();
+
+    // ── 6. Чужие игры в журнале другого аккаунта ────────────────────────────
+
+    /// <summary>
+    /// Как у владельца 14 октября: при входе в клиент на втором компьютере его
+    /// последние игры легли в журнал аккаунта, под которым там заходили раньше, —
+    /// разом, одним временем, без LP, а номера игр — в «виденные» того аккаунта.
+    /// </summary>
+    private static void ForeignRule()
+    {
+        Console.WriteLine("\nчужие игры — правило:");
+        long t = Now - 3600, s = Now - 5 * 86400;
+        var mine = new[]
+        {
+            new SessionTracker.GameAnchor(11, s, "solo", 37, true),
+            new SessionTracker.GameAnchor(12, s + 3000, "solo", 37, true),
+            new SessionTracker.GameAnchor(13, s + 6000, "solo", 161, false),
+            new SessionTracker.GameAnchor(14, s + 9000, "flex", 22, true),
+            new SessionTracker.GameAnchor(15, s + 99000, "solo", 99, true),   // общая игра в дуо
+        };
+        var theirs = new List<SessionTracker.GameRef>
+        {
+            // Свои игры того аккаунта — давние.
+            new("normal", 0, Now - 90 * 86400, 876, false, null, null),
+            new("solo", 0, Now - 80 * 86400, 37, true, null, null),
+            // Пачка чужих: одно время записи.
+            new("solo", 1, t, 37, true, null, null),
+            new("solo", 2, t, 37, true, null, null),
+            new("solo", 3, t, 161, false, null, null),
+            new("flex", 0, t, 22, true, null, null),
+            // Своя игра позже общей игры в дуо, на том же чемпионе и с тем же
+            // исходом, что был у напарника, — не чужая.
+            new("solo", 4, s + 99000 + 86400, 99, true, null, null),
+        };
+        var drop = SessionTracker.ForeignGames(theirs, new HashSet<long> { 11, 12, 13, 14, 15 }, mine);
+        Check("пачка чужих игр найдена целиком", drop.SetEquals([("solo", 1), ("solo", 2), ("solo", 3), ("flex", 0)]),
+              string.Join(" ", drop.Select(d => $"{d.Queue}:{d.Index}")));
+        Check("свои игры того аккаунта не тронуты",
+              !drop.Contains(("solo", 0)) && !drop.Contains(("normal", 0)), "");
+        Check("своя игра после общей в дуо не принята за чужую", !drop.Contains(("solo", 4)), "");
+
+        var two = SessionTracker.ForeignGames(theirs.Where(g => g.Queue != "flex" && g.Index != 3).ToList(),
+                                              new HashSet<long> { 11, 12 }, mine);
+        Check("две совпавшие записи — ещё не пачка", two.Count == 0, $"{two.Count}");
+    }
+
+    /// <summary>
+    /// Через синхронизацию: на сервере журнал второго компьютера с чужой пачкой
+    /// у аккаунта «другой»; у этого компьютера записи владельца с номерами.
+    /// После слияния пачки нет и следующий проход её не возвращает.
+    /// </summary>
+    private static async Task ForeignSync()
+    {
+        Console.WriteLine("\nчужие игры — через синхронизацию:");
+        const string Other = "TEST-syncmerge-other-0000000000000000000000000000000000000000000000";
+        long t = Now - 3600, s = Now - 5 * 86400;
+
+        SyncPassword.Set("чужие-игры-" + Guid.NewGuid().ToString("N"));
+        WipeLocal();
+        Write("session.json", TwoAccounts(
+            mine: [G(s + 2000, 37, true, 19, 11, s), G(s + 5000, 37, true, 20, 12, s + 3000),
+                   G(s + 8000, 161, false, -21, 13, s + 6000)],
+            other: [G(Now - 80 * 86400, 37, true, null, null, null),
+                    G(t, 37, true, null, null, null), G(t, 37, true, null, null, null),
+                    G(t, 161, false, null, null, null)],
+            otherSeen: [11, 12, 13]));
+        var up = await SyncClient.SyncAsync(Me);
+        Check("второй компьютер выложил журнал с пачкой", up.Ok, up.Message);
+
+        // Этот компьютер слился — и после следующего прохода пачки нет.
+        var r = await SyncClient.SyncAsync(Me);
+        var other = OtherGames(Other);
+        Check("чужая пачка убрана, своя игра того аккаунта на месте",
+              other.Count == 1 && other[0] == Now - 80 * 86400, $"{other.Count}");
+        Check("игры владельца целы", Account()["Queues"]!["solo"]!["Games"]!.AsArray().Count == 3, "");
+
+        var again = await SyncClient.SyncAsync(Me);
+        Check("следующий проход пачку не возвращает", again.Pulled == 0 && OtherGames(Other).Count == 1,
+              $"файлов {again.Pulled}, игр {OtherGames(Other).Count}");
+
+        string TwoAccounts(JsonObject[] mine, JsonObject[] other, long[] otherSeen) => new JsonObject
+        {
+            ["Accounts"] = new JsonObject
+            {
+                [Me] = new JsonObject
+                {
+                    ["Queues"] = new JsonObject
+                    { ["solo"] = new JsonObject { ["Games"] = new JsonArray(mine.Cast<JsonNode>().ToArray()) } }
+                },
+                [Other] = new JsonObject
+                {
+                    ["SeenGames"] = new JsonArray(otherSeen.Select(x => (JsonNode)x).ToArray()),
+                    ["Queues"] = new JsonObject
+                    { ["solo"] = new JsonObject { ["Games"] = new JsonArray(other.Cast<JsonNode>().ToArray()) } }
+                }
+            }
+        }.ToJsonString();
+    }
+
+    private static List<long> OtherGames(string puuid) =>
+        JsonNode.Parse(File.ReadAllText(Path.Combine(Dir, "session.json")))!["Accounts"]![puuid]!
+            ["Queues"]!["solo"]!["Games"]!.AsArray().Select(g => (long)g!["Ts"]!).ToList();
 
     // ── подручное ──────────────────────────────────────────────────────────
 
