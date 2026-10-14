@@ -354,7 +354,8 @@ public sealed partial class RecommendationEngine
     /// наиграли, надбавка почти не слышна — ответ на «случайный сопартиец гнёт
     /// совет не хуже настоящего напарника».
     ///
-    /// Зовут подбор пика и советы банов (вес моего пула): синергия одна и та же.
+    /// Зовёт подбор пика; советы банов берут вес моего пула из самого подбора
+    /// (PoolOdds), так что синергия там та же.
     /// </summary>
     private (double Delta, List<(int Id, string Role, double Delta)> ByAlly) AllySynergy(
         int champId, string myRole, double rawBase,

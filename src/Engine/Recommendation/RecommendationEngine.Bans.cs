@@ -112,9 +112,8 @@ public sealed partial class RecommendationEngine
     /// если нет ни того, ни другого (оно копится годами: «контрит Зилеана» на
     /// чемпионе, которого не трогали полгода). Весь пул весит W_BAN_POOL и
     /// делится по корню из игр: чемпион с 32 играми важнее того, что лежит в
-    /// пуле, но не в десять раз — иначе контра второму-третьему мейну ничего
-    /// бы не значила. Мейн с хорошей синергией с показанными союзниками (та же,
-    /// что в подборе пика) весит больше — его, скорее всего, и предложат.
+    /// пуле, но не в десять раз. С вечера 14.10 делится не по играм, а по тому,
+    /// как вероятно, что подбор пика предложит этого чемпиона (PoolOdds).
     ///
     /// Кого взял или навёл союзник, взял враг или забанили — того я уже не
     /// возьму, и в пуле его нет: Хвэй союзника на миде считался моим пулом, и
@@ -150,31 +149,16 @@ public sealed partial class RecommendationEngine
             .Where(id => id != 0).ToHashSet();
         var mains = mainW.Where(kv => !gone.Contains(kv.Key))
                          .OrderByDescending(kv => kv.Value).Take(MAINS_FOR_BANS).ToList();
-        var roots = mains.Sum(kv => Math.Sqrt(kv.Value));
-        // Синергия с показанными союзниками — та же, что в подборе пика
-        // (AllySynergy, с напарником по дуо): мейн, который с ними хорошо
-        // сочетается, мне скорее всего и предложат на пиках, и контры ему
-        // важнее — вес × (1 + BAN_SYN × синергия), у каждого мейна по своей.
-        // Плохая синергия вес не снижает. Владелец 14.10: «союзники выбрали —
-        // у них уже синергия с моим пулом; чемпионам пула — в пропорциях до
-        // синергии усилить вес». Первым заходом считал по иконкам под
-        // портретами — надбавка доставалась одному-двум (Браум ×1,45).
-        var allyData = state.MyTeam
-            .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
-            .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
-        var mateId = allyData.Count > 0 ? Party.MateChampion(state, PoolStore.ActiveDuo()) : 0;
-        var mateConf = mateId == 0 ? 0.0 : MateConfidence();
-        foreach (var (id, w) in mains)
-        {
-            var syn = 0.0;
-            if (allyData.Count > 0)
-            {
-                var (bg, bw) = RawBase(id, myRole);
-                syn = Math.Max(0, AllySynergy(id, myRole, Delta(bg, bw, K), allyData, mateId, mateConf).Delta);
-            }
-            list.Add(new BanVictim(id, myRole, W_BAN_POOL * Math.Sqrt(w) / roots * (1 + BAN_SYN * syn),
-                                   BanVictimKind.Pool));
-        }
+        // Вес мейна — насколько вероятно, что подбор пика предложит его на ЭТОМ
+        // драфте: очки Recommend (база в патче, наигранность со свежестью,
+        // синергия с показанными союзниками, напарник по дуо, стиль) → доли
+        // exp(очки / BAN_PICK_TEMP). Владелец 14.10: «баны дают столько контры
+        // против Эш, которую я скорее всего и не пикнул бы — посмотри, как
+        // считает подбор в драфте». Было: по корню из игр за месяц (Эш с 19
+        // играми — третья) и надбавка за синергию; а подбор ставит Эш-саппорта
+        // последней (−2,5 против 9,4 у Соны: винрейт в патче −5,7).
+        foreach (var (id, weight) in PoolOdds(state, myRole, mains))
+            list.Add(new BanVictim(id, myRole, W_BAN_POOL * weight, BanVictimKind.Pool));
 
         string RoleOf(DraftPlayer p, int champ)
         {
@@ -203,6 +187,36 @@ public sealed partial class RecommendationEngine
         var share = allies > BAN_ALLY_SHARE ? Math.Sqrt(BAN_ALLY_SHARE / allies) : 1.0;
         return [.. list.Where(v => DbRoles.Contains(v.Role))
                        .Select(v => v.Mine ? v : v with { Weight = v.Weight * share })];
+    }
+
+    /// <summary>
+    /// Доли моего пула: как вероятно, что подбор пика (Recommend) предложит
+    /// каждого на этом драфте, — exp(очки / BAN_PICK_TEMP), в сумме 1. Разница
+    /// в BAN_PICK_TEMP очков — в e раз. Подбор ничего не вернул (нет данных) —
+    /// по корню из игр, как раньше.
+    /// </summary>
+    private List<(int Id, double Share)> PoolOdds(DraftState state, string myRole, List<KeyValuePair<int, double>> mains)
+    {
+        if (mains.Count == 0) return [];
+        var scores = new Dictionary<int, double>();
+        try
+        {
+            foreach (var r in Recommend(state with { InBanPhase = false }, mains.Count, [.. mains.Select(m => m.Key)]))
+                scores[r.ChampionId] = r.Score;
+        }
+        catch { /* подбор не посчитался — ниже запасной путь */ }
+
+        List<(int Id, double W)> raw;
+        if (scores.Count > 0)
+        {
+            var top = scores.Values.Max();
+            raw = [.. mains.Where(m => scores.ContainsKey(m.Key))
+                           .Select(m => (m.Key, Math.Exp((scores[m.Key] - top) / BAN_PICK_TEMP)))];
+        }
+        else
+            raw = [.. mains.Select(m => (m.Key, Math.Sqrt(m.Value)))];
+        var sum = raw.Sum(x => x.W);
+        return sum > 0 ? [.. raw.Select(x => (x.Id, x.W / sum))] : [];
     }
 
     /// <summary>
@@ -259,7 +273,10 @@ public sealed partial class RecommendationEngine
                 // Жёсткая контра моему чемпиону — надбавка (владелец: «у жёстких
                 // контр на линии против моих персонажей должен быть буст, и они
                 // по-любому должны быть в топах»).
-                var hard = v.Mine && s >= BAN_HARD;
+                // Жёсткая — только против того, кого мне правда предложат: Эш с
+                // долей 0,6% «жёсткой контрой» Блицкранка не делает.
+                var hard = v.Mine && s >= BAN_HARD
+                           && (v.Kind != BanVictimKind.Pool || v.Weight >= W_BAN_POOL * BAN_HARD_SHARE);
                 c.Hits.Add(new BanHit(i, v.Role, s,
                     v.Weight * s * c.LaneMult[v.Role] * (hard ? W_BAN_HARD : 1.0), hard));
             }

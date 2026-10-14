@@ -245,9 +245,13 @@ public sealed partial class RecommendationEngine
     // по 0,82, четверо — по 0,71 от W_BAN_ALLY (вместе 2,4 и 2,8 пика).
     private const double BAN_ALLY_SHARE = 2.0;
 
-    // Синергия мейна с показанными союзниками (AllySynergy, как в подборе пика)
-    // — его вес в банах × (1 + BAN_SYN × синергия в очках винрейта).
-    private const double BAN_SYN = 0.15;
+    // Доля мейна в весе пула — exp(очки подбора пика / BAN_PICK_TEMP): три очка
+    // разницы — в e раз. У владельца на драфте с Мундо, Каином, Мальзахаром и
+    // Джинкс: Сона 27%, Браум 23%, Поппи 16% … Эш 0,6%.
+    private const double BAN_PICK_TEMP = 3.0;
+
+    // Жёсткая контра засчитывается против чемпиона пула с долей не меньше этой.
+    private const double BAN_HARD_SHARE = 0.05;
 
     // На ком у меня столько игр за месяц на этой роли — того не баню (мой).
     private const int BAN_OWN_GAMES = 3;

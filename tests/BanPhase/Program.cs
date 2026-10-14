@@ -26,7 +26,7 @@ namespace Counterplay.Tests;
 ///    пики союзников, поднимается; жёсткая контра моему — в пятёрке всегда.
 /// 1г. Каждый бан учитывает мой пул (14.10): союзные баны набирают очки и за
 ///    него, прямых контр пулу в пятёрке не меньше двух.
-/// 1д. Вес мейна в банах растёт с его синергией с союзниками (та же, что на пиках).
+/// 1д. Пул весит так, как его расставляет подбор пика на этом драфте.
 /// 1е. Чем больше союзников показали, тем больше весит команда; «в игре» — для всех.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
@@ -373,53 +373,60 @@ internal static class Program
         SessionTracker.HistoryOverride = null;
     }
 
-    // ── 1д. Синергия мейна с союзниками — вес в банах ────────────────────────
+    // ── 1д. Пул весит так, как его расставляет подбор пика ───────────────────
 
     /// <summary>
-    /// Скриншот владельца 14.10: союзники выбрали Ирелию, Катарину и Тристану, и
-    /// у них уже видна синергия с моим пулом — «на пиках мне предложат того, кто
-    /// с ними сочетается, контрам ему — повышенный рейтинг». Первым заходом вес
-    /// поднимали по иконкам под портретами, и надбавка доставалась одному-двум
-    /// (Браум ×1,45, Сона ×1,15); владелец: «не по иконкам, а по синергии в
-    /// целом — тем же алгоритмом, что на пиках, в пропорциях».
+    /// Скриншот владельца 14.10 (саппорт; Доктор Мундо — до него наводили
+    /// Насуса, — Каин, Мальзахар, Джинкс): Блицкранк с «Жёсткая контра: Эш» и
+    /// львиной долей очков за Эш. «Эш я скорее всего и не пикнул бы — посмотри,
+    /// как считает подбор в драфте». Баны весили пул по играм за месяц (Эш с 19
+    /// играми — третья) и надбавке за синергию; подбор пика ставит Эш-саппорта
+    /// последней (−2,5 против 9,4 у Соны: винрейт в патче −5,7).
     ///
-    /// Держим: вес мейна в банах × (1 + 0,15 × синергия), где синергия — ровно
-    /// полоска «синергия» из подбора пика (Recommend → SynergyDelta) на том же
-    /// драфте; надбавку получают несколько чемпионов пула, больше — у кого
-    /// синергия выше. Веса — из внутреннего списка «наших» через отражение.
+    /// Держим: доля каждого чемпиона пула в весе пула = exp(очки Recommend / 3),
+    /// нормированные, — на том же драфте; у Эш доля меньше 2%, и «жёсткой
+    /// контры» против неё в пятёрке нет. Ранние заходы того же дня (иконки
+    /// синергии, затем синергия × 0,15) сняты: синергия уже внутри очков подбора.
     /// </summary>
     private static void Partners(RecommendationEngine engine)
     {
         Console.WriteLine();
-        Console.WriteLine("синергия мейна с союзниками:");
+        Console.WriteLine("пул весит так, как его расставляет подбор пика:");
         int[] mains = [37, 201, 22, 161, 910, 101, 78, 117];
         SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>
             { [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6 });
         var team = new List<DraftPlayer>
         {
-            new(0, 0, 39, "top", false),       // Ирелия
-            new(1, 0, 0, "jungle", false),
-            new(2, 0, 55, "middle", false),    // Катарина
-            new(3, 0, 18, "bottom", false),    // Тристана
+            new(0, 0, 36, "top", false),       // Доктор Мундо (до него — Насус)
+            new(1, 0, 141, "jungle", false),   // Каин
+            new(2, 0, 90, "middle", false),    // Мальзахар
+            new(3, 0, 222, "bottom", false),   // Джинкс
             new(4, 0, 0, "utility", true),
         };
         var state = Snapshot(team, team[4], "utility");
-        // Синергия из подбора пика на том же драфте.
-        var syn = engine.Recommend(state with { InBanPhase = false }, mains.Length, mains)
-                        .ToDictionary(r => r.ChampionId, r => r.SynergyDelta);
-
-        var withAllies = PoolWeights(engine, state);
-        var me = new List<DraftPlayer> { new(4, 0, 0, "utility", true) };
-        var alone = PoolWeights(engine, Snapshot(me, me[0], "utility"));
-        var got = mains.Where(alone.ContainsKey).ToDictionary(m => m, m => withAllies.GetValueOrDefault(m) / alone[m]);
-        foreach (var m in got.Keys.OrderByDescending(m => syn.GetValueOrDefault(m)))
+        var score = engine.Recommend(state with { InBanPhase = false }, mains.Length, mains)
+                          .ToDictionary(r => r.ChampionId, r => r.Score);
+        var weights = PoolWeights(engine, state);
+        var total = weights.Values.Sum();
+        var top = weights.Keys.Max(id => score[id]);
+        var norm = weights.Keys.Sum(id => Math.Exp((score[id] - top) / 3.0));
+        foreach (var id in weights.Keys.OrderByDescending(id => score[id]))
         {
-            var want = 1 + 0.15 * Math.Max(0, syn.GetValueOrDefault(m));
-            Check($"   {DataDragon.Name(m)}: синергия {syn.GetValueOrDefault(m):+0.00;-0.00} → вес × {want:F2}",
-                  Math.Abs(got[m] - want) < 1e-9, $"× {got[m]:F2}");
+            var want = Math.Exp((score[id] - top) / 3.0) / norm;
+            Check($"   {DataDragon.Name(id)}: подбор {score[id]:F2} → доля {want:P1}",
+                  Math.Abs(weights[id] / total - want) < 1e-9, $"{weights[id] / total:P1}");
         }
-        Check("надбавку получает не один чемпион пула", got.Values.Count(x => x > 1.0) >= 3,
-              $"{got.Values.Count(x => x > 1.0)} из {got.Count}");
+        Check("Эш (у подбора последняя) — меньше 2% пула", weights.GetValueOrDefault(22) / total < 0.02,
+              $"{weights.GetValueOrDefault(22) / total:P1}");
+        var hist = new Dictionary<int, HashSet<int>> { [0] = [75, 36], [1] = [141], [2] = [90], [3] = [222] };
+        var bans = engine.RecommendBans(state, hist, top: 5);
+        foreach (var b in bans)
+            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {string.Join(" | ", b.Reasons.Take(2))}");
+        var hardAshe = Loc.T("reason.hardCounter", DataDragon.Name(22), "\u0001").Split('\u0001')[0];
+        Check("«жёсткой контры» против Эш в пятёрке нет",
+              !bans.Any(b => b.Reasons.Any(r => r.StartsWith(hardAshe, StringComparison.Ordinal))),
+              string.Join(", ", bans.Where(b => b.Reasons.Any(r => r.StartsWith(hardAshe, StringComparison.Ordinal)))
+                                    .Select(b => DataDragon.Name(b.ChampionId))));
         SessionTracker.HistoryOverride = null;
     }
 
