@@ -9,8 +9,11 @@
 # по короткой строке на изменение. Как загорается рамка и откуда въезжает бан,
 # игрок увидит сам; абзац про каждую анимацию топит главное.
 #
+# И патчноут — по-английски, как все выпуски до 1.3.63: бот публикует его в
+# Discord как есть, без перевода, и 1.3.63 ушёл туда по-русски.
+#
 # Скрипт зовётся из release.ps1 перед публикацией и РОНЯЕТ релиз, если находит
-# внутреннюю лексику или слишком длинный текст. Осознанное исключение — ключ
+# внутреннюю лексику, слишком длинный текст или кириллицу. Осознанное исключение — ключ
 # -AllowInternal.
 #
 #   .\build\check-notes.ps1 -Text "..."            проверить текст
@@ -84,12 +87,26 @@ foreach ($it in $items) {
 }
 $tooLong = $total -gt $maxTotalWords -or $long.Count -gt 0
 
-if ($found.Count -eq 0 -and -not $tooLong) {
+# Язык. Кириллица в английском патчноуте не нужна ни в одном слове, так что
+# хватает её одной: ложных срабатываний здесь не бывает.
+$cyrillic = @([regex]::Matches($Text, '\p{IsCyrillic}+\S*') | ForEach-Object { $_.Value })
+$notEnglish = $cyrillic.Count -gt 0
+
+if ($found.Count -eq 0 -and -not $tooLong -and -not $notEnglish) {
   if (-not $Quiet) { Write-Host "Заметки к релизу: внутренней лексики нет, длина $total слов." -ForegroundColor DarkGreen }
   return
 }
 
 Write-Host ""
+if ($notEnglish) {
+  Write-Host "СТОП: патчноут не на английском." -ForegroundColor Red
+  $sample = ($cyrillic | Select-Object -First 5) -join ' '
+  Write-Host "  кириллица: $sample" -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "Бот публикует заметки в Discord как есть, без перевода. Пиши по-английски," -ForegroundColor Gray
+  Write-Host "как все прошлые выпуски." -ForegroundColor Gray
+  Write-Host ""
+}
 if ($found.Count -gt 0) {
   Write-Host "СТОП: в заметках к релизу внутренняя информация." -ForegroundColor Red
   foreach ($f in ($found | Sort-Object Word -Unique)) {
