@@ -24,6 +24,8 @@ namespace Counterplay.Tests;
 /// 3. После своего бана окно показывает баны обеих команд с бан-рейтом.
 /// 1в. Один рейтинг вместо закреплённых мест (14.10): кто бьёт и мой пул, и
 ///    пики союзников, поднимается; жёсткая контра моему — в пятёрке всегда.
+/// 1г. Каждый бан учитывает мой пул (14.10): союзные баны набирают очки и за
+///    него, прямых контр пулу в пятёрке не меньше двух.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -68,6 +70,7 @@ internal static class Program
         Assets(playerDir);
         Shown(engine);
         Lane(engine);
+        AllyPool(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -96,10 +99,18 @@ internal static class Program
         ("bottom",  "adc",     [222, 51]),            // Джинкс, Кейтлин
     ];
 
+    private static readonly string[] Lanes = ["top", "jungle", "mid", "adc", "support"];
+
+    private static string PoolHead => Loc.T("reason.countersPoolPick", "\u0001", "").Split('\u0001')[0];
+
+    private static string HardHead => Loc.T("reason.hardCounter", "\u0001", "").Split('\u0001')[0];
+
     private static void Meet(RecommendationEngine engine)
     {
         Console.WriteLine();
         Console.WriteLine("контры к мейнам взвешены пикрейтом:");
+        var rolePicks = Lanes.ToDictionary(r => r, r => engine.PickRates(r));
+        var roleRef = Lanes.ToDictionary(r => r, r => rolePicks[r].Values.Where(p => p >= 0.5).Average());
         foreach (var (lcu, role, mains) in Cases)
         {
             SessionTracker.HistoryOverride = Hist(mains);
@@ -109,16 +120,25 @@ internal static class Program
             Console.WriteLine($"  {role,-8} {line}");
 
             Check($"{role}: банов пять", bans.Count == 5, $"{bans.Count}");
-            // Без союзников в счёте только моя роль: кандидат обязан на ней играться.
-            var rare = bans.Where(b => picks.GetValueOrDefault(b.ChampionId) < 0.5).ToList();
-            Check($"{role}: нет офф-меты (< 0,5% игр роли)", rare.Count == 0,
-                  rare.Count == 0 ? "все играются" : string.Join(", ", rare.Select(b => b.ChampionId)));
-            // Встречаемость сдвигает список к тем, кого берут: средний пикрейт
-            // пятёрки выше среднего пикрейта регулярного пика роли.
-            var regular = picks.Values.Where(p => p >= 0.5).Average();
-            var avg = bans.Average(b => picks.GetValueOrDefault(b.ChampionId));
-            Check($"{role}: пятёрка банов берётся чаще среднего пика роли", avg > regular,
-                  $"{avg:F2}% против {regular:F2}%");
+            // С 14.10 мой пул учитывает и кандидатов с других линий (как мой
+            // чемпион играет против них в той же игре): у стрелка в банах бывают
+            // саппорты и Мальфит. Поэтому кандидат обязан играться не на моей
+            // роли, а на своей — той, где его встречаемость наибольшая.
+            var best = bans.Select(b => (b.ChampionId, Lane: Lanes.Select(r => (Role: r,
+                                Pick: rolePicks[r].GetValueOrDefault(b.ChampionId), Ref: roleRef[r]))
+                            .MaxBy(x => x.Pick / x.Ref))).ToList();
+            var rare = best.Where(b => b.Lane.Pick < 0.5).ToList();
+            Check($"{role}: нет офф-меты (< 0,5% игр своей роли)", rare.Count == 0,
+                  rare.Count == 0 ? "все играются" : string.Join(", ", rare.Select(b => $"{b.ChampionId} {b.Lane.Role} {b.Lane.Pick:F1}%")));
+            // Встречаемость сдвигает список к тем, кого берут: в среднем пятёрку
+            // берут чаще среднего регулярного пика их ролей.
+            var ratio = best.Average(b => b.Lane.Pick / b.Lane.Ref);
+            Check($"{role}: пятёрка банов берётся чаще среднего пика своих ролей", ratio > 1,
+                  $"в {ratio:F2} раза");
+            Check($"{role}: прямых контр мейнам на моей линии — не меньше двух",
+                  bans.Count(b => picks.GetValueOrDefault(b.ChampionId) >= 0.5 && b.Reasons.Any(r =>
+                      r.StartsWith(PoolHead, StringComparison.Ordinal) || r.StartsWith(HardHead, StringComparison.Ordinal))) >= 2,
+                  string.Join(", ", bans.Select(b => b.ChampionId)));
         }
 
         // Подпись о контре называет пикрейт — видно, почему этот бан, а не другой.
@@ -276,6 +296,76 @@ internal static class Program
         Check("сыгранный за месяц из пула не банится", withGames.All(b => b.ChampionId != 201), "");
         PoolStore.SetActive(PoolKind.Pool, null);
         PoolStore.Current().Pools.Remove(poolDef);
+        SessionTracker.HistoryOverride = null;
+    }
+
+    // ── 1г. Каждый бан учитывает мой пул ─────────────────────────────────────
+
+    /// <summary>
+    /// Скриншот владельца 14.10 (саппорт; Фиора, Мастер Йи — до него наводили
+    /// Грейвза, — Хвэй, Тристана): Вуконг, Мальфит, Катарина, Наутилус, Раммус,
+    /// и у первых трёх за мой пул ни очка. Владелец: «все баны должны учитывать
+    /// мой пул — из трёх контр союзникам выбрать ту, что законтрит и мой пул;
+    /// часть банов — чётко против пула».
+    ///
+    /// Причин было три: (1) против пула на линии почти никого не осталось —
+    /// «сыгранные за месяц не банятся» срабатывало с одной игры (Блицкранк,
+    /// Пайк, Нами); (2) четверо союзников по 2,6 перевешивали весь пул (4,5);
+    /// (3) кандидат с чужой линии про мой пул ничего не знал. Теперь: свои — от
+    /// трёх игр, союзники вместе весят как двое, а как мой пул играет против
+    /// кандидата в той же игре с другой линии, считается по кросс-ролевой
+    /// таблице.
+    /// </summary>
+    private static void AllyPool(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("каждый бан учитывает мой пул:");
+        // Журнал владельца за месяц: мейны и горстка чемпионов по одной-три игры.
+        var games = new Dictionary<int, int>
+        {
+            [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6,
+            [412] = 3, [53] = 1, [555] = 1, [267] = 1,   // Треш 3, Блицкранк, Пайк, Нами — по одной
+        };
+        var team = new List<DraftPlayer>
+        {
+            new(0, 0, 114, "top", false),      // Фиора
+            new(1, 0, 11, "jungle", false),    // Мастер Йи (до него — Грейвз)
+            new(2, 0, 910, "middle", false),   // Хвэй
+            new(3, 0, 18, "bottom", false),    // Тристана
+            new(4, 0, 0, "utility", true),
+        };
+        var state = Snapshot(team, team[4], "utility");
+        var hist = new Dictionary<int, HashSet<int>> { [0] = [114], [1] = [104, 11], [2] = [910], [3] = [18] };
+
+        SessionTracker.HistoryOverride = Hist(games);
+        var bans = engine.RecommendBans(state, hist, top: 5);
+        foreach (var b in bans)
+            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {string.Join(" | ", b.Reasons.Take(2))}");
+        var wide = engine.RecommendBans(state, hist, top: 40);
+
+        Check("чемпион с одной игрой за месяц банится (Блицкранк)", wide.Any(b => b.ChampionId == 53),
+              wide.Any(b => b.ChampionId == 53) ? $"место {wide.ToList().FindIndex(b => b.ChampionId == 53) + 1}" : "нет в сорока");
+        Check("с тремя играми — нет (Треш)", wide.All(b => b.ChampionId != 412), "");
+
+        var also  = Loc.T("reason.alsoPool", "\u0001").Split('\u0001')[0];
+        var ally  = Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
+        var many  = Loc.T("reason.countersMany", "\u0001").Split('\u0001')[0];
+        bool Has(BanRec b, params string[] heads) => b.Reasons.Any(r => heads.Any(h => r.StartsWith(h, StringComparison.Ordinal)));
+        Check("прямых контр моему пулу в пятёрке не меньше двух", bans.Count(b => Has(b, PoolHead, HardHead)) >= 2,
+              $"{bans.Count(b => Has(b, PoolHead, HardHead))}");
+        var allyBans = bans.Where(b => Has(b, ally, many)).ToList();
+        Check("баны против союзников говорят, что мешают и моему пулу",
+              allyBans.Count > 0 && allyBans.Any(b => Has(b, also)),
+              string.Join("; ", allyBans.Select(b => $"{DataDragon.Name(b.ChampionId)}: {string.Join(" | ", b.Reasons.Take(2))}")));
+
+        // Тот же драфт без пула: у союзных банов, которые мешают пулу, очков
+        // меньше — значит, пул в их счёте правда участвует.
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>());
+        var bare = engine.RecommendBans(state, hist, top: 40).ToDictionary(b => b.ChampionId, b => b.Score);
+        foreach (var b in allyBans.Where(b => Has(b, also)))
+            Check($"   {DataDragon.Name(b.ChampionId)}: с моим пулом очков больше, чем без него",
+                  bare.TryGetValue(b.ChampionId, out var without) && b.Score > without,
+                  $"{(bare.TryGetValue(b.ChampionId, out var w0) ? w0.ToString("F1") : "—")} → {b.Score:F1}");
         SessionTracker.HistoryOverride = null;
     }
 

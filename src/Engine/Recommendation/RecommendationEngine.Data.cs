@@ -132,16 +132,42 @@ public sealed partial class RecommendationEngine
     private Dictionary<int, (double g, double w)> MatchupsOf(int champId, string role)
     {
         if (_matchupsOf.TryGetValue((champId, role), out var cached)) return cached;
-        var own = new Dictionary<int, (double g, double w)>();
-        var pool = new Dictionary<int, (double g, double w)>();
+        return _matchupsOf[(champId, role)] =
+            VsRows("matchup", champId, role, cross: false).ToDictionary(kv => kv.Key.Vs, kv => kv.Value);
+    }
+
+    private readonly Dictionary<(int, string), Dictionary<(int Vs, string VsRole), (double g, double w)>> _crossOf = new();
+
+    /// <summary>
+    /// Чемпион на роли против врагов на ДРУГИХ ролях в той же игре: (соперник,
+    /// его роль) → (games, wins) нашего. Таблица botlane_matchup, несмотря на
+    /// имя, держит все пары ролей (саппорт против леса, мид против топа…):
+    /// по ней видно, что Сона-саппорт проигрывает игры с Вуконгом в лесу.
+    /// Советы банов по ней считают, мешает ли моему пулу кандидат с любой
+    /// линии. Нет таблицы (старая база) — пусто. Кэш на жизнь движка.
+    /// </summary>
+    private Dictionary<(int Vs, string VsRole), (double g, double w)> CrossOf(int champId, string role)
+    {
+        if (_crossOf.TryGetValue((champId, role), out var cached)) return cached;
+        return _crossOf[(champId, role)] = VsRows("botlane_matchup", champId, role, cross: true);
+    }
+
+    // Соперники чемпиона на роли из таблицы пар: свой бакет с весами патчей и
+    // сводка по дивизионам поверх (WithPool, как у RawMatchup). У матчапа на
+    // линии роль соперника та же, у кросс-ролевой таблицы — своя (vs_role).
+    private Dictionary<(int Vs, string VsRole), (double g, double w)> VsRows(string table, int champId, string role, bool cross)
+    {
+        var own  = new Dictionary<(int, string), (double g, double w)>();
+        var pool = new Dictionary<(int, string), (double g, double w)>();
+        var vsRole = cross ? "vs_role" : "role";
         // Свой бакет — с весами патчей, сводка — как есть (у неё патч 'all').
-        void Read(Dictionary<int, (double g, double w)> into, string where, string weight)
+        void Read(Dictionary<(int, string), (double g, double w)> into, string where, string weight)
         {
             var cmd = _db.CreateCommand();
             cmd.CommandText = $@"
-                SELECT vs_champion_id, COALESCE(SUM(games*{weight}),0), COALESCE(SUM(wins*{weight}),0)
-                FROM matchup WHERE champion_id=@c AND role=@r AND {where}
-                GROUP BY vs_champion_id";
+                SELECT vs_champion_id, {vsRole}, COALESCE(SUM(games*{weight}),0), COALESCE(SUM(wins*{weight}),0)
+                FROM {table} WHERE champion_id=@c AND role=@r AND {where}
+                GROUP BY vs_champion_id, {vsRole}";
             cmd.Parameters.AddWithValue("@c",  champId);
             cmd.Parameters.AddWithValue("@r",  role);
             cmd.Parameters.AddWithValue("@t",  TierBucket);
@@ -150,19 +176,19 @@ public sealed partial class RecommendationEngine
             cmd.Parameters.AddWithValue("@p3", _p3);
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
-                into[rd.GetInt32(0)] = (Convert.ToDouble(rd.GetValue(1)), Convert.ToDouble(rd.GetValue(2)));
+                into[(rd.GetInt32(0), rd.GetString(1))] = (Convert.ToDouble(rd.GetValue(2)), Convert.ToDouble(rd.GetValue(3)));
         }
         try
         {
             Read(own, "tier_bucket=@t AND patch IN (@p1,@p2,@p3)", PW);
             if (HasPool) Read(pool, "tier_bucket='all' AND patch='all'", "1.0");
         }
-        catch { /* нет данных — пусто */ }
+        catch { /* нет таблицы или данных — пусто */ }
 
-        var res = new Dictionary<int, (double g, double w)>();
-        foreach (var vs in own.Keys.Union(pool.Keys))
-            res[vs] = WithPool(own.GetValueOrDefault(vs), pool.GetValueOrDefault(vs));
-        return _matchupsOf[(champId, role)] = res;
+        var res = new Dictionary<(int Vs, string VsRole), (double g, double w)>();
+        foreach (var key in own.Keys.Union(pool.Keys))
+            res[key] = WithPool(own.GetValueOrDefault(key), pool.GetValueOrDefault(key));
+        return res;
     }
 
     // Кросс-ролевой матчап на боте: мой чемпион (role) против вражеского дуо-партнёра

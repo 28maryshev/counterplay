@@ -403,6 +403,7 @@
     "strongPatch": "Fort ce patch — WR {0}%",
     "hardCounter": "Contre sévère : {0} −{1}% WR",
     "tierGrade": "Tier {0} ce patch",
+    "alsoPool": "Gêne aussi ton pool ({0})",
     "notablePick": "Pick notable ce patch",
     "jgSetup": "Le jungler {0} est agressif sans CC — tu prépares les ganks.",
     "adcEngage": "L'ADC {0} veut de l'engage — tu ouvres les combats pour lui.",
