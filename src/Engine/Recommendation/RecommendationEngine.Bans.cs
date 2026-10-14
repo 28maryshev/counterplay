@@ -386,18 +386,25 @@ public sealed partial class RecommendationEngine
     }
 
     /// <summary>
-    /// Доводы карточки, по важности (окно показывает два первых): жёсткая
-    /// контра моему, контра моему пику, моему пулу, пикам союзников, «мешает и
-    /// твоему пулу», «мешает команде» (в игре, с другой линии), место в
-    /// тир-листе, пикрейт. Контры называют поимённо, кого бьют,
-    /// и пикрейт кандидата на той линии, где он их встречает. Кандидат, который
-    /// бьёт и мой пул, и союзников, показывает оба довода — видно, почему он первый.
+    /// Доводы карточки (окно показывает два первых). Каждый довод — подпись
+    /// одной части очков: мой пик на линии, мой пул на линии, союзники на
+    /// линии, мой пул в игре, команда в игре. Жёсткая контра — подпись той
+    /// части, к которой относится (пик или пул), а не отдельная строка.
+    ///
+    /// Порядок (владелец 15.10, вариант «по вкладу, но пул не теряется»):
+    /// первая строка — часть, за которую бан набрал больше всего очков; вторая —
+    /// про меня (мой пик или пул), если первая не про меня и за меня набрано
+    /// хотя бы BAN_REASON_MINE очков, иначе следующая по очкам; дальше — по
+    /// очкам. Место в тир-листе и пикрейт — в конце: это множители, а не части
+    /// очков. Было: фиксированный порядок важности, и у Вуконга первой строкой
+    /// стояло «Контрит союзника Гарен» за 2,4 очка из 25,5, а «Мешает команде»
+    /// за 14,6 не было видно.
+    ///
+    /// Контры называют поимённо, кого бьют, и пикрейт кандидата на той линии,
+    /// где он их встречает.
     /// </summary>
     private string[] BanReasons(BanCandidate c, List<BanVictim> victims, string myRole)
     {
-        const int R_HARD = 0, R_MINE = 1, R_POOL = 2, R_ALLY = 3, R_CROSS = 4, R_TEAM = 5, R_TIER = 6, R_PICK = 7;
-        var rs = new List<(int Prio, string Text)>();
-        void Add(int prio, string text) { if (!rs.Any(r => r.Text == text)) rs.Add((prio, text)); }
         string WithPick(IEnumerable<BanHit> hits, string text)
         {
             var pk = hits.Select(h => c.PickOn.GetValueOrDefault(h.Role)).DefaultIfEmpty(0).Max();
@@ -405,56 +412,64 @@ public sealed partial class RecommendationEngine
         }
         // Одного нашего называем раз — по самому весомому попаданию (Сона в пуле
         // и Сона наведённая — одна Сона).
-        List<BanHit> Named(Func<BanVictim, bool> f, bool cross = false) => [.. c.Hits
-            .Where(h => h.Cross == cross && h.Strength >= BAN_HIT && f(victims[h.Victim]))
+        List<BanHit> Named(IEnumerable<BanHit> hits) => [.. hits
+            .Where(h => h.Strength >= BAN_HIT)
             .OrderByDescending(h => h.Value)
             .DistinctBy(h => victims[h.Victim].Id)];
-        int Who(BanHit h) => victims[h.Victim].Id;
-        string Name(BanHit h) => DataDragon.Name(Who(h));
+        string Name(BanHit h) => DataDragon.Name(victims[h.Victim].Id);
+        string Hard(List<BanHit> hard) =>
+            WithPick(hard, Loc.T("reason.hardCounter", Name(hard[0]), $"{hard[0].Strength:F1}"));
 
-        var hard = c.Hits.Where(h => h.Hard).OrderByDescending(h => h.Value).Take(1).ToList();
-        if (hard.Count > 0)
-            Add(R_HARD, WithPick(hard, Loc.T("reason.hardCounter", Name(hard[0]), $"{hard[0].Strength:F1}")));
-        bool SaidHard(List<BanHit> hs) => hard.Count > 0 && hs.All(h => Who(h) == Who(hard[0]));
+        // Части очков: текст, сколько за ним очков, про меня ли он.
+        var parts = new List<(string Text, double Points, bool Mine)>();
+        void Part(Func<BanHit, bool> f, bool mine, Func<List<BanHit>, List<BanHit>, string?> text)
+        {
+            var hits = c.Hits.Where(f).ToList();
+            var points = hits.Sum(h => h.Value);
+            var named = Named(hits);
+            var hard = hits.Where(h => h.Hard).OrderByDescending(h => h.Value).Take(1).ToList();
+            if (points > 0 && named.Count > 0 && text(named, hard) is { } t) parts.Add((t, points, mine));
+        }
+        bool MyPick(BanHit h) => victims[h.Victim].Kind is BanVictimKind.MyPick or BanVictimKind.MyHover;
+        bool Pool(BanHit h) => victims[h.Victim].Kind == BanVictimKind.Pool;
+        bool Ours(BanHit h) => !victims[h.Victim].Mine;
 
-        var mine = Named(v => v.Kind is BanVictimKind.MyPick or BanVictimKind.MyHover).Take(1).ToList();
-        if (mine.Count > 0 && !SaidHard(mine))
-            Add(R_MINE, WithPick(mine, Loc.T("reason.countersMyPick", Name(mine[0]))));
+        Part(h => !h.Cross && MyPick(h), true, (n, hard) =>
+            hard.Count > 0 ? Hard(hard) : WithPick(n.Take(1), Loc.T("reason.countersMyPick", Name(n[0]))));
+        // До двух самых задетых чемпионов пула.
+        Part(h => !h.Cross && Pool(h), true, (n, hard) =>
+            hard.Count > 0 ? Hard(hard)
+                           : Loc.T("reason.countersPoolPick", string.Join(", ", n.Take(2).Select(Name)),
+                                   $"{c.PickOn.GetValueOrDefault(myRole):F1}"));
+        Part(h => !h.Cross && Ours(h), false, (n, _) => WithPick(n, n.Count == 1
+            ? Loc.T("reason.countersAlly", Name(n[0]))
+            : Loc.T("reason.countersMany", string.Join(", ", n.Select(Name)))));
+        // В игре, с другой линии: мой пул — до двух, команда — до трёх. Только
+        // если в сумме мешает: кого наши сами бьют, про того не пишем.
+        Part(h => h.Cross && !Ours(h), true, (n, _) =>
+            Loc.T("reason.alsoPool", string.Join(", ", n.Take(2).Select(Name))));
+        Part(h => h.Cross && Ours(h), false, (n, _) =>
+            Loc.T("reason.alsoTeam", string.Join(", ", n.Take(3).Select(Name))));
 
-        // До двух самых задетых чемпионов пула; если это та же, что в жёсткой
-        // контре, — уже сказано.
-        var pool = Named(v => v.Kind == BanVictimKind.Pool).Take(2).ToList();
-        if (pool.Count > 0 && !SaidHard(pool))
-            Add(R_POOL, Loc.T("reason.countersPoolPick", string.Join(", ", pool.Select(Name)),
-                              $"{c.PickOn.GetValueOrDefault(myRole):F1}"));
-
-        var allies = Named(v => !v.Mine);
-        if (allies.Count == 1)
-            Add(R_ALLY, WithPick(allies, Loc.T("reason.countersAlly", Name(allies[0]))));
-        else if (allies.Count > 1)
-            Add(R_ALLY, WithPick(allies, Loc.T("reason.countersMany", string.Join(", ", allies.Select(Name)))));
-
-        // Мешает моему пулу не на линии, а в игре — до двух самых задетых. Только
-        // если в сумме мешает: кого пул сам бьёт, про того не пишем.
-        var cross = Named(v => v.Mine, cross: true).Take(2).ToList();
-        if (cross.Count > 0 && c.Hits.Where(h => h.Cross && victims[h.Victim].Mine).Sum(h => h.Value) > 0)
-            Add(R_CROSS, Loc.T("reason.alsoPool", string.Join(", ", cross.Select(Name))));
-        // Мешает союзникам в игре с другой линии — до трёх, если в сумме мешает.
-        var team = Named(v => !v.Mine, cross: true).Take(3).ToList();
-        if (team.Count > 0 && c.Hits.Where(h => h.Cross && !victims[h.Victim].Mine).Sum(h => h.Value) > 0)
-            Add(R_TEAM, Loc.T("reason.alsoTeam", string.Join(", ", team.Select(Name))));
+        var order = parts.OrderByDescending(p => p.Points).ToList();
+        var texts = new List<string>();
+        if (order.Count > 0)
+        {
+            texts.Add(order[0].Text);
+            var rest = order.Skip(1).ToList();
+            // Строка про меня — на второе место, остальные — по очкам.
+            var mine = order[0].Mine ? -1 : rest.FindIndex(p => p.Mine && p.Points >= BAN_REASON_MINE);
+            if (mine > 0) { var m = rest[mine]; rest.RemoveAt(mine); rest.Insert(0, m); }
+            texts.AddRange(rest.Select(p => p.Text));
+        }
 
         // Место в тир-листе — на линии, где он опаснее всего (нет контр — на моей).
         var lane = c.Hits.OrderByDescending(h => h.Value).Select(h => h.Role).FirstOrDefault() ?? myRole;
         if (c.PickOn.ContainsKey(lane) && TierGrade(c.Id, lane) is 'S' or 'A')
-            Add(R_TIER, Loc.T("reason.tierGrade", TierGrade(c.Id, lane).ToString()));
-        if (c.PickHigh) Add(R_PICK, Loc.T("reason.pickRate", $"{c.PickOn[myRole]:F1}"));
-
-        // Порядок — по приоритету, внутри него — как добавлялись.
-        var texts = rs.Select((r, i) => (r.Prio, i, r.Text)).OrderBy(r => r.Prio).ThenBy(r => r.i)
-                      .Select(r => r.Text).ToList();
+            texts.Add(Loc.T("reason.tierGrade", TierGrade(c.Id, lane).ToString()));
+        if (c.PickHigh) texts.Add(Loc.T("reason.pickRate", $"{c.PickOn[myRole]:F1}"));
         if (texts.Count == 0) texts.Add(Loc.T("reason.notablePick"));
-        return [.. texts];
+        return [.. texts.Distinct()];
     }
 
     /// <summary>

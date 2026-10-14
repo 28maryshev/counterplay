@@ -251,6 +251,10 @@ public sealed partial class RecommendationEngine
     // Джинкс: Сона 27%, Браум 23%, Поппи 16% … Эш 0,6%.
     private const double BAN_PICK_TEMP = 3.0;
 
+    // Строка карточки про мой пул или пик встаёт второй (после самой весомой),
+    // если за неё набрано хотя бы столько очков.
+    private const double BAN_REASON_MINE = 1.0;
+
     // Жёсткая контра засчитывается против чемпиона пула с долей не меньше этой.
     private const double BAN_HARD_SHARE = 0.05;
 

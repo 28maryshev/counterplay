@@ -29,6 +29,7 @@ namespace Counterplay.Tests;
 /// 1д. Пул весит так, как его расставляет подбор пика на этом драфте.
 /// 1е. Чем больше союзников показали, тем больше весит команда; «в игре» — для всех.
 /// 1ж. Сила в патче — только место в тир-листе, один раз на все линии.
+/// 1з. Доводы на карточке — по вкладу в очки; строка про мой пул не теряется.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -77,6 +78,7 @@ internal static class Program
         Partners(engine);
         TeamGrows(engine);
         StrengthOnce(engine);
+        ReasonOrder(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -557,6 +559,65 @@ internal static class Program
         Check("защищать некого — сильные и частые на моей линии всё равно набирают очки", empty.Any(m => m > 0),
               $"{empty.Count(m => m > 0)}");
         Check("и советы есть", engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 5).Count == 5, "");
+        SessionTracker.HistoryOverride = null;
+    }
+
+    // ── 1з. Доводы на карточке — по вкладу, строка про меня не теряется ──────
+
+    /// <summary>
+    /// Скриншот владельца 14.10 (саппорт; Доктор Мундо — до него наводили
+    /// Гарена, — Лиллия, Мальзахар, Кай'Са): у Вуконга первой строкой «Контрит
+    /// союзника Гарен · пик 0,5%» — 2,4 очка из 25,5, а «Мешает команде» за 14,6
+    /// не видно. Доводы шли по фиксированной важности. Владелец выбрал вариант
+    /// «по вкладу, но пул не теряется»: первая строка — самая весомая часть
+    /// очков, вторая — про мой пул или пик, если первая не про меня.
+    ///
+    /// Держим на той же сцене: у каждого бана пятёрки, где есть строка про
+    /// меня, она в первых двух; у Вуконга первой стоит «Мешает команде», а не
+    /// контра Гарену; жёсткая контра и «Контрит твой пул» — одна строка (это
+    /// подписи одной и той же части очков).
+    /// </summary>
+    private static void ReasonOrder(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("доводы по вкладу:");
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>
+        {
+            [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6,
+            [98] = 5, [412] = 3, [53] = 1, [555] = 1, [267] = 1,
+        });
+        var team = new List<DraftPlayer>
+        {
+            new(0, 0, 36, "top", false),       // Доктор Мундо (до него — Гарен)
+            new(1, 0, 876, "jungle", false),   // Лиллия
+            new(2, 0, 90, "middle", false),    // Мальзахар
+            new(3, 0, 145, "bottom", false),   // Кай'Са
+            new(4, 0, 0, "utility", true),
+        };
+        var state = Snapshot(team, team[4], "utility");
+        var hist = new Dictionary<int, HashSet<int>> { [0] = [86, 36], [1] = [876], [2] = [90], [3] = [145] };
+        var bans = engine.RecommendBans(state, hist, top: 5);
+        foreach (var b in bans)
+            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {string.Join(" | ", b.Reasons.Take(2))}");
+
+        string Head(string key, int args) => Loc.T(key, [.. Enumerable.Repeat<object>("\u0001", args)]).Split('\u0001')[0];
+        string[] mineHeads = [Head("reason.hardCounter", 2), Head("reason.countersPoolPick", 2),
+                              Head("reason.countersMyPick", 1), Head("reason.alsoPool", 1)];
+        bool AboutMe(string r) => mineHeads.Any(h => r.StartsWith(h, StringComparison.Ordinal));
+        var lost = bans.Where(b => b.Reasons.Any(AboutMe) && !b.Reasons.Take(2).Any(AboutMe)).ToList();
+        Check("строка про мой пул в первых двух — у каждого, у кого она есть", lost.Count == 0,
+              string.Join("; ", lost.Select(b => $"{DataDragon.Name(b.ChampionId)}: {string.Join(" | ", b.Reasons)}")));
+        var hard = Head("reason.hardCounter", 2);
+        var pool = Head("reason.countersPoolPick", 2);
+        var both = bans.Where(b => b.Reasons.Any(r => r.StartsWith(hard, StringComparison.Ordinal))
+                                && b.Reasons.Any(r => r.StartsWith(pool, StringComparison.Ordinal))).ToList();
+        Check("жёсткая контра и «контрит твой пул» — одна строка", both.Count == 0,
+              string.Join(", ", both.Select(b => DataDragon.Name(b.ChampionId))));
+        var wukong = engine.RecommendBans(state, hist, top: 15).FirstOrDefault(b => b.ChampionId == 62);
+        var team3 = Head("reason.alsoTeam", 1);
+        Check("у Вуконга первой — «мешает команде», а не контра Гарену",
+              wukong is not null && wukong.Reasons[0].StartsWith(team3, StringComparison.Ordinal),
+              wukong is null ? "Вуконга нет в пятнадцати" : string.Join(" | ", wukong.Reasons.Take(2)));
         SessionTracker.HistoryOverride = null;
     }
 
