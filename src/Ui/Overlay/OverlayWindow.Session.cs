@@ -461,7 +461,14 @@ public partial class OverlayWindow
             lp.Text = lpd == 0 ? "0" : lpd > 0 ? $"+{lpd}" : lpd.ToString();
             lp.Foreground = lpd == 0 ? MuteBrush : lpd > 0 ? WinBrush : LossBrush;
         }
-        else { lp.Text = "·"; lp.Foreground = MuteBrush; }
+        else
+        {
+            // LP нет — показываем исход. В нормалах и ARAM очков не бывает
+            // вовсе, и под каждым портретом стояла точка: пусто, хотя что
+            // сказать есть. Буквы те, что просил владелец, на всех языках.
+            lp.Text = g.Win ? "W" : "L";
+            lp.Foreground = g.Win ? WinBrush : LossBrush;
+        }
         col.Children.Add(lp);
         return col;
     }
