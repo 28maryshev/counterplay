@@ -324,6 +324,7 @@
     "hardCounter": "Hard counter: {0} −{1}% WR",
     "tierGrade": "{0} tier this patch",
     "alsoPool": "Also hurts your pool ({0})",
+    "alsoTeam": "Hurts your team ({0})",
     "notablePick": "Notable pick this patch",
     "jgSetup": "Jungler {0} is aggressive without cc — you provide gank setup.",
     "adcEngage": "ADC {0} wants engage — you open fights for them.",

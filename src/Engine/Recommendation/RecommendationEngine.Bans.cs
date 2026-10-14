@@ -17,7 +17,8 @@ public sealed partial class RecommendationEngine
     // И каждый бан учитывает мой пул: кандидат с любой линии получает очки за
     // то, как мой пул играет против него в той же игре (CrossOf). Владелец:
     // «все баны должны учитывать мой пул — из трёх контр союзникам выбрать ту,
-    // что законтрит и мой пул».
+    // что законтрит и мой пул». То же — для союзников: «чем больше показали,
+    // тем вероятнее пик против нас всех».
 
     // Кого защищает бан. Мой пик, мои прошлые наведения и мой пул — «моя
     // сторона»: жёсткие контры им получают надбавку и держатся в пятёрке.
@@ -29,8 +30,8 @@ public sealed partial class RecommendationEngine
     }
 
     // Чем кандидат бьёт одного нашего: сила контры, очки за неё, жёсткая ли.
-    // Cross — не на линии, а в той же игре с другой линии (только мой пул и
-    // пик): сила со знаком — кого мой пул сам бьёт, тот теряет очки.
+    // Cross — не на линии, а в той же игре с другой линии: сила со знаком —
+    // кого наши сами бьют, тот теряет очки.
     private readonly record struct BanHit(int Victim, string Role, double Strength, double Value, bool Hard,
                                           bool Cross = false);
 
@@ -115,13 +116,19 @@ public sealed partial class RecommendationEngine
     /// бы не значила. Мейн с хорошей синергией с показанными союзниками (та же,
     /// что в подборе пика) весит больше — его, скорее всего, и предложат.
     ///
+    /// Кого взял или навёл союзник, взял враг или забанили — того я уже не
+    /// возьму, и в пуле его нет: Хвэй союзника на миде считался моим пулом, и
+    /// контры ему получали очки.
+    ///
     /// Пики союзников и мой — по наведению сейчас; то, что наводили раньше, —
-    /// меньшим весом. Союзники вместе весят не больше, чем двое
-    /// (BAN_ALLY_SHARE): показали все четверо — каждый вполовину. Иначе четыре
-    /// пика по 2,6 перевешивали весь мой пул (4,5) почти втрое, и три первых
-    /// бана не получали за пул ни очка (скриншот владельца 14.10). Линия
-    /// союзника — его позиция, нет позиции (блайнд, соло без ролей) — основная
-    /// роль чемпиона.
+    /// меньшим весом. Союзников больше BAN_ALLY_SHARE — вес каждого ×
+    /// √(BAN_ALLY_SHARE / n): вместе они весят больше, чем двое, но растут
+    /// медленнее числа. Без поправки четыре пика по 2,6 перевешивали весь мой
+    /// пул (4,5) почти втрое, и три первых бана не получали за пул ни очка
+    /// (скриншот владельца 14.10); с делением поровну («вместе как двое»)
+    /// команда не росла с числом показанных, и пик против всех нас не
+    /// поднимался (следующий скриншот). Линия союзника — его позиция, нет
+    /// позиции (блайнд, соло без ролей) — основная роль чемпиона.
     /// </summary>
     private List<BanVictim> BanVictims(DraftState state, IReadOnlyDictionary<int, HashSet<int>>? hoverHistory,
                                        string myRole, Dictionary<int, (double Games, double Wins)> stats)
@@ -137,7 +144,12 @@ public sealed partial class RecommendationEngine
             foreach (var id in Mastery.Where(kv => stats.ContainsKey(kv.Key))
                                       .OrderByDescending(kv => kv.Value).Take(MainsTake).Select(kv => kv.Key))
                 mainW[id] = POOL_MAIN_GAMES;
-        var mains = mainW.OrderByDescending(kv => kv.Value).Take(MAINS_FOR_BANS).ToList();
+        var gone = state.MyTeam.Where(p => !p.IsLocalPlayer).Select(p => p.EffectiveChampionId)
+            .Concat(state.TheirTeam.Select(p => p.EffectiveChampionId))
+            .Concat(state.MyTeamBans).Concat(state.TheirTeamBans)
+            .Where(id => id != 0).ToHashSet();
+        var mains = mainW.Where(kv => !gone.Contains(kv.Key))
+                         .OrderByDescending(kv => kv.Value).Take(MAINS_FOR_BANS).ToList();
         var roots = mains.Sum(kv => Math.Sqrt(kv.Value));
         // Синергия с показанными союзниками — та же, что в подборе пика
         // (AllySynergy, с напарником по дуо): мейн, который с ними хорошо
@@ -188,7 +200,7 @@ public sealed partial class RecommendationEngine
                             ? new BanVictim(id, myRole, W_BAN_MYPICK * 0.75, BanVictimKind.MyHover)
                             : new BanVictim(id, RoleOf(p, id), W_BAN_HOVER, BanVictimKind.AllyHover));
         var allies = list.Count(v => v.Kind == BanVictimKind.Ally);
-        var share = allies > BAN_ALLY_SHARE ? BAN_ALLY_SHARE / allies : 1.0;
+        var share = allies > BAN_ALLY_SHARE ? Math.Sqrt(BAN_ALLY_SHARE / allies) : 1.0;
         return [.. list.Where(v => DbRoles.Contains(v.Role))
                        .Select(v => v.Mine ? v : v with { Weight = v.Weight * share })];
     }
@@ -251,14 +263,16 @@ public sealed partial class RecommendationEngine
                 c.Hits.Add(new BanHit(i, v.Role, s,
                     v.Weight * s * c.LaneMult[v.Role] * (hard ? W_BAN_HARD : 1.0), hard));
             }
-            if (v.Mine) AddCross(i, v, baseD);
+            AddCross(i, v, baseD);
         }
         return [.. cands.Values];
 
-        // Мой чемпион против кандидата на другой линии в той же игре: Вуконг в
+        // Наш чемпион против кандидата на другой линии в той же игре: Вуконг в
         // лесу не встречает Сону на линии, но игры с ним Сона проигрывает. Так
-        // мой пул учитывает каждый бан, а не только кандидатов моей линии. Сила
-        // — со знаком: кого мой пул сам бьёт (у саппортов-энчантеров — Ренгар,
+        // мой пул учитывает каждый бан, а не только кандидатов моей линии, а
+        // кандидат, который понемногу мешает всем союзникам, складывает очки по
+        // каждому — чем больше их показали, тем выше пик против всех нас. Сила
+        // — со знаком: кого наши сами бьют (у саппортов-энчантеров — Ренгар,
         // Зед), тот теряет очки. Шум пар тут сильнее, чем на линии, поэтому
         // доверие к паре набирается медленнее (CROSS_CONF).
         void AddCross(int i, BanVictim v, double baseD)
@@ -353,14 +367,14 @@ public sealed partial class RecommendationEngine
     /// <summary>
     /// Доводы карточки, по важности (окно показывает два первых): жёсткая
     /// контра моему, контра моему пику, моему пулу, пикам союзников, «мешает и
-    /// твоему пулу» (в игре, с другой линии), место в тир-листе, сила в патче,
-    /// пикрейт. Контры называют поимённо, кого бьют,
+    /// твоему пулу», «мешает команде» (в игре, с другой линии), место в
+    /// тир-листе, сила в патче, пикрейт. Контры называют поимённо, кого бьют,
     /// и пикрейт кандидата на той линии, где он их встречает. Кандидат, который
     /// бьёт и мой пул, и союзников, показывает оба довода — видно, почему он первый.
     /// </summary>
     private string[] BanReasons(BanCandidate c, List<BanVictim> victims, string myRole)
     {
-        const int R_HARD = 0, R_MINE = 1, R_POOL = 2, R_ALLY = 3, R_CROSS = 4, R_TIER = 5, R_META = 6, R_PICK = 7;
+        const int R_HARD = 0, R_MINE = 1, R_POOL = 2, R_ALLY = 3, R_CROSS = 4, R_TEAM = 5, R_TIER = 6, R_META = 7, R_PICK = 8;
         var rs = new List<(int Prio, string Text)>();
         void Add(int prio, string text) { if (!rs.Any(r => r.Text == text)) rs.Add((prio, text)); }
         string WithPick(IEnumerable<BanHit> hits, string text)
@@ -402,8 +416,12 @@ public sealed partial class RecommendationEngine
         // Мешает моему пулу не на линии, а в игре — до двух самых задетых. Только
         // если в сумме мешает: кого пул сам бьёт, про того не пишем.
         var cross = Named(v => v.Mine, cross: true).Take(2).ToList();
-        if (cross.Count > 0 && c.Hits.Where(h => h.Cross).Sum(h => h.Value) > 0)
+        if (cross.Count > 0 && c.Hits.Where(h => h.Cross && victims[h.Victim].Mine).Sum(h => h.Value) > 0)
             Add(R_CROSS, Loc.T("reason.alsoPool", string.Join(", ", cross.Select(Name))));
+        // Мешает союзникам в игре с другой линии — до трёх, если в сумме мешает.
+        var team = Named(v => !v.Mine, cross: true).Take(3).ToList();
+        if (team.Count > 0 && c.Hits.Where(h => h.Cross && !victims[h.Victim].Mine).Sum(h => h.Value) > 0)
+            Add(R_TEAM, Loc.T("reason.alsoTeam", string.Join(", ", team.Select(Name))));
 
         // Место в тир-листе — на линии, где он опаснее всего (нет контр — на моей).
         var lane = c.Hits.OrderByDescending(h => h.Value).Select(h => h.Role).FirstOrDefault() ?? myRole;

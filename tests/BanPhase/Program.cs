@@ -27,6 +27,7 @@ namespace Counterplay.Tests;
 /// 1г. Каждый бан учитывает мой пул (14.10): союзные баны набирают очки и за
 ///    него, прямых контр пулу в пятёрке не меньше двух.
 /// 1д. Вес мейна в банах растёт с его синергией с союзниками (та же, что на пиках).
+/// 1е. Чем больше союзников показали, тем больше весит команда; «в игре» — для всех.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -73,6 +74,7 @@ internal static class Program
         Lane(engine);
         AllyPool(engine);
         Partners(engine);
+        TeamGrows(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -431,6 +433,79 @@ internal static class Program
         object P(object o, string n) => o.GetType().GetProperty(n)!.GetValue(o)!;
         return list.Cast<object>().Where(v => P(v, "Kind").ToString() == "Pool")
                    .ToDictionary(v => (int)P(v, "Id"), v => (double)P(v, "Weight"));
+    }
+
+    // ── 1е. Чем больше союзников показали, тем больше весит команда ──────────
+
+    /// <summary>
+    /// Скриншот владельца 14.10 (саппорт; Фиора, Виего, Хвэй — до него наводили
+    /// Зерата, — Джин; Мальфита забанил союзник): Блицкранк, Милио, Физз,
+    /// Наутилус, Леона — четыре жёсткие контры пулу и один бан про команду.
+    /// «Четверо показали — по идее тем вероятнее пик против нас всех».
+    ///
+    /// Было две причины: союзники вместе весили как двое (показали четверо —
+    /// каждый вполовину, команда с числом не росла), а как кандидат мешает
+    /// союзнику в игре с другой линии, не считалось вовсе — только для моего
+    /// пула. Теперь вес союзников × √(2 / n) (вместе растут, но медленнее числа),
+    /// и «в игре» считается для всех наших. Заодно: Хвэй союзника больше не
+    /// числится в моём пуле.
+    /// </summary>
+    private static void TeamGrows(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("чем больше союзников показали, тем больше весит команда:");
+        var games = new Dictionary<int, int>
+        {
+            [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6,
+            [98] = 5, [412] = 3, [53] = 1, [555] = 1, [267] = 1,
+        };
+        SessionTracker.HistoryOverride = Hist(games);
+        int[] picks = [114, 234, 910, 202];                     // Фиора, Виего, Хвэй, Джин
+        string[] pos = ["top", "jungle", "middle", "bottom"];
+        DraftState Shown(int n)
+        {
+            var team = new List<DraftPlayer>();
+            for (int i = 0; i < 4; i++) team.Add(new(i, 0, i < n ? picks[i] : 0, pos[i], false));
+            team.Add(new(4, 0, 0, "utility", true));
+            return Snapshot(team, team[4], "utility") with { MyTeamBans = [54] };   // Мальфит — союзником
+        }
+        var sums = Enumerable.Range(1, 4).Select(n => AllyWeights(engine, Shown(n)).Sum()).ToList();
+        Check("вес команды растёт с каждым показанным союзником",
+              sums.Zip(sums.Skip(1)).All(p => p.Second > p.First), string.Join(" → ", sums.Select(x => x.ToString("F2"))));
+
+        var state = Shown(4);
+        var hist = new Dictionary<int, HashSet<int>> { [0] = [114], [1] = [234], [2] = [101, 910], [3] = [202] };
+        var bans = engine.RecommendBans(state, hist, top: 5);
+        foreach (var b in bans)
+            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {string.Join(" | ", b.Reasons.Take(2))}");
+        var ally = Loc.T("reason.countersAlly", "\u0001").Split('\u0001')[0];
+        var many = Loc.T("reason.countersMany", "\u0001").Split('\u0001')[0];
+        var team = Loc.T("reason.alsoTeam", "\u0001").Split('\u0001')[0];
+        var also = Loc.T("reason.alsoPool", "\u0001").Split('\u0001')[0];
+        bool Has(BanRec b, params string[] heads) => b.Reasons.Any(r => heads.Any(h => r.StartsWith(h, StringComparison.Ordinal)));
+        // Про что бан — по двум доводам, которые видны на карточке.
+        bool Shows(BanRec b, params string[] heads) => b.Reasons.Take(2).Any(r => heads.Any(h => r.StartsWith(h, StringComparison.Ordinal)));
+        var forTeam = bans.Where(b => Shows(b, ally, many, team)).ToList();
+        Check("четверо показали — против команды в пятёрке не меньше двух", forTeam.Count >= 2,
+              string.Join(", ", forTeam.Select(b => DataDragon.Name(b.ChampionId))));
+        Check("и они мешают ещё и моему пулу", forTeam.Count(b => Has(b, also)) >= 2,
+              string.Join(", ", forTeam.Where(b => Has(b, also)).Select(b => DataDragon.Name(b.ChampionId))));
+        Check("прямых контр моему пулу по-прежнему не меньше двух", bans.Count(b => Has(b, PoolHead, HardHead)) >= 2, "");
+        Check("Хвэй союзника — не мой пул", !PoolWeights(engine, state).ContainsKey(910), "");
+        Check("довод «мешает команде» встречается",
+              engine.RecommendBans(state, hist, top: 15).Any(b => Has(b, team)), "");
+        SessionTracker.HistoryOverride = null;
+    }
+
+    /// Веса союзников (пики и прошлые наведения) в банах на этом драфте.
+    private static List<double> AllyWeights(RecommendationEngine engine, DraftState state)
+    {
+        var t = typeof(RecommendationEngine);
+        var stats = t.GetMethod("RoleStats", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(engine, ["support"])!;
+        var list = (System.Collections.IEnumerable)t.GetMethod("BanVictims", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(engine, [state, null, "support", stats])!;
+        object P(object o, string n) => o.GetType().GetProperty(n)!.GetValue(o)!;
+        return [.. list.Cast<object>().Where(v => P(v, "Kind").ToString() == "Ally").Select(v => (double)P(v, "Weight"))];
     }
 
     private static int _crossFirst;

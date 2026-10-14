@@ -293,6 +293,7 @@
     "hardCounter": "硬克制：{0} 胜率 −{1}%",
     "tierGrade": "本版本 {0} 级",
     "alsoPool": "也克制你的英雄池（{0}）",
+    "alsoTeam": "克制你的队伍（{0}）",
     "notablePick": "本版本值得一选",
     "jgSetup": "打野 {0} 有攻击性但缺控制——你提供 gank 控制。",
     "adcEngage": "ADC {0} 需要开团——你为他们开启团战。",

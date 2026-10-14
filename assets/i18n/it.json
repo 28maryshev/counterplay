@@ -298,6 +298,7 @@
     "hardCounter": "Counter netto: {0} −{1}% WR",
     "tierGrade": "Tier {0} in questa patch",
     "alsoPool": "Penalizza anche il tuo pool ({0})",
+    "alsoTeam": "Penalizza la tua squadra ({0})",
     "notablePick": "Scelta rilevante in questa patch",
     "jgSetup": "Il jungler {0} è aggressivo senza cc — tu prepari i gank.",
     "adcEngage": "L'ADC {0} vuole ingaggio — tu apri gli scontri per lui.",

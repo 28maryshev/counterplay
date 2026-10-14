@@ -173,6 +173,7 @@
     "hardCounter": "Harter Konter: {0} −{1}% WR",
     "tierGrade": "{0}-Tier in diesem Patch",
     "alsoPool": "Schadet auch deinem Pool ({0})",
+    "alsoTeam": "Schadet deinem Team ({0})",
     "notablePick": "Bemerkenswerter Pick in diesem Patch",
     "jgSetup": "Jungler {0} ist aggressiv ohne CC — du lieferst Gank-Setup.",
     "adcEngage": "ADC {0} will Engage — du eröffnest die Kämpfe für ihn.",

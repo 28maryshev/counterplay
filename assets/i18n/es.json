@@ -404,6 +404,7 @@
     "hardCounter": "Counter duro: {0} −{1}% WR",
     "tierGrade": "Tier {0} este parche",
     "alsoPool": "También perjudica a tu pool ({0})",
+    "alsoTeam": "Perjudica a tu equipo ({0})",
     "notablePick": "Pick destacado este parche",
     "jgSetup": "El jungla {0} es agresivo sin CC — tú preparas las ganks.",
     "adcEngage": "El ADC {0} quiere enganche — tú abres las peleas por él.",

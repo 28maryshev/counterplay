@@ -298,6 +298,7 @@
     "hardCounter": "Twarda kontra: {0} −{1}% WR",
     "tierGrade": "Tier {0} w tym patchu",
     "alsoPool": "Szkodzi też twojej puli ({0})",
+    "alsoTeam": "Szkodzi twojej drużynie ({0})",
     "notablePick": "Znaczący pick w tym patchu",
     "jgSetup": "Jungler {0} jest agresywny bez cc — ty przygotowujesz ganki.",
     "adcEngage": "ADC {0} chce inicjacji — ty otwierasz dla niego walki.",

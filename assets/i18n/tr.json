@@ -404,6 +404,7 @@
     "hardCounter": "Sert counter: {0} WR −%{1}",
     "tierGrade": "Bu yamada {0} tier",
     "alsoPool": "Havuzuna da zarar verir ({0})",
+    "alsoTeam": "Takımına zarar verir ({0})",
     "notablePick": "Bu yamada dikkat çeken bir seçim",
     "jgSetup": "Ormancı {0} cc'siz agresif — sen gank setup'ı sağlıyorsun.",
     "adcEngage": "ADC {0} engage istiyor — fightleri onun için açıyorsun.",

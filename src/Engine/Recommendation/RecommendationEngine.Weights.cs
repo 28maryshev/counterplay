@@ -241,8 +241,8 @@ public sealed partial class RecommendationEngine
 
     private const double CROSS_CONF = 500.0;
 
-    // Союзники вместе весят не больше, чем столько союзников: показали четверо —
-    // каждый весит половину W_BAN_ALLY.
+    // Союзников больше стольких — вес каждого × √(BAN_ALLY_SHARE / n): трое —
+    // по 0,82, четверо — по 0,71 от W_BAN_ALLY (вместе 2,4 и 2,8 пика).
     private const double BAN_ALLY_SHARE = 2.0;
 
     // Синергия мейна с показанными союзниками (AllySynergy, как в подборе пика)
