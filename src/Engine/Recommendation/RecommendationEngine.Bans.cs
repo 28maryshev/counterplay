@@ -39,8 +39,7 @@ public sealed partial class RecommendationEngine
     private sealed class BanCandidate(int id)
     {
         public int Id { get; } = id;
-        public double Meta;          // сила в патче на моей линии, уже с поправкой линии
-        public double MetaWr;        // она же в очках винрейта — для подписи
+        public double Meta;          // очки, когда защищать некого: множитель моей линии
         public bool PickHigh;        // на моей линии берут в полтора раза чаще среднего
         public readonly List<BanHit> Hits = [];
         public readonly Dictionary<string, double> PickOn = new();   // линия → пикрейт там, %
@@ -51,8 +50,8 @@ public sealed partial class RecommendationEngine
     /// Кого банить. Рейтинг кандидата — сумма по нашим чемпионам (мой пик, мой
     /// пул, пики союзников и то, что они наводили): насколько он бьёт каждого на
     /// его линии × вес этого чемпиона × встречаемость кандидата на линии (как
-    /// часто его берут) × его место в тир-листе роли. К ней — сила в патче на
-    /// моей линии. Жёсткая контра моему чемпиону весит больше и всегда в
+    /// часто его берут) × его место в тир-листе роли (это и есть сила в патче —
+    /// одна на все линии). Жёсткая контра моему чемпиону весит больше и всегда в
     /// пятёрке; бьёт наших на двух линиях и больше — надбавка; второй бан против
     /// того же нашего ценится меньше первого.
     /// hoverHistory: cellId → чемпионы, показанные игроком за драфт.
@@ -247,12 +246,17 @@ public sealed partial class RecommendationEngine
             return c;
         }
 
-        // Сила в патче на моей линии: без пула и союзников бан всё равно есть.
-        foreach (var (x, (g, w)) in stats)
+        // Сила в патче отдельным слагаемым не считается: она уже в множителе
+        // линии каждого попадания (место в тир-листе), одинаково на всех линиях.
+        // Раньше на моей линии её считали дважды — слагаемым (винрейт) и
+        // множителем, а на чужих — один раз (владелец 14.10: «пусть считается
+        // для всех, но один раз»). Отдельно она нужна, только когда защищать
+        // некого (ни пула, ни мастерства, ни показанных пиков): тогда бан —
+        // сильный и частый на моей линии, очки = множитель линии.
+        foreach (var x in stats.Keys)
         {
             if (On(x, myRole) is not { } c) continue;
-            c.MetaWr = ((w + K / 2.0) / (g + K) - PRIOR) * 100 * (g / (g + BASE_CONF));
-            if (c.MetaWr > 0) c.Meta = W_BAN_META * c.MetaWr * c.LaneMult[myRole];
+            if (victims.Count == 0) c.Meta = W_BAN_META * c.LaneMult[myRole];
             c.PickHigh = c.PickOn[myRole] >= picks[myRole].Ref * 1.5;
         }
 
@@ -385,13 +389,13 @@ public sealed partial class RecommendationEngine
     /// Доводы карточки, по важности (окно показывает два первых): жёсткая
     /// контра моему, контра моему пику, моему пулу, пикам союзников, «мешает и
     /// твоему пулу», «мешает команде» (в игре, с другой линии), место в
-    /// тир-листе, сила в патче, пикрейт. Контры называют поимённо, кого бьют,
+    /// тир-листе, пикрейт. Контры называют поимённо, кого бьют,
     /// и пикрейт кандидата на той линии, где он их встречает. Кандидат, который
     /// бьёт и мой пул, и союзников, показывает оба довода — видно, почему он первый.
     /// </summary>
     private string[] BanReasons(BanCandidate c, List<BanVictim> victims, string myRole)
     {
-        const int R_HARD = 0, R_MINE = 1, R_POOL = 2, R_ALLY = 3, R_CROSS = 4, R_TEAM = 5, R_TIER = 6, R_META = 7, R_PICK = 8;
+        const int R_HARD = 0, R_MINE = 1, R_POOL = 2, R_ALLY = 3, R_CROSS = 4, R_TEAM = 5, R_TIER = 6, R_PICK = 7;
         var rs = new List<(int Prio, string Text)>();
         void Add(int prio, string text) { if (!rs.Any(r => r.Text == text)) rs.Add((prio, text)); }
         string WithPick(IEnumerable<BanHit> hits, string text)
@@ -444,7 +448,6 @@ public sealed partial class RecommendationEngine
         var lane = c.Hits.OrderByDescending(h => h.Value).Select(h => h.Role).FirstOrDefault() ?? myRole;
         if (c.PickOn.ContainsKey(lane) && TierGrade(c.Id, lane) is 'S' or 'A')
             Add(R_TIER, Loc.T("reason.tierGrade", TierGrade(c.Id, lane).ToString()));
-        if (c.MetaWr >= 1.5) Add(R_META, Good(Loc.T("reason.strongPatch", $"{50 + c.MetaWr:F1}")));
         if (c.PickHigh) Add(R_PICK, Loc.T("reason.pickRate", $"{c.PickOn[myRole]:F1}"));
 
         // Порядок — по приоритету, внутри него — как добавлялись.

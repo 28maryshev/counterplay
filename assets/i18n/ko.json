@@ -169,7 +169,6 @@
     "countersMyPick": "당신의 픽 {0}을(를) 카운터",
     "botlaneGood": "상대 봇 ({0})에 강함",
     "botlaneBad": "상대 봇 ({0})에 약함",
-    "strongPatch": "이번 패치에서 강함 — 승률 {0}%",
     "hardCounter": "하드 카운터: {0} 승률 −{1}%",
     "tierGrade": "이번 패치 {0}티어",
     "alsoPool": "내 풀에도 불리 ({0})",

@@ -28,6 +28,7 @@ namespace Counterplay.Tests;
 ///    него, прямых контр пулу в пятёрке не меньше двух.
 /// 1д. Пул весит так, как его расставляет подбор пика на этом драфте.
 /// 1е. Чем больше союзников показали, тем больше весит команда; «в игре» — для всех.
+/// 1ж. Сила в патче — только место в тир-листе, один раз на все линии.
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
@@ -75,6 +76,7 @@ internal static class Program
         AllyPool(engine);
         Partners(engine);
         TeamGrows(engine);
+        StrengthOnce(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Window(engine, snap);
@@ -207,13 +209,17 @@ internal static class Program
         Check("контры пикам союзников есть", guard.Count > 0, $"{guard.Count}");
         Check("и в них пикрейт", guard.All(r => Regex.IsMatch(r, @"\d+[.,]\d%$")), guard.FirstOrDefault() ?? "");
 
-        // Доводы по важности: защита пиков раньше «сильного в патче».
-        var strong = Loc.T("reason.strongPatch", "\u0001").Split('\u0001')[0];
+        // Доводы по важности: защита пиков раньше места в тир-листе («S-тир в
+        // патче»). Довода «сильный в патче» с 14.10 нет: сила в патче — только
+        // место в тир-листе, один раз на все линии.
+        var tier = Loc.T("reason.tierGrade", "\u0001").Split('\u0001')[0];
+        var tierTail = Loc.T("reason.tierGrade", "\u0001").Split('\u0001')[1];
         int Pos(BanRec b, Func<string, bool> f) => Array.FindIndex(b.Reasons, r => f(r));
-        var order = bans.Select(b => (Guard: Pos(b, r => r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal)),
-                                      Meta: Pos(b, r => r.TrimStart(RecommendationEngine.SIGN_GOOD).StartsWith(strong, StringComparison.Ordinal))))
-                        .Where(x => x.Guard >= 0 && x.Meta >= 0).ToList();
-        Check("защита пиков — раньше силы в патче", order.All(x => x.Guard < x.Meta), $"{order.Count} карточек с обоими");
+        var wideBans = engine.RecommendBans(state, history, top: 15);
+        var order = wideBans.Select(b => (Guard: Pos(b, r => r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal)),
+                                          Tier: Pos(b, r => r.StartsWith(tier, StringComparison.Ordinal) && r.EndsWith(tierTail, StringComparison.Ordinal))))
+                            .Where(x => x.Guard >= 0 && x.Tier >= 0).ToList();
+        Check("защита пиков — раньше места в тир-листе", order.Count > 0 && order.All(x => x.Guard < x.Tier), $"{order.Count} карточек с обоими");
         SessionTracker.HistoryOverride = null;
     }
 
@@ -513,6 +519,45 @@ internal static class Program
             .Invoke(engine, [state, null, "support", stats])!;
         object P(object o, string n) => o.GetType().GetProperty(n)!.GetValue(o)!;
         return [.. list.Cast<object>().Where(v => P(v, "Kind").ToString() == "Ally").Select(v => (double)P(v, "Weight"))];
+    }
+
+    // ── 1ж. Сила в патче — один раз, на всех линиях ───────────────────────────
+
+    /// <summary>
+    /// Владелец 14.10: «сила в патче считается только для моей линии, но и в
+    /// общей формуле (как часто берут + место в тир-листе) тоже — на моей линии
+    /// дважды? Пусть считается для всех, но один раз». Было: слагаемое «винрейт
+    /// в патче» у кандидатов моей линии плюс множитель «место в тир-листе» у
+    /// каждого попадания. Теперь сила в патче — только множитель, одинаковый на
+    /// всех линиях; слагаемое остаётся, лишь когда защищать некого (ни пула, ни
+    /// мастерства, ни показанных пиков), — иначе советов не было бы вовсе.
+    /// </summary>
+    private static void StrengthOnce(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("сила в патче — один раз:");
+        var t = typeof(RecommendationEngine);
+        object P(object o, string n) => o.GetType().GetProperty(n)?.GetValue(o) ?? o.GetType().GetField(n)!.GetValue(o)!;
+        List<double> Metas(DraftState state)
+        {
+            var stats = t.GetMethod("RoleStats", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(engine, ["support"])!;
+            var taken = t.GetMethod("BanTaken", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(engine, [state, null, stats])!;
+            var victims = t.GetMethod("BanVictims", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(engine, [state, null, "support", stats])!;
+            var cands = (System.Collections.IEnumerable)t.GetMethod("BanCandidates", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(engine, ["support", stats, victims, taken])!;
+            return [.. cands.Cast<object>().Select(c => (double)P(c, "Meta"))];
+        }
+        var me = new List<DraftPlayer> { new(0, 0, 0, "utility", true) };
+        SessionTracker.HistoryOverride = Hist([37, 201, 161]);
+        var withPool = Metas(Snapshot(me, me[0], "utility"));
+        Check("есть кого защищать — слагаемого «сила в патче» нет ни у кого", withPool.All(m => m == 0),
+              $"{withPool.Count(m => m != 0)} из {withPool.Count}");
+        SessionTracker.HistoryOverride = Hist(new Dictionary<int, int>());
+        var empty = Metas(Snapshot(me, me[0], "utility"));
+        Check("защищать некого — сильные и частые на моей линии всё равно набирают очки", empty.Any(m => m > 0),
+              $"{empty.Count(m => m > 0)}");
+        Check("и советы есть", engine.RecommendBans(Snapshot(me, me[0], "utility"), null, top: 5).Count == 5, "");
+        SessionTracker.HistoryOverride = null;
     }
 
     private static int _crossFirst;
