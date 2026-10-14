@@ -328,6 +328,7 @@
   },
   "session": {
     "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",
+    "needGamesWr": "Zagraj kilka gier z włączonym Counterplay — wykres winrate pojawi się od piątej gry.",
     "wl": "W:{0} - P:{1}",
     "queue": {
       "solo": "Solo/Duo",

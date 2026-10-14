@@ -354,6 +354,7 @@
   },
   "session": {
     "needGames": "Play a few games with Counterplay running — per-game LP and the winrate chart will fill in.",
+    "needGamesWr": "Play a few games with Counterplay running — the winrate chart appears from the fifth game.",
     "wl": "W:{0} - L:{1}",
     "queue": {
       "solo": "Solo/Duo",

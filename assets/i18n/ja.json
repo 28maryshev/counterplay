@@ -328,6 +328,7 @@
   },
   "session": {
     "needGames": "Counterplay を起動したまま数試合プレイすると、試合ごとの LP と勝率グラフが埋まっていきます。",
+    "needGamesWr": "Counterplay を起動したまま数試合プレイすると、5試合目から勝率グラフが表示されます。",
     "wl": "{0}勝 {1}敗",
     "queue": {
       "solo": "ソロ/デュオ",

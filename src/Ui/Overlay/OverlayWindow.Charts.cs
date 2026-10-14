@@ -181,7 +181,11 @@ public partial class OverlayWindow
     private void DrawWrChart()
     {
         // Режим графика — из настроек: винрейт, движение ранга или ничего.
-        if (AppSettings.Current.ChartMode == "rating") { DrawRatingChart(); return; }
+        // Движение ранга есть только у ранговых: в нормалах и ARAM очков нет,
+        // и при режиме «рейтинг» там вечно стояла подсказка про рейтинговые
+        // игры. Там график всегда по винрейту.
+        var ranked = _selectedQueue is "solo" or "flex";
+        if (AppSettings.Current.ChartMode == "rating" && ranked) { DrawRatingChart(); return; }
         if (AppSettings.Current.ChartMode == "off") { WrChart.Children.Clear(); return; }
 
         WrChart.Children.Clear();

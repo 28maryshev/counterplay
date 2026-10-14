@@ -275,6 +275,7 @@
   },
   "session": {
     "needGames": "Juega algunas partidas con Counterplay abierto: los LP por partida y la gráfica de winrate se irán llenando.",
+    "needGamesWr": "Juega algunas partidas con Counterplay abierto: la gráfica de winrate aparece a partir de la quinta.",
     "wl": "V:{0} - D:{1}",
     "queue": {
       "solo": "Solo/Dúo",

@@ -229,8 +229,9 @@ public partial class OverlayWindow
         ApplyRankProgress();
 
         // Свежая установка/очередь: журнал этой очереди пуст — статистика
-        // появится после сыгранных при запущенной программе игр.
-        SessionHint.Text = Loc.T("session.needGames");
+        // появится после сыгранных при запущенной программе игр. В нормалах и
+        // ARAM LP не бывает — и подсказка про него молчит.
+        SessionHint.Text = Loc.T(_selectedQueue is "solo" or "flex" ? "session.needGames" : "session.needGamesWr");
         SessionHint.Visibility = v.WinrateHistory.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         FillLast5(v.Last5);

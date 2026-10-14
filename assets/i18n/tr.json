@@ -44,6 +44,7 @@
   },
   "session": {
     "needGames": "Counterplay açıkken birkaç maç oyna — maç başına LP ve galibiyet grafiği dolacaktır.",
+    "needGamesWr": "Counterplay açıkken birkaç maç oyna — galibiyet grafiği beşinci maçtan itibaren görünür.",
     "wl": "G:{0} - M:{1}",
     "queue": {
       "solo": "Solo/Duo",

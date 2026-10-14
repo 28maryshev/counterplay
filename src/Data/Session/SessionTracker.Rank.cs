@@ -95,7 +95,7 @@ public static partial class SessionTracker
             // клиента и достоверны с первой секунды.
             var points = !ranked2 && q.Games.Count < MinGamesForChart
                 ? []
-                : q.Games
+                : (ranked2 ? q.Games.Select(g => (g.Ts, g.Wr)) : RunningWr(q.Games))
                     .Where(g => g.Ts >= chartFrom)
                     .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
                     .ToList();
@@ -128,6 +128,27 @@ public static partial class SessionTracker
 
         var selected = QueueKeys.Contains(acc.SelectedQueue) ? acc.SelectedQueue : "solo";
         return new SessionData(nick, selected, views);
+    }
+
+    /// <summary>
+    /// Винрейт нормалов и ARAM после каждой игры — по играм этой очереди,
+    /// заново при каждом показе, со сглаживанием к 50% (<see cref="SmoothWr"/>).
+    ///
+    /// Не по числу, сохранённому в записи при игре: оно бывает кривым. Игры,
+    /// добитые из истории на новом компьютере, сохраняли винрейт без
+    /// сглаживания (первая победа — 100%), а сведённые копии и игры с другого
+    /// компьютера считались по чужому числу игр. Ранговым это не нужно: их
+    /// число — сезонный винрейт из клиента.
+    /// </summary>
+    private static IEnumerable<(long Ts, double Wr)> RunningWr(IEnumerable<GameLog> games)
+    {
+        int wins = 0, n = 0;
+        foreach (var g in games.OrderBy(g => g.Ts))
+        {
+            n++;
+            if (g.Win) wins++;
+            yield return (g.Ts, SmoothWr(wins, n));
+        }
     }
 
     // ── Песочница: мои настоящие данные ─────────────────────────────────────

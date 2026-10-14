@@ -44,6 +44,7 @@
   },
   "session": {
     "needGames": "Counterplay를 켠 채로 몇 판 플레이하세요 — 판당 LP와 승률 그래프가 채워집니다.",
+    "needGamesWr": "Counterplay를 켠 채로 몇 판 플레이하세요 — 다섯 번째 판부터 승률 그래프가 표시됩니다.",
     "wl": "{0}승 {1}패",
     "queue": {
       "solo": "솔로/듀오",
