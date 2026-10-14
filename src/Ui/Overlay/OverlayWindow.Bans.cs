@@ -23,14 +23,17 @@ public partial class OverlayWindow
     /// <summary>
     /// В центре не пики — советы или баны команд, объявление или заглушка.
     /// Вторая строка центра тогда за тир-листом (у заглушки — за её нижней
-    /// плашкой), и ни пул роли, ни руны её не занимают. Важно в первые секунды
+    /// плашкой), и ни пул роли, ни руны её не занимают. Вид «без роли» — не в
+    /// счёт: панель у него та же, что в объявлении, а руны моего чемпиона ему
+    /// нужны. Важно в первые секунды
     /// пиков, пока окно держит раскрытые вражеские баны: Program уже обновляет
     /// панель рун, и «рун нет — вернём пул роли» клало полосу чемпионов роли
     /// поверх тир-листа (скриншот владельца).
     /// </summary>
     private bool CenterNotPicks =>
         BanScroll.Visibility == Visibility.Visible || BansDonePanel.Visibility == Visibility.Visible
-        || PlanPanel.Visibility == Visibility.Visible || CenterSkeleton.Visibility == Visibility.Visible;
+        || (PlanPanel.Visibility == Visibility.Visible && !_blindView)
+        || CenterSkeleton.Visibility == Visibility.Visible;
 
     // Полный вид для фазы банов: тот же раздел (команды + центр), но в центре баны.
     private void RenderBansFull(IReadOnlyList<BanRec> bans, DraftState draft)

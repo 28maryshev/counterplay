@@ -743,5 +743,16 @@
     "tipLast": "Trận gần nhất — {0} ngày trước",
     "tipPatch": "Tỉ lệ thắng ở vị trí này, phiên bản {0}: {1}%",
     "tipPrev": "Phiên bản trước: {0}%"
+  },
+  "blind": {
+    "status": "Chưa được xếp vị trí — pool của bạn hợp với đội:",
+    "statusMonth": "Chưa được xếp vị trí — tướng của bạn trong tháng:",
+    "title": "Tướng của tôi · hợp với đội",
+    "titleMonth": "Tướng của tôi · 30 ngày",
+    "empty": "Không có trận nào trong 30 ngày qua và không có pool — hãy chọn từ bảng xếp hạng bên dưới.",
+    "synGood": "cộng hưởng {0} · tốt nhất với {1}",
+    "synBad": "cộng hưởng {0} · tệ nhất với {1}",
+    "synOne": "cộng hưởng {0} với {1}",
+    "tipAlly": "Với {0}: {1}"
   }
 }

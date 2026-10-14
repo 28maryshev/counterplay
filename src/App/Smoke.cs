@@ -163,6 +163,17 @@ internal static class Smoke
                 var d = Draft(ban: false);
                 w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
             });
+            await Step("драфт без роли", async () =>
+            {
+                // Вслепую подбора нет — в центре мой пул под союзников.
+                var d = Draft(ban: false) with { MyPosition = "" };
+                w.UpdateRecommendations([], d, engine);
+                await Settle();
+                if (((FrameworkElement)w.FindName("PlanPanel")).Visibility != Visibility.Visible)
+                    throw new InvalidOperationException("роли нет, а панели моих чемпионов нет");
+                var p = Draft(ban: false);
+                w.UpdateRecommendations(engine.Recommend(p, AppSettings.Current.DraftCount), p, engine);
+            });
             await Step("наведение на карточку", () =>
             {
                 var list = (ItemsControl)w.FindName("FullRecList");

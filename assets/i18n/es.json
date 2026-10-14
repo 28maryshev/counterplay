@@ -743,5 +743,16 @@
     "tipLast": "Última partida — hace {0} d",
     "tipPatch": "Winrate en la línea en el parche {0}: {1}%",
     "tipPrev": "Parche anterior: {0}%"
+  },
+  "blind": {
+    "status": "Sin rol asignado — tu pool para tu equipo:",
+    "statusMonth": "Sin rol asignado — tus campeones del mes:",
+    "title": "Mis campeones · para tu equipo",
+    "titleMonth": "Mis campeones · 30 días",
+    "empty": "Sin partidas en los últimos 30 días y sin pool — elige de la tier list de abajo.",
+    "synGood": "sinergia {0} · mejor con {1}",
+    "synBad": "sinergia {0} · peor con {1}",
+    "synOne": "sinergia {0} con {1}",
+    "tipAlly": "Con {0}: {1}"
   }
 }

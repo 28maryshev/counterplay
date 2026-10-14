@@ -61,7 +61,12 @@ public partial class OverlayWindow
         return [.. pool.Select(id => PlanRowOf(id, null, role, selected))];
     }
 
-    private PlanRow PlanRowOf(int id, SessionTracker.LaneChamp? c, string role, int selected)
+    /// Заметка строки вместо «банят N%» / «из пула» и строки к её подсказке —
+    /// у драфта без роли там роль и синергия с союзниками (OverlayWindow.Blind.cs).
+    private readonly record struct PlanNote(string Text, string Brush, IReadOnlyList<string> Tip);
+
+    private PlanRow PlanRowOf(int id, SessionTracker.LaneChamp? c, string role, int selected,
+                              PlanNote? note = null)
     {
         var name  = DataDragon.Name(id);
         var patch = _engine!.PatchWr(id, role);
@@ -80,6 +85,7 @@ public partial class OverlayWindow
             if (pw.Delta is { } d0) tip.Add(Loc.T("plan.tipPrev", (pw.Wr - d0).ToString("F1")));
         }
         if (ban > 0) tip.Add(Loc.T("ban.rateTip", name, ban.ToString("F1"), _engine.Patch));
+        if (note is { } n) tip.AddRange(n.Tip);
 
         var delta = patch?.Delta;
         return new PlanRow
@@ -89,9 +95,11 @@ public partial class OverlayWindow
             Icon       = IconCache.Get(id),
             Name       = name,
             Games      = c?.Games ?? 0,
-            Note       = ban >= PlanBanTag ? Loc.T("plan.banned", ban.ToString("0"))
-                       : c is null ? Loc.T("plan.fromPool") : "",
-            NoteBrush  = ban >= 2 * PlanBanTag ? "#FF5A4D" : ban >= PlanBanTag ? "#F0A93C" : "#6E8598",
+            Note       = note?.Text
+                       ?? (ban >= PlanBanTag ? Loc.T("plan.banned", ban.ToString("0"))
+                           : c is null ? Loc.T("plan.fromPool") : ""),
+            NoteBrush  = note?.Brush
+                       ?? (ban >= 2 * PlanBanTag ? "#FF5A4D" : ban >= PlanBanTag ? "#F0A93C" : "#6E8598"),
             WrText     = c is null ? "—" : $"{c.WinRate:0}%",
             WrBrush    = c is { Games: >= PlanMinGamesColor } ? WinrateColor.Hex(c.WinRate) : "#8AA0B2",
             GamesText  = c is null ? "" : $"· {c.Games}",
@@ -119,12 +127,26 @@ public partial class OverlayWindow
         PickHint.Visibility = Visibility.Collapsed;
 
         var rows = PlanRowsFor(draft, role, out var fromPool);
-        PlanTitle.Text    = Loc.T(fromPool ? "plan.titlePool" : "plan.title", roleName);
+        ShowPlanPanel(rows, Loc.T(fromPool ? "plan.titlePool" : "plan.title", roleName),
+                      Loc.T(fromPool ? "plan.colPool" : "plan.colGames"), Loc.T("plan.empty", roleName));
+        PickBar.Visibility = Visibility.Collapsed;   // залочить в планировании нельзя
+        RenderTierList(draft);
+        RenderTeams(draft);
+    }
+
+    /// <summary>
+    /// Панель «мои чемпионы» в центре: заголовок, столбцы, строки или пояснение
+    /// вместо них; прочие части верхней строки центра прячутся. Нижнюю строку
+    /// ставит вызывающий. Общая у объявления пиков и драфта без роли.
+    /// </summary>
+    private void ShowPlanPanel(List<PlanRow> rows, string title, string colGames, string empty)
+    {
+        PlanTitle.Text    = title;
         PlanColPatch.Text = Loc.T("plan.colPatch", _engine!.Patch);
-        PlanColGames.Text = Loc.T(fromPool ? "plan.colPool" : "plan.colGames");
+        PlanColGames.Text = colGames;
         PlanList.ItemsSource  = rows;
         PlanHeader.Visibility = rows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        PlanEmpty.Text        = Loc.T("plan.empty", roleName);
+        PlanEmpty.Text        = empty;
         PlanEmpty.Visibility  = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         PlanHint.Text = DateTime.UtcNow < _planMsgUntil ? _planMsg : Loc.T("plan.hint");
         PlanHint.Visibility = rows.Count > 0 && HoverHandler is not null ? Visibility.Visible : Visibility.Collapsed;
@@ -133,15 +155,13 @@ public partial class OverlayWindow
         BanScroll.Visibility     = Visibility.Collapsed;
         BansDonePanel.Visibility = Visibility.Collapsed;
         PlanPanel.Visibility     = Visibility.Visible;
-        PickBar.Visibility       = Visibility.Collapsed;   // залочить в планировании нельзя
-        _banHoverId = 0;                                   // банить ещё рано
+        PlanPanel.Margin         = new Thickness(0, 6, 0, 0);
+        _banHoverId = 0;                                   // банить нечего
         BanBar.Visibility        = Visibility.Collapsed;
-        // Раскладка как у банов: панель по содержимому, тир-лист — остаток.
+        RolePoolBar.Visibility   = Visibility.Collapsed;
+        // Раскладка как у банов: панель по содержимому, нижняя строка — остаток.
         CenterGrid.RowDefinitions[0].Height = GridLength.Auto;
         CenterGrid.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
-        RolePoolBar.Visibility = Visibility.Collapsed;
-        RenderTierList(draft);
-        RenderTeams(draft);
     }
 
     private void RenderPlanCompact(DraftState draft)

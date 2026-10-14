@@ -743,5 +743,16 @@
     "tipLast": "Son maç — {0} gün önce",
     "tipPatch": "{0} yamasında koridor kazanma oranı: %{1}",
     "tipPrev": "Önceki yama: %{0}"
+  },
+  "blind": {
+    "status": "Rol atanmadı — takımına uygun havuzun:",
+    "statusMonth": "Rol atanmadı — bu ayki şampiyonların:",
+    "title": "Şampiyonlarım · takıma göre",
+    "titleMonth": "Şampiyonlarım · 30 gün",
+    "empty": "Son 30 günde maç yok ve havuz yok — aşağıdaki tier listesinden seç.",
+    "synGood": "sinerji {0} · en iyi {1} ile",
+    "synBad": "sinerji {0} · en kötü {1} ile",
+    "synOne": "{1} ile sinerji {0}",
+    "tipAlly": "{0} ile: {1}"
   }
 }

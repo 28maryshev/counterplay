@@ -75,8 +75,7 @@ public partial class OverlayWindow
                 _runesWaiting = false;
                 RunesBar.Visibility = Visibility.Collapsed;
                 if (CenterNotPicks) return;                        // строку держит вид банов или заглушка
-                TierListBar.Visibility = Visibility.Collapsed;   // тир-лист — только под банами
-                RenderRolePool(_lastDraft);                      // рун нет — вернём пул роли
+                RunesGoneRow();
                 return;
             }
 
@@ -251,8 +250,17 @@ public partial class OverlayWindow
     {
         _runesWaiting = false;
         RunesBar.Visibility = Visibility.Collapsed;
-        if (_lastDraft?.InBanPhase != true && !CenterNotPicks) RenderRolePool(_lastDraft);
+        if (_lastDraft?.InBanPhase != true && !CenterNotPicks) RunesGoneRow();
     });
+
+    /// Рун нет — что встаёт в нижнюю строку центра: у подбора пул роли, у
+    /// драфта без роли — тир-лист (пула роли там нет: роли нет).
+    private void RunesGoneRow()
+    {
+        if (_blindView) { RenderTierList(_lastDraft); return; }
+        TierListBar.Visibility = Visibility.Collapsed;   // тир-лист — только под банами
+        RenderRolePool(_lastDraft);
+    }
 
     // Руны пришли, пока на экране были баны: показать, когда окно перейдёт к пикам.
     private bool _runesWaiting;

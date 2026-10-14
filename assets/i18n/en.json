@@ -743,5 +743,16 @@
     "tipLast": "Last game — {0} d ago",
     "tipPatch": "Lane winrate in patch {0}: {1}%",
     "tipPrev": "Previous patch: {0}%"
+  },
+  "blind": {
+    "status": "No role assigned — your pool for your team:",
+    "statusMonth": "No role assigned — your champions this month:",
+    "title": "My champions · for your team",
+    "titleMonth": "My champions · last 30 days",
+    "empty": "No games in the last 30 days and no pool — pick from the tier list below.",
+    "synGood": "synergy {0} · best with {1}",
+    "synBad": "synergy {0} · worst with {1}",
+    "synOne": "synergy {0} with {1}",
+    "tipAlly": "With {0}: {1}"
   }
 }

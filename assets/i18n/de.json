@@ -743,5 +743,16 @@
     "tipLast": "Letztes Spiel — vor {0} T.",
     "tipPatch": "Lane-Winrate in Patch {0}: {1}%",
     "tipPrev": "Voriger Patch: {0}%"
+  },
+  "blind": {
+    "status": "Keine Rolle zugewiesen — dein Pool fürs Team:",
+    "statusMonth": "Keine Rolle zugewiesen — deine Champions des Monats:",
+    "title": "Meine Champions · fürs Team",
+    "titleMonth": "Meine Champions · 30 Tage",
+    "empty": "Keine Spiele in den letzten 30 Tagen und kein Pool — wähle aus der Tier-Liste unten.",
+    "synGood": "Synergie {0} · am besten mit {1}",
+    "synBad": "Synergie {0} · am schlechtesten mit {1}",
+    "synOne": "Synergie {0} mit {1}",
+    "tipAlly": "Mit {0}: {1}"
   }
 }

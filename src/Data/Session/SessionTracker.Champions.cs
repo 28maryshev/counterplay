@@ -100,10 +100,11 @@ public static partial class SessionTracker
     /// <summary>
     /// Чемпион на линии за окно: игры, победы, сумма LP в ранкеде (null — ни
     /// одной ранкед-игры с известным LP), форма — исходы последних
-    /// <see cref="FormGames"/> игр от старых к новым, время последней игры.
+    /// <see cref="FormGames"/> игр от старых к новым, время последней игры,
+    /// роль, на которой я играл его чаще всего за окно.
     /// </summary>
     public sealed record LaneChamp(int ChampionId, int Games, int Wins, int? Lp,
-                                   IReadOnlyList<bool> Form, long LastTs)
+                                   IReadOnlyList<bool> Form, long LastTs, string Role = "")
     {
         public double WinRate => Games > 0 ? 100.0 * Wins / Games : 0;
     }
@@ -126,6 +127,23 @@ public static partial class SessionTracker
                                                       int days = RecentDays)
     {
         if (dbRole.Length == 0) return [];
+        return Summarize(RecentLaneGames(roleShare, days).Where(g => g.Role == dbRole));
+    }
+
+    /// <summary>
+    /// Мои чемпионы за <paramref name="days"/> дней на ВСЕХ ролях, самые
+    /// игранные первыми, у каждого — роль, на которой я играл его чаще всего.
+    /// Для драфта без роли (вслепую, своя игра): линию там не выдают, и
+    /// показываются все мои чемпионы. Роли игр — как у <see cref="LaneChamps"/>.
+    /// </summary>
+    public static IReadOnlyList<LaneChamp> RecentChamps(Func<int, string, double>? roleShare,
+                                                        int days = RecentDays)
+        => Summarize(RecentLaneGames(roleShare, days));
+
+    // Игры за окно, каждая с моей ролью: из подменной истории песочницы или из журнала.
+    private static List<(long Ts, int Champ, bool Win, int? Lp, string Role)> RecentLaneGames(
+        Func<int, string, double>? roleShare, int days)
+    {
         var since = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds();
         var games = new List<(long Ts, int Champ, bool Win, int? Lp, string Role)>();
 
@@ -147,9 +165,13 @@ public static partial class SessionTracker
             }
             catch { /* журнала нет или он битый — показывать нечего */ }
         }
+        return games;
+    }
 
-        return games.Where(g => g.Role == dbRole)
-            .GroupBy(g => g.Champ)
+    // Игры → чемпионы: самые игранные первыми, при равенстве — недавние.
+    private static IReadOnlyList<LaneChamp> Summarize(
+        IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role)> games) =>
+        games.GroupBy(g => g.Champ)
             .Select(x =>
             {
                 var ordered = x.OrderBy(g => g.Ts).ToList();
@@ -157,11 +179,11 @@ public static partial class SessionTracker
                 return new LaneChamp(x.Key, ordered.Count, ordered.Count(g => g.Win),
                                      lps.Count > 0 ? lps.Sum() : null,
                                      ordered.TakeLast(FormGames).Select(g => g.Win).ToList(),
-                                     ordered[^1].Ts);
+                                     ordered[^1].Ts,
+                                     ordered.GroupBy(g => g.Role).MaxBy(r => r.Count())!.Key);
             })
             .OrderByDescending(c => c.Games).ThenByDescending(c => c.LastTs)
             .ToList();
-    }
 
     // Игры журнала за окно — каждая со своей ролью (см. LaneChamps).
     //

@@ -743,5 +743,16 @@
     "tipLast": "Ostatnia gra — {0} dn. temu",
     "tipPatch": "Winrate na linii w patchu {0}: {1}%",
     "tipPrev": "Poprzedni patch: {0}%"
+  },
+  "blind": {
+    "status": "Brak przydzielonej roli — twoja pula pod drużynę:",
+    "statusMonth": "Brak przydzielonej roli — twoi bohaterowie z miesiąca:",
+    "title": "Moi bohaterowie · pod drużynę",
+    "titleMonth": "Moi bohaterowie · 30 dni",
+    "empty": "Brak gier z ostatnich 30 dni i brak puli — wybierz z tier listy poniżej.",
+    "synGood": "synergia {0} · najlepsza z {1}",
+    "synBad": "synergia {0} · najgorsza z {1}",
+    "synOne": "synergia {0} z {1}",
+    "tipAlly": "Z {0}: {1}"
   }
 }

@@ -377,6 +377,22 @@ public sealed partial class RecommendationEngine
         return (delta, byAlly);
     }
 
+    /// <summary>
+    /// Синергия моего чемпиона с показанными союзниками, когда линий не выдают
+    /// (вслепую, своя игра): тот же расчёт, что у подбора (<see cref="AllySynergy"/>),
+    /// — одна сглаженная дельта на всех союзников и вклад каждого. Мою роль
+    /// передаёт вызывающий (та, на которой я играю чемпиона); роль союзника —
+    /// позиция, если клиент её дал, иначе его главная роль в базе.
+    /// </summary>
+    public (double Delta, List<(int Id, double Delta)> ByAlly) BlindSynergy(
+        int champId, string myRole, IReadOnlyList<(int Id, string Role)> allies)
+    {
+        var (bg, bw) = RawBase(champId, myRole);
+        var roled = allies.Select(a => (a.Id, Role: a.Role.Length > 0 ? a.Role : InferPrimaryRole(a.Id))).ToList();
+        var (delta, byAlly) = AllySynergy(champId, myRole, Delta(bg, bw, K), roled, 0, 0);
+        return (delta, [.. byAlly.Select(x => (x.Id, x.Delta))]);
+    }
+
     /// Чистая синергия ПАРЫ (m ↔ f), как дельта: WR пары минус база m, темпер по
     /// объёму. Роли маржинализуем (пара может быть любых линий).
     public double PairSynergy(int m, string mRole, int f, string? fRole = null)

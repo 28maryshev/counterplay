@@ -743,5 +743,16 @@
     "tipLast": "Última partida — há {0} d",
     "tipPatch": "Winrate na rota no patch {0}: {1}%",
     "tipPrev": "Patch anterior: {0}%"
+  },
+  "blind": {
+    "status": "Sem rota atribuída — seu pool para o time:",
+    "statusMonth": "Sem rota atribuída — seus campeões do mês:",
+    "title": "Meus campeões · para o time",
+    "titleMonth": "Meus campeões · 30 dias",
+    "empty": "Sem partidas nos últimos 30 dias e sem pool — escolha na tier list abaixo.",
+    "synGood": "sinergia {0} · melhor com {1}",
+    "synBad": "sinergia {0} · pior com {1}",
+    "synOne": "sinergia {0} com {1}",
+    "tipAlly": "Com {0}: {1}"
   }
 }

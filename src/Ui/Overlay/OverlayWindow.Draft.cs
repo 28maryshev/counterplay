@@ -182,9 +182,10 @@ public partial class OverlayWindow
         var recs  = _lastRecs;
         var draft = _lastDraft;
 
-        // Заглушку центра ставит только ветка «показать нечего»; любой другой
-        // вид начинается без неё — снимаем здесь один раз, а не в каждом.
+        // Заглушку центра и вид «без роли» ставят только свои ветки; любой
+        // другой вид начинается без них — снимаем здесь один раз, а не в каждом.
         CenterSkeleton.Visibility = Visibility.Collapsed;
+        _blindView = false;
 
         // Плашки подтверждения пересчитываем на каждом снимке драфта, а не
         // только в ответ на клик по нашей карточке.
@@ -263,7 +264,14 @@ public partial class OverlayWindow
 
         if (recs == null || recs.Count == 0)
         {
-            if (draft is not null) { ShowDraftSkeleton(draft); return; }
+            if (draft is not null)
+            {
+                // Без роли подбора не будет до конца драфта — там мой пул; база
+                // ещё не загружена или роль вот-вот придёт — заглушка.
+                if (IsBlind(draft) && _engine is not null) ShowBlindPool(draft);
+                else ShowDraftSkeleton(draft);
+                return;
+            }
             // Плашка про порядок пика живёт в шапке, вне переключаемых видов, —
             // без этого она оставалась висеть над экраном ожидания.
             PickHint.Visibility = Visibility.Collapsed;
@@ -347,8 +355,13 @@ public partial class OverlayWindow
         CenterSkelTop.Background = CenterSkelBottom.Background = Skeleton.Shimmer;
         CenterSkeleton.Visibility = Visibility.Visible;
         RenderTeams(draft);
+        ShowDraftView();
+    }
 
-        CompactScroll.Visibility = Visibility.Collapsed;   // компактный вид не используется
+    /// Вид драфта на экран (компактный не используется); в трее — только отрисовать.
+    private void ShowDraftView()
+    {
+        CompactScroll.Visibility = Visibility.Collapsed;
         FullView.Visibility      = Visibility.Visible;
         if (_inTray) return;
         Show();

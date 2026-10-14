@@ -1091,7 +1091,10 @@
                  В ЦЕНТРЕ, под списком: боковые колонки (связки команд) остаются
                  видны. Слева руны (2 сверху, 1 снизу + «Применить» правее неё),
                  справа три сборки — у каждой 6 слотов и своя кнопка экспорта. -->
-            <Border Grid.Row="1" x:Name="RunesBar" Visibility="Collapsed"
+            <!-- VerticalAlignment=Top: у пиков строка по содержимому и он не
+                 нужен, а у драфта без роли нижняя строка — остаток, и без него
+                 панель рун растягивалась бы до низа окна. -->
+            <Border Grid.Row="1" x:Name="RunesBar" Visibility="Collapsed" VerticalAlignment="Top"
                     Margin="0,6,0,8" Padding="9,7" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
 
