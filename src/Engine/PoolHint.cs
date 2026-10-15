@@ -5,6 +5,9 @@ public enum PoolHintCase
 {
     /// В лобби напарник — включить дуо-пул.
     WithMate,
+    /// В лобби несколько друзей, и кто из них напарник, не видно — включить
+    /// дуо-пул, который ни за кем не закреплён.
+    WithParty,
     /// Играю один, а включён дуо — выключить его.
     Alone,
     /// В пати кто-то есть, но не тот, под кого собран включённый дуо-пул.
@@ -46,41 +49,50 @@ public static class PoolHint
 
         var active = a.ActiveKind == PoolKind.Duo
             ? a.DuoPools.FirstOrDefault(d => d.Id == a.ActiveId) : null;
-        bool InParty(DuoPool d) => d.FriendPuuid.Length > 0 && mates.ContainsKey(d.FriendPuuid);
         string Key(PoolKind kind, string? id) =>
             $"{queue}|{size}|{string.Join(",", mates.Keys.Order(StringComparer.OrdinalIgnoreCase))}|{kind}|{id}";
 
+        // Сопартиец, под которого собран пул: у закреплённого — по puuid, у
+        // остальных — по нику из лобби (пулы часто подписаны ником друга).
+        string? MateOf(DuoPool d) => d.FriendPuuid.Length > 0
+            ? (mates.ContainsKey(d.FriendPuuid) ? d.FriendPuuid : null)
+            : mates.FirstOrDefault(m => DuoNaming.Matches(d, m.Value)).Key;
+
         // 1. В лобби человек, под которого собран дуо-пул.
-        var owned = a.DuoPools.Where(InParty).ToList();
-        if (active is not null && owned.Contains(active)) return null;
-        if (owned.Count > 0)
+        var present = a.DuoPools.Where(d => MateOf(d) is not null).ToList();
+        if (active is not null && present.Contains(active)) return null;
+        if (present.Count > 0)
         {
-            var d = Pick(owned, a.FavDuoId);
-            var mate = d ?? owned[0];
-            var who = mates.GetValueOrDefault(mate.FriendPuuid, "");
+            var d = Pick(present, a.FavDuoId);
+            var mate = d ?? present[0];
+            var who = mates.GetValueOrDefault(MateOf(mate)!, "");
             if (who.Length == 0) who = mate.FriendNick;
             return new(PoolHintCase.WithMate, PoolKind.Duo, d?.Id, who, d?.FriendName ?? "",
                        Key(PoolKind.Duo, d?.Id));
         }
 
-        // 2. Вдвоём, а дуо-пул ещё ни за кем не закреплён: напарником станет
-        //    единственный человек из пати (Party.MateChampion, шаг 2).
-        if (size == 1)
+        // 2. В пати кто-то есть, а дуо-пул ни за кем не закреплён. Напарником
+        //    в драфте станет единственный сопартиец или тот, кто возьмёт
+        //    чемпиона из половины друга (Party.PartySeat). Пул с ником, которого
+        //    в лобби нет, — для другого человека, его не предлагаем.
+        if (size > 0)
         {
             if (active is not null && active.FriendPuuid.Length == 0) return null;
-            var free = a.DuoPools.Where(d => d.FriendPuuid.Length == 0).ToList();
+            var free = a.DuoPools.Where(d => d.FriendPuuid.Length == 0 && d.FriendNick.Length == 0).ToList();
             if (active is null && free.Count > 0)
             {
                 var d = Pick(free, a.FavDuoId);
-                var who = mates.Values.FirstOrDefault(n => n.Length > 0) ?? "";
-                return new(PoolHintCase.WithMate, PoolKind.Duo, d?.Id, who, d?.FriendName ?? "",
-                           Key(PoolKind.Duo, d?.Id));
+                // Один в пати — это он и есть, называем по нику. Во флексе кто
+                // из них напарник, не видно: «ты в лобби с друзьями».
+                var (reason, who) = size == 1
+                    ? (PoolHintCase.WithMate, mates.Values.FirstOrDefault(n => n.Length > 0) ?? "")
+                    : (PoolHintCase.WithParty, "");
+                return new(reason, PoolKind.Duo, d?.Id, who, d?.FriendName ?? "", Key(PoolKind.Duo, d?.Id));
             }
         }
 
         // 3. Дуо включён, а напарника по нему в лобби нет — пару строить не с
-        //    кем. Пул без хозяина в большой пати тоже работает (берётся
-        //    человек из пати), поэтому его не трогаем.
+        //    кем. Пул без хозяина при непустой пати не трогаем (шаг 2).
         if (active is null) return null;
         if (active.FriendPuuid.Length == 0 && size > 0) return null;
 

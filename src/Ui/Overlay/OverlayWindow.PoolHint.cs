@@ -86,6 +86,7 @@ public partial class OverlayWindow
         PoolHintTitle.Text = s.Case switch
         {
             PoolHintCase.WithMate => s.Who.Length > 0 ? Loc.T("poolHint.withMate", s.Who) : Loc.T("poolHint.withMateAnon"),
+            PoolHintCase.WithParty => Loc.T("poolHint.withParty"),
             PoolHintCase.MateAway => s.Who.Length > 0 ? Loc.T("poolHint.mateAway", s.Who) : Loc.T("poolHint.mateAwayAnon"),
             _                     => Loc.T("poolHint.alone"),
         };

@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "{0} ile oynuyorsun",
     "withMateAnon": "İkili partnerin lobide",
+    "withParty": "Lobide arkadaşlarınla birliktesin",
     "alone": "Lobide sadece sen varsın",
     "mateAway": "{0} lobide değil",
     "mateAwayAnon": "İkili partnerin lobide değil",

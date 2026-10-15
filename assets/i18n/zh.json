@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "正在与{0}一起玩",
     "withMateAnon": "双人队友在房间里",
+    "withParty": "你和好友在同一个房间",
     "alone": "房间里只有你",
     "mateAway": "{0}不在房间里",
     "mateAwayAnon": "双人队友不在房间里",

@@ -199,12 +199,15 @@ public static class Party
         }
 
         // 2) Хозяин ещё не известен (пул собран руками, без обмена файлом) —
-        //    работает прежнее правило: единственный человек из пати.
-        var mate = allies.FirstOrDefault(IsMate);
+        //    ищем его среди сопартийцев: по нику, единственного, по чемпиону
+        //    из половины друга (см. PartySeat).
+        var mate = PartySeat(state, duo, out var sure);
         if (mate is not null)
         {
             // Заодно запоминаем, КТО этот напарник, — дальше пойдём по пункту 1.
-            if (mate.Puuid.Length > 0 && duo.FriendPuuid != mate.Puuid)
+            // Узнанного только по чемпиону не запоминаем: во флексе это мог быть
+            // любой из сопартийцев, и пул привязался бы к нему навсегда.
+            if (sure && mate.Puuid.Length > 0 && duo.FriendPuuid != mate.Puuid)
             {
                 duo.FriendPuuid = mate.Puuid;
                 PoolStore.Persist();
@@ -225,7 +228,8 @@ public static class Party
                     Log.Write($"дуо «{duo.FriendName}»: напарник — {known}");
                 }
             }
-            return Logged(mate.EffectiveChampionId, $"напарник по пати, роль {Role(mate)}");
+            return Logged(mate.EffectiveChampionId,
+                          $"напарник по пати{(sure ? "" : " (по чемпиону из половины друга)")}, роль {Role(mate)}");
         }
 
         if (allies.Count == 0) return Logged(0, "");
@@ -256,9 +260,8 @@ public static class Party
     /// половину, и человеку на миде предлагали чемпиона из его джангл-набора.
     ///
     /// Путь опознания тот же, что у <see cref="MateChampion"/>: сперва хозяин
-    /// половины по puuid, затем единственный человек из пати. Запасного правила
-    /// «кто взял чемпиона из половины друга» здесь нет — оно про чемпиона,
-    /// которого на этом шаге ещё не существует.
+    /// половины по puuid, затем сопартиец (<see cref="PartySeat"/>). Правило
+    /// песочницы «кто взял чемпиона из половины друга» сюда не входит.
     /// </summary>
     public static DraftPlayer? MateSeat(DraftState state, DuoPool? duo)
     {
@@ -275,7 +278,33 @@ public static class Party
             if (Known) return null;
         }
 
-        return allies.FirstOrDefault(IsMate);
+        return PartySeat(state, duo, out _);
+    }
+
+    /// <summary>
+    /// Напарник среди сопартийцев, когда хозяин половины пула не закреплён.
+    ///
+    /// Один человек в пати — это он. Во флексе их до четырёх, и первый
+    /// попавшийся мог оказаться кем угодно — а пул привязывался к нему
+    /// навсегда. Поэтому по порядку:
+    /// 1. сопартиец, чей ник из лобби — ник пула (<see cref="DuoNaming.Matches"/>):
+    ///    пулы часто подписаны ником друга;
+    /// 2. единственный сопартиец в команде;
+    /// 3. сопартиец, взявший чемпиона из половины друга, — только на этот
+    ///    драфт (<paramref name="sure"/> = false), в пул не записывается.
+    /// Иначе никого: промолчать честнее, чем угадать.
+    /// </summary>
+    private static DraftPlayer? PartySeat(DraftState state, DuoPool duo, out bool sure)
+    {
+        var mates = state.MyTeam.Where(p => !p.IsLocalPlayer && IsMate(p)).ToList();
+        sure = true;
+        var byNick = mates.FirstOrDefault(p =>
+            p.Puuid.Length > 0 && DuoNaming.Matches(duo, Members.GetValueOrDefault(p.Puuid, "")));
+        if (byNick is not null) return byNick;
+        if (mates.Count == 1) return mates[0];
+        sure = false;
+        var theirs = FriendChampions(duo);
+        return mates.FirstOrDefault(p => theirs.Contains(p.EffectiveChampionId));
     }
 
     /// <summary>

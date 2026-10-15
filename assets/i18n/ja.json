@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "{0}とプレイ中",
     "withMateAnon": "デュオの相方がロビーにいます",
+    "withParty": "フレンドとロビーにいます",
     "alone": "ロビーにいるのはあなただけ",
     "mateAway": "{0}はロビーにいません",
     "mateAwayAnon": "デュオの相方がロビーにいません",

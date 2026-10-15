@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "{0}님과 플레이 중",
     "withMateAnon": "듀오 파트너가 로비에 있습니다",
+    "withParty": "친구들과 로비에 있습니다",
     "alone": "로비에 혼자 있습니다",
     "mateAway": "{0}님이 로비에 없습니다",
     "mateAwayAnon": "듀오 파트너가 로비에 없습니다",

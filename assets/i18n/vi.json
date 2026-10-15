@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "Đang chơi cùng {0}",
     "withMateAnon": "Bạn duo đang ở trong sảnh",
+    "withParty": "Bạn đang ở sảnh cùng bạn bè",
     "alone": "Chỉ có bạn trong sảnh",
     "mateAway": "{0} không ở trong sảnh",
     "mateAwayAnon": "Bạn duo không ở trong sảnh",

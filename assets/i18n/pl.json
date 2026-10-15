@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "Grasz z {0}",
     "withMateAnon": "Twój partner duo jest w lobby",
+    "withParty": "Jesteś w lobby ze znajomymi",
     "alone": "W lobby jesteś tylko ty",
     "mateAway": "{0} nie ma w lobby",
     "mateAwayAnon": "Twojego partnera duo nie ma w lobby",

@@ -758,6 +758,7 @@
   "poolHint": {
     "withMate": "Граєш із {0}",
     "withMateAnon": "Ти в лобі з напарником",
+    "withParty": "Ти в лобі з друзями",
     "alone": "У лобі лише ти",
     "mateAway": "{0} немає в лобі",
     "mateAwayAnon": "Напарника немає в лобі",

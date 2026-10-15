@@ -80,6 +80,8 @@ internal static class Program
         return a;
     }
 
+    private static AccountPools Add(AccountPools a, DuoPool d) { a.DuoPools.Add(d); return a; }
+
     private static Dictionary<string, string> Lobby(params (string Puuid, string Name)[] m) =>
         m.ToDictionary(x => x.Puuid, x => x.Name);
 
@@ -143,8 +145,27 @@ internal static class Program
         var flex = Lobby((Other, "Petya"), (Third, "Kolya"));
         Check("флекс без Вани, дуо-пул без напарника — молчим: человек найдётся в пати",
               Decide(Account(PoolKind.Duo, "free"), flex) is null, "");
-        Check("флекс без Вани, личный пул — молчим: кого из них звать напарником, неясно",
-              Decide(Account(PoolKind.Pool, "mains"), flex) is null, "");
+        s = Decide(Account(PoolKind.Pool, "mains"), flex, "flex");
+        Check("флекс без Вани, личный пул — хотя бы предложить дуо-пул без напарника, «с друзьями»",
+              s is { Case: PoolHintCase.WithParty, Kind: PoolKind.Duo, Id: "free", Who: "" }, Show(s));
+
+        // Пул без закреплённого напарника, подписанный его ником: во флексе
+        // ники сопартийцев известны из лобби.
+        var nickAcc = Account(PoolKind.Pool, "mains");
+        nickAcc.DuoPools.Add(new DuoPool { Id = "kolya", FriendName = "мид + джунгли", FriendNick = "kolya#EUW" });
+        s = Decide(nickAcc, flex, "flex");
+        Check("флекс: пул с ником Коли, Коля в лобби — его пул, по нику",
+              s is { Case: PoolHintCase.WithMate, Id: "kolya", Who: "Kolya" }, Show(s));
+        var tileAcc = Account(PoolKind.Normal, null);
+        tileAcc.DuoPools.Add(new DuoPool { Id = "tile", FriendName = "Kolya" });
+        s = Decide(tileAcc, flex, "flex");
+        Check("флекс: ник в названии плитки тоже годится", s is { Id: "tile", Who: "Kolya" }, Show(s));
+        var onAcc = Add(Account(PoolKind.Duo, "kolya"), new DuoPool { Id = "kolya", FriendNick = "Kolya" });
+        Check("флекс: включён пул с ником Коли — молчим", Decide(onAcc, flex, "flex") is null, "");
+        var vasyaAcc = new AccountPools();
+        vasyaAcc.DuoPools.Add(new DuoPool { Id = "vasya", FriendNick = "Vasya" });
+        Check("флекс: пул с ником Васи, Васи в лобби нет — его не предлагаем",
+              Decide(vasyaAcc, flex, "flex") is null, "");
         s = Decide(Account(PoolKind.Pool, "mains"), Lobby((Friend, "Ivan"), (Other, "Petya")), "flex");
         Check("флекс с Ваней — его дуо-пул", s is { Kind: PoolKind.Duo, Id: "ivan" }, Show(s));
 

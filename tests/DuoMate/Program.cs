@@ -29,6 +29,13 @@ internal static class Program
     {
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;   // не сорить в журнал игрока
+        // Опознанный напарник записывается в пулы (PoolStore.Persist) — только в
+        // своей папке, файл игрока не трогаем.
+        AppPaths.RootOverride = Path.Combine(Path.GetTempPath(), "counterplay-test-root", "DuoMate");
+        try { Directory.Delete(AppPaths.RootOverride, true); } catch { }
+        PoolStore.DirOverride = Path.Combine(AppPaths.RootOverride, "pools");
+        Directory.CreateDirectory(PoolStore.DirOverride);
+        PoolStore.Reload();
 
         // ── 1. Играем вдвоём: друг в пати ───────────────────────────────────
         Party.Update(Lobby(MeId, FriendId));
@@ -194,6 +201,39 @@ internal static class Program
               list.Any(m => m.Puuid == "duo-0001" && m.Games == 3), "");
         SessionTracker.Preview = null;
 
+        // ── 10. Флекс: сопартийцев несколько ──────────────────────────────
+        //
+        // Пул без хозяина брал напарником ПЕРВОГО сопартийца в команде и
+        // привязывался к нему навсегда. Владелец 15 октября: во флексе ники
+        // напарников известны, а пулы часто подписаны ником. Теперь — по нику
+        // из лобби, иначе по чемпиону из половины друга (только на этот драфт),
+        // иначе никого.
+        const long PetyaId = 444, KolyaId = 555;
+        Party.Update(Lobby(MeId, PetyaId, KolyaId));
+        var byNick = Duo(FriendPoolChamp);
+        byNick.FriendNick = "игрок555#ru";
+        draft = Draft((PetyaId, 99), (KolyaId, OffPoolChamp));
+        Check("флекс: напарник — тот, чей ник в пуле, а не первый сопартиец",
+              Party.MateChampion(draft, byNick) == OffPoolChamp, $"{Party.MateChampion(draft, byNick)}");
+        Check("…и пул запомнил его", byNick.FriendPuuid == $"puuid-{KolyaId}", byNick.FriendPuuid);
+
+        var byTile = Duo(FriendPoolChamp);
+        byTile.FriendName = "Игрок 555";
+        var seat = Party.MateSeat(Draft((PetyaId, 0), (KolyaId, 0)), byTile);
+        Check("флекс: ник в названии плитки тоже годится, место известно до наведения",
+              seat?.SummonerId == KolyaId, $"{seat?.SummonerId}");
+
+        var anon = Duo(FriendPoolChamp);
+        draft = Draft((PetyaId, 99), (KolyaId, FriendPoolChamp));
+        Check("флекс без ника: напарник — сопартиец с чемпионом из половины друга",
+              Party.MateChampion(draft, anon) == FriendPoolChamp, $"{Party.MateChampion(draft, anon)}");
+        Check("…но в пул он не записан: это догадка на один драфт", anon.FriendPuuid.Length == 0, anon.FriendPuuid);
+        draft = Draft((PetyaId, 99), (KolyaId, OffPoolChamp));
+        Check("флекс без ника и без чемпиона из половины — пару не строим",
+              Party.MateChampion(draft, anon) == 0, $"{Party.MateChampion(draft, anon)}");
+        Check("…и место напарника не угадываем", Party.MateSeat(draft, anon) is null, "");
+
+        try { Directory.Delete(AppPaths.RootOverride, true); } catch { }
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: напарник определяется верно" : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
