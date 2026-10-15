@@ -1086,6 +1086,20 @@ internal static class Program
         var planField = panelType.GetField("PlanSeconds", BindingFlags.NonPublic | BindingFlags.Static)!;
         planField.SetValue(null, 3.0);
 
+        // «Поиск игры»: экран ожидания в фазе поиска, потом та же цепочка, что
+        // у «Банов». Владелец 15 октября: подсказку режима пула было не
+        // рассмотреть — «Баны» уводят окно в драфт сразу. Поиск укорочен до 2 с.
+        panelType.GetField("SearchSeconds", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, 2.0);
+        Get<System.Windows.Controls.Button>(panel, "_searchBtn")!
+            .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Wait(0.5);
+        var status = ((System.Windows.Controls.TextBlock)overlay.FindName("ReadyStatusText")).Text;
+        Check("«Поиск игры» — экран ожидания в фазе поиска, драфта ещё нет",
+              Vis(overlay, "ReadyScroll") && status == Loc.T("phaseState.matchmaking"), status);
+        Wait(2.5);
+        Check("поиск кончился — объявление пиков, как по кнопке «Баны»",
+              Last() is { InPlanning: true } && Vis(overlay, "PlanPanel"), "");
+
         Get<System.Windows.Controls.Button>(panel, "_stageBans")!
             .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
         Wait(1);

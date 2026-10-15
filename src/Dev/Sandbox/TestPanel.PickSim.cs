@@ -52,6 +52,7 @@ sealed partial class TestPanel
     /// Пики по очереди LoL — с нуля или сразу после фазы банов.
     private void StartPickSim()
     {
+        StopSearch();
         _stage = TestStage.Draft; UpdateStageButtons();
         _overlay.RestoreFromTray(force: true);   // закрытый крестиком оверлей — вернуть
 

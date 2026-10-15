@@ -73,6 +73,18 @@ sealed partial class TestPanel : Window
 
     private readonly Button _stageReady = new();
 
+    // ── Поиск игры: экран ожидания в фазе поиска, потом баны и пики ─────────
+    private readonly Button _searchBtn = new();
+
+    private DispatcherTimer? _searchTimer;
+
+    private DateTime? _searchEndAt;   // идёт поиск — до этого времени
+
+    // Проверки укорачивают поиск, чтобы не ждать его целиком.
+    internal static double SearchSeconds = 15;
+
+    private const string SearchIdle = "🔎 Поиск игры";
+
     private bool _ready; // подавляет пересчёт во время построения UI
 
     // ── Авто-драфт: условные игроки пикают по очереди, 10 с на ход ──────────
@@ -203,7 +215,7 @@ sealed partial class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 620; Height = 540;
+        Width  = 620; Height = 572;
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         // В левый верхний угол рабочей области, с отступом от краёв (просьба
         // владельца; раньше — по центру экрана).
@@ -410,6 +422,7 @@ sealed partial class TestPanel : Window
                     + "к твоему клиенту LoL и свернётся в трей до начала драфта.",
                     "Перейти", "Отмена", this)) return;
             StopSim();
+            StopSearch();
             TestMode.RequestLiveMode();
         };
         var liveRow = new StackPanel
@@ -425,6 +438,31 @@ sealed partial class TestPanel : Window
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(10, 0, 0, 0)
         });
+        // Поиск игры — своей строкой под другом: сперва выбирают, с кем
+        // играешь, потом встают в очередь. В бою подсказка режима пула живёт в
+        // лобби и поиске, а «Баны» уводили окно в драфт сразу — рассмотреть её
+        // было некогда.
+        _searchBtn.Content = SearchIdle;
+        _searchBtn.Width = 130;
+        _searchBtn.Padding = new Thickness(0, 3, 0, 3);
+        _searchBtn.VerticalAlignment = VerticalAlignment.Center;
+        _searchBtn.ToolTip = $"Экран ожидания в фазе «идёт поиск игры» на {SearchSeconds:0} с — успеть посмотреть "
+                           + "подсказку режима пула; затем объявление, баны и пики, как «Баны». Ещё раз — отмена";
+        _searchBtn.Click += (_, _) => ToggleSearch();
+        var searchRow = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        searchRow.Children.Add(_searchBtn);
+        searchRow.Children.Add(new TextBlock
+        {
+            Text = $"— {SearchSeconds:0} с поиска игры, затем баны и пики",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0)
+        });
+
         // Друг — своей строкой под кнопками драфта: с ним и запускают авто-драфт.
         var mateRow = new StackPanel
         {
@@ -484,11 +522,15 @@ sealed partial class TestPanel : Window
         root.Children.Add(mateRow);
 
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(profileRow, 8); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
+        Grid.SetRow(searchRow, 8); Grid.SetColumn(searchRow, 0); Grid.SetColumnSpan(searchRow, 3);
+        root.Children.Add(searchRow);
+
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(profileRow, 9); Grid.SetColumn(profileRow, 0); Grid.SetColumnSpan(profileRow, 3);
         root.Children.Add(profileRow);
 
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(liveRow, 9); Grid.SetColumn(liveRow, 0); Grid.SetColumnSpan(liveRow, 3);
+        Grid.SetRow(liveRow, 10); Grid.SetColumn(liveRow, 0); Grid.SetColumnSpan(liveRow, 3);
         root.Children.Add(liveRow);
 
 
@@ -545,9 +587,11 @@ sealed partial class TestPanel : Window
         if (!_ready) return;
 
         // Этап Ready: экран с ником/рангом/графиком + кнопки пула (вместо подбора).
+        // Идёт «поиск игры» — фаза поиска, как её присылает клиент.
         if (_stage == TestStage.Ready)
         {
-            _overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
+            if (_searchEndAt is not null) _overlay.ShowReadyPhase("Matchmaking");
+            else _overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
             return;
         }
 

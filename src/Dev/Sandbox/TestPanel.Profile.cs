@@ -121,6 +121,7 @@ sealed partial class TestPanel
     // ── Тестовые этапы: Драфт · Баны · Ready/пул ─────────────────────────────
     private void SetStage(TestStage s)
     {
+        StopSearch();
         // «Баны» — это живая фаза банов, а не статичный кадр.
         if (s == TestStage.Bans) { StartBanSim(); return; }
         if (_banSim) StopBanSim();
@@ -143,6 +144,7 @@ sealed partial class TestPanel
     /// </summary>
     private void ResetDraft()
     {
+        StopSearch();
         StopSim();
         StopBanSim();
         ClearBans();
@@ -158,6 +160,71 @@ sealed partial class TestPanel
         UpdateStageButtons();
         Recompute();
         Log.Write("песочница: сброс — драфт закрыт, этап Ready");
+    }
+
+    /// <summary>
+    /// «Поиск игры»: экран ожидания в фазе «идёт поиск» на
+    /// <see cref="SearchSeconds"/> секунд, затем объявление, баны и пики — как
+    /// «Баны». Ещё одно нажатие — отмена.
+    ///
+    /// Владелец 15 октября: подсказку режима пула не успеть рассмотреть —
+    /// «Баны» уводят окно в драфт сразу, а в бою она стоит всё время лобби и
+    /// поиска. Слоты не чистятся: заранее выбранные пики уйдут в план, как при
+    /// «Банах».
+    /// </summary>
+    private void ToggleSearch()
+    {
+        if (_searchEndAt is not null)
+        {
+            StopSearch();
+            Log.Write("песочница: поиск игры отменён");
+            Recompute();
+            return;
+        }
+        StopSim();
+        StopBanSim();
+        // Окно на драфте — уводим его на экран ожидания тем же путём, что
+        // «Сброс», только слоты не трогаем.
+        if (_stage != TestStage.Ready)
+        {
+            _overlay.UpdateRecommendations(null, null);
+            _overlay.DraftEnded();
+            _overlay.HideRunes();
+            _stage = TestStage.Ready;
+            UpdateStageButtons();
+        }
+        _overlay.RestoreFromTray(force: true);
+
+        _searchEndAt = DateTime.UtcNow.AddSeconds(SearchSeconds);
+        if (_searchTimer is null)
+        {
+            _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.25) };
+            _searchTimer.Tick += SearchTick;
+        }
+        _searchTimer.Start();
+        SearchTick(null, EventArgs.Empty);
+        Log.Write($"песочница: поиск игры {SearchSeconds:0} с, затем баны");
+        Recompute();
+    }
+
+    private void SearchTick(object? sender, EventArgs e)
+    {
+        if (_searchEndAt is not { } end) { _searchTimer?.Stop(); return; }
+        var left = end - DateTime.UtcNow;
+        if (left <= TimeSpan.Zero)
+        {
+            StopSearch();
+            StartBanSim();   // игра найдена — дальше как «Баны»
+            return;
+        }
+        _searchBtn.Content = $"■ Поиск · {Math.Ceiling(left.TotalSeconds):0} с";
+    }
+
+    private void StopSearch()
+    {
+        _searchTimer?.Stop();
+        _searchEndAt = null;
+        _searchBtn.Content = SearchIdle;
     }
 
     private void UpdateStageButtons()

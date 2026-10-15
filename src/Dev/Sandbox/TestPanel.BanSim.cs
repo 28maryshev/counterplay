@@ -20,6 +20,7 @@ sealed partial class TestPanel
 
     private void StartBanSim()
     {
+        StopSearch();
         StopSim();
         StopBanSim();
         _ready = false;
