@@ -500,7 +500,7 @@
                  режима пула (OverlayWindow.PoolHint.cs): она встаёт поверх них, а
                  не сдвигает панель. Ячейка по высоте — по кнопкам с полосой. -->
             <Grid x:Name="PoolArea">
-              <StackPanel>
+              <StackPanel x:Name="PoolUnder">
                 <!-- Режимы (Настройки · Обычный · Пул · Дуо) — во всю ширину панели -->
                 <UniformGrid x:Name="PoolButtonsRow" Columns="4">
                   <UniformGrid.Resources>
@@ -563,53 +563,102 @@
               <!-- Подсказка режима пула: в лобби с напарником — включить дуо-пул,
                    одному — выключить его. Непрозрачная: кнопки под ней не должны
                    просвечивать. Свечение — отдельным слоем позади: эффект на
-                   самой карточке размыл бы текст. Тексты и значок ставит код. -->
-              <Grid x:Name="PoolHintCard" Visibility="Collapsed" Opacity="0" Margin="2,0">
+                   самой карточке размыл бы текст. Рамка яркая и толще кнопок:
+                   карточку должно быть видно сразу (владелец 15.10). Появляется
+                   с бликом и вспышкой свечения, внизу — полоса ожидания: 15 с,
+                   курсор над карточкой её держит. Тексты и значок ставит код. -->
+              <Grid x:Name="PoolHintCard" Visibility="Collapsed" Opacity="0" Margin="2,0"
+                    MouseEnter="PoolHint_MouseEnter" MouseLeave="PoolHint_MouseLeave">
                 <Grid.RenderTransform>
                   <TranslateTransform x:Name="PoolHintMove"/>
                 </Grid.RenderTransform>
-                <Border CornerRadius="7" Background="#0C1726">
+                <Border CornerRadius="8" Background="#0C1726">
                   <Border.Effect>
-                    <DropShadowEffect Color="#5A8AC8" BlurRadius="14" ShadowDepth="0" Opacity="0.4"/>
+                    <DropShadowEffect x:Name="PoolHintGlow" Color="#4FB3FF" BlurRadius="22"
+                                      ShadowDepth="0" Opacity="0.55"/>
                   </Border.Effect>
                 </Border>
-                <Border CornerRadius="7" BorderThickness="1" BorderBrush="#5A8AC8" Padding="11,8,10,8">
+                <Border CornerRadius="8" BorderThickness="1.5">
+                  <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#9AD3FF" Offset="0"/>
+                      <GradientStop Color="#4F9DFF" Offset="0.5"/>
+                      <GradientStop Color="#3FE0F0" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.BorderBrush>
                   <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                      <GradientStop Color="#16243A" Offset="0"/>
+                      <GradientStop Color="#18294A" Offset="0"/>
                       <GradientStop Color="#0C1726" Offset="1"/>
                     </LinearGradientBrush>
                   </Border.Background>
-                  <Grid>
-                    <Grid.RowDefinitions>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="*"/>
-                      <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal">
-                      <Path x:Name="PoolHintIcon" Width="17" Height="14" Stretch="Uniform"
-                            Fill="#7FB0EA" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                      <TextBlock x:Name="PoolHintTitle" MaxWidth="225" TextTrimming="CharacterEllipsis"
-                                 FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
-                                 Foreground="#E6EDF3" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <TextBlock x:Name="PoolHintText" Grid.Row="1" Margin="0,3,0,0"
-                               FontFamily="{StaticResource UiFont}" FontSize="12"
-                               Foreground="#C3D3E0" TextWrapping="Wrap" LineHeight="16"/>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
-                                Margin="0,7,0,0">
-                      <Button x:Name="PoolHintLaterBtn" Click="PoolHintLater_Click"
-                              Content="{loc:T poolHint.later}"
-                              Background="Transparent" BorderThickness="1" BorderBrush="#405060"
-                              Foreground="#9FB3C8" FontFamily="{StaticResource UiFont}" FontSize="11"
-                              FontWeight="Bold" Padding="10,3" Cursor="Hand"/>
-                      <!-- Как подсвеченная кнопка режима: нажатие делает её такой же. -->
-                      <Button x:Name="PoolHintApplyBtn" Click="PoolHintApply_Click" Margin="6,0,0,0"
-                              Background="#223655" BorderThickness="1" BorderBrush="#5A8AC8"
-                              Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
-                              FontWeight="Bold" Padding="12,3" Cursor="Hand"/>
-                    </StackPanel>
+                  <!-- Внутренний слой обрезается по скруглению (кодом): блик и
+                       полоса ожидания не вылезают за углы рамки. -->
+                  <Grid x:Name="PoolHintInner" SizeChanged="PoolHintInner_SizeChanged">
+                    <Grid Margin="11,8,10,11">
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                      </Grid.RowDefinitions>
+                      <StackPanel Orientation="Horizontal">
+                        <Path x:Name="PoolHintIcon" Width="17" Height="14" Stretch="Uniform"
+                              Fill="#8CCBFF" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                        <TextBlock x:Name="PoolHintTitle" MaxWidth="225" TextTrimming="CharacterEllipsis"
+                                   FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                                   Foreground="#E6EDF3" VerticalAlignment="Center"/>
+                      </StackPanel>
+                      <TextBlock x:Name="PoolHintText" Grid.Row="1" Margin="0,3,0,0"
+                                 FontFamily="{StaticResource UiFont}" FontSize="12"
+                                 Foreground="#C3D3E0" TextWrapping="Wrap" LineHeight="16"/>
+                      <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                  Margin="0,7,0,0">
+                        <Button x:Name="PoolHintLaterBtn" Click="PoolHintLater_Click"
+                                Content="{loc:T poolHint.later}"
+                                Background="Transparent" BorderThickness="1" BorderBrush="#405060"
+                                Foreground="#9FB3C8" FontFamily="{StaticResource UiFont}" FontSize="11"
+                                FontWeight="Bold" Padding="10,3" Cursor="Hand"/>
+                        <!-- Как подсвеченная кнопка режима: нажатие делает её такой же. -->
+                        <Button x:Name="PoolHintApplyBtn" Click="PoolHintApply_Click" Margin="6,0,0,0"
+                                Background="#223655" BorderThickness="1" BorderBrush="#5A8AC8"
+                                Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
+                                FontWeight="Bold" Padding="12,3" Cursor="Hand"/>
+                      </StackPanel>
+                    </Grid>
+                    <!-- Блик: светлая косая полоса, пробегает один раз при появлении. -->
+                    <Rectangle x:Name="PoolHintShine" Width="70" HorizontalAlignment="Left"
+                               IsHitTestVisible="False" Opacity="0">
+                      <Rectangle.Fill>
+                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                          <GradientStop Color="#00FFFFFF" Offset="0"/>
+                          <GradientStop Color="#66FFFFFF" Offset="0.5"/>
+                          <GradientStop Color="#00FFFFFF" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Rectangle.Fill>
+                      <Rectangle.RenderTransform>
+                        <TransformGroup>
+                          <SkewTransform AngleX="-20"/>
+                          <TranslateTransform x:Name="PoolHintShineMove" X="-90"/>
+                        </TransformGroup>
+                      </Rectangle.RenderTransform>
+                    </Rectangle>
+                    <!-- Полоса ожидания: тает справа налево; кончилась — карточка
+                         уходит, как по «Не сейчас». -->
+                    <Border Height="3" VerticalAlignment="Bottom" Background="#18FFFFFF"
+                            IsHitTestVisible="False"/>
+                    <Border x:Name="PoolHintTimer" Height="3" VerticalAlignment="Bottom"
+                            IsHitTestVisible="False" RenderTransformOrigin="0,0.5">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                          <GradientStop Color="#4F9DFF" Offset="0"/>
+                          <GradientStop Color="#3FE0F0" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                      <Border.RenderTransform>
+                        <ScaleTransform x:Name="PoolHintTimerScale" ScaleX="1"/>
+                      </Border.RenderTransform>
+                    </Border>
                   </Grid>
                 </Border>
               </Grid>

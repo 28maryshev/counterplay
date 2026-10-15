@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 
 namespace Counterplay;
 
@@ -112,7 +113,18 @@ public partial class OverlayWindow
         PoolHintApplyBtn.Content = Loc.T(duo ? "poolHint.turnOn" : "poolHint.switch");
     }
 
-    // Появляется снизу и проявляется; уходит быстрее, чем приходит.
+    /// <summary>
+    /// Сколько карточка ждёт ответа. Кончилось — уходит, как по «Не сейчас»:
+    /// иначе всплывала бы снова на каждом событии лобби. Владелец 15 октября:
+    /// «через 15 сек скрывается, если ничего не нажать». Проверки укорачивают.
+    /// </summary>
+    internal static double PoolHintSeconds = 15;
+
+    /// Отсчёт полосы ожидания: управляемый, чтобы держать его под курсором.
+    private Storyboard? _poolHintClock;
+
+    // Появляется снизу и проявляется, с бликом и вспышкой рамки — чтобы было
+    // заметно; уходит быстрее, чем приходит.
     private void ShowPoolHint()
     {
         PoolHintCard.Visibility = Visibility.Visible;
@@ -122,16 +134,92 @@ public partial class OverlayWindow
             new DoubleAnimation(1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
         PoolHintMove.BeginAnimation(TranslateTransform.YProperty,
             new DoubleAnimation(6, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+        // Кнопки и полоса под карточкой гаснут: у неё углы скруглены, у них
+        // нет, и уголки кнопок торчали из-под рамки.
+        PoolUnder.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(180)));
+        FlashPoolHint();
+        StartPoolHintClock();
     }
+
+    /// <summary>
+    /// Блик — косая светлая полоса пробегает по карточке слева направо — и
+    /// вспышка свечения рамки, которое потом оседает до обычного.
+    /// </summary>
+    private void FlashPoolHint()
+    {
+        // Карточка только что была скрыта и своей ширины ещё не знает — берём
+        // ширину ячейки, в которой она встанет.
+        var width = PoolArea.ActualWidth > 0 ? PoolArea.ActualWidth : 280;
+        PoolHintShine.Opacity = 1;
+        PoolHintShineMove.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(-90, width + 30, TimeSpan.FromMilliseconds(750))
+            {
+                BeginTime = TimeSpan.FromMilliseconds(120),
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+            });
+        var glow = new DoubleAnimationUsingKeyFrames();
+        glow.KeyFrames.Add(new LinearDoubleKeyFrame(0.2, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        glow.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260))));
+        glow.KeyFrames.Add(new EasingDoubleKeyFrame(0.55, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1100)),
+                                                    new SineEase { EasingMode = EasingMode.EaseOut }));
+        PoolHintGlow.BeginAnimation(DropShadowEffect.OpacityProperty, glow);
+    }
+
+    /// Полоса ожидания — с начала. Новая подсказка ждёт свои полные 15 секунд.
+    private void StartPoolHintClock()
+    {
+        _poolHintClock?.Stop(this);
+        var bar = new DoubleAnimation(1, 0, TimeSpan.FromSeconds(PoolHintSeconds));
+        Storyboard.SetTarget(bar, PoolHintTimer);
+        Storyboard.SetTargetProperty(bar, new PropertyPath("RenderTransform.ScaleX"));
+        var clock = new Storyboard();
+        clock.Children.Add(bar);
+        var shown = _poolHint;
+        // Сменилась или ушла сама — этот отсчёт уже ни при чём.
+        clock.Completed += (_, _) =>
+        {
+            if (shown is not null && ReferenceEquals(_poolHint, shown)) DismissPoolHint("время вышло");
+        };
+        _poolHintClock = clock;
+        clock.Begin(this, true);
+        if (PoolHintCard.IsMouseOver) clock.Pause(this);
+    }
+
+    // Курсор над карточкой — её читают, отсчёт стоит.
+    private void PoolHint_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) =>
+        _poolHintClock?.Pause(this);
+
+    private void PoolHint_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_poolHint is not null) _poolHintClock?.Resume(this);
+    }
+
+    // Скругление внутреннего слоя — по рамке (8 снаружи минус 1,5 толщины).
+    private void PoolHintInner_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        PoolHintInner.Clip = new RectangleGeometry(new Rect(e.NewSize), 6.5, 6.5);
 
     private void HidePoolHint()
     {
         if (PoolHintCard.Visibility != Visibility.Visible) return;
+        // Пауза, а не стоп: стоп вернул бы полосу к полной на время угасания.
+        _poolHintClock?.Pause(this);
         PoolHintCard.IsHitTestVisible = false;
+        PoolUnder.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(130)));
         var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(130));
         // Пока гасла, могла прийти новая подсказка — её не прячем.
         fade.Completed += (_, _) => { if (_poolHint is null) PoolHintCard.Visibility = Visibility.Collapsed; };
         PoolHintCard.BeginAnimation(OpacityProperty, fade);
+    }
+
+    /// «Не сейчас» — кнопкой или по истечении времени: до смены состава или
+    /// очереди эта подсказка не вернётся.
+    private void DismissPoolHint(string why)
+    {
+        if (_poolHint is not { } s) return;
+        Log.Write($"подсказка пула отложена: {why}");
+        _poolHintLater.Add(s.Key);
+        _poolHint = null;
+        HidePoolHint();
     }
 
     /// Принять: включить предложенный режим, как это сделала бы его кнопка.
@@ -152,12 +240,5 @@ public partial class OverlayWindow
         RefreshPoolSlot();
     }
 
-    private void PoolHintLater_Click(object sender, RoutedEventArgs e)
-    {
-        if (_poolHint is not { } s) return;
-        Log.Write("подсказка пула отложена");
-        _poolHintLater.Add(s.Key);
-        _poolHint = null;
-        HidePoolHint();
-    }
+    private void PoolHintLater_Click(object sender, RoutedEventArgs e) => DismissPoolHint("«Не сейчас»");
 }

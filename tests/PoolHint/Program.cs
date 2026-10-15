@@ -210,6 +210,13 @@ internal static class Program
 
             Phase(w, "Lobby");
             Check("в лобби с Ваней, включён личный пул — карточка поверх кнопок пула", Shown(), "");
+            // Снимки (CP_SNAP=<папка>): посреди блика и в покое.
+            var snap = Environment.GetEnvironmentVariable("CP_SNAP");
+            if (snap is { Length: > 0 })
+            {
+                Wait(420); Snap(w, snap, "pool-hint-shine.png");
+                Wait(1200); Snap(w, snap, "pool-hint.png");
+            }
             Check("заголовок — с кем играешь", title.Text == Loc.T("poolHint.withMate", "Ivan"), title.Text);
             Check("текст — какой дуо-пул включить", text.Text == Loc.T("poolHint.toDuo", "саппы + топ"), text.Text);
 
@@ -220,6 +227,8 @@ internal static class Program
             Check("«Не сейчас» — карточка уходит", !Shown(), "");
             Wait(400);
             Check("…и убирается совсем, а не висит прозрачной", card.Visibility == Visibility.Collapsed, $"{card.Visibility}");
+            var under = (UIElement)w.FindName("PoolUnder");
+            Check("кнопки пула, погашенные под карточкой, снова видны", under.Opacity > 0.99, $"{under.Opacity:F2}");
             PartyOf(Friend, "Ivan");
             Phase(w, "Lobby");
             Check("тот же состав — после «Не сейчас» не возвращается", !Shown(), "");
@@ -273,6 +282,36 @@ internal static class Program
             w.ForgetPoolHintLater();
             Pump();
             Check("песочница начала поиск — отложенная карточка вернулась", Shown(), title.Text);
+
+            // Полоса ожидания: время вышло — карточка уходит сама, как по «Не
+            // сейчас» (владелец: «через 15 сек скрывается, если ничего не
+            // нажать»). Курсор над карточкой отсчёт держит. Срок укорочен до 1 с.
+            var seconds = typeof(OverlayWindow).GetField("PoolHintSeconds",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+            seconds.SetValue(null, 1.0);
+            var bar = (System.Windows.Media.ScaleTransform)((FrameworkElement)w.FindName("PoolHintTimer")).RenderTransform;
+            Click(later);
+            w.ForgetPoolHintLater();
+            Pump();
+            Check("новая карточка — полоса ожидания полная", Shown() && bar.ScaleX > 0.8, $"{bar.ScaleX:F2}");
+            Wait(450);
+            Check("полоса тает", bar.ScaleX is > 0.05 and < 0.9, $"{bar.ScaleX:F2}");
+            Wait(1000);
+            Check("время вышло — карточка ушла сама", !Shown(), "");
+            PartyOf(null);
+            Check("…и не возвращается, как после «Не сейчас»", !Shown(), "");
+
+            w.ForgetPoolHintLater();
+            Pump();
+            card.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0)
+                { RoutedEvent = System.Windows.Input.Mouse.MouseEnterEvent });
+            Wait(1500);
+            Check("курсор над карточкой — отсчёт стоит", Shown(), $"{bar.ScaleX:F2}");
+            card.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0)
+                { RoutedEvent = System.Windows.Input.Mouse.MouseLeaveEvent });
+            Wait(1500);
+            Check("курсор ушёл — отсчёт дошёл до конца", !Shown(), "");
+            seconds.SetValue(null, 15.0);
         }
         finally { w.Close(); }
     }
@@ -315,6 +354,20 @@ internal static class Program
     {
         var until = DateTime.UtcNow.AddMilliseconds(ms);
         while (DateTime.UtcNow < until) { Pump(); Thread.Sleep(10); }
+    }
+
+    private static void Snap(Window w, string dir, string file)
+    {
+        Directory.CreateDirectory(dir);
+        var root = (FrameworkElement)w.Content;
+        var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            (int)root.ActualWidth * 2, (int)root.ActualHeight * 2, 192, 192, System.Windows.Media.PixelFormats.Pbgra32);
+        bmp.Render(root);
+        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
     }
 
     private static void ShowHidden(Window w)
