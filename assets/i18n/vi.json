@@ -754,5 +754,20 @@
     "synBad": "cộng hưởng {0} · tệ nhất với {1}",
     "synOne": "cộng hưởng {0} với {1}",
     "tipAlly": "Với {0}: {1}"
+  },
+  "poolHint": {
+    "withMate": "Đang chơi cùng {0}",
+    "withMateAnon": "Bạn duo đang ở trong sảnh",
+    "alone": "Chỉ có bạn trong sảnh",
+    "mateAway": "{0} không ở trong sảnh",
+    "mateAwayAnon": "Bạn duo không ở trong sảnh",
+    "toDuo": "Bật pool duo «{0}»?",
+    "toDuoAny": "Bật một pool duo?",
+    "toPool": "Pool duo chỉ hoạt động khi có bạn duo. Chuyển sang pool «{0}»?",
+    "toPoolAny": "Pool duo chỉ hoạt động khi có bạn duo. Chuyển sang pool của bạn?",
+    "toNormal": "Pool duo chỉ hoạt động khi có bạn duo. Chuyển sang chế độ Thường?",
+    "turnOn": "Bật",
+    "switch": "Chuyển",
+    "later": "Để sau"
   }
 }

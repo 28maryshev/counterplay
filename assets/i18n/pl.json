@@ -754,5 +754,20 @@
     "synBad": "synergia {0} · najgorsza z {1}",
     "synOne": "synergia {0} z {1}",
     "tipAlly": "Z {0}: {1}"
+  },
+  "poolHint": {
+    "withMate": "Grasz z {0}",
+    "withMateAnon": "Twój partner duo jest w lobby",
+    "alone": "W lobby jesteś tylko ty",
+    "mateAway": "{0} nie ma w lobby",
+    "mateAwayAnon": "Twojego partnera duo nie ma w lobby",
+    "toDuo": "Włączyć pulę duo „{0}”?",
+    "toDuoAny": "Włączyć pulę duo?",
+    "toPool": "Pula duo działa tylko z partnerem. Przełączyć na pulę „{0}”?",
+    "toPoolAny": "Pula duo działa tylko z partnerem. Przełączyć na własną pulę?",
+    "toNormal": "Pula duo działa tylko z partnerem. Przełączyć na tryb Zwykły?",
+    "turnOn": "Włącz",
+    "switch": "Przełącz",
+    "later": "Nie teraz"
   }
 }

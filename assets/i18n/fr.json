@@ -754,5 +754,20 @@
     "synBad": "synergie {0} · pire avec {1}",
     "synOne": "synergie {0} avec {1}",
     "tipAlly": "Avec {0} : {1}"
+  },
+  "poolHint": {
+    "withMate": "Tu joues avec {0}",
+    "withMateAnon": "Ton partenaire de duo est dans le salon",
+    "alone": "Tu es seul dans le salon",
+    "mateAway": "{0} n’est pas dans le salon",
+    "mateAwayAnon": "Ton partenaire de duo n’est pas dans le salon",
+    "toDuo": "Activer le pool duo « {0} » ?",
+    "toDuoAny": "Activer un pool duo ?",
+    "toPool": "Un pool duo ne marche qu’avec ton partenaire. Passer au pool « {0} » ?",
+    "toPoolAny": "Un pool duo ne marche qu’avec ton partenaire. Passer à un pool perso ?",
+    "toNormal": "Un pool duo ne marche qu’avec ton partenaire. Passer en Normal ?",
+    "turnOn": "Activer",
+    "switch": "Changer",
+    "later": "Plus tard"
   }
 }

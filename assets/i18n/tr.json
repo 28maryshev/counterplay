@@ -754,5 +754,20 @@
     "synBad": "sinerji {0} · en kötü {1} ile",
     "synOne": "{1} ile sinerji {0}",
     "tipAlly": "{0} ile: {1}"
+  },
+  "poolHint": {
+    "withMate": "{0} ile oynuyorsun",
+    "withMateAnon": "İkili partnerin lobide",
+    "alone": "Lobide sadece sen varsın",
+    "mateAway": "{0} lobide değil",
+    "mateAwayAnon": "İkili partnerin lobide değil",
+    "toDuo": "“{0}” ikili havuzu açılsın mı?",
+    "toDuoAny": "Bir ikili havuz açılsın mı?",
+    "toPool": "İkili havuz yalnızca partnerinle çalışır. “{0}” havuzuna geçilsin mi?",
+    "toPoolAny": "İkili havuz yalnızca partnerinle çalışır. Kendi havuzuna geçilsin mi?",
+    "toNormal": "İkili havuz yalnızca partnerinle çalışır. Normal moda geçilsin mi?",
+    "turnOn": "Aç",
+    "switch": "Geç",
+    "later": "Şimdi değil"
   }
 }

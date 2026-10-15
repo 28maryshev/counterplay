@@ -754,5 +754,20 @@
     "synBad": "synergy {0} · worst with {1}",
     "synOne": "synergy {0} with {1}",
     "tipAlly": "With {0}: {1}"
+  },
+  "poolHint": {
+    "withMate": "Playing with {0}",
+    "withMateAnon": "Your duo partner is in the lobby",
+    "alone": "Just you in the lobby",
+    "mateAway": "{0} isn't in the lobby",
+    "mateAwayAnon": "Your duo partner isn't in the lobby",
+    "toDuo": "Turn on duo pool “{0}”?",
+    "toDuoAny": "Turn on a duo pool?",
+    "toPool": "A duo pool only works with your partner. Switch to pool “{0}”?",
+    "toPoolAny": "A duo pool only works with your partner. Switch to a personal pool?",
+    "toNormal": "A duo pool only works with your partner. Switch to Normal?",
+    "turnOn": "Turn on",
+    "switch": "Switch",
+    "later": "Not now"
   }
 }

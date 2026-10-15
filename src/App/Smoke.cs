@@ -128,6 +128,29 @@ internal static class Smoke
         await Step("главное окно", () => { w = new OverlayWindow(); ShowHidden(w); });
         await Step("экран ожидания", () => w.ShowReady(Loc.T("status.readyIdle")));
         await Step("профиль игрока", () => w.ShowSession(Session()));
+        await Step("подсказка режима пула", async () =>
+        {
+            // Напарник по дуо-пулу в лобби, а включён обычный режим: поверх
+            // кнопок пула — карточка «включить дуо-пул», и кнопка его включает.
+            var a = PoolStore.Current();
+            a.DuoPools.Add(new DuoPool { Id = "smoke", FriendName = "smoke", FriendPuuid = "SMOKE-mate" });
+            Lobby("""[{"puuid":"SMOKE-me"},{"puuid":"SMOKE-mate","gameName":"Mate"}]""");
+            w.ShowReadyPhase("Lobby");
+            await Settle();
+            if (((FrameworkElement)w.FindName("PoolHintCard")).Visibility != Visibility.Visible)
+                throw new InvalidOperationException("напарник в лобби, а подсказки про дуо-пул нет");
+            ((System.Windows.Controls.Button)w.FindName("PoolHintApplyBtn"))
+                .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            await Settle();
+            if (PoolStore.Current().ActiveKind != PoolKind.Duo)
+                throw new InvalidOperationException("«Включить» в подсказке не включил дуо-пул");
+
+            // Как было: драфт дальше проверяется в обычном режиме и без пати.
+            PoolStore.SetActive(PoolKind.Normal, null);
+            a.DuoPools.RemoveAll(d => d.Id == "smoke");
+            Lobby("""[{"puuid":"SMOKE-me"}]""");
+            w.ShowReady(Loc.T("status.readyIdle"));
+        });
 
         var db = RecommendationEngine.FindDb();
         if (db is null) Note("базы матчей нет — драфт не проверялся");
@@ -229,6 +252,11 @@ internal static class Smoke
         catch (Exception ex) { Fail("", ex); }
         if (_fails == before) _report.Add($"ок     {name}");
     }
+
+    /// Лобби, как его присылает клиент: участники, первый из них — я.
+    private static void Lobby(string members) =>
+        Party.Update(System.Text.Json.JsonDocument.Parse(
+            $$"""{"localMember":{"puuid":"SMOKE-me"},"members":{{members}}}""").RootElement);
 
     private static async Task Settle()
     {

@@ -321,5 +321,8 @@ public partial class OverlayWindow
         PoolActiveName.Text       = name.Length > 0 ? "· " + name : "";
         PoolActiveName.ToolTip    = name.Length > 0 ? name : null;
         PoolActiveName.Visibility = name.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Режим сменился — подсказка о нём могла стать лишней (или нужной).
+        UpdatePoolHint();
     }
 }

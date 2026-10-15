@@ -38,6 +38,20 @@ public static class Party
     /// Ники сопартийцев — для журнала и показа в настройках.
     public static IReadOnlyList<string> Names { get; private set; } = [];
 
+    /// Сопартийцы по puuid → ник (может быть пустым). Для подсказки режима
+    /// пула: по нему видно, тот ли это человек, под которого собран дуо-пул.
+    public static IReadOnlyDictionary<string, string> Members { get; private set; } =
+        new Dictionary<string, string>();
+
+    /// Сколько людей со мной в пати, меня не считая. 0 — играю один.
+    public static int Size { get; private set; }
+
+    /// <summary>
+    /// Состав пати сменился или впервые стал известен. Зовётся из потока
+    /// клиента: подписчик сам переносит работу в свой поток.
+    /// </summary>
+    public static event Action? Changed;
+
     /// <summary>
     /// Песочница: друг выбран в панели — он «в пати», ровно как в бою после
     /// лобби. Дальше напарник опознаётся тем же путём, что и в настоящем
@@ -51,12 +65,18 @@ public static class Party
         if (string.IsNullOrEmpty(puuid))
         {
             Names = [];
+            Members = new Dictionary<string, string>();
+            Size = 0;
             Known = false;
+            Changed?.Invoke();
             return;
         }
         Puuids.Add(puuid);
         Names = name.Length > 0 ? [name] : [];
+        Members = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [puuid] = name };
+        Size = 1;
         Known = true;
+        Changed?.Invoke();
     }
 
     /// <summary>Разобрать ответ <c>/lol-lobby/v2/lobby</c>. Себя исключаем.</summary>
@@ -79,11 +99,13 @@ public static class Party
         var puuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var names = new List<string>();
         var queued = new List<(string Puuid, string Name)>();
+        var others = 0;
         foreach (var m in members.EnumerateArray())
         {
             var id    = Long(m, "summonerId");
             var puuid = Str(m, "puuid");
             if ((myId != 0 && id == myId) || (myPuuid.Length > 0 && puuid == myPuuid)) continue;
+            others++;
             if (id != 0) ids.Add(id);
             if (puuid.Length > 0) puuids.Add(puuid);
             var name = Str(m, "gameName");
@@ -114,7 +136,13 @@ public static class Party
         Ids.Clear();    foreach (var x in ids) Ids.Add(x);
         Puuids.Clear(); foreach (var x in puuids) Puuids.Add(x);
         Names = names;
+        // Словарь подменяется целиком, а не правится: читают его из потока окна.
+        var byPuuid = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (puuid, name) in queued) byPuuid[puuid] = name;
+        Members = byPuuid;
+        Size = others;
         Known = true;
+        if (changed) Changed?.Invoke();
         // Считаем по ИДЕНТИФИКАТОРАМ, а не по никам: клиент отдаёт ник не всегда,
         // и запись «играю один» появлялась при непустой пати — в разборе жалобы
         // это уводило в сторону.

@@ -496,63 +496,124 @@
                          MaxWidth="165" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
 
-            <!-- Режимы (Настройки · Обычный · Пул · Дуо) — во всю ширину панели -->
-            <UniformGrid x:Name="PoolButtonsRow" Columns="4">
-              <UniformGrid.Resources>
-                <Style TargetType="Button">
-                  <Setter Property="Background" Value="Transparent"/>
-                  <Setter Property="BorderBrush" Value="#405060"/>
-                  <Setter Property="BorderThickness" Value="1"/>
-                  <Setter Property="Foreground" Value="#9FB3C8"/>
-                  <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
-                  <Setter Property="FontSize" Value="12"/>
-                  <Setter Property="FontWeight" Value="Bold"/>
-                  <Setter Property="Padding" Value="2,8"/>
-                  <Setter Property="Margin" Value="2,0"/>
-                  <Setter Property="Cursor" Value="Hand"/>
-                </Style>
-              </UniformGrid.Resources>
-              <!-- Настройки — золотом, как кнопки на сайте -->
-              <Button x:Name="PoolSettingsBtn" Click="PoolSettings_Click"
-                      Content="{loc:T pool.settings}"
-                      Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
-              <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
-              <Button x:Name="PoolPoolBtn" Click="PoolPool_Click" Content="{loc:T pool.pool}"/>
-              <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
-            </UniformGrid>
+            <!-- Кнопки режима и полоса чемпионов — в одной ячейке с подсказкой
+                 режима пула (OverlayWindow.PoolHint.cs): она встаёт поверх них, а
+                 не сдвигает панель. Ячейка по высоте — по кнопкам с полосой. -->
+            <Grid x:Name="PoolArea">
+              <StackPanel>
+                <!-- Режимы (Настройки · Обычный · Пул · Дуо) — во всю ширину панели -->
+                <UniformGrid x:Name="PoolButtonsRow" Columns="4">
+                  <UniformGrid.Resources>
+                    <Style TargetType="Button">
+                      <Setter Property="Background" Value="Transparent"/>
+                      <Setter Property="BorderBrush" Value="#405060"/>
+                      <Setter Property="BorderThickness" Value="1"/>
+                      <Setter Property="Foreground" Value="#9FB3C8"/>
+                      <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+                      <Setter Property="FontSize" Value="12"/>
+                      <Setter Property="FontWeight" Value="Bold"/>
+                      <Setter Property="Padding" Value="2,8"/>
+                      <Setter Property="Margin" Value="2,0"/>
+                      <Setter Property="Cursor" Value="Hand"/>
+                    </Style>
+                  </UniformGrid.Resources>
+                  <!-- Настройки — золотом, как кнопки на сайте -->
+                  <Button x:Name="PoolSettingsBtn" Click="PoolSettings_Click"
+                          Content="{loc:T pool.settings}"
+                          Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
+                  <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
+                  <Button x:Name="PoolPoolBtn" Click="PoolPool_Click" Content="{loc:T pool.pool}"/>
+                  <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
+                </UniformGrid>
 
-            <!-- Мои чемпионы за 30 дней: одна строка ровно по ширине ряда кнопок
-                 пула (UniformGrid на то же число колонок, что и карточек). -->
-            <StackPanel x:Name="MyChampsBox" Visibility="Collapsed" Margin="0,7,0,0">
-              <TextBlock Text="{loc:T pool.myChamps30d}" Margin="4,0,2,3"
-                         FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
-                         Foreground="#6E8AA0" HorizontalAlignment="Left"/>
-            <ItemsControl x:Name="MyChampsStrip" Height="52">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><UniformGrid Rows="1" Columns="6"/></ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <!-- Margin как у кнопок пула (2,0) — края строк совпадают -->
-                  <Border Margin="2,0" CornerRadius="6" BorderThickness="1" Padding="3,2"
-                          BorderBrush="{Binding Frame}" Background="{Binding Tint}" ToolTip="{Binding Tip}">
-                    <StackPanel>
-                      <!-- Fill — иконка чемпиона либо ровная заливка пустого слота -->
-                      <Border Width="30" Height="30" CornerRadius="4" HorizontalAlignment="Center"
-                              Background="{Binding Fill}"/>
-                      <Grid Margin="0,2,0,0" Height="11">
-                        <TextBlock Text="{Binding Wr}" Foreground="{Binding Frame}" HorizontalAlignment="Center"
-                                   FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"/>
-                        <!-- Скелетон вместо цифр, пока игр по чемпиону нет -->
-                        <Border Width="22" Height="8" CornerRadius="3" VerticalAlignment="Center"
-                                Background="{Binding Fill}" Visibility="{Binding WrSkeleton}"/>
-                      </Grid>
+                <!-- Мои чемпионы за 30 дней: одна строка ровно по ширине ряда кнопок
+                     пула (UniformGrid на то же число колонок, что и карточек). -->
+                <StackPanel x:Name="MyChampsBox" Visibility="Collapsed" Margin="0,7,0,0">
+                  <TextBlock Text="{loc:T pool.myChamps30d}" Margin="4,0,2,3"
+                             FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                             Foreground="#6E8AA0" HorizontalAlignment="Left"/>
+                <ItemsControl x:Name="MyChampsStrip" Height="52">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><UniformGrid Rows="1" Columns="6"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <!-- Margin как у кнопок пула (2,0) — края строк совпадают -->
+                      <Border Margin="2,0" CornerRadius="6" BorderThickness="1" Padding="3,2"
+                              BorderBrush="{Binding Frame}" Background="{Binding Tint}" ToolTip="{Binding Tip}">
+                        <StackPanel>
+                          <!-- Fill — иконка чемпиона либо ровная заливка пустого слота -->
+                          <Border Width="30" Height="30" CornerRadius="4" HorizontalAlignment="Center"
+                                  Background="{Binding Fill}"/>
+                          <Grid Margin="0,2,0,0" Height="11">
+                            <TextBlock Text="{Binding Wr}" Foreground="{Binding Frame}" HorizontalAlignment="Center"
+                                       FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"/>
+                            <!-- Скелетон вместо цифр, пока игр по чемпиону нет -->
+                            <Border Width="22" Height="8" CornerRadius="3" VerticalAlignment="Center"
+                                    Background="{Binding Fill}" Visibility="{Binding WrSkeleton}"/>
+                          </Grid>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Подсказка режима пула: в лобби с напарником — включить дуо-пул,
+                   одному — выключить его. Непрозрачная: кнопки под ней не должны
+                   просвечивать. Свечение — отдельным слоем позади: эффект на
+                   самой карточке размыл бы текст. Тексты и значок ставит код. -->
+              <Grid x:Name="PoolHintCard" Visibility="Collapsed" Opacity="0" Margin="2,0">
+                <Grid.RenderTransform>
+                  <TranslateTransform x:Name="PoolHintMove"/>
+                </Grid.RenderTransform>
+                <Border CornerRadius="7" Background="#0C1726">
+                  <Border.Effect>
+                    <DropShadowEffect Color="#5A8AC8" BlurRadius="14" ShadowDepth="0" Opacity="0.4"/>
+                  </Border.Effect>
+                </Border>
+                <Border CornerRadius="7" BorderThickness="1" BorderBrush="#5A8AC8" Padding="11,8,10,8">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#16243A" Offset="0"/>
+                      <GradientStop Color="#0C1726" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="*"/>
+                      <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                      <Path x:Name="PoolHintIcon" Width="17" Height="14" Stretch="Uniform"
+                            Fill="#7FB0EA" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                      <TextBlock x:Name="PoolHintTitle" MaxWidth="225" TextTrimming="CharacterEllipsis"
+                                 FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                                 Foreground="#E6EDF3" VerticalAlignment="Center"/>
                     </StackPanel>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            </StackPanel>
+                    <TextBlock x:Name="PoolHintText" Grid.Row="1" Margin="0,3,0,0"
+                               FontFamily="{StaticResource UiFont}" FontSize="12"
+                               Foreground="#C3D3E0" TextWrapping="Wrap" LineHeight="16"/>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                Margin="0,7,0,0">
+                      <Button x:Name="PoolHintLaterBtn" Click="PoolHintLater_Click"
+                              Content="{loc:T poolHint.later}"
+                              Background="Transparent" BorderThickness="1" BorderBrush="#405060"
+                              Foreground="#9FB3C8" FontFamily="{StaticResource UiFont}" FontSize="11"
+                              FontWeight="Bold" Padding="10,3" Cursor="Hand"/>
+                      <!-- Как подсвеченная кнопка режима: нажатие делает её такой же. -->
+                      <Button x:Name="PoolHintApplyBtn" Click="PoolHintApply_Click" Margin="6,0,0,0"
+                              Background="#223655" BorderThickness="1" BorderBrush="#5A8AC8"
+                              Foreground="White" FontFamily="{StaticResource UiFont}" FontSize="11"
+                              FontWeight="Bold" Padding="12,3" Cursor="Hand"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </Grid>
+            </Grid>
 
             <!-- Тестовый режим: «Сохранить для драфта» + копирование журнала.
                  Обе кнопки включаются кодом, в боевом режиме их нет. -->

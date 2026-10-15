@@ -299,6 +299,9 @@ public static class PoolStore
 
     private static string _queue = "solo";   // очередь текущего лобби
 
+    /// Очередь текущего лобби: solo / flex / normal / aram.
+    public static string Queue { get { lock (Gate) return _queue; } }
+
     /// Смена очереди в лобби: подставляем ЗАПОМНЕННЫЙ для неё режим. Очередь,
     /// в которой пул ещё не выбирали, начинается с Normal — поэтому дуо-пул из
     /// соло не «переезжает» во флекс. Возвращает true, если выбор изменился.

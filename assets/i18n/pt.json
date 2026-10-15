@@ -754,5 +754,20 @@
     "synBad": "sinergia {0} · pior com {1}",
     "synOne": "sinergia {0} com {1}",
     "tipAlly": "Com {0}: {1}"
+  },
+  "poolHint": {
+    "withMate": "Jogando com {0}",
+    "withMateAnon": "Seu parceiro de dupla está no lobby",
+    "alone": "Só você no lobby",
+    "mateAway": "{0} não está no lobby",
+    "mateAwayAnon": "Seu parceiro de dupla não está no lobby",
+    "toDuo": "Ativar o pool de dupla “{0}”?",
+    "toDuoAny": "Ativar um pool de dupla?",
+    "toPool": "O pool de dupla só funciona com o parceiro. Mudar para o pool “{0}”?",
+    "toPoolAny": "O pool de dupla só funciona com o parceiro. Mudar para um pool próprio?",
+    "toNormal": "O pool de dupla só funciona com o parceiro. Mudar para Normal?",
+    "turnOn": "Ativar",
+    "switch": "Mudar",
+    "later": "Agora não"
   }
 }
