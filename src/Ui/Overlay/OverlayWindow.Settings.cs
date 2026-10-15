@@ -151,6 +151,14 @@ public partial class OverlayWindow
 
         // Компактная карточка ранга: эмблема мельче, полосы прогресса нет.
         RankEmblem.Height = s.ReadyCompact ? 46 : 74;
+        // Значок карты (нормалы, ARAM) — в тех же пропорциях, центром туда же,
+        // где центр эмблемы: у лиг он на 40–58 px от края (у Изумруда 46), а
+        // значок, прижатый влево, стоял на 33 и выглядел съехавшим.
+        var k = RankEmblem.Height / 74;
+        QueueMapBox.Width = QueueMapBox.Height = 66 * k;
+        QueueMap.Width = QueueMap.Height = 60 * k;
+        QueueMapBox.Margin = new Thickness(-6 + 19 * k, 4 * k, 0, 0);
+        if (QueueMapBox.Visibility == Visibility.Visible) CenterQueueName(true);
         ApplyLpBarVisibility();
 
         // Команды местами: моя команда справа, враги слева.

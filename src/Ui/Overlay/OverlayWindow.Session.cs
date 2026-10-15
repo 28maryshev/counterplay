@@ -132,6 +132,7 @@ public partial class OverlayWindow
             _rankKey = "";
             ApplyRankProgress();
             QueueMapBox.Visibility = Visibility.Collapsed;
+            CenterQueueName(false);
             _lpBarShown = true;                   // скелетон: полоса на своём месте
             ApplyLpBarVisibility();
             SessionHint.Text = Loc.T("session.needGames");
@@ -160,7 +161,6 @@ public partial class OverlayWindow
         {
             var aram = _selectedQueue == "aram";
             QueueMap.Source = QueueMapSource(aram ? "abyss" : "rift");
-            QueueMap.Width = QueueMap.Height = aram ? 44 : 50;
         }
         if (v.HasRank)
         {
@@ -244,6 +244,7 @@ public partial class OverlayWindow
             _lpShown = null;
             _rankKey = "";
         }
+        CenterQueueName(!v.HasRank && !rankedQueue);
         ApplyRankProgress();
 
         // Свежая установка/очередь: журнал этой очереди пуст — статистика
@@ -345,26 +346,54 @@ public partial class OverlayWindow
     }
 
     /// <summary>
-    /// Силуэт карты очереди без ранга: «rift» — Ущелье призывателей, «abyss» —
-    /// Воющая бездна. Сделаны из миникарт Data Dragon (`build/maps/make_maps.py`):
-    /// настоящий контур со всеми неровностями, у Ущелья яркие только три линии,
-    /// лес — с дырками.
+    /// Название нормалов и ARAM — по центру значка карты над ним, а не от края:
+    /// значок стоит по центру эмблемы лиги, и надпись от края смотрелась
+    /// съехавшей. Ширина надписи зависит от языка; шире значка — от края, как
+    /// название лиги.
+    /// </summary>
+    private void CenterQueueName(bool on)
+    {
+        double left = 0;
+        if (on)
+        {
+            RankText.Margin = new Thickness(0);
+            RankText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var center = QueueMapBox.Margin.Left + QueueMapBox.Width / 2;
+            left = Math.Max(0, center - RankText.DesiredSize.Width / 2);
+        }
+        RankText.Margin = new Thickness(left, 0, 0, 0);
+    }
+
+    // Значок карты на сетке 100×100, как в клиенте при выборе режима. Линии —
+    // уголки и стрелки толщиной 16, внешние углы чуть скруглены. Топ и бот —
+    // уголки слева сверху и справа снизу; мид — две стрелки по диагонали,
+    // наконечник — такой же уголок, древко уходит под него.
+    private const string MapTop = "M0,4 A4,4 0 0 1 4,0 L44,0 L44,16 L16,16 L16,44 L0,44 Z";
+    private const string MapBot = "M100,96 A4,4 0 0 1 96,100 L56,100 L56,84 L84,84 L84,56 L100,56 Z";
+    private const string MapMid =
+        "M56,0 L96,0 A4,4 0 0 1 100,4 L100,44 L84,44 L84,16 L56,16 Z " +
+        "M83.05,7.05 L92.95,16.95 L58.95,50.95 L49.05,41.05 Z " +
+        "M44,100 L4,100 A4,4 0 0 1 0,96 L0,56 L16,56 L16,84 L44,84 Z " +
+        "M16.95,92.95 L7.05,83.05 L41.05,49.05 L50.95,58.95 Z";
+
+    /// <summary>
+    /// Значок карты очереди без ранга, как в клиенте: «rift» — Ущелье
+    /// призывателей (три линии: уголки топа и бота и стрелки мида), «abyss» —
+    /// Воющая бездна (одна линия — только стрелки). Вектор: чёткий при любом
+    /// масштабе экрана.
     /// </summary>
     internal static ImageSource? QueueMapSource(string map)
     {
         var key = "map:" + map;
         if (_emblemCache.TryGetValue(key, out var cached)) return cached;
-        try
-        {
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.UriSource = new Uri($"pack://application:,,,/Counterplay;component/assets/maps/{map}.png");
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.EndInit();
-            _emblemCache[key] = bmp;
-            return bmp;
-        }
-        catch { return null; }
+        var data = map == "abyss" ? MapMid : $"{MapTop} {MapBot} {MapMid}";
+        // Ненулевое правило: древко и наконечник сливаются, а не вырезают друг друга.
+        var shape = Geometry.Parse("F1 " + data);
+        var brush = new SolidColorBrush(Color.FromRgb(0x10, 0xE4, 0xF9));
+        var img = new DrawingImage(new GeometryDrawing(brush, null, shape));
+        img.Freeze();
+        _emblemCache[key] = img;
+        return img;
     }
 
     private static ImageSource? RankEmblemSource(string tier)

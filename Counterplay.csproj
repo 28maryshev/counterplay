@@ -41,8 +41,6 @@
   <!-- Эмблемы рангов (Community Dragon, CDN Riot) — для трекера сессии -->
   <ItemGroup>
     <Resource Include="assets\ranks\*.png" />
-    <!-- Силуэты карт для нормалов и ARAM (из миникарт Data Dragon, build/maps). -->
-    <Resource Include="assets\maps\*.png" />
     <Resource Include="assets\flags\*.png" />
     <!-- Иконки ролей: свои, без сети (см. RoleIcons). -->
     <Resource Include="assets\roles\*.png" />

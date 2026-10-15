@@ -131,19 +131,20 @@ internal static class Program
             var lpBar = (FrameworkElement)w.FindName("RankProgressTrack");
 
             Show(w, stored, "normal");
-            Check("нормалы — на месте эмблемы силуэт Ущелья",
-                  box.Visibility == Visibility.Visible && MapUri(map).EndsWith("/maps/rift.png")
-                  && map.Source is { Width: > 0 }, MapUri(map));
+            Check("нормалы — на месте эмблемы значок Ущелья: уголки топа и бота и стрелки мида",
+                  box.Visibility == Visibility.Visible && MapFigures(map) == 6, $"{MapFigures(map)} фигур");
             Check("нормалы — без полосы LP", lpBar.Visibility == Visibility.Collapsed, $"{lpBar.Visibility}");
+            var rankText = (TextBlock)w.FindName("RankText");
+            Check("нормалы — название очереди под значком, а не от края",
+                  rankText.Margin.Left > 0, $"{rankText.Margin.Left:F0}");
             Check("нормалы при режиме «рейтинг» — линия винрейта",
                   chart.Children.OfType<System.Windows.Shapes.Polyline>().Any(), Texts(chart));
             Check("нормалы — без подсказки про рейтинговые игры",
                   !Texts(chart).Contains(Loc.T("chart.noRating")), Texts(chart));
 
             Show(w, stored, "aram");
-            Check("ARAM — силуэт Бездны",
-                  box.Visibility == Visibility.Visible && MapUri(map).EndsWith("/maps/abyss.png")
-                  && map.Source is { Width: > 0 }, MapUri(map));
+            Check("ARAM — значок Бездны: только стрелки мида",
+                  box.Visibility == Visibility.Visible && MapFigures(map) == 4, $"{MapFigures(map)} фигур");
             Check("ARAM — без полосы LP", lpBar.Visibility == Visibility.Collapsed, $"{lpBar.Visibility}");
             Check("ARAM, игр мало — подсказка не обещает LP",
                   hint.Visibility == Visibility.Visible && hint.Text == Loc.T("session.needGamesWr"), hint.Text);
@@ -155,6 +156,7 @@ internal static class Program
                   Texts(chart).Contains(Loc.T("chart.noRating")), Texts(chart));
             Check("соло с рангом — эмблема, силуэта карты нет", box.Visibility == Visibility.Collapsed, "");
             Check("соло с рангом — полоса LP на месте", lpBar.Visibility == Visibility.Visible, $"{lpBar.Visibility}");
+            Check("соло с рангом — название лиги от края", rankText.Margin.Left == 0, $"{rankText.Margin.Left:F0}");
 
             // Соло без ранга (отборочные не сыграны): скелетон эмблемы, а не карта.
             var skel = (FrameworkElement)w.FindName("RankEmblemSkel");
@@ -189,8 +191,11 @@ internal static class Program
 
     /// Откуда взята картинка силуэта: пустой источник на пустой ресурс не меняем
     /// — так проверка однажды прошла, когда картинки в сборку ещё не попали.
-    private static string MapUri(System.Windows.Controls.Image i) =>
-        (i.Source as System.Windows.Media.Imaging.BitmapImage)?.UriSource?.ToString() ?? "нет";
+    /// Сколько фигур в значке карты: у Ущелья два уголка и две стрелки
+    /// (наконечник и древко — отдельные фигуры), у Бездны — только стрелки.
+    private static int MapFigures(System.Windows.Controls.Image i) =>
+        i.Source is System.Windows.Media.DrawingImage { Drawing: System.Windows.Media.GeometryDrawing g }
+            ? System.Windows.Media.PathGeometry.CreateFromGeometry(g.Geometry).Figures.Count : 0;
 
     private static string Texts(Canvas c) =>
         string.Join(" | ", c.Children.OfType<TextBlock>().Select(t => t.Text));

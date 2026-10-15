@@ -283,28 +283,17 @@
                    маска формы задаются кодом (Skeleton.Shimmer, золотая эмблема). -->
               <Rectangle x:Name="RankEmblemSkel" Grid.Column="0" Width="90" Height="74"
                          HorizontalAlignment="Left" Margin="-6,0,0,-4" Visibility="Collapsed"/>
-              <!-- В очередях без ранга (нормалы, ARAM) на месте эмблемы — силуэт
-                   карты (assets/maps) в рамке: квадрат со скошенными углами.
-                   Обводка и свечение — цвета полосы LP. Размер силуэта внутри
-                   задаёт код: Бездна — узкая диагональ — чуть меньше Ущелья. -->
+              <!-- В очередях без ранга (нормалы, ARAM) на месте эмблемы — значок
+                   карты, как в клиенте (QueueMapSource: три линии у Ущелья, одна
+                   у Бездны), без рамки, со свечением своего цвета. Центр — где
+                   центр эмблемы лиги; в компактной карточке размер и отступ
+                   задаёт код вместе с эмблемой. -->
               <Grid x:Name="QueueMapBox" Grid.Column="0" Width="66" Height="66"
-                    HorizontalAlignment="Left" Margin="0,4,0,0" Visibility="Collapsed">
-                <Path Stretch="Fill" StrokeThickness="1.5"
-                      Data="M10,0 L56,0 L66,10 L66,56 L56,66 L10,66 L0,56 L0,10 Z">
-                  <Path.Stroke>
-                    <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
-                      <GradientStop Color="#2E7DD1" Offset="0"/>
-                      <GradientStop Color="#36D6E7" Offset="1"/>
-                    </LinearGradientBrush>
-                  </Path.Stroke>
-                  <Path.Fill>
-                    <SolidColorBrush Color="#36D6E7" Opacity="0.07"/>
-                  </Path.Fill>
-                </Path>
-                <Image x:Name="QueueMap" Width="50" Height="50" Stretch="Uniform"
+                    HorizontalAlignment="Left" Margin="13,4,0,0" Visibility="Collapsed">
+                <Image x:Name="QueueMap" Width="60" Height="60" Stretch="Uniform"
                        HorizontalAlignment="Center" VerticalAlignment="Center">
                   <Image.Effect>
-                    <DropShadowEffect Color="#36D6E7" BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
+                    <DropShadowEffect Color="#10E4F9" BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
                   </Image.Effect>
                 </Image>
               </Grid>
