@@ -1090,12 +1090,18 @@ internal static class Program
         // у «Банов». Владелец 15 октября: подсказку режима пула было не
         // рассмотреть — «Баны» уводят окно в драфт сразу. Поиск укорочен до 2 с.
         panelType.GetField("SearchSeconds", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, 2.0);
-        Get<System.Windows.Controls.Button>(panel, "_searchBtn")!
-            .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        var search = Get<System.Windows.Controls.Button>(panel, "_searchBtn")!;
+        search.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
         Wait(0.5);
         var status = ((System.Windows.Controls.TextBlock)overlay.FindName("ReadyStatusText")).Text;
         Check("«Поиск игры» — экран ожидания в фазе поиска, драфта ещё нет",
               Vis(overlay, "ReadyScroll") && status == Loc.T("phaseState.matchmaking"), status);
+        // Второе нажатие — отсчёт заново, а не отмена: первая версия гасила
+        // поиск, и владелец пять раз подряд отменял его через секунду.
+        search.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Wait(0.5);
+        status = ((System.Windows.Controls.TextBlock)overlay.FindName("ReadyStatusText")).Text;
+        Check("ещё нажатие — поиск идёт дальше, а не гаснет", status == Loc.T("phaseState.matchmaking"), status);
         Wait(2.5);
         Check("поиск кончился — объявление пиков, как по кнопке «Баны»",
               Last() is { InPlanning: true } && Vis(overlay, "PlanPanel"), "");

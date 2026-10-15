@@ -41,6 +41,18 @@ public partial class OverlayWindow
 
     private void OnPartyChanged() => Dispatcher.InvokeAsync(UpdatePoolHint);
 
+    /// <summary>
+    /// Песочница: «Поиск игры» — это новое лобби, отложенные «Не сейчас»
+    /// снова в силе. Владелец 15 октября отложил карточку, а потом ждал её на
+    /// поиске и не дождался: состав тот же. В бою так и задумано — отложил, и
+    /// до смены состава или очереди она не пристаёт.
+    /// </summary>
+    public void ForgetPoolHintLater() => Dispatcher.InvokeAsync(() =>
+    {
+        _poolHintLater.Clear();
+        UpdatePoolHint();
+    });
+
     private void OnPoolHintSettings() => Dispatcher.InvokeAsync(UpdatePoolHint);
 
     /// <summary>

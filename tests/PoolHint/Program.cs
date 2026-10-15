@@ -265,6 +265,14 @@ internal static class Program
             Check("сменили язык — текст на новом языке",
                   title.Text == Loc.T("poolHint.alone") && !title.Text.StartsWith("poolHint"), title.Text);
             Loc.SetLanguage("ru");
+
+            // Песочница: «Поиск игры» — новое лобби, отложенное снова в силе.
+            // Владелец отложил карточку и ждал её на поиске с тем же другом.
+            Click(later);
+            Check("отложил — карточки нет", !Shown(), "");
+            w.ForgetPoolHintLater();
+            Pump();
+            Check("песочница начала поиск — отложенная карточка вернулась", Shown(), title.Text);
         }
         finally { w.Close(); }
     }

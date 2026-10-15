@@ -447,8 +447,9 @@ sealed partial class TestPanel : Window
         _searchBtn.Padding = new Thickness(0, 3, 0, 3);
         _searchBtn.VerticalAlignment = VerticalAlignment.Center;
         _searchBtn.ToolTip = $"Экран ожидания в фазе «идёт поиск игры» на {SearchSeconds:0} с — успеть посмотреть "
-                           + "подсказку режима пула; затем объявление, баны и пики, как «Баны». Ещё раз — отмена";
-        _searchBtn.Click += (_, _) => ToggleSearch();
+                           + "подсказку режима пула (отложенная «Не сейчас» снова в силе); затем объявление, баны и пики, как «Баны». "
+                           + "Ещё раз — отсчёт заново, остановить — «Сброс»";
+        _searchBtn.Click += (_, _) => StartSearch();
         var searchRow = new StackPanel
         {
             Orientation = System.Windows.Controls.Orientation.Horizontal,
