@@ -242,28 +242,22 @@ internal static class Program
         Pump();
         var banList  = (ItemsControl)w.FindName("BanFullList");
         var banStrip = (ContentControl)w.FindName("BanHiddenStrip");
-        var popup    = (System.Windows.Controls.Primitives.Popup)w.FindName("HiddenPopup");
-        var bansBtn  = (UIElement)w.FindName("HiddenBansBtn");
-        var picksBtn = (UIElement)w.FindName("HiddenPicksBtn");
-        // Список всплывает отдельным окошком — прозрачным, чтобы проверка его не показывала.
-        popup.Child.Opacity = 0;
-        string Text(string name) => ((TextBlock)w.FindName(name)).Text;
+        string Count() => ((TextBlock)w.FindName("HiddenCount")).Text;
         bool Shown(string name) => ((FrameworkElement)w.FindName(name)).Visibility == Visibility.Visible;
-        List<HiddenChampVm> Rows() => Cards<HiddenChampVm>((ItemsControl)w.FindName("HiddenPopupList"));
-        UIElement? RestoreBtn() => Find<Border>(popup.Child, b => b.Tag is HiddenChampVm);
-        void Toggle(UIElement btn) { Press(btn); Pump(); }
         var cards = Cards<RecCard>(banList);
         Check("у совета бана есть кнопка, без наведения скрыта",
               Button(w, banList, 0) is { Visibility: Visibility.Collapsed }, "");
-        Check("кнопки «Баны» / «Пики» у переключателя тир-листа видны и без скрытых",
-              Shown("TierListBar") && Shown("HiddenBansBtn") && Shown("HiddenPicksBtn")
-              && Text("HiddenBansCount") == "" && Text("HiddenPicksCount") == "", "");
+        Check("кнопка «Скрытые» у переключателя тир-листа видна и без скрытых, без счётчика",
+              Shown("TierListBar") && Shown("HiddenBtn") && Count() == "", "");
         Check("полосы над советами нет", banStrip.Visibility == Visibility.Collapsed, "");
-        Toggle(bansBtn);
-        Check("пустой список — подсказка, откуда берутся скрытые",
-              popup.IsOpen && Rows().Count == 0 && Shown("HiddenPopupEmpty"), Text("HiddenPopupEmpty"));
-        Toggle(bansBtn);
-        Check("повторный клик по кнопке — список закрылся", !popup.IsOpen, "");
+
+        // Окно «Скрытые» — невидимым (его открывает кнопка в шапке тир-листа).
+        var dw = w.OpenDislikes();
+        ShowHidden(dw);
+        Pump();
+        Check("окно: две половины, обе пусты", Half(dw, "_bans").Contains(Loc.T("dislike.empty"))
+              && Half(dw, "_picks").Contains(Loc.T("dislike.empty")), "");
+        Check("повторное открытие — то же окно", ReferenceEquals(w.OpenDislikes(), dw), "");
         if (snap is { Length: > 0 }) { Button(w, banList, 0)!.Visibility = Visibility.Visible; Snap(w, snap, "1-ban-button.png"); }
 
         // Положительный контроль: клик по самой карточке наводит бан.
@@ -280,30 +274,23 @@ internal static class Program
         Check("клик по 👎 — карточки сразу нет", after.All(c => c.ChampionId != x), Names(after.Select(c => c.ChampionId).ToList()));
         Check("советов столько же", after.Count == cards.Count, $"{cards.Count} → {after.Count}");
         Check("и бан в клиенте не наведён", hovered.Count == 0, string.Join(",", hovered));
-        Check("на кнопке «Баны» — счётчик 1, на «Пики» — пусто",
-              Text("HiddenBansCount") == "1" && Text("HiddenPicksCount") == "", $"{Text("HiddenBansCount")} / {Text("HiddenPicksCount")}");
-        Check("полосы над советами нет — скрытые в списке у кнопок", banStrip.Visibility == Visibility.Collapsed, "");
+        Check("на кнопке «Скрытые» — счётчик 1", Count() == "1", Count());
+        Check("полосы над советами нет — скрытые в окне", banStrip.Visibility == Visibility.Collapsed, "");
+        Check("открытое окно обновилось само: он слева, в банах, «игр до возвращения: 10»",
+              RestoreIn(dw, "_bans", x) is not null && Half(dw, "_bans").Contains(DataDragon.Name(x))
+              && Half(dw, "_bans").Contains(Loc.T("dislike.statusHidden", Dislikes.HideGames))
+              && Half(dw, "_picks").Contains(Loc.T("dislike.empty")), string.Join(" | ", Half(dw, "_bans")));
 
         // Новое событие драфта — по-прежнему скрыт (не только в окне).
         w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
         Check("следующее событие драфта его не возвращает", Cards<RecCard>(banList).All(c => c.ChampionId != x), "");
+        if (snap is { Length: > 0 }) SnapElement((FrameworkElement)dw.Content, snap, "2-hidden-window.png");
 
-        Wait(0.35);   // закрытие кликом по кнопке гасит повторное открытие на 300 мс
-        Toggle(bansBtn);
-        var rows = Rows();
-        Check("список банов: он, с именем и «игр до возвращения: 10»",
-              popup.IsOpen && rows.Select(r => r.ChampionId).SequenceEqual([x]) && rows[0].Name == DataDragon.Name(x)
-              && rows[0].Status == Loc.T("dislike.statusHidden", Dislikes.HideGames), rows.FirstOrDefault()?.Status ?? "");
-        Check("заголовок — скрытые баны", Text("HiddenPopupTitle").StartsWith(Loc.T("dislike.titleBans", "").Split('·')[0].Trim()),
-              Text("HiddenPopupTitle"));
-        if (snap is { Length: > 0 }) SnapElement((FrameworkElement)popup.Child, snap, "2-hidden-list.png");
-        Press(RestoreBtn()!);
+        Click(RestoreIn(dw, "_bans", x)!);
         Pump();
         Check("«Вернуть» — совет снова на своём месте", Cards<RecCard>(banList).FirstOrDefault()?.ChampionId == x, "");
-        Check("список открыт и пуст, счётчик пропал",
-              popup.IsOpen && Rows().Count == 0 && Shown("HiddenPopupEmpty") && Text("HiddenBansCount") == "", "");
-        popup.IsOpen = false;
+        Check("в окне банов пусто, счётчик пропал", Half(dw, "_bans").Contains(Loc.T("dislike.empty")) && Count() == "", "");
 
         // Пики.
         var p = Draft("utility", ban: false, enemies: [222, 51]);
@@ -322,68 +309,59 @@ internal static class Program
         Check("клик по 👎 — пика нет", pAfter.All(c => c.ChampionId != y), "");
         Check("и чемпион в клиенте не наведён", hovered.Count == 0, string.Join(",", hovered));
         Check("в фазе пиков тир-листа нет — полоса «Скрыты» над пиками", pickStrip.Visibility == Visibility.Visible, "");
+        Check("в окне он справа, в пиках", RestoreIn(dw, "_picks", y) is not null && RestoreIn(dw, "_bans", y) is null, "");
 
-        // Следующий драфт, фаза банов: скрытый пик — на кнопке «Пики», отдельно от банов.
+        // Следующий драфт, фаза банов: скрытый пик — в счётчике и в окне.
         w.DraftEnded();
         w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
-        Check("в фазе банов скрытый пик считается на кнопке «Пики»",
-              Text("HiddenPicksCount") == "1" && Text("HiddenBansCount") == "", $"{Text("HiddenBansCount")} / {Text("HiddenPicksCount")}");
+        Check("в фазе банов скрытый пик считается на кнопке", Count() == "1", Count());
         Press(Button(w, banList, 0)!);
         Pump();
-        Check("скрыл и бан — у каждой кнопки свой счётчик",
-              Text("HiddenBansCount") == "1" && Text("HiddenPicksCount") == "1", "");
-        Toggle(picksBtn);
-        Check("список пиков — только пик", popup.IsOpen && Rows().Select(r => r.ChampionId).SequenceEqual([y]), "");
-        Toggle(bansBtn);
-        Check("клик по «Баны» при открытых пиках — список банов", popup.IsOpen && Rows().Select(r => r.ChampionId).SequenceEqual([x]), "");
-        Toggle(bansBtn);
-        Wait(0.35);
-        Toggle(picksBtn);
-        Press(RestoreBtn()!);
+        Check("скрыл и бан — счётчик 2, в окне слева бан, справа пик",
+              Count() == "2" && RestoreIn(dw, "_bans", x) is not null && RestoreIn(dw, "_picks", y) is not null, Count());
+        if (snap is { Length: > 0 }) SnapElement((FrameworkElement)dw.Content, snap, "2b-hidden-both.png");
+        Click(RestoreIn(dw, "_picks", y)!);
         Pump();
-        Check("вернул пик из списка — запись удалена, бан на месте",
-              Dislikes.Active(Dislikes.Kind.Pick, "support").Count == 0 && Text("HiddenPicksCount") == ""
-              && Text("HiddenBansCount") == "1", "");
-        popup.IsOpen = false;
+        Check("вернул пик — запись удалена, бан на месте",
+              Dislikes.Active(Dislikes.Kind.Pick, "support").Count == 0 && Count() == "1" && RestoreIn(dw, "_bans", x) is not null, "");
 
-        // Возвращающийся (уже в советах, только ниже) — тоже в списке, и его можно вернуть на место.
+        // Возвращающийся (уже в советах, только ниже) — тоже в окне, и его можно вернуть на место.
         _played = Dislikes.HideGames + 2;
+        dw.Refresh();
         w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
-        Wait(0.35);
-        Toggle(bansBtn);
-        Check("возвращающийся — в списке, «мест ниже своего: 3»",
-              Rows().FirstOrDefault() is { } rr && rr.ChampionId == x && rr.Status == Loc.T("dislike.statusReturning", 3),
-              Rows().FirstOrDefault()?.Status ?? "");
-        Press(RestoreBtn()!);
+        Check("возвращающийся — в окне, «мест ниже своего: 3»",
+              Half(dw, "_bans").Contains(Loc.T("dislike.statusReturning", 3)), string.Join(" | ", Half(dw, "_bans")));
+        Click(RestoreIn(dw, "_bans", x)!);
         Pump();
         Check("вернул — сразу первым", Cards<RecCard>(banList).FirstOrDefault()?.ChampionId == x, "");
-        popup.IsOpen = false;
         _played = 0;
 
-        // Свой бан сделан: советов нет, тир-лист и кнопки — есть.
+        // Скрытый на другой роли — в окне тоже (после своей роли), и вернуть его можно.
+        Dislikes.Add(Dislikes.Kind.Ban, 99, "mid");
         Dislikes.Add(Dislikes.Kind.Ban, x, "support");
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
+        Pump();
+        var order = Restores(dw, "_bans");
+        Check("другая роль — в окне, после своей", order.SequenceEqual([x, 99]), string.Join(",", order));
+        Check("на кнопке — только своя роль", Count() == "1", Count());
+        Click(RestoreIn(dw, "_bans", 99)!);
+        Pump();
+        Check("вернул чужую роль — запись удалена", Dislikes.Active(Dislikes.Kind.Ban, "mid").Count == 0, "");
+
+        // Свой бан сделан: советов нет, тир-лист и кнопка — есть.
         var done = Draft("utility", ban: true) with { MyBanActionId = -1, MyBanInProgress = false, MyBanDone = true };
         w.UpdateBans([], done, engine, hov);
         Pump();
-        Check("после своего бана кнопки на месте, счётчик есть", Shown("BansDonePanel") && Shown("TierListBar")
-              && Shown("HiddenBansBtn") && Text("HiddenBansCount") == "1", "");
-        Wait(0.35);
-        Toggle(bansBtn);
-        Press(RestoreBtn()!);
+        Check("после своего бана кнопка на месте, счётчик есть", Shown("BansDonePanel") && Shown("HiddenBtn")
+              && Count() == "1", Count());
+        Click(RestoreIn(dw, "_bans", x)!);
         Pump();
-        Check("вернул и там — счётчик пропал, советы не появились",
-              Text("HiddenBansCount") == "" && Shown("BansDonePanel"), "");
-
-        // Пики начались — тир-лист ушёл, список закрывается вместе с ним.
-        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
+        Check("вернул и там — счётчик пропал, советы не появились", Count() == "" && Shown("BansDonePanel"), "");
+        dw.Close();
         Pump();
-        Wait(0.35);
-        Toggle(bansBtn);
-        w.UpdateRecommendations(engine.Recommend(p, s.DraftCount), p, engine);
-        Pump();
-        Check("с уходом тир-листа список закрылся", !popup.IsOpen, "");
+        Check("окно закрыли — следующее открытие создаёт новое", !ReferenceEquals(w.OpenDislikes(), dw), "");
 
         // Тир-лист выключен в настройках — вернуть скрытый бан можно из полосы над советами.
         s.BansTierList = false;
@@ -452,7 +430,33 @@ internal static class Program
         Find<ContentControl>(list.ItemContainerGenerator.ContainerFromIndex(i),
                              c => c.GetType() == typeof(ContentControl) && c.Tag is int);
 
-    /// Первая иконка скрытого (полоса «Скрыты» или окошко в шапке тир-листа).
+    /// Половина окна «Скрытые» (_bans / _picks): все тексты в ней.
+    private static List<string> Half(DislikesWindow dw, string field) =>
+        [.. All<TextBlock>(HalfPanel(dw, field)).Select(t => t.Text)];
+
+    /// «Вернуть» в строке чемпиона на этой половине окна.
+    private static System.Windows.Controls.Button? RestoreIn(DislikesWindow dw, string field, int champ) =>
+        Find<System.Windows.Controls.Button>(HalfPanel(dw, field), b => b.Tag is int id && id == champ);
+
+    /// Чемпионы на половине окна — по порядку строк.
+    private static List<int> Restores(DislikesWindow dw, string field) =>
+        [.. All<System.Windows.Controls.Button>(HalfPanel(dw, field)).Where(b => b.Tag is int).Select(b => (int)b.Tag)];
+
+    private static StackPanel HalfPanel(DislikesWindow dw, string field) =>
+        (StackPanel)typeof(DislikesWindow).GetField(field, System.Reflection.BindingFlags.Instance
+                                                           | System.Reflection.BindingFlags.NonPublic)!.GetValue(dw)!;
+
+    private static void Click(System.Windows.Controls.Button b) =>
+        b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+
+    private static IEnumerable<T> All<T>(DependencyObject d) where T : DependencyObject
+    {
+        if (d is T t) yield return t;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++)
+            foreach (var x in All<T>(VisualTreeHelper.GetChild(d, i))) yield return x;
+    }
+
+    /// Первая иконка скрытого (полоса «Скрыты»).
     private static FrameworkElement? Icon(DependencyObject where) =>
         Find<Grid>(where, g => g.Tag is HiddenChampVm);
 

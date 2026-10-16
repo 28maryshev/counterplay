@@ -28,41 +28,6 @@
     </DataTemplate.Triggers>
   </DataTemplate>
 
-  <!-- Строка списка скрытых (всплывает под кнопками «Баны» / «Пики» в шапке
-       тир-листа): портрет, имя, сколько ждать, кнопка «Вернуть». Возвращающийся
-       (уже виден, только ниже) — тоже здесь, его можно вернуть на место сразу. -->
-  <DataTemplate x:Key="HiddenRowTemplate">
-    <Grid Margin="0,3">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto"/>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
-      <Ellipse Width="30" Height="30" StrokeThickness="1.5" Stroke="{Binding Ring}" Margin="0,0,10,0">
-        <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
-      </Ellipse>
-      <StackPanel Grid.Column="1" VerticalAlignment="Center">
-        <TextBlock Text="{Binding Name}" Foreground="White" TextTrimming="CharacterEllipsis"
-                   FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"/>
-        <TextBlock Text="{Binding Status}" Foreground="#8AA6BC" TextTrimming="CharacterEllipsis"
-                   FontFamily="{StaticResource UiFont}" FontSize="11"/>
-      </StackPanel>
-      <Border x:Name="Restore" Grid.Column="2" Tag="{Binding}" Cursor="Hand" VerticalAlignment="Center"
-              Margin="10,0,0,0" Padding="9,3,9,4" CornerRadius="4" BorderThickness="1"
-              Background="#1A36D6E7" BorderBrush="#5536D6E7"
-              MouseLeftButtonDown="DislikeRestore_Click">
-        <TextBlock Text="{loc:T dislike.restore}" Foreground="#36D6E7"
-                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
-      </Border>
-    </Grid>
-    <DataTemplate.Triggers>
-      <Trigger SourceName="Restore" Property="IsMouseOver" Value="True">
-        <Setter TargetName="Restore" Property="Background" Value="#3336D6E7"/>
-        <Setter TargetName="Restore" Property="BorderBrush" Value="#36D6E7"/>
-      </Trigger>
-    </DataTemplate.Triggers>
-  </DataTemplate>
-
   <!-- Полоса «Скрыты» над советами пиков (в фазе пиков тир-листа с окошком
        скрытых нет) и над советами банов, если тир-лист выключен в настройках.
        Содержимое — список HiddenChampVm. -->

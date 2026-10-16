@@ -775,12 +775,18 @@
     "tip": "No sugerir: ocultar durante {0} partidas, luego vuelve poco a poco",
     "hidden": "Ocultos:",
     "restoreTip": "{0} está oculto — partidas hasta que vuelva: {1}. Haz clic para recuperarlo ya",
-    "btnTip": "Ocultos con «no sugerir» en este rol: abre la lista para recuperarlos",
+    "btnTip": "Ocultos con «no sugerir»: abre la ventana para recuperarlos",
     "restore": "Recuperar",
     "statusHidden": "partidas hasta que vuelva: {0}",
     "statusReturning": "volviendo — puestos por debajo del suyo: {0}",
-    "titleBans": "Bans ocultos · {0}",
-    "titlePicks": "Picks ocultos · {0}",
-    "empty": "Vacío. El botón 👎 en la esquina de una tarjeta oculta a un campeón durante {0} partidas"
+    "titleBans": "Ocultos en bans",
+    "titlePicks": "Ocultos en picks",
+    "empty": "Vacío",
+    "button": "Ocultos",
+    "windowTitle": "Campeones ocultos",
+    "markBans": "Bans",
+    "markPicks": "Picks",
+    "otherRole": "Oculto en otro rol",
+    "howTo": "El botón 👎 en la esquina de una tarjeta oculta a un campeón durante {0} partidas en ese rol. Luego sube un puesto por partida y tras {1} partidas vuelve a su sitio. «Recuperar» lo devuelve al instante."
   }
 }

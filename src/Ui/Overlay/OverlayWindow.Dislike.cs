@@ -2,8 +2,8 @@
 
 namespace Counterplay;
 
-// Окно драфта — «не советовать»: кнопка 👎 на карточке пика и бана, кнопки
-// «Баны» / «Пики» в шапке тир-листа со списком скрытых и полоса «Скрыты» над
+// Окно драфта — «не советовать»: кнопка 👎 на карточке пика и бана, кнопка
+// «Скрытые» в шапке тир-листа (окно DislikesWindow) и полоса «Скрыты» над
 // советами пиков. Сами правила (сколько игр скрыт, как возвращается) — в Dislikes.
 public partial class OverlayWindow
 {
@@ -28,14 +28,12 @@ public partial class OverlayWindow
         RefreshAdvice(kind);
     }
 
-    /// Клик по иконке в полосе «Скрыты» или по «Вернуть» в списке скрытых:
-    /// вернуть чемпиона в советы сразу. Список, если открыт, остаётся открытым.
+    /// Клик по иконке в полосе «Скрыты»: вернуть чемпиона в советы сразу.
     internal void DislikeRestore_Click(object sender)
     {
         if (sender is not FrameworkElement { Tag: HiddenChampVm vm }) return;
         Dislikes.Remove(vm.Kind, vm.ChampionId, vm.Role);
         RefreshAdvice(vm.Kind);
-        if (HiddenPopup.IsOpen) FillHiddenPopup();
     }
 
     /// <summary>
@@ -84,74 +82,42 @@ public partial class OverlayWindow
     }
 
     /// <summary>
-    /// Кнопки «Баны» / «Пики» в шапке тир-листа (фаза банов), рядом с
-    /// переключателем «Пики | Баны»: сколько скрыто на роли драфта. Видны
-    /// всегда — владелец: «где кнопки вызова окна? хотел, чтобы они были рядом
-    /// с переключением». Пики здесь тоже: в фазе банов их списка на экране нет,
-    /// а скрыть пик могли в прошлом драфте. Открытый список обновляется вместе
-    /// с ними — события драфта идут, пока он открыт.
+    /// Кнопка «👎 Скрытые» в шапке тир-листа (фаза банов), рядом с
+    /// переключателем «Пики | Баны»: сколько скрыто на роли драфта, баны и пики
+    /// вместе. Видна всегда — владелец: «где кнопки вызова окна? хотел, чтобы
+    /// они были рядом с переключением». Зовёт RenderTierList, поэтому кнопка есть
+    /// везде, где тир-лист: советы банов, объявление пиков, баны команд.
     /// </summary>
-    private void ShowHiddenButtons()
+    private void ShowHiddenButton()
     {
-        static string Count(int n) => n > 0 ? n.ToString() : "";
-        HiddenBansCount.Text  = Count(Dislikes.Active(Dislikes.Kind.Ban, DraftDbRole).Count);
-        HiddenPicksCount.Text = Count(Dislikes.Active(Dislikes.Kind.Pick, DraftDbRole).Count);
-        if (HiddenPopup.IsOpen) FillHiddenPopup();
+        var n = Dislikes.Active(Dislikes.Kind.Ban, DraftDbRole).Count
+              + Dislikes.Active(Dislikes.Kind.Pick, DraftDbRole).Count;
+        HiddenCount.Text = n > 0 ? n.ToString() : "";
     }
 
-    // Чей список открыт: банов или пиков.
-    private Dislikes.Kind _hiddenListKind;
+    // Окно скрытых — одно: повторный клик поднимает уже открытое.
+    private DislikesWindow? _dislikesWindow;
 
-    // Когда список закрылся. Он закрывается любым кликом мимо — и тем же
-    // кликом по своей кнопке, который следом открыл бы его снова.
-    private DateTime _hiddenClosedAt;
-
-    private void HiddenPopup_Closed(object? sender, EventArgs e) => _hiddenClosedAt = DateTime.UtcNow;
-
-    /// Тир-лист ушёл (пики, конец драфта) — список скрытых вместе с ним.
-    private void TierListBar_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void HiddenWindow_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (e.NewValue is false) HiddenPopup.IsOpen = false;
-    }
-
-    /// Клик по кнопке «Баны» / «Пики» в шапке тир-листа: открыть список скрытых
-    /// под ней, повторный клик по той же — закрыть.
-    private void HiddenList_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        e.Handled = true;   // не таскать окно за кнопку
-        if (sender is not FrameworkElement { Tag: string tag }) return;
-        var kind = tag == "Ban" ? Dislikes.Kind.Ban : Dislikes.Kind.Pick;
-        if (HiddenPopup.IsOpen && _hiddenListKind == kind) { HiddenPopup.IsOpen = false; return; }
-        if (_hiddenListKind == kind && (DateTime.UtcNow - _hiddenClosedAt).TotalMilliseconds < 300) return;
-        _hiddenListKind = kind;
-        HiddenPopup.PlacementTarget = (UIElement)sender;
-        FillHiddenPopup();
-        HiddenPopup.IsOpen = true;
+        e.Handled = true;   // не таскать окно драфта за кнопку
+        OpenDislikes().Show();
     }
 
     /// <summary>
-    /// Содержимое списка скрытых: все действующие дизлайки вида на роли драфта —
-    /// и скрытые («игр до возвращения: N»), и возвращающиеся (уже в советах,
-    /// только ниже): вернуть на место можно любого.
+    /// Окно скрытых (слева баны, справа пики), над окном драфта. Вернули
+    /// чемпиона — советы пересчитываются сразу. Возвращает окно не показанным:
+    /// проверки показывают его сами, невидимым.
     /// </summary>
-    private void FillHiddenPopup()
+    public DislikesWindow OpenDislikes()
     {
-        var kind = _hiddenListKind;
-        var role = DraftDbRole;
-        var rows = Dislikes.Active(kind, role).Select(s => new HiddenChampVm
+        if (_dislikesWindow is { IsLoaded: true } open) { open.Activate(); return open; }
+        _dislikesWindow = new DislikesWindow(DraftDbRole, kind =>
         {
-            ChampionId = s.Champ,
-            Kind       = kind,
-            Role       = role,
-            Icon       = IconCache.Get(s.Champ),
-            Name       = DataDragon.Name(s.Champ),
-            Status     = s.Hidden ? Loc.T("dislike.statusHidden", s.GamesLeft)
-                                  : Loc.T("dislike.statusReturning", s.Demote),
-        }).ToList();
-        HiddenPopupTitle.Text = Loc.T(kind == Dislikes.Kind.Ban ? "dislike.titleBans" : "dislike.titlePicks",
-                                      RoleNameDb(role));
-        HiddenPopupList.ItemsSource = rows;
-        HiddenPopupEmpty.Text       = Loc.T("dislike.empty", Dislikes.HideGames);
-        HiddenPopupEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            RefreshAdvice(kind);
+            ShowHiddenButton();
+        }) { Owner = this };
+        _dislikesWindow.Closed += (_, _) => _dislikesWindow = null;
+        return _dislikesWindow;
     }
 }

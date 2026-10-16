@@ -775,12 +775,18 @@
     "tip": "Nie polecaj: ukryj na {0} gier, potem wróci stopniowo",
     "hidden": "Ukryte:",
     "restoreTip": "{0} jest ukryty — gier do powrotu: {1}. Kliknij, aby przywrócić teraz",
-    "btnTip": "Ukryte przyciskiem „nie polecaj” na tej roli — otwórz listę, aby przywrócić",
+    "btnTip": "Ukryte przyciskiem „nie polecaj” — otwórz okno, aby przywrócić",
     "restore": "Przywróć",
     "statusHidden": "gier do powrotu: {0}",
     "statusReturning": "wraca — miejsc poniżej swojego: {0}",
-    "titleBans": "Ukryte bany · {0}",
-    "titlePicks": "Ukryte picki · {0}",
-    "empty": "Pusto. Przycisk 👎 w rogu karty ukrywa bohatera na {0} gier"
+    "titleBans": "Ukryte w banach",
+    "titlePicks": "Ukryte w pickach",
+    "empty": "Pusto",
+    "button": "Ukryte",
+    "windowTitle": "Ukryci bohaterowie",
+    "markBans": "Bany",
+    "markPicks": "Picki",
+    "otherRole": "Ukryty na innej roli",
+    "howTo": "Przycisk 👎 w rogu karty ukrywa bohatera na {0} gier na tej roli. Potem wraca o jedno miejsce na grę, a po {1} grach stoi na swoim miejscu. „Przywróć” działa od razu."
   }
 }

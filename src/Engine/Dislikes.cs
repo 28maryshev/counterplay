@@ -20,8 +20,8 @@ namespace Counterplay;
 /// с драфтом (соло, флекс, нормалы) по журналу игр. Дизлайк держится по роли:
 /// Блицкранк против саппорта ничего не говорит о банах на миде.
 ///
-/// Скрытого можно вернуть сразу: в фазе банов — кнопки «Баны» / «Пики» в шапке
-/// тир-листа со списком, в фазе пиков — полоса «Скрыты» над советами.
+/// Скрытого можно вернуть сразу: окно «Скрытые» (кнопка в шапке тир-листа,
+/// слева баны, справа пики) и полоса «Скрыты» над советами пиков.
 /// </summary>
 public static class Dislikes
 {
@@ -54,6 +54,9 @@ public static class Dislikes
 
     /// Папка файла вместо папки игрока: песочница пишет в свою.
     public static string? DirOverride { get; set; }
+
+    /// Что-то скрыли или вернули — окно скрытых перерисовывает списки.
+    public static event Action? Changed;
 
     /// Сколько игр сыграно после отметки времени. Подменяют проверки: журнал
     /// копится только настоящими играми.
@@ -113,6 +116,7 @@ public static class Dislikes
             Save(list);
         }
         Log.Write($"не советовать: {DataDragon.Name(champ)} ({(kind == Kind.Ban ? "бан" : "пик")}, {role}) — на {HideGames} игр");
+        Changed?.Invoke();
     }
 
     /// Вернуть в советы сразу.
@@ -125,6 +129,7 @@ public static class Dislikes
             Save(list);
         }
         Log.Write($"не советовать: {DataDragon.Name(champ)} ({(kind == Kind.Ban ? "бан" : "пик")}, {role}) — вернул");
+        Changed?.Invoke();
     }
 
     private static bool Same(Entry e, Kind kind, int champ, string role) =>
@@ -138,6 +143,15 @@ public static class Dislikes
             return [.. All().Where(e => e.Kind == kind && e.Role == role)
                             .Select(e => new State(e.Champ, GamesSince(e.At)))
                             .Where(s => s.Played < HideGames + ReturnGames)];
+    }
+
+    /// Действующие дизлайки вида на всех ролях — для окна скрытых.
+    public static IReadOnlyList<(string Role, State State)> ActiveAll(Kind kind)
+    {
+        lock (Gate)
+            return [.. All().Where(e => e.Kind == kind)
+                            .Select(e => (e.Role, State: new State(e.Champ, GamesSince(e.At))))
+                            .Where(x => x.State.Played < HideGames + ReturnGames)];
     }
 
     /// <summary>

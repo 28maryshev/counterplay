@@ -775,12 +775,18 @@
     "tip": "Non suggerire: nascondi per {0} partite, poi torna gradualmente",
     "hidden": "Nascosti:",
     "restoreTip": "{0} è nascosto — partite al ritorno: {1}. Clicca per riportarlo ora",
-    "btnTip": "Nascosti con «non suggerire» per questo ruolo — apri l’elenco per riportarli",
+    "btnTip": "Nascosti con «non suggerire» — apri la finestra per riportarli",
     "restore": "Riporta",
     "statusHidden": "partite al ritorno: {0}",
     "statusReturning": "sta tornando — posti sotto il suo: {0}",
-    "titleBans": "Ban nascosti · {0}",
-    "titlePicks": "Pick nascosti · {0}",
-    "empty": "Vuoto. Il pulsante 👎 nell’angolo di una scheda nasconde un campione per {0} partite"
+    "titleBans": "Nascosti nei ban",
+    "titlePicks": "Nascosti nei pick",
+    "empty": "Vuoto",
+    "button": "Nascosti",
+    "windowTitle": "Campioni nascosti",
+    "markBans": "Ban",
+    "markPicks": "Pick",
+    "otherRole": "Nascosto per un altro ruolo",
+    "howTo": "Il pulsante 👎 nell’angolo di una scheda nasconde un campione per {0} partite in quel ruolo. Poi risale di un posto a partita e dopo {1} partite torna al suo posto. «Riporta» lo rimette subito."
   }
 }

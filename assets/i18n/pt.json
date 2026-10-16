@@ -775,12 +775,18 @@
     "tip": "Não sugerir: ocultar por {0} partidas, depois volta aos poucos",
     "hidden": "Ocultos:",
     "restoreTip": "{0} está oculto — partidas até voltar: {1}. Clique para trazê-lo de volta agora",
-    "btnTip": "Ocultos com “não sugerir” nesta função — abra a lista para trazê-los de volta",
+    "btnTip": "Ocultos com “não sugerir” — abra a janela para trazê-los de volta",
     "restore": "Restaurar",
     "statusHidden": "partidas até voltar: {0}",
     "statusReturning": "voltando — posições abaixo da sua: {0}",
-    "titleBans": "Bans ocultos · {0}",
-    "titlePicks": "Picks ocultos · {0}",
-    "empty": "Vazio. O botão 👎 no canto de um cartão oculta um campeão por {0} partidas"
+    "titleBans": "Ocultos nos bans",
+    "titlePicks": "Ocultos nos picks",
+    "empty": "Vazio",
+    "button": "Ocultos",
+    "windowTitle": "Campeões ocultos",
+    "markBans": "Bans",
+    "markPicks": "Picks",
+    "otherRole": "Oculto em outra função",
+    "howTo": "O botão 👎 no canto de um cartão oculta um campeão por {0} partidas nessa função. Depois ele sobe uma posição por partida e após {1} partidas volta ao seu lugar. “Restaurar” traz de volta na hora."
   }
 }

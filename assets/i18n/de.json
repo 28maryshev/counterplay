@@ -775,12 +775,18 @@
     "tip": "Nicht vorschlagen: {0} Spiele ausblenden, danach kehrt er schrittweise zurück",
     "hidden": "Ausgeblendet:",
     "restoreTip": "{0} ist ausgeblendet — Spiele bis zur Rückkehr: {1}. Klicken, um ihn jetzt zurückzuholen",
-    "btnTip": "Für diese Rolle mit „Nicht vorschlagen“ ausgeblendet — Liste öffnen und zurückholen",
+    "btnTip": "Mit „Nicht vorschlagen“ ausgeblendet — Fenster öffnen und zurückholen",
     "restore": "Zurückholen",
     "statusHidden": "Spiele bis zur Rückkehr: {0}",
     "statusReturning": "kehrt zurück — Plätze unter seinem: {0}",
-    "titleBans": "Ausgeblendete Bans · {0}",
-    "titlePicks": "Ausgeblendete Picks · {0}",
-    "empty": "Leer. Der 👎-Knopf in der Kartenecke blendet einen Champion für {0} Spiele aus"
+    "titleBans": "Bei Bans ausgeblendet",
+    "titlePicks": "Bei Picks ausgeblendet",
+    "empty": "Leer",
+    "button": "Ausgeblendet",
+    "windowTitle": "Ausgeblendete Champions",
+    "markBans": "Bans",
+    "markPicks": "Picks",
+    "otherRole": "Für eine andere Rolle ausgeblendet",
+    "howTo": "Der 👎-Knopf in der Kartenecke blendet einen Champion für {0} Spiele auf dieser Rolle aus. Danach steigt er pro Spiel einen Platz auf und ist nach {1} Spielen wieder an seiner Stelle. „Zurückholen“ wirkt sofort."
   }
 }

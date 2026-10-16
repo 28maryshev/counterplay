@@ -775,12 +775,18 @@
     "tip": "Don't suggest: hide for {0} games, then it climbs back gradually",
     "hidden": "Hidden:",
     "restoreTip": "{0} is hidden — games until it returns: {1}. Click to bring it back now",
-    "btnTip": "Champions hidden with “don’t suggest” for this role — open the list to bring them back",
+    "btnTip": "Champions hidden with “don’t suggest” — open the window to bring them back",
     "restore": "Restore",
     "statusHidden": "games until it returns: {0}",
     "statusReturning": "climbing back — places below its spot: {0}",
-    "titleBans": "Hidden bans · {0}",
-    "titlePicks": "Hidden picks · {0}",
-    "empty": "Nothing here. The 👎 button in a card’s corner hides a champion for {0} games"
+    "titleBans": "Hidden from bans",
+    "titlePicks": "Hidden from picks",
+    "empty": "Nothing here",
+    "button": "Hidden",
+    "windowTitle": "Hidden champions",
+    "markBans": "Bans",
+    "markPicks": "Picks",
+    "otherRole": "Hidden for another role",
+    "howTo": "The 👎 button in a card’s corner hides a champion for {0} games on that role. Then it climbs back one place per game and is back in its spot after {1} games. “Restore” brings it back right away."
   }
 }

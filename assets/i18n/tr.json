@@ -775,12 +775,18 @@
     "tip": "Önerme: {0} maç gizle, sonra yavaş yavaş geri döner",
     "hidden": "Gizlenenler:",
     "restoreTip": "{0} gizli — dönmesine kalan maç: {1}. Şimdi geri getirmek için tıkla",
-    "btnTip": "Bu rolde “önerme” ile gizlenenler — listeyi aç ve geri getir",
+    "btnTip": "“Önerme” ile gizlenenler — pencereyi aç ve geri getir",
     "restore": "Geri getir",
     "statusHidden": "dönmesine kalan maç: {0}",
     "statusReturning": "geri dönüyor — yerinin altında: {0}",
-    "titleBans": "Gizlenen banlar · {0}",
-    "titlePicks": "Gizlenen seçimler · {0}",
-    "empty": "Boş. Kartın köşesindeki 👎 düğmesi bir şampiyonu {0} maç gizler"
+    "titleBans": "Banlarda gizlenenler",
+    "titlePicks": "Seçimlerde gizlenenler",
+    "empty": "Boş",
+    "button": "Gizlenenler",
+    "windowTitle": "Gizlenen şampiyonlar",
+    "markBans": "Banlar",
+    "markPicks": "Seçimler",
+    "otherRole": "Başka bir rolde gizli",
+    "howTo": "Kartın köşesindeki 👎 düğmesi bir şampiyonu o rolde {0} maç gizler. Sonra her maç bir sıra yükselir ve {1} maç sonra yerine döner. “Geri getir” hemen döndürür."
   }
 }

@@ -151,7 +151,7 @@ public sealed partial class PoolSettingsWindow
     }
 
     // Фон в стиле оверлея: диагональная сине-красная подсветка + мягкие свечения.
-    private static UIElement DecorBackground()
+    internal static UIElement DecorBackground()
     {
         var layer = new Grid { IsHitTestVisible = false, ClipToBounds = true };
 

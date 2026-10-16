@@ -167,7 +167,7 @@ public partial class OverlayWindow
         PaintTierMode(byBans);
         TierListBar.Visibility = _tierCols.Count > 0 && AppSettings.Current.BansTierList
             ? Visibility.Visible : Visibility.Collapsed;
-        ShowHiddenButtons();   // скрытые «не советовать» — кнопки в шапке
+        ShowHiddenButton();   // скрытые «не советовать» — кнопка в шапке
 
         // Помечаем уже забаненных чемпионов (красный крест) — обновляется по ходу
         // банфазы, когда список банов растёт.
