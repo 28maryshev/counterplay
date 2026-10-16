@@ -196,14 +196,20 @@ public partial class OverlayWindow
             return int.TryParse(pick, out var w)
                 ? ClientScales.MinBy(x => Math.Abs(x.Width - w)).Scale : 1.0;
 
-        if (!TryGetClientRect(out var r)) return 1.0;   // клиента не видно — как есть
+        // Клиента не видно — масштаб как в последний раз. После игры клиент
+        // разворачивается не сразу, и «как есть» (×1,00) у большого клиента
+        // давало прыжок: узкая панель, через секунду широкая. До первой встречи
+        // с клиентом — ×1,00.
+        if (!TryGetClientRect(out var r)) return _lastAutoScale;
         double dpiX = 1;
         if (forDpi is not null &&
             System.Windows.PresentationSource.FromVisual(forDpi)?.CompositionTarget is { } ct)
             dpiX = ct.TransformToDevice.M11;
         var width = (r.Right - r.Left) / dpiX;
-        return ClientScales.MinBy(x => Math.Abs(x.Width - width)).Scale;
+        return _lastAutoScale = ClientScales.MinBy(x => Math.Abs(x.Width - width)).Scale;
     }
+
+    private static double _lastAutoScale = 1.0;
 
     // ── Раскладка окна на время драфта ────────────────────────────────────
     // Клиент у всех стоит по-разному: если он посреди экрана, оверлей справа от

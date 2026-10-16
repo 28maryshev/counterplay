@@ -58,7 +58,14 @@ public partial class OverlayWindow
     private struct RECT { public int Left, Top, Right, Bottom; }
 
     // Находит окно клиента LoL (champ select) — заголовок "League of Legends",
-    // класс RCLIENT/RiotWindowClass. Возвращает его прямоугольник в пикселях.
+    // класс RCLIENT. Возвращает его прямоугольник в пикселях.
+    //
+    // RiotWindowClass — это окно САМОЙ ИГРЫ («League of Legends (TM) Client»).
+    // Раньше оно тоже принималось: пока полноэкранная игра закрывается, её окно
+    // ещё на экране и выше клиента, и после каждой игры панель профиля на пару
+    // секунд раздувалась под экран 2560 (×1,35) и вставала к его краю. Слежение
+    // (TryFindClientWindow) окно игры по-прежнему видит: там оно решает только,
+    // прятать ли оверлей, а не какого он размера.
     private static bool TryGetClientRect(out RECT rect)
     {
         RECT found = default;
@@ -72,7 +79,7 @@ public partial class OverlayWindow
             var cls = new System.Text.StringBuilder(256);
             GetClassName(h, cls, 256);
             var c = cls.ToString();
-            if (c is "RCLIENT" or "RiotWindowClass" && GetWindowRect(h, out var r) && r.Right - r.Left > 400)
+            if (c == "RCLIENT" && GetWindowRect(h, out var r) && r.Right - r.Left > 400)
             {
                 found = r; ok = true; return false; // нашли — останавливаем перебор
             }
