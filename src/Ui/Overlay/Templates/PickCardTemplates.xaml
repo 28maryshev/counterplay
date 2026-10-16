@@ -166,7 +166,7 @@
             <!-- Показатели: справа, по центру бокса. Отступ справа — место
                  кнопке «не советовать» в углу: без него она при наведении
                  закрывала число винрейта в патче. -->
-            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center" Margin="0,0,16,0"
+            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center" Margin="0,0,18,0"
                         Visibility="{Binding MetricsVisibility}">
               <StackPanel.Resources>
                 <!-- Золотой прямоугольник у сильнейшей метрики (лейбл + число + бар) -->

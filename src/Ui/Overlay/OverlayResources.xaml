@@ -342,9 +342,14 @@
        и кнопка появляются вместе. Карточка — элемент списка (ContentPresenter);
        клик по кнопке до карточки не доходит (Handled), чемпион не наводится.
        CanDislike — у карточки, которую можно скрыть (не мой пик, не ARAM). -->
+  <!-- Значок «палец вниз» для кнопки «не советовать» — обведён с картинки,
+       которую дал владелец (красная рука на белом), в поле 24×20. Вектор, а не
+       картинка: кнопка мелкая и масштабируется вместе с окном. -->
+  <Geometry x:Key="DislikeGlyph">M8.64,9.64 L8.71,9.38 L8.71,1.23 L8.77,1.07 L10.49,0.67 L13.84,0.11 L14.96,0.11 L15.40,0.00 L19.53,0.00 L20.94,0.38 L21.41,0.69 L22.08,1.36 L22.26,1.63 L22.37,2.08 L22.33,2.68 L22.39,2.95 L22.68,3.44 L23.49,4.31 L23.55,4.91 L23.22,5.92 L23.22,6.36 L23.35,6.68 L23.82,7.21 L24.00,7.93 L23.93,8.19 L23.40,9.00 L23.37,9.22 L23.51,9.64 L23.89,10.27 L24.00,10.83 L23.71,11.65 L22.86,12.59 L22.57,12.75 L21.66,12.95 L19.31,12.95 L18.87,13.06 L17.19,12.95 L16.86,13.06 L16.63,13.95 L17.46,15.69 L17.64,16.41 L17.64,16.97 L17.44,17.99 L17.12,18.69 L16.72,19.18 L15.87,19.67 L15.07,19.76 L14.89,19.71 L14.67,19.49 L14.51,18.75 L14.51,17.97 L14.40,17.41 L13.77,15.58 L12.77,13.80 L12.03,12.75 L10.85,11.48 L10.25,10.63 L9.91,10.29 L9.42,10.00 L8.75,9.89 Z M0.04,0.94 L0.22,0.67 L0.67,0.45 L7.14,0.45 L7.57,0.69 L7.81,1.23 L7.81,9.60 L7.72,9.85 L7.48,10.16 L6.92,10.38 L0.78,10.38 L0.25,10.14 L0.00,9.60 Z</Geometry>
+
   <Style x:Key="DislikeButton" TargetType="ContentControl">
-    <Setter Property="Width" Value="22"/>
-    <Setter Property="Height" Value="22"/>
+    <Setter Property="Width" Value="24"/>
+    <Setter Property="Height" Value="24"/>
     <Setter Property="HorizontalAlignment" Value="Right"/>
     <Setter Property="VerticalAlignment" Value="Top"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -354,17 +359,19 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ContentControl">
-          <Border x:Name="Bg" CornerRadius="5" Background="#E6141B24"
-                  BorderBrush="#5A6E82" BorderThickness="1" SnapsToDevicePixels="True">
-            <TextBlock x:Name="Glyph" Text="&#xE8E0;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                       Foreground="#B8CADA" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Margin="0,1,0,0"/>
+          <!-- Красный значок на красноватом фоне в красной рамке (просьба
+               владельца); под курсором фон заливается красным, значок белеет -->
+          <Border x:Name="Bg" CornerRadius="5" Background="#F03A1A1E"
+                  BorderBrush="#FF3B30" BorderThickness="1.5" SnapsToDevicePixels="True">
+            <Path x:Name="Glyph" Data="{StaticResource DislikeGlyph}" Fill="#FF3B30"
+                  Stretch="Uniform" Width="16" Height="16"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bg" Property="Background" Value="#C8403A"/>
+              <Setter TargetName="Bg" Property="Background" Value="#E5332A"/>
               <Setter TargetName="Bg" Property="BorderBrush" Value="#FF7A70"/>
-              <Setter TargetName="Glyph" Property="Foreground" Value="#FFFFFF"/>
+              <Setter TargetName="Glyph" Property="Fill" Value="#FFFFFF"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
