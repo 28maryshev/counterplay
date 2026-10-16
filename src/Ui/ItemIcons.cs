@@ -100,12 +100,17 @@ public static class ItemIcons
     private static string? _namesLocale;
     private static string? _namesVersion;
 
+    /// Названия предметов загружены.
+    public static bool NamesLoaded => _names is { Count: > 0 };
+
     /// Названия, описания и ЦЕНЫ предметов. Перечитываем и при смене языка, и
     /// при выходе патча: Riot правит цены и характеристики вместе с балансом,
     /// и показывать прошлые — врать игроку.
     public static async Task LoadNamesAsync(string locale, CancellationToken ct)
     {
-        if (_namesLocale == locale && _namesVersion == DataDragon.Version && _names is not null)
+        // Пустой список — это неудача прошлой попытки (нет сети), а не «уже
+        // загружено»: иначе повтор из разогрева проходил бы мимо.
+        if (_namesLocale == locale && _namesVersion == DataDragon.Version && NamesLoaded)
             return;
         _namesLocale = locale;
         _namesVersion = DataDragon.Version;

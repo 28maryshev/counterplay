@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -6,70 +6,13 @@ using Counterplay;
 using Velopack;
 using Velopack.Sources;
 
-// Program — сессия клиента: события чемп-селекта и игры, драфт в окно, руны.
+// Program — сессия клиента: события чемп-селекта и игры, драфт в окно.
 partial class Program
 {
-    // ── Руны и билд ────────────────────────────────────────────────────────
-    // Панель показываем, когда мой чемпион уже определён (залочен или наведён)
-    // и по связке чемпион+роль есть данные на сервере. Запрос идёт один раз за
-    // драфт, а не на каждый ховер, поэтому сеть не мешает.
-    private static string _runesShownFor = "";   // связка, для которой уже показали руны
-
     /// Обновить профиль игрока (ранг, LP, график) текущей сессии клиента;
     /// null — клиента нет. Нужно синхронизации: приехали игры с другого
     /// компьютера — профиль перерисовывается сразу, а не через минуту.
     private static Func<Task>? _refreshSession;
-
-    public static async Task UpdateRunesAsync(OverlayWindow overlay, DraftState? draft, CancellationToken ct)
-    {
-        // Только залоченный чемпион, не наведённый. Раньше руны и сборка
-        // появлялись уже по ховеру, и это сбивало: подсказки на экране, а пик
-        // ещё не сделан — человек считал, что чемпион уже взят, и терял ход.
-        // Кнопка подтверждения при этом работает по ховеру, как и раньше:
-        // навёл — подтвердил — увидел сборку.
-        var champ = draft?.Me?.ChampionId ?? 0;
-        if (draft is null || champ == 0 || draft.IsAram)
-        {
-            _runesShownFor = "";
-            overlay.HideRunes();
-            return;
-        }
-
-        // Роль: из драфта, иначе основная роль чемпиона (custom games/блайнд не
-        // раскрывают позицию — но руны показать всё равно нужно).
-        var wanted = RecommendationEngine.LcuToDbRole(draft.MyPosition);
-        var role = RunesClient.ResolveRole(champ, wanted);
-        if (role is null || !RunesClient.Has(champ, role))
-        {
-            // «Не показывает руны» — жалоба, которую нельзя разобрать без этой
-            // строки: причин три (не загрузился манифест, роль не раскрыта,
-            // связки нет в данных), а внешне они выглядят одинаково — пустотой.
-            if (_runesMissLogged != champ)
-            {
-                _runesMissLogged = champ;
-                Log.Write($"руны не показаны: {DataDragon.Name(champ)}, роль «{wanted}» → " +
-                          $"{(role is null ? "связка не найдена" : $"«{role}» нет в данных")}, " +
-                          $"манифест {(RunesClient.ManifestLoaded ? "загружен" : "НЕ ЗАГРУЖЕН")}");
-            }
-            overlay.HideRunes();
-            return;
-        }
-
-        var opponent = draft.DirectOpponent?.EffectiveChampionId;
-        var key = $"{champ}:{role}:{opponent ?? 0}";
-        if (key == _runesShownFor) return;   // уже показано для этой связки
-        _runesShownFor = key;
-
-        var stats = await RunesClient.GetAsync(champ, role, ct);
-        _runesMissLogged = 0;
-        Log.Write($"руны: {DataDragon.Name(champ)} на роли «{role}»" +
-                  (stats is null ? " — данные не пришли" : $", игр {stats.Games:N0}"));
-        overlay.ShowRunes(stats, champ, DataDragon.Name(champ), role, opponent);
-    }
-
-    // Чемпион, по которому уже написали «рун нет» — чтобы не повторяться каждый
-    // цикл чемп-селекта.
-    static int _runesMissLogged;
 
     // Бакеты, за которыми уже ходили в этом запуске: одна попытка на бакет.
     private static readonly HashSet<string> _bucketFetched = [];
@@ -485,6 +428,7 @@ partial class Program
                         // видимостью управляет фаза геймфлоу (Lobby/EndOfGame вернёт окно,
                         // GameStart оставит скрытым). Иначе при входе в игру окно всплывёт.
                         hideCts?.Cancel(); hideCts = null;
+                        RunesDraftEnded();
                         overlay.UpdateRecommendations(null, null);
                         // Не просто статус: окно должно вернуться на экран готовности
                         // той фазы, в которой клиент уже находится (см. DraftEnded).
@@ -608,6 +552,7 @@ partial class Program
         }
 
         hideCts?.Cancel();
+        RunesDraftEnded();
         engine?.Dispose();
         _refreshSession = null;
     }

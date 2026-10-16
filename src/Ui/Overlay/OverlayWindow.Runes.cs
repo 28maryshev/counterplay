@@ -246,6 +246,17 @@ public partial class OverlayWindow
         if (ok) PulseApplyButton(on: false);   // применено — кнопка больше не «зовёт»
     }
 
+    /// Справочники Riot доехали позже панели — так бывает, когда программу
+    /// запустили без сети. Перерисовать то, что уже на экране: без справочника
+    /// у вариантов рун нет ни названий, ни иконок, у сборки — названий предметов.
+    /// Выбранный вариант и строка сборки сохраняются.
+    public void RefsArrived() => Dispatcher.InvokeAsync(() =>
+    {
+        if (_runeStats is not { Keystones.Count: > 0 } stats) return;
+        RenderRuneOptions(_lastOpponentId);
+        RenderBuilds(stats);
+    });
+
     public void HideRunes() => Dispatcher.InvokeAsync(() =>
     {
         _runesWaiting = false;

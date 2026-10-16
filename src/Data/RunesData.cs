@@ -50,7 +50,15 @@ public sealed record ChampStats(
 /// </summary>
 public static class RunesClient
 {
-    private const string BaseUrl = "https://counterplays.com/api/stats/v1";
+    private const string LiveUrl = "https://counterplays.com/api/stats/v1";
+
+    /// <summary>
+    /// Подменить сервер. Нужно ПРОВЕРКАМ: они поднимают у себя крошечный сервер
+    /// и гасят его, когда надо изобразить пропавшую сеть. В работе всегда null.
+    /// </summary>
+    public static string? BaseUrlOverride { get; set; }
+
+    private static string BaseUrl => BaseUrlOverride ?? LiveUrl;
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(6) };
     private static readonly Dictionary<string, ChampStats?> Cache = new();
@@ -64,25 +72,69 @@ public static class RunesClient
     /// панель наполняем правдоподобными моками — чтобы обкатать вид и импорт.
     public static bool UseMock { get; set; }
 
-    /// Подтянуть манифест (что доступно). Тихо: нет сети — фича просто выключена.
-    public static async Task LoadManifestAsync(CancellationToken ct)
+    /// <summary>
+    /// Подтянуть манифест (что доступно). true — загрузился. Тихо: нет сети —
+    /// прежний список, если он был, остаётся в силе.
+    ///
+    /// Зовут трое: разогрев на запуске (повторяет, пока не выйдет), сторож
+    /// патчей раз в три часа (руны нового патча сайт выкладывает не в день
+    /// патча) и пик, если списка всё ещё нет (<see cref="EnsureManifestAsync"/>).
+    /// </summary>
+    public static async Task<bool> LoadManifestAsync(CancellationToken ct)
     {
-        if (UseMock) { _patch = "16.13"; _available = null; return; }
+        if (UseMock) { _patch = "16.13"; _available = null; return true; }
 
+        _manifestTriedAt = DateTime.UtcNow;
         try
         {
             var json = await Http.GetStringAsync($"{BaseUrl}/manifest.json", ct);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
-            _patch = root.GetProperty("patch").GetString();
-            _available = root.GetProperty("available").EnumerateArray()
-                             .Select(x => x.GetString()!).ToHashSet();
-            _mainRole = new();
+            var patch = root.GetProperty("patch").GetString();
+            var available = root.GetProperty("available").EnumerateArray()
+                                .Select(x => x.GetString()!).ToHashSet();
+            var mainRole = new Dictionary<int, string>();
             if (root.TryGetProperty("mainRole", out var mr))
                 foreach (var p in mr.EnumerateObject())
-                    _mainRole[int.Parse(p.Name)] = p.Value.GetString()!;
+                    mainRole[int.Parse(p.Name)] = p.Value.GetString()!;
+
+            // Сменился патч рун — файлы связок прошлого патча из памяти долой:
+            // в ключе кэша патча нет, и без этого панель до перезапуска
+            // показывала бы прошлые руны.
+            if (_patch is not null && patch != _patch)
+            {
+                await Gate.WaitAsync(ct);
+                try { Cache.Clear(); }
+                finally { Gate.Release(); }
+                _items.Clear();
+            }
+
+            // Список целиком готов — только теперь подменяем: пик читает его
+            // из другого потока и не должен застать половину.
+            _mainRole = mainRole;
+            _patch = patch;
+            _available = available;
+            return true;
         }
-        catch { _available = null; }
+        catch { return false; }
+    }
+
+    // Когда последний раз спрашивали список: пик зовёт EnsureManifestAsync на
+    // каждое событие драфта, и без паузы сайт засыпали бы запросами.
+    private static DateTime _manifestTriedAt = DateTime.MinValue;
+    private static readonly TimeSpan RetryGap = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Список связок — к моменту пика. Не загрузился на запуске (не было сети)
+    /// или ещё не успел (программу открыли посреди драфта) — спрашиваем тут же,
+    /// не дожидаясь разогрева. Раньше в обоих случаях панель рун не появлялась
+    /// до перезапуска программы.
+    /// </summary>
+    public static async Task<bool> EnsureManifestAsync(CancellationToken ct)
+    {
+        if (ManifestLoaded) return true;
+        if (DateTime.UtcNow - _manifestTriedAt < RetryGap) return false;
+        return await LoadManifestAsync(ct);
     }
 
     /// Загрузился ли манифест. Отличает «связки нет в данных» от «мы вообще не
@@ -105,7 +157,14 @@ public static class RunesClient
         return _mainRole.GetValueOrDefault(champ);   // null → данных по чемпиону нет
     }
 
-    /// Данные по связке. null — нет данных/сети.
+    /// <summary>
+    /// Данные по связке. null — нет данных или сети.
+    ///
+    /// В памяти остаётся только то, что пришло. «Нет» не запоминается: раньше
+    /// моргнувшая сеть или предзагрузка до списка связок оставляли чемпиона без
+    /// рун до перезапуска программы. Не пришло — следующий вызов спросит снова,
+    /// но не раньше чем через несколько секунд (предзагрузка зовёт часто).
+    /// </summary>
     public static async Task<ChampStats?> GetAsync(int champ, string role, CancellationToken ct)
     {
         if (UseMock) return Mock(champ, role);
@@ -118,19 +177,27 @@ public static class RunesClient
         }
         finally { Gate.Release(); }
 
-        ChampStats? stats = null;
+        var patch = _patch;
+        if (!Has(champ, role) || patch is null) return null;
+        if (_failedAt.TryGetValue(key, out var failed) && DateTime.UtcNow - failed < RetryGap)
+            return null;
+
+        ChampStats stats;
         try
         {
-            if (Has(champ, role) && _patch != null)
-            {
-                var json = await Http.GetStringAsync($"{BaseUrl}/{_patch}/{key}.json", ct);
-                stats = Parse(json);
-            }
+            var json = await Http.GetStringAsync($"{BaseUrl}/{patch}/{key}.json", ct);
+            stats = Parse(json);
         }
-        catch { /* сеть моргнула — панель просто не появится */ }
+        catch
+        {
+            // Сеть моргнула — панель пока не появится, спросим ещё.
+            _failedAt[key] = DateTime.UtcNow;
+            return null;
+        }
+        _failedAt.TryRemove(key, out _);
 
         await Gate.WaitAsync(ct);
-        try { Cache[key] = stats; }
+        try { if (patch == _patch) Cache[key] = stats; }
         finally { Gate.Release(); }
         if (stats is { Items.Count: > 0 })
         {
@@ -146,6 +213,9 @@ public static class RunesClient
     // ждать сеть там нельзя. Поэтому то, что уже загрузилось, лежит здесь
     // отдельным слепком: спросил — либо есть, либо нет.
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<int>> _items = new();
+
+    // Когда связка последний раз не пришла — пауза перед следующей попыткой.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _failedAt = new();
 
     /// Позвать, когда подъехали предметы очередного чемпиона: вид, нарисованный
     /// раньше, про них не знал и его стоит пересобрать.

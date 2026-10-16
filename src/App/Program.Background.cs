@@ -58,28 +58,79 @@ partial class Program
     /// Порядок внутри важен: сперва сверяем справочник с сетью (вдруг вышел
     /// патч и на диске старый), и только потом тянем иконки — иначе скачали бы
     /// набор прошлого патча, а следом ещё раз новый.
+    ///
+    /// Не загрузилось — повторяем фоном, пока не выйдет. Раньше всё это
+    /// грузилось один раз: запустил программу без сети — и до перезапуска
+    /// после пика не было ни рун, ни сборки, хотя сеть давно вернулась.
     /// </summary>
-    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct) =>
+    private static void StartWarmup(OverlayWindow overlay, CancellationToken ct)
+    {
+        // Список связок рун — первым и отдельно. Он крошечный и с нашего сайта,
+        // а без него панели рун нет вовсе. Раньше он стоял в конце цепочки, за
+        // разбором предметов (в плохой сети — минута с лишним), и пик в первые
+        // секунды после запуска его опережал.
+        _ = Task.Run(() => KeepTryingAsync("список рун и сборок", RunesClient.LoadManifestAsync, ct), ct);
+
         _ = Task.Run(async () =>
         {
             try
             {
                 await DataDragon.LoadAsync(Loc.DDragonLocale, ct);
                 await ItemIcons.PreloadAsync(ct);   // иконки контр-предметов
-
-                // Руны: справочник (имена/иконки) + названия предметов + манифест
-                // сервера. Если данных на сервере ещё нет — панель просто не
-                // появится, фича включится сама, когда наберётся выборка.
-                await RuneIcons.LoadAsync(Loc.DDragonLocale, ct);
-                await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, ct);
-                // Что предмет даёт (броня, магзащита, срез лечения, пробивание) —
-                // на этом строится подбор сборки под состав врагов.
-                await ItemFacts.LoadAsync(ct);
-                await RunesClient.LoadManifestAsync(ct);
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { return; }
             catch (Exception ex) { Log.Write($"разогрев не доделан: {ex.Message}"); }
+
+            // Руны: справочник (имена/иконки) + названия предметов + что предмет
+            // даёт (броня, магзащита, срез лечения, пробивание — на этом строится
+            // подбор сборки под состав врагов). Без справочника рун панель
+            // не знает ни одной руны и показывать ей нечего.
+            var tries = await KeepTryingAsync("справочники рун и предметов", async t =>
+            {
+                await RuneIcons.LoadAsync(Loc.DDragonLocale, t);
+                await ItemIcons.LoadNamesAsync(Loc.DDragonLocale, t);
+                await ItemFacts.LoadAsync(t);
+                return RuneIcons.Loaded && ItemIcons.NamesLoaded && ItemFacts.Loaded;
+            }, ct);
+
+            // Доехали не с первого раза — панель рун и карточки могли уже стоять
+            // на экране без названий рун и контр-предметов: перерисовать.
+            if (tries > 1)
+            {
+                overlay.RefsArrived();
+                overlay.BuildsArrived();
+            }
         }, ct);
+    }
+
+    /// <summary>
+    /// Повторять шаг, пока он не скажет «готово»: паузы от 10 секунд, растут до
+    /// минуты. Пока сети нет, попытка стоит одного неудачного запроса.
+    /// Возвращает номер удачной попытки; 0 — программа закрывается.
+    /// </summary>
+    private static async Task<int> KeepTryingAsync(string what, Func<CancellationToken, Task<bool>> step,
+                                                   CancellationToken ct)
+    {
+        var delay = TimeSpan.FromSeconds(10);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                if (await step(ct))
+                {
+                    if (attempt > 1) Log.Write($"{what}: загрузились с попытки №{attempt}");
+                    return attempt;
+                }
+            }
+            catch (OperationCanceledException) { return 0; }
+            catch (Exception ex) { Log.Write($"{what}: {ex.Message}"); }
+
+            if (attempt == 1) Log.Write($"{what}: не загрузились, повторяю фоном");
+            try { await Task.Delay(delay, ct); }
+            catch (OperationCanceledException) { return 0; }
+            delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, 60));
+        }
+    }
 
     /// <summary>
     /// Портреты чемпионов, которых на диске ещё нет, — фоном.
@@ -197,6 +248,11 @@ partial class Program
                     // Сети нет или Data Dragon прилёг — попробуем через три часа.
                     Log.Write($"проверка патча не удалась: {ex.Message}");
                 }
+
+                // Список связок рун — тоже каждый круг: руны нового патча сайт
+                // выкладывает, когда наберутся матчи, а не в день патча. Не
+                // ответил — в силе остаётся прежний.
+                await RunesClient.LoadManifestAsync(ct);
 
                 // База — отдельным заходом, и НЕ только когда сменился Data
                 // Dragon: пайплайн выкладывает её не в ту же минуту, что Riot

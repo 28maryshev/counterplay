@@ -97,6 +97,10 @@ public static class RuneIcons
         catch { /* офлайн — иконок не будет, панель обойдётся текстом */ }
     }
 
+    /// Справочник загружен. Пока нет — панель рун не знает ни одной руны
+    /// (см. <see cref="Known"/>), и разогрев повторяет загрузку.
+    public static bool Loaded => Runes.Count > 0;
+
     public static string NameOf(int runeId) => Runes.GetValueOrDefault(runeId)?.Name ?? $"#{runeId}";
 
     /// Короткое описание руны своими словами (из Data Dragon, на языке интерфейса).
