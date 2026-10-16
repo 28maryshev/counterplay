@@ -571,9 +571,12 @@ partial class Program
                             // обеих команд, а подбор банов не считаем зря. В
                             // планировании окно показывает моих чемпионов на роли —
                             // советы банов посчитаются со стартом таймера банов.
+                            // Наведения — копией: окно пересчитывает по ним советы после
+                            // «не советовать» в своём потоке, а этот их дописывает.
                             overlay.UpdateBans(draft.MyBanDone || draft.InPlanning
                                                    ? [] : engine?.RecommendBans(draft, hoverHistory),
-                                               draft, engine);
+                                               draft, engine,
+                                               hoverHistory.ToDictionary(kv => kv.Key, kv => new HashSet<int>(kv.Value)));
                             overlay.HideRunes();               // руны — на этапе пика, не банов
                             _runesShownFor = "";               // сбросить, чтобы после банов показать заново
                         }

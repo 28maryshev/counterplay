@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 
 namespace Counterplay;
@@ -16,4 +16,10 @@ public partial class PickCardTemplates : ResourceDictionary
 
     private void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) =>
         OverlayTemplates.Owner(sender)?.RecCard_Leave(sender, e);
+
+    private void PickDislike_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;   // до карточки клик не доходит — чемпион не наводится
+        OverlayTemplates.Owner(sender)?.Dislike_Click(sender, Dislikes.Kind.Pick);
+    }
 }

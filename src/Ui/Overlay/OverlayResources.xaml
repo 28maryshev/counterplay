@@ -336,4 +336,48 @@
       </Setter.Value>
     </Setter>
   </Style>
+
+  <!-- «Не советовать» — кнопка 👎 в правом верхнем углу карточки пика и бана,
+       как крестик у окна. Видна, пока курсор над карточкой: рамка наведения
+       и кнопка появляются вместе. Карточка — элемент списка (ContentPresenter);
+       клик по кнопке до карточки не доходит (Handled), чемпион не наводится.
+       CanDislike — у карточки, которую можно скрыть (не мой пик, не ARAM). -->
+  <Style x:Key="DislikeButton" TargetType="ContentControl">
+    <Setter Property="Width" Value="22"/>
+    <Setter Property="Height" Value="22"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="Visibility" Value="Collapsed"/>
+    <Setter Property="ToolTip" Value="{Binding DislikeTip}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContentControl">
+          <Border x:Name="Bg" CornerRadius="5" Background="#E6141B24"
+                  BorderBrush="#5A6E82" BorderThickness="1" SnapsToDevicePixels="True">
+            <TextBlock x:Name="Glyph" Text="&#xE8E0;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                       Foreground="#B8CADA" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="0,1,0,0"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Bg" Property="Background" Value="#C8403A"/>
+              <Setter TargetName="Bg" Property="BorderBrush" Value="#FF7A70"/>
+              <Setter TargetName="Glyph" Property="Foreground" Value="#FFFFFF"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <MultiDataTrigger>
+        <MultiDataTrigger.Conditions>
+          <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="True"/>
+          <Condition Binding="{Binding CanDislike}" Value="True"/>
+        </MultiDataTrigger.Conditions>
+        <Setter Property="Visibility" Value="Visible"/>
+      </MultiDataTrigger>
+    </Style.Triggers>
+  </Style>
 </ResourceDictionary>

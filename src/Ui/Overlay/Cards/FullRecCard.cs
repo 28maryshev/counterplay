@@ -90,6 +90,11 @@ public sealed class FullRecCard
                                     : IsMyPick    ? "#1E36D6E7" : "#1EC89B3C";
     public string       CardBorder => IsSelected ? "#F0C24B" : IsMyPick ? "#36D6E7" : "#00000000";
 
+    // Кнопка «не советовать» в углу. Нет её у моего пика и в ARAM: там
+    // советы не из подбора по роли, и скрывать нечего.
+    public bool         CanDislike { get; init; }
+    public string       DislikeTip => Loc.T("dislike.tip", Dislikes.HideGames);
+
     // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».
     public bool         NotOwned      { get; init; }
     public string       NotOwnedLabel { get; init; } = "";

@@ -117,8 +117,11 @@ public partial class OverlayWindow
         });
     }
 
+    /// hovers — наведения своих за драфт, с которыми посчитаны bans (копия:
+    /// окно пересчитывает по ним советы после «не советовать»).
     public void UpdateBans(IReadOnlyList<BanRec>? bans, DraftState? draft,
-                           RecommendationEngine? engine = null) =>
+                           RecommendationEngine? engine = null,
+                           IReadOnlyDictionary<int, HashSet<int>>? hovers = null) =>
         Dispatcher.InvokeAsync(() =>
         {
             UseEngine(engine);   // нужен тир-листу (банфаза идёт до пиков)
@@ -136,6 +139,7 @@ public partial class OverlayWindow
 
             _lastBans  = bans;
             _lastRecs  = null;
+            _lastHoverHistory = hovers;
             _lastRawDraft = draft;
             _lastDraft = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
 

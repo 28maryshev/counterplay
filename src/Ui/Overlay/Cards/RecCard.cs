@@ -27,6 +27,10 @@ public sealed class RecCard
     public double       CardOpacity     => Gone ? 0.5 : 1;
     public Visibility   GoneVisibility  => Gone ? Visibility.Visible : Visibility.Collapsed;
     public Visibility   BadgeVisibility => Gone ? Visibility.Collapsed : Visibility.Visible;
+    // Кнопка «не советовать» в углу (совет бана): у перечёркнутого её нет —
+    // его и так уже забанили.
+    public bool         CanDislike => !Gone && ChampionId > 0;
+    public string       DislikeTip => Loc.T("dislike.tip", Dislikes.HideGames);
     public string       CardBg     => IsSelected ? "#2AC84040" : "#1EC84040";
     public string       CardBorder => IsSelected ? "#F0684F" : "#00000000";
     public string       Rank       { get; init; } = "";

@@ -66,10 +66,19 @@ public sealed partial class RecommendationEngine
         if (stats.Count == 0) return [];
 
         var taken   = BanTaken(state, hoverHistory, stats);
+        // Кого игрок попросил не советовать на этой роли (👎 на карточке):
+        // скрытый — не кандидат вовсе, и пятёрку набирают без него; кто уже
+        // возвращается, выбирается как обычно и опускается на свои места —
+        // для этого берём с запасом на самый большой сдвиг.
+        var disliked = Dislikes.Active(Dislikes.Kind.Ban, myRole);
+        taken.UnionWith(disliked.Where(d => d.Hidden).Select(d => d.Champ));
+        var spare   = disliked.Where(d => !d.Hidden).Select(d => d.Demote).DefaultIfEmpty(0).Max();
         var victims = BanVictims(state, hoverHistory, myRole, stats);
         var cands   = BanCandidates(myRole, stats, victims, taken);
-        return [.. PickBans(cands, victims, top)
-            .Select(x => new BanRec(x.C.Id, x.Score, BanReasons(x.C, victims, myRole)))];
+        var chosen  = PickBans(cands, victims, top + spare);
+        if (spare > 0)
+            chosen = [.. Dislikes.Apply(chosen, x => x.C.Id, Dislikes.Kind.Ban, myRole).Take(top)];
+        return [.. chosen.Select(x => new BanRec(x.C.Id, x.Score, BanReasons(x.C, victims, myRole)))];
     }
 
     /// Кого банить нельзя или незачем: взятых и наведённых, уже забаненных,

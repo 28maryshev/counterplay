@@ -770,5 +770,10 @@
     "turnOn": "Turn on",
     "switch": "Switch",
     "later": "Not now"
+  },
+  "dislike": {
+    "tip": "Don't suggest: hide for {0} games, then it climbs back gradually",
+    "hidden": "Hidden:",
+    "restoreTip": "{0} is hidden — games until it returns: {1}. Click to bring it back now"
   }
 }

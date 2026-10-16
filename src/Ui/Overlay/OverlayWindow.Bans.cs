@@ -53,6 +53,8 @@ public partial class OverlayWindow
             Icon   = IconCache.Get(b.Id),
         }).ToList();
 
+        ShowHiddenStrip(BanHiddenStrip, Dislikes.Kind.Ban);
+
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
         BanScroll.Visibility = Visibility.Visible;
         BansDonePanel.Visibility = Visibility.Collapsed;

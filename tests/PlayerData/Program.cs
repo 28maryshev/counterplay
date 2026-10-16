@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -135,7 +135,7 @@ internal static class Program
             Check("новые файлы — только в папке песочницы", added.Count == 0, string.Join(", ", added));
 
             Check("подмены песочницы сняты",
-                  !Sandbox.Active && PoolStore.DirOverride is null && SessionTracker.PreviewGames is null
+                  !Sandbox.Active && PoolStore.DirOverride is null && Dislikes.DirOverride is null && SessionTracker.PreviewGames is null
                   && SessionTracker.Preview is null && DuoShare.Preview is null && !Party.Sandbox, "");
 
             PoolStore.Reload();

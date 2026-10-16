@@ -26,7 +26,7 @@ public static partial class SessionTracker
     /// </summary>
     public static void DropCache()
     {
-        lock (StatsCache) StatsCache.Clear();
+        lock (StatsCache) { StatsCache.Clear(); _draftTimes = null; }
         _histCache = null;
     }
 
@@ -86,6 +86,52 @@ public static partial class SessionTracker
     {
         var m = ChampStatsMap(queues);
         return m.TryGetValue(championId, out var v) ? v : (0, 0);
+    }
+
+    // Времена моих игр с драфтом, по возрастанию, — в том же коротком кэше.
+    private static (DateTime At, long[] Ts)? _draftTimes;
+
+    /// <summary>
+    /// Сколько игр с драфтом (соло, флекс, нормалы — без ARAM) сыграно после
+    /// отметки времени, unix-секунды. Этим счётом «не советовать» (Dislikes)
+    /// отмеряет, сколько игр чемпион скрыт.
+    /// </summary>
+    public static int GamesSince(long since)
+    {
+        if (PreviewGames is { } preview)
+            return preview.Count(g => LaneQueues.Contains(g.Queue) && g.Ts > since);
+
+        long[] ts;
+        lock (StatsCache)
+        {
+            if (_draftTimes is { } c && (DateTime.UtcNow - c.At).TotalSeconds < 20) ts = c.Ts;
+            else
+            {
+                var list = new List<long>();
+                try
+                {
+                    var s = Load();
+                    var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
+                        ? a : s.Accounts.Values.FirstOrDefault();
+                    if (acc != null)
+                        foreach (var q in LaneQueues)
+                            if (acc.Queues.TryGetValue(q, out var ql))
+                                list.AddRange(ql.Games.Where(g => g.Ts > 0).Select(g => g.Ts));
+                }
+                catch { /* журнала нет или он битый — игр нет */ }
+                list.Sort();
+                ts = [.. list];
+                _draftTimes = (DateTime.UtcNow, ts);
+            }
+        }
+        // Первая игра позже отметки: всё правее неё — сыграно после.
+        int lo = 0, hi = ts.Length;
+        while (lo < hi)
+        {
+            var mid = (lo + hi) / 2;
+            if (ts[mid] > since) hi = mid; else lo = mid + 1;
+        }
+        return ts.Length - lo;
     }
 
     // ── Мои чемпионы на линии (фаза планирования) ───────────────────────────

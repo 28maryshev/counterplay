@@ -770,5 +770,10 @@
     "turnOn": "Aktivieren",
     "switch": "Wechseln",
     "later": "Nicht jetzt"
+  },
+  "dislike": {
+    "tip": "Nicht vorschlagen: {0} Spiele ausblenden, danach kehrt er schrittweise zurück",
+    "hidden": "Ausgeblendet:",
+    "restoreTip": "{0} ist ausgeblendet — Spiele bis zur Rückkehr: {1}. Klicken, um ihn jetzt zurückzuholen"
   }
 }

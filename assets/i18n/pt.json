@@ -770,5 +770,10 @@
     "turnOn": "Ativar",
     "switch": "Mudar",
     "later": "Agora não"
+  },
+  "dislike": {
+    "tip": "Não sugerir: ocultar por {0} partidas, depois volta aos poucos",
+    "hidden": "Ocultos:",
+    "restoreTip": "{0} está oculto — partidas até voltar: {1}. Clique para trazê-lo de volta agora"
   }
 }

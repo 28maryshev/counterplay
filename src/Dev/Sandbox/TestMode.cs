@@ -360,6 +360,10 @@ static partial class TestMode
         PoolStore.DirOverride = Sandbox.Dir;
         PoolStore.Reload();
         PoolStore.SetAccount("test-account", "TEST");
+        // «Не советовать» — тоже своё и с чистого листа: подменная история не
+        // растёт, и скрытый в прошлой песочнице так и висел бы скрытым.
+        Dislikes.DirOverride = Path.Combine(Sandbox.Dir, "dislikes");
+        try { Directory.Delete(Dislikes.DirOverride, recursive: true); } catch { /* не было */ }
         SeedTestPools();
         UseTestHistory(engine, true);
     }
@@ -398,6 +402,7 @@ static partial class TestMode
         Sandbox.Active = false;
         PoolStore.DirOverride = null;
         PoolStore.Reload();
+        Dislikes.DirOverride = null;
         SessionTracker.UseStoredAccount(false);   // аккаунт выставит клиент
         SessionTracker.Preview = null;            // связки — только настоящие
         SessionTracker.PreviewGames = null;

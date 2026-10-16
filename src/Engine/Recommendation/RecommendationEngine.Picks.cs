@@ -280,6 +280,13 @@ public sealed partial class RecommendationEngine
             .OrderByDescending(r => r.Score)
             .ToList();
 
+        // Кого игрок попросил не советовать (👎 на карточке): скрытых нет,
+        // возвращающиеся — ниже своего места. Только в общем подборе: с only
+        // считают названных поимённо (пул, мой пик, наведённого), и пул
+        // отсеивает их сам (TopFromPool). Мой пик не трогаем.
+        if (only is null)
+            ordered = Dislikes.Apply(ordered, r => r.ChampionId, Dislikes.Kind.Pick, myRole, keep: myPickId);
+
         // Топ-6: мой уже выбранный чемпион остаётся в подборе наравне со всеми и
         // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
         // он выпадает из списка так же, как любой другой кандидат.
@@ -294,7 +301,10 @@ public sealed partial class RecommendationEngine
     public IReadOnlyList<Recommendation> TopFromPool(DraftState state, IReadOnlyCollection<int> poolChamps, int max = 3)
     {
         if (poolChamps.Count == 0) return [];
-        var scored = Recommend(state, poolChamps.Count, poolChamps);
+        // Не советовать — и из пула: игрок сам убрал чемпиона с карточки пула.
+        var myPick = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
+        var scored = Dislikes.Apply(Recommend(state, poolChamps.Count, poolChamps), r => r.ChampionId,
+                                    Dislikes.Kind.Pick, LcuToDbRole(state.MyPosition), keep: myPick);
         if (scored.Count == 0) return [];
         var good = scored.Where(r => r.Score > 0).Take(max).ToList();
         return good.Count > 0 ? good : [scored[0]];

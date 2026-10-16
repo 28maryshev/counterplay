@@ -770,5 +770,10 @@
     "turnOn": "Activer",
     "switch": "Changer",
     "later": "Plus tard"
+  },
+  "dislike": {
+    "tip": "Ne plus suggérer : masquer pendant {0} parties, puis il remonte progressivement",
+    "hidden": "Masqués :",
+    "restoreTip": "{0} est masqué — parties avant son retour : {1}. Clique pour le remettre maintenant"
   }
 }

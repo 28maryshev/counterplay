@@ -113,6 +113,11 @@ public partial class OverlayWindow
         // иконка чемпиона друга (кого назвать пикнуть).
         var poolCards = new List<FullRecCard>();
         var poolIds   = new HashSet<int>();
+
+        // Кнопка «не советовать» — у всех карточек, кроме моего пика (его я
+        // вижу всегда) и ARAM (там советы не из подбора по роли).
+        var myNow = draft?.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
+        bool Dislikable(int id) => draft is { IsAram: false } && id != myNow;
         if (draft != null && _engine != null)
         {
             var myRoleDb = RecommendationEngine.LcuToDbRole(draft.MyPosition);
@@ -147,6 +152,7 @@ public partial class OverlayWindow
                         DuoIcon    = duoIcon, DuoName = duoName,
                         NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
                         NotOwnedLabel = Loc.T("rec.notOwned"),
+                        CanDislike    = Dislikable(pr.ChampionId),
                     });
                     poolIds.Add(pr.ChampionId);
                 }
@@ -242,7 +248,9 @@ public partial class OverlayWindow
                                 if (_engine.Recommend(draft, 1, new[] { mineId }).FirstOrDefault() is { } mr)
                                     manual.Add((mr, mateId));
                             }
-                            var ordered = manual.OrderByDescending(x => x.R.Score).ToList();
+                            // Не советовать — и в связках: игрок убрал чемпиона с карточки.
+                            var ordered = Dislikes.Apply(manual.OrderByDescending(x => x.R.Score),
+                                                         x => x.R.ChampionId, Dislikes.Kind.Pick, myRoleDb, keep: myNow);
                             var shown   = ordered.Where(x => x.R.Score > 0).Take(3).ToList();
                             if (shown.Count == 0 && ordered.Count > 0) shown = [ordered[0]];
                             foreach (var (mr, pairMate) in shown)
@@ -370,6 +378,7 @@ public partial class OverlayWindow
                 // Чемпиона нет на аккаунте (только если владение вообще известно).
                 NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId),
                 NotOwnedLabel = Loc.T("rec.notOwned"),
+                CanDislike    = Dislikable(r.ChampionId),
             };
         }).ToList();
 
@@ -392,6 +401,8 @@ public partial class OverlayWindow
             }
         }
         FullRecList.ItemsSource = allCards;
+        if (draft is { IsAram: false }) ShowHiddenStrip(PickHiddenStrip, Dislikes.Kind.Pick);
+        else PickHiddenStrip.Visibility = Visibility.Collapsed;
 
         ApplyScale();                                // масштаб под текущую ширину
         RecScroll.Visibility = Visibility.Visible;   // показываем пики

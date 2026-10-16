@@ -770,5 +770,10 @@
     "turnOn": "Włącz",
     "switch": "Przełącz",
     "later": "Nie teraz"
+  },
+  "dislike": {
+    "tip": "Nie polecaj: ukryj na {0} gier, potem wróci stopniowo",
+    "hidden": "Ukryte:",
+    "restoreTip": "{0} jest ukryty — gier do powrotu: {1}. Kliknij, aby przywrócić teraz"
   }
 }

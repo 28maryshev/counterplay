@@ -687,7 +687,7 @@ sealed partial class TestPanel : Window
         if (banPhase)
         {
             _overlay.UpdateBans(_myBanDone || planning ? [] : _engine.RecommendBans(draft, _hoverHistory),
-                                draft, _engine);
+                                draft, _engine, _hoverHistory);
             _overlay.HideRunes();
         }
         else

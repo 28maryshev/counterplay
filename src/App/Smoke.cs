@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -178,6 +178,48 @@ internal static class Smoke
             {
                 var d = Draft(ban: true);
                 w.UpdateBans(engine.RecommendBans(d), d, engine);
+            });
+            await Step("не советовать", async () =>
+            {
+                // 👎 в углу карточки: совет уходит, над списком — полоса «Скрыты»,
+                // клик по иконке в ней возвращает. Бан и пик — разные списки.
+                await Dislike("BanFullList", "BanHiddenStrip", () =>
+                {
+                    var d = Draft(ban: true);
+                    w.UpdateBans(engine.RecommendBans(d), d, engine);
+                });
+                await Dislike("FullRecList", "PickHiddenStrip", () =>
+                {
+                    // Я ещё не выбрал: у моего пика кнопки нет, он стоял бы первым.
+                    var full = Draft(ban: false);
+                    var team = full.MyTeam.Select(p => p.IsLocalPlayer ? p with { ChampionId = 0 } : p).ToList();
+                    var d = full with { MyTeam = team, Me = team.First(p => p.IsLocalPlayer) };
+                    w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
+                });
+
+                async Task Dislike(string listName, string stripName, Action show)
+                {
+                    show();
+                    await Settle();
+                    var list = (ItemsControl)w.FindName(listName);
+                    int Id(int i) => list.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement f
+                        && Card(f) is { Tag: int id } ? id : 0;
+                    var first = Id(0);
+                    var btn = Find<ContentControl>(list.ItemContainerGenerator.ContainerFromIndex(0),
+                                                   c => c.GetType() == typeof(ContentControl) && c.Tag is int)
+                              ?? throw new InvalidOperationException($"{listName}: кнопки «не советовать» нет");
+                    Press(btn);
+                    await Settle();
+                    if (Enumerable.Range(0, list.Items.Count).Any(i => Id(i) == first))
+                        throw new InvalidOperationException($"{listName}: совет после 👎 остался");
+                    var strip = (ContentControl)w.FindName(stripName);
+                    var icon = Find<Grid>(strip, g => g.Tag is HiddenChampVm)
+                               ?? throw new InvalidOperationException($"{stripName}: полосы «Скрыты» нет");
+                    Press(icon);
+                    await Settle();
+                    if (Id(0) != first || strip.Visibility == Visibility.Visible)
+                        throw new InvalidOperationException($"{listName}: из полосы «Скрыты» не вернулся");
+                }
             });
             await Step("баны команд", () =>
                 w.UpdateBans([], Draft(ban: true, banDone: true, theirBans: [157, 238, 555]), engine));
@@ -369,6 +411,22 @@ internal static class Smoke
         w.Opacity = 0;
         w.Show();
     }
+
+    /// Первый элемент типа T под d, подходящий под условие.
+    private static T? Find<T>(DependencyObject? d, Func<T, bool> ok) where T : DependencyObject
+    {
+        if (d is null) return null;
+        if (d is T t && ok(t)) return t;
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
+            if (Find(System.Windows.Media.VisualTreeHelper.GetChild(d, i), ok) is { } r) return r;
+        return null;
+    }
+
+    /// Нажатие левой кнопкой, как от мыши: MouseDown всплывает, и WPF по дороге
+    /// поднимает MouseLeftButtonDown у каждого предка.
+    private static void Press(UIElement el) =>
+        el.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+                      { RoutedEvent = Mouse.MouseDownEvent });
 
     private static System.Windows.Controls.Border? Card(DependencyObject? d)
     {

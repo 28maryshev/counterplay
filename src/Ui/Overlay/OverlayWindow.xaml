@@ -26,6 +26,7 @@
         <loc:PlanTemplates/>
         <loc:TierTemplates/>
         <loc:RuneTemplates/>
+        <loc:DislikeTemplates/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Window.Resources>
@@ -894,16 +895,25 @@
               <RowDefinition Height="Auto"/>  <!-- руны и билд        -->
             </Grid.RowDefinitions>
             <ScrollViewer x:Name="RecScroll" Grid.Row="0" VerticalScrollBarVisibility="Hidden">
-              <ItemsControl x:Name="FullRecList">
-                <ItemsControl.ItemTemplate><StaticResource ResourceKey="PickCardTemplate"/></ItemsControl.ItemTemplate>
-              </ItemsControl>
+              <StackPanel>
+                <!-- Скрытые кнопкой «не советовать» — над советами, клик возвращает -->
+                <ContentControl x:Name="PickHiddenStrip" Visibility="Collapsed"
+                                ContentTemplate="{StaticResource HiddenStripTemplate}"/>
+                <ItemsControl x:Name="FullRecList">
+                  <ItemsControl.ItemTemplate><StaticResource ResourceKey="PickCardTemplate"/></ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </ScrollViewer>
 
             <!-- Список банов (фаза банов) — в том же центре, переключается с пиками -->
             <ScrollViewer x:Name="BanScroll" Grid.Row="0" VerticalScrollBarVisibility="Hidden" Visibility="Collapsed">
-              <ItemsControl x:Name="BanFullList">
-                <ItemsControl.ItemTemplate><StaticResource ResourceKey="BanCardTemplate"/></ItemsControl.ItemTemplate>
-              </ItemsControl>
+              <StackPanel>
+                <ContentControl x:Name="BanHiddenStrip" Visibility="Collapsed"
+                                ContentTemplate="{StaticResource HiddenStripTemplate}"/>
+                <ItemsControl x:Name="BanFullList">
+                  <ItemsControl.ItemTemplate><StaticResource ResourceKey="BanCardTemplate"/></ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </ScrollViewer>
 
             <!-- Баны команд — фаза банов, когда свой бан уже сделан. Советовать

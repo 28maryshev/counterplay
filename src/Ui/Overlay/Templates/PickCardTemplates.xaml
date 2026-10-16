@@ -163,8 +163,10 @@
               </StackPanel>
             </StackPanel>
 
-            <!-- Показатели: справа, по центру бокса -->
-            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center"
+            <!-- Показатели: справа, по центру бокса. Отступ справа — место
+                 кнопке «не советовать» в углу: без него она при наведении
+                 закрывала число винрейта в патче. -->
+            <StackPanel Grid.Column="4" Width="210" VerticalAlignment="Center" Margin="0,0,16,0"
                         Visibility="{Binding MetricsVisibility}">
               <StackPanel.Resources>
                 <!-- Золотой прямоугольник у сильнейшей метрики (лейбл + число + бар) -->
@@ -281,6 +283,11 @@
                 </StackPanel>
               </Border>
             </StackPanel>
+
+            <!-- «Не советовать» — в правом верхнем углу, поверх отступа карточки -->
+            <ContentControl Grid.Column="0" Grid.ColumnSpan="5" Style="{StaticResource DislikeButton}"
+                            Margin="0,-7,-8,0" Tag="{Binding ChampionId}"
+                            MouseLeftButtonDown="PickDislike_Click"/>
       </Grid>
     </Border>
   </DataTemplate>
