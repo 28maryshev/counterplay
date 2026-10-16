@@ -905,7 +905,9 @@
               </StackPanel>
             </ScrollViewer>
 
-            <!-- Список банов (фаза банов) — в том же центре, переключается с пиками -->
+            <!-- Список банов (фаза банов) — в том же центре, переключается с пиками.
+                 Скрытые «не советовать» — в окошке шапки тир-листа; полоса над
+                 советами — только когда тир-лист выключен в настройках. -->
             <ScrollViewer x:Name="BanScroll" Grid.Row="0" VerticalScrollBarVisibility="Hidden" Visibility="Collapsed">
               <StackPanel>
                 <ContentControl x:Name="BanHiddenStrip" Visibility="Collapsed"
@@ -1132,6 +1134,40 @@
                                  FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
                     </Border>
                   </StackPanel>
+                  <!-- Скрытые кнопкой «не советовать» на роли драфта — отдельно
+                       баны и пики; клик по иконке возвращает в советы
+                       (ShowHiddenBox). Нет скрытых — окошка нет. -->
+                  <Border x:Name="TierHiddenBox" DockPanel.Dock="Right" Visibility="Collapsed"
+                          Margin="0,0,10,0" Padding="7,2,2,2" CornerRadius="4" VerticalAlignment="Center"
+                          Background="#1AFF3B30" BorderBrush="#66FF3B30" BorderThickness="1"
+                          ToolTip="{loc:T dislike.boxTip}">
+                    <StackPanel Orientation="Horizontal">
+                      <Path Data="{StaticResource DislikeGlyph}" Fill="#FF3B30" Stretch="Uniform"
+                            Width="13" Height="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                      <StackPanel x:Name="TierHiddenBansGroup" Orientation="Horizontal">
+                        <TextBlock Text="{loc:T tier.modeBans}" Foreground="#E0584F" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                                   Margin="0,0,6,0"/>
+                        <ItemsControl x:Name="TierHiddenBans" ItemTemplate="{StaticResource HiddenChampTemplate}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                      </StackPanel>
+                      <Border x:Name="TierHiddenSep" Width="1" Height="14" Background="#4DFFFFFF"
+                              Margin="3,0,9,0" VerticalAlignment="Center"/>
+                      <StackPanel x:Name="TierHiddenPicksGroup" Orientation="Horizontal">
+                        <TextBlock Text="{loc:T tier.modePicks}" Foreground="#C89B3C" VerticalAlignment="Center"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                                   Margin="0,0,6,0"/>
+                        <ItemsControl x:Name="TierHiddenPicks" ItemTemplate="{StaticResource HiddenChampTemplate}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
                   <TextBlock x:Name="TierTitle" Text="" VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
                              FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"

@@ -1,4 +1,4 @@
-using System.Windows.Media;
+﻿using System.Windows.Media;
 
 namespace Counterplay;
 
@@ -13,4 +13,6 @@ public sealed class HiddenChampVm
     public string        Role       { get; init; } = "";
     public ImageSource?  Icon       { get; init; }
     public string        Tip        { get; init; } = "";
+    // Кольцо — цвет вида: баны красные, пики золотые (как сами карточки).
+    public string        Ring       => Kind == Dislikes.Kind.Ban ? "#E0584F" : "#C89B3C";
 }

@@ -774,6 +774,7 @@
   "dislike": {
     "tip": "Ne plus suggérer : masquer pendant {0} parties, puis il remonte progressivement",
     "hidden": "Masqués :",
-    "restoreTip": "{0} est masqué — parties avant son retour : {1}. Clique pour le remettre maintenant"
+    "restoreTip": "{0} est masqué — parties avant son retour : {1}. Clique pour le remettre maintenant",
+    "boxTip": "Masqués avec « ne plus suggérer » pour ce rôle. Clique sur un champion pour le remettre"
   }
 }

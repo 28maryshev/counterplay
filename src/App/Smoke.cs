@@ -181,9 +181,10 @@ internal static class Smoke
             });
             await Step("не советовать", async () =>
             {
-                // 👎 в углу карточки: совет уходит, над списком — полоса «Скрыты»,
-                // клик по иконке в ней возвращает. Бан и пик — разные списки.
-                await Dislike("BanFullList", "BanHiddenStrip", () =>
+                // 👎 в углу карточки: совет уходит; скрытый бан — в окошке шапки
+                // тир-листа, скрытый пик — в полосе над пиками; клик по иконке
+                // возвращает. Бан и пик — разные списки.
+                await Dislike("BanFullList", "TierHiddenBox", () =>
                 {
                     var d = Draft(ban: true);
                     w.UpdateBans(engine.RecommendBans(d), d, engine);
@@ -197,7 +198,7 @@ internal static class Smoke
                     w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
                 });
 
-                async Task Dislike(string listName, string stripName, Action show)
+                async Task Dislike(string listName, string hiddenName, Action show)
                 {
                     show();
                     await Settle();
@@ -212,13 +213,13 @@ internal static class Smoke
                     await Settle();
                     if (Enumerable.Range(0, list.Items.Count).Any(i => Id(i) == first))
                         throw new InvalidOperationException($"{listName}: совет после 👎 остался");
-                    var strip = (ContentControl)w.FindName(stripName);
-                    var icon = Find<Grid>(strip, g => g.Tag is HiddenChampVm)
-                               ?? throw new InvalidOperationException($"{stripName}: полосы «Скрыты» нет");
+                    var hidden = (FrameworkElement)w.FindName(hiddenName);
+                    var icon = Find<Grid>(hidden, g => g.Tag is HiddenChampVm)
+                               ?? throw new InvalidOperationException($"{hiddenName}: скрытого не видно");
                     Press(icon);
                     await Settle();
-                    if (Id(0) != first || strip.Visibility == Visibility.Visible)
-                        throw new InvalidOperationException($"{listName}: из полосы «Скрыты» не вернулся");
+                    if (Id(0) != first || hidden.Visibility == Visibility.Visible)
+                        throw new InvalidOperationException($"{listName}: из {hiddenName} не вернулся");
                 }
             });
             await Step("баны команд", () =>

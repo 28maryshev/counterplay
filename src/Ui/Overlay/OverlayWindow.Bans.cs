@@ -53,8 +53,6 @@ public partial class OverlayWindow
             Icon   = IconCache.Get(b.Id),
         }).ToList();
 
-        ShowHiddenStrip(BanHiddenStrip, Dislikes.Kind.Ban);
-
         RecScroll.Visibility = Visibility.Collapsed; // показываем баны
         BanScroll.Visibility = Visibility.Visible;
         BansDonePanel.Visibility = Visibility.Collapsed;
@@ -70,6 +68,10 @@ public partial class OverlayWindow
         UpdateBanBar();
         RolePoolBar.Visibility = Visibility.Collapsed;   // в банфазе строку занимает тир-лист
         RenderTierList(draft);
+        // Скрытые «не советовать» — в окошке шапки тир-листа; тир-лист выключен
+        // в настройках — полосой над советами, иначе вернуть их было бы негде.
+        if (TierListBar.Visibility == Visibility.Visible) BanHiddenStrip.Visibility = Visibility.Collapsed;
+        else ShowHiddenStrip(BanHiddenStrip, Dislikes.Kind.Ban);
         RenderTeams(draft);
     }
 

@@ -774,6 +774,7 @@
   "dislike": {
     "tip": "Không gợi ý: ẩn trong {0} trận, sau đó sẽ dần quay lại",
     "hidden": "Đã ẩn:",
-    "restoreTip": "{0} đang bị ẩn — còn {1} trận nữa sẽ quay lại. Nhấn để đưa trở lại ngay"
+    "restoreTip": "{0} đang bị ẩn — còn {1} trận nữa sẽ quay lại. Nhấn để đưa trở lại ngay",
+    "boxTip": "Đã ẩn bằng “không gợi ý” ở vai trò này. Nhấn vào tướng để đưa trở lại"
   }
 }

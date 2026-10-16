@@ -6,39 +6,40 @@
     <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
   </ResourceDictionary.MergedDictionaries>
 
-  <!-- Полоса «Скрыты» над советами пиков и банов: кого игрок убрал кнопкой
-       «не советовать» на этой роли. Содержимое — список HiddenChampVm; клик по
-       иконке возвращает чемпиона в советы сразу. Кнопка «не советовать» сама
-       живёт в OverlayResources.xaml (стиль DislikeButton). -->
+  <!-- Иконка скрытого кнопкой «не советовать» (HiddenChampVm): приглушена, в
+       кольце цвета вида — красное у банов, золотое у пиков; под курсором яркая.
+       Клик возвращает чемпиона в советы сразу. Общая для полосы над пиками и
+       окошка в шапке тир-листа. Кнопка «не советовать» сама живёт в
+       OverlayResources.xaml (стиль DislikeButton). -->
+  <DataTemplate x:Key="HiddenChampTemplate">
+    <Grid x:Name="Root" Width="22" Height="22" Margin="0,0,5,0" Cursor="Hand"
+          Background="Transparent" ToolTip="{Binding Tip}" Tag="{Binding}"
+          MouseLeftButtonDown="DislikeRestore_Click">
+      <Ellipse x:Name="Pic" Opacity="0.55">
+        <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
+      </Ellipse>
+      <Ellipse x:Name="Ring" StrokeThickness="1.5" Stroke="{Binding Ring}"/>
+    </Grid>
+    <DataTemplate.Triggers>
+      <Trigger SourceName="Root" Property="IsMouseOver" Value="True">
+        <Setter TargetName="Pic" Property="Opacity" Value="1"/>
+        <Setter TargetName="Ring" Property="Stroke" Value="#FFFFFF"/>
+      </Trigger>
+    </DataTemplate.Triggers>
+  </DataTemplate>
+
+  <!-- Полоса «Скрыты» над советами пиков (в фазе пиков тир-листа с окошком
+       скрытых нет) и над советами банов, если тир-лист выключен в настройках.
+       Содержимое — список HiddenChampVm. -->
   <DataTemplate x:Key="HiddenStripTemplate">
     <DockPanel Margin="2,2,0,4" LastChildFill="True">
       <TextBlock DockPanel.Dock="Left" Text="{loc:T dislike.hidden}" Foreground="#7C97AC"
                  FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                  VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <ItemsControl ItemsSource="{Binding}">
+      <ItemsControl ItemsSource="{Binding}" ItemTemplate="{StaticResource HiddenChampTemplate}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Grid x:Name="Root" Width="26" Height="26" Margin="0,0,6,0" Cursor="Hand"
-                  Background="Transparent" ToolTip="{Binding Tip}" Tag="{Binding}"
-                  MouseLeftButtonDown="DislikeRestore_Click">
-              <Ellipse x:Name="Pic" Opacity="0.5">
-                <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
-              </Ellipse>
-              <Ellipse x:Name="Ring" StrokeThickness="1.5">
-                <Ellipse.Stroke><SolidColorBrush Color="#5A6E82"/></Ellipse.Stroke>
-              </Ellipse>
-            </Grid>
-            <DataTemplate.Triggers>
-              <Trigger SourceName="Root" Property="IsMouseOver" Value="True">
-                <Setter TargetName="Pic" Property="Opacity" Value="1"/>
-                <Setter TargetName="Ring" Property="Stroke" Value="#F0C24B"/>
-              </Trigger>
-            </DataTemplate.Triggers>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
       </ItemsControl>
     </DockPanel>
   </DataTemplate>

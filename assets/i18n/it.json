@@ -774,6 +774,7 @@
   "dislike": {
     "tip": "Non suggerire: nascondi per {0} partite, poi torna gradualmente",
     "hidden": "Nascosti:",
-    "restoreTip": "{0} è nascosto — partite al ritorno: {1}. Clicca per riportarlo ora"
+    "restoreTip": "{0} è nascosto — partite al ritorno: {1}. Clicca per riportarlo ora",
+    "boxTip": "Nascosti con «non suggerire» per questo ruolo. Clicca un campione per riportarlo"
   }
 }

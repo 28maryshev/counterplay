@@ -237,14 +237,21 @@ internal static class Program
 
         // Баны.
         var d = Draft("utility", ban: true);
-        w.UpdateBans(engine.RecommendBans(d), d, engine, new Dictionary<int, HashSet<int>>());
+        var hov = new Dictionary<int, HashSet<int>>();
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
-        var banList = (ItemsControl)w.FindName("BanFullList");
+        var banList  = (ItemsControl)w.FindName("BanFullList");
         var banStrip = (ContentControl)w.FindName("BanHiddenStrip");
+        var box      = (FrameworkElement)w.FindName("TierHiddenBox");
+        var boxBans  = (ItemsControl)w.FindName("TierHiddenBans");
+        var boxPicks = (ItemsControl)w.FindName("TierHiddenPicks");
+        List<int> InBox(ItemsControl ic) => [.. Cards<HiddenChampVm>(ic).Select(v => v.ChampionId)];
+        bool Shown(string name) => ((FrameworkElement)w.FindName(name)).Visibility == Visibility.Visible;
         var cards = Cards<RecCard>(banList);
         Check("у совета бана есть кнопка, без наведения скрыта",
               Button(w, banList, 0) is { Visibility: Visibility.Collapsed }, "");
-        Check("полосы «Скрыты» нет, пока скрытых нет", banStrip.Visibility == Visibility.Collapsed, "");
+        Check("пока скрытых нет — ни окошка в шапке тир-листа, ни полосы",
+              box.Visibility == Visibility.Collapsed && banStrip.Visibility == Visibility.Collapsed, "");
         if (snap is { Length: > 0 }) { Button(w, banList, 0)!.Visibility = Visibility.Visible; Snap(w, snap, "1-ban-button.png"); }
 
         // Положительный контроль: клик по самой карточке наводит бан.
@@ -261,23 +268,24 @@ internal static class Program
         Check("клик по 👎 — карточки сразу нет", after.All(c => c.ChampionId != x), Names(after.Select(c => c.ChampionId).ToList()));
         Check("советов столько же", after.Count == cards.Count, $"{cards.Count} → {after.Count}");
         Check("и бан в клиенте не наведён", hovered.Count == 0, string.Join(",", hovered));
-        var strip = banStrip.Content as IEnumerable<HiddenChampVm>;
-        Check("над советами — полоса «Скрыты» с ним",
-              banStrip.Visibility == Visibility.Visible && strip?.Select(v => v.ChampionId).SequenceEqual([x]) == true, "");
-        Check("в подсказке — сколько игр ждать",
-              strip?.FirstOrDefault()?.Tip.Contains(Dislikes.HideGames.ToString()) == true, strip?.FirstOrDefault()?.Tip ?? "");
-        if (snap is { Length: > 0 }) Snap(w, snap, "2-ban-hidden.png");
+        Check("в шапке тир-листа — окошко скрытых, он в группе банов",
+              box.Visibility == Visibility.Visible && InBox(boxBans).SequenceEqual([x]) && Shown("TierHiddenBansGroup"), "");
+        Check("группы пиков и разделителя нет — пики не скрыты",
+              !Shown("TierHiddenPicksGroup") && !Shown("TierHiddenSep"), "");
+        Check("полосы над советами нет — скрытые в окошке", banStrip.Visibility == Visibility.Collapsed, "");
+        var tip = Cards<HiddenChampVm>(boxBans).FirstOrDefault()?.Tip ?? "";
+        Check("в подсказке — сколько игр ждать", tip.Contains(Dislikes.HideGames.ToString()), tip);
 
         // Новое событие драфта — по-прежнему скрыт (не только в окне).
-        w.UpdateBans(engine.RecommendBans(d), d, engine, new Dictionary<int, HashSet<int>>());
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
         Check("следующее событие драфта его не возвращает", Cards<RecCard>(banList).All(c => c.ChampionId != x), "");
 
-        Press(Icon(banStrip, 0)!);
+        Press(Icon(boxBans)!);
         Pump();
-        Check("клик по иконке в полосе — совет вернулся на место",
+        Check("клик по иконке в окошке — совет вернулся на место",
               Cards<RecCard>(banList).FirstOrDefault()?.ChampionId == x, "");
-        Check("и полоса пропала", banStrip.Visibility == Visibility.Collapsed, "");
+        Check("и окошко пропало", box.Visibility == Visibility.Collapsed, "");
 
         // Пики.
         var p = Draft("utility", ban: false, enemies: [222, 51]);
@@ -295,10 +303,52 @@ internal static class Program
         var pAfter = Cards<FullRecCard>(pickList);
         Check("клик по 👎 — пика нет", pAfter.All(c => c.ChampionId != y), "");
         Check("и чемпион в клиенте не наведён", hovered.Count == 0, string.Join(",", hovered));
-        Check("полоса «Скрыты» над пиками", pickStrip.Visibility == Visibility.Visible, "");
-        Press(Icon(pickStrip, 0)!);
+        Check("в фазе пиков тир-листа нет — полоса «Скрыты» над пиками", pickStrip.Visibility == Visibility.Visible, "");
+
+        // Следующий драфт, фаза банов: скрытый пик виден в окошке — отдельно от банов.
+        w.DraftEnded();
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
-        Check("вернул — снова в списке", Cards<FullRecCard>(pickList).Any(c => c.ChampionId == y), "");
+        Check("в фазе банов скрытый пик — в окошке, в группе пиков",
+              box.Visibility == Visibility.Visible && InBox(boxPicks).SequenceEqual([y]) && !Shown("TierHiddenBansGroup"), "");
+        Press(Button(w, banList, 0)!);
+        Pump();
+        Check("скрыл и бан — обе группы и разделитель между ними",
+              InBox(boxBans).SequenceEqual([x]) && InBox(boxPicks).SequenceEqual([y]) && Shown("TierHiddenSep"), "");
+        if (snap is { Length: > 0 }) Snap(w, snap, "2-hidden-box.png");
+        Press(Icon(boxPicks)!);
+        Pump();
+        Check("вернул пик из окошка — группа пиков ушла, бан на месте",
+              !Shown("TierHiddenPicksGroup") && InBox(boxBans).SequenceEqual([x]), "");
+        Check("и запись о пике удалена", Dislikes.Active(Dislikes.Kind.Pick, "support").Count == 0, "");
+
+        // Свой бан сделан: советов нет, тир-лист и окошко — есть.
+        var done = Draft("utility", ban: true) with { MyBanActionId = -1, MyBanInProgress = false, MyBanDone = true };
+        w.UpdateBans([], done, engine, hov);
+        Pump();
+        Check("после своего бана окошко на месте", Shown("BansDonePanel") && box.Visibility == Visibility.Visible, "");
+        Press(Icon(boxBans)!);
+        Pump();
+        Check("вернул и там — окошко пропало, советы не появились",
+              box.Visibility == Visibility.Collapsed && Shown("BansDonePanel"), "");
+
+        // Тир-лист выключен в настройках — вернуть скрытый бан можно из полосы над советами.
+        s.BansTierList = false;
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
+        Pump();
+        Press(Button(w, banList, 0)!);
+        Pump();
+        Check("без тир-листа скрытый бан — в полосе над советами",
+              !Shown("TierListBar") && banStrip.Visibility == Visibility.Visible, "");
+        Press(Icon(banStrip)!);
+        Pump();
+        Check("и оттуда возвращается", banStrip.Visibility == Visibility.Collapsed, "");
+        s.BansTierList = true;
+
+        // Пик снова в подборе.
+        w.UpdateRecommendations(engine.Recommend(p, s.DraftCount), p, engine);
+        Pump();
+        Check("возвращённый пик снова в списке", Cards<FullRecCard>(pickList).Any(c => c.ChampionId == y), "");
 
         // Мой пик — без кнопки: его я вижу всегда.
         var mine = p with { MyTeam = [.. p.MyTeam.Select(q => q.IsLocalPlayer ? q with { ChampionId = 37 } : q)] };
@@ -349,9 +399,9 @@ internal static class Program
         Find<ContentControl>(list.ItemContainerGenerator.ContainerFromIndex(i),
                              c => c.GetType() == typeof(ContentControl) && c.Tag is int);
 
-    /// Иконка в полосе «Скрыты».
-    private static FrameworkElement? Icon(ContentControl strip, int i) =>
-        Find<Grid>(strip, g => g.Tag is HiddenChampVm);
+    /// Первая иконка скрытого (полоса «Скрыты» или окошко в шапке тир-листа).
+    private static FrameworkElement? Icon(DependencyObject where) =>
+        Find<Grid>(where, g => g.Tag is HiddenChampVm);
 
     private static T? Find<T>(DependencyObject? d, Func<T, bool> ok) where T : DependencyObject
     {

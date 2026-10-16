@@ -1,10 +1,10 @@
-using System.Windows;
+﻿using System.Windows;
 
 namespace Counterplay;
 
-// Окно драфта — «не советовать»: кнопка 👎 на карточке пика и бана, полоса
-// «Скрыты» над советами. Сами правила (сколько игр скрыт, как возвращается) —
-// в Dislikes.
+// Окно драфта — «не советовать»: кнопка 👎 на карточке пика и бана, окошко
+// скрытых в шапке тир-листа и полоса «Скрыты» над советами пиков. Сами правила
+// (сколько игр скрыт, как возвращается) — в Dislikes.
 public partial class OverlayWindow
 {
     // Наведения своих за драфт — с ними Program считает советы банов. Нужны,
@@ -46,7 +46,8 @@ public partial class OverlayWindow
         if (_engine is null) return;
         try
         {
-            if (kind == Dislikes.Kind.Ban && _lastBans is not null && _lastRawDraft is not null)
+            // Банов не считали (объявление, свой бан сделан) — и пересчитывать нечего.
+            if (kind == Dislikes.Kind.Ban && _lastBans is { Count: > 0 } && _lastRawDraft is not null)
                 _lastBans = _engine.RecommendBans(_lastRawDraft, _lastHoverHistory);
             else if (kind == Dislikes.Kind.Pick && _lastRecs is not null && _lastDraft is { IsAram: false })
                 _lastRecs = _engine.Recommend(_lastDraft, AppSettings.Current.DraftCount);
@@ -56,21 +57,45 @@ public partial class OverlayWindow
     }
 
     /// <summary>
-    /// Полоса «Скрыты» над списком советов: кто скрыт на этой роли и сколько
-    /// игр ему ещё ждать. Возвращающихся (уже видны, только ниже) в ней нет.
+    /// Скрытые на роли драфта и сколько игр им ещё ждать. Возвращающихся (уже
+    /// видны, только ниже) здесь нет.
     /// </summary>
-    private void ShowHiddenStrip(System.Windows.Controls.ContentControl strip, Dislikes.Kind kind)
+    private List<HiddenChampVm> HiddenItems(Dislikes.Kind kind)
     {
         var role = DraftDbRole;
-        var items = Dislikes.Active(kind, role).Where(s => s.Hidden).Select(s => new HiddenChampVm
+        return [.. Dislikes.Active(kind, role).Where(s => s.Hidden).Select(s => new HiddenChampVm
         {
             ChampionId = s.Champ,
             Kind       = kind,
             Role       = role,
             Icon       = IconCache.Get(s.Champ),
             Tip        = Loc.T("dislike.restoreTip", DataDragon.Name(s.Champ), s.GamesLeft),
-        }).ToList();
+        })];
+    }
+
+    /// Полоса «Скрыты» над списком советов (пики; баны — без тир-листа).
+    private void ShowHiddenStrip(System.Windows.Controls.ContentControl strip, Dislikes.Kind kind)
+    {
+        var items = HiddenItems(kind);
         strip.Content    = items;
         strip.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Окошко в шапке тир-листа (фаза банов): отдельно скрытые баны и пики —
+    /// владелец: «чтобы можно было вернуть, если случайно дизлайкнул». Пики
+    /// здесь тоже: в фазе банов их списка на экране нет, а скрыть пик могли
+    /// ещё в прошлом драфте.
+    /// </summary>
+    private void ShowHiddenBox()
+    {
+        var bans  = HiddenItems(Dislikes.Kind.Ban);
+        var picks = HiddenItems(Dislikes.Kind.Pick);
+        TierHiddenBans.ItemsSource  = bans;
+        TierHiddenPicks.ItemsSource = picks;
+        TierHiddenBansGroup.Visibility  = bans.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TierHiddenPicksGroup.Visibility = picks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TierHiddenSep.Visibility = bans.Count > 0 && picks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TierHiddenBox.Visibility = bans.Count + picks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 }

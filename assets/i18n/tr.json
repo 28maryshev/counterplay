@@ -774,6 +774,7 @@
   "dislike": {
     "tip": "Önerme: {0} maç gizle, sonra yavaş yavaş geri döner",
     "hidden": "Gizlenenler:",
-    "restoreTip": "{0} gizli — dönmesine kalan maç: {1}. Şimdi geri getirmek için tıkla"
+    "restoreTip": "{0} gizli — dönmesine kalan maç: {1}. Şimdi geri getirmek için tıkla",
+    "boxTip": "Bu rolde “önerme” ile gizlenenler. Geri getirmek için bir şampiyona tıkla"
   }
 }

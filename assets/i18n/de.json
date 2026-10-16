@@ -774,6 +774,7 @@
   "dislike": {
     "tip": "Nicht vorschlagen: {0} Spiele ausblenden, danach kehrt er schrittweise zurück",
     "hidden": "Ausgeblendet:",
-    "restoreTip": "{0} ist ausgeblendet — Spiele bis zur Rückkehr: {1}. Klicken, um ihn jetzt zurückzuholen"
+    "restoreTip": "{0} ist ausgeblendet — Spiele bis zur Rückkehr: {1}. Klicken, um ihn jetzt zurückzuholen",
+    "boxTip": "Für diese Rolle mit „Nicht vorschlagen“ ausgeblendet. Klicke auf einen Champion, um ihn zurückzuholen"
   }
 }
