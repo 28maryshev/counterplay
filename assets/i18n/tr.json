@@ -775,6 +775,12 @@
     "tip": "Önerme: {0} maç gizle, sonra yavaş yavaş geri döner",
     "hidden": "Gizlenenler:",
     "restoreTip": "{0} gizli — dönmesine kalan maç: {1}. Şimdi geri getirmek için tıkla",
-    "boxTip": "Bu rolde “önerme” ile gizlenenler. Geri getirmek için bir şampiyona tıkla"
+    "btnTip": "Bu rolde “önerme” ile gizlenenler — listeyi aç ve geri getir",
+    "restore": "Geri getir",
+    "statusHidden": "dönmesine kalan maç: {0}",
+    "statusReturning": "geri dönüyor — yerinin altında: {0}",
+    "titleBans": "Gizlenen banlar · {0}",
+    "titlePicks": "Gizlenen seçimler · {0}",
+    "empty": "Boş. Kartın köşesindeki 👎 düğmesi bir şampiyonu {0} maç gizler"
   }
 }

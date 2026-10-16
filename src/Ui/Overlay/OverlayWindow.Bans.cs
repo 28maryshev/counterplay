@@ -68,8 +68,8 @@ public partial class OverlayWindow
         UpdateBanBar();
         RolePoolBar.Visibility = Visibility.Collapsed;   // в банфазе строку занимает тир-лист
         RenderTierList(draft);
-        // Скрытые «не советовать» — в окошке шапки тир-листа; тир-лист выключен
-        // в настройках — полосой над советами, иначе вернуть их было бы негде.
+        // Скрытые «не советовать» — списком из кнопок в шапке тир-листа; тир-лист
+        // выключен в настройках — полосой над советами, иначе вернуть их негде.
         if (TierListBar.Visibility == Visibility.Visible) BanHiddenStrip.Visibility = Visibility.Collapsed;
         else ShowHiddenStrip(BanHiddenStrip, Dislikes.Kind.Ban);
         RenderTeams(draft);

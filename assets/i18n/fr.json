@@ -775,6 +775,12 @@
     "tip": "Ne plus suggérer : masquer pendant {0} parties, puis il remonte progressivement",
     "hidden": "Masqués :",
     "restoreTip": "{0} est masqué — parties avant son retour : {1}. Clique pour le remettre maintenant",
-    "boxTip": "Masqués avec « ne plus suggérer » pour ce rôle. Clique sur un champion pour le remettre"
+    "btnTip": "Masqués avec « ne plus suggérer » pour ce rôle — ouvrir la liste pour les remettre",
+    "restore": "Remettre",
+    "statusHidden": "parties avant son retour : {0}",
+    "statusReturning": "remonte — places sous la sienne : {0}",
+    "titleBans": "Bans masqués · {0}",
+    "titlePicks": "Picks masqués · {0}",
+    "empty": "Vide. Le bouton 👎 dans le coin d’une carte masque un champion pendant {0} parties"
   }
 }

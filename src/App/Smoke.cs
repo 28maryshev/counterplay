@@ -181,24 +181,33 @@ internal static class Smoke
             });
             await Step("не советовать", async () =>
             {
-                // 👎 в углу карточки: совет уходит; скрытый бан — в окошке шапки
-                // тир-листа, скрытый пик — в полосе над пиками; клик по иконке
-                // возвращает. Бан и пик — разные списки.
-                await Dislike("BanFullList", "TierHiddenBox", () =>
+                // 👎 в углу карточки: совет уходит. Скрытый бан — в списке под
+                // кнопкой «Баны» в шапке тир-листа (список — прозрачный: дымовая
+                // проверка окон не показывает), скрытый пик — в полосе над
+                // пиками. «Вернуть» в списке и клик по иконке в полосе — возвращают.
+                var popup = (System.Windows.Controls.Primitives.Popup)w.FindName("HiddenPopup");
+                popup.Child.Opacity = 0;
+                await Dislike("BanFullList", () =>
                 {
                     var d = Draft(ban: true);
                     w.UpdateBans(engine.RecommendBans(d), d, engine);
+                }, () =>
+                {
+                    Press((UIElement)w.FindName("HiddenBansBtn"));
+                    return popup.IsOpen ? popup.Child : null;
                 });
-                await Dislike("FullRecList", "PickHiddenStrip", () =>
+                popup.IsOpen = false;
+                await Dislike("FullRecList", () =>
                 {
                     // Я ещё не выбрал: у моего пика кнопки нет, он стоял бы первым.
                     var full = Draft(ban: false);
                     var team = full.MyTeam.Select(p => p.IsLocalPlayer ? p with { ChampionId = 0 } : p).ToList();
                     var d = full with { MyTeam = team, Me = team.First(p => p.IsLocalPlayer) };
                     w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
-                });
+                }, () => (FrameworkElement)w.FindName("PickHiddenStrip"));
 
-                async Task Dislike(string listName, string hiddenName, Action show)
+                // show — показать советы; hidden — где видны скрытые (открыть, если надо).
+                async Task Dislike(string listName, Action show, Func<UIElement?> hidden)
                 {
                     show();
                     await Settle();
@@ -213,13 +222,14 @@ internal static class Smoke
                     await Settle();
                     if (Enumerable.Range(0, list.Items.Count).Any(i => Id(i) == first))
                         throw new InvalidOperationException($"{listName}: совет после 👎 остался");
-                    var hidden = (FrameworkElement)w.FindName(hiddenName);
-                    var icon = Find<Grid>(hidden, g => g.Tag is HiddenChampVm)
-                               ?? throw new InvalidOperationException($"{hiddenName}: скрытого не видно");
-                    Press(icon);
+                    var where = hidden() ?? throw new InvalidOperationException($"{listName}: список скрытых не открылся");
                     await Settle();
-                    if (Id(0) != first || hidden.Visibility == Visibility.Visible)
-                        throw new InvalidOperationException($"{listName}: из {hiddenName} не вернулся");
+                    var restore = Find<FrameworkElement>(where, f => f.Tag is HiddenChampVm)
+                                  ?? throw new InvalidOperationException($"{listName}: скрытого не видно");
+                    Press(restore);
+                    await Settle();
+                    if (Id(0) != first)
+                        throw new InvalidOperationException($"{listName}: скрытый не вернулся");
                 }
             });
             await Step("баны команд", () =>

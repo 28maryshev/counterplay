@@ -1113,6 +1113,7 @@
             </Border>
 
             <Border Grid.Row="1" x:Name="TierListBar" Visibility="Collapsed"
+                    IsVisibleChanged="TierListBar_IsVisibleChanged"
                     Margin="0,6,0,8" Padding="10,8" CornerRadius="8"
                     Background="#14FFFFFF" BorderBrush="#2A3A4F" BorderThickness="1">
 
@@ -1134,40 +1135,57 @@
                                  FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
                     </Border>
                   </StackPanel>
-                  <!-- Скрытые кнопкой «не советовать» на роли драфта — отдельно
-                       баны и пики; клик по иконке возвращает в советы
-                       (ShowHiddenBox). Нет скрытых — окошка нет. -->
-                  <Border x:Name="TierHiddenBox" DockPanel.Dock="Right" Visibility="Collapsed"
-                          Margin="0,0,10,0" Padding="7,2,2,2" CornerRadius="4" VerticalAlignment="Center"
-                          Background="#1AFF3B30" BorderBrush="#66FF3B30" BorderThickness="1"
-                          ToolTip="{loc:T dislike.boxTip}">
-                    <StackPanel Orientation="Horizontal">
-                      <Path Data="{StaticResource DislikeGlyph}" Fill="#FF3B30" Stretch="Uniform"
-                            Width="13" Height="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                      <StackPanel x:Name="TierHiddenBansGroup" Orientation="Horizontal">
-                        <TextBlock Text="{loc:T tier.modeBans}" Foreground="#E0584F" VerticalAlignment="Center"
-                                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
-                                   Margin="0,0,6,0"/>
-                        <ItemsControl x:Name="TierHiddenBans" ItemTemplate="{StaticResource HiddenChampTemplate}">
-                          <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                          </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                  <!-- Кнопки «скрытые»: баны и пики, скрытые кнопкой «не
+                       советовать» на роли драфта. Клик раскрывает под кнопкой
+                       список (HiddenPopup), где каждого можно вернуть. Видны
+                       всегда, со счётчиком (ShowHiddenButtons). -->
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                              Margin="0,0,8,0" ToolTip="{loc:T dislike.btnTip}">
+                    <Border x:Name="HiddenBansBtn" Tag="Ban" Style="{StaticResource HiddenListButton}"
+                            CornerRadius="4,0,0,4" BorderThickness="1"
+                            MouseLeftButtonDown="HiddenList_Click">
+                      <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource DislikeGlyph}" Fill="#FF3B30" Stretch="Uniform"
+                              Width="11" Height="11" VerticalAlignment="Center" Margin="0,1,5,0"/>
+                        <TextBlock Text="{loc:T tier.modeBans}" Foreground="#E0584F"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
+                        <TextBlock x:Name="HiddenBansCount" Foreground="#FFFFFF" Margin="5,0,0,0"
+                                   FontFamily="{StaticResource NumberFont}" FontSize="11" FontWeight="Bold"/>
                       </StackPanel>
-                      <Border x:Name="TierHiddenSep" Width="1" Height="14" Background="#4DFFFFFF"
-                              Margin="3,0,9,0" VerticalAlignment="Center"/>
-                      <StackPanel x:Name="TierHiddenPicksGroup" Orientation="Horizontal">
-                        <TextBlock Text="{loc:T tier.modePicks}" Foreground="#C89B3C" VerticalAlignment="Center"
-                                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
-                                   Margin="0,0,6,0"/>
-                        <ItemsControl x:Name="TierHiddenPicks" ItemTemplate="{StaticResource HiddenChampTemplate}">
-                          <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                          </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                    </Border>
+                    <Border x:Name="HiddenPicksBtn" Tag="Pick" Style="{StaticResource HiddenListButton}"
+                            CornerRadius="0,4,4,0" BorderThickness="0,1,1,1"
+                            MouseLeftButtonDown="HiddenList_Click">
+                      <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource DislikeGlyph}" Fill="#FF3B30" Stretch="Uniform"
+                              Width="11" Height="11" VerticalAlignment="Center" Margin="0,1,5,0"/>
+                        <TextBlock Text="{loc:T tier.modePicks}" Foreground="#C89B3C"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"/>
+                        <TextBlock x:Name="HiddenPicksCount" Foreground="#FFFFFF" Margin="5,0,0,0"
+                                   FontFamily="{StaticResource NumberFont}" FontSize="11" FontWeight="Bold"/>
                       </StackPanel>
-                    </StackPanel>
-                  </Border>
+                    </Border>
+                    <!-- Список скрытых — под нажатой кнопкой; закрывается
+                         кликом мимо. Строки — HiddenRowTemplate. -->
+                    <Popup x:Name="HiddenPopup" StaysOpen="False" AllowsTransparency="True"
+                           Placement="Bottom" VerticalOffset="4" PopupAnimation="None"
+                           Closed="HiddenPopup_Closed">
+                      <Border x:Name="HiddenPopupCard" Background="#121A24" BorderBrush="#5A2A2E"
+                              BorderThickness="1" CornerRadius="7" Padding="12,10" Margin="0,0,10,10"
+                              MinWidth="280" MaxWidth="380">
+                        <Border.Effect>
+                          <DropShadowEffect Color="#000000" BlurRadius="14" ShadowDepth="2" Opacity="0.6"/>
+                        </Border.Effect>
+                        <StackPanel>
+                          <TextBlock x:Name="HiddenPopupTitle" Foreground="#C89B3C" Margin="0,0,0,8"
+                                     FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"/>
+                          <ItemsControl x:Name="HiddenPopupList" ItemTemplate="{StaticResource HiddenRowTemplate}"/>
+                          <TextBlock x:Name="HiddenPopupEmpty" Foreground="#7C97AC" TextWrapping="Wrap"
+                                     FontFamily="{StaticResource UiFont}" FontSize="12"/>
+                        </StackPanel>
+                      </Border>
+                    </Popup>
+                  </StackPanel>
                   <TextBlock x:Name="TierTitle" Text="" VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
                              FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"

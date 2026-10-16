@@ -242,16 +242,28 @@ internal static class Program
         Pump();
         var banList  = (ItemsControl)w.FindName("BanFullList");
         var banStrip = (ContentControl)w.FindName("BanHiddenStrip");
-        var box      = (FrameworkElement)w.FindName("TierHiddenBox");
-        var boxBans  = (ItemsControl)w.FindName("TierHiddenBans");
-        var boxPicks = (ItemsControl)w.FindName("TierHiddenPicks");
-        List<int> InBox(ItemsControl ic) => [.. Cards<HiddenChampVm>(ic).Select(v => v.ChampionId)];
+        var popup    = (System.Windows.Controls.Primitives.Popup)w.FindName("HiddenPopup");
+        var bansBtn  = (UIElement)w.FindName("HiddenBansBtn");
+        var picksBtn = (UIElement)w.FindName("HiddenPicksBtn");
+        // Список всплывает отдельным окошком — прозрачным, чтобы проверка его не показывала.
+        popup.Child.Opacity = 0;
+        string Text(string name) => ((TextBlock)w.FindName(name)).Text;
         bool Shown(string name) => ((FrameworkElement)w.FindName(name)).Visibility == Visibility.Visible;
+        List<HiddenChampVm> Rows() => Cards<HiddenChampVm>((ItemsControl)w.FindName("HiddenPopupList"));
+        UIElement? RestoreBtn() => Find<Border>(popup.Child, b => b.Tag is HiddenChampVm);
+        void Toggle(UIElement btn) { Press(btn); Pump(); }
         var cards = Cards<RecCard>(banList);
         Check("у совета бана есть кнопка, без наведения скрыта",
               Button(w, banList, 0) is { Visibility: Visibility.Collapsed }, "");
-        Check("пока скрытых нет — ни окошка в шапке тир-листа, ни полосы",
-              box.Visibility == Visibility.Collapsed && banStrip.Visibility == Visibility.Collapsed, "");
+        Check("кнопки «Баны» / «Пики» у переключателя тир-листа видны и без скрытых",
+              Shown("TierListBar") && Shown("HiddenBansBtn") && Shown("HiddenPicksBtn")
+              && Text("HiddenBansCount") == "" && Text("HiddenPicksCount") == "", "");
+        Check("полосы над советами нет", banStrip.Visibility == Visibility.Collapsed, "");
+        Toggle(bansBtn);
+        Check("пустой список — подсказка, откуда берутся скрытые",
+              popup.IsOpen && Rows().Count == 0 && Shown("HiddenPopupEmpty"), Text("HiddenPopupEmpty"));
+        Toggle(bansBtn);
+        Check("повторный клик по кнопке — список закрылся", !popup.IsOpen, "");
         if (snap is { Length: > 0 }) { Button(w, banList, 0)!.Visibility = Visibility.Visible; Snap(w, snap, "1-ban-button.png"); }
 
         // Положительный контроль: клик по самой карточке наводит бан.
@@ -268,24 +280,30 @@ internal static class Program
         Check("клик по 👎 — карточки сразу нет", after.All(c => c.ChampionId != x), Names(after.Select(c => c.ChampionId).ToList()));
         Check("советов столько же", after.Count == cards.Count, $"{cards.Count} → {after.Count}");
         Check("и бан в клиенте не наведён", hovered.Count == 0, string.Join(",", hovered));
-        Check("в шапке тир-листа — окошко скрытых, он в группе банов",
-              box.Visibility == Visibility.Visible && InBox(boxBans).SequenceEqual([x]) && Shown("TierHiddenBansGroup"), "");
-        Check("группы пиков и разделителя нет — пики не скрыты",
-              !Shown("TierHiddenPicksGroup") && !Shown("TierHiddenSep"), "");
-        Check("полосы над советами нет — скрытые в окошке", banStrip.Visibility == Visibility.Collapsed, "");
-        var tip = Cards<HiddenChampVm>(boxBans).FirstOrDefault()?.Tip ?? "";
-        Check("в подсказке — сколько игр ждать", tip.Contains(Dislikes.HideGames.ToString()), tip);
+        Check("на кнопке «Баны» — счётчик 1, на «Пики» — пусто",
+              Text("HiddenBansCount") == "1" && Text("HiddenPicksCount") == "", $"{Text("HiddenBansCount")} / {Text("HiddenPicksCount")}");
+        Check("полосы над советами нет — скрытые в списке у кнопок", banStrip.Visibility == Visibility.Collapsed, "");
 
         // Новое событие драфта — по-прежнему скрыт (не только в окне).
         w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
         Check("следующее событие драфта его не возвращает", Cards<RecCard>(banList).All(c => c.ChampionId != x), "");
 
-        Press(Icon(boxBans)!);
+        Wait(0.35);   // закрытие кликом по кнопке гасит повторное открытие на 300 мс
+        Toggle(bansBtn);
+        var rows = Rows();
+        Check("список банов: он, с именем и «игр до возвращения: 10»",
+              popup.IsOpen && rows.Select(r => r.ChampionId).SequenceEqual([x]) && rows[0].Name == DataDragon.Name(x)
+              && rows[0].Status == Loc.T("dislike.statusHidden", Dislikes.HideGames), rows.FirstOrDefault()?.Status ?? "");
+        Check("заголовок — скрытые баны", Text("HiddenPopupTitle").StartsWith(Loc.T("dislike.titleBans", "").Split('·')[0].Trim()),
+              Text("HiddenPopupTitle"));
+        if (snap is { Length: > 0 }) SnapElement((FrameworkElement)popup.Child, snap, "2-hidden-list.png");
+        Press(RestoreBtn()!);
         Pump();
-        Check("клик по иконке в окошке — совет вернулся на место",
-              Cards<RecCard>(banList).FirstOrDefault()?.ChampionId == x, "");
-        Check("и окошко пропало", box.Visibility == Visibility.Collapsed, "");
+        Check("«Вернуть» — совет снова на своём месте", Cards<RecCard>(banList).FirstOrDefault()?.ChampionId == x, "");
+        Check("список открыт и пуст, счётчик пропал",
+              popup.IsOpen && Rows().Count == 0 && Shown("HiddenPopupEmpty") && Text("HiddenBansCount") == "", "");
+        popup.IsOpen = false;
 
         // Пики.
         var p = Draft("utility", ban: false, enemies: [222, 51]);
@@ -305,32 +323,67 @@ internal static class Program
         Check("и чемпион в клиенте не наведён", hovered.Count == 0, string.Join(",", hovered));
         Check("в фазе пиков тир-листа нет — полоса «Скрыты» над пиками", pickStrip.Visibility == Visibility.Visible, "");
 
-        // Следующий драфт, фаза банов: скрытый пик виден в окошке — отдельно от банов.
+        // Следующий драфт, фаза банов: скрытый пик — на кнопке «Пики», отдельно от банов.
         w.DraftEnded();
         w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
         Pump();
-        Check("в фазе банов скрытый пик — в окошке, в группе пиков",
-              box.Visibility == Visibility.Visible && InBox(boxPicks).SequenceEqual([y]) && !Shown("TierHiddenBansGroup"), "");
+        Check("в фазе банов скрытый пик считается на кнопке «Пики»",
+              Text("HiddenPicksCount") == "1" && Text("HiddenBansCount") == "", $"{Text("HiddenBansCount")} / {Text("HiddenPicksCount")}");
         Press(Button(w, banList, 0)!);
         Pump();
-        Check("скрыл и бан — обе группы и разделитель между ними",
-              InBox(boxBans).SequenceEqual([x]) && InBox(boxPicks).SequenceEqual([y]) && Shown("TierHiddenSep"), "");
-        if (snap is { Length: > 0 }) Snap(w, snap, "2-hidden-box.png");
-        Press(Icon(boxPicks)!);
+        Check("скрыл и бан — у каждой кнопки свой счётчик",
+              Text("HiddenBansCount") == "1" && Text("HiddenPicksCount") == "1", "");
+        Toggle(picksBtn);
+        Check("список пиков — только пик", popup.IsOpen && Rows().Select(r => r.ChampionId).SequenceEqual([y]), "");
+        Toggle(bansBtn);
+        Check("клик по «Баны» при открытых пиках — список банов", popup.IsOpen && Rows().Select(r => r.ChampionId).SequenceEqual([x]), "");
+        Toggle(bansBtn);
+        Wait(0.35);
+        Toggle(picksBtn);
+        Press(RestoreBtn()!);
         Pump();
-        Check("вернул пик из окошка — группа пиков ушла, бан на месте",
-              !Shown("TierHiddenPicksGroup") && InBox(boxBans).SequenceEqual([x]), "");
-        Check("и запись о пике удалена", Dislikes.Active(Dislikes.Kind.Pick, "support").Count == 0, "");
+        Check("вернул пик из списка — запись удалена, бан на месте",
+              Dislikes.Active(Dislikes.Kind.Pick, "support").Count == 0 && Text("HiddenPicksCount") == ""
+              && Text("HiddenBansCount") == "1", "");
+        popup.IsOpen = false;
 
-        // Свой бан сделан: советов нет, тир-лист и окошко — есть.
+        // Возвращающийся (уже в советах, только ниже) — тоже в списке, и его можно вернуть на место.
+        _played = Dislikes.HideGames + 2;
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
+        Pump();
+        Wait(0.35);
+        Toggle(bansBtn);
+        Check("возвращающийся — в списке, «мест ниже своего: 3»",
+              Rows().FirstOrDefault() is { } rr && rr.ChampionId == x && rr.Status == Loc.T("dislike.statusReturning", 3),
+              Rows().FirstOrDefault()?.Status ?? "");
+        Press(RestoreBtn()!);
+        Pump();
+        Check("вернул — сразу первым", Cards<RecCard>(banList).FirstOrDefault()?.ChampionId == x, "");
+        popup.IsOpen = false;
+        _played = 0;
+
+        // Свой бан сделан: советов нет, тир-лист и кнопки — есть.
+        Dislikes.Add(Dislikes.Kind.Ban, x, "support");
         var done = Draft("utility", ban: true) with { MyBanActionId = -1, MyBanInProgress = false, MyBanDone = true };
         w.UpdateBans([], done, engine, hov);
         Pump();
-        Check("после своего бана окошко на месте", Shown("BansDonePanel") && box.Visibility == Visibility.Visible, "");
-        Press(Icon(boxBans)!);
+        Check("после своего бана кнопки на месте, счётчик есть", Shown("BansDonePanel") && Shown("TierListBar")
+              && Shown("HiddenBansBtn") && Text("HiddenBansCount") == "1", "");
+        Wait(0.35);
+        Toggle(bansBtn);
+        Press(RestoreBtn()!);
         Pump();
-        Check("вернул и там — окошко пропало, советы не появились",
-              box.Visibility == Visibility.Collapsed && Shown("BansDonePanel"), "");
+        Check("вернул и там — счётчик пропал, советы не появились",
+              Text("HiddenBansCount") == "" && Shown("BansDonePanel"), "");
+
+        // Пики начались — тир-лист ушёл, список закрывается вместе с ним.
+        w.UpdateBans(engine.RecommendBans(d), d, engine, hov);
+        Pump();
+        Wait(0.35);
+        Toggle(bansBtn);
+        w.UpdateRecommendations(engine.Recommend(p, s.DraftCount), p, engine);
+        Pump();
+        Check("с уходом тир-листа список закрылся", !popup.IsOpen, "");
 
         // Тир-лист выключен в настройках — вернуть скрытый бан можно из полосы над советами.
         s.BansTierList = false;
@@ -476,6 +529,13 @@ internal static class Program
         IconCache.PreloadAllAsync(null, CancellationToken.None).GetAwaiter().GetResult();
     }
 
+    /// Подождать, не останавливая окно (таймеры и анимации идут).
+    private static void Wait(double seconds)
+    {
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        while (DateTime.UtcNow < until) Pump();
+    }
+
     private static void Pump()
     {
         for (var i = 0; i < 3; i++)
@@ -497,6 +557,23 @@ internal static class Program
         w.AllowsTransparency = true;
         w.Opacity = 0;
         w.Show();
+    }
+
+    /// Снимок одного элемента (список скрытых живёт в своём всплывающем окошке).
+    private static void SnapElement(FrameworkElement el, string dir, string file)
+    {
+        Directory.CreateDirectory(dir);
+        var was = el.Opacity;
+        el.Opacity = 1;
+        el.UpdateLayout();
+        var bmp = new RenderTargetBitmap((int)el.ActualWidth + 20, (int)el.ActualHeight + 20, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(el);
+        el.Opacity = was;
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
     }
 
     private static void Snap(Window w, string dir, string file)

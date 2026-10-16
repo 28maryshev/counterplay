@@ -775,6 +775,12 @@
     "tip": "Non suggerire: nascondi per {0} partite, poi torna gradualmente",
     "hidden": "Nascosti:",
     "restoreTip": "{0} è nascosto — partite al ritorno: {1}. Clicca per riportarlo ora",
-    "boxTip": "Nascosti con «non suggerire» per questo ruolo. Clicca un campione per riportarlo"
+    "btnTip": "Nascosti con «non suggerire» per questo ruolo — apri l’elenco per riportarli",
+    "restore": "Riporta",
+    "statusHidden": "partite al ritorno: {0}",
+    "statusReturning": "sta tornando — posti sotto il suo: {0}",
+    "titleBans": "Ban nascosti · {0}",
+    "titlePicks": "Pick nascosti · {0}",
+    "empty": "Vuoto. Il pulsante 👎 nell’angolo di una scheda nasconde un campione per {0} partite"
   }
 }

@@ -775,6 +775,12 @@
     "tip": "Không gợi ý: ẩn trong {0} trận, sau đó sẽ dần quay lại",
     "hidden": "Đã ẩn:",
     "restoreTip": "{0} đang bị ẩn — còn {1} trận nữa sẽ quay lại. Nhấn để đưa trở lại ngay",
-    "boxTip": "Đã ẩn bằng “không gợi ý” ở vai trò này. Nhấn vào tướng để đưa trở lại"
+    "btnTip": "Tướng đã ẩn bằng “không gợi ý” ở vai trò này — mở danh sách để đưa trở lại",
+    "restore": "Khôi phục",
+    "statusHidden": "còn {0} trận nữa sẽ quay lại",
+    "statusReturning": "đang quay lại — thấp hơn vị trí cũ {0} bậc",
+    "titleBans": "Cấm đã ẩn · {0}",
+    "titlePicks": "Chọn đã ẩn · {0}",
+    "empty": "Trống. Nút 👎 ở góc thẻ sẽ ẩn tướng trong {0} trận"
   }
 }
