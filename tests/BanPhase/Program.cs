@@ -932,6 +932,19 @@ internal static class Program
         Check("раскрыли — их половина едет на место", Moving(w, "BansTheirHalf") && Moving(w, "BansOurHalf"), "");
         Check("их баны видны сразу, все пять", Enumerable.Range(0, 5).All(k => SlotOpacity(w, "BansTheirList", k) == 1),
               string.Join(" ", Enumerable.Range(0, 5).Select(k => SlotOpacity(w, "BansTheirList", k).ToString("0.0"))));
+        // Сразу, пока идут 4 секунды показа. Стояло после ожидания доезда и
+        // второго события — и доходило до проверки за 2,5–3,8 с: под нагрузкой
+        // показ успевал кончиться, и пункт падал через раз (16.10, на коде и до,
+        // и после правок того дня — время отрисовки то же). Отсюда — меньше
+        // секунды. На пиках программа обновляет панель рун: рун ещё нет —
+        // «вернуть пул роли». Пока держится панель банов, строка — за
+        // тир-листом: полоса чемпионов роли наезжала на него (скриншот владельца).
+        w.HideRunes();
+        w.ShowRunes(null, 0, "", "support", null);
+        Pump();
+        Check("пока видны баны, полосы чемпионов роли нет", !Vis(w, "RolePoolBar") && Vis(w, "TierListBar"),
+              $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
+        Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
         Wait(0.8);
         Check("доехали: их половина на месте, наша поднялась",
               Opacity(w, "BansTheirHalf") == 1 && ShiftY(w, "BansTheirHalf") == 0 && ShiftY(w, "BansOurHalf") == 0,
@@ -945,17 +958,6 @@ internal static class Program
         Check("второе событие слоты не пересобирает и сдвиг не перезапускает",
               ReferenceEquals(((ItemsControl)w.FindName("BansTheirList")).ItemsSource, theirSrc)
               && ShiftY(w, "BansTheirHalf") == 0 && Opacity(w, "BansTheirHalf") == 1, "");
-        // Сразу, пока идут 4 секунды показа: со снимками прогон медленнее, и
-        // позже показ успевал кончиться — а после него полоса роли законна.
-        // На пиках программа обновляет панель рун: рун ещё нет — «вернуть пул
-        // роли». Пока держится панель банов, строка — за тир-листом: полоса
-        // чемпионов роли наезжала на него (скриншот владельца).
-        w.HideRunes();
-        w.ShowRunes(null, 0, "", "support", null);
-        Pump();
-        Check("пока видны баны, полосы чемпионов роли нет", !Vis(w, "RolePoolBar") && Vis(w, "TierListBar"),
-              $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
-        Check("пики начались, а панель банов держится", Vis(w, "BansDonePanel") && !Vis(w, "RecScroll"), "");
         var theirs = Slots(w, "BansTheirList");
         Check("вражеские — пять с бан-рейтом", theirs.Count(x => !x.IsEmpty && x.Rate.EndsWith('%')) == 5, "");
         // Забанили моего мейна — помечен он один: золотая рамка, золотое имя,
@@ -1102,9 +1104,13 @@ internal static class Program
         Wait(0.5);
         status = ((System.Windows.Controls.TextBlock)overlay.FindName("ReadyStatusText")).Text;
         Check("ещё нажатие — поиск идёт дальше, а не гаснет", status == Loc.T("phaseState.matchmaking"), status);
-        Wait(2.5);
-        Check("поиск кончился — объявление пиков, как по кнопке «Баны»",
-              Last() is { InPlanning: true } && Vis(overlay, "PlanPanel"), "");
+        // Поиск кончается по таймеру окна, а не по часам проверки: ждём
+        // объявления (до 4 с), а не ровно 2,5 с. Под нагрузкой таймер отставал,
+        // и пункт падал через раз — 16.10, и на коде до правок того дня.
+        var planned = WaitFor(() => Last() is { InPlanning: true } && Vis(overlay, "PlanPanel"), 4);
+        Check("поиск кончился — объявление пиков, как по кнопке «Баны»", planned,
+              Last() is not { } ld ? "драфта нет" : ld.InPlanning ? "объявление, панели нет"
+              : ld.InBanPhase ? "уже баны" : "пики");
 
         Get<System.Windows.Controls.Button>(panel, "_stageBans")!
             .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
@@ -1224,10 +1230,13 @@ internal static class Program
         radios[jungleRow].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
         Get<System.Windows.Controls.Button>(panel, "_stageBans")!
             .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
-        Wait(1);
+        // Ждём объявления, а не ровно секунду: таймер песочницы под нагрузкой
+        // отставал, и пункт падал через раз (16.10, роль при этом была верной).
+        var jungle = WaitFor(() => Last() is { InPlanning: true, MyPosition: "jungle" } && Vis(overlay, "PlanPanel"), 3);
         d = Last();
-        Check("выбрал лес руками — «Баны» оставляют лес", d is { InPlanning: true, MyPosition: "jungle" }
-              && Vis(overlay, "PlanPanel"), d?.MyPosition ?? "");
+        Check("выбрал лес руками — «Баны» оставляют лес", jungle,
+              $"{d?.MyPosition ?? "драфта нет"}, {(d is { InPlanning: true } ? "объявление" : "не объявление")}, "
+              + $"панель {(Vis(overlay, "PlanPanel") ? "видна" : "скрыта")}");
         Call(panel, "StopBanSim");
 
         panel.Hide();
