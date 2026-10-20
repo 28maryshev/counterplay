@@ -39,23 +39,33 @@ public sealed partial class RecommendationEngine
     private const double GRADE_A = 49.5;
     private const double GRADE_B = 47.8;
 
-    // OP — до трёх сильнейших среди ходовых (от 1% игр роли) и только при силе
-    // от 51,5%. Чистым порогом силы эталонный OP не отделялся: там важна и
-    // популярность (Треш OP, Релл с той же силой — S). Так совпадают 10 из 11.
-    private const int    OP_MAX       = 3;
-    private const double OP_MIN_PICK  = 1.0;    // %
-    private const double OP_MIN_POWER = 51.5;   // %
+    // OP — сильный (от 51,5%) и при этом массовый: перевес силы над 50% × пикрейт
+    // / доля игр без бана (PBI, «влияние на пики и баны») от 5 — его лишние
+    // победы заметны на всю роль. Порог, а не «три лучших»: OP бывает один, два,
+    // ни одного (владелец 20.10: «у других чаще всего 1»; у тиров со статистикой
+    // верх — порог на общей оценке силы и популярности). На 16.18–16.20 по ролям
+    // чаще 1, иногда 0 или 2; на 16.20 все семь OP — OP и у эталона (Треш 13,8,
+    // Релл с той же силой — 2,7: S). Потолок OP_MAX — на случай перекошенного патча.
+    private const int    OP_MAX           = 3;
+    private const double OP_MIN_POWER     = 51.5;   // %
+    private const double OP_MIN_INFLUENCE = 5.0;    // (сила − 50) × пикрейт / (1 − бан), %·%
 
     private static string GradeOf(double power) =>
         power >= GRADE_S ? "S" : power >= GRADE_A ? "A" : power >= GRADE_B ? "B" : "C";
 
-    /// Грейды всех чемпионов роли: OP — до OP_MAX сильнейших ходовых, остальные
-    /// по порогам силы.
+    /// Влияние чемпиона на роль: перевес силы над 50% × пикрейт, с поправкой на
+    /// баны (кого банят, того меньше берут не из-за слабости). Бан — по
+    /// чемпиону, с потолком 90%, чтобы не делить на ноль.
+    private static double Influence(TierRow r) =>
+        (r.Power - 50.0) * r.Pick / (1.0 - Math.Min(r.Ban, 90.0) / 100.0);
+
+    /// Грейды всех чемпионов роли: OP — сильные и массовые (не больше OP_MAX, по
+    /// влиянию), остальные по порогам силы.
     private static Dictionary<int, string> Grades(IEnumerable<TierRow> rows)
     {
         var list = rows.ToList();
-        var op = list.Where(r => r.Pick >= OP_MIN_PICK && r.Power >= OP_MIN_POWER)
-                     .OrderByDescending(r => r.Power).Take(OP_MAX)
+        var op = list.Where(r => r.Power >= OP_MIN_POWER && Influence(r) >= OP_MIN_INFLUENCE)
+                     .OrderByDescending(Influence).Take(OP_MAX)
                      .Select(r => r.Id).ToHashSet();
         return list.ToDictionary(r => r.Id, r => op.Contains(r.Id) ? "OP" : GradeOf(r.Power));
     }
