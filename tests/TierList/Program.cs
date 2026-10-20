@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Microsoft.Data.Sqlite;
 using Counterplay;
@@ -17,7 +17,8 @@ namespace Counterplay.Tests;
 ///
 /// Держим на своей маленькой базе бота (100 000 игр роли):
 /// (1) первый в тире — сильнейший, а не самый популярный и банимый;
-/// (2) чужой бан-рейт не поднимает: порядок — строго по силе;
+/// (2) чужой бан-рейт не поднимает: порядок — OP первыми, дальше строго по
+///     силе (OP — полоса над S, как на сайте и в эталоне);
 /// (3) грейд — по силе: популярный с 49% — B, с 47% — C, средний — A;
 /// (4) OP — не больше трёх и только ходовые (от 1% игр роли): сильнейший
 ///     нишевой с 0,8% — S;
@@ -78,12 +79,14 @@ internal static class Program
                   tier[0].ChampionId == Strong, $"первый {tier[0].ChampionId}, популярный на {Place(Popular)}-м");
             Check("популярный с 49% и 30% банов — не в пятёрке", Place(Popular) > 5, $"{Place(Popular)}-й");
 
-            // (2) порядок — строго по силе, баны (свои и чужие) не участвуют
+            // (2) порядок — OP первыми, дальше по силе; баны (свои и чужие) не участвуют
             static double Power(RecommendationEngine.TierEntry t) =>
                 (t.Winrate / 100 * t.Games + 1000) / (t.Games + 2000);
-            var sorted = tier.Zip(tier.Skip(1)).All(p => Power(p.First) >= Power(p.Second) - 1e-9);
-            Check("порядок тира — по силе", sorted,
-                  string.Join(" ", tier.Select(t => $"{t.ChampionId}:{100 * Power(t):F2}")));
+            static (int, double) Key(RecommendationEngine.TierEntry t) => (t.Grade == "OP" ? 0 : 1, -Power(t));
+            var sorted = tier.Zip(tier.Skip(1)).All(p => Key(p.First).CompareTo(Key(p.Second)) <= 0);
+            Check("порядок тира — OP, дальше по силе", sorted,
+                  string.Join(" ", tier.Select(t => $"{t.ChampionId}:{t.Grade}:{100 * Power(t):F2}")));
+            Check("OP выше нишевого S, хоть тот и сильнее", Place(Niche) > Place(Third), $"{Place(Niche)}-й");
             Check("бан-рейт из мида не поднимает на боте",
                   Place(MidBanned) > Place(Fourth) && Grade(MidBanned) == "A",
                   $"{Place(MidBanned)}-й, {Grade(MidBanned)}");

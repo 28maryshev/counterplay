@@ -60,6 +60,11 @@ public sealed partial class RecommendationEngine
         return list.ToDictionary(r => r.Id, r => op.Contains(r.Id) ? "OP" : GradeOf(r.Power));
     }
 
+    /// Порядок тира: OP — первыми, дальше по силе. Иначе нишевой S с силой выше
+    /// стоял бы над OP (Тарик над Браумом), а OP — полоса над S, как на сайте.
+    private static List<TierRow> TierOrder(IEnumerable<TierRow> rows, Dictionary<int, string> grades) =>
+        [.. rows.OrderBy(r => grades[r.Id] == "OP" ? 0 : 1).ThenByDescending(r => r.Power)];
+
     /// <summary>
     /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли,
     /// грейд OP, S…C по силе. Два режима ранжирования:
@@ -79,10 +84,11 @@ public sealed partial class RecommendationEngine
         {
             // Ключ ранжирования = то, что показываем: в WR-столбце сортируем по
             // сырому винрейту (иначе выше по %-у стоит ниже — путаница), в тире
-            // по силе.
+            // OP первыми, дальше по силе.
             var rows   = TierRows(role);
             var grades = Grades(rows);
-            foreach (var s in rows.OrderByDescending(s => byWinrate ? s.Wr : s.Power).Take(perRole))
+            var order  = byWinrate ? rows.OrderByDescending(s => s.Wr).ToList() : TierOrder(rows, grades);
+            foreach (var s in order.Take(perRole))
                 result.Add(new TierEntry(s.Id, role, s.Wr, s.Games, s.Pick, s.Ban, grades[s.Id]));
         }
         return result;
@@ -135,16 +141,18 @@ public sealed partial class RecommendationEngine
         Dictionary<int, string> grades = [];
         try
         {
-            var rows = TierRows(role).OrderByDescending(r => r.Power).ToList();
+            var all = TierRows(role);
+            grades = Grades(all);
+            var rows = TierOrder(all, grades);
             for (int i = 0; i < rows.Count; i++) ranks[rows[i].Id] = (double)i / rows.Count;
-            grades = Grades(rows);
         }
         catch { /* нет данных — все без места */ }
         return _tierOf[role] = (ranks, grades);
     }
 
     /// <summary>
-    /// Место чемпиона в тир-листе роли (по силе, как в режиме «тир»): доля
+    /// Место чемпиона в тир-листе роли (как в режиме «тир»: OP первыми, дальше
+    /// по силе): доля
     /// чемпионов роли выше него, 0 — первый. Нет в тир-листе (меньше 0,5% игр
     /// роли или мало игр в патче) — 1, как последний.
     /// Советы банов поднимают по нему тех, кто стоит в тир-листе высоко.
