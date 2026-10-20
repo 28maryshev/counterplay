@@ -48,13 +48,20 @@
     </DataTemplate.Triggers>
   </DataTemplate>
 
+  <!-- Столбец роли в тир-листе (пики и баны): по два чемпиона в ряд, слева
+       направо и сверху вниз. С 20.10, когда убрали второй столбец «по
+       винрейту»: одна узкая колонка оставляла пустой половину ширины роли. -->
+  <ItemsPanelTemplate x:Key="TierTwoPerRow">
+    <UniformGrid Columns="2"/>
+  </ItemsPanelTemplate>
+
   <!-- Круглая иконка чемпиона + рамка (цвет грейда или нейтральный
        у WR-столбца) + WR%. Бейдж грейда скрывается, когда грейда
        нет (ShowGrade=false). Общий шаблон для обоих столбцов. -->
   <DataTemplate x:Key="TierEmblem">
     <!-- Клик: в банфазе наводит бан, в фазе пиков — пик. Background
          прозрачный, но задан — иначе клики по пустоте не ловятся. -->
-    <StackPanel x:Name="TierCellRoot" Margin="0,0,0,4" HorizontalAlignment="Center"
+    <StackPanel x:Name="TierCellRoot" Margin="4,0,4,4" HorizontalAlignment="Center"
                 ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
                 MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
       <Grid Width="36" Height="36" HorizontalAlignment="Center">

@@ -77,12 +77,11 @@ public sealed partial class RecommendationEngine
 
     /// <summary>
     /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли,
-    /// грейд OP, S…C по силе. Два режима ранжирования:
-    ///   byWinrate=false — по силе (винрейт, усаженный к 50%) — «тир»;
-    ///   byWinrate=true  — по сырому винрейту.
-    /// Грейд у чемпиона один в обоих режимах. Роли — top→jgl→mid→adc→sup.
+    /// OP первыми, дальше по силе (винрейт, усаженный к 50%); грейд OP, S…C.
+    /// Роли — top→jgl→mid→adc→sup. Режима «по сырому винрейту» нет с 20.10:
+    /// тир сам по силе, и второй столбец почти повторял первый.
     /// </summary>
-    public IReadOnlyList<TierEntry> TierList(int perRole = 15, bool byWinrate = false)
+    public IReadOnlyList<TierEntry> TierList(int perRole = 15)
     {
         var result = new List<TierEntry>();
 
@@ -92,13 +91,9 @@ public sealed partial class RecommendationEngine
         // гарантирует, что @p1 уже набрал достаточно данных.
         foreach (var role in new[] { "top", "jungle", "mid", "adc", "support" })
         {
-            // Ключ ранжирования = то, что показываем: в WR-столбце сортируем по
-            // сырому винрейту (иначе выше по %-у стоит ниже — путаница), в тире
-            // OP первыми, дальше по силе.
             var rows   = TierRows(role);
             var grades = Grades(rows);
-            var order  = byWinrate ? rows.OrderByDescending(s => s.Wr).ToList() : TierOrder(rows, grades);
-            foreach (var s in order.Take(perRole))
+            foreach (var s in TierOrder(rows, grades).Take(perRole))
                 result.Add(new TierEntry(s.Id, role, s.Wr, s.Games, s.Pick, s.Ban, grades[s.Id]));
         }
         return result;

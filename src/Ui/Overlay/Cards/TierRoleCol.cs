@@ -21,6 +21,5 @@ public sealed class TierRoleCol
 {
     public string           RoleLabel { get; init; } = "";
     public ImageSource?     RoleIcon  { get; init; }
-    public List<TierCell>   WrCells   { get; init; } = [];   // по винрейту, без грейдов
-    public List<TierCell>   TierCells { get; init; } = [];   // по meta-score, с грейдами
+    public List<TierCell>   TierCells { get; init; } = [];   // тир по силе с грейдами (у банов — по бан-рейту)
 }

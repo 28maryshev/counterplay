@@ -27,7 +27,7 @@ public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
     public string       Grade      { get; init; } = "";   // OP/S/A/B/C
     public string       GradeColor { get; init; } = "#C89B3C"; // цвет эмблемы и буквы
     public string       Tip        { get; init; } = "";
-    // У WR-столбца грейдов нет: скрываем бейдж, рамку красим нейтрально.
+    // У тир-листа банов грейдов нет: скрываем бейдж, рамку красим нейтрально.
     public bool         ShowGrade  { get; init; } = true;
     public Visibility   GradeVisibility => ShowGrade ? Visibility.Visible : Visibility.Collapsed;
     // Чемпиона нет на аккаунте — гасим и обводим красным: видно, что он есть в

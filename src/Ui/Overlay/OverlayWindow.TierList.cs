@@ -36,7 +36,7 @@ public partial class OverlayWindow
 
     private static string WrBrush(double wr) => WinrateColor.Hex(wr);
 
-    private TierCell TierCellOf(RecommendationEngine.TierEntry t, bool showGrade) => new()
+    private TierCell TierCellOf(RecommendationEngine.TierEntry t) => new()
     {
         ChampionId = t.ChampionId,
         Icon    = IconCache.Get(t.ChampionId),
@@ -44,9 +44,7 @@ public partial class OverlayWindow
         WrBrush = WrBrush(t.Winrate),
         Grade   = t.Grade,
         GradeColor = GradeColor(t.Grade),
-        ShowGrade  = showGrade,
-        Tip     = $"{DataDragon.Name(t.ChampionId)}"
-                + (showGrade ? $" · {t.Grade}" : "") + "\n"
+        Tip     = $"{DataDragon.Name(t.ChampionId)} · {t.Grade}\n"
                 + $"WR {t.Winrate:F1}%  ·  {Loc.T("tier.pick")} {t.PickRate:F1}%"
                 + (t.BanRate > 0 ? $"  ·  {Loc.T("tier.ban")} {t.BanRate:F1}%" : "")
                 + $"  ·  {t.Games} " + Loc.T("tier.games"),
@@ -82,7 +80,7 @@ public partial class OverlayWindow
                 .Where(t => t.Role == role)
                 .Select(t =>
                 {
-                    var cell = TierCellOf(t, showGrade: true);
+                    var cell = TierCellOf(t);
                     return new TierCell
                     {
                         ChampionId = cell.ChampionId, Icon = cell.Icon,
@@ -116,11 +114,10 @@ public partial class OverlayWindow
         if (_engine is null) { TierListBar.Visibility = Visibility.Collapsed; return; }
         if (_tierCols is null)
         {
-            // Две разбивки: по чистому винрейту (без грейдов) и по meta-тиру.
-            var byWr   = _engine.TierList(15, byWinrate: true).GroupBy(t => t.Role)
-                                 .ToDictionary(g => g.Key, g => g.ToList());
-            var byTier = _engine.TierList(15, byWinrate: false).GroupBy(t => t.Role)
-                                 .ToDictionary(g => g.Key, g => g.ToList());
+            // Один столбец на роль — тир по силе. Второй, по сырому винрейту,
+            // убран 20.10: тир сам по силе, и столбцы почти повторяли друг друга.
+            var byTier = _engine.TierList(15).GroupBy(t => t.Role)
+                                .ToDictionary(g => g.Key, g => g.ToList());
 
             var cols = new List<TierRoleCol>();
             foreach (var role in new[] { "top", "jungle", "mid", "adc", "support" })
@@ -130,8 +127,7 @@ public partial class OverlayWindow
                 {
                     RoleLabel = RoleNameDb(role),
                     RoleIcon  = RoleIcons.Get(DbToLcuRole(role)),
-                    WrCells   = byWr.GetValueOrDefault(role, new()).Select(t => TierCellOf(t, showGrade: false)).ToList(),
-                    TierCells = tierList.Select(t => TierCellOf(t, showGrade: true)).ToList(),
+                    TierCells = tierList.Select(TierCellOf).ToList(),
                 });
             }
             _tierCols = cols;
@@ -175,10 +171,7 @@ public partial class OverlayWindow
         var banned = draft is null ? new HashSet<int>()
             : new HashSet<int>(draft.MyTeamBans.Concat(draft.TheirTeamBans).Where(id => id != 0));
         foreach (var col in _tierCols.Concat(_banTierCols ?? []))
-        {
-            foreach (var c in col.WrCells)   c.Banned = banned.Contains(c.ChampionId);
             foreach (var c in col.TierCells) c.Banned = banned.Contains(c.ChampionId);
-        }
     }
 
     // ── Тир-лист банов и переключатель «Пики / Баны» ─────────────────────────

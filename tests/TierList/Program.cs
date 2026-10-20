@@ -25,8 +25,7 @@ namespace Counterplay.Tests;
 ///     троих, в миде OP один, на топе ни одного; сильнейший нишевой с 0,8% игр —
 ///     S (владелец 20.10: «OP должен быть не всегда, у других чаще всего 1»);
 /// (5) порог доли — 0,5%: 0,6% в тир-листе, 0,3% нет;
-/// (6) малая выборка не взлетает: 58% на 800 играх ниже 53% на 10 000 — в
-///     столбце винрейта, наоборот, первая;
+/// (6) малая выборка не взлетает: 58% на 800 играх ниже 53% на 10 000;
 /// (7) пикрейт — от всех игр роли;
 /// (8) подбор берёт «силу в патче» из тир-листа: BaseDelta = TierPower − 50 у
 ///     каждого кандидата, у OP на карточке «один из сильнейших в патче», у C —
@@ -75,7 +74,6 @@ internal static class Program
         using (var engine = RecommendationEngine.Create(db, Bucket))
         {
             var tier = engine.TierList(perRole: 200).Where(t => t.Role == "adc").ToList();
-            var byWr = engine.TierList(perRole: 200, byWinrate: true).Where(t => t.Role == "adc").ToList();
             Console.WriteLine("бот, тир: " + string.Join(", ", tier.Select(t => $"{t.ChampionId}:{t.Grade}")));
 
             var at = tier.ToDictionary(t => t.ChampionId);
@@ -125,9 +123,6 @@ internal static class Program
 
             // (6)
             Check("58% на 800 играх ниже 53% на 10 000", Place(Niche) > Place(Strong), $"{Place(Niche)}-й");
-            Check("в столбце винрейта 58% — первая", byWr[0].ChampionId == Niche, $"{byWr[0].ChampionId}");
-            Check("грейд один в обоих столбцах",
-                  byWr.All(w => at[w.ChampionId].Grade == w.Grade), "");
 
             // (7)
             Check("пикрейт — от всех игр роли", Math.Abs(at[Niche].PickRate - 0.8) < 1e-9,

@@ -1180,7 +1180,8 @@
                                      FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
                                      Foreground="#B0584F"/>
                           <ItemsControl ItemsSource="{Binding TierCells}"
-                                        ItemTemplate="{StaticResource TierEmblem}"/>
+                                        ItemTemplate="{StaticResource TierEmblem}"
+                                        ItemsPanel="{StaticResource TierTwoPerRow}"/>
                         </StackPanel>
                         </Border>
                       </DataTemplate>
@@ -1200,7 +1201,7 @@
                         <Border BorderBrush="#22415568" BorderThickness="0,0,1,0"
                                 VerticalAlignment="Top">
                         <StackPanel HorizontalAlignment="Center">
-                          <!-- Заголовок роли над парой столбцов -->
+                          <!-- Заголовок роли над столбцом -->
                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
                             <Image Source="{Binding RoleIcon}" Width="22" Height="22" Margin="0,0,6,0"
                                    Opacity="0.95" RenderOptions.BitmapScalingMode="HighQuality"/>
@@ -1208,28 +1209,15 @@
                                        FontFamily="{StaticResource DisplayFont}" FontSize="14" FontWeight="Bold"
                                        VerticalAlignment="Center"/>
                           </StackPanel>
-                          <Grid>
-                            <Grid.ColumnDefinitions>
-                              <ColumnDefinition Width="Auto"/>
-                              <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <!-- Слева — тир (с грейдами) -->
-                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                              <TextBlock Text="{loc:T tier.byTier}" HorizontalAlignment="Center" Margin="0,0,0,3"
-                                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
-                                         Foreground="#B08A38"/>
-                              <ItemsControl ItemsSource="{Binding TierCells}"
-                                            ItemTemplate="{StaticResource TierEmblem}"/>
-                            </StackPanel>
-                            <!-- Справа — по винрейту (без грейдов) -->
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                              <TextBlock Text="{loc:T tier.byWr}" HorizontalAlignment="Center" Margin="0,0,0,3"
-                                         FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
-                                         Foreground="#5E7488"/>
-                              <ItemsControl ItemsSource="{Binding WrCells}"
-                                            ItemTemplate="{StaticResource TierEmblem}"/>
-                            </StackPanel>
-                          </Grid>
+                          <!-- Один столбец — тир с грейдами. Второй, по сырому
+                               винрейту, убран 20.10: тир сам по силе, и столбцы
+                               почти повторяли друг друга. -->
+                          <TextBlock Text="{loc:T tier.byTier}" HorizontalAlignment="Center" Margin="0,0,0,3"
+                                     FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"
+                                     Foreground="#B08A38"/>
+                          <ItemsControl ItemsSource="{Binding TierCells}"
+                                        ItemTemplate="{StaticResource TierEmblem}"
+                                        ItemsPanel="{StaticResource TierTwoPerRow}"/>
                         </StackPanel>
                         </Border>
                       </DataTemplate>
