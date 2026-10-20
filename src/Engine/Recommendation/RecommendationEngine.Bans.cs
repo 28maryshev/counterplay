@@ -473,9 +473,11 @@ public sealed partial class RecommendationEngine
         }
 
         // Место в тир-листе — на линии, где он опаснее всего (нет контр — на моей).
+        // Только OP: с 20.10 грейд — по силе, и S набирает половина роли, а довод
+        // должен выделять, как прежде «S или A по месту» (верхние 14%).
         var lane = c.Hits.OrderByDescending(h => h.Value).Select(h => h.Role).FirstOrDefault() ?? myRole;
-        if (c.PickOn.ContainsKey(lane) && TierGrade(c.Id, lane) is 'S' or 'A')
-            texts.Add(Loc.T("reason.tierGrade", TierGrade(c.Id, lane).ToString()));
+        if (c.PickOn.ContainsKey(lane) && TierGrade(c.Id, lane) == "OP")
+            texts.Add(Loc.T("reason.tierGrade", "OP"));
         if (c.PickHigh) texts.Add(Loc.T("reason.pickRate", $"{c.PickOn[myRole]:F1}"));
         if (texts.Count == 0) texts.Add(Loc.T("reason.notablePick"));
         return [.. texts.Distinct()];

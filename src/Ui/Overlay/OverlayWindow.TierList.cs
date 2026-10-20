@@ -24,13 +24,14 @@ public partial class OverlayWindow
     private IReadOnlyList<TierRoleCol>? _tierCols;   // кэш: статичен в пределах патча
 
     // Цвет эмблемы по грейду — как ранги в LoL, все оттенки различимы.
-    private static string GradeColor(char g) => g switch
+    private static string GradeColor(string g) => g switch
     {
-        'S' => "#FFD23C",   // золото (яркое)
-        'A' => "#5CE0E6",   // диамант (бирюза)
-        'B' => "#CD7F32",   // бронза
-        'C' => "#B7C2CC",   // серебро
-        _   => "#6E5140",   // тёмно-коричневый (D) — как ранг Iron
+        "OP" => "#C58CFF",  // фиолетовый — над золотом, как мастер над алмазом
+        "S"  => "#FFD23C",  // золото (яркое)
+        "A"  => "#5CE0E6",  // диамант (бирюза)
+        "B"  => "#CD7F32",  // бронза
+        "C"  => "#B7C2CC",  // серебро
+        _    => "#6E5140",  // тёмно-коричневый — как ранг Iron
     };
 
     private static string WrBrush(double wr) => WinrateColor.Hex(wr);
@@ -41,7 +42,7 @@ public partial class OverlayWindow
         Icon    = IconCache.Get(t.ChampionId),
         WrText  = $"{t.Winrate:F1}%",
         WrBrush = WrBrush(t.Winrate),
-        Grade   = t.Grade.ToString(),
+        Grade   = t.Grade,
         GradeColor = GradeColor(t.Grade),
         ShowGrade  = showGrade,
         Tip     = $"{DataDragon.Name(t.ChampionId)}"

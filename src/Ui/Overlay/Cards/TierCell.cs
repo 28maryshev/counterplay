@@ -24,7 +24,7 @@ public sealed class TierCell : System.ComponentModel.INotifyPropertyChanged
     public ImageSource? Icon       { get; init; }
     public string       WrText     { get; init; } = "";
     public string       WrBrush    { get; init; } = "#8AA0B2";
-    public string       Grade      { get; init; } = "";   // S/A/B/C/D
+    public string       Grade      { get; init; } = "";   // OP/S/A/B/C
     public string       GradeColor { get; init; } = "#C89B3C"; // цвет эмблемы и буквы
     public string       Tip        { get; init; } = "";
     // У WR-столбца грейдов нет: скрываем бейдж, рамку красим нейтрально.

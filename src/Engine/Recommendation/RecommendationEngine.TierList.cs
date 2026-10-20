@@ -5,41 +5,67 @@ namespace Counterplay;
 // Движок подбора — тир-лист патча, бан-рейты, тир-лист банов, винрейт в патче.
 public sealed partial class RecommendationEngine
 {
-    /// <summary>Строка тир-листа: чемпион, роль, винрейт, игры, пик/бан-рейт, грейд.</summary>
+    /// <summary>Строка тир-листа: чемпион, роль, винрейт, игры, пик/бан-рейт, грейд (OP, S…C).</summary>
     public readonly record struct TierEntry(
         int ChampionId, string Role, double Winrate, int Games,
-        double PickRate, double BanRate, char Grade);
+        double PickRate, double BanRate, string Grade);
 
     // Тир-лист показываем только на достаточной выборке (иначе метрики шумят).
     private const int TIER_MIN_GAMES = 250;
 
-    // Грейд не по чистому винрейту, а по META-SCORE — сила (нижняя граница
-    // Уилсона) + ПРИСУТСТВИЕ (пик- и бан-рейт). Иначе наверх лезут низкопикрейтные
-    // однотрики с раздутым WR, а реальные мета-пики (их все пикают/банят при
-    // ~49-51% WR) проваливаются. Веса откалиброваны по нашим данным.
-    private const double W_PICK = 1.2;   // вклад пик-рейта в meta (откалибровано по данным)
+    // Мин. доля игр роли — 0,5%. Ниже — случайные пики, их сила — шум. С 1% до
+    // 20.10 из тир-листа выпадали нишевые, но живые пики (Хеймердингер и Клед на
+    // топе, маги на боте), а усадка (TIER_PRIOR) и так не пускает малые выборки
+    // наверх.
+    private const double TIER_MIN_SHARE = 0.005;
 
-    private const double W_BAN  = 0.4;   // вклад бан-рейта (бан-рейты крупнее пик-рейтов)
+    // Тир-лист — по СИЛЕ: винрейту, усаженному к 50% на TIER_PRIOR воображаемых
+    // игр, (победы + 1000) / (игры + 2000). До 20.10 оценка была LB + 1,2·пик +
+    // 0,4·бан: присутствие давало до 20 очков против ±3 у силы, наверху стояли
+    // самые популярные (Кейтлин 49% — первая на боте), а бан-рейт чемпиона
+    // засчитывался каждой его роли целиком (Ясуо с 1% игр на боте — A). С
+    // эталонным тир-листом владельца порядок сходился на 0,23–0,39 (Спирмен),
+    // по силе — на 0,79–0,94; пик и бан сверху совпадение не улучшали. 2000 —
+    // лучшее совпадение грейдов и честная статистика: при 2000 играх ошибка
+    // винрейта ±1,1%, это и есть разброс сил в роли. Журнал 2026-10-20.
+    private const double TIER_PRIOR = 2000;
 
-    private const double BAN_CAP = 25.0; // потолок бан-рейта в meta: 79%-бан нового
+    // Грейд — по самой силе, а не по месту: средний винрейт роли — 50% по
+    // построению (в каждой игре один победитель на роли), так что шкала общая
+    // для всех ролей. Раньше грейд шёл пирамидой по месту (S — верх 5% роли, D —
+    // нижние 45%), и Орн с 51,9% был C. Пороги подобраны по эталону: 73% грейдов
+    // совпадают, 96% — с точностью до ступени (пирамида давала 12% и 32%).
+    private const double GRADE_S = 50.3;
+    private const double GRADE_A = 49.5;
+    private const double GRADE_B = 47.8;
 
-                                         // чемпиона не должен один тащить его в топ
-    private const double TIER_MIN_SHARE = 0.01; // мин. пик-рейт роли (1%) — отсекаем
+    // OP — до трёх сильнейших среди ходовых (от 1% игр роли) и только при силе
+    // от 51,5%. Чистым порогом силы эталонный OP не отделялся: там важна и
+    // популярность (Треш OP, Релл с той же силой — S). Так совпадают 10 из 11.
+    private const int    OP_MAX       = 3;
+    private const double OP_MIN_PICK  = 1.0;    // %
+    private const double OP_MIN_POWER = 51.5;   // %
 
-                                         // почти не пикаемых (новые/офф-мета)
+    private static string GradeOf(double power) =>
+        power >= GRADE_S ? "S" : power >= GRADE_A ? "A" : power >= GRADE_B ? "B" : "C";
 
-    // Грейд — по РАНГУ meta-score внутри роли: доля чемпионов роли выше данного.
-    // Ранговая шкала устойчива к масштабу meta (с банами или без) и всегда даёт
-    // спред S..D. Пороги дают «пирамиду»: S ≈ верх 5%, дальше шире.
-    private static char GradeOfRank(double frac) =>
-        frac < 0.05 ? 'S' : frac < 0.14 ? 'A' : frac < 0.30 ? 'B' : frac < 0.55 ? 'C' : 'D';
+    /// Грейды всех чемпионов роли: OP — до OP_MAX сильнейших ходовых, остальные
+    /// по порогам силы.
+    private static Dictionary<int, string> Grades(IEnumerable<TierRow> rows)
+    {
+        var list = rows.ToList();
+        var op = list.Where(r => r.Pick >= OP_MIN_PICK && r.Power >= OP_MIN_POWER)
+                     .OrderByDescending(r => r.Power).Take(OP_MAX)
+                     .Select(r => r.Id).ToHashSet();
+        return list.ToDictionary(r => r.Id, r => op.Contains(r.Id) ? "OP" : GradeOf(r.Power));
+    }
 
     /// <summary>
     /// Тир-лист патча для текущего бакета: топ-N чемпионов на каждой роли,
-    /// грейд S..D по рангу. Два режима ранжирования:
-    ///   byWinrate=false — по meta-score (сила + присутствие пик/бан) — «тир»;
-    ///   byWinrate=true  — по чистому винрейту (нижняя граница Уилсона).
-    /// Роли — top→jgl→mid→adc→sup.
+    /// грейд OP, S…C по силе. Два режима ранжирования:
+    ///   byWinrate=false — по силе (винрейт, усаженный к 50%) — «тир»;
+    ///   byWinrate=true  — по сырому винрейту.
+    /// Грейд у чемпиона один в обоих режимах. Роли — top→jgl→mid→adc→sup.
     /// </summary>
     public IReadOnlyList<TierEntry> TierList(int perRole = 15, bool byWinrate = false)
     {
@@ -53,94 +79,81 @@ public sealed partial class RecommendationEngine
         {
             // Ключ ранжирования = то, что показываем: в WR-столбце сортируем по
             // сырому винрейту (иначе выше по %-у стоит ниже — путаница), в тире
-            // по meta-score. Мелкие выборки уже отсечены порогом TIER_MIN_GAMES.
-            var scored = TierRows(role).OrderByDescending(s => byWinrate ? s.Wr : s.Meta).ToList();
-
-            // Грейд — по рангу в роли; показываем top-N (уже отсортированы).
-            for (int i = 0; i < scored.Count && i < perRole; i++)
-            {
-                var s = scored[i];
-                char grade = GradeOfRank((double)i / scored.Count);
-                result.Add(new TierEntry(s.Id, role, s.Wr, s.Games, s.Pick, s.Ban, grade));
-            }
+            // по силе.
+            var rows   = TierRows(role);
+            var grades = Grades(rows);
+            foreach (var s in rows.OrderByDescending(s => byWinrate ? s.Wr : s.Power).Take(perRole))
+                result.Add(new TierEntry(s.Id, role, s.Wr, s.Games, s.Pick, s.Ban, grades[s.Id]));
         }
         return result;
     }
 
-    // Строка тир-листа роли до сортировки: винрейт, игры, пик/бан-рейт, meta-score.
-    private readonly record struct TierRow(int Id, double Wr, int Games, double Pick, double Ban, double Meta);
+    // Строка тир-листа роли до сортировки: винрейт, игры, пик/бан-рейт, сила.
+    private readonly record struct TierRow(int Id, double Wr, int Games, double Pick, double Ban, double Power);
 
-    /// Все чемпионы роли, прошедшие пороги тир-листа, с их meta-score — в
-    /// текущем патче и бакете. Порядок не задан: сортирует тот, кто зовёт.
+    /// Все чемпионы роли, прошедшие пороги тир-листа, с их силой — в текущем
+    /// патче и бакете. Порядок не задан: сортирует тот, кто зовёт.
     private List<TierRow> TierRows(string role)
     {
         var banRates = BanRates();
         var cmd = _db.CreateCommand();
-        cmd.CommandText = $@"
-            SELECT champion_id, SUM(games) g, SUM(wins) w FROM base_wr
+        cmd.CommandText = @"
+            SELECT champion_id, SUM(games), SUM(wins) FROM base_wr
             WHERE role=@r AND tier_bucket=@t AND patch=@p1
-            GROUP BY champion_id
-            HAVING g >= @min
-               AND g >= @share * (
-                   SELECT SUM(games) FROM base_wr
-                   WHERE role=@r AND tier_bucket=@t AND patch=@p1)";
-        cmd.Parameters.AddWithValue("@r",   role);
-        cmd.Parameters.AddWithValue("@t",   TierBucket);
-        cmd.Parameters.AddWithValue("@p1",  _p1);
-        cmd.Parameters.AddWithValue("@p2",  _p2);
-        cmd.Parameters.AddWithValue("@p3",  _p3);
-        cmd.Parameters.AddWithValue("@min", TIER_MIN_GAMES);
-        cmd.Parameters.AddWithValue("@share", TIER_MIN_SHARE);
+            GROUP BY champion_id";
+        cmd.Parameters.AddWithValue("@r",  role);
+        cmd.Parameters.AddWithValue("@t",  TierBucket);
+        cmd.Parameters.AddWithValue("@p1", _p1);
 
         var rows = new List<(int Id, double G, double W)>();
-        double roleTotal = 0;
         using (var rd = cmd.ExecuteReader())
-            while (rd.Read())
-            {
-                var g = rd.GetDouble(1);
-                rows.Add((rd.GetInt32(0), g, rd.GetDouble(2)));
-                roleTotal += g;
-            }
+            while (rd.Read()) rows.Add((rd.GetInt32(0), rd.GetDouble(1), rd.GetDouble(2)));
+
+        // Пикрейт — от ВСЕХ игр роли, вместе с теми, кто не прошёл порог: это
+        // доля, которую видит игрок, и по ней же отбирается OP.
+        double roleTotal = rows.Sum(x => x.G);
         if (roleTotal <= 0) return [];
 
-        // Метрики каждого чемпиона роли: сила (LB), присутствие, meta-score.
-        return [.. rows.Select(x =>
-        {
-            double wr   = 100.0 * x.W / x.G;
-            double lb   = WilsonLower(x.W, x.G) * 100.0;   // сила (штраф за малую выборку)
-            double pick = 100.0 * x.G / roleTotal;          // пик-рейт роли, %
-            double ban  = banRates.GetValueOrDefault(x.Id);
-            double meta = (lb - 50.0) + W_PICK * pick + W_BAN * Math.Min(ban, BAN_CAP);
-            return new TierRow(x.Id, wr, (int)Math.Round(x.G), pick, ban, meta);
-        })];
+        return [.. rows
+            .Where(x => x.G >= TIER_MIN_GAMES && x.G >= TIER_MIN_SHARE * roleTotal)
+            .Select(x => new TierRow(
+                x.Id,
+                100.0 * x.W / x.G,
+                (int)Math.Round(x.G),
+                100.0 * x.G / roleTotal,
+                banRates.GetValueOrDefault(x.Id),
+                100.0 * (x.W + TIER_PRIOR / 2) / (x.G + TIER_PRIOR)))];
     }
 
-    private readonly Dictionary<string, Dictionary<int, double>> _tierRank = new();
+    // Место и грейд чемпионов роли — для советов банов. Кэш на жизнь движка.
+    private readonly Dictionary<string, (Dictionary<int, double> Rank, Dictionary<int, string> Grade)> _tierOf = new();
+
+    private (Dictionary<int, double> Rank, Dictionary<int, string> Grade) TierOf(string role)
+    {
+        if (_tierOf.TryGetValue(role, out var cached)) return cached;
+        Dictionary<int, double> ranks  = [];
+        Dictionary<int, string> grades = [];
+        try
+        {
+            var rows = TierRows(role).OrderByDescending(r => r.Power).ToList();
+            for (int i = 0; i < rows.Count; i++) ranks[rows[i].Id] = (double)i / rows.Count;
+            grades = Grades(rows);
+        }
+        catch { /* нет данных — все без места */ }
+        return _tierOf[role] = (ranks, grades);
+    }
 
     /// <summary>
-    /// Место чемпиона в тир-листе роли (по meta-score, как в режиме «тир»): доля
-    /// чемпионов роли выше него, 0 — первый. Нет в тир-листе (меньше 1% игр
-    /// роли или мало игр в патче) — 1, как последний. Кэш на жизнь движка.
+    /// Место чемпиона в тир-листе роли (по силе, как в режиме «тир»): доля
+    /// чемпионов роли выше него, 0 — первый. Нет в тир-листе (меньше 0,5% игр
+    /// роли или мало игр в патче) — 1, как последний.
     /// Советы банов поднимают по нему тех, кто стоит в тир-листе высоко.
     /// </summary>
-    private double TierRank(int champId, string role)
-    {
-        if (!_tierRank.TryGetValue(role, out var ranks))
-        {
-            ranks = [];
-            try
-            {
-                var rows = TierRows(role).OrderByDescending(r => r.Meta).ToList();
-                for (int i = 0; i < rows.Count; i++) ranks[rows[i].Id] = (double)i / rows.Count;
-            }
-            catch { /* нет данных — все без места */ }
-            _tierRank[role] = ranks;
-        }
-        return ranks.GetValueOrDefault(champId, 1.0);
-    }
+    private double TierRank(int champId, string role) => TierOf(role).Rank.GetValueOrDefault(champId, 1.0);
 
-    /// Грейд чемпиона в тир-листе роли (S…D) — тот же, что видит игрок.
-    private char TierGrade(int champId, string role) => GradeOfRank(TierRank(champId, role));
+    /// Грейд чемпиона в тир-листе роли (OP, S…C) — тот же, что видит игрок; нет
+    /// в тир-листе — пустая строка.
+    private string TierGrade(int champId, string role) => TierOf(role).Grade.GetValueOrDefault(champId, "");
 
     private Dictionary<int, double>? _banRates;
 
@@ -252,13 +265,10 @@ public sealed partial class RecommendationEngine
                             && rates.GetValueOrDefault(r.Id) > 0)
                 .OrderByDescending(r => rates.GetValueOrDefault(r.Id))
                 .ToList();
-            for (int i = 0; i < list.Count && i < perRole; i++)
-            {
-                var r = list[i];
+            // Грейда у тир-листа банов нет: под иконкой бан-рейт, порядок и так по нему.
+            foreach (var r in list.Take(perRole))
                 result.Add(new TierEntry(r.Id, role, 100.0 * r.W / r.G, (int)Math.Round(r.G),
-                                         100.0 * r.G / roleTotal[role], rates.GetValueOrDefault(r.Id),
-                                         GradeOfRank((double)i / list.Count)));
-            }
+                                         100.0 * r.G / roleTotal[role], rates.GetValueOrDefault(r.Id), ""));
         }
         return result;
     }
