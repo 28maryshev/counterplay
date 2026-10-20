@@ -843,6 +843,14 @@ internal static class Program
               cards.Where(c => engine.RecommendBans(advice).First(b => b.ChampionId == c.ChampionId).Reasons.Length >= 2)
                    .All(c => c.Reason.Contains('\n')), "");
         Check("тир-лист под ними — пики", Vis(w, "TierList") && !Vis(w, "BanTierList"), "");
+        // Роль целиком, все грейды: при 15 на роль список кончался на S (владелец
+        // 20.10: «добавь ещё чемпионов, почему кончается только на S»).
+        var tierCols = (((ItemsControl)w.FindName("TierList")).ItemsSource as IEnumerable<TierRoleCol>)?.ToList() ?? [];
+        var fullRoles = engine.TierList(perRole: 500).GroupBy(t => t.Role).ToDictionary(g => g.Key, g => g.Count());
+        Check("тир-лист — роль целиком, ниже S тоже",
+              tierCols.Count == 5 && tierCols.All(c => c.TierCells.Any(x => x.Grade is "A" or "B" or "C"))
+              && tierCols.Sum(c => c.TierCells.Count) == fullRoles.Values.Sum(),
+              string.Join(" ", tierCols.Select(c => c.TierCells.Count)));
 
         // Полоса «Чемпионы на роль» — строго порядком тир-листа, и с включённым
         // пулом тоже: его чемпионы на своих местах, бирюзовым кольцом. С 28.09

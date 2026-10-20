@@ -116,7 +116,9 @@ public partial class OverlayWindow
         {
             // Один столбец на роль — тир по силе. Второй, по сырому винрейту,
             // убран 20.10: тир сам по силе, и столбцы почти повторяли друг друга.
-            var byTier = _engine.TierList(15).GroupBy(t => t.Role)
+            // Роль целиком, все грейды до C: при 15 на роль (до 20.10) список
+            // кончался на S — S теперь у 10–20 чемпионов роли.
+            var byTier = _engine.TierList(perRole: 200).GroupBy(t => t.Role)
                                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var cols = new List<TierRoleCol>();
@@ -151,7 +153,7 @@ public partial class OverlayWindow
         }
 
         // Источник ставим ОДИН раз (список статичен в пределах патча) — иначе
-        // переприсвоение на каждом событии драфта зря пересобирало бы 150 эмблем.
+        // переприсвоение на каждом событии драфта зря пересобирало бы две сотни эмблем.
         if (!ReferenceEquals(TierList.ItemsSource, _tierCols))
             TierList.ItemsSource = _tierCols;
         if (byBans && !ReferenceEquals(BanTierList.ItemsSource, _banTierCols))
