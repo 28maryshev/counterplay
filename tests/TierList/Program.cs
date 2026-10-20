@@ -27,7 +27,11 @@ namespace Counterplay.Tests;
 /// (5) порог доли — 0,5%: 0,6% в тир-листе, 0,3% нет;
 /// (6) малая выборка не взлетает: 58% на 800 играх ниже 53% на 10 000 — в
 ///     столбце винрейта, наоборот, первая;
-/// (7) пикрейт — от всех игр роли.
+/// (7) пикрейт — от всех игр роли;
+/// (8) подбор берёт «силу в патче» из тир-листа: BaseDelta = TierPower − 50 у
+///     каждого кандидата, у OP на карточке «один из сильнейших в патче», у C —
+///     «низкий WR» (владелец 20.10: «пусть этот показатель отталкивается от
+///     тир-листа»; до того подбор считал свой винрейт за два патча).
 /// </summary>
 internal static class Program
 {
@@ -128,6 +132,30 @@ internal static class Program
             // (7)
             Check("пикрейт — от всех игр роли", Math.Abs(at[Niche].PickRate - 0.8) < 1e-9,
                   $"{at[Niche].PickRate:F3}%");
+
+            // (8) сила в подборе — из тир-листа
+            Check("TierPower = сила тир-листа", tier.All(t => Math.Abs(engine.TierPower(t.ChampionId, "adc") - 100 * Power(t)) < 1e-9),
+                  string.Join(" ", tier.Take(3).Select(t => $"{t.ChampionId}:{engine.TierPower(t.ChampionId, "adc"):F2}")));
+            Check("TierPower без игр в патче — 50", engine.TierPower(999_999, "adc") == 50.0, "");
+            Loc.SetLanguage("ru");
+            var me = new DraftPlayer(0, 0, 0, "bottom", true);
+            var state = new DraftState(
+                MyTeam: [me], TheirTeam: [], MyTeamBans: [], TheirTeamBans: [], Me: me, MyPosition: "bottom",
+                DirectOpponent: null, ExposedToCounter: false, InBanPhase: false, Bench: [], IsAram: false,
+                MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [], FirstPickCell: -1,
+                MyBanActionId: -1, MyBanInProgress: false);
+            var recs = engine.Recommend(state, topN: 50);
+            Check("подбор считает кандидатов", recs.Count >= 5, $"{recs.Count}");
+            var off = recs.Where(r => Math.Abs(r.BaseDelta - (engine.TierPower(r.ChampionId, "adc") - 50)) > 1e-9).ToList();
+            Check("сила в подборе = сила тир-листа − 50", off.Count == 0,
+                  string.Join(" ", off.Select(r => $"{r.ChampionId}: {r.BaseDelta:F2} против {engine.TierPower(r.ChampionId, "adc") - 50:F2}")));
+            var top = Loc.T("reason.baseTop", "\u0001").Split('\u0001')[0];
+            var low = Loc.T("reason.baseLow", "\u0001").Split('\u0001')[0];
+            bool Says(int id, string head) => recs.FirstOrDefault(r => r.ChampionId == id)?.Reasons
+                .Any(x => x.Contains(head, StringComparison.Ordinal)) == true;
+            Check("у OP на карточке — «один из сильнейших»", Says(Strong, top) && !Says(Niche, top),
+                  $"OP {Says(Strong, top)}, нишевой S {Says(Niche, top)}");
+            Check("у C — «низкий WR»", Says(Weak, low), $"{Says(Weak, low)}");
         }
 
         SqliteConnection.ClearAllPools();

@@ -165,11 +165,15 @@ public sealed partial class RecommendationEngine
             .Where(id => !taken.Contains(id))
             .Select(champId =>
             {
-                // Базовый WR + темпер по выборке: мало игр → WR ближе к 50%
-                // (иначе «68% на 100 играх» раздувает оценку и обоснование).
+                // Сила в патче — та же, что в тир-листе (TierPower): текущий
+                // патч, усадка к 50% на 2000 игр. До 20.10 здесь был свой
+                // винрейт за два патча (×1,0 и ×0,6) с темпером g/(g+250), и
+                // карточка пика расходилась с тир-листом. rawBase остаётся — от
+                // него считаются ЧИСТЫЕ контры: матчапы тоже за два патча, и
+                // сравнивать их надо с базой того же окна.
                 var (bg, bw)  = RawBase(champId, myRole);
-                var rawBase   = Delta(bg, bw, K);   // сила чемпиона без темпера — база для чистых дельт
-                var baseDelta = rawBase * (bg / (bg + BASE_CONF));
+                var rawBase   = Delta(bg, bw, K);
+                var baseDelta = TierPower(champId, myRole) - 50.0;
 
                 // ЧИСТАЯ контра: матчап-WR минус собственный базовый WR — иначе сила
                 // чемпиона считалась бы дважды (в базе ×1.0 и внутри контры ×W_DIRECT),
@@ -257,7 +261,8 @@ public sealed partial class RecommendationEngine
                             + wBotlane * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta
                             + W_PERSONAL * personalDelta;
                 var reasonList = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
-                                              otherDelta, otherByEnemy, baseDelta, comfortDelta)
+                                              otherDelta, otherByEnemy, baseDelta,
+                                              PickGrade(champId, myRole), comfortDelta)
                                    .Concat(draftReasons).ToList();
                 // Личный винрейт показываем только когда он заметен — иначе строка
                 // «твой винрейт» висела бы у каждого второго кандидата.

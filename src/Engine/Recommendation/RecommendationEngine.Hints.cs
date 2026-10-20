@@ -149,7 +149,7 @@ public sealed partial class RecommendationEngine
         double directDelta, int    directOppId,
         double synDelta,    IReadOnlyList<(int Id, string Role, double Delta)> synByAlly,
         double otherDelta,  IReadOnlyList<(int Id, double Delta)> otherByEnemy,
-        double baseDelta,   double comfortDelta)
+        double baseDelta,   string grade,       double comfortDelta)
     {
         var lines = new List<string>();
 
@@ -216,10 +216,13 @@ public sealed partial class RecommendationEngine
         if (explained == 0 && synByAlly.Count > 0 && synDelta > 0.5)
             lines.Add(Good(Loc.T("reason.fitsTeam")));
 
-        // 5. Базовый WR
-        if      (baseDelta >=  2.5) lines.Add(Good(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}")));
-        else if (baseDelta >=  1.0) lines.Add(Good(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}")));
-        else if (baseDelta <= -1.5) lines.Add(Bad(Loc.T("reason.baseLow", $"{50 + baseDelta:F1}")));
+        // 5. Сила в патче — по грейду тир-листа, чтобы карточка и тир-лист
+        // говорили одно: OP — «один из сильнейших», S — хороший, C — низкий;
+        // A и B — без строки. До 20.10 пороги были свои (+2,5 / +1 / −1,5 к
+        // винрейту за два патча) и с тир-листом не сходились.
+        if      (grade == "OP") lines.Add(Good(Loc.T("reason.baseTop", $"{50 + baseDelta:F1}")));
+        else if (grade == "S")  lines.Add(Good(Loc.T("reason.baseGood", $"{50 + baseDelta:F1}")));
+        else if (grade == "C")  lines.Add(Bad(Loc.T("reason.baseLow", $"{50 + baseDelta:F1}")));
 
         if (lines.Count == 0) lines.Add(Loc.T("reason.baseNeutral", $"{50 + baseDelta:F1}"));
         return [.. lines];

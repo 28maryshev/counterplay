@@ -112,18 +112,7 @@ public sealed partial class RecommendationEngine
     private List<TierRow> TierRows(string role)
     {
         var banRates = BanRates();
-        var cmd = _db.CreateCommand();
-        cmd.CommandText = @"
-            SELECT champion_id, SUM(games), SUM(wins) FROM base_wr
-            WHERE role=@r AND tier_bucket=@t AND patch=@p1
-            GROUP BY champion_id";
-        cmd.Parameters.AddWithValue("@r",  role);
-        cmd.Parameters.AddWithValue("@t",  TierBucket);
-        cmd.Parameters.AddWithValue("@p1", _p1);
-
-        var rows = new List<(int Id, double G, double W)>();
-        using (var rd = cmd.ExecuteReader())
-            while (rd.Read()) rows.Add((rd.GetInt32(0), rd.GetDouble(1), rd.GetDouble(2)));
+        var rows = PatchRows(role);
 
         // Пикрейт — от ВСЕХ игр роли, вместе с теми, кто не прошёл порог: это
         // доля, которую видит игрок, и по ней же отбирается OP.
@@ -138,8 +127,57 @@ public sealed partial class RecommendationEngine
                 (int)Math.Round(x.G),
                 100.0 * x.G / roleTotal,
                 banRates.GetValueOrDefault(x.Id),
-                100.0 * (x.W + TIER_PRIOR / 2) / (x.G + TIER_PRIOR)))];
+                Power(x.G, x.W)))];
     }
+
+    /// Сила: винрейт, усаженный к 50% на TIER_PRIOR воображаемых игр, %.
+    private static double Power(double games, double wins) =>
+        100.0 * (wins + TIER_PRIOR / 2) / (games + TIER_PRIOR);
+
+    // Игры и победы всех чемпионов роли в текущем патче, без порогов. Кэш на
+    // жизнь движка: тир-лист, место в нём и сила в подборе читают одно и то же.
+    private readonly Dictionary<string, List<(int Id, double G, double W)>> _patchRows = new();
+
+    private List<(int Id, double G, double W)> PatchRows(string role)
+    {
+        if (_patchRows.TryGetValue(role, out var cached)) return cached;
+        var cmd = _db.CreateCommand();
+        cmd.CommandText = @"
+            SELECT champion_id, SUM(games), SUM(wins) FROM base_wr
+            WHERE role=@r AND tier_bucket=@t AND patch=@p1
+            GROUP BY champion_id";
+        cmd.Parameters.AddWithValue("@r",  role);
+        cmd.Parameters.AddWithValue("@t",  TierBucket);
+        cmd.Parameters.AddWithValue("@p1", _p1);
+
+        var rows = new List<(int Id, double G, double W)>();
+        using (var rd = cmd.ExecuteReader())
+            while (rd.Read()) rows.Add((rd.GetInt32(0), rd.GetDouble(1), rd.GetDouble(2)));
+        return _patchRows[role] = rows;
+    }
+
+    /// <summary>
+    /// Сила чемпиона на роли в патче — та же, что в тир-листе (%, 50 — средне),
+    /// но для любого чемпиона, без порогов тир-листа: у малой выборки она сама
+    /// близка к 50%. Нет игр в текущем патче — 50. Ею подбор считает «силу в
+    /// патче» (до 20.10 — свой винрейт за два патча почти без усадки, и
+    /// карточка пика расходилась с тир-листом).
+    /// </summary>
+    public double TierPower(int champId, string role)
+    {
+        try
+        {
+            foreach (var (id, g, w) in PatchRows(role))
+                if (id == champId) return Power(g, w);
+        }
+        catch { /* нет данных — средне */ }
+        return 50.0;
+    }
+
+    /// Грейд чемпиона на роли для подбора: из тир-листа, а кого в нём нет (мало
+    /// игр в патче) — по силе, но не OP.
+    private string PickGrade(int champId, string role) =>
+        TierGrade(champId, role) is { Length: > 0 } g ? g : GradeOf(TierPower(champId, role));
 
     // Место и грейд чемпионов роли — для советов банов. Кэш на жизнь движка.
     private readonly Dictionary<string, (Dictionary<int, double> Rank, Dictionary<int, string> Grade)> _tierOf = new();
