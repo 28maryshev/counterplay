@@ -626,10 +626,17 @@ internal static class Program
     /// <summary>
     /// Пример владельца на живой базе: кандидат моей линии, которого берут и на
     /// другой линии, бьёт там двоих — союзник с этой линии показывает обоих
-    /// (одного сейчас, второго наводил). Его очки обязаны вырасти, а места —
-    /// подниматься (у отдельного кандидата место может и не вырасти: тех же
-    /// жертв бьёт кто-то сильнее). Кандидатов и жертв выбираем по базе: патч
-    /// меняется, а правило — нет.
+    /// (одного сейчас, второго наводил). Очки таких кандидатов обязаны расти, а
+    /// места — подниматься. Кандидатов и жертв выбираем по базе: патч меняется,
+    /// а правило — нет.
+    ///
+    /// Очки — у большинства, а не у каждого (20.10, база 16.20): у отдельного
+    /// они могут и упасть, и это не ошибка. Союзник показал Атрокса — подбор
+    /// пика переставил мой пул поддержки на Хвэя (доля 0,7 → 3,2 из 4,5), а Хвэй
+    /// сам бьёт лесного Вуконга: очки Вуконга за пул 8,2 → 1,6. За Атрокса и
+    /// Камиллу он набрал +16, но стоит 21-м, и двадцать банов до него уже бьют
+    /// тех же двоих — повтор удешевляет (BAN_REPEAT): итог 8,2 → 6,3. То же с
+    /// местом: тех же жертв может бить кто-то сильнее.
     /// </summary>
     private static void CrossLane(RecommendationEngine engine, Dictionary<int, int> games, string pos, string role)
     {
@@ -638,7 +645,7 @@ internal static class Program
         SessionTracker.HistoryOverride = Hist(games);
         var me = new List<DraftPlayer> { new(0, 0, 0, pos, true) };
         var alone = engine.RecommendBans(Snapshot(me, me[0], pos), null, top: 40);
-        int found = 0, rose = 0;
+        int found = 0, rose = 0, gained = 0;
         foreach (var x in alone.Take(30))
             for (int li = 0; li < lanes.Length && found < 6; li++)
             {
@@ -659,13 +666,14 @@ internal static class Program
                 var after = with.FirstOrDefault(b => b.ChampionId == x.ChampionId);
                 var rankBefore = alone.ToList().IndexOf(x) + 1;
                 var rankAfter  = after is null ? 99 : with.ToList().IndexOf(after) + 1;
-                Console.WriteLine($"  {role}: {DataDragon.Name(x.ChampionId)} бьёт пул и {lane} {DataDragon.Name(victims[0])}+{DataDragon.Name(victims[1])}: место {rankBefore} → {rankAfter}");
-                Check($"   очки выросли ({DataDragon.Name(x.ChampionId)})", after is not null && after.Score > x.Score,
-                      $"{x.Score:F1} → {after?.Score:F1}");
+                Console.WriteLine($"  {role}: {DataDragon.Name(x.ChampionId)} бьёт пул и {lane} {DataDragon.Name(victims[0])}+{DataDragon.Name(victims[1])}: "
+                                  + $"место {rankBefore} → {rankAfter}, очки {x.Score:F1} → {after?.Score:F1}");
+                if (after is not null && after.Score > x.Score) gained++;
                 if (rankAfter < rankBefore) rose++;
                 if (rankAfter == 1) _crossFirst++;
             }
         Check($"{role}: перекрёстные кандидаты нашлись", found > 0, $"{found}");
+        Check($"{role}: очки выросли у большинства", gained * 2 > found, $"{gained} из {found}");
         Check($"{role}: и поднялись", rose > 0, $"{rose} из {found}");
     }
 
