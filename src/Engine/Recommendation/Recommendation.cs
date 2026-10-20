@@ -7,7 +7,7 @@ public sealed record Recommendation(
     double Score,
     double BaseDelta,     // %пп vs 50%
     double DirectDelta,   // %пп матчап vs прямой оппонент
-    double OtherDelta,    // %пп средний vs прочие враги
+    double OtherDelta,    // %пп против прочих врагов одним пулом — «против их команды»
     double SynergyDelta,  // %пп средняя синергия с союзниками
     double ComfortDelta,  // бонус за «комфорт»: часто наигранный чемпион игрока
     double StyleDelta,    // вклад «против стиля врага» (трифекта + анти-стиль)

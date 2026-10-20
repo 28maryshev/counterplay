@@ -147,8 +147,9 @@
     "master": "Master+"
   },
   "metric": {
-    "base": "Bu yamadaki kazanma oranı",
+    "base": "Bu yamadaki güç",
     "direct": "Rakibine karşı",
+    "team": "Takımlarına karşı",
     "style": "Onların tarzına karşı",
     "synergy": "Müttefiklerle sinerji"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Neden bu seçim",
     "draftReasonsHint": "Her önerinin ardındaki matchupler, sinerjiler ve kombolar",
     "draftMetrics": "Gösterge çubukları",
-    "draftMetricsHint": "Yamadaki WR, rakip matchup'ı, düşman tarzı ve müttefik sinerjisi",
+    "draftMetricsHint": "Rakip matchup'ı, takımlarına karşı, müttefik sinerjisi, yamadaki güç ve düşman tarzı",
     "draftItems": "Seçimine karşı eşyalar",
     "draftItemsHint": "Düşmanlar şampiyonu durdurmak için ne alıyor",
     "draftHover": "Üzerine gelince vurgula",

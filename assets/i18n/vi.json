@@ -11,8 +11,9 @@
     "Thấy lỗi hay có ý tưởng? Nhắn qua Hỗ trợ trên trang — counterplays.com/support."
   ],
   "metric": {
-    "base": "Tỉ lệ thắng bản này",
+    "base": "Sức mạnh bản này",
     "direct": "So với đối thủ",
+    "team": "So với đội địch",
     "style": "So với lối chơi địch",
     "synergy": "Phối hợp với đồng đội"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Vì sao chọn tướng này",
     "draftReasonsHint": "Đối đầu, phối hợp và combo đứng sau mỗi gợi ý",
     "draftMetrics": "Thanh chỉ số",
-    "draftMetricsHint": "WR bản này, đối đầu với đối thủ, lối chơi địch và phối hợp đồng đội",
+    "draftMetricsHint": "Đối đầu với đối thủ, so với đội địch, phối hợp đồng đội, sức mạnh bản này và lối chơi địch",
     "draftItems": "Đồ khắc chế tướng bạn",
     "draftItemsHint": "Địch mua gì để vô hiệu hóa tướng của bạn",
     "draftHover": "Làm nổi bật khi di chuột",

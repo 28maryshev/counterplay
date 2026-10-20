@@ -36,24 +36,9 @@ public partial class OverlayWindow
                                .ToDictionary(x => x.Name, x => x.i);
         _allyIdsNow  = allyIds;
 
-        // Сильнейшая метрика среди показанных пиков → золотое свечение всей строки (если > 0).
-        double maxBase = recs.Count > 0 ? recs.Max(r => r.BaseDelta)    : 0;
-        double maxDir  = recs.Count > 0 ? recs.Max(r => r.DirectDelta)  : 0;
-        double maxSty  = recs.Count > 0 ? recs.Max(r => r.StyleDelta)   : 0;
-        double maxSyn  = recs.Count > 0 ? recs.Max(r => r.SynergyDelta) : 0;
-
-        // Полоски масштабируем по РАЗБРОСУ в текущем списке, а не по абсолютной
-        // шкале. На большой базе дельты честно малы (доли п.п.), и фиксированная
-        // шкала рисовала у всех почти пустые полосы — разницу между кандидатами
-        // было не разглядеть. Порог (floor) не даёт растягивать шум, когда лидер
-        // и сам близок к нулю.
-        static double Scaled(double d, double max, double floor) =>
-            d <= 0 ? 0 : Math.Max(0, Math.Min(214, d / Math.Max(max, floor) * 214));
-        double DirBar(double d) => Scaled(d, maxDir,  1.5);
-        double StyBar(double d) => Scaled(d, maxSty,  1.5);
-        double SynBar(double d) => Scaled(d, maxSyn,  1.5);
-        double BaseBarS(double d) => Scaled(d, maxBase, 2.0);
-        static bool IsMax(double v, double max) => max > 0.05 && v >= max - 0.05;
+        // Лидер по каждому показателю среди показанных пиков: по нему полосы
+        // масштабируются, а сам он — в золотой рамке (MetricRow).
+        var metricMax = MetricRow.MaxOf(recs);
 
         // Имена чемпионов драфта → цвет их архетипа (подсветка имён в обоснованиях).
         // Имена чемпионов в доводах красим по СТОРОНЕ: свои зелёным, враги
@@ -143,10 +128,7 @@ public partial class OverlayWindow
                         WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
                         Icon       = IconCache.Get(pr.ChampionId),
                         ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
-                        BaseBar    = BaseBarS(pr.BaseDelta), DirectBar = DirBar(pr.DirectDelta),
-                        OtherBar   = StyBar(pr.StyleDelta),   SynBar    = SynBar(pr.SynergyDelta),
-                        BaseText   = Signed(pr.BaseDelta),    DirectText = Signed(pr.DirectDelta),
-                        OtherText  = Signed(pr.StyleDelta),   SynText   = Signed(pr.SynergyDelta),
+                        Metrics    = MetricRow.Of(pr, metricMax, highlight: false),
                         ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
                         SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
                         DuoIcon    = duoIcon, DuoName = duoName,
@@ -352,18 +334,7 @@ public partial class OverlayWindow
                     ? ReasonSegments(Distinctive(r.Reasons, reasonFreq, recs.Count), nameColor)
                     : [],
                 MetricsVisibility = cfg.DraftMetrics ? Visibility.Visible : Visibility.Collapsed,
-                BaseBar    = BaseBarS(r.BaseDelta),
-                DirectBar  = DirBar(r.DirectDelta),
-                OtherBar   = StyBar(r.StyleDelta),   // строка «Против их стиля»
-                SynBar     = SynBar(r.SynergyDelta),
-                BaseText   = Signed(r.BaseDelta),
-                DirectText = Signed(r.DirectDelta),
-                OtherText  = Signed(r.StyleDelta),
-                SynText    = Signed(r.SynergyDelta),
-                BaseStrong   = IsMax(r.BaseDelta,    maxBase),
-                DirectStrong = IsMax(r.DirectDelta,  maxDir),
-                OtherStrong  = IsMax(r.StyleDelta,   maxSty),
-                SynStrong    = IsMax(r.SynergyDelta, maxSyn),
+                Metrics    = MetricRow.Of(r, metricMax, highlight: true),
                 ArchGlyph  = cfg.DraftArch ? ag : "",
                 ArchColor  = ac,
                 ArchTip    = at,

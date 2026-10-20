@@ -194,8 +194,9 @@
     "personalWr": "Seu winrate com este campeão: {0}% em {1} partidas"
   },
   "metric": {
-    "base": "Taxa de vitória neste patch",
+    "base": "Força neste patch",
     "direct": "Vs seu oponente",
+    "team": "Vs o time deles",
     "style": "Vs o estilo deles",
     "synergy": "Sinergia com aliados"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Por que esse pick",
     "draftReasonsHint": "Matchups, sinergias e combos por trás de cada sugestão",
     "draftMetrics": "Barras de métricas",
-    "draftMetricsHint": "Winrate do patch, matchup, estilo inimigo e sinergia com aliados",
+    "draftMetricsHint": "Matchup, vs o time deles, sinergia com aliados, força do patch e estilo inimigo",
     "draftItems": "Itens contra o seu pick",
     "draftItemsHint": "O que os inimigos compram para travar o seu campeão",
     "draftHover": "Destaques ao passar o mouse",

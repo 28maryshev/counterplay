@@ -28,24 +28,8 @@ public sealed class FullRecCard
     public ImageSource? Icon       { get; init; }
     public string       ReasonText { get; init; } = "";
     public IEnumerable<ReasonSeg> ReasonSegs { get; init; } = [];
-    public double       BaseBar    { get; init; }
-    public double       DirectBar  { get; init; }
-    public double       OtherBar   { get; init; }
-    public double       SynBar     { get; init; }
-    public string       BaseText   { get; init; } = "";
-    public string       DirectText { get; init; } = "";
-    public string       OtherText  { get; init; } = "";
-    public string       SynText    { get; init; } = "";
-    // Базовый цвет значения метрики (свой у каждой строки).
-    public string       BaseColor   { get; init; } = "#5C9BDC";
-    public string       DirectColor { get; init; } = "#E06464";
-    public string       OtherColor  { get; init; } = "#E0944C";
-    public string       SynColor    { get; init; } = "#5BC487";
-    // Сильнейшая среди пула метрика → золотое свечение всей строки (лейбл + число).
-    public bool         BaseStrong   { get; init; }
-    public bool         DirectStrong { get; init; }
-    public bool         OtherStrong  { get; init; }
-    public bool         SynStrong    { get; init; }
+    // Показатели справа (порядок и цвета — MetricRow.Defs).
+    public List<MetricRow> Metrics { get; init; } = [];
     public string       ArchGlyph  { get; init; } = "";
     public string       ArchColor  { get; init; } = "#888888";
     public string       ArchTip    { get; init; } = "";

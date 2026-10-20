@@ -194,8 +194,9 @@
     "personalWr": "이 챔피언으로의 승률 — {1}게임에서 {0}%"
   },
   "metric": {
-    "base": "이번 패치 승률",
+    "base": "이번 패치 강도",
     "direct": "맞라인 상대",
+    "team": "상대 팀 대비",
     "style": "상대 스타일 대비",
     "synergy": "아군 시너지"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "추천 이유",
     "draftReasonsHint": "상성, 시너지, 콤보 등 추천 근거",
     "draftMetrics": "지표 막대",
-    "draftMetricsHint": "패치 승률, 맞라인 상성, 적 스타일, 아군 시너지",
+    "draftMetricsHint": "맞라인 상성, 상대 팀, 아군 시너지, 패치 강도, 적 스타일",
     "draftItems": "나를 노리는 아이템",
     "draftItemsHint": "적이 나를 막으려고 사는 아이템",
     "draftHover": "마우스 올릴 때 강조",

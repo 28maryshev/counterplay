@@ -23,8 +23,9 @@
     "alert": "ATENCIÓN"
   },
   "metric": {
-    "base": "Winrate este parche",
+    "base": "Fuerza este parche",
     "direct": "Vs tu rival",
+    "team": "Vs su equipo",
     "style": "Vs su estilo",
     "synergy": "Sinergia con aliados"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Por qué este pick",
     "draftReasonsHint": "Matchups, sinergias y combos detrás de cada sugerencia",
     "draftMetrics": "Barras de métricas",
-    "draftMetricsHint": "Winrate del parche, matchup, estilo enemigo y sinergia con aliados",
+    "draftMetricsHint": "Matchup, vs su equipo, sinergia con aliados, fuerza del parche y estilo enemigo",
     "draftItems": "Objetos contra tu pick",
     "draftItemsHint": "Lo que compran los enemigos para frenar a tu campeón",
     "draftHover": "Resaltar al pasar el ratón",

@@ -194,8 +194,9 @@
     "personalWr": "Deine Winrate mit diesem Champion — {0}% über {1} Spiele"
   },
   "metric": {
-    "base": "Winrate in diesem Patch",
+    "base": "Stärke in diesem Patch",
     "direct": "Gegen deinen Gegner",
+    "team": "Gegen ihr Team",
     "style": "Gegen ihren Spielstil",
     "synergy": "Synergie mit Verbündeten"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Warum dieser Pick",
     "draftReasonsHint": "Matchups, Synergien und Combos hinter jedem Vorschlag",
     "draftMetrics": "Wertebalken",
-    "draftMetricsHint": "Winrate im Patch, Matchup, Gegnerstil und Synergie im Team",
+    "draftMetricsHint": "Matchup, gegen ihr Team, Synergie im Team, Stärke im Patch und Gegnerstil",
     "draftItems": "Items gegen deinen Pick",
     "draftItemsHint": "Was Gegner kaufen, um den Champion auszuschalten",
     "draftHover": "Highlights beim Hover",

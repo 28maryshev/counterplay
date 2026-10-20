@@ -11,8 +11,9 @@
     "バグや提案は？ サイトのサポートからどうぞ — counterplays.com/support。"
   ],
   "metric": {
-    "base": "このパッチの勝率",
+    "base": "このパッチの強さ",
     "direct": "対面相手に対して",
+    "team": "相手チームに対して",
     "style": "相手のスタイルに対して",
     "synergy": "味方とのシナジー"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "おすすめの理由",
     "draftReasonsHint": "各おすすめの根拠となる相性・シナジー・コンボ",
     "draftMetrics": "指標バー",
-    "draftMetricsHint": "パッチ勝率、対面相性、敵のスタイル、味方シナジー",
+    "draftMetricsHint": "対面相性、相手チーム、味方シナジー、パッチの強さ、敵のスタイル",
     "draftItems": "対策アイテム",
     "draftItemsHint": "敵があなたを抑えるために買うもの",
     "draftHover": "ホバー時のハイライト",

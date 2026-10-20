@@ -11,8 +11,9 @@
     "发现问题或有建议？请通过网站的「支持」页面联系我们：counterplays.com/support。"
   ],
   "metric": {
-    "base": "本版本胜率",
+    "base": "本版本强度",
     "direct": "对线对手",
+    "team": "对抗其阵容",
     "style": "克制其打法",
     "synergy": "与队友契合"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "推荐理由",
     "draftReasonsHint": "每条推荐背后的克制、契合与组合",
     "draftMetrics": "指标条",
-    "draftMetricsHint": "版本胜率、对线、敌方打法与队友契合",
+    "draftMetricsHint": "对线、对抗其阵容、队友契合、版本强度与敌方打法",
     "draftItems": "针对你的装备",
     "draftItemsHint": "敌方为克制你会出的装备",
     "draftHover": "悬停高亮",

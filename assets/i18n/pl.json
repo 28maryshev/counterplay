@@ -11,8 +11,9 @@
     "Znalazłeś błąd lub masz pomysł? Napisz przez Wsparcie na stronie — counterplays.com/support."
   ],
   "metric": {
-    "base": "Winrate w tym patchu",
+    "base": "Siła w tym patchu",
     "direct": "Przeciw przeciwnikowi",
+    "team": "Przeciw ich drużynie",
     "style": "Przeciw ich stylowi",
     "synergy": "Synergia z sojusznikami"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Dlaczego ten pick",
     "draftReasonsHint": "Matchupy, synergie i combosy stojące za każdą podpowiedzią",
     "draftMetrics": "Paski wskaźników",
-    "draftMetricsHint": "Winrate na patchu, matchup, styl wroga i synergia z drużyną",
+    "draftMetricsHint": "Matchup, przeciw ich drużynie, synergia z drużyną, siła na patchu i styl wroga",
     "draftItems": "Przedmioty przeciw pickowi",
     "draftItemsHint": "Co kupują wrogowie, żeby zatrzymać bohatera",
     "draftHover": "Podświetlenia po najechaniu",

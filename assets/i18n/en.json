@@ -37,8 +37,9 @@
     "Found a bug or have a suggestion? Tell us via Support on the site — counterplays.com/support."
   ],
   "metric": {
-    "base": "Win rate this patch",
+    "base": "Strength this patch",
     "direct": "Vs your opponent",
+    "team": "Vs their team",
     "style": "Vs their style",
     "synergy": "Synergy with allies"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Why this pick",
     "draftReasonsHint": "Matchups, synergies and combos behind each suggestion",
     "draftMetrics": "Metric bars",
-    "draftMetricsHint": "Patch win rate, opponent matchup, enemy style and ally synergy",
+    "draftMetricsHint": "Opponent matchup, vs their team, ally synergy, patch strength and enemy style",
     "draftItems": "Items against your pick",
     "draftItemsHint": "What enemies buy to shut the champion down",
     "draftHover": "Highlights on hover",

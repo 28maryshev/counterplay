@@ -5,8 +5,9 @@
     "ok": "Compris"
   },
   "metric": {
-    "base": "Winrate ce patch",
+    "base": "Puissance ce patch",
     "direct": "Vs ton adversaire",
+    "team": "Vs leur équipe",
     "style": "Vs leur style",
     "synergy": "Synergie avec les alliés"
   },
@@ -584,7 +585,7 @@
     "draftReasons": "Pourquoi ce pick",
     "draftReasonsHint": "Matchups, synergies et combos derrière chaque suggestion",
     "draftMetrics": "Barres de stats",
-    "draftMetricsHint": "Winrate du patch, matchup, style ennemi et synergie avec les alliés",
+    "draftMetricsHint": "Matchup, vs leur équipe, synergie avec les alliés, puissance du patch et style ennemi",
     "draftItems": "Objets contre ton pick",
     "draftItemsHint": "Ce que les ennemis achètent pour contrer ton champion",
     "draftHover": "Surbrillance au survol",

@@ -72,10 +72,8 @@ public partial class OverlayWindow
         {
             Foreground = Brush("#E8EEF5"), FontWeight = FontWeights.Bold,
         });
-        Add(Loc.T("metric.base"),    Signed(r.BaseDelta),    "#5C9BDC");
-        Add(Loc.T("metric.direct"),  Signed(r.DirectDelta),  "#E06464");
-        Add(Loc.T("metric.style"),   Signed(r.StyleDelta),   "#E0944C");
-        Add(Loc.T("metric.synergy"), Signed(r.SynergyDelta), "#5BC487");
+        // Те же показатели, в том же порядке и цветах, что на карточке.
+        foreach (var d in MetricRow.Defs) Add(Loc.T(d.Key), Signed(d.Value(r)), d.TextColor);
     }
 
     private static SolidColorBrush Brush(string hex) => new(

@@ -211,6 +211,11 @@ public sealed partial class RecommendationEngine
                 }
                 var otherDelta = PureVs(omg, omw);
                 var crossDelta = PureVs(oxg, oxw);
+                // «Против их команды» на карточке — все прочие враги одним пулом
+                // (кросс-ролевые пары, где их нет — пары той же роли). В счёт идут
+                // оба канала по отдельности со своими весами, а показать надо
+                // одно число в п.п.: раньше на карточку не попадало ни то, ни другое.
+                var teamDelta  = PureVs(oxg + omg, oxw + omw);
 
                 // Синергия с союзниками — общий расчёт (AllySynergy): им же советы
                 // банов взвешивают мой пул.
@@ -280,7 +285,7 @@ public sealed partial class RecommendationEngine
                 // своей же ролью: пока вражеский саппорт не выбран, там стоял ноль,
                 // хотя счёт уже учитывал контру против их адк.
                 var shownDirect = directDelta + botlaneDelta;
-                return new Recommendation(champId, score, baseDelta, shownDirect, otherDelta, synDelta, comfortDelta, styleScore, reasons);
+                return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons);
             })
             .OrderByDescending(r => r.Score)
             .ToList();
