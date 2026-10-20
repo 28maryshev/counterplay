@@ -844,6 +844,24 @@ internal static class Program
                    .All(c => c.Reason.Contains('\n')), "");
         Check("тир-лист под ними — пики", Vis(w, "TierList") && !Vis(w, "BanTierList"), "");
 
+        // Полоса «Чемпионы на роль» — строго порядком тир-листа, и с включённым
+        // пулом тоже: его чемпионы на своих местах, бирюзовым кольцом. С 28.09
+        // пул стоял впереди, и владелец 20.10 увидел полосу «не по убыванию».
+        // Пул — двое из середины и конца тир-листа, чтобы «впереди» было видно.
+        var supTier = engine.TierList(perRole: 200).Where(t => t.Role == "support").Select(t => t.ChampionId).ToList();
+        var stripPool = new ChampPool { Name = "проверка полосы",
+                                        ByRole = new() { ["support"] = [supTier[supTier.Count / 2], supTier[^1]] } };
+        PoolStore.Current().Pools.Add(stripPool);
+        PoolStore.SetActive(PoolKind.Pool, stripPool.Id);
+        Call(w, "RenderRolePool", advice);
+        Pump();
+        var strip = (((ItemsControl)w.FindName("RolePoolList")).ItemsSource as IEnumerable<TierCell>)?.ToList() ?? [];
+        Check("полоса роли — порядком тир-листа, пул на своих местах",
+              strip.Select(c => c.ChampionId).SequenceEqual(supTier) && strip.Count(c => c.InPool) == 2,
+              $"первые: {string.Join(", ", strip.Take(4).Select(c => $"{DataDragon.Name(c.ChampionId)}{(c.InPool ? "*" : "")}"))}");
+        PoolStore.SetActive(PoolKind.Pool, null);
+        PoolStore.Current().Pools.Remove(stripPool);
+
         // Кнопка «Баны» над тир-листом: вид меняется на этот драфт, настройка —
         // нет (она задаёт, с чего начинается каждый драфт).
         var click = new System.Windows.Input.MouseButtonEventArgs(

@@ -91,9 +91,9 @@ public partial class OverlayWindow
                         InPool   = mine.Contains(t.ChampionId),
                     };
                 })
-                // Своя половина — впереди. Отметив пул, человек ждёт увидеть
-                // его чемпионов сразу, а не искать среди всех на роли.
-                .OrderByDescending(c => c.InPool)
+                // Строго порядком тир-листа (OP, дальше по силе); свой пул —
+                // на своих местах, бирюзовым кольцом. С 28.09 до 20.10 пул
+                // стоял впереди, и владелец видел полосу «не по убыванию».
                 .ToList();
             RolePoolList.ItemsSource = _rolePoolCells;
             RolePoolTitle.Text = Loc.T("rolePool.title", RoleNameDb(role));
