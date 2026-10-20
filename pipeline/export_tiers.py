@@ -4,16 +4,18 @@ export_tiers.py — данные тир-листа сайта по ВСЕМ эл
 
 Сайт-тир-лист должен ПОБИТОВО совпадать с тир-листом программы, поэтому здесь
 выгружаем ровно те входные данные, из которых движок (RecommendationEngine.cs,
-метод TierList) считает meta-score:
-  meta = ( Wilson_LB*100 - 50 ) + W_PICK*пикрейт% + W_BAN*банрейт%
-Грейд S..D — по рангу внутри роли. Формулу и константы держим синхронно с C#.
+метод TierList) считает силу:
+  сила = (победы + 1000) / (игры + 2000)   — винрейт, усаженный к 50%
+Грейд OP/S..C — по самой силе. Формулу и константы держим синхронно с C#.
 
 На бакет отдаём:
   matches            — число матчей (SUM(games*вес)/10) — знаменатель бан-рейта;
   roles[role]        — [[champ_id, games, wins], ...] взвешенные, уже отфильтрованы
-                       порогом TIER_MIN_GAMES и долей роли (как HAVING в движке);
+                       порогом TIER_MIN_GAMES и долей роли (как в движке);
+  totals[role]       — все игры роли ДО порога — знаменатель пикрейта (по нему
+                       же отбирается OP: от 1% игр роли);
   bans[champ_id]     — взвешенные баны чемпиона (числитель бан-рейта).
-Винрейт, пикрейт, Уилсон и грейды считает уже сайт — из этих сырых чисел.
+Винрейт, пикрейт, силу и грейды считает уже сайт — из этих сырых чисел.
 
     py -3.12 pipeline\\export_tiers.py --db pipeline\\data.db
 """
@@ -29,7 +31,7 @@ PATCH_WEIGHTS = (1.0, 0.7, 0.45)          # свежий → старый (PW в
 BUCKETS = ['silver', 'gold', 'emerald', 'master']
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
 TIER_MIN_GAMES = 250                       # как TIER_MIN_GAMES в движке
-MIN_ROLE_SHARE = 0.01                      # мин. пик-рейт роли 1% (как TIER_MIN_SHARE)
+MIN_ROLE_SHARE = 0.005                     # мин. пик-рейт роли 0,5% (как TIER_MIN_SHARE)
 
 
 def patch_key(p):
@@ -84,7 +86,7 @@ def main():
                         GROUP BY champion_id, patch""", [b, *patches]):
                 bans[cid] = bans.get(cid, 0.0) + cnt * w_of[patch]
 
-        # Фильтр как HAVING в движке: g >= TIER_MIN_GAMES и g >= доля*полный_объём_роли.
+        # Фильтр как в движке: g >= TIER_MIN_GAMES и g >= доля*полный_объём_роли.
         role_total_all = {r: 0.0 for r in ROLES}
         for (role, _cid), (g, _w) in acc.items():
             role_total_all[role] += g
@@ -102,6 +104,7 @@ def main():
         out_buckets[b] = {
             'matches': round(matches, 1),
             'roles': roles_out,
+            'totals': {r: round(role_total_all[r], 1) for r in ROLES},
             'bans': {str(cid): round(bans.get(cid, 0.0), 1)
                      for cid in used_ids if bans.get(cid, 0.0) > 0},
         }
