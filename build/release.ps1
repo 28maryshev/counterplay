@@ -317,6 +317,21 @@ if ($Upload) {
       if (-not $page -or $page.Count -eq 0) { break }
       foreach ($a in $page) {
         if ($names -contains $a.name) {
+          # Счётчик загрузок фида — сколько раз программы спросили обновление,
+          # пока лежал этот файл (каждая — при запуске и раз в час). С заменой
+          # GitHub начинает счёт с нуля, поэтому записываем его ДО удаления:
+          # по этим строкам ops/release-stats.py считает, сколько программ было
+          # на связи. Сбой записи выпуск не останавливает.
+          if ($a.name -eq "releases.win.json" -and (Test-Path "journal")) {
+            try {
+              $log = "journal\feed-checks.md"
+              if (-not (Test-Path $log)) {
+                Set-Content $log -Encoding ascii -Value @("| feed laid | replaced | downloads |", "|---|---|---|")
+              }
+              $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+              Add-Content $log -Encoding ascii -Value "| $($a.created_at) | $now | $($a.download_count) |"
+            } catch { Write-Host "warn: feed check count not saved: $_" -ForegroundColor Yellow }
+          }
           gh api -X DELETE "repos/28maryshev/counterplay/releases/assets/$($a.id)" 2>$null | Out-Null
         }
       }
