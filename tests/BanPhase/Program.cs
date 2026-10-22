@@ -149,15 +149,24 @@ internal static class Program
                   string.Join(", ", bans.Select(b => b.ChampionId)));
         }
 
-        // Подпись о контре называет пикрейт — видно, почему этот бан, а не другой.
+        // Подпись о контре пулу называет пикрейт — видно, почему этот бан, а не другой.
+        // Формулировок две: «Контрит твой пул (…) · пик N%» и, если среди задетых
+        // есть жёсткая контра, «Жёсткая контра: … · пик N%». Какая выпадет, решают
+        // данные: на базе 22.10.2026 все восемь банов для Соны, Браума и Вел'Коза —
+        // жёсткие контры, и проверка, ждавшая только первую, падала и на выпущенном
+        // коде. Пикрейт ищется по хвосту «· пик N%»: в строке жёсткой контры свой
+        // процент (−3,0% WR), и общий поиск числа с % пропустил бы строку без пика.
         SessionTracker.HistoryOverride = Hist([37, 201, 161]);
-        var head = Loc.T("reason.countersPoolPick", "\u0001", "\u0002").Split('\u0001')[0];
+        static string Head(string key) => Loc.T(key, "\u0001", "\u0002").Split('\u0001')[0];
+        var heads = new[] { Head("reason.countersPoolPick"), Head("reason.hardCounter") };
+        var pickTail = new Regex(Regex.Escape(Loc.T("reason.withPick", "\u0001", "\u0002").Split('\u0001')[1])
+                                      .Replace("\u0002", @"\d+[.,]\d"));
         var reasons = engine.RecommendBans(Draft("utility"), top: 8).SelectMany(b => b.Reasons)
-                            .Where(r => r.StartsWith(head, StringComparison.Ordinal)).ToList();
-        Check("подпись «контрит … · пик N%» встречается", reasons.Count > 0,
+                            .Where(r => heads.Any(h => r.StartsWith(h, StringComparison.Ordinal))).ToList();
+        Check("подпись о контре пулу («контрит …» или «жёсткая контра …») встречается", reasons.Count > 0,
               reasons.FirstOrDefault() ?? "нет");
-        Check("в ней число пикрейта", reasons.All(r => Regex.IsMatch(r, @"\d+[.,]\d%")),
-              reasons.FirstOrDefault() ?? "");
+        Check("в ней пикрейт «· пик N%»", reasons.All(r => pickTail.IsMatch(r)),
+              reasons.FirstOrDefault(r => !pickTail.IsMatch(r)) ?? reasons.FirstOrDefault() ?? "");
     }
 
     // ── 1б. Наведённое своими не банится, доводы — по важности и с пикрейтом ──
