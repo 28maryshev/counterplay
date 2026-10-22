@@ -107,7 +107,8 @@ public static class LockfileReader
     }
 
     /// Ждёт появления lockfile. Если explicitPath не задан — автопоиск клиента
-    /// (по процессу/типичным путям) на каждой итерации, т.е. работает на любом ПК.
+    /// (по процессу/типичным путям) на каждой итерации, т.е. работает на любом ПК,
+    /// а без годного lockfile — командная строка клиента.
     public static async Task<LcuCredentials> WaitForAsync(string? explicitPath, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -117,7 +118,12 @@ public static class LockfileReader
             {
                 try { return Read(path); }
                 catch (IOException) { /* файл ещё дописывается — подождём */ }
+                // Пустой или недописанный файл. Раньше исключение выходило из
+                // цикла, и программа больше не подключалась: у китайского
+                // клиента (WeGame) lockfile пустой всегда.
+                catch (FormatException) { }
             }
+            if (explicitPath == null && LcuCommandLine.TryRead() is { } creds) return creds;
             await Task.Delay(1000, ct);
         }
         ct.ThrowIfCancellationRequested();
