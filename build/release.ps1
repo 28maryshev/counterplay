@@ -133,7 +133,11 @@ if (-not $FeedOnly) {
     Write-Host "warn: no telemetry secret - the build will not report installs" -ForegroundColor Yellow
   }
 
-  dotnet publish Counterplay.csproj -c Release -r win-x64 --self-contained true -o $pub @secretArgs
+  # Номер выпуска — в саму сборку: по нему телеметрия сообщает версию игрока.
+  # Без этого у всех стояло 1.0.7.0 из .csproj, и сайт не мог сказать, сколько
+  # игроков дошло до выпуска. Velopack номер получает отдельно (--packVersion).
+  dotnet publish Counterplay.csproj -c Release -r win-x64 --self-contained true -o $pub `
+    "-p:Version=$Version" @secretArgs
   if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
   # Дымовая проверка СОБРАННОЙ программы: тот самый exe, что уедет игрокам,
