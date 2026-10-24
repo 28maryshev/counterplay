@@ -74,6 +74,15 @@ if (-not $FeedOnly) {
   if ($LASTEXITCODE -ne 0) {
     throw "Проверка данных игрока не прошла — выпуск остановлен. Песочница или проверки трогают данные игрока."
   }
+
+  # Сайдбар у разных игроков (tests/SidebarProfiles): правила владельца для
+  # ранкеда, нормалов, Swiftplay, ARAM, Арены и «не вошёл» — у 13 игроков во
+  # всех четырёх очередях. Сочетаний слишком много, чтобы помнить их руками.
+  Write-Host "Проверка сайдбара у разных игроков (tests/SidebarProfiles)..." -ForegroundColor Cyan
+  dotnet run --project tests/SidebarProfiles/SidebarProfiles.csproj -c Release
+  if ($LASTEXITCODE -ne 0) {
+    throw "Правила сайдбара нарушены — выпуск остановлен. Отчёт выше называет игрока, очередь и правило."
+  }
 }
 
 $repo = "https://github.com/28maryshev/counterplay"

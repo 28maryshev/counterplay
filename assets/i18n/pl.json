@@ -332,6 +332,7 @@
   },
   "session": {
     "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",
+    "signIn": "Zaloguj się w kliencie League — profil pojawi się sam.",
     "needGamesWr": "Zagraj kilka gier z włączonym Counterplay — wykres winrate pojawi się od piątej gry.",
     "wl": "W:{0} - P:{1}",
     "queue": {

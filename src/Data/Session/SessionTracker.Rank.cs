@@ -30,9 +30,13 @@ public static partial class SessionTracker
         if (!r.HasRank) return [];
         var from = DateTimeOffset.UtcNow.AddDays(-RatingDays).ToUnixTimeSeconds();
         var games = q.Games.Where(g => g.Ts >= from && g.Lp is not null).ToList();
-        if (games.Count == 0) return [];
-
         var now = AbsLp(r.Tier, r.Div, r.Lp);
+
+        // Дельт ещё нет (только поставили программу) — ранг-то известен: одна
+        // точка на своём месте вместо надписи «сыграй игры» (решение владельца,
+        // 24.10). Дальше линия растёт от неё.
+        if (games.Count == 0) return [new LpPoint(DateTime.Now, now)];
+
         var pts = new List<LpPoint>(games.Count + 1)
             { new(DateTimeOffset.FromUnixTimeSeconds(games[^1].Ts).LocalDateTime, now) };
 
@@ -44,6 +48,27 @@ public static partial class SessionTracker
         }
         pts.Reverse();
         return pts;
+    }
+
+    /// <summary>
+    /// Сезонный винрейт после каждой из прошлых игр (по возрастанию времени):
+    /// от нынешнего счёта клиента назад, вычитая исход каждой игры. null — счёта
+    /// нет (отборочные) или игр больше, чем в нём: часть истории из прошлого
+    /// сезона, и назад счёт не идёт.
+    /// </summary>
+    private static double[]? SeasonWrBefore(IReadOnlyList<HistEntry> past, Ranked r)
+    {
+        int w = r.Wins, l = r.Losses;
+        if (past.Count == 0 || w + l < past.Count) return null;
+        var wr = new double[past.Count];
+        for (int i = past.Count - 1; i >= 0; i--)
+        {
+            if (w + l == 0) return null;
+            wr[i] = 100.0 * w / (w + l);
+            if (past[i].Win) w--; else l--;
+            if (w < 0 || l < 0) return null;
+        }
+        return wr;
     }
 
     private static int AbsLp(string tier, string div, int lp)
@@ -102,9 +127,12 @@ public static partial class SessionTracker
 
             // Опора ранговых — первой точкой, чтобы линия шла от того винрейта,
             // с которым человек пришёл, а не от первой сыгранной игры.
-            if (ranked2 && q.AnchorTs >= chartFrom && points.Count > 0)
-                points.Insert(0, new WrPoint(
-                    DateTimeOffset.FromUnixTimeSeconds(q.AnchorTs).LocalDateTime, q.AnchorWr));
+            // Только если опора раньше игр: игры, добитые из истории при первом
+            // запуске, старше её, и опора первой точкой ломала порядок по времени
+            // (их винрейт и так сезонный, см. SeasonWrBefore).
+            var anchorAt = DateTimeOffset.FromUnixTimeSeconds(q.AnchorTs).LocalDateTime;
+            if (ranked2 && q.AnchorTs >= chartFrom && points.Count > 0 && anchorAt <= points[0].Date)
+                points.Insert(0, new WrPoint(anchorAt, q.AnchorWr));
 
             if (key is "solo" or "flex")
             {

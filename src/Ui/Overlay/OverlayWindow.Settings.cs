@@ -101,10 +101,8 @@ public partial class OverlayWindow
         Last5Panel.Visibility     = V(s.ReadyLast5);
         WinrateRow.Visibility     = V(s.ReadyWinrate);
         // Пул нужен только подбору: выключен подбор — вместо кнопок объяснение,
-        // почему их нет и где включить обратно.
-        var poolUseful = s.ReadyPool && s.DraftEnabled;
-        PoolTitleRow.Visibility   = V(poolUseful);
-        PoolButtonsRow.Visibility = V(poolUseful);
+        // почему их нет и где включить обратно. Кнопки — см. ApplyPoolArea.
+        ApplyPoolArea();
         DraftOffNotice.Visibility = V(!s.DraftEnabled);
         ReadyStatusText.Visibility = V(s.ReadyPhase);
         BetaCard.Visibility       = V(s.ReadyBeta);

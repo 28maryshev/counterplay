@@ -109,9 +109,11 @@ internal static class Program
     // ── 2. Окно ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Режим графика «рейтинг», как по умолчанию. В соло без истории LP —
-    /// подсказка про рейтинговые игры; в нормалах — линия винрейта; в ARAM
-    /// подсказка под последними играми не обещает LP.
+    /// Режим графика «рейтинг», как по умолчанию. В соло без истории —
+    /// подсказка одна, под играми, а на месте графика ровная заглушка (с 24.10;
+    /// в жизни при известном ранге там точка — tests/SidebarProfiles); в
+    /// нормалах — линия винрейта; в ARAM подсказка под последними играми не
+    /// обещает LP.
     /// </summary>
     private static void Window(SessionTracker.SessionData stored)
     {
@@ -158,8 +160,9 @@ internal static class Program
             var solo = new SessionTracker.QueueView(true, "Emerald", "II", 41, 41, 197, 186, 51.4, [], [], []);
             Show(w, new SessionTracker.SessionData("проверка", "solo",
                 new Dictionary<string, SessionTracker.QueueView> { ["solo"] = solo }), "solo");
-            Check("соло без истории LP — подсказка про рейтинговые игры, как и было",
-                  Texts(chart).Contains(Loc.T("chart.noRating")), Texts(chart));
+            Check("соло без истории — подсказка одна: под играми, а на месте графика заглушка без надписи",
+                  hint.Visibility == Visibility.Visible && !Texts(chart).Contains(Loc.T("chart.noRating")),
+                  $"{hint.Visibility}; {Texts(chart)}");
             Check("соло с рангом — эмблема, силуэта карты нет", box.Visibility == Visibility.Collapsed, "");
             Check("соло с рангом — полоса LP на месте", lpBar.Visibility == Visibility.Visible, $"{lpBar.Visibility}");
             Check("соло с рангом — название лиги от края", rankText.Margin.Left == 0, $"{rankText.Margin.Left:F0}");

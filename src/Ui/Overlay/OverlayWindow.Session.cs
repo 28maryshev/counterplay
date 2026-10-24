@@ -55,6 +55,10 @@ public partial class OverlayWindow
 
     private SessionTracker.SessionData? _heldSession;
 
+    // Профиля нет, потому что в аккаунт не вошли (а не потому, что грузится):
+    // заглушки без блика, на месте графика тоже (DrawWrChart).
+    private bool _signedOut;
+
     public void ShowSession(SessionTracker.SessionData? d) =>
         Dispatcher.InvokeAsync(() =>
         {
@@ -139,10 +143,13 @@ public partial class OverlayWindow
             CenterQueueName(false);
             _lpBarShown = true;                   // скелетон: полоса на своём месте
             ApplyLpBarVisibility();
-            SessionHint.Text = Loc.T("session.needGames");
+            // Клиент открыт, а в аккаунт не вошли: ждём человека, а не загрузку —
+            // плашки без блика, и подсказка зовёт войти, а не «сыграть игры».
+            _signedOut = d is null && SessionTracker.SignedOut && !_emptyProfilePreview;
+            SessionHint.Text = Loc.T(_signedOut ? "session.signIn" : "session.needGames");
             SessionHint.Visibility = Visibility.Visible;
-            ShowSkeletons(true);                  // плашки на месте будущих данных
-            FillLast5(null);                      // 5 скелетон-ячеек
+            ShowSkeletons(true, still: _signedOut);   // плашки на месте будущих данных
+            FillLast5(null, still: _signedOut);       // 5 скелетон-ячеек
             SeasonWlText.Text = "";
             WinrateBig.Text = "";
             DrawWrChart();                        // скелетон вместо графика
@@ -150,6 +157,7 @@ public partial class OverlayWindow
         }
 
         ShowSkeletons(false);
+        _signedOut = false;
 
         // Ранг есть только у Solo/Flex; для Normal/ARAM — имя очереди вместо тира.
         // На месте эмблемы там силуэт карты — пустое место выглядело недоделкой.
@@ -158,7 +166,9 @@ public partial class OverlayWindow
         // эмблемы.
         var rankedQueue = _selectedQueue is "solo" or "flex";
         QueueMapBox.Visibility = !v.HasRank && !rankedQueue ? Visibility.Visible : Visibility.Collapsed;
-        ShowEmblemSkeleton(!v.HasRank && rankedQueue);
+        // Отборочные начаты (в очереди есть игры) — силуэт ровный: ранг придёт
+        // с последней из них. Игр нет — с бликом (владелец, 24.10).
+        ShowEmblemSkeleton(!v.HasRank && rankedQueue, still: v.Last5.Count > 0);
         _lpBarShown = v.HasRank;
         ApplyLpBarVisibility();
         if (!v.HasRank && !rankedQueue)
@@ -339,13 +349,11 @@ public partial class OverlayWindow
     /// залитая общим бликом скелетонов. Форма — маской по прозрачности картинки,
     /// так что силуэт точный, со всеми крыльями.
     /// </summary>
-    private void ShowEmblemSkeleton(bool on)
+    private void ShowEmblemSkeleton(bool on, bool still = false)
     {
         if (on && RankEmblemSkel.OpacityMask is null && RankEmblemSource("gold") is { } shape)
-        {
-            RankEmblemSkel.Fill = Skeleton.Shimmer;
             RankEmblemSkel.OpacityMask = new ImageBrush(shape) { Stretch = Stretch.Uniform };
-        }
+        if (on) RankEmblemSkel.Fill = still ? Skeleton.Still : Skeleton.Shimmer;
         RankEmblemSkel.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -459,18 +467,19 @@ public partial class OverlayWindow
     // Ячейка одной игры: иконка чемпиона (рамка по W/L) + LP за игру под ней.
     // Скелетон-режим ready-экрана: вместо цифр — плашки той же формы с бликом.
     // Так экран сразу выглядит собранным, а не «поломанным прочерками».
-    private void ShowSkeletons(bool on)
+    // still — без блика: профиль не грузится, а ждёт человека (не вошёл в аккаунт).
+    private void ShowSkeletons(bool on, bool still = false)
     {
         var v = on ? Visibility.Visible : Visibility.Collapsed;
         // Эмблема — силуэтом эмблемы, тем же, что у ранговой очереди без ранга:
         // «только поставил программу» и «ещё не сыграл отборочные» выглядели по-
         // разному (квадратная плашка и силуэт), хотя ранга не видно в обоих.
-        ShowEmblemSkeleton(on);
+        ShowEmblemSkeleton(on, still);
         RankSkel.Visibility     = v;
         RankLpSkel.Visibility   = v;
         WinrateSkel.Visibility  = v;
         RankSkel.Background     = WlSkelBar.Background =
-        WrSkelBar.Background    = RankLpSkel.Background = Skeleton.Shimmer;
+        WrSkelBar.Background    = RankLpSkel.Background = still ? Skeleton.Still : Skeleton.Shimmer;
 
         // Настоящие подписи прячем, чтобы они не просвечивали сквозь плашки.
         RankText.Visibility     = on ? Visibility.Hidden : Visibility.Visible;
@@ -484,7 +493,7 @@ public partial class OverlayWindow
     // сразу показывает, где появится история. С бликом — только пока профиля
     // нет вовсе (games == null, данные грузятся); профиль пришёл — пустые слоты
     // ждут игр, и блик там читался как «вечно грузится».
-    private void FillLast5(IReadOnlyList<SessionTracker.RecentGame>? games)
+    private void FillLast5(IReadOnlyList<SessionTracker.RecentGame>? games, bool still = false)
     {
         Last5Panel.Children.Clear();
         Last5Panel.ColumnDefinitions.Clear();
@@ -494,7 +503,7 @@ public partial class OverlayWindow
         {
             var cell = games != null && i < games.Count
                 ? BuildGameCell(games[i])
-                : BuildEmptyGameCell(still: games != null);
+                : BuildEmptyGameCell(still: still || games != null);
             Grid.SetColumn(cell, i);
             Last5Panel.Children.Add(cell);
         }

@@ -263,6 +263,7 @@
   },
   "session": {
     "needGames": "Joue quelques parties avec Counterplay lancé — les PL par partie et la courbe de winrate se rempliront.",
+    "signIn": "Connecte-toi au client League — ton profil s'affichera tout seul.",
     "needGamesWr": "Joue quelques parties avec Counterplay lancé — la courbe de winrate apparaît dès la cinquième partie.",
     "wl": "V:{0} - D:{1}",
     "queue": {

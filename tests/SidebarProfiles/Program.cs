@@ -94,6 +94,7 @@ internal static class Program
                 DataDragon.LoadAsync(Loc.DDragonLocale, CancellationToken.None).GetAwaiter().GetResult();
             IconCache.PreloadAllAsync(null, CancellationToken.None).GetAwaiter().GetResult();
 
+            QueueRules();
             var i = 0;
             foreach (var p in Players)
             {
@@ -107,7 +108,7 @@ internal static class Program
         finally { try { Directory.Delete(baseDir, true); } catch { } }
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: после прихода профиля ничего из договорённого не мерцает, полоса — только у играющих с драфтом"
+        Console.WriteLine(_fails == 0 ? $"ИТОГ: все правила сайдбара держатся у всех {Players.Length} игроков"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
@@ -136,8 +137,18 @@ internal static class Program
             w.ShowSession(d);
             Pump();
 
-            Report(w, d is not null, p);
+            Report(w, d, p, main: true);
             if (snap is { Length: > 0 }) Shots.Add(($"{n:00}. {p.Name}", Shot(w, snap, $"{n:00}.png")));
+
+            // Человек может переключить очередь — правила держатся в каждой.
+            if (d is not null)
+                foreach (var key in SessionTracker.QueueKeys)
+                {
+                    SelectedQueue.SetValue(w, key);
+                    w.ShowSession(d);
+                    Pump();
+                    Report(w, d, p, main: false);
+                }
         }
         finally { w.Close(); Pump(); }
     }
@@ -154,45 +165,118 @@ internal static class Program
         return true;
     }
 
-    private static void Report(OverlayWindow w, bool loaded, Player p)
+    private static readonly System.Reflection.FieldInfo SelectedQueue = typeof(OverlayWindow).GetField("_selectedQueue",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+    /// main — вид, который игрок видит сам (очередь выбрана программой): его
+    /// печатаем; остальные очереди — только правила.
+    private static void Report(OverlayWindow w, SessionTracker.SessionData? d, Player p, bool main)
     {
+        var selected = (string)SelectedQueue.GetValue(w)!;
+        var where = main ? "" : $" [{selected}]";
+        void Line(string text) { if (main) Console.WriteLine(text); }
+        void Rule(Player? pl, string what, bool ok, string detail) => Program.Rule(pl, what + where, ok, detail);
         T Find<T>(string name) where T : class => (T)w.FindName(name);
         bool Shown(string name) => Seen(Find<FrameworkElement>(name));
 
         var queue = Find<TextBlock>("QueueText").Text.TrimEnd(' ', '▾');
         var rankArea = Shown("RankEmblem") ? "эмблема" : Shown("QueueMapBox") ? "значок карты"
                      : Shown("RankEmblemSkel") ? "силуэт эмблемы" : "пусто";
-        Console.WriteLine($"  очередь: {queue}; ранг: {Find<TextBlock>("RankText").Text} {Find<TextBlock>("RankLpText").Text}".TrimEnd()
+        Line($"  очередь: {queue}; ранг: {Find<TextBlock>("RankText").Text} {Find<TextBlock>("RankLpText").Text}".TrimEnd()
                           + $"; на месте эмблемы — {rankArea}; полоса LP {(Shown("RankProgressTrack") ? "есть" : "нет")}");
 
         var cells = Find<Grid>("Last5Panel").Children.OfType<StackPanel>()
             .Select(sp => sp.Children.Count > 0 ? sp.Children[0] as Border : null).ToList();
         var empty = cells.Count(b => b?.Background is not null);
-        Console.WriteLine($"  последние игры: {cells.Count - empty} игр, {empty} пустых");
-        var hint = Find<TextBlock>("SessionHint");
-        if (Seen(hint)) Console.WriteLine($"  подсказка: «{hint.Text}»");
+        Line($"  последние игры: {cells.Count - empty} игр, {empty} пустых");
+        var hintBlock = Find<TextBlock>("SessionHint");
+        var hint = Seen(hintBlock) ? hintBlock.Text : null;
+        if (hint is not null) Line($"  подсказка: «{hint}»");
 
         var chart = Find<Canvas>("WrChart");
+        var chartTexts = chart.Children.OfType<TextBlock>().Select(t => t.Text).ToList();
+        // Подсказка на месте графика — не подписи осей и дат, а надпись вместо линии.
+        var chartHint = chartTexts.FirstOrDefault(t => t == Loc.T("chart.noRating"));
         var chartWhat = chart.Children.OfType<Polyline>().Any() ? "линия"
-                      : chart.Children.OfType<TextBlock>().FirstOrDefault() is { } t ? $"надпись «{t.Text}»"
+                      : chart.Children.OfType<Ellipse>().Any() ? "точка"
+                      : chartHint is { } t ? $"надпись «{t}»"
                       : chart.Children.Count > 0 ? "заглушка" : "пусто";
-        Console.WriteLine($"  винрейт: {Find<TextBlock>("SeasonWlText").Text} {Find<TextBlock>("WinrateBig").Text}; график — {chartWhat}");
+        Line($"  винрейт: {Find<TextBlock>("SeasonWlText").Text} {Find<TextBlock>("WinrateBig").Text}; график — {chartWhat}");
 
+        var pool = Shown("PoolButtonsRow");
         var strip = Shown("MyChampsBox");
         var stripCards = (Find<ItemsControl>("MyChampsStrip").ItemsSource as IEnumerable<MyChampCard>)?.ToList() ?? [];
-        Console.WriteLine($"  кнопки пула {(Shown("PoolButtonsRow") ? "есть" : "нет")}; полоса чемпионов "
+        Line($"  кнопки пула {(pool ? "есть" : "нет")}; полоса чемпионов "
                           + (strip ? $"{stripCards.Count(c => c.WrSkeleton != Visibility.Visible)} + {stripCards.Count(c => c.WrSkeleton == Visibility.Visible)} пустых" : "скрыта"));
 
         var shimmer = Shimmering(w);
-        Console.WriteLine($"  мерцает: {(shimmer.Count == 0 ? "ничего" : string.Join(", ", shimmer.Select(kv => $"{kv.Key} ×{kv.Value}")))}");
+        var shimmerText = shimmer.Count == 0 ? "ничего" : string.Join(", ", shimmer.Select(kv => $"{kv.Key} ×{kv.Value}"));
+        Line($"  мерцает: {shimmerText}");
 
-        if (!loaded) return;   // без профиля мерцание — это загрузка, так и задумано
-        Check("после прихода профиля последние игры не мерцают", !shimmer.ContainsKey("Last5Panel"), "");
-        // Блик у карточки чемпиона — это его портрет в загрузке; пустые слоты — без блика.
-        Check("после прихода профиля пустые слоты полосы не мерцают",
-              stripCards.Where(c => c.WrSkeleton == Visibility.Visible).All(c => !ReferenceEquals(c.Fill, Skeleton.Shimmer)), "");
+        // ── Правила: обязаны выполняться у каждого игрока ──────────────────
+        Rule(p, "подсказка одна: не под играми и на месте графика сразу",
+             hint is null || chartHint is null, $"{hint} | {chartHint}");
+
+        if (d is null)
+        {
+            Rule(p, "не вошёл в аккаунт — подсказка «войди в клиент»", hint == Loc.T("session.signIn"), hint ?? "нет подсказки");
+            Rule(p, "не вошёл в аккаунт — ничего не мерцает: ждём человека, а не загрузку", shimmer.Count == 0, shimmerText);
+            return;
+        }
+
+        Rule(p, "после прихода профиля пустые слоты последних игр не мерцают", !shimmer.ContainsKey("Last5Panel"), shimmerText);
+        // Блик у карточки чемпиона — его портрет в загрузке; пустые слоты — без блика.
+        Rule(p, "после прихода профиля пустые слоты полосы чемпионов не мерцают",
+             stripCards.Where(c => c.WrSkeleton == Visibility.Visible).All(c => !ReferenceEquals(c.Fill, Skeleton.Shimmer)), "");
+
         var drafted = SessionTracker.RecentGamesIn(20, [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
-        if (drafted < 3) Check("игр с драфтом меньше трёх из 20 — полосы нет", !strip, $"{drafted} игр");
+        Rule(p, "кнопки пула — только у играющих с драфтом (от 3 из последних 20)", pool == drafted >= 3, $"{drafted} игр с драфтом");
+        if (drafted < 3) Rule(p, "без игр с драфтом полосы чемпионов нет", !strip, $"{drafted} игр с драфтом");
+
+        if (main && p.Games.Any(g => SessionTracker.QueueOf(g.Queue) is not null))
+            Rule(p, "есть игры в записываемых очередях — профиль показывает их, а не пустую очередь",
+                 cells.Count - empty > 0, $"{cells.Count - empty} игр на экране");
+
+        if (selected is "solo" or "flex" && d.Queues.GetValueOrDefault(selected) is { } v)
+        {
+            if (v.HasRank)
+                Rule(p, "ранговый с рангом — сразу график ранга, а не надпись",
+                     chartHint is null && chart.Children.OfType<Ellipse>().Any(), chartWhat);
+            else
+                Rule(p, "без ранга силуэт мерцает, только пока в очереди нет игр",
+                     shimmer.ContainsKey("RankEmblemSkel") == (v.Last5.Count == 0),
+                     $"игр в очереди {v.Last5.Count}, мерцает: {shimmerText}");
+        }
+
+        // Винрейт ранговых при переключении графика на винрейт: по времени и
+        // около сезонного, а не со 100% или 0% у игр, добитых из истории. Это
+        // данные профиля, а не вид, — хватит одного раза.
+        if (!main) return;
+        foreach (var key in new[] { "solo", "flex" })
+        {
+            if (d.Queues.GetValueOrDefault(key) is not { WinrateHistory.Count: > 0 } q) continue;
+            var pts = q.WinrateHistory;
+            Rule(p, $"винрейт {key} идёт по времени", pts.Zip(pts.Skip(1)).All(x => x.First.Date <= x.Second.Date),
+                 string.Join(", ", pts.Take(4).Select(x => x.Date.ToString("dd.MM HH:mm"))));
+            if (q.Wins + q.Losses >= 20)
+                Rule(p, $"винрейт {key} — около сезонного ({q.Winrate:0}%)",
+                     pts.All(x => Math.Abs(x.Winrate - q.Winrate) <= 15),
+                     string.Join(", ", pts.Take(5).Select(x => $"{x.Winrate:0}")));
+        }
+    }
+
+    /// Сопоставление очередей клиента (номера из живого клиента, 24.10).
+    private static void QueueRules()
+    {
+        Console.WriteLine("── очереди");
+        Rule(null, "Swiftplay пишется как нормалы", SessionTracker.QueueOf(Swift) == "normal", SessionTracker.QueueOf(Swift) ?? "не пишется");
+        Rule(null, "в Swiftplay подбор в драфте не показывается", !SessionTracker.DraftHelp(Swift), "показывается");
+        Rule(null, "ARAM: Mayhem пишется как ARAM", SessionTracker.QueueOf(Mayhem) == "aram", SessionTracker.QueueOf(Mayhem) ?? "не пишется");
+        Rule(null, "в ARAM: Mayhem подбор есть, как в ARAM", SessionTracker.DraftHelp(Mayhem) && SessionTracker.DraftHelp(Aram), "");
+        Rule(null, "нормалы Draft, соло, флекс, ARAM — как были",
+             SessionTracker.QueueOf(Draft) == "normal" && SessionTracker.QueueOf(Solo) == "solo"
+             && SessionTracker.QueueOf(Flex) == "flex" && SessionTracker.QueueOf(Aram) == "aram" && SessionTracker.DraftHelp(Draft), "");
+        Rule(null, "Арена не пишется", SessionTracker.QueueOf(Arena) is null, SessionTracker.QueueOf(Arena) ?? "");
     }
 
     /// Видимые элементы с бегущим бликом — по ближайшему именованному предку.
@@ -304,9 +388,11 @@ internal static class Program
         w.Show();
     }
 
-    private static void Check(string what, bool ok, string detail)
+    /// Правило для игрока (или общее, если игрока нет). Печатаем только
+    /// провалы — отчёт выше и так показывает всё, что видно.
+    private static void Rule(Player? p, string what, bool ok, string detail)
     {
-        if (ok) return;   // в отчёте и так всё видно; печатаем только провалы
+        if (ok) return;
         Console.WriteLine($"  [ПЛОХО] {what}{(detail.Length > 0 ? "  — " + detail : "")}");
         _fails++;
     }

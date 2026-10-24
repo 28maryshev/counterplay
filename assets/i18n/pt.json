@@ -44,6 +44,7 @@
   },
   "session": {
     "needGames": "Jogue algumas partidas com o Counterplay aberto — o LP por partida e o gráfico de winrate vão se preencher.",
+    "signIn": "Entre no cliente do League — seu perfil vai aparecer sozinho.",
     "needGamesWr": "Jogue algumas partidas com o Counterplay aberto — o gráfico de winrate aparece a partir da quinta.",
     "wl": "V:{0} - D:{1}",
     "queue": {

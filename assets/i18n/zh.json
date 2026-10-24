@@ -332,6 +332,7 @@
   },
   "session": {
     "needGames": "在运行 Counterplay 的情况下玩几场对局——每场 LP 和胜率图表将逐渐填充。",
+    "signIn": "登录 League 客户端后，个人资料会自动显示。",
     "needGamesWr": "在运行 Counterplay 的情况下玩几场对局——从第五场起显示胜率图表。",
     "wl": "{0}胜 {1}负",
     "queue": {

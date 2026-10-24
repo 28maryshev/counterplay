@@ -12,6 +12,11 @@ public static partial class SessionTracker
     /// где клиент врёт (везде, кроме бот-линии). Без неё известной останется
     /// только бот-линия: приблизительно, но честно.
     /// </param>
+    /// Клиент не отдал игрока на последнем обновлении — в аккаунт не вошли.
+    /// Если при этом журнал пуст, профиля нет вовсе, и экран просит войти, а
+    /// не «сыграть игры» (решение владельца, 24.10).
+    public static bool SignedOut { get; private set; }
+
     public static async Task<SessionData?> RefreshAsync(
         LcuHttpClient http, CancellationToken ct, Func<int, string, double>? roleShare = null)
     {
@@ -29,6 +34,7 @@ public static partial class SessionTracker
         //    смене аккаунта в клиенте панель должна переключиться сама.
         //    Ключ — puuid: он стабилен и переживает смену ника.
         var who = await FetchSummonerAsync(http, ct);
+        SignedOut = who is null;
         var accountKey = who?.Puuid ?? store.LastAccount;
         if (accountKey is null) return null;   // клиент ещё не отдал игрока
 
@@ -190,6 +196,9 @@ public static partial class SessionTracker
             // вперемешку.
             var past = history.Where(h => h.Queue == key)
                               .OrderBy(h => h.CreatedSec).ToList();
+            // Ранкед — сезонный винрейт, как у игр, записанных при программе
+            // (шаг 6): иначе линия начиналась со 100% или 0% первой же игры.
+            var season = key is "solo" or "flex" ? SeasonWrBefore(past, ranked[key]) : null;
             int wins = 0;
             for (int i = 0; i < past.Count; i++)
             {
@@ -199,7 +208,7 @@ public static partial class SessionTracker
                     Ts = past[i].CreatedSec > 0 ? past[i].CreatedSec : now,
                     ChampionId = past[i].ChampionId,
                     Win = past[i].Win,
-                    Wr = 100.0 * wins / (i + 1),
+                    Wr = season?[i] ?? 100.0 * wins / (i + 1),
                     Id = past[i].GameId,
                     Start = past[i].CreatedSec > 0 ? past[i].CreatedSec : null,
                 });

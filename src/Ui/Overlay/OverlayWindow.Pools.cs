@@ -67,10 +67,37 @@ public partial class OverlayWindow
     /// переносится и не растягивает окно (оно не должно быть выше клиента LoL).
     private const int MyChampsMax = 6;
 
-    /// Лента — у того, кто играет с драфтом: не меньше MyChampsMinGames игр в
-    /// ранкеде и нормалах среди последних MyChampsLastGames (решение владельца).
+    /// Лента и кнопки пула — у того, кто играет с драфтом: не меньше
+    /// MyChampsMinGames игр в ранкеде и нормалах среди последних
+    /// MyChampsLastGames (решения владельца, 24.10).
     private const int MyChampsLastGames = 20;
     private const int MyChampsMinGames = 3;
+
+    /// <summary>
+    /// Играет ли человек с драфтом. Решают последние игры, а не месяц: две
+    /// нормалки среди ARAM о пуле не говорят ничего. Песочница с подставным
+    /// набором чемпионов — по сумме его игр.
+    /// </summary>
+    private bool PlaysDraft() =>
+        (_champsPreview is { } shown
+            ? shown.Sum(c => c.Games)
+            : SessionTracker.RecentGamesIn(MyChampsLastGames,
+                [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]))
+        >= MyChampsMinGames;
+
+    /// <summary>
+    /// Кнопки пула и их заголовок. Пул нужен только подбору: выключен подбор
+    /// или блок скрыт настройкой — кнопок нет. И нет их у того, кто не играет
+    /// с драфтом (ARAM, Арена, Swiftplay): там пул ни к чему, а панель
+    /// занимала место. Появятся сами, когда игр с драфтом наберётся.
+    /// </summary>
+    private void ApplyPoolArea()
+    {
+        var s = AppSettings.Current;
+        var shown = s.ReadyPool && s.DraftEnabled && PlaysDraft()
+            ? Visibility.Visible : Visibility.Collapsed;
+        PoolTitleRow.Visibility = PoolButtonsRow.Visibility = shown;
+    }
 
     // Предпросмотр «профиль без единой игры» — только тестовый режим: рисуем
     // ready-экран так, как его увидит человек сразу после установки.
@@ -110,6 +137,7 @@ public partial class OverlayWindow
     /// </summary>
     private void UpdateMyChampsStrip()
     {
+        ApplyPoolArea();
         if (PoolStore.Current().ActiveKind == PoolKind.Duo && TryDuoStrip()) return;
 
         var ranked = SessionTracker.ChampStatsMap(SessionTracker.QueuesRanked);
@@ -147,14 +175,9 @@ public partial class OverlayWindow
                     $"{DataDragon.Name(id)} — {wr:F0}% / {games}"));
         }
 
-        // Игр с драфтом мало — ленты нет, остаются кнопки пула: у того, кто
-        // играет ARAM, шесть пустых слотов висели бы вечно. Решают последние
-        // игры, а не месяц: две нормалки среди ARAM о пуле не говорят ничего.
-        var drafted = _champsPreview is { } shown
-            ? shown.Sum(c => c.Games)
-            : SessionTracker.RecentGamesIn(MyChampsLastGames,
-                [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
-        if (drafted < MyChampsMinGames || items.Count == 0)
+        // Игр с драфтом мало — ленты нет (и кнопок пула, см. ApplyPoolArea): у
+        // того, кто играет ARAM, шесть пустых слотов висели бы вечно.
+        if (!PlaysDraft() || items.Count == 0)
         {
             MyChampsStrip.ItemsSource = null;
             MyChampsBox.Visibility = Visibility.Collapsed;

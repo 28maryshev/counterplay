@@ -37,6 +37,13 @@ public partial class OverlayWindow
 
         if (pts.Count == 0)
         {
+            // Подсказка уже стоит под последними играми — вторая «сыграй игры»
+            // рядом лишняя: на месте графика ровная заглушка.
+            if (SessionHint.Visibility == Visibility.Visible)
+            {
+                DrawChartSkeleton(w, h, still: true);
+                return;
+            }
             var hint = new TextBlock
             {
                 Text = Loc.T("chart.noRating"), FontFamily = (FontFamily)FindResource("UiFont"),
@@ -178,6 +185,23 @@ public partial class OverlayWindow
         if (pts.Count > 1) AddDateLabel(pts[last].Date, X(last), h, Align.Right, occupied);
     }
 
+    // Заглушка графика: крупная плашка под область линии и три коротких под
+    // подписи дат. still — без блика.
+    private void DrawChartSkeleton(double w, double h, bool still)
+    {
+        var area = Skeleton.Block(Math.Max(20, w - 22), Math.Max(12, h - 18), 6, still);
+        Canvas.SetLeft(area, 22);
+        Canvas.SetTop(area, 2);
+        WrChart.Children.Add(area);
+        for (int i = 0; i < 3; i++)
+        {
+            var lab = Skeleton.Block(26, 7, 3, still);
+            Canvas.SetLeft(lab, 22 + i * Math.Max(30, (w - 48) / 2.4));
+            Canvas.SetTop(lab, h - 11);
+            WrChart.Children.Add(lab);
+        }
+    }
+
     private void DrawWrChart()
     {
         // Режим графика — из настроек: винрейт, движение ранга или ничего.
@@ -185,30 +209,27 @@ public partial class OverlayWindow
         // и при режиме «рейтинг» там вечно стояла подсказка про рейтинговые
         // игры. Там график всегда по винрейту.
         var ranked = _selectedQueue is "solo" or "flex";
+        double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
+        double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
+        // Профиля нет — заглушка, а не надпись: подсказка одна, под последними
+        // играми. Не вошли в аккаунт — без блика (ждём человека, не загрузку).
+        if (_sessionView is null && AppSettings.Current.ChartMode != "off")
+        {
+            WrChart.Children.Clear();
+            DrawChartSkeleton(w, h, still: _signedOut);
+            return;
+        }
         if (AppSettings.Current.ChartMode == "rating" && ranked) { DrawRatingChart(); return; }
         if (AppSettings.Current.ChartMode == "off") { WrChart.Children.Clear(); return; }
 
         WrChart.Children.Clear();
         var v = _sessionView;
         IReadOnlyList<SessionTracker.WrPoint> pts = v?.WinrateHistory ?? [];
-        double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
-        double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
 
-        // Истории ещё нет — вместо графика скелетон: крупная плашка под область
-        // линии и три коротких под подписи дат.
+        // Истории ещё нет — вместо графика скелетон.
         if (pts.Count == 0)
         {
-            var area = Skeleton.Block(Math.Max(20, w - 22), Math.Max(12, h - 18), 6);
-            Canvas.SetLeft(area, 22);
-            Canvas.SetTop(area, 2);
-            WrChart.Children.Add(area);
-            for (int i = 0; i < 3; i++)
-            {
-                var lab = Skeleton.Block(26, 7, 3);
-                Canvas.SetLeft(lab, 22 + i * Math.Max(30, (w - 48) / 2.4));
-                Canvas.SetTop(lab, h - 11);
-                WrChart.Children.Add(lab);
-            }
+            DrawChartSkeleton(w, h, still: false);
             return;
         }
 

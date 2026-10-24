@@ -50,6 +50,7 @@ internal static class Smoke
         Directory.CreateDirectory(PoolStore.DirOverride);
         PoolStore.Reload();
         CopyAssets(player, root);
+        SeedJournal(root);
         Log.Mode = "дымовой";
 
         // Зависание: сценарий не дошёл до конца — пишем, на каком шаге стоял.
@@ -449,6 +450,32 @@ internal static class Smoke
         for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
             if (Card(System.Windows.Media.VisualTreeHelper.GetChild(d, i)) is { } r) return r;
         return null;
+    }
+
+    /// <summary>
+    /// Журнал игр дымового игрока: пять нормалов за последние часы. Игрок без
+    /// игр с драфтом кнопок пула не видит (решение владельца, 24.10), а дымовая
+    /// проверяет подсказку режима пула поверх них.
+    /// </summary>
+    private static void SeedJournal(string root)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new System.Text.Json.Nodes.JsonArray(Enumerable.Range(1, 5).Select(i =>
+            (System.Text.Json.Nodes.JsonNode)new System.Text.Json.Nodes.JsonObject
+            { ["Ts"] = now - i * 3600, ["ChampionId"] = i % 2 == 0 ? 201 : 412, ["Win"] = i % 2 == 0 }).ToArray());
+        File.WriteAllText(Path.Combine(root, "session.json"), new System.Text.Json.Nodes.JsonObject
+        {
+            ["LastAccount"] = "SMOKE-me",
+            ["Accounts"] = new System.Text.Json.Nodes.JsonObject
+            {
+                ["SMOKE-me"] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["Nick"] = "smoke",
+                    ["Queues"] = new System.Text.Json.Nodes.JsonObject
+                    { ["normal"] = new System.Text.Json.Nodes.JsonObject { ["Games"] = games } },
+                },
+            },
+        }.ToJsonString());
     }
 
     /// Справочник и иконки — копией из папки игрока, чтобы не качать их по сети.

@@ -332,6 +332,7 @@
   },
   "session": {
     "needGames": "Gioca qualche partita con Counterplay aperto: i PL per partita e il grafico del winrate si riempiranno.",
+    "signIn": "Accedi al client di League: il tuo profilo apparirà da solo.",
     "needGamesWr": "Gioca qualche partita con Counterplay aperto: il grafico del winrate compare dalla quinta partita.",
     "wl": "V:{0} - S:{1}",
     "queue": {

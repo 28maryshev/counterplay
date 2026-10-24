@@ -33,6 +33,28 @@ internal static class Program
     private const string Other  = "TEST-poolhint-other";
     private const string Third  = "TEST-poolhint-third";
 
+    /// Игрок с напарником играет с драфтом: без игр в ранкеде и нормалах
+    /// кнопок пула нет (решение владельца, 24.10), а с ними и подсказки.
+    private static void SeedJournal()
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new System.Text.Json.Nodes.JsonArray(Enumerable.Range(1, 5).Select(i =>
+            (System.Text.Json.Nodes.JsonNode)new System.Text.Json.Nodes.JsonObject
+            { ["Ts"] = now - i * 3600, ["ChampionId"] = 86, ["Win"] = true }).ToArray());
+        File.WriteAllText(Path.Combine(AppPaths.Root, "session.json"), new System.Text.Json.Nodes.JsonObject
+        {
+            ["LastAccount"] = "me",
+            ["Accounts"] = new System.Text.Json.Nodes.JsonObject
+            {
+                ["me"] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["Queues"] = new System.Text.Json.Nodes.JsonObject
+                    { ["normal"] = new System.Text.Json.Nodes.JsonObject { ["Games"] = games } },
+                },
+            },
+        }.ToJsonString());
+    }
+
     [STAThread]
     private static int Main()
     {
@@ -43,6 +65,7 @@ internal static class Program
         PoolStore.DirOverride = Path.Combine(AppPaths.RootOverride, "pools");
         Directory.CreateDirectory(PoolStore.DirOverride);
         PoolStore.Reload();
+        SeedJournal();
         Log.FileDisabled = true;
         Loc.Init();   // без него нет английского словаря, на который падают остальные
         Loc.SetLanguage("ru");

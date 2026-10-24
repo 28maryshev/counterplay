@@ -332,6 +332,7 @@
   },
   "session": {
     "needGames": "Chơi vài trận khi Counterplay đang chạy — LP mỗi trận và biểu đồ tỉ lệ thắng sẽ được cập nhật.",
+    "signIn": "Đăng nhập vào client League — hồ sơ của bạn sẽ tự hiện ra.",
     "needGamesWr": "Chơi vài trận khi Counterplay đang chạy — biểu đồ tỉ lệ thắng sẽ hiện từ trận thứ năm.",
     "wl": "T:{0} - B:{1}",
     "queue": {
