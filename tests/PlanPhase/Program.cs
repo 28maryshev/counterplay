@@ -368,7 +368,7 @@ internal static class Program
         var entry = t.GetNestedType("HistEntry", BindingFlags.NonPublic)!;
         var of = t.GetMethod("DraftRoleOf", BindingFlags.NonPublic | BindingFlags.Static)!;
         string? Role(int champ, long created) =>
-            (string?)of.Invoke(null, [Activator.CreateInstance(entry, 1L, "solo", champ, true, created)!]);
+            (string?)of.Invoke(null, [Activator.CreateInstance(entry, 1L, "solo", champ, true, created, 0L)!]);
 
         SessionTracker.NoteDraftRole(Amumu, "jungle");
         Check("тот же чемпион, игра сразу после драфта — роль драфта", Role(Amumu, Now + 90) == "jungle", "");

@@ -725,7 +725,8 @@
     "gotGames": "Spiele: {0}",
     "gotPools": "Pools",
     "gotSettings": "Einstellungen",
-    "empty": "Der Server war leer: Dies ist der erste Computer mit diesem Passwort"
+    "empty": "Der Server war leer: Dies ist der erste Computer mit diesem Passwort",
+    "journalOnly": "Mit einem anderen Konto angemeldet: Nur dessen Spielverlauf wird synchronisiert"
   },
   "plan": {
     "title": "Meine Champions · {0} · 30 Tage",

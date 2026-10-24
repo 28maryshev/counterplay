@@ -199,6 +199,15 @@ public static partial class SessionTracker
         return q;
     }
 
+    /// Порядок игр очереди — по времени записи: по нему считаются «последние
+    /// пять» и график. Порядок равных сохраняется.
+    private static void SortByTs(List<GameLog> games)
+    {
+        var sorted = games.OrderBy(g => g.Ts).ToList();
+        games.Clear();
+        games.AddRange(sorted);
+    }
+
     private static void Save(Store s)
     {
         // Песочница журнал не пишет: рядом работает боевая программа, и две

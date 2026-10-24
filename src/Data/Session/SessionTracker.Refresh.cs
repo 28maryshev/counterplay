@@ -75,14 +75,17 @@ public static partial class SessionTracker
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        // 3c) Копии одних и тех же игр — свести, пока история под рукой (см.
-        //     SameGames): синхронизация до 1.3.63 удваивала последние игры.
-        var folded = FoldSameGames(acc, history);
-        if (folded > 0) Log.Write($"журнал игр: убрано копий одних и тех же игр — {folded}");
+        // 3c) Чужие игры — убрать (см. ForeignGames), затем копии одних и тех же
+        //     игр — свести, пока история под рукой (см. SameGames): синхронизация
+        //     до 1.3.63 удваивала последние игры. Именно в таком порядке: окно игры
+        //     из истории тянется до следующей игры, и запись из чужой пачки
+        //     получила бы номер своей игры — а пачку узнают по записям без номера.
         var foreign = DropForeignGames(store, accountKey, history);
         if (foreign > 0) Log.Write($"журнал игр: убрано чужих игр из журналов других аккаунтов — {foreign}");
         var proven = await ProveForeignAsync(http, store, accountKey, history, ct);
         if (proven > 0) Log.Write($"журнал игр: убрано чужих игр, доказанных по клиенту — {proven}");
+        var folded = FoldSameGames(acc, history);
+        if (folded > 0) Log.Write($"журнал игр: убрано копий одних и тех же игр — {folded}");
 
         // 4) Новые игры — те, чьих номеров мы ещё не видели. Порядок берём по
         //    времени начала: номера игр по времени не упорядочены (см. SeenGames).
@@ -115,7 +118,13 @@ public static partial class SessionTracker
             // Эту игру уже записал другой компьютер, и она приехала синхронизацией.
             // Своя запись была бы копией — без LP и с нашим «сейчас».
             if (q.Games.Any(g => g.Id == h.GameId)) { seen.Add(h.GameId); continue; }
-            var log = new GameLog { Ts = now, ChampionId = h.ChampionId, Win = h.Win,
+            // Время записи — конец игры, а не «сейчас». Программа могла быть
+            // закрыта, и игра, догнанная из истории через месяцы, ложилась
+            // сегодняшней: первой в «последних пяти» и в винрейте за 30 дней (24.10,
+            // две июльские игры в чужом профиле). Конец игры к тому же один для
+            // всех компьютеров, а «сейчас» у каждого своё.
+            var ts = h.EndSec > 0 && h.EndSec <= now ? h.EndSec : now;
+            var log = new GameLog { Ts = ts, ChampionId = h.ChampionId, Win = h.Win,
                                     Role = DraftRoleOf(h), Id = h.GameId,
                                     Start = h.CreatedSec > 0 ? h.CreatedSec : null };
             q.Games.Add(log);
@@ -126,6 +135,8 @@ public static partial class SessionTracker
             appended[h.Queue] = log;
             seen.Add(h.GameId);
         }
+        // Догнанная старая игра встаёт на своё место, а не в конец списка.
+        foreach (var key in appended.Keys) SortByTs(GetQueue(acc, key).Games);
 
         // 4a) Винрейт связок. Идём по ВСЕЙ истории, а не только по новым играм:
         //     у того, кто уже давно играет с программой, все игры «виденные», и
@@ -524,7 +535,10 @@ public static partial class SessionTracker
                 long duration = g.TryGetProperty("gameDuration", out var du) && du.ValueKind == JsonValueKind.Number
                     ? du.GetInt64() : long.MaxValue;
                 if (duration < 300) continue;
-                result.Add(new HistEntry(gameId, queue, champ, win, created));
+                // Длительность в секундах; дольше шести часов игр не бывает —
+                // значит, клиент отдал что-то другое, и конца мы не знаем.
+                long end = created > 0 && duration <= 6 * 3600 ? created + duration : 0;
+                result.Add(new HistEntry(gameId, queue, champ, win, created, end));
             }
             // Новейшие первыми (как отдаёт LCU) — гарантируем сортировкой.
             result.Sort((a, b) => b.GameId.CompareTo(a.GameId));

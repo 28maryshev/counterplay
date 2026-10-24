@@ -58,7 +58,8 @@ internal static class Program
 
         using var server = new FakeSyncServer();
         SyncClient.EndpointOverride = server.Url;
-        SyncPassword.Set("проверка-слияния");
+        // Компьютеры одного человека: пароль — его (под ним едет всё).
+        SyncPassword.Set("проверка-слияния", Me);
         SyncClient.Pulled = files => { lock (_pulled) _pulled.AddRange(files); };
         try
         {
@@ -195,7 +196,7 @@ internal static class Program
         Console.WriteLine("\nстрока состояния:");
 
         // Новый пароль — новая строка на сервере, пустая.
-        SyncPassword.Set("новый-пароль-" + Guid.NewGuid().ToString("N"));
+        SyncPassword.Set("новый-пароль-" + Guid.NewGuid().ToString("N"), Me);
         Check("смена пароля забывает прежнее состояние", SyncStatus.Current.OkAt == 0, "");
 
         WipeLocal();
@@ -392,7 +393,7 @@ internal static class Program
         Console.WriteLine("\nта же игра — через синхронизацию:");
         long s1 = Now - 3 * 86400, s2 = s1 + 2400, s3 = s1 - 86400;
 
-        SyncPassword.Set("та-же-игра-" + Guid.NewGuid().ToString("N"));
+        SyncPassword.Set("та-же-игра-" + Guid.NewGuid().ToString("N"), Me);
         WipeLocal();
         Write("session.json", GamesSession(
             G(s1, 222, true, null, null, null),
@@ -502,7 +503,7 @@ internal static class Program
         const string Other = "TEST-syncmerge-other-0000000000000000000000000000000000000000000000";
         long t = Now - 3600, s = Now - 5 * 86400;
 
-        SyncPassword.Set("чужие-игры-" + Guid.NewGuid().ToString("N"));
+        SyncPassword.Set("чужие-игры-" + Guid.NewGuid().ToString("N"), Me);
         WipeLocal();
         Write("session.json", TwoAccounts(
             mine: [G(s + 2000, 37, true, 19, 11, s), G(s + 5000, 37, true, 20, 12, s + 3000),

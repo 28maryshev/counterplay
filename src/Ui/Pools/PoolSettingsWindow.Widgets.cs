@@ -57,7 +57,7 @@ public sealed partial class PoolSettingsWindow
                 err.Visibility = Visibility.Visible;
                 return false;   // окно не закрываем
             }
-            if (!SyncPassword.Set(first.Password))
+            if (!SyncPassword.Set(first.Password, PoolStore.AccountPuuid))
             {
                 err.Text = Loc.T("sync.failed");
                 err.Visibility = Visibility.Visible;

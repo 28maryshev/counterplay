@@ -725,7 +725,8 @@
     "gotGames": "partidas: {0}",
     "gotPools": "pools",
     "gotSettings": "ajustes",
-    "empty": "El servidor estaba vacío: este es el primer ordenador con esta contraseña"
+    "empty": "El servidor estaba vacío: este es el primer ordenador con esta contraseña",
+    "journalOnly": "Sesión iniciada con otra cuenta: solo se sincroniza su historial de partidas"
   },
   "plan": {
     "title": "Mis campeones · {0} · 30 días",

@@ -426,7 +426,10 @@ public static partial class SyncClient
     }
 
     /// Записать слитое на диск. Возвращает имена изменившихся файлов.
-    private static List<string> Apply(JsonObject data)
+    /// <param name="only">Проход под чужим для пароля аккаунтом
+    /// (<see cref="OwnerOf"/>): в <paramref name="data"/> только его журнал, и
+    /// в своём журнале заменяется только его запись.</param>
+    private static List<string> Apply(JsonObject data, string? only = null)
     {
         var changed = new List<string>();
         foreach (var name in Files)
@@ -436,6 +439,12 @@ public static partial class SyncClient
             var path = Path.Combine(Dir, name);
             try
             {
+                if (only is not null)
+                {
+                    if (name != "session.json") continue;
+                    body = WithJournal(File.Exists(path) ? File.ReadAllText(path) : null, body, only);
+                    if (body is null) continue;
+                }
                 if (File.Exists(path) && File.ReadAllText(path) == body) continue;
                 // Копия рядом: если слияние ошиблось, прежнее не потеряно.
                 if (File.Exists(path)) File.Copy(path, path + ".before-sync", overwrite: true);

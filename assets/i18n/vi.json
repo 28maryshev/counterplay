@@ -725,7 +725,8 @@
     "gotGames": "trận: {0}",
     "gotPools": "pool",
     "gotSettings": "cài đặt",
-    "empty": "Máy chủ đang trống: đây là máy tính đầu tiên dùng mật khẩu này"
+    "empty": "Máy chủ đang trống: đây là máy tính đầu tiên dùng mật khẩu này",
+    "journalOnly": "Đang đăng nhập tài khoản khác: chỉ đồng bộ lịch sử trận đấu của tài khoản đó"
   },
   "plan": {
     "title": "Tướng của tôi · {0} · 30 ngày",

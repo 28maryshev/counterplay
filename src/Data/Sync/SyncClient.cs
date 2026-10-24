@@ -96,6 +96,8 @@ public static partial class SyncClient
         var key = SyncPassword.KeyFor(puuid);
         if (key is null) return Fail("sync.noPassword");
         var id = IdFor(key);
+        // Под хозяином пароля едет всё, под другим аккаунтом — только его журнал.
+        var only = OwnerOf(puuid) == puuid ? null : puuid;
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
@@ -111,11 +113,12 @@ public static partial class SyncClient
                 var (rev, theirs, empty) = await FetchAsync(http, id, key, ct);
 
                 // 2. Слить с тем, что на этом компьютере.
-                var mine = Collect();
+                var mine = only is null ? Collect() : JournalOnly(Collect(), only);
+                if (only is not null && theirs is not null) theirs = JournalOnly(theirs, only);
                 var merged = theirs is null ? mine : Merge(mine, theirs);
                 if (theirs is not null)
                 {
-                    foreach (var f in Apply(merged))
+                    foreach (var f in Apply(merged, only))
                         if (!changed.Contains(f)) changed.Add(f);
                     got = got.Plus(Came(mine, merged));
                 }

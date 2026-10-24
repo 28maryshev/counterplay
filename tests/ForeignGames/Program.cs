@@ -51,6 +51,10 @@ internal static class Program
     /// Её нормал, сыгранный с ним вместе и записанный той же пачкой.
     private const long Together = 8_000_000_009;
 
+    /// Номер её Лиссандры перед пачкой: подставной клиент раздаёт номера
+    /// сверху вниз, она в истории третья.
+    private const long HersBeforeId = 6_999_999_998;
+
     private static string Dir => AppPaths.Root;
 
     private static async Task<int> Main()
@@ -63,7 +67,9 @@ internal static class Program
 
         using var server = new FakeSyncServer();
         SyncClient.EndpointOverride = server.Url;
-        SyncPassword.Set("чужие-игры-" + Guid.NewGuid().ToString("N"));
+        // Как на её компьютере: пароль владельца, под ней едет только её журнал
+        // (отпечатки — внутри него).
+        SyncPassword.Set("чужие-игры-" + Guid.NewGuid().ToString("N"), Owner);
         try
         {
             Rule();
@@ -115,8 +121,13 @@ internal static class Program
         var up = await SyncClient.SyncAsync(Her);
         Check("копия с пачкой выложена", up.Ok, up.Message);
 
+        // Её история: две свежие ARAM и её Лиссандра за два часа до пачки — тот
+        // же чемпион и исход, что у его нормала в пачке. Её номер в «виденных»
+        // ещё нет: запишется как новая.
+        var hersBefore = DateTimeOffset.FromUnixTimeSeconds(Pack - 7200);
         using var lcu = new FakeLcu(Her, "хозяйка",
-            [(450, 14, true, DateTimeOffset.UtcNow.AddDays(-1)), (450, 63, false, DateTimeOffset.UtcNow.AddDays(-2))]);
+            [(450, 14, true, DateTimeOffset.UtcNow.AddDays(-1)), (450, 63, false, DateTimeOffset.UtcNow.AddDays(-2)),
+             (400, 127, false, hersBefore)]);
         foreach (var g in HisGames)
             lcu.Details[g.Id] = Game(g.Queue, g.Start, (Owner, g.Champ, g.Win));
         lcu.Details[Together] = Game(400, Pack - 3600, (Her, 99, true), (Owner, 37, true));
@@ -130,8 +141,15 @@ internal static class Program
               Games(her, "solo").Count == 0 && Games(her, "flex").Count == 0,
               $"соло {Games(her, "solo").Count}, флекс {Games(her, "flex").Count}");
         Check("её нормалы на месте, и игра с ним из той же пачки тоже",
-              Games(her, "normal").Count == 4 && Games(her, "normal").Any(g => (int)g["ChampionId"]! == 99),
+              Games(her, "normal").Count == 5 && Games(her, "normal").Any(g => (int)g["ChampionId"]! == 99),
               string.Join(" ", Games(her, "normal").Select(g => g["ChampionId"])));
+        // Окно её игры из истории тянется до следующей игры и накрывает пачку:
+        // сведи копии раньше, чем уберёшь чужие, — его Лиссандра получила бы её номер.
+        Check("её Лиссандра записана своим временем, а не временем чужой пачки",
+              Games(her, "normal").Count(g => (int)g["ChampionId"]! == 127) == 1
+              && Games(her, "normal").Any(g => (long?)g["Id"] == HersBeforeId && (long)g["Ts"]! == Pack - 7200 + 1800),
+              string.Join(" ", Games(her, "normal").Where(g => (int)g["ChampionId"]! == 127)
+                                 .Select(g => $"{g["Id"]}@{(long)g["Ts"]! - Pack}")));
         Check("его журнал не тронут", Games(Acc(Owner), "solo").Count == 3, $"{Games(Acc(Owner), "solo").Count}");
         Check("убранное запомнено отпечатками", her["Foreign"]?.AsArray().Count == 5,
               $"{her["Foreign"]?.AsArray().Count}");
@@ -145,7 +163,7 @@ internal static class Program
         var back = await SyncClient.SyncAsync(Her);
         her = Acc(Her);
         Check("проход с копией, где пачка ещё есть, её не возвращает",
-              back.Ok && Games(her, "solo").Count == 0 && Games(her, "flex").Count == 0 && Games(her, "normal").Count == 4,
+              back.Ok && Games(her, "solo").Count == 0 && Games(her, "flex").Count == 0 && Games(her, "normal").Count == 5,
               $"соло {Games(her, "solo").Count}, флекс {Games(her, "flex").Count}, нормал {Games(her, "normal").Count}");
 
         // Другой компьютер: та же пачка, но сам он ничего не доказывал.
@@ -153,7 +171,7 @@ internal static class Program
         var other = await SyncClient.SyncAsync(Her);
         her = Acc(Her);
         Check("компьютер без доказательства убирает по пришедшим отпечаткам",
-              other.Ok && Games(her, "solo").Count == 0 && Games(her, "flex").Count == 0 && Games(her, "normal").Count == 4,
+              other.Ok && Games(her, "solo").Count == 0 && Games(her, "flex").Count == 0 && Games(her, "normal").Count == 5,
               $"соло {Games(her, "solo").Count}, флекс {Games(her, "flex").Count}, нормал {Games(her, "normal").Count}");
     }
 

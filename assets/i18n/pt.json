@@ -725,7 +725,8 @@
     "gotGames": "partidas: {0}",
     "gotPools": "pools",
     "gotSettings": "definições",
-    "empty": "O servidor estava vazio: este é o primeiro computador com esta palavra-passe"
+    "empty": "O servidor estava vazio: este é o primeiro computador com esta palavra-passe",
+    "journalOnly": "Sessão iniciada noutra conta: só é sincronizado o histórico de partidas dela"
   },
   "plan": {
     "title": "Meus campeões · {0} · 30 dias",

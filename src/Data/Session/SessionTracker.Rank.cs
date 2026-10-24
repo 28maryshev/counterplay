@@ -93,7 +93,9 @@ public static partial class SessionTracker
 
     private sealed record Ranked(bool HasRank, string Tier, string Div, int Lp, int Wins, int Losses);
 
-    private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win, long CreatedSec);
+    /// <param name="EndSec">Конец игры (начало + длительность); 0 — неизвестен.</param>
+    private sealed record HistEntry(long GameId, string Queue, int ChampionId, bool Win, long CreatedSec,
+                                    long EndSec = 0);
 
     /// 7) Представления по очередям — из журнала аккаунта, ранга и истории
     /// клиента. Отдельно от обновления, потому что тот же экран нужен песочнице
@@ -242,6 +244,25 @@ public static partial class SessionTracker
                 .Select(kv => (kv.Key, kv.Value.Nick ?? kv.Key[..Math.Min(8, kv.Key.Length)]))
                 .OrderBy(a => a.Item2, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
+        }
+        finally { Gate.Release(); }
+    }
+
+    /// <summary>
+    /// Аккаунт, у которого в журнале больше всего игр; null — журнал пуст.
+    /// По нему синхронизация решает, чей пароль, когда это не запомнено
+    /// (<c>SyncClient.OwnerOf</c>).
+    /// </summary>
+    public static string? BusiestAccount()
+    {
+        Gate.Wait();
+        try
+        {
+            return Load().Accounts
+                .Select(kv => (kv.Key, Games: kv.Value.Queues.Values.Sum(q => q.Games.Count)))
+                .Where(a => a.Games > 0)
+                .OrderByDescending(a => a.Games)
+                .Select(a => a.Key).FirstOrDefault();
         }
         finally { Gate.Release(); }
     }

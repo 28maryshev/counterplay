@@ -725,7 +725,8 @@
     "gotGames": "parties : {0}",
     "gotPools": "pools",
     "gotSettings": "réglages",
-    "empty": "Le serveur était vide : c’est le premier ordinateur avec ce mot de passe"
+    "empty": "Le serveur était vide : c’est le premier ordinateur avec ce mot de passe",
+    "journalOnly": "Connecté avec un autre compte : seul son historique des parties est synchronisé"
   },
   "plan": {
     "title": "Mes champions · {0} · 30 jours",

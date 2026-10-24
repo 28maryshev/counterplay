@@ -725,7 +725,8 @@
     "gotGames": "maç: {0}",
     "gotPools": "havuzlar",
     "gotSettings": "ayarlar",
-    "empty": "Sunucu boştu: bu parolayı kullanan ilk bilgisayar bu"
+    "empty": "Sunucu boştu: bu parolayı kullanan ilk bilgisayar bu",
+    "journalOnly": "Başka bir hesapla giriş yapıldı: yalnızca o hesabın maç geçmişi eşitlenir"
   },
   "plan": {
     "title": "Şampiyonlarım · {0} · 30 gün",

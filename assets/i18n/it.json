@@ -725,7 +725,8 @@
     "gotGames": "partite: {0}",
     "gotPools": "pool",
     "gotSettings": "impostazioni",
-    "empty": "Il server era vuoto: questo è il primo computer con questa password"
+    "empty": "Il server era vuoto: questo è il primo computer con questa password",
+    "journalOnly": "Accesso con un altro account: viene sincronizzata solo la sua cronologia delle partite"
   },
   "plan": {
     "title": "I miei campioni · {0} · 30 giorni",

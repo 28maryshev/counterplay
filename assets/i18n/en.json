@@ -725,7 +725,8 @@
     "gotGames": "games: {0}",
     "gotPools": "pools",
     "gotSettings": "settings",
-    "empty": "The server was empty: this is the first computer with this password"
+    "empty": "The server was empty: this is the first computer with this password",
+    "journalOnly": "Signed in to another account: only its match history syncs"
   },
   "plan": {
     "title": "My champions · {0} · last 30 days",

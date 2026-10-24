@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Один компьютер, два аккаунта разных людей: под чужим для пароля
+       аккаунтом едет только его журнал игр, пулы и настройки не смешиваются;
+       догнанные из истории игры пишутся временем своего конца и сводятся с
+       записью очевидца. Подставной клиент League и свой сервер, своя папка. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeLcu.cs" />
+    <Compile Include="..\Shared\FakeSyncServer.cs" />
+  </ItemGroup>
+
+</Project>

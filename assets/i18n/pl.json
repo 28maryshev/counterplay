@@ -725,7 +725,8 @@
     "gotGames": "gry: {0}",
     "gotPools": "pule",
     "gotSettings": "ustawienia",
-    "empty": "Serwer był pusty: to pierwszy komputer z tym hasłem"
+    "empty": "Serwer był pusty: to pierwszy komputer z tym hasłem",
+    "journalOnly": "Zalogowano na inne konto: synchronizowana jest tylko jego historia meczów"
   },
   "plan": {
     "title": "Moi bohaterowie · {0} · 30 dni",

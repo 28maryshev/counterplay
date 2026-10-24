@@ -24,14 +24,51 @@ public static class SyncPassword
     private static string Path_ => System.IO.Path.Combine(
         AppPaths.Root, "sync.dat");
 
+    private static string OwnerPath => System.IO.Path.Combine(
+        AppPaths.Root, "sync.owner");
+
     /// Пароль задан на этом компьютере.
     public static bool IsSet => File.Exists(Path_) && new FileInfo(Path_).Length > 0;
 
     /// <summary>
-    /// Задать пароль. Пустая строка — забыть его (синхронизация выключается).
-    /// Возвращает false, если сохранить не вышло.
+    /// Чей пароль: puuid аккаунта, под которым его задали. Под этим аккаунтом
+    /// синхронизация возит всё — пулы, настройки, журнал всех аккаунтов
+    /// компьютера; под остальными — только журнал игр вошедшего
+    /// (<c>SyncClient.OwnerOf</c>). null — ещё не решено: пароль задали до
+    /// входа в клиент или до 1.3.74, и решит первый проход.
+    ///
+    /// puuid не секрет, поэтому лежит открытым текстом рядом с паролем.
     /// </summary>
-    public static bool Set(string? password)
+    public static string? Owner
+    {
+        get
+        {
+            try
+            {
+                return File.Exists(OwnerPath) && File.ReadAllText(OwnerPath).Trim() is { Length: > 0 } s
+                    ? s : null;
+            }
+            catch { return null; }
+        }
+    }
+
+    /// Запомнить, чей пароль; null — забыть (решит первый проход).
+    public static void SetOwner(string? puuid)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(puuid)) File.Delete(OwnerPath);
+            else File.WriteAllText(OwnerPath, puuid);
+        }
+        catch (Exception e) { Log.Write($"чей пароль синхронизации — не запомнилось: {e.Message}"); }
+    }
+
+    /// <summary>
+    /// Задать пароль. Пустая строка — забыть его (синхронизация выключается).
+    /// <paramref name="owner"/> — кто сейчас в клиенте: пароль становится его
+    /// (<see cref="Owner"/>). Возвращает false, если сохранить не вышло.
+    /// </summary>
+    public static bool Set(string? password, string? owner = null)
     {
         // Пароль — общий для боевой программы; из песочницы его не меняем.
         if (Sandbox.Active)
@@ -47,6 +84,7 @@ public static class SyncPassword
             if (string.IsNullOrEmpty(password))
             {
                 File.Delete(Path_);
+                SetOwner(null);
                 SyncStatus.Reset();
                 Log.Write("пароль синхронизации убран");
                 return true;
@@ -55,6 +93,7 @@ public static class SyncPassword
             var blob = ProtectedData.Protect(
                 Encoding.UTF8.GetBytes(password), null, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(Path_, blob);
+            SetOwner(owner);
             SyncStatus.Reset();
             Log.Write("пароль синхронизации задан");
             return true;

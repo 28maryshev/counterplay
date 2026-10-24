@@ -40,12 +40,26 @@ public static partial class SessionTracker
     ///
     /// Правило. У каждой опорной игры (номер и начало известны) есть окно: от
     /// её начала до начала следующей игры (любой очереди — играют по одной), но
-    /// не дольше <see cref="SameGameWindow"/>. Ей принадлежат: записи с её
+    /// не дольше <see cref="SameGameWindow"/>. Предела нет, если и эта игра, и
+    /// следующая (или эта — последняя) взяты из истории клиента
+    /// (<paramref name="extra"/>): история отдаёт последние игры подряд, и других
+    /// игр между ними не было. Компьютер, где игру не видели, до 1.3.63 догонял
+    /// её своим «сейчас» на следующий день, а то и через три (24.10: игра 13.07
+    /// 15:00 — запись 14.07 12:02). Опоры слияния — только записи с номером, между
+    /// ними могли быть игры без номера, и там предел остаётся. Ей принадлежат: записи с её
     /// номером; запись без номера ровно с её временем начала (взята из
     /// истории); и одна — самая ранняя — запись без номера внутри окна (видел
-    /// конец игры), если такой записи с номером ещё нет. Всё — только с тем же
-    /// чемпионом, исходом и очередью. Остаётся запись очевидца — самая ранняя
-    /// после начала: она и с LP; если такой нет — первая.
+    /// конец игры), если она раньше всех записей с номером после начала. Всё —
+    /// только с тем же чемпионом, исходом и очередью. Остаётся запись
+    /// очевидца — самая ранняя после начала: она и с LP; если такой нет —
+    /// первая.
+    ///
+    /// «Раньше записей с номером»: компьютер, где игру не видели, догонял её из
+    /// истории своим «сейчас» — уже с номером, но через месяцы, — а запись
+    /// очевидца без номера оставалась рядом (24.10: две июльские игры лежали
+    /// дважды, обе копии — первыми в «последних пяти»). Запись без номера
+    /// ПОЗЖЕ записи с номером не трогаем: это может быть другая игра на том же
+    /// чемпионе, записанная старой версией без номера.
     ///
     /// По одной записи на окно, а не все подряд: если программа была закрыта две
     /// игры, обе записи получат одно «сейчас» после начала второй — и вторая
@@ -54,7 +68,9 @@ public static partial class SessionTracker
     /// </summary>
     public static List<SameGame> SameGames(IReadOnlyList<GameRef> games, IEnumerable<GameAnchor> extra)
     {
-        var anchors = extra
+        var history = extra.ToList();
+        var inHistory = history.Select(a => a.Id).ToHashSet();
+        var anchors = history
             .Concat(games.Where(g => g.Id is not null && g.Start is not null)
                          .Select(g => new GameAnchor(g.Id!.Value, g.Start!.Value, g.Queue, g.ChampionId, g.Win)))
             .GroupBy(a => a.Id).Select(x => x.First())
@@ -71,8 +87,10 @@ public static partial class SessionTracker
         for (var i = 0; i < anchors.Count; i++)
         {
             var a = anchors[i];
-            var end = Math.Min(i + 1 < anchors.Count ? anchors[i + 1].Start : long.MaxValue,
-                               a.Start + SameGameWindow);
+            var next = i + 1 < anchors.Count ? anchors[i + 1] : null;
+            var end = next?.Start ?? long.MaxValue;
+            if (!inHistory.Contains(a.Id) || next is not null && !inHistory.Contains(next.Id))
+                end = Math.Min(end, a.Start + SameGameWindow);
             bool Free(GameRef g) => !taken.Contains((g.Queue, g.Index));
             var bucket = byKey[(a.Queue, a.ChampionId, a.Win)];
 
@@ -81,9 +99,10 @@ public static partial class SessionTracker
             if (!mine.Any(g => g.Ts == a.Start)
                 && bucket.FirstOrDefault(g => g.Ts == a.Start && Free(g)) is { } fromHistory)
                 mine.Add(fromHistory);
-            if (!mine.Any(g => g.Ts > a.Start)
-                && bucket.Where(g => g.Ts > a.Start && g.Ts < end && Free(g))
-                         .OrderBy(g => g.Ts).FirstOrDefault() is { } witness)
+            var firstAfter = mine.Where(g => g.Ts > a.Start).Select(g => g.Ts)
+                                 .DefaultIfEmpty(long.MaxValue).Min();
+            if (bucket.Where(g => g.Ts > a.Start && g.Ts < Math.Min(end, firstAfter) && Free(g))
+                      .OrderBy(g => g.Ts).FirstOrDefault() is { } witness)
                 mine.Add(witness);
             if (mine.Count == 0) continue;
 
@@ -127,11 +146,8 @@ public static partial class SessionTracker
             }
             foreach (var d in drop.OrderByDescending(x => x)) games.RemoveAt(d);
             removed += drop.Count;
-            // Копии дописывались в конец — вернуть порядок по времени: по нему
-            // считаются «последние пять» и график. Порядок равных сохраняется.
-            var sorted = games.OrderBy(g => g.Ts).ToList();
-            games.Clear();
-            games.AddRange(sorted);
+            // Копии дописывались в конец — вернуть порядок по времени.
+            SortByTs(games);
         }
         return removed;
     }

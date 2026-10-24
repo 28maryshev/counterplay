@@ -146,6 +146,10 @@ public static class SyncBadge
         if (s.Failed && s.OkAt > 0) panel.Children.Add(Line(Loc.T("sync.ok", When(s.OkAt)), Muted, 10));
         if (!s.Failed && s.OkAt > 0 && s.WasEmpty) panel.Children.Add(Line(Loc.T("sync.empty"), Muted, 10));
         if (s.GotAt > 0) panel.Children.Add(Line(Loc.T("sync.got", When(s.GotAt), What(s)), Muted, 10));
+        // Пароль чужого для вошедшего аккаунта: пулы и настройки не едут, и без
+        // этой строки было бы непонятно почему (SyncClient.OwnerOf).
+        if (SyncPassword.Owner is { } owner && PoolStore.AccountPuuid is { } me && owner != me)
+            panel.Children.Add(Line(Loc.T("sync.journalOnly"), Warn, 10));
         return panel;
     }
 
