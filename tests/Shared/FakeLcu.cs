@@ -24,20 +24,29 @@ internal sealed class FakeLcu : IDisposable
 {
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly X509Certificate2 _cert = SelfSigned();
-    private readonly string _puuid;
+    private readonly string? _puuid;
     private readonly string _nick;
     private readonly List<(int Queue, int Champion, bool Win, DateTimeOffset At)> _games;
+    private readonly Dictionary<string, Rank> _ranks;
+
+    /// Ранг одной очереди: ключ клиента (<c>RANKED_SOLO_5x5</c>, <c>RANKED_FLEX_SR</c>);
+    /// пустая лига — отборочные не сыграны.
+    public sealed record Rank(string Tier, string Division, int Lp, int Wins, int Losses);
 
     /// Куда стучаться: <c>new LcuHttpClient(fake.Credentials)</c>.
     public LcuCredentials Credentials { get; }
 
-    /// Игры — новейшие первыми, как отдаёт клиент.
-    public FakeLcu(string puuid, string nick,
-                   IEnumerable<(int Queue, int Champion, bool Win, DateTimeOffset At)> games)
+    /// Игры — новейшие первыми, как отдаёт клиент. puuid null — клиент открыт,
+    /// но в аккаунт не вошли: «кто в клиенте» отвечает 404. Без рангов —
+    /// ранги тоже 404.
+    public FakeLcu(string? puuid, string nick,
+                   IEnumerable<(int Queue, int Champion, bool Win, DateTimeOffset At)> games,
+                   IReadOnlyDictionary<string, Rank>? ranks = null)
     {
         _puuid = puuid;
         _nick = nick;
         _games = games.OrderByDescending(g => g.At).ToList();
+        _ranks = ranks?.ToDictionary(kv => kv.Key, kv => kv.Value) ?? [];
         _listener.Start();
         var port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         Credentials = new LcuCredentials("LeagueClient", 0, port, "test", "https");
@@ -97,8 +106,22 @@ internal sealed class FakeLcu : IDisposable
 
     private (int, string) Route(string path)
     {
+        if (_puuid is null) return (404, "{}");
+
         if (path == "/lol-summoner/v1/current-summoner")
             return (200, new JsonObject { ["puuid"] = _puuid, ["gameName"] = _nick }.ToJsonString());
+
+        if (path.StartsWith("/lol-ranked/v1/ranked-stats/") && _ranks.Count > 0)
+        {
+            var map = new JsonObject();
+            foreach (var (key, r) in _ranks)
+                map[key] = new JsonObject
+                {
+                    ["tier"] = r.Tier, ["division"] = r.Division, ["leaguePoints"] = r.Lp,
+                    ["wins"] = r.Wins, ["losses"] = r.Losses,
+                };
+            return (200, new JsonObject { ["queueMap"] = map }.ToJsonString());
+        }
 
         if (path.StartsWith("/lol-match-history/v1/products/lol/current-summoner/matches"))
         {
