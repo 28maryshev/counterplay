@@ -63,14 +63,15 @@ public static class Skeleton
         return b;
     }
 
-    /// Прямоугольная плашка-заглушка заданного размера.
-    public static Border Block(double width, double height, double radius = 4)
+    /// Прямоугольная плашка-заглушка заданного размера. still — без блика
+    /// (<see cref="Still"/>): место ждёт игр, а не загрузки.
+    public static Border Block(double width, double height, double radius = 4, bool still = false)
         => new()
         {
             Width  = width,
             Height = height,
             CornerRadius = new CornerRadius(radius),
-            Background   = Shimmer,
+            Background   = still ? Still : Shimmer,
             BorderThickness = new Thickness(1),
             BorderBrush  = new SolidColorBrush(Color.FromArgb(0x1E, 0xFF, 0xFF, 0xFF)),
             SnapsToDevicePixels = true,

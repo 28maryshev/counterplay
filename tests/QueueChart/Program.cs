@@ -148,6 +148,12 @@ internal static class Program
             Check("ARAM — без полосы LP", lpBar.Visibility == Visibility.Collapsed, $"{lpBar.Visibility}");
             Check("ARAM, игр мало — подсказка не обещает LP",
                   hint.Visibility == Visibility.Visible && hint.Text == Loc.T("session.needGamesWr"), hint.Text);
+            // Четыре игры из пяти: пятый слот ждёт игры, а не загрузки — блик
+            // там читался как «вечно грузится» (владелец, 24.10).
+            var empty = EmptyGameCells(w);
+            Check("ARAM, 4 игры — пустой пятый слот последних игр ровный, без блика",
+                  empty.Count == 1 && empty.All(b => b is System.Windows.Media.SolidColorBrush),
+                  string.Join(", ", empty.Select(b => b.GetType().Name)));
 
             var solo = new SessionTracker.QueueView(true, "Emerald", "II", 41, 41, 197, 186, 51.4, [], [], []);
             Show(w, new SessionTracker.SessionData("проверка", "solo",
@@ -174,7 +180,11 @@ internal static class Program
             w.ShowSession(null);
             for (var i = 0; i < 10; i++) Pump();
             Check("профиль без данных — тот же скелетон эмблемы", skel.Visibility == Visibility.Visible,
-                  $"{skel.Visibility}"); 
+                  $"{skel.Visibility}");
+            var loading = EmptyGameCells(w);
+            Check("профиль без данных — пять слотов игр с бликом: данные ещё грузятся",
+                  loading.Count == 5 && loading.All(b => b is System.Windows.Media.LinearGradientBrush),
+                  string.Join(", ", loading.Select(b => b.GetType().Name)));
         }
         finally { w.Close(); }
     }
@@ -196,6 +206,15 @@ internal static class Program
     private static int MapFigures(System.Windows.Controls.Image i) =>
         i.Source is System.Windows.Media.DrawingImage { Drawing: System.Windows.Media.GeometryDrawing g }
             ? System.Windows.Media.PathGeometry.CreateFromGeometry(g.Geometry).Figures.Count : 0;
+
+    /// Заливки пустых слотов «последних игр»: у настоящей ячейки рамка без фона,
+    /// у пустой — плашка-заглушка.
+    private static List<System.Windows.Media.Brush> EmptyGameCells(OverlayWindow w) =>
+        ((Grid)w.FindName("Last5Panel")).Children.OfType<StackPanel>()
+            .Select(sp => sp.Children.Count > 0 ? sp.Children[0] as Border : null)
+            .Where(b => b?.Background is not null)
+            .Select(b => b!.Background)
+            .ToList();
 
     private static string Texts(Canvas c) =>
         string.Join(" | ", c.Children.OfType<TextBlock>().Select(t => t.Text));

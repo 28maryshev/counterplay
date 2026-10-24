@@ -481,7 +481,9 @@ public partial class OverlayWindow
 
     // Последние 5 игр — всегда пять равных колонок во всю ширину бара.
     // Недосыгранные слоты рисуем пустыми: панель не «прыгает» по высоте и
-    // сразу показывает, где появится история.
+    // сразу показывает, где появится история. С бликом — только пока профиля
+    // нет вовсе (games == null, данные грузятся); профиль пришёл — пустые слоты
+    // ждут игр, и блик там читался как «вечно грузится».
     private void FillLast5(IReadOnlyList<SessionTracker.RecentGame>? games)
     {
         Last5Panel.Children.Clear();
@@ -492,22 +494,22 @@ public partial class OverlayWindow
         {
             var cell = games != null && i < games.Count
                 ? BuildGameCell(games[i])
-                : BuildEmptyGameCell();
+                : BuildEmptyGameCell(still: games != null);
             Grid.SetColumn(cell, i);
             Last5Panel.Children.Add(cell);
         }
     }
 
-    // Скелетон слота игры: та же геометрия, что у настоящей ячейки, с бликом.
-    private FrameworkElement BuildEmptyGameCell()
+    // Скелетон слота игры: та же геометрия, что у настоящей ячейки; still — без блика.
+    private FrameworkElement BuildEmptyGameCell(bool still)
     {
         var col = new StackPanel
         {
             Margin = new Thickness(2, 0, 2, 0),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
         };
-        col.Children.Add(Skeleton.Block(47, 47, 9));
-        var lp = Skeleton.Block(22, 8);
+        col.Children.Add(Skeleton.Block(47, 47, 9, still));
+        var lp = Skeleton.Block(22, 8, still: still);
         lp.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
         lp.Margin = new Thickness(0, 4, 0, 1);
         col.Children.Add(lp);
