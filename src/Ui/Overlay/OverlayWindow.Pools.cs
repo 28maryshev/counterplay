@@ -114,7 +114,7 @@ public partial class OverlayWindow
 
         var ranked = SessionTracker.ChampStatsMap(SessionTracker.QueuesRanked);
         var normal = SessionTracker.ChampStatsMap(SessionTracker.QueuesNormal);
-        var items = ranked.Keys.Concat(normal.Keys).Distinct()
+        var items = SessionTracker.PlayedChamps(SessionTracker.RecentDays)
             .Select(id =>
             {
                 var (rg, rw) = ranked.GetValueOrDefault(id);
@@ -123,7 +123,6 @@ public partial class OverlayWindow
                 return (Id: id, Games: g, Wr: g > 0 ? 100.0 * (rw + nw) / g : 0.0);
             })
             .Where(x => x.Games > 0)
-            .OrderByDescending(x => x.Games)
             .Take(MyChampsMax)
             .Select(x => MyChampCard.FromChampion(
                 IconCache.Get(x.Id),

@@ -249,6 +249,9 @@ internal static class Program
         ChipFollowsPeriod();
         Pump();
 
+        NothingCut();
+        Pump();
+
         MateVisible(d1);
         Pump();
 
@@ -509,6 +512,45 @@ internal static class Program
             }
         }
         finally { SessionTracker.PreviewGames = null; }
+    }
+
+    /// <summary>
+    /// Владелец 24 октября: вчера играл в нормалах на Камилле и Сайласе, а в
+    /// «Твоём винрейте» их нет. Окно показывало 30 самых сыгранных, а при
+    /// равенстве игр ранговые стояли впереди нормалов просто по порядку
+    /// чтения, так что одиночные нормалы срезались первыми (у владельца 36
+    /// чемпионов за месяц, они — 35-й и 36-й). Здесь 31 чемпион с двумя
+    /// ранговыми играми и вчерашние Камилла и Сайлас с одной в нормалах.
+    /// </summary>
+    private static void NothingCut()
+    {
+        Console.WriteLine();
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new List<SessionTracker.PreviewGame>();
+        for (var champ = 1; champ <= 31; champ++)
+            for (var i = 0; i < 2; i++)
+                games.Add(new("", "", "solo", champ, 0, "", "", now - 2 * 86400L - champ * 3600L, i == 0));
+        games.Add(new("", "", "normal", 164, 0, "", "", now - 86400, true));    // Камилла
+        games.Add(new("", "", "normal", 517, 0, "", "", now - 80000, false));   // Сайлас
+        SessionTracker.PreviewGames = games;
+        var a = PoolStore.Current();
+        var fav = a.FavPoolId;
+        a.FavPoolId = null;   // без звезды — все чемпионы, а не один пул
+        try
+        {
+            AppSettings.Current.WinratesAllTime = false;
+            var w = new PoolSettingsWindow(() => { });
+            ShowHidden(w); Pump();
+            var chips = Walk<TextBlock>(w).Count(t => t.Text.Contains("% / "));
+            Check("за 30 дней: все 33 чемпиона на месте, вчерашние нормалы не срезаны",
+                  chips == 33, $"{chips} подписей");
+            w.Close(); Pump();
+        }
+        finally
+        {
+            SessionTracker.PreviewGames = null;
+            a.FavPoolId = fav;
+        }
     }
 
     private static bool SameColor(System.Windows.Media.Brush a, System.Windows.Media.Brush b) =>

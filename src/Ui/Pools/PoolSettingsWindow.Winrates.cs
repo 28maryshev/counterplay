@@ -187,10 +187,12 @@ public sealed partial class PoolSettingsWindow
         var only = fav is null ? null
             : new HashSet<int>(fav.ByRole.Values.SelectMany(l => l).Where(id => id != 0));
 
-        var ids = ranked.Keys.Concat(normal.Keys).Distinct()
+        // Все, без потолка: под лентой прокрутка. Потолок 30 остался с тех пор,
+        // как здесь стояла полоса постоянной высоты, и срезал вчерашние нормалы:
+        // при равенстве игр они стояли последними.
+        var ids = SessionTracker.PlayedChamps(days)
             .Where(id => only is null || only.Contains(id))
-            .OrderByDescending(id => ranked.GetValueOrDefault(id).Games + normal.GetValueOrDefault(id).Games)
-            .Take(30).ToList();
+            .ToList();
 
         WrHeader(_wrSolo, fav is null
             ? Loc.T("pool.myWinratesShort")

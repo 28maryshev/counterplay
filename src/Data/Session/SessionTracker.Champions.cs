@@ -107,6 +107,40 @@ public static partial class SessionTracker
         catch { return 0; }   // журнала нет или он битый — игр нет
     }
 
+    /// <summary>
+    /// Мои чемпионы в ранкеде и нормалах за окно (0 и меньше — за всё время):
+    /// больше игр — выше, при равенстве — кто сыгран позже. Порядок один для
+    /// полосы на экране готовности и для винрейтов в окне пулов. Раньше при
+    /// равенстве ранговые стояли впереди нормалов просто по порядку чтения, и
+    /// вчерашние нормалы уезжали в конец.
+    /// </summary>
+    public static List<int> PlayedChamps(int days)
+    {
+        var since = days > 0 ? DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds() : 0;
+        string[] queues = [.. QueuesRanked, .. QueuesNormal];
+        var games = new List<(int Champ, long Ts)>();
+        if (PreviewGames is { } preview)
+            games.AddRange(preview.Where(g => queues.Contains(g.Queue)).Select(g => (g.MyChampionId, g.Ts)));
+        else
+            try
+            {
+                var acc = JournalAccount(Load());
+                if (acc != null)
+                    foreach (var q in queues)
+                        if (acc.Queues.TryGetValue(q, out var ql))
+                            games.AddRange(ql.Games.Select(g => (g.ChampionId, g.Ts)));
+            }
+            catch { /* журнала нет или он битый — чемпионов нет */ }
+
+        return games
+            .Where(g => g.Champ != 0 && (since == 0 || g.Ts <= 0 || g.Ts >= since))
+            .GroupBy(g => g.Champ)
+            .OrderByDescending(x => x.Count())
+            .ThenByDescending(x => x.Max(g => g.Ts))
+            .Select(x => x.Key)
+            .ToList();
+    }
+
     /// Личная статистика по одному чемпиону за последние RecentDays дней.
     public static (int Games, int Wins) ChampStats(int championId, params string[] queues)
     {
