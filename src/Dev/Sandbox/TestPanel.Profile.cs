@@ -34,8 +34,10 @@ sealed partial class TestPanel
     // настоящие не попадают, а уход с профиля возвращает тестовые.
     private const int MyAccountProfile = 4;
     private const int UnrankedProfile = 5;
+    private const int ThreeGamesProfile = 6;
+    private const int AramProfile = 7;
     /// С этого места в списке — аккаунты из журнала (<see cref="_storedAccounts"/>).
-    private const int FirstStoredProfile = 6;
+    private const int FirstStoredProfile = 8;
     private IReadOnlyList<(string Key, string Nick)> _storedAccounts = [];
 
     // Выбор помнится отметкой в папке песочницы: settings.json — файл игрока,
@@ -101,6 +103,14 @@ sealed partial class TestPanel
             case UnrankedProfile:
                 _overlay.ShowSession(TestMode.UnrankedSession);
                 _overlay.SetChampsPreview(null);
+                break;
+            case ThreeGamesProfile:
+                _overlay.ShowSession(TestMode.ThreeGamesSession);
+                _overlay.SetChampsPreview(TestMode.ThreeGamesChamps);
+                break;
+            case AramProfile:
+                _overlay.ShowSession(TestMode.AramSession);
+                _overlay.SetChampsPreview(TestMode.AramChamps);
                 break;
             case >= FirstStoredProfile when _profile.SelectedIndex - FirstStoredProfile < _storedAccounts.Count:
                 _overlay.ShowSession(SessionTracker.StoredView(

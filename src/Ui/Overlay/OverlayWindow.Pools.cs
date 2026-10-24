@@ -67,6 +67,11 @@ public partial class OverlayWindow
     /// переносится и не растягивает окно (оно не должно быть выше клиента LoL).
     private const int MyChampsMax = 6;
 
+    /// Лента — у того, кто играет с драфтом: не меньше MyChampsMinGames игр в
+    /// ранкеде и нормалах среди последних MyChampsLastGames (решение владельца).
+    private const int MyChampsLastGames = 20;
+    private const int MyChampsMinGames = 3;
+
     // Предпросмотр «профиль без единой игры» — только тестовый режим: рисуем
     // ready-экран так, как его увидит человек сразу после установки.
     private bool _emptyProfilePreview;
@@ -143,8 +148,22 @@ public partial class OverlayWindow
                     $"{DataDragon.Name(id)} — {wr:F0}% / {games}"));
         }
 
-        // Игр ещё нет — строка не исчезает, а стоит пустыми слотами: место под
-        // статистику видно сразу, а с первой игрой слоты просто наполняются.
+        // Игр с драфтом мало — ленты нет, остаются кнопки пула: у того, кто
+        // играет ARAM, шесть пустых слотов висели бы вечно. Решают последние
+        // игры, а не месяц: две нормалки среди ARAM о пуле не говорят ничего.
+        var drafted = _champsPreview is { } shown
+            ? shown.Sum(c => c.Games)
+            : SessionTracker.RecentGamesIn(MyChampsLastGames,
+                [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        if (drafted < MyChampsMinGames || items.Count == 0)
+        {
+            MyChampsStrip.ItemsSource = null;
+            MyChampsBox.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        // Чемпионов меньше, чем мест, — остаток стоит пустыми слотами без блика:
+        // место видно, а с новым чемпионом слот просто наполнится.
         while (items.Count < MyChampsMax)
             items.Add(MyChampCard.Placeholder(Loc.T("session.needGames")));
 

@@ -39,6 +39,12 @@ static partial class TestMode
     /// Аккаунт без ранга: отборочные не сыграны, ранговых игр нет. На месте
     /// эмблемы — её скелетон; нормалы и ARAM — как в полном профиле.
     internal static SessionTracker.SessionData? UnrankedSession;
+    /// Порог ленты «мои чемпионы»: три игры с драфтом — лента есть, два
+    /// чемпиона и четыре пустых слота без блика.
+    internal static SessionTracker.SessionData? ThreeGamesSession;
+    /// Играет ARAM: среди последних двадцати игр две нормалки — ленты нет,
+    /// под кнопками пула пусто; профиль открыт на ARAM, график по винрейту.
+    internal static SessionTracker.SessionData? AramSession;
 
     /// Нажали «Боевой режим»: песочница завершается, и Program подключается к
     /// настоящему клиенту. Нужно, чтобы проверять свежую сборку на своих данных
@@ -60,6 +66,10 @@ static partial class TestMode
 
     internal static readonly (int, double, int)[] FiveGamesChamps =
         [(86, 100, 2), (103, 0, 2), (99, 100, 1)];
+
+    internal static readonly (int, double, int)[] ThreeGamesChamps = [(86, 100, 2), (103, 0, 1)];
+
+    internal static readonly (int, double, int)[] AramChamps = [(86, 100, 1), (103, 0, 1)];
 
     public static async Task RunAsync(OverlayWindow overlay, bool emptyProfile, bool firstGame,
                                       bool fiveGames, CancellationToken ct)
@@ -304,6 +314,20 @@ static partial class TestMode
                     HasRank: true, Tier: "PLATINUM", Division: "IV", Lp: 22, ProgressPct: 22,
                     Wins: 3, Losses: 2, Winrate: 60, Last5: five, WinrateHistory: fiveHist, RatingHistory: rating),
             });
+
+        // Первые три игры из тех же пяти: Гарен дважды, Дариус один раз.
+        ThreeGamesSession = FiveGamesSession with
+        {
+            Queues = new Dictionary<string, SessionTracker.QueueView>
+            {
+                ["solo"] = FiveGamesSession.Queues["solo"] with
+                {
+                    Wins = 2, Losses = 1, Winrate = 66.7,
+                    Last5 = five.Take(3).ToList(), WinrateHistory = fiveHist.Take(3).ToList(),
+                },
+            },
+        };
+        AramSession = fakeSession with { SelectedQueue = "aram" };
 
         overlay.Dispatcher.Invoke(() =>
         {

@@ -321,6 +321,8 @@ sealed partial class TestPanel : Window
         _profile.Items.Add("Профиль: рывок серебро→платина");
         _profile.Items.Add("Профиль: мой аккаунт");   // MyAccountProfile
         _profile.Items.Add("Профиль: без ранга");     // UnrankedProfile
+        _profile.Items.Add("Профиль: 3 игры");        // ThreeGamesProfile — порог ленты чемпионов
+        _profile.Items.Add("Профиль: ARAM, 2 нормала"); // AramProfile — ленты чемпионов нет
         // Аккаунты из журнала на этом компьютере — их экраны как есть (только
         // чтение): так видно настоящий аккаунт без ранговых, с нормалами и ARAM.
         _storedAccounts = SessionTracker.StoredAccounts();

@@ -204,6 +204,10 @@ public static partial class SessionTracker
             if (File.Exists(StorePath))
                 File.Copy(StorePath, StorePath + ".bak", overwrite: true);
             File.Move(tmp, StorePath, overwrite: true);
+            // Журнал переписан — статистика из кэша устарела. Без этого игры,
+            // добитые из истории при первом запуске, 20 секунд не видела лента
+            // «мои чемпионы»: экран успевал закэшировать пустой журнал.
+            DropCache();
         }
         catch { /* не критично */ }
     }

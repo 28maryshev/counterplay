@@ -61,9 +61,7 @@ public static partial class SessionTracker
         var map = new Dictionary<int, (int G, int W)>();
         try
         {
-            var s = Load();
-            var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
-                ? a : s.Accounts.Values.FirstOrDefault();
+            var acc = JournalAccount(Load());
             if (acc != null)
                 foreach (var q in queues)
                     if (acc.Queues.TryGetValue(q, out var ql))
@@ -79,6 +77,34 @@ public static partial class SessionTracker
 
         lock (StatsCache) StatsCache[key] = (DateTime.UtcNow, map);
         return map.ToDictionary(kv => kv.Key, kv => (kv.Value.G, kv.Value.W));
+    }
+
+    /// Чей журнал читать: последний аккаунт в клиенте, иначе первый в файле.
+    private static Account? JournalAccount(Store s) =>
+        s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
+            ? a : s.Accounts.Values.FirstOrDefault();
+
+    /// <summary>
+    /// Сколько из последних <paramref name="last"/> игр журнала (все очереди,
+    /// без окна по дням) сыграно в <paramref name="queues"/>. По нему лента
+    /// «мои чемпионы» решает, есть ли что показывать: у того, кто играет ARAM,
+    /// две случайные нормалки за месяц ничего не говорят о его чемпионах.
+    /// </summary>
+    public static int RecentGamesIn(int last, params string[] queues)
+    {
+        if (PreviewGames is { } preview)
+            return preview.OrderByDescending(g => g.Ts).Take(last).Count(g => queues.Contains(g.Queue));
+        try
+        {
+            var acc = JournalAccount(Load());
+            if (acc is null) return 0;
+            return acc.Queues
+                .SelectMany(q => q.Value.Games.Select(g => (Queue: q.Key, g.Ts)))
+                .OrderByDescending(g => g.Ts)
+                .Take(last)
+                .Count(g => queues.Contains(g.Queue));
+        }
+        catch { return 0; }   // журнала нет или он битый — игр нет
     }
 
     /// Личная статистика по одному чемпиону за последние RecentDays дней.
@@ -110,9 +136,7 @@ public static partial class SessionTracker
                 var list = new List<long>();
                 try
                 {
-                    var s = Load();
-                    var acc = s.LastAccount is { Length: > 0 } k && s.Accounts.TryGetValue(k, out var a)
-                        ? a : s.Accounts.Values.FirstOrDefault();
+                    var acc = JournalAccount(Load());
                     if (acc != null)
                         foreach (var q in LaneQueues)
                             if (acc.Queues.TryGetValue(q, out var ql))

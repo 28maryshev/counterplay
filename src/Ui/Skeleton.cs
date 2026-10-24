@@ -23,6 +23,12 @@ public static class Skeleton
 
     public static Brush Shimmer => _shimmer ??= CreateShimmer();
 
+    /// Та же плашка без блика — для места, которое заполнится не загрузкой, а
+    /// сыгранными играми: блик обещает «сейчас появится», а ждать тут нечего.
+    public static Brush Still { get; } = Frozen(new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)));
+
+    private static Brush Frozen(Brush b) { b.Freeze(); return b; }
+
     private static LinearGradientBrush CreateShimmer()
     {
         var b = new LinearGradientBrush

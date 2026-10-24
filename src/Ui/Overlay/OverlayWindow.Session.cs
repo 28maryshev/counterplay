@@ -92,6 +92,10 @@ public partial class OverlayWindow
                 _wrChartHooked = true;
             }
             RenderSessionView();
+            // Журнал мог измениться: при первом запуске его добивает история
+            // клиента уже после показа экрана, и без этого лента «мои чемпионы»
+            // стояла пустой до первой смены фазы.
+            UpdateMyChampsStrip();
         });
 
     // Рендер панели для выбранной очереди (Solo/Flex/Normal/ARAM).

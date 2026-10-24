@@ -91,11 +91,12 @@ public sealed class MyChampCard
         };
     }
 
-    // Скелетон слота: размеры настоящей карточки, вместо иконки и цифр — плашки
-    // с бликом, чтобы место под статистику читалось как «скоро заполнится».
+    // Скелетон слота: размеры настоящей карточки, вместо иконки и цифр — плашки.
+    // Без блика: слот заполнится новым чемпионом в играх, а не загрузкой, и
+    // переливание рядом с настоящими карточками читалось как «вечно грузится».
     public static MyChampCard Placeholder(string tip) => new()
     {
-        Fill       = Skeleton.Shimmer,
+        Fill       = Skeleton.Still,
         Wr         = "",
         WrSkeleton = Visibility.Visible,
         Frame      = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
