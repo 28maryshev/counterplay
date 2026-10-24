@@ -110,6 +110,27 @@ public static partial class SessionTracker
         /// ровно один человек, и это он и есть.
         /// </summary>
         public Dictionary<string, QueuedMate> Queued { get; set; } = new();
+
+        /// <summary>
+        /// Записи, доказанно чужие и убранные (см. <c>ProveForeignAsync</c>):
+        /// игры другого аккаунта, легшие в этот журнал при смене аккаунта до
+        /// 1.3.63. Слияние синхронизации убирает по этим отпечаткам те же записи,
+        /// пришедшие с копии другого компьютера, — иначе они возвращались бы
+        /// каждым проходом. Нет убранного — поля в файле нет.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ForeignMark>? Foreign { get; set; }
+    }
+
+    /// Отпечаток убранной чужой записи: где лежала и что в ней было. Время
+    /// записи у пачки одно на все записи и своё у каждой пачки — с чемпионом и
+    /// исходом его хватает, чтобы узнать ту же запись на любом компьютере.
+    private sealed class ForeignMark
+    {
+        public string Queue { get; set; } = "";
+        public long Ts { get; set; }
+        public int ChampionId { get; set; }
+        public bool Win { get; set; }
     }
 
     /// Человек, с которым стояли в очереди соло/дуо.

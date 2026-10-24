@@ -81,6 +81,8 @@ public static partial class SessionTracker
         if (folded > 0) Log.Write($"журнал игр: убрано копий одних и тех же игр — {folded}");
         var foreign = DropForeignGames(store, accountKey, history);
         if (foreign > 0) Log.Write($"журнал игр: убрано чужих игр из журналов других аккаунтов — {foreign}");
+        var proven = await ProveForeignAsync(http, store, accountKey, history, ct);
+        if (proven > 0) Log.Write($"журнал игр: убрано чужих игр, доказанных по клиенту — {proven}");
 
         // 4) Новые игры — те, чьих номеров мы ещё не видели. Порядок берём по
         //    времени начала: номера игр по времени не упорядочены (см. SeenGames).

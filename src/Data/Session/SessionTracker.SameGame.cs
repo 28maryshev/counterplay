@@ -1,8 +1,8 @@
 namespace Counterplay;
 
-// Журнал игр — одна игра, записанная дважды, и чужие игры в журнале: опознание
-// по номеру игры и времени её начала. Правила общие для журнала (по истории
-// клиента) и для синхронизации (по записям другого компьютера).
+// Журнал игр — одна игра, записанная дважды: опознание по номеру игры и времени
+// её начала. Правило общее для журнала (по истории клиента) и для синхронизации
+// (по записям другого компьютера). Чужие игры в журнале — SessionTracker.Foreign.cs.
 public static partial class SessionTracker
 {
     /// <summary>
@@ -97,75 +97,6 @@ public static partial class SessionTracker
     }
 
     /// <summary>
-    /// Чужие игры в журнале аккаунта: какие записи убрать.
-    ///
-    /// При смене аккаунта в клиенте журнал спрашивал «кто в клиенте» и «последние
-    /// игры» в разные моменты, и история одного аккаунта ложилась в журнал
-    /// другого целиком — разом, одним «сейчас», без LP. Номера этих игр при этом
-    /// попадали в «виденные» (<paramref name="seen"/>) того, чужого аккаунта.
-    ///
-    /// Правило. <paramref name="others"/> — игры ДРУГИХ аккаунтов (история
-    /// клиента или записи с номером). Чужая игра — та, чей номер есть в
-    /// виденных этого аккаунта, а запись с тем же чемпионом, исходом и очередью
-    /// сделана после её начала. И главное: такие записи должны лечь пачкой —
-    /// не меньше трёх разных чужих игр с одним и тем же временем записи. Одна
-    /// совпавшая запись — не улика: в дуо номер общей игры виден обоим, и своя
-    /// более поздняя игра на том же чемпионе выглядела бы так же.
-    /// </summary>
-    public static HashSet<(string Queue, int Index)> ForeignGames(
-        IReadOnlyList<GameRef> games, IReadOnlySet<long> seen, IEnumerable<GameAnchor> others)
-    {
-        var anchors = others.Where(a => seen.Contains(a.Id))
-                            .GroupBy(a => a.Id).Select(x => x.First()).ToList();
-        var byKey = games.Where(g => g.Id is null).ToLookup(g => (g.Queue, g.ChampionId, g.Win));
-
-        // Время записи → сколько разных чужих игр могли бы лежать под ним.
-        var hits = new Dictionary<long, int>();
-        foreach (var a in anchors)
-            foreach (var ts in byKey[(a.Queue, a.ChampionId, a.Win)]
-                         .Where(g => g.Ts >= a.Start).Select(g => g.Ts).Distinct())
-                hits[ts] = hits.GetValueOrDefault(ts) + 1;
-
-        var res = new HashSet<(string, int)>();
-        foreach (var (ts, _) in hits.Where(kv => kv.Value >= 3))
-            foreach (var a in anchors)
-                if (a.Start <= ts && byKey[(a.Queue, a.ChampionId, a.Win)]
-                        .FirstOrDefault(g => g.Ts == ts && !res.Contains((g.Queue, g.Index))) is { } r)
-                    res.Add((r.Queue, r.Index));
-        return res;
-    }
-
-    /// Убрать из журналов ДРУГИХ аккаунтов игры текущего (см. <see cref="ForeignGames"/>).
-    /// Опоры — его история клиента и его записи с номером. Возвращает, сколько убрано.
-    private static int DropForeignGames(Store store, string current, IEnumerable<HistEntry> history)
-    {
-        if (!store.Accounts.TryGetValue(current, out var me)) return 0;
-        var mine = history.Where(h => h.CreatedSec > 0)
-            .Select(h => new GameAnchor(h.GameId, h.CreatedSec, h.Queue, h.ChampionId, h.Win))
-            .Concat(me.Queues.SelectMany(kv => kv.Value.Games
-                .Where(g => g.Id is not null && g.Start is not null)
-                .Select(g => new GameAnchor(g.Id!.Value, g.Start!.Value, kv.Key, g.ChampionId, g.Win))))
-            .ToList();
-        if (mine.Count == 0) return 0;
-
-        var removed = 0;
-        foreach (var (key, acc) in store.Accounts)
-        {
-            if (key == current || acc.SeenGames.Count == 0) continue;
-            var refs = acc.Queues.SelectMany(kv => kv.Value.Games.Select((g, i) =>
-                new GameRef(kv.Key, i, g.Ts, g.ChampionId, g.Win, g.Id, g.Start))).ToList();
-            foreach (var byQueue in ForeignGames(refs, acc.SeenGames.ToHashSet(), mine).GroupBy(x => x.Queue))
-            {
-                var games = acc.Queues[byQueue.Key].Games;
-                foreach (var i in byQueue.Select(x => x.Index).OrderByDescending(x => x))
-                    games.RemoveAt(i);
-                removed += byQueue.Count();
-            }
-        }
-        return removed;
-    }
-
-    /// <summary>
     /// Свести копии одних и тех же игр в журнале аккаунта. Опоры — история
     /// клиента (около двадцати последних игр) и записи, где номер уже есть.
     /// Так чинятся и записи до 1.3.63, у которых номера нет: все копии,
@@ -174,8 +105,7 @@ public static partial class SessionTracker
     /// </summary>
     private static int FoldSameGames(Account acc, IEnumerable<HistEntry> history)
     {
-        var refs = acc.Queues.SelectMany(kv => kv.Value.Games.Select((g, i) =>
-            new GameRef(kv.Key, i, g.Ts, g.ChampionId, g.Win, g.Id, g.Start))).ToList();
+        var refs = Refs(acc);
         var anchors = history.Where(h => h.CreatedSec > 0)
             .Select(h => new GameAnchor(h.GameId, h.CreatedSec, h.Queue, h.ChampionId, h.Win));
 

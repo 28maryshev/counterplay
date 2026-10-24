@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Чужие игры в журнале: убираются под любым вошедшим аккаунтом (по
+       подробной игре в клиенте) и синхронизацией не возвращаются. Подставной
+       клиент League и свой сервер синхронизации, своя папка. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeLcu.cs" />
+    <Compile Include="..\Shared\FakeSyncServer.cs" />
+  </ItemGroup>
+
+</Project>

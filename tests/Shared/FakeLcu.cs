@@ -36,6 +36,14 @@ internal sealed class FakeLcu : IDisposable
     /// Куда стучаться: <c>new LcuHttpClient(fake.Credentials)</c>.
     public LcuCredentials Credentials { get; }
 
+    /// Подробные игры по номеру (<c>/lol-match-history/v1/games/{id}</c>) —
+    /// тело как у клиента; номера нет — 404.
+    public Dictionary<long, string> Details { get; } = [];
+
+    /// Сколько раз спрашивали подробную игру.
+    public int DetailAsks => _detailAsks;
+    private int _detailAsks;
+
     /// Игры — новейшие первыми, как отдаёт клиент. puuid null — клиент открыт,
     /// но в аккаунт не вошли: «кто в клиенте» отвечает 404. Без рангов —
     /// ранги тоже 404.
@@ -145,6 +153,13 @@ internal sealed class FakeLcu : IDisposable
                     }),
                 });
             return (200, new JsonObject { ["games"] = new JsonObject { ["games"] = games } }.ToJsonString());
+        }
+
+        if (path.StartsWith("/lol-match-history/v1/games/"))
+        {
+            Interlocked.Increment(ref _detailAsks);
+            return long.TryParse(path["/lol-match-history/v1/games/".Length..], out var gid)
+                   && Details.TryGetValue(gid, out var detail) ? (200, detail) : (404, "{}");
         }
         return (404, "{}");
     }

@@ -148,7 +148,8 @@ public static partial class SyncClient
     /// связки — объединением отметок времени. После этого связки чистятся по
     /// тому же правилу, что и в журнале (<see cref="ForgetPairs"/>), а копии одних
     /// и тех же игр сводятся (<see cref="FoldSameGames"/>), а чужие игры из
-    /// журналов других аккаунтов убираются (<see cref="DropForeignGames"/>).
+    /// журналов других аккаунтов убираются (<see cref="DropForeignGames"/>,
+    /// <see cref="DropMarked"/>).
     ///
     /// Ничего не пришло и нечего чистить — возвращается свой текст байт в байт:
     /// проход без новостей не должен переписывать журнал и считаться «забравшим».
@@ -170,12 +171,14 @@ public static partial class SyncClient
 
                 MergeQueues(m, t);
                 MergePairs(m, t);
+                MergeMarks(m, t);
             }
 
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (var (_, acc) in accА)
                 if (acc is JsonObject o)
                 {
+                    DropMarked(o);
                     FoldSameGames(o);
                     ForgetPairs(o, now);
                 }
@@ -338,6 +341,45 @@ public static partial class SyncClient
             }
         }
     }
+
+    /// <summary>
+    /// Отпечатки доказанно чужих записей (<c>Foreign</c>, см.
+    /// <c>SessionTracker.ProveForeignAsync</c>): объединяем. Доказал один
+    /// компьютер — убирают оба: у второго их аккаунта может и не быть в клиенте.
+    /// </summary>
+    private static void MergeMarks(JsonObject mine, JsonObject theirs)
+    {
+        if (theirs["Foreign"] is not JsonArray ft) return;
+        if (mine["Foreign"] is not JsonArray fm) { mine["Foreign"] = ft.DeepClone(); return; }
+        var have = fm.Select(Mark).ToHashSet();
+        foreach (var x in ft)
+            if (have.Add(Mark(x))) fm.Add(x!.DeepClone());
+    }
+
+    /// <summary>
+    /// Убрать записи по отпечаткам чужих. Журнал убрал их у себя, а копия
+    /// другого компьютера хранит, и сведение по времени записи вернуло бы их
+    /// каждым проходом: правилу пачки (<see cref="DropForeignGames"/>) здесь
+    /// опереться не на что — номеров чужих игр в записях нет, клиента нет.
+    /// </summary>
+    private static void DropMarked(JsonObject account)
+    {
+        if (account["Foreign"] is not JsonArray marks || account["Queues"] is not JsonObject queues) return;
+        var gone = marks.Select(Mark).ToHashSet();
+        foreach (var (queue, node) in queues)
+        {
+            if (node?["Games"] is not JsonArray games) continue;
+            for (var i = games.Count - 1; i >= 0; i--)
+                if (games[i] is JsonObject g && gone.Contains(Mark(queue, g)))
+                    games.RemoveAt(i);
+        }
+    }
+
+    private static (string?, long?, int?, bool?) Mark(JsonNode? m) =>
+        ((string?)m?["Queue"], (long?)m?["Ts"], (int?)m?["ChampionId"], (bool?)m?["Win"]);
+
+    private static (string?, long?, int?, bool?) Mark(string queue, JsonObject g) =>
+        (queue, (long?)g["Ts"], (int?)g["ChampionId"], (bool?)g["Win"]);
 
     /// Записи журнала аккаунта глазами правил <see cref="SessionTracker"/>.
     private static List<SessionTracker.GameRef> GameRefs(JsonObject queues)
