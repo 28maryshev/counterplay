@@ -130,6 +130,9 @@ partial class Program
         // -1 = действия нет (id 0 — валидный: в кастомках нумерация с нуля).
         int myPickActionId = -1;
         int myBanActionId  = -1;
+        // Очередь текущей игры — из геймфлоу: по ней драфт Swiftplay не
+        // показывается, а ARAM: Mayhem идёт как ARAM (см. ForQueue).
+        int queueId = 0;
         overlay.HoverHandler    = champId => RunesImporter.HoverChampionAsync(http, myPickActionId, champId, ct);
         overlay.LockHandler     = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
         overlay.BanHoverHandler = champId => RunesImporter.HoverChampionAsync(http, myBanActionId, champId, ct);
@@ -198,6 +201,7 @@ partial class Program
             {
                 using var gdoc = JsonDocument.Parse(gfBody);
                 var phase = PhaseOf(gdoc.RootElement);
+                queueId = QueueIdOf(gdoc.RootElement);
                 _restartSafe = phase != "ChampSelect";
                 if (phase is "GameStart" or "InProgress" or "Reconnect")
                 {
@@ -225,13 +229,15 @@ partial class Program
         if (initCode == 200)
         {
             using var doc = JsonDocument.Parse(initBody);
-            var draft = ChampSelectParser.Parse(doc.RootElement);
-            myPickActionId = draft.MyPickActionId;
-            myBanActionId  = draft.MyBanActionId;
-            overlay.UpdateRecommendations(
-                draft.IsAram ? engine?.RecommendAram(draft, AppSettings.Current.DraftCount)
-                             : engine?.Recommend(draft, AppSettings.Current.DraftCount),
-                draft, engine);
+            if (ForQueue(ChampSelectParser.Parse(doc.RootElement), queueId) is { } draft)
+            {
+                myPickActionId = draft.MyPickActionId;
+                myBanActionId  = draft.MyBanActionId;
+                overlay.UpdateRecommendations(
+                    draft.IsAram ? engine?.RecommendAram(draft, AppSettings.Current.DraftCount)
+                                 : engine?.Recommend(draft, AppSettings.Current.DraftCount),
+                    draft, engine);
+            }
         }
 
         // Сменили аккаунт в клиенте — перечитываем ВСЁ, что к нему привязано.
@@ -372,6 +378,8 @@ partial class Program
 
                 case "/lol-gameflow/v1/session":
                     var phase = PhaseOf(ev.Data);
+                    var gameQueue = QueueIdOf(ev.Data);
+                    if (gameQueue > 0) queueId = gameQueue;
                     // Программу могли запустить, когда лобби уже собрано: события
                     // о нём тогда не будет, а начальный опрос пришёлся на момент
                     // без лобби. Пока состав неизвестен — переспрашиваем на каждой
@@ -444,7 +452,7 @@ partial class Program
                     else
                     {
                         _restartSafe = false;   // идёт драфт — не до перезапуска
-                        var draft = ChampSelectParser.Parse(ev.Data);
+                        if (ForQueue(ChampSelectParser.Parse(ev.Data), queueId) is not { } draft) break;
                         myPickActionId = draft.MyPickActionId;
                         myBanActionId  = draft.MyBanActionId;
                         // Выданная роль — в журнал игр: по ней следующая игра
@@ -577,14 +585,30 @@ partial class Program
 
     // Очередь текущего лобби из события геймфлоу: gameData.queue.id → наш ключ
     // (solo/flex/normal/aram). Нужна, чтобы режим пула помнился отдельно по очередям.
+    // Очередь без подбора (Swiftplay) — свой ключ: пул там ни к чему, и
+    // подсказка режима пула в её лобби молчит (PoolHint.Decide).
     static string? QueueKeyOf(JsonElement data)
     {
-        if (data.ValueKind != JsonValueKind.Object) return null;
-        if (!data.TryGetProperty("gameData", out var gd) || gd.ValueKind != JsonValueKind.Object) return null;
-        if (!gd.TryGetProperty("queue", out var q) || q.ValueKind != JsonValueKind.Object) return null;
-        if (!q.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.Number) return null;
-        return SessionTracker.QueueOf(id.GetInt32());
+        var id = QueueIdOf(data);
+        return SessionTracker.DraftHelp(id) ? SessionTracker.QueueOf(id) : PoolHint.NoDraftQueue;
     }
+
+    // Номер очереди из события геймфлоу (gameData.queue.id); 0 — нет.
+    static int QueueIdOf(JsonElement data)
+    {
+        if (data.ValueKind != JsonValueKind.Object) return 0;
+        if (!data.TryGetProperty("gameData", out var gd) || gd.ValueKind != JsonValueKind.Object) return 0;
+        if (!gd.TryGetProperty("queue", out var q) || q.ValueKind != JsonValueKind.Object) return 0;
+        return q.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number ? id.GetInt32() : 0;
+    }
+
+    // Драфт с поправкой на очередь: в Swiftplay подбора нет (null — драфт не
+    // показываем), ARAM: Mayhem — ARAM во всём, даже если клиент не включил
+    // скамейку (решение владельца, 24.10).
+    static DraftState? ForQueue(DraftState draft, int queueId) =>
+        !SessionTracker.DraftHelp(queueId) ? null
+        : SessionTracker.QueueOf(queueId) == "aram" ? draft with { IsAram = true }
+        : draft;
 
     static string PhaseOf(JsonElement data) =>
         data.ValueKind == JsonValueKind.Object &&

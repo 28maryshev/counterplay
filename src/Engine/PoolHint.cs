@@ -40,12 +40,15 @@ public static class PoolHint
     /// <paramref name="mates"/> — сопартийцы puuid → ник, <paramref name="size"/>
     /// — сколько их (у кого-то puuid может не прийти).
     /// </summary>
+    /// Ключ лобби очереди без подбора в драфте (Swiftplay): пул там ни к чему.
+    public const string NoDraftQueue = "nodraft";
+
     public static PoolSuggestion? Decide(AccountPools a, string queue, bool known, int size,
                                          IReadOnlyDictionary<string, string> mates)
     {
         // Состав неизвестен — советовать не по чему. В ARAM пулы не работают:
-        // чемпиона там не выбирают.
-        if (!known || queue == "aram") return null;
+        // чемпиона там не выбирают; в Swiftplay его выбирают в лобби, без драфта.
+        if (!known || queue is "aram" or NoDraftQueue) return null;
 
         var active = a.ActiveKind == PoolKind.Duo
             ? a.DuoPools.FirstOrDefault(d => d.Id == a.ActiveId) : null;

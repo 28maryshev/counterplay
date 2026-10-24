@@ -62,14 +62,24 @@ public static partial class SessionTracker
     private static double SmoothWr(int wins, int games) =>
         100.0 * (wins + PriorGames * 0.5) / (games + PriorGames);
 
-    // queueId LCU → наш ключ очереди (400 драфт / 430 блайнд / 490 квикплей = normal).
-    internal static string? QueueOf(int queueId) => queueId switch
+    /// Swiftplay: чемпион выбирается в лобби до поиска. Игры пишутся как
+    /// нормалы, а подбор в драфте там не показывается (решение владельца, 24.10).
+    public const int Swiftplay = 480;
+
+    /// Показывать ли подбор в драфте этой очереди.
+    public static bool DraftHelp(int queueId) => queueId != Swiftplay;
+
+    // queueId LCU → наш ключ очереди. Нормалы — 400 драфт и 480 Swiftplay (430
+    // блайнд и 490 квикплей из клиента ушли — Quickplay сменил Swiftplay, — но
+    // остаются в старых историях). ARAM: Mayhem (2400) во всём как ARAM
+    // (решение владельца, 24.10). Номера сверены с клиентом 24.10.2026.
+    public static string? QueueOf(int queueId) => queueId switch
     {
-        420                => "solo",
-        440                => "flex",
-        400 or 430 or 490  => "normal",
-        450                => "aram",
-        _                  => null,
+        420                       => "solo",
+        440                       => "flex",
+        400 or 430 or 480 or 490  => "normal",
+        450 or 2400               => "aram",
+        _                         => null,
     };
 
     private static string StorePath =>
