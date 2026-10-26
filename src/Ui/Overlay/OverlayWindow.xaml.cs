@@ -130,6 +130,7 @@ public partial class OverlayWindow : Window
         Log.Snapshot = () => Dispatcher.CheckAccess()
             ? BuildSnapshot()
             : Dispatcher.Invoke(BuildSnapshot);
+        WatchMonitors();
     }
 
     // Клик по ссылке в плашке беты — открываем в системном браузере.
@@ -164,7 +165,7 @@ public partial class OverlayWindow : Window
     {
         _userMoved = true; // дальше окно стоит там, куда его поставил пользователь
         DragMove();
-        Log.Write($"окно перетащили в ({Left:0};{Top:0})");
+        Log.Write($"окно перетащили в ({Left:0};{Top:0}), {MonitorNote()}");
     }
 
     // Кнопка-пин: вернуть оверлей к правому краю окна клиента

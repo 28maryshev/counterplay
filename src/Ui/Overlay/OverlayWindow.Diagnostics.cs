@@ -17,7 +17,8 @@ using Size = System.Windows.Size;
 
 namespace Counterplay;
 
-// Окно драфта — «Сохранить для драфта», копия журнала и снимок состояния для него.
+// Окно драфта — «Сохранить для драфта», копия журнала и снимок состояния для него,
+// строка в журнал при смене мониторов.
 public partial class OverlayWindow
 {
     // ── «Сохранить для драфта» (только тестовый режим) ───────────────────────
@@ -91,9 +92,8 @@ public partial class OverlayWindow
         sb.AppendLine($"── Counterplay v{Log.Version} · {DateTime.Now:dd.MM HH:mm:ss} ──");
         sb.AppendLine($"режим {Log.Mode} · язык {Loc.Current} · база {DataDb.CurrentBucket ?? "—"}");
 
-        var wa = SystemParameters.WorkArea;
         var (dpiX, dpiY) = Dpi();
-        sb.AppendLine($"экран: рабочая область {wa.Width:0}×{wa.Height:0} в ({wa.Left:0};{wa.Top:0}), " +
+        sb.AppendLine($"экран: мониторы {Monitors.Describe(WorkAreas())}, " +
                       $"весь стол {SystemParameters.VirtualScreenWidth:0}×{SystemParameters.VirtualScreenHeight:0}, " +
                       $"DPI ×{dpiX:0.00}");
 
@@ -108,7 +108,7 @@ public partial class OverlayWindow
         var view = _inTray ? "трей"
                  : FullView.Visibility     == Visibility.Visible ? "драфт"
                  : CompactScroll.Visibility == Visibility.Visible ? "компактный" : "панель";
-        sb.AppendLine($"окно: {ActualWidth:0}×{ActualHeight:0} в ({Left:0};{Top:0}), вид {view}, " +
+        sb.AppendLine($"окно: {ActualWidth:0}×{ActualHeight:0} в ({Left:0};{Top:0}), {MonitorNote()}, вид {view}, " +
                       $"масштаб ×{_loggedScale:0.00}, поверх всех {(Topmost ? "да" : "нет")}, " +
                       $"двигали руками {(_userMoved ? "да" : "нет")}");
 
@@ -128,5 +128,18 @@ public partial class OverlayWindow
             sb.AppendLine("  " + string.Join("  ", parts.Skip(i).Take(5)));
 
         return sb.ToString();
+    }
+
+    /// Подключили или сняли монитор, сменили разрешение — строка в журнал: с
+    /// какими мониторами дальше живёт окно и где оно стоит. Без неё жалобу
+    /// «окно прыгает между мониторами» по журналу не разобрать: шапка снимка
+    /// показывает только стол на момент копирования.
+    private void WatchMonitors()
+    {
+        void OnChanged(object? s, EventArgs e) => Dispatcher.InvokeAsync(() =>
+            Log.Write($"мониторы изменились: {Monitors.Describe(WorkAreas())}; " +
+                      $"окно в ({Left:0};{Top:0}), {MonitorNote()}"));
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnChanged;
+        Closed += (_, _) => Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnChanged;
     }
 }

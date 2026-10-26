@@ -70,7 +70,7 @@ public partial class OverlayWindow
             MaxHeight = double.PositiveInfinity;
             return;
         }
-        var wa = SystemParameters.WorkArea;
+        var wa = MyWorkArea();
         var max = wa.Bottom - Math.Max(wa.Top, Top) - 8;
         MaxHeight = Math.Max(MinH, max);
     }
@@ -142,29 +142,72 @@ public partial class OverlayWindow
         else ClampToScreen();
     }
 
+    // ── Мониторы ────────────────────────────────────────────────────────────
+    // Экран — это монитор, на котором стоит окно, а не основной. Раньше всё
+    // вписывалось в SystemParameters.WorkArea (только основной монитор), и
+    // окно, унесённое на второй, на каждом обновлении драфта возвращалось к
+    // краю основного. Проверка tests/MultiMonitor.
+
+    /// Рабочие области всех мониторов в координатах окна.
+    private IReadOnlyList<Rect> WorkAreas()
+    {
+        var (dpiX, dpiY) = Dpi();
+        return Monitors.WorkAreas(dpiX, dpiY);
+    }
+
+    private Rect WindowRect() => new(Left, Top,
+        ActualWidth  > 0 ? ActualWidth  : double.IsNaN(Width)  ? 0 : Width,
+        ActualHeight > 0 ? ActualHeight : double.IsNaN(Height) ? 0 : Height);
+
+    /// Монитор, на котором окно: большая часть окна, а не основной.
+    private Rect MyWorkArea() => Monitors.Nearest(WindowRect(), WorkAreas());
+
+    /// «Монитор 2 из 2» — для строк журнала про место окна.
+    private string MonitorNote()
+    {
+        var areas = WorkAreas();
+        return $"монитор {Monitors.IndexOf(WindowRect(), areas)} из {areas.Count}";
+    }
+
+    private const double GrabW = 220;   // столько шапки оставляем видимой
+
+    /// Куда встанет окно шириной w, чтобы на мониторе wa осталась шапка.
+    private static (double L, double T) HeaderInside(Rect wa, double l, double t, double w) =>
+        (Math.Max(wa.Left - Math.Max(0, w - GrabW), Math.Min(l, wa.Right - GrabW)),
+         Math.Max(wa.Top, Math.Min(t, wa.Bottom - 40)));
+
     /// Окну можно уходить за правый край — но не целиком: на экране должна
     /// оставаться шапка, иначе окно нечем схватить и вернуть.
+    ///
+    /// Шапка видна хоть на каком-то мониторе — окно не трогаем: оно может
+    /// стоять на втором мониторе или перекрывать два сразу. Не видна ни на
+    /// одном (монитор отключили) — вытягиваем на ближайший.
     private void KeepHeaderOnScreen()
     {
-        var wa = SystemParameters.WorkArea;
-        const double GrabW = 220;   // столько шапки оставляем видимой
+        var w = ActualWidth > 0 ? ActualWidth : Width;
+        var areas = WorkAreas();
         var (l0, t0) = (Left, Top);
-        Left = Math.Max(wa.Left - Math.Max(0, (ActualWidth > 0 ? ActualWidth : Width) - GrabW),
-                        Math.Min(Left, wa.Right - GrabW));
-        Top  = Math.Max(wa.Top, Math.Min(Top, wa.Bottom - 40));
+        foreach (var a in areas)
+        {
+            var (l, t) = HeaderInside(a, l0, t0, w);
+            if (Math.Abs(l - l0) <= 1 && Math.Abs(t - t0) <= 1) return;
+        }
+        (Left, Top) = HeaderInside(Monitors.Nearest(WindowRect(), areas), l0, t0, w);
         if (Math.Abs(l0 - Left) > 1 || Math.Abs(t0 - Top) > 1)
-            Log.Write($"подтянул шапку в экран: ({l0:0};{t0:0}) → ({Left:0};{Top:0})");
+            Log.Write($"подтянул шапку в экран: ({l0:0};{t0:0}) → ({Left:0};{Top:0}), {MonitorNote()}; " +
+                      $"мониторы: {Monitors.Describe(areas)}");
     }
 
     /// Полное вписывание в экран — для панели профиля: она узкая, ей уезжать
-    /// за край незачем.
+    /// за край незачем. Экран — тот монитор, где панель стоит.
     private void ClampToScreen()
     {
-        var wa = SystemParameters.WorkArea;
         var w = ActualWidth > 0 ? ActualWidth : Width;
         var h = ActualHeight > 0 ? ActualHeight : Height;
         if (double.IsNaN(w) || double.IsNaN(h) || w <= 0 || h <= 0) return;
 
+        var areas = WorkAreas();
+        var wa = Monitors.Nearest(new Rect(Left, Top, w, h), areas);
         var (l0, t0, w0, h0) = (Left, Top, w, h);
         if (w > wa.Width)  { Width  = w = wa.Width;  }
         if (h > wa.Height) { Height = h = wa.Height; }
@@ -172,7 +215,8 @@ public partial class OverlayWindow
         Top  = Math.Max(wa.Top,  Math.Min(Top,  wa.Bottom - h));
         if (Math.Abs(l0 - Left) > 1 || Math.Abs(t0 - Top) > 1 ||
             Math.Abs(w0 - w) > 1 || Math.Abs(h0 - h) > 1)
-            Log.Write($"вписал в экран: было ({l0:0};{t0:0}) {w0:0}×{h0:0} → ({Left:0};{Top:0}) {w:0}×{h:0}");
+            Log.Write($"вписал в экран: было ({l0:0};{t0:0}) {w0:0}×{h0:0} → ({Left:0};{Top:0}) {w:0}×{h:0}, " +
+                      $"{MonitorNote()}; мониторы: {Monitors.Describe(areas)}");
     }
 
     /// Размер в пикселях с учётом подгонки под клиент: окно и содержимое должны
@@ -309,7 +353,7 @@ public partial class OverlayWindow
                 // запомненные координаты ведут в пустоту, и без этой проверки
                 // человек видит «программа не открывается» и ничего в журнале.
                 KeepHeaderOnScreen();
-                Log.Write($"раскладка «запомненная»: окно {Width:0}×{Height:0} в ({Left:0};{Top:0})");
+                Log.Write($"раскладка «запомненная»: окно {Width:0}×{Height:0} в ({Left:0};{Top:0}), {MonitorNote()}");
                 _placementApplied = true;
                 ApplyScale();
                 return;
@@ -357,7 +401,8 @@ public partial class OverlayWindow
         _settingSize = false;
         _placementApplied = true;
         KeepHeaderOnScreen();
-        Log.Write($"раскладка «{mode}»: клиент {cw:0}×{chh:0}, окно {Width:0}×{Height:0} в ({Left:0};{Top:0})");
+        Log.Write($"раскладка «{mode}»: клиент {cw:0}×{chh:0} в ({cl:0};{cTop:0}), " +
+                  $"окно {Width:0}×{Height:0} в ({Left:0};{Top:0}), {MonitorNote()}");
         ApplyScale();
     }
 

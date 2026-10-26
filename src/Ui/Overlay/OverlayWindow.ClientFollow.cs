@@ -104,10 +104,15 @@ public partial class OverlayWindow
             dpiX = ct.TransformToDevice.M11;
             dpiY = ct.TransformToDevice.M22;
         }
+        var (l0, t0) = (Left, Top);
         Left = r.Right / dpiX;
         Top  = r.Top  / dpiY;
         LimitHeightToClient();
         ClampToScreen();   // клиент у правого края — окно не должно уехать за экран
+        // Пишем только сдвиг: на месте окно приклеивается на каждом обновлении.
+        if (Math.Abs(l0 - Left) > 1 || Math.Abs(t0 - Top) > 1)
+            Log.Write($"приклеил к клиенту: ({l0:0};{t0:0}) → ({Left:0};{Top:0}), " +
+                      $"клиент справа до {r.Right / dpiX:0}, {MonitorNote()}");
     }
 
     // ── Слежение за окном клиента LoL ─────────────────────────────────────
