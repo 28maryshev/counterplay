@@ -75,7 +75,7 @@ public sealed class AppSettings
 
     // ── Драфт (продолжение) ─────────────────────────────────────────────────
     /// Сколько рекомендаций показывать в списке.
-    public int DraftCount { get; set; } = 6;
+    public int DraftCount { get; set; } = 8;
 
     /// Показывать чемпионов, которых нет на аккаунте (красная рамка).
     public bool DraftUnowned { get; set; } = true;
