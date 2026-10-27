@@ -286,32 +286,18 @@ public partial class OverlayWindow
 
         RestoreModeSize();
 
-        if (draft?.IsAram == true)
+        // Подсказка по порядку пика: пикаешь раньше врагов → риск контрпика.
+        // В ARAM порядка пика нет. Строки «Роль: … — контрпик + синергия» над
+        // ней больше нет (просьба владельца, 28.10): роль видна на моём слоте,
+        // у панелей в центре свои заголовки.
+        if (draft is { IsAram: false, ExposedToCounter: true })
         {
-            // ARAM: врагов не видно, подбираем лучший пик со скамейки под команду.
-            StatusText.Text = Loc.T("draft.aram");
-            PickHint.Visibility = Visibility.Collapsed;
+            PickHint.Text = Loc.T("draft.pickHint");
+            PickHint.Visibility = Visibility.Visible;
         }
         else
         {
-            var dbRole       = draft?.MyPosition is { Length: > 0 } pos
-                ? RecommendationEngine.LcuToDbRole(pos) : "";
-            var role         = RoleNameDb(dbRole);
-            var knownEnemies = draft?.TheirTeam.Count(p => p.EffectiveChampionId != 0) ?? 0;
-            StatusText.Text  = knownEnemies == 0
-                ? Loc.T("draft.roleByTeam", role)
-                : Loc.T("draft.roleCounter", role);
-
-            // Подсказка по порядку пика: пикаешь раньше врагов → риск контрпика.
-            if (draft?.ExposedToCounter == true)
-            {
-                PickHint.Text = Loc.T("draft.pickHint");
-                PickHint.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                PickHint.Visibility = Visibility.Collapsed;
-            }
+            PickHint.Visibility = Visibility.Collapsed;
         }
 
         if (_isFullMode)
@@ -348,7 +334,6 @@ public partial class OverlayWindow
     private void ShowDraftSkeleton(DraftState draft)
     {
         RestoreModeSize();
-        StatusText.Text     = SkeletonStatus(draft);
         PickHint.Visibility = Visibility.Collapsed;
 
         // Руны, если уже стояли, вернёт подбор (RenderFull) — как после банов.
@@ -372,26 +357,11 @@ public partial class OverlayWindow
         AnchorIfNotMoved();
     }
 
-    /// Строка статуса над заглушкой — та же, что встанет с данными: заглушка
-    /// обещает именно этот вид. Роль не раздана — только фаза, без «Роль: —».
-    private static string SkeletonStatus(DraftState draft)
-    {
-        if (draft.IsAram) return Loc.T("draft.aram");
-        var role = draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : "";
-        if (role.Length == 0) return Loc.T(draft.InBanPhase ? "status.banPhase" : "status.pickPhase");
-        var name = RoleNameDb(role);
-        return draft.InPlanning ? Loc.T("draft.rolePlan", name)
-             : draft.InBanPhase ? Loc.T("draft.roleBans", name)
-             : Loc.T("draft.roleByTeam", name);
-    }
-
     // ── Фаза банов ─────────────────────────────────────────────────────────
 
     private void RenderBansCompact(IReadOnlyList<BanRec> bans, DraftState draft)
     {
         PickHint.Visibility = Visibility.Collapsed;
-        StatusText.Text = Loc.T("draft.roleBans", RoleNameDb(
-            draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : ""));
 
         RecList.ItemsSource = bans.Take(6).Select((b, i) => new RecCard
         {

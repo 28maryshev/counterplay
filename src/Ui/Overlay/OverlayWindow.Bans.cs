@@ -38,8 +38,6 @@ public partial class OverlayWindow
     // Полный вид для фазы банов: тот же раздел (команды + центр), но в центре баны.
     private void RenderBansFull(IReadOnlyList<BanRec> bans, DraftState draft)
     {
-        StatusText.Text     = Loc.T("draft.roleBans", RoleNameDb(
-            draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : ""));
         PickHint.Visibility = Visibility.Collapsed;
 
         BanFullList.ItemsSource = ComposeBanAdvice(bans, draft).Select((b, i) => new RecCard
@@ -116,7 +114,6 @@ public partial class OverlayWindow
     /// </summary>
     private void RenderBansDone(DraftState draft)
     {
-        StatusText.Text     = Loc.T("ban.doneStatus");
         PickHint.Visibility = Visibility.Collapsed;
         BansDoneTitle.Text  = Loc.T("ban.doneTitle", _engine!.Patch);
 

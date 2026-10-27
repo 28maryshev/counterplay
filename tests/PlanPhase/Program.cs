@@ -83,7 +83,7 @@ internal static class Program
 
     private static readonly string[] NewKeys =
     [
-        "draft.rolePlan", "plan.title", "plan.titlePool", "plan.hint", "plan.colGames", "plan.colPool",
+        "plan.title", "plan.titlePool", "plan.hint", "plan.colGames", "plan.colPool",
         "plan.colForm", "plan.colPatch", "plan.banned", "plan.fromPool", "plan.empty", "plan.failed",
         "plan.tipRecord", "plan.tipToday", "plan.tipLast", "plan.tipPatch", "plan.tipPrev",
     ];

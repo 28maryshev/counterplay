@@ -273,6 +273,9 @@ public partial class OverlayWindow
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
         MyTeamStyle.Text    = myStyle.Length    > 0 ? Loc.T("draft.style", myStyle)    : "";
         EnemyTeamStyle.Text = enemyStyle.Length > 0 ? Loc.T("draft.style", enemyStyle) : "";
+        // Пустая строка внизу колонки держала бы отступ над балансом урона.
+        MyTeamStyle.Visibility    = myStyle.Length    > 0 ? Visibility.Visible : Visibility.Collapsed;
+        EnemyTeamStyle.Visibility = enemyStyle.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         RenderTeamBans(draft);
 
         RenderDamageMix(allyIds,  MyDmgPanel,    MyDmgAdCol,    MyDmgApCol,    MyDmgTrueCol,

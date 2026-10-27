@@ -78,23 +78,16 @@
     "readyLine": "Prêt · {0} · {1}",
     "readyIdle": "Prêt",
     "readyPhase": "Prêt · phase : {0}",
-    "banPhase": "Phase de bans…",
-    "pickPhase": "Phase de picks…",
     "waitDraft": "En attente de la sélection des champions…",
     "waitClient": "En attente du client…",
     "updatingDb": "Mise à jour de la base de données…",
     "downloadingDb": "Téléchargement de la base de données…"
   },
   "draft": {
-    "roleByTeam": "Rôle : {0} — selon la composition d'équipe :",
-    "roleCounter": "Rôle : {0} — counter + synergie :",
-    "roleBans": "Rôle : {0} — qui bannir :",
     "style": "Style : {0}",
     "pickHint": "⚠ Tu pick avant les ennemis — un counter est possible. Prends un pick neutre ou échange avec un allié dont l'adversaire est déjà verrouillé.",
-    "aram": "ARAM — meilleur pick du banc :",
     "counterItems": "Objets qui te counter toi et l'équipe :",
-    "banBadge": "BAN",
-    "rolePlan": "Rôle : {0} — montre ton pick :"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -343,7 +336,6 @@
     "failed": "Échec — c'est ton ban ?",
     "ours": "Nos bans",
     "theirs": "Bans ennemis",
-    "doneStatus": "Bans des équipes",
     "doneTitle": "Bans · taux de ban au patch {0}",
     "rateTip": "{0} : banni dans {1}% des parties (patch {2})",
     "yourMain": "Ton main — {0} parties ce mois-ci",
@@ -747,8 +739,6 @@
     "tipPrev": "Patch précédent : {0}%"
   },
   "blind": {
-    "status": "Aucun rôle attribué — ton pool pour ton équipe :",
-    "statusMonth": "Aucun rôle attribué — tes champions du mois :",
     "title": "Mes champions · pour l’équipe",
     "titleMonth": "Mes champions · 30 jours",
     "empty": "Aucune partie ces 30 derniers jours et pas de pool — choisis dans la tier list ci-dessous.",

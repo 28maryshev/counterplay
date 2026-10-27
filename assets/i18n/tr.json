@@ -124,7 +124,6 @@
     "failed": "Başarısız — sıra sende mi?",
     "ours": "Bizim yasaklar",
     "theirs": "Rakip yasaklar",
-    "doneStatus": "Takımların yasakları",
     "doneTitle": "Yasaklar · {0} yamasında yasak oranı",
     "rateTip": "{0}: {2} yamasında maçların %{1} kadarında yasaklanıyor",
     "yourMain": "Ana şampiyonun — bu ay {0} maç",
@@ -188,23 +187,16 @@
     "readyLine": "Hazır · {0} · {1}",
     "readyIdle": "Hazır",
     "readyPhase": "Hazır · aşama: {0}",
-    "banPhase": "Ban aşaması…",
-    "pickPhase": "Seçim aşaması…",
     "waitDraft": "Şampiyon seçimi bekleniyor…",
     "waitClient": "İstemci bekleniyor…",
     "updatingDb": "Veritabanı güncelleniyor…",
     "downloadingDb": "Veritabanı indiriliyor…"
   },
   "draft": {
-    "roleByTeam": "Rol: {0} — takım kompozisyonuna göre:",
-    "roleCounter": "Rol: {0} — kontra + sinerji:",
-    "roleBans": "Rol: {0} — kimi banlamalı:",
     "style": "Tarz: {0}",
     "pickHint": "⚠ Düşmanlardan önce seçim yapıyorsun — kontrlenmen mümkün. Nötr bir seçim yap ya da rakibi zaten kilitlenmiş biriyle sırayı değiştir.",
-    "aram": "ARAM — kadrodaki en iyi seçim:",
     "counterItems": "Seni ve takımı kontrleyen eşyalar:",
-    "banBadge": "BAN",
-    "rolePlan": "Rol: {0} — seçimini göster:"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -747,8 +739,6 @@
     "tipPrev": "Önceki yama: %{0}"
   },
   "blind": {
-    "status": "Rol atanmadı — takımına uygun havuzun:",
-    "statusMonth": "Rol atanmadı — bu ayki şampiyonların:",
     "title": "Şampiyonlarım · takıma göre",
     "titleMonth": "Şampiyonlarım · 30 gün",
     "empty": "Son 30 günde maç yok ve havuz yok — aşağıdaki tier listesinden seç.",

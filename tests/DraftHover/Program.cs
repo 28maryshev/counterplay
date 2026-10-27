@@ -87,6 +87,14 @@ internal static class Program
         Console.WriteLine($"кандидатов: {cards.Count}; список команды {team.ExtentHeight:F0} при окне {team.ViewportHeight:F0}");
         Check("состав не влезает — есть что прокручивать", team.ExtentHeight > team.ViewportHeight + 1,
               $"{team.ExtentHeight:F0} / {team.ViewportHeight:F0}");
+        // Стиль команды — под составом, вне прокрутки: длинный состав его не
+        // уносит. Строки «Роль: … — контрпик + синергия» в шапке нет (28.10).
+        var style = (FrameworkElement)w.FindName("MyTeamStyle");
+        var styleTop = style.TranslatePoint(new System.Windows.Point(0, 0), team).Y;
+        Check("стиль команды — под составом", style.Visibility == Visibility.Visible
+              && ((TextBlock)style).Text.Length > 0 && styleTop >= team.ActualHeight,
+              $"«{((TextBlock)style).Text}» сверху {styleTop:F0} при высоте списка {team.ActualHeight:F0}");
+        Check("строки статуса в шапке нет", w.FindName("StatusText") is null, "");
 
         // Колесо у дна: запомненная позиция уходит ниже дна (так ведёт себя
         // ScrollViewer — колесо прибавляет к позиции, а не к пределу).

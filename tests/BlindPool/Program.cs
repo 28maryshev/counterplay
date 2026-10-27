@@ -87,8 +87,8 @@ internal static class Program
 
     private static readonly string[] NewKeys =
     [
-        "blind.status", "blind.statusMonth", "blind.title", "blind.titleMonth", "blind.empty",
-        "blind.synGood", "blind.synBad", "blind.tipAlly", "status.pickPhase",
+        "blind.title", "blind.titleMonth", "blind.empty",
+        "blind.synGood", "blind.synBad", "blind.tipAlly",
     ];
 
     private static void Strings()
@@ -184,9 +184,7 @@ internal static class Program
         Check("в заметке — роль, на которой я его играл",
               rows.Count == 3 && rows[0].Note == Loc.T("roles.support") && rows[2].Note == Loc.T("roles.jungle"),
               string.Join(" | ", rows.Select(r => r.Note)));
-        Check("заголовок и строка статуса — «за месяц»",
-              Text(w, "PlanTitle") == Loc.T("blind.titleMonth") && Text(w, "StatusText") == Loc.T("blind.statusMonth"),
-              $"{Text(w, "PlanTitle")} / {Text(w, "StatusText")}");
+        Check("заголовок — «за месяц»", Text(w, "PlanTitle") == Loc.T("blind.titleMonth"), Text(w, "PlanTitle"));
         Check("внизу тир-лист", Vis(w, "TierListBar") && !Vis(w, "RunesBar"), "");
         if (snap is { Length: > 0 }) Snap(w, snap, "blind-1-month.png");
 
@@ -238,8 +236,7 @@ internal static class Program
               $"{best?.Note} {best?.NoteBrush} | {(best?.Tip ?? "").Replace("\n", " | ")}");
         Check("у худшего — минус красным", worst is not null && worst.Note.Contains(yasuo) && worst.NoteBrush == "#E05B5B",
               $"{worst?.Note} {worst?.NoteBrush}");
-        Check("заголовок и строка статуса — «под союзников»",
-              Text(w, "PlanTitle") == Loc.T("blind.title") && Text(w, "StatusText") == Loc.T("blind.status"), "");
+        Check("заголовок — «под союзников»", Text(w, "PlanTitle") == Loc.T("blind.title"), Text(w, "PlanTitle"));
         if (snap is { Length: > 0 }) Snap(w, snap, "blind-2-synergy.png");
 
         // Взятые и забаненные — не предлагаются.
@@ -285,9 +282,7 @@ internal static class Program
         Pump();
         bare.UpdateRecommendations([], Blind([Yasuo]), null);
         Pump();
-        Check("без базы — заглушка и «Фаза пиков…»",
-              Vis(bare, "CenterSkeleton") && Text(bare, "StatusText") == Loc.T("status.pickPhase"),
-              Text(bare, "StatusText"));
+        Check("без базы — заглушка", Vis(bare, "CenterSkeleton"), "");
         bare.Close();
         Pump();
     }

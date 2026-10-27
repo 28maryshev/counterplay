@@ -123,7 +123,6 @@ public partial class OverlayWindow
     {
         var role = draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : "";
         var roleName = RoleNameDb(role);
-        StatusText.Text     = Loc.T("draft.rolePlan", roleName);
         PickHint.Visibility = Visibility.Collapsed;
 
         var rows = PlanRowsFor(draft, role, out var fromPool);
@@ -168,7 +167,6 @@ public partial class OverlayWindow
     {
         var role = draft.MyPosition is { Length: > 0 } pos ? RecommendationEngine.LcuToDbRole(pos) : "";
         PickHint.Visibility = Visibility.Collapsed;
-        StatusText.Text = Loc.T("draft.rolePlan", RoleNameDb(role));
         RecList.ItemsSource = PlanRowsFor(draft, role, out _).Select((r, i) => new RecCard
         {
             ChampionId = r.ChampionId,

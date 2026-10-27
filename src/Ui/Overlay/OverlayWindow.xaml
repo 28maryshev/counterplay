@@ -180,14 +180,14 @@
           </StackPanel>
         </Grid>
 
-        <!-- ── Статус + подсказка по порядку пика ────────────────────── -->
+        <!-- ── Подсказка по порядку пика ───────────────────────────────
+             Строки статуса «Роль: … — контрпик + синергия» над ней больше нет
+             (просьба владельца, 28.10): роль видна на моём слоте, у панелей в
+             центре свои заголовки. -->
         <StackPanel Grid.Row="1" Margin="12,5,12,8">
-          <TextBlock x:Name="StatusText" Text="{loc:T status.waitClient}"
-                     FontFamily="{StaticResource UiFont}" FontSize="11"
-                     Foreground="#5A7A90"/>
           <TextBlock x:Name="PickHint" Visibility="Collapsed"
                      FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                     Foreground="#E8B84B" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                     Foreground="#E8B84B" TextWrapping="Wrap"/>
         </StackPanel>
 
         <!-- ══ ЭКРАН ОЖИДАНИЯ ════════════════════════════════════════ -->
@@ -831,14 +831,11 @@
             <!-- Баны команды под заголовком — во всех фазах драфта с банами
                  (RenderTeamBans). -->
             <ItemsControl DockPanel.Dock="Top" x:Name="MyTeamBansStrip" Visibility="Collapsed"
-                          ItemTemplate="{StaticResource BanChip}" Margin="0,3,0,2">
+                          ItemTemplate="{StaticResource BanChip}" Margin="0,3,0,0">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
-            <TextBlock DockPanel.Dock="Top" x:Name="MyTeamStyle" Text=""
-                       FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                       Foreground="#8AA0B2" Margin="0,0,0,10"/>
 
             <!-- Баланс урона команды: AD (красный) / AP (синий) / чистый (белый) -->
             <StackPanel DockPanel.Dock="Bottom" x:Name="MyDmgPanel" Visibility="Collapsed"
@@ -873,8 +870,15 @@
                            FontSize="10" FontWeight="Bold"/>
               </StackPanel>
             </StackPanel>
+            <!-- Стиль команды — под составом, над балансом урона (просьба
+                 владельца, 28.10): вверху колонки его место заняли баны. Внизу,
+                 а не в прокрутке: длинный состав его бы уносил. Стиля нет —
+                 строки нет (RenderTeams). -->
+            <TextBlock DockPanel.Dock="Bottom" x:Name="MyTeamStyle" Text="" Visibility="Collapsed"
+                       FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                       Foreground="#8AA0B2" Margin="0,10,0,0"/>
 
-            <ScrollViewer x:Name="TeamScroll" VerticalScrollBarVisibility="Hidden"
+            <ScrollViewer x:Name="TeamScroll" VerticalScrollBarVisibility="Hidden" Margin="0,8,0,0"
                           ScrollChanged="TeamScroll_Changed">
               <StackPanel>
               <Grid>
@@ -1322,14 +1326,11 @@
                        FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="Bold"
                        Foreground="#C84040" Margin="0,0,0,2"/>
             <ItemsControl DockPanel.Dock="Top" x:Name="EnemyTeamBansStrip" Visibility="Collapsed"
-                          ItemTemplate="{StaticResource BanChip}" Margin="0,3,0,2">
+                          ItemTemplate="{StaticResource BanChip}" Margin="0,3,0,0">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
-            <TextBlock DockPanel.Dock="Top" x:Name="EnemyTeamStyle" Text=""
-                       FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
-                       Foreground="#C08080" Margin="0,0,0,10"/>
 
             <!-- Баланс урона команды врага -->
             <StackPanel DockPanel.Dock="Bottom" x:Name="EnemyDmgPanel" Visibility="Collapsed"
@@ -1365,8 +1366,11 @@
                            FontSize="10" FontWeight="Bold"/>
               </StackPanel>
             </StackPanel>
+            <TextBlock DockPanel.Dock="Bottom" x:Name="EnemyTeamStyle" Text="" Visibility="Collapsed"
+                       FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
+                       Foreground="#C08080" Margin="0,10,0,0"/>
 
-            <ScrollViewer VerticalScrollBarVisibility="Hidden">
+            <ScrollViewer VerticalScrollBarVisibility="Hidden" Margin="0,8,0,0">
               <StackPanel>
               <Grid>
               <ItemsControl x:Name="EnemyTeamList">

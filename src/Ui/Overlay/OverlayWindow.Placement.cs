@@ -484,7 +484,6 @@ public partial class OverlayWindow
         // шириной с сайдбар, потому что восстановление размера пропускалось.
         var fromIdle = IdlePanel.Visibility == Visibility.Visible;
 
-        StatusText.Visibility = Visibility.Visible;
         IdlePanel.Visibility  = Visibility.Collapsed;
 
         if (_isFullMode)

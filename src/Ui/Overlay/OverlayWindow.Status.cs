@@ -314,7 +314,6 @@ public partial class OverlayWindow
         }
 
         IdlePanel.Visibility     = Visibility.Visible;
-        StatusText.Visibility    = Visibility.Collapsed;
         CompactScroll.Visibility = Visibility.Collapsed;
         FullView.Visibility      = Visibility.Collapsed;
 

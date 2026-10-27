@@ -100,23 +100,16 @@
     "readyLine": "Ready · {0} · {1}",
     "readyIdle": "Ready",
     "readyPhase": "Ready · phase: {0}",
-    "banPhase": "Ban phase…",
-    "pickPhase": "Pick phase…",
     "waitDraft": "Waiting for champ select…",
     "waitClient": "Waiting for the client…",
     "updatingDb": "Updating database…",
     "downloadingDb": "Downloading database…"
   },
   "draft": {
-    "roleByTeam": "Role: {0} — by team composition:",
-    "roleCounter": "Role: {0} — counter + synergy:",
-    "roleBans": "Role: {0} — who to ban:",
     "style": "Style: {0}",
     "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked.",
-    "aram": "ARAM — best pick from the bench:",
     "counterItems": "Items that counter you & the team:",
-    "banBadge": "BAN",
-    "rolePlan": "Role: {0} — show your pick:"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -404,7 +397,6 @@
     "failed": "Failed — is it your ban?",
     "ours": "Our bans",
     "theirs": "Enemy bans",
-    "doneStatus": "Team bans",
     "doneTitle": "Bans · ban rate in patch {0}",
     "rateTip": "{0}: banned in {1}% of games in patch {2}",
     "yourMain": "Your main — {0} games this month",
@@ -747,8 +739,6 @@
     "tipPrev": "Previous patch: {0}%"
   },
   "blind": {
-    "status": "No role assigned — your pool for your team:",
-    "statusMonth": "No role assigned — your champions this month:",
     "title": "My champions · for your team",
     "titleMonth": "My champions · last 30 days",
     "empty": "No games in the last 30 days and no pool — pick from the tier list below.",

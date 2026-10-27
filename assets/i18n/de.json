@@ -124,7 +124,6 @@
     "failed": "Fehlgeschlagen — bist du dran?",
     "ours": "Unsere Banns",
     "theirs": "Gegnerische Banns",
-    "doneStatus": "Banns der Teams",
     "doneTitle": "Banns · Bannrate in Patch {0}",
     "rateTip": "{0}: in {1}% der Spiele gebannt (Patch {2})",
     "yourMain": "Dein Main — {0} Spiele in diesem Monat",
@@ -235,23 +234,16 @@
     "readyLine": "Bereit · {0} · {1}",
     "readyIdle": "Bereit",
     "readyPhase": "Bereit · Phase: {0}",
-    "banPhase": "Bannphase…",
-    "pickPhase": "Pickphase…",
     "waitDraft": "Warten auf Championauswahl…",
     "waitClient": "Warten auf den Client…",
     "updatingDb": "Datenbank wird aktualisiert…",
     "downloadingDb": "Datenbank wird heruntergeladen…"
   },
   "draft": {
-    "roleByTeam": "Rolle: {0} — nach Teamkomposition:",
-    "roleCounter": "Rolle: {0} — Konter + Synergie:",
-    "roleBans": "Rolle: {0} — wen bannen:",
     "style": "Stil: {0}",
     "pickHint": "⚠ Du pickst vor den Gegnern — ein Konter ist möglich. Nimm einen neutralen Pick oder tausche mit jemandem, dessen Gegner schon feststeht.",
-    "aram": "ARAM — bester Pick von der Bank:",
     "counterItems": "Items, die dich & das Team kontern:",
-    "banBadge": "BAN",
-    "rolePlan": "Rolle: {0} — zeig deinen Pick:"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -747,8 +739,6 @@
     "tipPrev": "Voriger Patch: {0}%"
   },
   "blind": {
-    "status": "Keine Rolle zugewiesen — dein Pool fürs Team:",
-    "statusMonth": "Keine Rolle zugewiesen — deine Champions des Monats:",
     "title": "Meine Champions · fürs Team",
     "titleMonth": "Meine Champions · 30 Tage",
     "empty": "Keine Spiele in den letzten 30 Tagen und kein Pool — wähle aus der Tier-Liste unten.",

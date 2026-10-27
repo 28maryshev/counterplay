@@ -63,23 +63,16 @@
     "readyLine": "Listo · {0} · {1}",
     "readyIdle": "Listo",
     "readyPhase": "Listo · fase: {0}",
-    "banPhase": "Fase de baneos…",
-    "pickPhase": "Fase de selección…",
     "waitDraft": "Esperando la selección de campeones…",
     "waitClient": "Esperando al cliente…",
     "updatingDb": "Actualizando base de datos…",
     "downloadingDb": "Descargando base de datos…"
   },
   "draft": {
-    "roleByTeam": "Rol: {0} — según la composición del equipo:",
-    "roleCounter": "Rol: {0} — contra + sinergia:",
-    "roleBans": "Rol: {0} — a quién banear:",
     "style": "Estilo: {0}",
     "pickHint": "⚠ Eliges antes que los enemigos — pueden contrapickearte. Elige un pick neutral o cambia con alguien cuyo rival ya esté confirmado.",
-    "aram": "ARAM — mejor pick del banquillo:",
     "counterItems": "Objetos que os contrarrestan a ti y al equipo:",
-    "banBadge": "BAN",
-    "rolePlan": "Rol: {0} — muestra tu pick:"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -357,7 +350,6 @@
     "failed": "Error — ¿es tu baneo?",
     "ours": "Nuestros baneos",
     "theirs": "Baneos enemigos",
-    "doneStatus": "Baneos de los equipos",
     "doneTitle": "Baneos · tasa de baneo en el parche {0}",
     "rateTip": "{0}: baneado en el {1}% de las partidas (parche {2})",
     "yourMain": "Tu main — {0} partidas este mes",
@@ -747,8 +739,6 @@
     "tipPrev": "Parche anterior: {0}%"
   },
   "blind": {
-    "status": "Sin rol asignado — tu pool para tu equipo:",
-    "statusMonth": "Sin rol asignado — tus campeones del mes:",
     "title": "Mis campeones · para tu equipo",
     "titleMonth": "Mis campeones · 30 días",
     "empty": "Sin partidas en los últimos 30 días y sin pool — elige de la tier list de abajo.",

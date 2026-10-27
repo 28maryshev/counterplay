@@ -73,8 +73,6 @@
     "applyingUpdate": "Đang áp dụng cập nhật, khởi động lại…",
     "readyLine": "Sẵn sàng · {0} · {1}",
     "readyPhase": "Sẵn sàng · giai đoạn: {0}",
-    "banPhase": "Giai đoạn cấm…",
-    "pickPhase": "Giai đoạn chọn…",
     "waitDraft": "Đang chờ chọn tướng…",
     "waitClient": "Đang chờ client…",
     "updatingDb": "Đang cập nhật cơ sở dữ liệu…",
@@ -82,15 +80,10 @@
     "readyIdle": "Sẵn sàng"
   },
   "draft": {
-    "roleByTeam": "Vị trí: {0} — theo đội hình:",
-    "roleCounter": "Vị trí: {0} — khắc chế + phối hợp:",
-    "roleBans": "Vị trí: {0} — nên cấm ai:",
     "style": "Lối chơi: {0}",
     "pickHint": "⚠ Bạn chọn trước địch — có thể bị khắc chế. Chọn tướng an toàn hoặc đổi với người đã có đối thủ khóa cứng.",
-    "aram": "ARAM — lựa chọn tốt nhất từ ghế chờ:",
     "counterItems": "Đồ khắc chế bạn và đội:",
-    "banBadge": "CẤM",
-    "rolePlan": "Vị trí: {0} — cho đồng đội thấy tướng của bạn:"
+    "banBadge": "CẤM"
   },
   "pair": {
     "airborne": {
@@ -404,7 +397,6 @@
     "failed": "Thất bại — đến lượt cấm của bạn chưa?",
     "ours": "Lượt cấm của ta",
     "theirs": "Lượt cấm của địch",
-    "doneStatus": "Lượt cấm của hai đội",
     "doneTitle": "Cấm · tỉ lệ cấm ở phiên bản {0}",
     "rateTip": "{0}: bị cấm trong {1}% số trận (phiên bản {2})",
     "yourMain": "Tướng tủ của bạn — {0} trận tháng này",
@@ -747,8 +739,6 @@
     "tipPrev": "Phiên bản trước: {0}%"
   },
   "blind": {
-    "status": "Chưa được xếp vị trí — pool của bạn hợp với đội:",
-    "statusMonth": "Chưa được xếp vị trí — tướng của bạn trong tháng:",
     "title": "Tướng của tôi · hợp với đội",
     "titleMonth": "Tướng của tôi · 30 ngày",
     "empty": "Không có trận nào trong 30 ngày qua và không có pool — hãy chọn từ bảng xếp hạng bên dưới.",

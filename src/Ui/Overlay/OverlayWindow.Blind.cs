@@ -42,7 +42,6 @@ public partial class OverlayWindow
             .Select(p => (Id: p.EffectiveChampionId, Role: RecommendationEngine.LcuToDbRole(p.Position)))
             .ToList();
         var bySynergy = allies.Count > 0;
-        StatusText.Text     = Loc.T(bySynergy ? "blind.status" : "blind.statusMonth");
         PickHint.Visibility = Visibility.Collapsed;
 
         ShowPlanPanel(BlindRows(draft, allies),

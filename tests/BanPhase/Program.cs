@@ -782,7 +782,7 @@ internal static class Program
     [
         "reason.countersPoolPick", "reason.pickRate",
         "tier.modePicks", "tier.modeBans", "tier.titleBans", "tier.byBanRate",
-        "ban.ours", "ban.theirs", "ban.doneStatus", "ban.doneTitle", "ban.rateTip", "ban.allyBanned",
+        "ban.ours", "ban.theirs", "ban.doneTitle", "ban.rateTip", "ban.allyBanned",
     ];
 
     private static void Strings()

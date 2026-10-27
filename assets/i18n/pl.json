@@ -74,23 +74,16 @@
     "applyingUpdate": "Stosowanie aktualizacji, restart…",
     "readyLine": "Gotowe · {0} · {1}",
     "readyPhase": "Gotowe · faza: {0}",
-    "banPhase": "Faza banów…",
-    "pickPhase": "Faza wyboru…",
     "waitDraft": "Oczekiwanie na wybór postaci…",
     "waitClient": "Oczekiwanie na klienta…",
     "updatingDb": "Aktualizacja bazy danych…",
     "downloadingDb": "Pobieranie bazy danych…"
   },
   "draft": {
-    "roleByTeam": "Rola: {0} — wg kompozycji drużyny:",
-    "roleCounter": "Rola: {0} — kontra + synergia:",
-    "roleBans": "Rola: {0} — kogo zbanować:",
     "style": "Styl: {0}",
     "pickHint": "⚠ Wybierasz przed wrogami — możliwa kontra. Weź neutralny pick lub zamień się z kimś, czyj przeciwnik jest już zablokowany.",
-    "aram": "ARAM — najlepszy wybór z ławki:",
     "counterItems": "Przedmioty kontrujące ciebie i drużynę:",
-    "banBadge": "BAN",
-    "rolePlan": "Rola: {0} — pokaż swój pick:"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -404,7 +397,6 @@
     "failed": "Nie udało się — twój ban?",
     "ours": "Nasze bany",
     "theirs": "Bany wrogów",
-    "doneStatus": "Bany drużyn",
     "doneTitle": "Bany · ban rate w patchu {0}",
     "rateTip": "{0}: banowany w {1}% gier (patch {2})",
     "yourMain": "Twój main — {0} gier w tym miesiącu",
@@ -747,8 +739,6 @@
     "tipPrev": "Poprzedni patch: {0}%"
   },
   "blind": {
-    "status": "Brak przydzielonej roli — twoja pula pod drużynę:",
-    "statusMonth": "Brak przydzielonej roli — twoi bohaterowie z miesiąca:",
     "title": "Moi bohaterowie · pod drużynę",
     "titleMonth": "Moi bohaterowie · 30 dni",
     "empty": "Brak gier z ostatnich 30 dni i brak puli — wybierz z tier listy poniżej.",

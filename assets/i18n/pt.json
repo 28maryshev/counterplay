@@ -124,7 +124,6 @@
     "failed": "Falhou — é o seu banimento?",
     "ours": "Nossos bans",
     "theirs": "Bans inimigos",
-    "doneStatus": "Bans das equipes",
     "doneTitle": "Bans · taxa de ban no patch {0}",
     "rateTip": "{0}: banido em {1}% dos jogos (patch {2})",
     "yourMain": "Seu main — {0} jogos este mês",
@@ -235,23 +234,16 @@
     "readyLine": "Pronto · {0} · {1}",
     "readyIdle": "Pronto",
     "readyPhase": "Pronto · fase: {0}",
-    "banPhase": "Fase de banimento…",
-    "pickPhase": "Fase de escolha…",
     "waitDraft": "Aguardando seleção de campeões…",
     "waitClient": "Aguardando o cliente…",
     "updatingDb": "Atualizando banco de dados…",
     "downloadingDb": "Baixando banco de dados…"
   },
   "draft": {
-    "roleByTeam": "Rota: {0} — pela composição do time:",
-    "roleCounter": "Rota: {0} — counter + sinergia:",
-    "roleBans": "Rota: {0} — quem banir:",
     "style": "Estilo: {0}",
     "pickHint": "⚠ Você escolhe antes dos inimigos — um counter é possível. Pegue um pick neutro ou troque com alguém cujo oponente já está definido.",
-    "aram": "ARAM — melhor pick do banco:",
     "counterItems": "Itens que counteram você e o time:",
-    "banBadge": "BAN",
-    "rolePlan": "Rota: {0} — mostre seu pick:"
+    "banBadge": "BAN"
   },
   "pair": {
     "airborne": {
@@ -747,8 +739,6 @@
     "tipPrev": "Patch anterior: {0}%"
   },
   "blind": {
-    "status": "Sem rota atribuída — seu pool para o time:",
-    "statusMonth": "Sem rota atribuída — seus campeões do mês:",
     "title": "Meus campeões · para o time",
     "titleMonth": "Meus campeões · 30 dias",
     "empty": "Sem partidas nos últimos 30 dias e sem pool — escolha na tier list abaixo.",

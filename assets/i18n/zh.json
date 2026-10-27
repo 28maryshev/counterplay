@@ -74,23 +74,16 @@
     "applyingUpdate": "正在应用更新，重启中…",
     "readyLine": "就绪 · {0} · {1}",
     "readyPhase": "就绪 · 阶段：{0}",
-    "banPhase": "Ban 阶段…",
-    "pickPhase": "选人阶段…",
     "waitDraft": "正在等待选英雄…",
     "waitClient": "正在等待客户端…",
     "updatingDb": "正在更新数据库…",
     "downloadingDb": "正在下载数据库…"
   },
   "draft": {
-    "roleByTeam": "位置：{0} —— 按阵容：",
-    "roleCounter": "位置：{0} —— 克制 + 契合：",
-    "roleBans": "位置：{0} —— 该 Ban 谁：",
     "style": "打法：{0}",
     "pickHint": "⚠ 你在敌方之前选人——可能被针对。选一个稳健的英雄，或与对手已锁定的队友交换。",
     "banBadge": "禁用",
-    "aram": "ARAM —— 待选席中的最佳选择：",
-    "counterItems": "克制你与队伍的装备：",
-    "rolePlan": "位置：{0} —— 展示你的英雄："
+    "counterItems": "克制你与队伍的装备："
   },
   "pair": {
     "airborne": {
@@ -404,7 +397,6 @@
     "failed": "失败 — 轮到你禁用了吗？",
     "ours": "我方禁用",
     "theirs": "敌方禁用",
-    "doneStatus": "双方禁用",
     "doneTitle": "禁用 · 版本 {0} 禁用率",
     "rateTip": "{0}：版本 {2} 中 {1}% 的对局被禁用",
     "yourMain": "你的本命英雄 — 本月{0}场",
@@ -747,8 +739,6 @@
     "tipPrev": "上个版本：{0}%"
   },
   "blind": {
-    "status": "未分配位置 —— 适合队友的英雄池：",
-    "statusMonth": "未分配位置 —— 本月常用英雄：",
     "title": "我的英雄 · 适合队友",
     "titleMonth": "我的英雄 · 30 天",
     "empty": "最近 30 天没有对局，也没有英雄池 —— 请从下方梯队榜中选择。",
