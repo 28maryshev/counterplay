@@ -42,7 +42,8 @@ mkdir -p "$TMP/draft" "$TMP/stats"
 # Тир-лист и контрпики — страницы сайта; руны и сборки — то, что панель в
 # программе спрашивает у сайта; engine.json — данные драфт-инструмента сайта
 # (лежит в томе рядом с рунами и читается на лету, в сборку не вшивается).
-python3 "$HERE/export_tiers.py" --db "$DB" --out "$TMP/draft"
+# Тир-лист: общий — в сборку, по серверам — в том (сайт берёт при выборе сервера).
+python3 "$HERE/export_tiers.py" --db "$DB" --out "$TMP/draft" --regions-out "$TMP/stats/tiers"
 python3 "$HERE/export_draft.py" --db "$DB" --out "$TMP/draft" --engine-out "$TMP/stats/draft"
 python3 "$HERE/export_runes.py" --db "$DB" --out "$TMP/stats"
 

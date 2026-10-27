@@ -1,21 +1,22 @@
 """
 collect.py — автономный сбор матч-статистики и агрегация в data.db.
 
-Регионы собираются ПАРАЛЛЕЛЬНО (поток на регион), внутри региона бакеты идут
-сверху вниз (master → emerald → gold → silver). Riot считает лимит на пару
+Регионы собираются ПАРАЛЛЕЛЬНО (поток на регион). Внутри региона master берётся
+до вычерпания, остальные бакеты — кругами с нормой новых матчей на круг
+(ROUND_QUOTA: emerald втрое больше gold и silver). Riot считает лимит на пару
 (ключ, хост роутинга), поэтому euw1/na1/kr жмутся одновременно и дают кратный
 прирост; регионы с общим хостом MATCH-V5 (euw1+eun1 → europe) сами встают в
 очередь в лимитере этого хоста и лимит не нарушают.
 
-Когда бакет вычерпан (игроки кончились или просела доля новых матчей) — регион
-переключается на следующий бакет. Ctrl+C — мягкая остановка с сохранением и
+Когда бакет вычерпан (игроки кончились или просела доля новых матчей) — до конца
+прохода регион его пропускает. Ctrl+C — мягкая остановка с сохранением и
 подсказкой команды публикации базы на сервер.
 
 Запуск одной командой (ключ спросит сам):
     python pipeline\\collect.py
 
 Порядок сбора по умолчанию: бакеты сверху вниз (master → emerald → gold →
-silver), внутри бакета регионы по приоритету (euw1 → na1 → kr → остальные).
+silver), регионы параллельно по приоритету (euw1 → na1 → kr → остальные).
 Флаги --key/--tier/--region остаются для ручного управления:
     python collect.py --key RGAPI-xxxx --tier master --region euw1,na1,kr
 
@@ -60,20 +61,33 @@ PLATFORM_TO_REGIONAL = {
 }
 
 # ---------- Бакеты эло ----------
-# Для каждого бакета указываем пары (tier, division), из которых берём саммонеров.
+# Бакет — то, по чему база делится для программы. Он набирается из нескольких
+# тиров, и число при тире — его доля в очереди игроков бакета: игроки тиров идут
+# вперемешку в этой пропорции. До 28.10 дивизионы шли подряд, и до второго тира
+# обход почти не доходил: emerald был почти чистым Emerald (Diamond — только на
+# LAN/LAS), gold — Gold, silver — Silver, Iron не попадал никогда.
 
-TIER_BUCKETS: dict[str, list[tuple[str, str]]] = {
-    'silver':  [(t, d) for t in ('SILVER', 'BRONZE', 'IRON')
-                        for d in ('I', 'II', 'III', 'IV')],
-    'gold':    [(t, d) for t in ('GOLD', 'PLATINUM')
-                        for d in ('I', 'II', 'III', 'IV')],
-    'emerald': [(t, d) for t in ('EMERALD', 'DIAMOND')
-                        for d in ('I', 'II', 'III', 'IV')],
-    'master':  [('MASTER', 'I')],
+TIER_BUCKETS: dict[str, dict[str, int]] = {
+    'silver':  {'SILVER': 2, 'BRONZE': 2, 'IRON': 1},
+    'gold':    {'GOLD': 1, 'PLATINUM': 1},
+    'emerald': {'EMERALD': 2, 'DIAMOND': 1},
+    'master':  {},   # апекс: свои списки лиг без дивизионов (APEX_LEAGUES)
 }
+DIVISIONS = ('I', 'II', 'III', 'IV')
+
+# Апекс-лиги master-бакета: метод League-V4 → тир, который пишем матчу.
+APEX_LEAGUES = (('challenger_by_queue', 'challenger'),
+                ('grandmaster_by_queue', 'grandmaster'),
+                ('masters_by_queue', 'master'))
 
 # Порядок сбора по умолчанию: бакеты от высшего эло к низшему…
 BUCKET_PRIORITY = ['master', 'emerald', 'gold', 'silver']
+# …но не каждый до упора. Master (апекс невелик) берётся до вычерпания, а
+# остальные идут кругами: за круг бакет даёт не больше стольких новых матчей.
+# Пока бакет шёл до вычерпания, на больших серверах emerald не кончался никогда,
+# и silver/gold там не собирались вовсе (16.20: ноль на NA, KR, BR, LAN, LAS,
+# VN, TR). Emerald остаётся главным — втрое больше каждого из прочих.
+ROUND_QUOTA = {'emerald': 3000, 'gold': 1000, 'silver': 1000}
 # …а внутри бакета — сначала три больших сервера, затем все остальные.
 REGION_PRIORITY = ['euw1', 'na1', 'kr'] + \
     [r for r in PLATFORM_TO_REGIONAL if r not in ('euw1', 'na1', 'kr')]
@@ -335,8 +349,75 @@ def init_db(path: str) -> sqlite3.Connection:
         con.execute("UPDATE processed_matches SET ts = strftime('%s','now') WHERE ts IS NULL")
         print('[схема] добавил processed_matches.ts', flush=True)
 
+    # Курсор обхода с 28.10 — на тир, а не на бакет. Строка бакета, уже
+    # стоявшая на втором его тире (emerald → DIAMOND), переезжает на этот тир.
+    con.execute('UPDATE OR IGNORE collect_cursor SET bucket = lower(tier) '
+                'WHERE bucket <> lower(tier)')
     con.commit()
+
+    # Разрез по серверу и тиру появился 28.10. Создание и заполнение из drafts —
+    # одной транзакцией: оборвись запуск посередине, следующий начнёт заново, а
+    # не примет пустую таблицу за готовую. Сбор начинается только после этого,
+    # так что ни один матч не попадёт в таблицу дважды.
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                       "AND name='region_wr'").fetchone():
+        print('[схема] создаю region_wr/region_bans, переношу drafts…', flush=True)
+        con.execute('BEGIN')
+        for sql in REGION_TABLES:
+            con.execute(sql)
+        n = _backfill_region_wr(con)
+        con.commit()
+        print(f'[схема] region_wr: перенесено матчей из drafts — {n}', flush=True)
     return con
+
+
+# Винрейт и баны по серверу и тиру — для тир-листа сайта с выбором сервера и
+# тира. region — платформа из match_id ('euw1'); tier — тир игрока, через
+# которого найден матч ('emerald', 'grandmaster'…). '' — матч собран до 28.10,
+# когда тир не записывался: такие строки годятся только для разреза по бакету.
+REGION_TABLES = (
+    """CREATE TABLE region_wr (
+            champion_id INTEGER,
+            role        TEXT,
+            region      TEXT,
+            tier_bucket TEXT,
+            tier        TEXT,
+            patch       TEXT,
+            games       INTEGER DEFAULT 0,
+            wins        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, region, tier_bucket, tier, patch)
+        )""",
+    """CREATE TABLE region_bans (
+            champion_id INTEGER,
+            region      TEXT,
+            tier_bucket TEXT,
+            tier        TEXT,
+            patch       TEXT,
+            bans        INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, region, tier_bucket, tier, patch)
+        )""",
+)
+
+
+def _backfill_region_wr(con: sqlite3.Connection) -> int:
+    """region_wr по матчам, собранным до появления таблицы: в drafts у каждого
+    матча есть сервер (префикс match_id), бакет и все десять слотов. Тира там
+    нет (tier=''), банов нет вовсе — region_bans копится только с новых матчей."""
+    acc: dict[tuple, list[int]] = {}
+    n = 0
+    for mid, bucket, patch, win_team, slots in con.execute(
+            'SELECT match_id, tier_bucket, patch, win_team, slots FROM drafts'):
+        region = mid.split('_', 1)[0].lower()
+        for s in json.loads(slots):
+            a = acc.setdefault((s['c'], s['r'], region, bucket, patch), [0, 0])
+            a[0] += 1
+            a[1] += s['t'] == win_team
+        n += 1
+    con.executemany(
+        """INSERT INTO region_wr (champion_id, role, region, tier_bucket, tier, patch, games, wins)
+           VALUES (?, ?, ?, ?, '', ?, ?, ?)""",
+        [(*k, g, w) for k, (g, w) in acc.items()])
+    return n
 
 
 def is_processed(con: sqlite3.Connection, match_id: str) -> bool:
@@ -453,9 +534,11 @@ def parse_items(p: dict) -> list[int]:
     return sorted({i for i in ids if i and i in COMPLETED_ITEMS})
 
 
-def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
+def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: str = ''):
+    """tier — тир игрока, через которого найден матч (идёт только в region_*)."""
     info  = match.get('info', {})
     patch = patch_of(info.get('gameVersion', '0.0'))
+    region = match['metadata']['matchId'].split('_', 1)[0].lower()
 
     if info.get('queueId') != QUEUE_RANKED:
         return  # пропускаем не-ранкед
@@ -485,6 +568,12 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
                        ON CONFLICT (champion_id, tier_bucket, patch)
                        DO UPDATE SET bans = bans + 1""",
                     (bc, tier_bucket, patch))
+                con.execute(
+                    """INSERT INTO region_bans (champion_id, region, tier_bucket, tier, patch, bans)
+                       VALUES (?, ?, ?, ?, ?, 1)
+                       ON CONFLICT (champion_id, region, tier_bucket, tier, patch)
+                       DO UPDATE SET bans = bans + 1""",
+                    (bc, region, tier_bucket, tier, patch))
 
     t1, t2 = team_ids[0], team_ids[1]
 
@@ -497,6 +586,9 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str):
             upsert(con, 'base_wr',
                    ['champion_id', 'role', 'tier_bucket', 'patch'],
                    [champ, role, tier_bucket, patch], win)
+            upsert(con, 'region_wr',
+                   ['champion_id', 'role', 'region', 'tier_bucket', 'tier', 'patch'],
+                   [champ, role, region, tier_bucket, tier, patch], win)
 
             # Баланс урона: суммы урона ПО ЧЕМПИОНАМ по типам (физ/маг/чистый).
             ph = p.get('physicalDamageDealtToChampions', 0) or 0
@@ -735,14 +827,16 @@ def api_call(fn, *args, **kwargs):
 RECENT_PLAYER_DAYS = 3
 
 
-def _cursor_get(con, platform: str, bucket: str):
+# Курсор хранится на сервер × тир: в колонке bucket с 28.10 лежит тир в нижнем
+# регистре ('emerald', 'diamond'). Раньше курсор был один на бакет.
+def _cursor_get(con, platform: str, key: str):
     with DB_LOCK:
         return con.execute(
             'SELECT tier, division, page FROM collect_cursor WHERE region=? AND bucket=?',
-            (platform, bucket)).fetchone()
+            (platform, key)).fetchone()
 
 
-def _cursor_set(con, platform: str, bucket: str, tier: str, division: str, page: int):
+def _cursor_set(con, platform: str, key: str, tier: str, division: str, page: int):
     with DB_LOCK:
         con.execute(
             """INSERT INTO collect_cursor (region, bucket, tier, division, page, updated_at)
@@ -750,7 +844,7 @@ def _cursor_set(con, platform: str, bucket: str, tier: str, division: str, page:
                ON CONFLICT(region, bucket) DO UPDATE SET
                    tier=excluded.tier, division=excluded.division,
                    page=excluded.page, updated_at=excluded.updated_at""",
-            (platform, bucket, tier, division, page))
+            (platform, key, tier, division, page))
         con.commit()
 
 
@@ -771,14 +865,15 @@ def mark_player_seen(con, puuid: str):
 
 
 def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
-    """Бесконечно (пока есть страницы) выдаёт НОВЫЕ puuid игроков бакета.
-    Для апекса (master/GM/challenger) — отдельные эндпоинты, для остальных —
-    постраничный entries по дивизионам. Когда страницы кончились — добираем
-    следующий дивизион; когда кончились все — генератор завершается."""
+    """Бесконечно (пока есть страницы) выдаёт НОВЫХ игроков бакета парами
+    (puuid, тир), тир — в нижнем регистре: он уходит матчу в region_wr. Для
+    апекса (master/GM/challenger) — отдельные эндпоинты, для остальных —
+    постраничный entries по дивизионам каждого тира. Когда кончились все тиры
+    бакета — генератор завершается."""
 
     # Апекс-лиги: master-бакет тянем из challenger → GM → master.
     if bucket == 'master':
-        for name in ('challenger_by_queue', 'grandmaster_by_queue', 'masters_by_queue'):
+        for name, tier in APEX_LEAGUES:
             fn = getattr(watcher.league, name, None)
             if fn is None:
                 continue
@@ -792,15 +887,37 @@ def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
                     seen.add(puuid)
                     if con is not None and _recently_seen(con, puuid):
                         continue          # матчлист уже читали недавно
-                    yield puuid
+                    yield puuid, tier
         return
+
+    # Тиры бакета идут вперемешку в пропорции TIER_BUCKETS: у emerald на двух
+    # игроков Emerald один Diamond — сколько бы игроков ни успел взять круг.
+    # Кончился тир — остальные идут дальше без него.
+    weights = TIER_BUCKETS[bucket]
+    gens = {t: _iter_tier(watcher, platform, t, seen, con) for t in weights}
+    order = [t for t, w in weights.items() for _ in range(w)]
+    while gens:
+        for t in order:
+            g = gens.get(t)
+            if g is None:
+                continue
+            puuid = next(g, None)
+            if puuid is None:
+                del gens[t]
+                continue
+            yield puuid, t.lower()
+
+
+def _iter_tier(watcher, platform: str, tier: str, seen: set, con=None):
+    """НОВЫЕ puuid одного тира: дивизионы I…IV по кругу, с сохранённой позиции."""
 
     # Обычные тиры: листаем страницы дивизиона, пока не опустеют. Стартуем С
     # СОХРАНЁННОЙ ПОЗИЦИИ и идём по кругу — так каждый новый ключ берёт следующих
     # игроков, а не перечитывает первые страницы, уже собранные прошлым кругом.
-    pairs = TIER_BUCKETS[bucket]
+    pairs = [(tier, d) for d in DIVISIONS]
+    key = tier.lower()
     start_i, start_page = 0, 1
-    cur = _cursor_get(con, platform, bucket) if con is not None else None
+    cur = _cursor_get(con, platform, key) if con is not None else None
     if cur:
         t, d, pg = cur
         if (t, d) in pairs:
@@ -808,7 +925,7 @@ def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
             start_page = max(1, int(pg or 1))
 
     for k in range(len(pairs)):
-        tier, division = pairs[(start_i + k) % len(pairs)]
+        _, division = pairs[(start_i + k) % len(pairs)]
         page = start_page if k == 0 else 1
         while True:
             entries = api_call(
@@ -821,7 +938,7 @@ def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
             # Позицию двигаем сразу: даже если круг прервётся (ключ/диск),
             # следующий запуск продолжит отсюда.
             if con is not None:
-                _cursor_set(con, platform, bucket, tier, division, page)
+                _cursor_set(con, platform, key, tier, division, page)
             for entry in entries:
                 puuid = entry.get('puuid')
                 if not puuid and entry.get('summonerId'):
@@ -836,7 +953,7 @@ def iter_players(watcher, platform: str, bucket: str, seen: set, con=None):
     # Полный круг по дивизионам пройден — начинаем сначала (данные к этому
     # моменту успевают обновиться).
     if con is not None and pairs:
-        _cursor_set(con, platform, bucket, pairs[0][0], pairs[0][1], 1)
+        _cursor_set(con, platform, key, pairs[0][0], pairs[0][1], 1)
 
 
 # ---------- Сбор одного бакета ----------
@@ -871,9 +988,12 @@ def db_total(con) -> int:
 
 
 def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
-                   start_time: int, cap: int, session_total: int) -> int:
+                   start_time: int, cap: int, session_total: int,
+                   quota: int = 0) -> tuple[int, bool]:
     """Собирает матчи бакета, пока: не кончатся игроки / не просядет частота /
-    не достигнут общий лимит. Возвращает число НОВЫХ матчей за бакет.
+    не достигнут общий лимит / не набрана норма круга quota (0 — без нормы).
+    Возвращает (НОВЫХ матчей за бакет, вычерпан ли он): после нормы круга
+    бакет не вычерпан — регион вернётся к нему следующим кругом.
     KeyboardInterrupt пробрасывается наверх (обрабатывается в run_continuous)."""
 
     seen: set[str] = set()
@@ -881,9 +1001,9 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
     collected = 0
     players = 0
 
-    for puuid in iter_players(watcher, platform, bucket, seen, con):
+    for puuid, tier in iter_players(watcher, platform, bucket, seen, con):
         players += 1
-        print(f'  [{platform}/{bucket}] игрок {players} · новых матчей за бакет {collected}', flush=True)
+        print(f'  [{platform}/{bucket}/{tier}] игрок {players} · новых матчей за бакет {collected}', flush=True)
 
         match_ids = api_call(
             watcher.match.matchlist_by_puuid,
@@ -900,7 +1020,7 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
             check_disk()   # предохранитель: не забиваем диск до отказа
             # Разбор+запись матча — под локом: пишем из нескольких потоков-регионов.
             with DB_LOCK:
-                process_match(con, match, bucket)
+                process_match(con, match, bucket, tier)
                 con.commit()
             collected += 1
             recent.append(1)
@@ -918,17 +1038,23 @@ def collect_bucket(watcher, con, platform: str, regional: str, bucket: str,
                         pass
             if cap and session_total + collected >= cap:
                 print(f'  Достигнут общий лимит {cap}.', flush=True)
-                return collected
+                return collected, True
 
         # Просадка частоты: окно заполнено, а новых почти нет → бакет вычерпан.
         if len(recent) == recent.maxlen and sum(recent) < SAT_MIN_NEW:
             print(f'  Частота сбора низкая ({sum(recent)}/{recent.maxlen} новых) — '
                   f'бакет {bucket} вычерпан, переключаюсь.', flush=True)
-            return collected
+            return collected, True
+
+        # Норму круга проверяем между игроками, а не посреди матчлиста: игрок
+        # уже отмечен прочитанным, и недобранные его матчи ждали бы три дня.
+        if quota and collected >= quota:
+            print(f'  Норма круга {quota} набрана — к следующему бакету.', flush=True)
+            return collected, False
 
     # Генератор иссяк — игроки бакета кончились.
     print(f'  Игроки бакета {bucket} закончились.', flush=True)
-    return collected
+    return collected, True
 
 
 # ---------- Автономный сбор: бакеты × регионы ----------
@@ -961,29 +1087,39 @@ def run_continuous(api_key: str, db_path: str, regions: list, buckets: list,
     stop = threading.Event()
 
     def run_region(region: str) -> int:
-        """Один регион: свои бакеты сверху вниз. Регионы идут параллельно —
-        у каждого хоста свой лимит Riot, так что они не мешают друг другу."""
+        """Один регион: бакеты сверху вниз кругами, по норме ROUND_QUOTA за круг
+        (без нормы — до вычерпания), пока не вычерпаны все. Регионы идут
+        параллельно — у каждого хоста свой лимит Riot, так что они не мешают
+        друг другу."""
         nonlocal session_total
         regional = PLATFORM_TO_REGIONAL[region]
         got_region = 0
-        for bucket in buckets:
-            if stop.is_set():
-                break
-            print(f'\n==== [{region}] бакет {bucket} -> {regional} | '
-                  f'в базе: {db_total(con)} ====', flush=True)
-            with total_lock:
-                so_far = session_total
-            got = collect_bucket(watcher, con, region, regional, bucket,
-                                 start_time, cap, so_far)
-            with total_lock:
-                session_total += got
-                reached = cap and session_total >= cap
-            got_region += got
-            print(f'---- [{region}] {bucket}: +{got} | в базе: {db_total(con)} | '
-                  f'за сессию: {session_total} ----', flush=True)
-            if reached:
-                stop.set()
-                break
+        done: set[str] = set()   # вычерпанные за этот проход
+        while len(done) < len(buckets) and not stop.is_set():
+            for bucket in buckets:
+                if bucket in done:
+                    continue
+                if stop.is_set():
+                    break
+                quota = ROUND_QUOTA.get(bucket, 0)
+                print(f'\n==== [{region}] бакет {bucket} -> {regional} | '
+                      f'норма {quota or "до вычерпания"} | в базе: {db_total(con)} ====',
+                      flush=True)
+                with total_lock:
+                    so_far = session_total
+                got, finished = collect_bucket(watcher, con, region, regional, bucket,
+                                               start_time, cap, so_far, quota)
+                if finished:
+                    done.add(bucket)
+                with total_lock:
+                    session_total += got
+                    reached = cap and session_total >= cap
+                got_region += got
+                print(f'---- [{region}] {bucket}: +{got} | в базе: {db_total(con)} | '
+                      f'за сессию: {session_total} ----', flush=True)
+                if reached:
+                    stop.set()
+                    break
         return got_region
 
     try:
