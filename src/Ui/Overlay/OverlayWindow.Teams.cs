@@ -250,7 +250,7 @@ public partial class OverlayWindow
         RenderCurrentState();
     }
 
-    // Команды по бокам (слоты, стиль, связки, линии) — общее для пиков и банов.
+    // Команды по бокам (баны под заголовком, слоты, стиль, связки, линии) — общее для пиков и банов.
     private void RenderTeams(DraftState draft)
     {
         ClearHoverArt();   // слоты сейчас переедут — старая подсветка станет мусором
@@ -273,6 +273,7 @@ public partial class OverlayWindow
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
         MyTeamStyle.Text    = myStyle.Length    > 0 ? Loc.T("draft.style", myStyle)    : "";
         EnemyTeamStyle.Text = enemyStyle.Length > 0 ? Loc.T("draft.style", enemyStyle) : "";
+        RenderTeamBans(draft);
 
         RenderDamageMix(allyIds,  MyDmgPanel,    MyDmgAdCol,    MyDmgApCol,    MyDmgTrueCol,
                         MyDmgAdText,    MyDmgApText,    MyDmgTrueText,

@@ -116,4 +116,35 @@
                  Foreground="{Binding RateBrush}"/>
     </StackPanel>
   </DataTemplate>
+
+  <!-- Бан в ряду под заголовком колонки команды: та же модель, что у слота
+       панели банов, только маленький портрет без подписей — имя и бан-рейт
+       в подсказке. Крест и кольцо цвета команды как у слота; забанили моего
+       мейна — кольцо золотое. Затемнение слабее, а крест тоньше, чем у слота:
+       при таком размере под ними иначе не узнать лицо. -->
+  <DataTemplate x:Key="BanChip">
+    <Grid Width="30" Height="30" Margin="0,0,5,0" ToolTip="{Binding Tip}" Background="Transparent">
+      <Grid Visibility="{Binding IconVisibility}">
+        <Ellipse>
+          <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
+        </Ellipse>
+        <Ellipse Fill="#48101820"/>
+        <TextBlock Text="✕" Foreground="#D8FF5A5A" FontSize="13"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Ellipse StrokeThickness="1.5" IsHitTestVisible="False">
+          <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
+        </Ellipse>
+        <Ellipse StrokeThickness="2" Stroke="#F5D77A" IsHitTestVisible="False"
+                 Visibility="{Binding MainVisibility}"/>
+      </Grid>
+      <Grid Visibility="{Binding EmptyVisibility}">
+        <Ellipse StrokeThickness="1" StrokeDashArray="3 2" Fill="#0CFFFFFF">
+          <Ellipse.Stroke><SolidColorBrush Color="{Binding Frame}"/></Ellipse.Stroke>
+        </Ellipse>
+        <TextBlock Text="{Binding Placeholder}" Foreground="#6E8598"
+                   FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+    </Grid>
+  </DataTemplate>
 </ResourceDictionary>

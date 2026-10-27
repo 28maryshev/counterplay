@@ -951,6 +951,14 @@ internal static class Program
               $"{SlotOpacity(w, "BansOurList", 0)} / {SlotOpacity(w, "BansOurList", 1)}");
         Check("наши — в синем кольце", RingColor(w, "BansOurList", 1) == "#FF36D6E7", RingColor(w, "BansOurList", 1));
         Check("волн нет вовсе", w.FindName("BansOurWave") is null && w.FindName("BansTheirWave") is null, "");
+        // Ряды банов под заголовками колонок команд: наших два и «…», их — «?».
+        var chips = Slots(w, "MyTeamBansStrip");
+        Check("под «Моей командой» — ряд банов, два сделаны",
+              Vis(w, "MyTeamBansStrip") && chips.Count == 5 && chips.Count(x => !x.IsEmpty) == 2
+              && chips.Where(x => x.IsEmpty).All(x => x.Placeholder == "…"),
+              $"{Vis(w, "MyTeamBansStrip")} {chips.Count}/{chips.Count(x => !x.IsEmpty)}");
+        Check("под «Врагами» — пять скрытых «?»", Vis(w, "EnemyTeamBansStrip")
+              && Slots(w, "EnemyTeamBansStrip") is { Count: 5 } en && en.All(x => x is { IsEmpty: true, Placeholder: "?" }), "");
         if (snap is { Length: > 0 }) Snap(w, snap, "2-done-ours.png");
 
         // Свои добанили, их всё ещё нет.
@@ -1021,6 +1029,15 @@ internal static class Program
         Check("через 4 секунды — пики, панели банов нет", !Vis(w, "BansDonePanel") && Vis(w, "RecScroll"), "");
         Check("а пул роли — на своём месте", Vis(w, "RolePoolBar") && !Vis(w, "TierListBar"),
               $"пул роли {Vis(w, "RolePoolBar")}, тир-лист {Vis(w, "TierListBar")}");
+        // Панель банов ушла, а кого забанили — видно под заголовками колонок.
+        var chipsOurs = Slots(w, "MyTeamBansStrip");
+        var chipsTheirs = Slots(w, "EnemyTeamBansStrip");
+        Check("на пиках баны — под заголовками колонок, пять и пять",
+              Vis(w, "MyTeamBansStrip") && Vis(w, "EnemyTeamBansStrip")
+              && chipsOurs.Count(x => !x.IsEmpty) == 5 && chipsTheirs.Count(x => !x.IsEmpty) == 5,
+              $"{chipsOurs.Count(x => !x.IsEmpty)} / {chipsTheirs.Count(x => !x.IsEmpty)}");
+        Check("в ряду забаненный мейн помечен", chipsTheirs.Count(x => x.IsMyMain) == 1, "");
+        if (snap is { Length: > 0 }) Snap(w, snap, "5-picks-team-bans.png");
 
         // Раскрытие внутри фазы банов (если клиент когда-то так сделает) —
         // показано сразу, и на пиках держать уже нечего.
@@ -1048,6 +1065,26 @@ internal static class Program
         Pump();
         Check("новый драфт — панель с чистого листа", Opacity(w2, "BansTheirHalf") == 0
               && Slots(w2, "BansTheirList").All(x => x.IsEmpty) && ShiftY(w2, "BansOurHalf") > 20, "");
+        // Союзник пропустил бан. Пока идут баны, пустой кружок в ряду — «…»;
+        // баны кончились при тех же банах — просто пустой: ряд пересобран,
+        // хотя сами баны не менялись.
+        var four = oursFull with { MyTeamBans = [157, 64, 555, 238] };
+        w2.UpdateBans([], four, engine);
+        Pump();
+        Check("пропущенный бан, пока банят, — «…»",
+              Slots(w2, "MyTeamBansStrip").Count(x => x is { IsEmpty: true, Placeholder: "…" }) == 1, "");
+        var fourPicks = four with { InBanPhase = false, MyBanActionId = -1, MyBanInProgress = false };
+        w2.UpdateRecommendations(engine.Recommend(fourPicks, 6), fourPicks, engine);
+        Pump();
+        Check("баны кончились — пропущенный пустой, без «…»",
+              Slots(w2, "MyTeamBansStrip") is var left && left.Count(x => !x.IsEmpty) == 4
+              && left.Count(x => x is { IsEmpty: true, Placeholder: "" }) == 1,
+              string.Join(" ", Slots(w2, "MyTeamBansStrip").Select(x => x.IsEmpty ? $"[{x.Placeholder}]" : x.Name)));
+        // Режим без банов (вслепую) — ряда нет вовсе.
+        var blind = fourPicks with { MyTeamBans = [], TheirTeamBans = [], MyBanDone = false };
+        w2.UpdateRecommendations(engine.Recommend(blind, 6), blind, engine);
+        Pump();
+        Check("вслепую банов нет — и ряда нет", !Vis(w2, "MyTeamBansStrip") && !Vis(w2, "EnemyTeamBansStrip"), "");
         w2.Close();
 
         w.Close();

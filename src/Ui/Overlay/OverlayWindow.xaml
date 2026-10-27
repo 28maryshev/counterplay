@@ -828,6 +828,14 @@
                        Text="{loc:T team.myTeam}"
                        FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="Bold"
                        Foreground="#C89B3C" Margin="0,0,0,2"/>
+            <!-- Баны команды под заголовком — во всех фазах драфта с банами
+                 (RenderTeamBans). -->
+            <ItemsControl DockPanel.Dock="Top" x:Name="MyTeamBansStrip" Visibility="Collapsed"
+                          ItemTemplate="{StaticResource BanChip}" Margin="0,3,0,2">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
             <TextBlock DockPanel.Dock="Top" x:Name="MyTeamStyle" Text=""
                        FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                        Foreground="#8AA0B2" Margin="0,0,0,10"/>
@@ -1313,6 +1321,12 @@
                        Text="{loc:T team.enemies}"
                        FontFamily="{StaticResource DisplayFont}" FontSize="15" FontWeight="Bold"
                        Foreground="#C84040" Margin="0,0,0,2"/>
+            <ItemsControl DockPanel.Dock="Top" x:Name="EnemyTeamBansStrip" Visibility="Collapsed"
+                          ItemTemplate="{StaticResource BanChip}" Margin="0,3,0,2">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
             <TextBlock DockPanel.Dock="Top" x:Name="EnemyTeamStyle" Text=""
                        FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"
                        Foreground="#C08080" Margin="0,0,0,10"/>

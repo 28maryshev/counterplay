@@ -249,8 +249,8 @@ public partial class OverlayWindow
     {
         _theirBansShown = 0;
         _theirRevealed = false;
-        // null, а не "": у пустого списка банов подпись — пустая строка, и
-        // слоты нового драфта не пересобрались бы — держали бы баны прошлого.
+        // null, а не подпись пустого списка: совпади она с подписью нового
+        // драфта, слоты не пересобрались бы — держали бы баны прошлого.
         _ourSlotsSig = _theirSlotsSig = null;
     }
 
@@ -262,11 +262,41 @@ public partial class OverlayWindow
     // перерисовывается на каждом событии драфта (наведения, таймер).
     private string? _ourSlotsSig, _theirSlotsSig;
 
-    /// Слоты команды в список, если состав изменился.
+    // То же для рядов банов под заголовками колонок команд.
+    private string? _ourChipsSig, _theirChipsSig;
+
+    /// <summary>
+    /// Баны команд под заголовками «Моя команда» и «Враги»: по пять маленьких
+    /// портретов. Панель банов в центре уходит с началом пиков, а кого
+    /// забанили, нужно видеть и там (просьба владельца, 27.10).
+    ///
+    /// Ряд стоит с фазы банов (с объявления) до конца драфта: появись он только
+    /// на пиках, составы под ним прыгали бы вниз. В режимах без банов (вслепую,
+    /// ARAM) ряда нет. Пока идут баны, пустые кружки — «…» у нас и «?» у них
+    /// (клиент прячет их баны до конца таймера), потом — просто пустые: бан
+    /// пропущен. Движка ещё нет (база грузится, заглушка центра) — бан-рейт
+    /// взять неоткуда, ряда тоже нет.
+    /// </summary>
+    private void RenderTeamBans(DraftState draft)
+    {
+        var show = _engine is not null && !draft.IsAram
+                   && (draft.InBanPhase || draft.MyBanDone
+                       || draft.MyTeamBans.Count > 0 || draft.TheirTeamBans.Count > 0);
+        MyTeamBansStrip.Visibility = EnemyTeamBansStrip.Visibility =
+            show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+        var banning = draft.InBanPhase;
+        SetBanSlots(MyTeamBansStrip, draft.MyTeamBans, "#36D6E7", banning ? "…" : "", ref _ourChipsSig);
+        SetBanSlots(EnemyTeamBansStrip, draft.TheirTeamBans, "#FF5A4D", banning ? "?" : "", ref _theirChipsSig);
+    }
+
+    /// Слоты команды в список, если состав изменился. Заглушка пустых — в
+    /// подписи: у рядов под заголовками она меняется с концом банов при тех
+    /// же банах.
     private void SetBanSlots(ItemsControl list, IReadOnlyList<int> bans, string frame,
                              string placeholder, ref string? sig)
     {
-        var now = string.Join(",", bans);
+        var now = placeholder + "|" + string.Join(",", bans);
         if (now == sig && list.ItemsSource is not null) return;
         sig = now;
         list.ItemsSource = BanSlots(bans, frame, placeholder);
