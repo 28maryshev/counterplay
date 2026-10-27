@@ -589,6 +589,8 @@
     "draftArchHint": "Badge sui ritratti e la riga dello stile di squadra",
     "draftSideIcons": "Icone accanto ai giocatori",
     "draftSideIconsHint": "Sinergie nella tua squadra, counter nella loro",
+    "draftChampTip": "Scheda campione al passaggio",
+    "draftChampTipHint": "Passa su un campione di una squadra: winrate e ban rate, posto nella tier list, counter e sinergie",
     "draftDamage": "Tipo di danno",
     "draftDamageHint": "Ripartizione tra danno fisico e magico nella squadra",
     "draftRunes": "Rune e build",
@@ -780,5 +782,19 @@
     "markPicks": "Pick",
     "otherRole": "Nascosto per un altro ruolo",
     "howTo": "Il pulsante 👎 nell’angolo di una scheda nasconde un campione per {0} partite in quel ruolo. Poi risale di un posto a partita e dopo {1} partite torna al suo posto. «Riporta» lo rimette subito."
+  },
+  "champTip": {
+    "wr": "WINRATE",
+    "ban": "BAN RATE",
+    "tier": "TIER LIST",
+    "place": "{0}° su {1}",
+    "noTier": "non in lista",
+    "fewGames": "poche partite nella patch",
+    "counters": "COUNTER",
+    "countersCol": "WR contro",
+    "synergy": "SINERGIA",
+    "synergyCol": "WR insieme",
+    "noData": "dati insufficienti",
+    "footer": "Patch {0} · {1}"
   }
 }

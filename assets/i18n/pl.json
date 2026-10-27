@@ -589,6 +589,8 @@
     "draftArchHint": "Ikony na portretach i wiersz ze stylem drużyny",
     "draftSideIcons": "Ikony obok graczy",
     "draftSideIconsHint": "Synergie u ciebie, kontry u przeciwników",
+    "draftChampTip": "Karta bohatera po najechaniu",
+    "draftChampTipHint": "Najedź na bohatera w składzie — winrate i ban rate w patchu, miejsce w tier liście, kontry i synergie",
     "draftDamage": "Typ obrażeń",
     "draftDamageHint": "Podział na obrażenia fizyczne i magiczne w drużynie",
     "draftRunes": "Runy i build",
@@ -780,5 +782,19 @@
     "markPicks": "Picki",
     "otherRole": "Ukryty na innej roli",
     "howTo": "Przycisk 👎 w rogu karty ukrywa bohatera na {0} gier na tej roli. Potem wraca o jedno miejsce na grę, a po {1} grach stoi na swoim miejscu. „Przywróć” działa od razu."
+  },
+  "champTip": {
+    "wr": "WINRATE",
+    "ban": "BAN RATE",
+    "tier": "TIER LISTA",
+    "place": "{0}. z {1}",
+    "noTier": "poza listą",
+    "fewGames": "mało gier w patchu",
+    "counters": "KONTRY",
+    "countersCol": "WR przeciw",
+    "synergy": "SYNERGIA",
+    "synergyCol": "WR razem",
+    "noData": "za mało danych",
+    "footer": "Patch {0} · {1}"
   }
 }

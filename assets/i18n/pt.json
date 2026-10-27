@@ -589,6 +589,8 @@
     "draftArchHint": "Selos nos retratos e a linha de estilo do time",
     "draftSideIcons": "Ícones ao lado dos jogadores",
     "draftSideIconsHint": "Sinergias no seu time, counters no deles",
+    "draftChampTip": "Ficha do campeão ao passar o mouse",
+    "draftChampTipHint": "Passe o mouse em um campeão de qualquer time: winrate e taxa de ban, posição na tier list, counters e sinergias",
     "draftDamage": "Tipo de dano",
     "draftDamageHint": "Divisão de dano físico e mágico no time",
     "draftRunes": "Runas e build",
@@ -780,5 +782,19 @@
     "markPicks": "Picks",
     "otherRole": "Oculto em outra função",
     "howTo": "O botão 👎 no canto de um cartão oculta um campeão por {0} partidas nessa função. Depois ele sobe uma posição por partida e após {1} partidas volta ao seu lugar. “Restaurar” traz de volta na hora."
+  },
+  "champTip": {
+    "wr": "WINRATE",
+    "ban": "TAXA DE BAN",
+    "tier": "TIER LIST",
+    "place": "{0}º de {1}",
+    "noTier": "sem posição",
+    "fewGames": "poucos jogos no patch",
+    "counters": "COUNTERS",
+    "countersCol": "WR contra",
+    "synergy": "SINERGIA",
+    "synergyCol": "WR juntos",
+    "noData": "poucos dados",
+    "footer": "Patch {0} · {1}"
   }
 }

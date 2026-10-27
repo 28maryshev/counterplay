@@ -589,6 +589,8 @@
     "draftArchHint": "Badges on portraits and the team style line",
     "draftSideIcons": "Icons beside players",
     "draftSideIconsHint": "Synergies on your team, counters on theirs",
+    "draftChampTip": "Champion card on hover",
+    "draftChampTipHint": "Hover a champion on either team to see win and ban rate, tier list spot, counters and synergies",
     "draftDamage": "Damage type",
     "draftDamageHint": "Physical and magic damage split across the team",
     "draftRunes": "Runes and build",
@@ -780,5 +782,19 @@
     "markPicks": "Picks",
     "otherRole": "Hidden for another role",
     "howTo": "The 👎 button in a card’s corner hides a champion for {0} games on that role. Then it climbs back one place per game and is back in its spot after {1} games. “Restore” brings it back right away."
+  },
+  "champTip": {
+    "wr": "WIN RATE",
+    "ban": "BAN RATE",
+    "tier": "TIER LIST",
+    "place": "#{0} of {1}",
+    "noTier": "not ranked",
+    "fewGames": "few games this patch",
+    "counters": "COUNTERS",
+    "countersCol": "WR vs",
+    "synergy": "SYNERGY",
+    "synergyCol": "WR together",
+    "noData": "not enough data",
+    "footer": "Patch {0} · {1}"
   }
 }

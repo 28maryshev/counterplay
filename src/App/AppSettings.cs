@@ -119,6 +119,7 @@ public sealed class AppSettings
     public bool DraftDamage     { get; set; } = true;  // полоса физ/маг урона
     public bool DraftArch       { get; set; } = true;  // значки архетипа и стиль команды
     public bool DraftSideIcons  { get; set; } = true;  // синергии у своих / контры у врагов
+    public bool DraftChampTip   { get; set; } = true;  // карточка чемпиона при наведении на слот
     public bool DraftRunes      { get; set; } = true;  // панель рун и сборки после пика
 
     // ── Окно в драфте ───────────────────────────────────────────────────────

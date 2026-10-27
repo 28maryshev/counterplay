@@ -281,6 +281,8 @@ sealed class SettingsWindow : Window
             s.DraftArch,     v => { s.DraftArch = v;     MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftSideIcons"), Loc.T("settings.draftSideIconsHint"),
             s.DraftSideIcons, v => { s.DraftSideIcons = v; MarkDirty(); }));
+        body.Children.Add(Row(Loc.T("settings.draftChampTip"), Loc.T("settings.draftChampTipHint"),
+            s.DraftChampTip, v => { s.DraftChampTip = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftDamage"),   Loc.T("settings.draftDamageHint"),
             s.DraftDamage,   v => { s.DraftDamage = v;   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftRunes"),    Loc.T("settings.draftRunesHint"),

@@ -30,6 +30,11 @@ public sealed class ChampSlotCard
     public string            BorderColor { get; init; } = "#C89B3C";
     public string            NameColor   { get; init; } = "White";
     public bool              IsEmpty     { get; init; }
+    // Для карточки чемпиона при наведении: кто в слоте, его роль в базе ("" —
+    // роли нет, возьмётся главная) и сторона (карточка встаёт к центру окна).
+    public int               ChampionId  { get; init; }
+    public string            StatsRole   { get; init; } = "";
+    public bool              IsAlly      { get; init; }
     public string            SideLabel   { get; init; } = "";
     public List<ImageSource> SideIcons   { get; init; } = [];
     public Visibility        SideVisibility =>

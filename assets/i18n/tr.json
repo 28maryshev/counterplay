@@ -589,6 +589,8 @@
     "draftArchHint": "Portrelerdeki rozetler ve takım tarzı satırı",
     "draftSideIcons": "Oyuncuların yanındaki ikonlar",
     "draftSideIconsHint": "Kendi takımında sinerjiler, karşı takımda kontrlar",
+    "draftChampTip": "Üzerine gelince şampiyon kartı",
+    "draftChampTipHint": "Takımdaki bir şampiyonun üzerine gel: kazanma ve yasak oranı, tier sırası, karşılar ve sinerjiler",
     "draftDamage": "Hasar tipi",
     "draftDamageHint": "Takımdaki fiziksel ve büyü hasarı dağılımı",
     "draftRunes": "Rünler ve dizilim",
@@ -780,5 +782,19 @@
     "markPicks": "Seçimler",
     "otherRole": "Başka bir rolde gizli",
     "howTo": "Kartın köşesindeki 👎 düğmesi bir şampiyonu o rolde {0} maç gizler. Sonra her maç bir sıra yükselir ve {1} maç sonra yerine döner. “Geri getir” hemen döndürür."
+  },
+  "champTip": {
+    "wr": "KAZANMA ORANI",
+    "ban": "YASAK ORANI",
+    "tier": "TIER LİSTESİ",
+    "place": "{1} içinde {0}.",
+    "noTier": "listede yok",
+    "fewGames": "bu yamada az maç",
+    "counters": "KARŞILAR",
+    "countersCol": "karşı WR",
+    "synergy": "SİNERJİ",
+    "synergyCol": "birlikte WR",
+    "noData": "yetersiz veri",
+    "footer": "Yama {0} · {1}"
   }
 }

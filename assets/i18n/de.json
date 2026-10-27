@@ -589,6 +589,8 @@
     "draftArchHint": "Symbole auf den Portraits und die Stilzeile des Teams",
     "draftSideIcons": "Icons neben den Spielern",
     "draftSideIconsHint": "Synergien bei deinem Team, Konter beim Gegner",
+    "draftChampTip": "Champion-Karte beim Überfahren",
+    "draftChampTipHint": "Fahre über einen Champion im Team: Win- und Bannrate, Platz in der Tier-Liste, Konter und Synergien",
     "draftDamage": "Schadensart",
     "draftDamageHint": "Verteilung von physischem und magischem Schaden im Team",
     "draftRunes": "Runen und Build",
@@ -780,5 +782,19 @@
     "markPicks": "Picks",
     "otherRole": "Für eine andere Rolle ausgeblendet",
     "howTo": "Der 👎-Knopf in der Kartenecke blendet einen Champion für {0} Spiele auf dieser Rolle aus. Danach steigt er pro Spiel einen Platz auf und ist nach {1} Spielen wieder an seiner Stelle. „Zurückholen“ wirkt sofort."
+  },
+  "champTip": {
+    "wr": "WINRATE",
+    "ban": "BANNRATE",
+    "tier": "TIER-LISTE",
+    "place": "{0}. von {1}",
+    "noTier": "nicht gelistet",
+    "fewGames": "zu wenige Spiele im Patch",
+    "counters": "KONTER",
+    "countersCol": "WR dagegen",
+    "synergy": "SYNERGIE",
+    "synergyCol": "WR zusammen",
+    "noData": "zu wenige Daten",
+    "footer": "Patch {0} · {1}"
   }
 }

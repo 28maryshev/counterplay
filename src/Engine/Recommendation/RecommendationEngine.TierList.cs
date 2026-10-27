@@ -206,6 +206,18 @@ public sealed partial class RecommendationEngine
     /// в тир-листе — пустая строка.
     private string TierGrade(int champId, string role) => TierOf(role).Grade.GetValueOrDefault(champId, "");
 
+    /// <summary>
+    /// Место чемпиона в тир-листе роли — для карточки чемпиона при наведении на
+    /// слот: грейд, номер (с 1, тот же порядок, что в тир-листе) и сколько
+    /// чемпионов в роли прошли пороги. Нет в тир-листе — null.
+    /// </summary>
+    public (string Grade, int Place, int Of)? TierSpot(int champId, string role)
+    {
+        var (rank, grade) = TierOf(role);
+        if (!rank.TryGetValue(champId, out var r)) return null;
+        return (grade[champId], (int)Math.Round(r * rank.Count) + 1, rank.Count);
+    }
+
     private Dictionary<int, double>? _banRates;
 
     /// <summary>

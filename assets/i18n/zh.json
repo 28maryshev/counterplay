@@ -589,6 +589,8 @@
     "draftArchHint": "头像上的标记与阵容说明行",
     "draftSideIcons": "选手旁的图标",
     "draftSideIconsHint": "己方显示契合，敌方显示克制",
+    "draftChampTip": "悬停显示英雄卡片",
+    "draftChampTipHint": "悬停阵容中的英雄，查看胜率、禁用率、梯队排名、克制与契合",
     "draftDamage": "伤害类型",
     "draftDamageHint": "队伍中物理与魔法伤害的比例",
     "draftRunes": "符文与出装",
@@ -780,5 +782,19 @@
     "markPicks": "选择",
     "otherRole": "在其他位置隐藏",
     "howTo": "卡片角落的 👎 按钮会在该位置将英雄隐藏 {0} 局。之后每局回升一位，{1} 局后回到原位。「恢复」会立即生效。"
+  },
+  "champTip": {
+    "wr": "胜率",
+    "ban": "禁用率",
+    "tier": "梯队榜",
+    "place": "第 {0} / {1}",
+    "noTier": "未上榜",
+    "fewGames": "本版本场次过少",
+    "counters": "克制",
+    "countersCol": "对线胜率",
+    "synergy": "契合",
+    "synergyCol": "同队胜率",
+    "noData": "数据不足",
+    "footer": "版本 {0} · {1}"
   }
 }

@@ -589,6 +589,8 @@
     "draftArchHint": "Distintivos en los retratos y la línea de estilo del equipo",
     "draftSideIcons": "Iconos junto a los jugadores",
     "draftSideIconsHint": "Sinergias en tu equipo, contras en el suyo",
+    "draftChampTip": "Ficha del campeón al pasar el ratón",
+    "draftChampTipHint": "Pasa el ratón por un campeón de cualquier equipo: winrate y % de baneo, puesto en la tier list, contras y sinergias",
     "draftDamage": "Tipo de daño",
     "draftDamageHint": "Reparto de daño físico y mágico en el equipo",
     "draftRunes": "Runas y build",
@@ -780,5 +782,19 @@
     "markPicks": "Picks",
     "otherRole": "Oculto en otro rol",
     "howTo": "El botón 👎 en la esquina de una tarjeta oculta a un campeón durante {0} partidas en ese rol. Luego sube un puesto por partida y tras {1} partidas vuelve a su sitio. «Recuperar» lo devuelve al instante."
+  },
+  "champTip": {
+    "wr": "WINRATE",
+    "ban": "% DE BANEO",
+    "tier": "TIER LIST",
+    "place": "#{0} de {1}",
+    "noTier": "sin puesto",
+    "fewGames": "pocas partidas en el parche",
+    "counters": "CONTRAS",
+    "countersCol": "WR en contra",
+    "synergy": "SINERGIA",
+    "synergyCol": "WR juntos",
+    "noData": "pocos datos",
+    "footer": "Parche {0} · {1}"
   }
 }

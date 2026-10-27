@@ -589,6 +589,8 @@
     "draftArchHint": "アイコン上のバッジとチーム構成の行",
     "draftSideIcons": "プレイヤー横のアイコン",
     "draftSideIconsHint": "味方にはシナジー、敵にはカウンター",
+    "draftChampTip": "ホバーでチャンピオン情報",
+    "draftChampTipHint": "編成のチャンピオンにカーソルを合わせると勝率・BAN率・Tier順位・カウンター・シナジーを表示",
     "draftDamage": "ダメージタイプ",
     "draftDamageHint": "チームの物理・魔法ダメージの割合",
     "draftRunes": "ルーンとビルド",
@@ -780,5 +782,19 @@
     "markPicks": "ピック",
     "otherRole": "別のロールで非表示",
     "howTo": "カード右上の👎で、そのロールでチャンピオンを{0}試合非表示にします。その後は1試合ごとに1つずつ順位が戻り、{1}試合で元の位置に戻ります。「戻す」ですぐに戻せます。"
+  },
+  "champTip": {
+    "wr": "勝率",
+    "ban": "BAN率",
+    "tier": "Tierリスト",
+    "place": "{1}体中{0}位",
+    "noTier": "ランク外",
+    "fewGames": "このパッチの試合が少ない",
+    "counters": "カウンター",
+    "countersCol": "対面勝率",
+    "synergy": "シナジー",
+    "synergyCol": "一緒の勝率",
+    "noData": "データ不足",
+    "footer": "パッチ {0} · {1}"
   }
 }

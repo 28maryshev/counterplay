@@ -589,6 +589,8 @@
     "draftArchHint": "초상화의 배지와 팀 조합 표시줄",
     "draftSideIcons": "플레이어 옆 아이콘",
     "draftSideIconsHint": "우리 팀엔 시너지, 적 팀엔 카운터",
+    "draftChampTip": "마우스를 올리면 챔피언 카드",
+    "draftChampTipHint": "팀 구성의 챔피언에 마우스를 올리면 승률·밴률·티어 순위·카운터·시너지 표시",
     "draftDamage": "피해 유형",
     "draftDamageHint": "팀의 물리·마법 피해 비율",
     "draftRunes": "룬과 빌드",
@@ -780,5 +782,19 @@
     "markPicks": "픽",
     "otherRole": "다른 포지션에서 숨김",
     "howTo": "카드 모서리의 👎 버튼은 해당 포지션에서 챔피언을 {0}게임 동안 숨깁니다. 이후 게임마다 한 칸씩 올라오고 {1}게임 후 원래 자리로 돌아옵니다. ‘되돌리기’는 즉시 적용됩니다."
+  },
+  "champTip": {
+    "wr": "승률",
+    "ban": "밴률",
+    "tier": "티어 리스트",
+    "place": "{1}명 중 {0}위",
+    "noTier": "순위 없음",
+    "fewGames": "이번 패치 게임 수 부족",
+    "counters": "카운터",
+    "countersCol": "상대 승률",
+    "synergy": "시너지",
+    "synergyCol": "함께 승률",
+    "noData": "데이터 부족",
+    "footer": "패치 {0} · {1}"
   }
 }

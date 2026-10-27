@@ -25,12 +25,14 @@ public sealed partial class RecommendationEngine
 
     // (champion_id, games, wins) → ранг по нижней границе Уилсона. minEdge отсекает
     // «неуверенные» пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
-    private static List<int> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE) =>
+    private static List<HintRow> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE) =>
         ReadHintRows(cmd)
-            .Select(r => (r.Id, Lb: WilsonLower(r.Wins, r.Games)))
-            .Where(x => x.Lb > minEdge)
-            .OrderByDescending(x => x.Lb)
-            .Take(top).Select(x => x.Id).ToList();
+            .Where(r => WilsonLower(r.Wins, r.Games) > minEdge)
+            .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
+            .Take(top).ToList();
+
+    /// <summary>Чемпион из подсказки с винрейтом пары (доля, 0..1) и его ролью.</summary>
+    public readonly record struct HintPick(int Id, string Role, double Wr);
 
     /// <summary>
     /// Топ N чемпионов той же роли, лучше всего контрящих данного врага.
@@ -45,7 +47,19 @@ public sealed partial class RecommendationEngine
     /// </param>
     public IReadOnlyList<int> TopCounters(int enemyId, string? enemyRole = null, int top = 3,
                                           int? minGames = null, double? minEdge = null,
-                                          bool fill = false)
+                                          bool fill = false) =>
+        CounterRows(enemyId, enemyRole, top, minGames, minEdge, fill).Select(r => r.Id).ToList();
+
+    /// <summary>
+    /// Те же контры, что под портретом врага (с добором), но с винрейтом
+    /// контры против него — для карточки чемпиона при наведении на слот.
+    /// </summary>
+    public IReadOnlyList<HintPick> CountersWithWr(int champId, string role, int top = 5) =>
+        CounterRows(champId, role, top, null, null, fill: true)
+            .Select(r => new HintPick(r.Id, role, r.Wr)).ToList();
+
+    private List<HintRow> CounterRows(int enemyId, string? enemyRole, int top,
+                                      int? minGames, double? minEdge, bool fill)
     {
         if (enemyId == 0) return [];
         try
@@ -69,22 +83,19 @@ public sealed partial class RecommendationEngine
             var rows = ReadHintRows(cmd);
             double gMin = minGames ?? HINT_MIN_GAMES, eMin = minEdge ?? HINT_MIN_EDGE;
             var strict = rows.Where(r => r.Games >= gMin && WilsonLower(r.Wins, r.Games) > eMin)
-                             .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
-                             .Select(r => r.Id);
+                             .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
             if (!fill) return strict.Take(top).ToList();
 
             // Сначала те, у кого перевес настоящий…
             var winning = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr > 0.50)
-                              .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
-                              .Select(r => r.Id);
+                              .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
             // …и только потом ровные пары. Против чемпиона вроде Джинкс роль
             // может не знать НИ ОДНОГО победного матчапа: лучший ответ там —
             // тот, кто не проигрывает. Ниже этой границы уже проигрыш, и
             // называть его контрой нельзя даже ради третьей иконки.
             var even = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr >= HINT_EVEN_WR)
-                           .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
-                           .Select(r => r.Id);
-            return strict.Concat(winning).Concat(even).Distinct().Take(top).ToList();
+                           .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
+            return strict.Concat(winning).Concat(even).DistinctBy(r => r.Id).Take(top).ToList();
         }
         catch { return []; }
     }
@@ -105,14 +116,31 @@ public sealed partial class RecommendationEngine
         // сумма по такой паре собрана из случайных флексов.
         if (allyRole == myRole) allyRole = null;
 
-        var byRole = ByAllyRole(allyId, myRole, top, allyRole);
+        var byRole = ByAllyRole(allyId, myRole, top, allyRole).Select(r => r.Id).ToList();
         if (allyRole is null || byRole.Count >= top) return byRole;
         // Роль союзника известна, но пары по ней разрежены — добираем общими.
-        return byRole.Concat(ByAllyRole(allyId, myRole, top, null))
+        return byRole.Concat(ByAllyRole(allyId, myRole, top, null).Select(r => r.Id))
                      .Distinct().Take(top).ToList();
     }
 
-    private List<int> ByAllyRole(int allyId, string myRole, int top, string? allyRole)
+    /// <summary>
+    /// Лучшие напарники чемпиона на всех прочих ролях, с винрейтом пары — для
+    /// карточки чемпиона при наведении на слот. Отбор как у иконок под
+    /// портретом союзника (кандидаты — кто роль правда играет, ранг по Уилсону),
+    /// только ролей четыре, и общий топ сводится из лучших каждой.
+    /// </summary>
+    public IReadOnlyList<HintPick> PartnersWithWr(int champId, string role, int top = 5)
+    {
+        if (champId == 0 || string.IsNullOrEmpty(role)) return [];
+        return [.. new[] { "top", "jungle", "mid", "adc", "support" }
+            .Where(r => r != role)
+            .SelectMany(r => ByAllyRole(champId, r, top, role).Select(x => (Row: x, Role: r)))
+            .OrderByDescending(x => WilsonLower(x.Row.Wins, x.Row.Games))
+            .Take(top)
+            .Select(x => new HintPick(x.Row.Id, x.Role, x.Row.Wr))];
+    }
+
+    private List<HintRow> ByAllyRole(int allyId, string myRole, int top, string? allyRole)
     {
         try
         {

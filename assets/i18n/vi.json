@@ -589,6 +589,8 @@
     "draftArchHint": "Huy hiệu trên chân dung và dòng lối chơi của đội",
     "draftSideIcons": "Biểu tượng cạnh người chơi",
     "draftSideIconsHint": "Phối hợp bên đội bạn, khắc chế bên đội địch",
+    "draftChampTip": "Thẻ tướng khi di chuột",
+    "draftChampTipHint": "Di chuột lên tướng trong đội hình để xem tỉ lệ thắng, tỉ lệ cấm, hạng tier list, khắc chế và phối hợp",
     "draftDamage": "Loại sát thương",
     "draftDamageHint": "Tỉ lệ sát thương vật lý và phép của cả đội",
     "draftRunes": "Ngọc và trang bị",
@@ -780,5 +782,19 @@
     "markPicks": "Chọn",
     "otherRole": "Ẩn ở vai trò khác",
     "howTo": "Nút 👎 ở góc thẻ ẩn tướng trong {0} trận ở vai trò đó. Sau đó tướng lên lại mỗi trận một bậc và về đúng vị trí sau {1} trận. “Khôi phục” đưa trở lại ngay."
+  },
+  "champTip": {
+    "wr": "TỈ LỆ THẮNG",
+    "ban": "TỈ LỆ CẤM",
+    "tier": "TIER LIST",
+    "place": "Hạng {0}/{1}",
+    "noTier": "chưa xếp hạng",
+    "fewGames": "ít trận ở phiên bản này",
+    "counters": "KHẮC CHẾ",
+    "countersCol": "thắng khi đối đầu",
+    "synergy": "PHỐI HỢP",
+    "synergyCol": "thắng khi cùng đội",
+    "noData": "chưa đủ dữ liệu",
+    "footer": "Phiên bản {0} · {1}"
   }
 }

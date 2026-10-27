@@ -589,6 +589,8 @@
     "draftArchHint": "Badges sur les portraits et la ligne de style d'équipe",
     "draftSideIcons": "Icônes à côté des joueurs",
     "draftSideIconsHint": "Synergies dans ton équipe, counters dans la leur",
+    "draftChampTip": "Fiche du champion au survol",
+    "draftChampTipHint": "Survole un champion d'une équipe : winrate et taux de ban, place dans la tier list, counters et synergies",
     "draftDamage": "Type de dégâts",
     "draftDamageHint": "Répartition des dégâts physiques et magiques dans l'équipe",
     "draftRunes": "Runes et build",
@@ -780,5 +782,19 @@
     "markPicks": "Picks",
     "otherRole": "Masqué pour un autre rôle",
     "howTo": "Le bouton 👎 dans le coin d’une carte masque un champion pendant {0} parties sur ce rôle. Ensuite il remonte d’une place par partie et retrouve sa place après {1} parties. « Remettre » le rend tout de suite."
+  },
+  "champTip": {
+    "wr": "WINRATE",
+    "ban": "TAUX DE BAN",
+    "tier": "TIER LIST",
+    "place": "{0}e sur {1}",
+    "noTier": "non classé",
+    "fewGames": "peu de parties ce patch",
+    "counters": "COUNTERS",
+    "countersCol": "WR contre",
+    "synergy": "SYNERGIE",
+    "synergyCol": "WR ensemble",
+    "noData": "pas assez de données",
+    "footer": "Patch {0} · {1}"
   }
 }
