@@ -233,6 +233,31 @@ internal static class Program
               Party.MateChampion(draft, anon) == 0, $"{Party.MateChampion(draft, anon)}");
         Check("…и место напарника не угадываем", Party.MateSeat(draft, anon) is null, "");
 
+        // ── 11. В очереди стояли, а ника взять негде ──────────────────────
+        //
+        // Лобби ников не отдаёт («пати: без имён»), а совместных соло-игр с
+        // этим человеком ещё нет. Mates() клал вместо ника null, и клик по
+        // плашке «сменить напарника» ронял программу целиком: меню мерило
+        // длину ника. Владелец 27 октября: пул «Trubashot DUO» — в очереди с
+        // ним стояли, соло вместе не доиграли ни разу.
+        SessionTracker.UseStoredAccount(true, "puuid-me");
+        SessionTracker.NoteQueued([("lobby-only", ""), ("lobby-pool", "")]);
+        var pooled = new DuoPool { FriendName = "Плитка", FriendPuuid = "lobby-pool", FriendNick = "Друг#RU" };
+        PoolStore.Current().DuoPools.Add(pooled);
+        SessionTracker.Preview = [Pair("duo-0001", "Напарник", "solo", 2)];
+        var mates = DuoNaming.Mates();
+        Check("ник в списке напарников — всегда строка, не null",
+              mates.All(m => m.Name is not null),
+              string.Join(", ", mates.Select(m => $"{m.Puuid}={m.Name ?? "NULL"}")));
+        Check("с кем стояли в очереди без общих игр — в списке есть",
+              mates.Any(m => m.Puuid == "lobby-only"), "");
+        Check("нет ника ни в лобби, ни в играх — берём из пула этого человека",
+              mates.Any(m => m.Puuid == "lobby-pool" && m.Name == "Друг#RU"),
+              mates.FirstOrDefault(m => m.Puuid == "lobby-pool").Name ?? "NULL");
+        SessionTracker.Preview = null;
+        PoolStore.Current().DuoPools.Remove(pooled);
+        SessionTracker.UseStoredAccount(false);
+
         try { Directory.Delete(AppPaths.RootOverride, true); } catch { }
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: напарник определяется верно" : $"ИТОГ: провалено — {_fails}");

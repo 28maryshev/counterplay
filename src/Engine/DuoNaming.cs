@@ -24,9 +24,25 @@ public static class DuoNaming
         {
             if (p.AllyPuuid.Length == 0) continue;
             var had = games.GetValueOrDefault(p.AllyPuuid);
-            games[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name,
+            games[p.AllyPuuid] = (p.AllyName.Length > 0 ? p.AllyName : had.Name ?? "",
                                   had.Games + p.Games);
         }
+
+        // Ник, под которым игрок сам держит пул этого человека. Лобби ников не
+        // отдаёт, и до первой общей игры в соло/дуо назвать его больше нечем.
+        var poolNick = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in PoolStore.Current().DuoPools)
+            if (d.FriendPuuid.Length > 0 && d.FriendNick.Length > 0)
+                poolNick.TryAdd(d.FriendPuuid, d.FriendNick);
+
+        // Ник по порядку: лобби, связки соло/дуо, пул. Нет нигде — пустая
+        // строка, а не null: меню и плашка мерят её длину. GetValueOrDefault
+        // для незнакомого puuid отдаёт кортеж с null внутри — так меню
+        // «сменить напарника» и роняло программу.
+        string NameOf(string puuid, string lobby) =>
+            lobby.Length > 0 ? lobby
+            : games.GetValueOrDefault(puuid).Name is { Length: > 0 } fromGames ? fromGames
+            : poolNick.GetValueOrDefault(puuid, "");
 
         var res  = new List<(string Puuid, string Name, int Games)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -35,8 +51,7 @@ public static class DuoNaming
         // ОЧЕРЕДЬ. Человек попадает сюда, даже если совместных игр ещё нет.
         foreach (var (puuid, name, _) in SessionTracker.QueuedMates())
         {
-            var g = games.GetValueOrDefault(puuid);
-            res.Add((puuid, name.Length > 0 ? name : g.Name, g.Games));
+            res.Add((puuid, NameOf(puuid, name), games.GetValueOrDefault(puuid).Games));
             seen.Add(puuid);
         }
 
@@ -46,7 +61,7 @@ public static class DuoNaming
         // двух совместных игр уже достаточно, чтобы это была не случайность.
         foreach (var (puuid, v) in games)
             if (!seen.Contains(puuid) && v.Games >= 2)
-                res.Add((puuid, v.Name, v.Games));
+                res.Add((puuid, NameOf(puuid, ""), v.Games));
 
         return res.OrderByDescending(x => x.Games).ToList();
     }
