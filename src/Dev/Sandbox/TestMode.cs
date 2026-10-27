@@ -371,6 +371,74 @@ static partial class TestMode
         RunesClient.UseMock = false;   // руны — настоящие, из базы
     }
 
+    /// <summary>
+    /// Профиль «алмаз II, 55%» — для снимков сайдбара на сайт. Ник, чемпионы
+    /// последних игр и прочие очереди — настоящие, из журнала игрока (<paramref name="mine"/>,
+    /// как в «моём аккаунте»; пул и винрейты чемпионов панель подключает той же
+    /// подменой). Выдуманы только ранг, счёт сезона и график: рейтинг за месяц
+    /// растёт с изумруда I до алмаза II постепенно — с откатом к границе тира и
+    /// полками, как у живого игрока, а не ровной лестницей. Живёт только в
+    /// памяти песочницы: журнал, настройки и синхронизация в ней не пишутся.
+    /// </summary>
+    internal static SessionTracker.SessionData DiamondSession(SessionTracker.SessionData? mine)
+    {
+        // 90 игр за месяц, от старой к свежей, побед 57%. Ряд подобран руками:
+        // серий длиннее четырёх побед нет — иначе на графике видны рывки.
+        const string results =
+            "WWLWLLWWLLLWWLWWWWLWWWLWWLWLWLLLLWLLLWWLLLWWWLWLWWLWWLLLWWWLWLWWWLWLLWWWWLLWLWWWWLLWLWWWLW";
+        const int n = 90;
+        // Очки гуляют, как в клиенте: +18…+23 за победу, −16…−20 за поражение.
+        static int Delta(int i, bool win) => win ? 18 + i * 7 % 6 : -(16 + i * 3 % 5);
+        // Шаг ~7,8 ч: все 91 точка помещаются в окно графика в 30 дней.
+        static DateTime At(int k) => DateTime.Now.AddHours(-(n - k) * 7.8 - 0.5);
+
+        var win = results.Select(c => c == 'W').ToArray();
+        var delta = Enumerable.Range(0, n).Select(i => Delta(i, win[i])).ToArray();
+
+        // Последние пять (от свежей к старой): чемпионы — мои настоящие, а
+        // исходы и очки — из хвоста ряда. Настоящие исходы владелец не просил:
+        // свежие поражения роняли бы конец графика, а он должен расти.
+        // Журнала нет — чемпионы свои.
+        var mineLast = mine?.Queues.GetValueOrDefault("solo")?.Last5 ?? [];
+        int[] champs = mineLast.Count >= 5
+            ? [.. mineLast.Take(5).Select(g => g.ChampionId)]
+            : [201, 412, 201, 117, 111];   // Браум, Треш, Браум, Лулу, Наутилус
+        var last5 = Enumerable.Range(0, 5)
+            .Select(k => new SessionTracker.RecentGame(champs[k], win[n - 1 - k], delta[n - 1 - k]))
+            .ToList();
+
+        // Идём от нынешнего ранга, как журнал (SessionTracker.RatingPoints), —
+        // последняя точка совпадает с карточкой: алмаз II, 64 LP = 2664.
+        var lp = 2400 + 200 + 64 - delta.Sum();
+        var rating = new List<SessionTracker.LpPoint>(n + 1) { new(At(0), lp) };
+        for (int i = 0; i < n; i++)
+        {
+            lp += delta[i];
+            rating.Add(new(At(i + 1), lp));
+        }
+
+        // Сезонный счёт клиента 246–201 — это 55%. Винрейт после каждой игры —
+        // назад от него, тем же расчётом, что в журнале (SeasonWrBefore).
+        const int wins = 246, losses = 201;
+        var wrHist = new List<SessionTracker.WrPoint>(n);
+        for (int i = n - 1, w = wins, l = losses; i >= 0; i--)
+        {
+            wrHist.Add(new(At(i + 1), 100.0 * w / (w + l)));
+            if (win[i]) w--; else l--;
+        }
+        wrHist.Reverse();
+
+        var queues = new Dictionary<string, SessionTracker.QueueView>(
+            mine?.Queues ?? new Dictionary<string, SessionTracker.QueueView>())
+        {
+            ["solo"] = new SessionTracker.QueueView(
+                HasRank: true, Tier: "DIAMOND", Division: "II", Lp: 64, ProgressPct: 64,
+                Wins: wins, Losses: losses, Winrate: 100.0 * wins / (wins + losses),
+                Last5: last5, WinrateHistory: wrHist, RatingHistory: rating),
+        };
+        return new SessionTracker.SessionData(mine?.Nick ?? "TestSummoner", "solo", queues);
+    }
+
     // ── Данные песочницы: вход, профиль, выход ─────────────────────────────
     //
     // Всё, что песочница делает с данными, — в трёх методах ниже. Их зовут и

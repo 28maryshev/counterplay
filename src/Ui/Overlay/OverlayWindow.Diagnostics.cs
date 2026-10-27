@@ -28,10 +28,20 @@ public partial class OverlayWindow
     /// не вызывается — кнопка остаётся скрытой.
     public void EnableSaveForDraft() => Dispatcher.InvokeAsync(() =>
     {
-        SaveForDraftBtn.Content    = Loc.T("pool.saveForDraft");
-        SaveForDraftBtn.Visibility = Visibility.Visible;
-        CopyLogBtn.Visibility      = Visibility.Visible;   // журнал — тоже только в тесте
+        SaveForDraftBtn.Content = Loc.T("pool.saveForDraft");
+        ShowSandboxTools(true);
     });
+
+    /// Спрятать или вернуть тестовые кнопки, не выходя из песочницы: профиль
+    /// для снимков на сайт должен выглядеть как боевой экран.
+    public void SetSandboxTools(bool visible) => Dispatcher.InvokeAsync(() => ShowSandboxTools(visible));
+
+    private void ShowSandboxTools(bool visible)
+    {
+        var v = visible ? Visibility.Visible : Visibility.Collapsed;
+        SaveForDraftBtn.Visibility = v;
+        CopyLogBtn.Visibility      = v;   // журнал — тоже только в тесте
+    }
 
     /// Копирует хвост журнала в буфер: человеку остаётся вставить его в переписку,
     /// а мне — увидеть, что он менял и как программа на это отреагировала.

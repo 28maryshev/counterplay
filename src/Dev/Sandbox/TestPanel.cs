@@ -323,6 +323,7 @@ sealed partial class TestPanel : Window
         _profile.Items.Add("Профиль: без ранга");     // UnrankedProfile
         _profile.Items.Add("Профиль: 3 игры");        // ThreeGamesProfile — порог ленты чемпионов
         _profile.Items.Add("Профиль: ARAM, 2 нормала"); // AramProfile — ленты чемпионов нет
+        _profile.Items.Add("Профиль: алмаз II, 55%");   // DiamondProfile — для снимков на сайт
         // Аккаунты из журнала на этом компьютере — их экраны как есть (только
         // чтение): так видно настоящий аккаунт без ранговых, с нормалами и ARAM.
         _storedAccounts = SessionTracker.StoredAccounts();
@@ -549,6 +550,10 @@ sealed partial class TestPanel : Window
         if (!firstGame && !fiveGames && File.Exists(MyAccountMark))
             _profile.SelectedIndex = MyAccountProfile;
         Recompute();
+        // Язык меняют и посреди песочницы — в настройках, чтобы снять экран
+        // на нужном языке. Подписи, собранные кодом («Готов»), иначе остались
+        // бы на прежнем.
+        Loc.LanguageChanged += Recompute;
 
         // Закрыл панель — выходим из приложения целиком.
         // Закрыли песочницу — вышли из программы. Кроме одного случая: переход в
@@ -556,6 +561,7 @@ sealed partial class TestPanel : Window
         // целиком (окно исчезало, клиента никто не ждал).
         Closed += (_, _) =>
         {
+            Loc.LanguageChanged -= Recompute;
             if (!SwitchingToLive) System.Windows.Application.Current.Shutdown();
         };
     }
@@ -594,7 +600,7 @@ sealed partial class TestPanel : Window
         if (_stage == TestStage.Ready)
         {
             if (_searchEndAt is not null) _overlay.ShowReadyPhase("Matchmaking");
-            else _overlay.ShowReady(Loc.T("status.readyIdle") + " · TEST");
+            else _overlay.ShowReady(ReadyText);
             return;
         }
 

@@ -36,8 +36,13 @@ sealed partial class TestPanel
     private const int UnrankedProfile = 5;
     private const int ThreeGamesProfile = 6;
     private const int AramProfile = 7;
+    private const int DiamondProfile = 8;
+    /// Подпись экрана Ready: в песочнице с пометкой «TEST», кроме профиля для
+    /// снимков на сайт — там экран как боевой.
+    private string ReadyText => Loc.T("status.readyIdle")
+        + (_profile.SelectedIndex == DiamondProfile ? "" : " · TEST");
     /// С этого места в списке — аккаунты из журнала (<see cref="_storedAccounts"/>).
-    private const int FirstStoredProfile = 8;
+    private const int FirstStoredProfile = 9;
     private IReadOnlyList<(string Key, string Nick)> _storedAccounts = [];
 
     // Выбор помнится отметкой в папке песочницы: settings.json — файл игрока,
@@ -75,11 +80,18 @@ sealed partial class TestPanel
     {
         var idx = _profile.SelectedIndex;
         var stored = idx - FirstStoredProfile;
+        // «Алмаз II» — тоже на моих данных: пул, ник и винрейты чемпионов
+        // настоящие, подставные только ранг и график (TestMode.DiamondSession).
         UseAccountData(
-            idx == MyAccountProfile ? SessionTracker.LastAccountKey
+            idx is MyAccountProfile or DiamondProfile ? SessionTracker.LastAccountKey
             : stored >= 0 && stored < _storedAccounts.Count ? _storedAccounts[stored].Key
             : null,
             remember: idx == MyAccountProfile);
+        // Снимок для сайта — без тестовых кнопок («Сохранить для драфта»,
+        // «Логи»); подпись «TEST» снимает ReadyText. Пересобираем экран сами:
+        // с «моего аккаунта» сюда аккаунт тот же, и UseAccountData выходит сразу.
+        _overlay.SetSandboxTools(idx != DiamondProfile);
+        Recompute();
         if (_emptyProfile.IsChecked == true)
         {
             _overlay.SetEmptyProfilePreview(true);
@@ -111,6 +123,10 @@ sealed partial class TestPanel
             case AramProfile:
                 _overlay.ShowSession(TestMode.AramSession);
                 _overlay.SetChampsPreview(TestMode.AramChamps);
+                break;
+            case DiamondProfile:
+                _overlay.ShowSession(TestMode.DiamondSession(SessionTracker.StoredView()));
+                _overlay.SetChampsPreview(null);
                 break;
             case >= FirstStoredProfile when _profile.SelectedIndex - FirstStoredProfile < _storedAccounts.Count:
                 _overlay.ShowSession(SessionTracker.StoredView(
