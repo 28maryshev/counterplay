@@ -90,8 +90,10 @@
           <Ellipse>
             <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
           </Ellipse>
-          <!-- Забанен — так же, как в тир-листе: затемнение и красный крест -->
-          <Ellipse Fill="#B0101820"/>
+          <!-- Забанен — затемнение и красный крест, как в тир-листе, но
+               затемнение слабее (#68 против #B0): здесь забанены все, отличать
+               не от кого, а лицо под тёмным слоем не узнавалось (владелец, 28.10). -->
+          <Ellipse Fill="#68101820"/>
           <TextBlock Text="✕" Foreground="#FF5A5A" FontSize="33" FontWeight="Bold"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <!-- Кольцо команды — поверх затемнения, чтобы не тускнело -->
