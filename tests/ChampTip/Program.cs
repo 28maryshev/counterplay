@@ -201,6 +201,8 @@ internal static class Program
         Check("выключено в настройках — подсказки нет", !Open(allies[0]).Shown, "");
         s.DraftChampTip = true;
 
+        SurvivesDraftEvents(w, engine, draft);
+
         // Языки: карточку собираем заново (кэш сбрасывается со сменой языка) и
         // раскладываем шаблон, как его разложила бы подсказка.
         var ruFooter = ((ChampTipVm)Open(allies[0]).Tip.Content).Footer;
@@ -227,6 +229,50 @@ internal static class Program
         Check("смена языка собирает карточку заново", enFooter != ruFooter, $"«{ruFooter}» → «{enFooter}»");
         Loc.SetLanguage("ru");
         w.Close();
+    }
+
+    /// <summary>
+    /// Владелец: «когда я навёл, а кто-то меняет пики или делает какое-то
+    /// действие, окно скрывается и отображается заново». Каждое событие драфта
+    /// ставило колонкам новый список слотов, и все строки пересоздавались —
+    /// подсказка закрывалась вместе со строкой, к которой привязана. Строка,
+    /// у которой ничего не поменялось, обязана остаться тем же элементом.
+    /// </summary>
+    private static void SurvivesDraftEvents(OverlayWindow w, RecommendationEngine engine, DraftState draft)
+    {
+        var s = AppSettings.Current;
+        var allies  = Hosts(w, "MyTeamList");
+        var enemies = Hosts(w, "EnemyTeamList");
+        var (opened, _) = Open(enemies[0]);   // навёл на Джейса
+
+        // Событие 1: настал мой ход пикать — меняется только моя строка.
+        var myTurn = draft with { ActiveCells = [4], MyPickInProgress = true };
+        w.UpdateRecommendations(engine.Recommend(myTurn, s.DraftCount), myTurn, engine);
+        Pump();
+        var allies1  = Hosts(w, "MyTeamList");
+        var enemies1 = Hosts(w, "EnemyTeamList");
+        var kept1 = enemies.Zip(enemies1).Count(x => ReferenceEquals(x.First, x.Second))
+                  + allies.Take(4).Zip(allies1).Count(x => ReferenceEquals(x.First, x.Second));
+        Check("мой ход: девять чужих строк остались теми же элементами (карточка не мигает)",
+              opened && kept1 == 9, $"осталось {kept1} из 9");
+        Check("…а моя пересоздана — волна «сейчас пикает» проиграется",
+              !ReferenceEquals(allies[4], allies1[4]) && ((ChampSlotCard)allies1[4].DataContext).IsPicking, "");
+
+        // Событие 2: я навёлся на Треша — у врагов не меняется ничего.
+        var me = draft.MyTeam[4] with { PickIntentId = 412 };
+        var hover = myTurn with { MyTeam = [.. draft.MyTeam.Take(4), me], Me = me };
+        w.UpdateRecommendations(engine.Recommend(hover, s.DraftCount), hover, engine);
+        Pump();
+        var enemies2 = Hosts(w, "EnemyTeamList");
+        var allies2  = Hosts(w, "MyTeamList");
+        var kept2 = enemies1.Zip(enemies2).Count(x => ReferenceEquals(x.First, x.Second));
+        Check("мой ховер: пять строк врагов остались теми же элементами", kept2 == 5, $"осталось {kept2} из 5");
+        Check("…а в моей строке — Треш", ((ChampSlotCard)allies2[4].DataContext).ChampionId == 412,
+              DataDragon.Name(((ChampSlotCard)allies2[4].DataContext).ChampionId));
+
+        // Обратно к исходной сцене — дальше проверки языков.
+        w.UpdateRecommendations(engine.Recommend(draft, s.DraftCount), draft, engine);
+        Pump();
     }
 
     /// Раскладывает шаблон карточки и ищет непереведённые ключи и подписи,

@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -263,11 +264,11 @@ public partial class OverlayWindow
         _allyStyle = ChampionTraits.DominantStyle(allyIds);
         var enemyArch = ChampionTraits.DominantStyle(enemyIds);
 
-        MyTeamList.ItemsSource    = BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole,
-                                               null, draft.ActiveCells, draft.FirstPickCell, _allyStyle);
-        EnemyTeamList.ItemsSource = BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
-                                               _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell,
-                                               enemyArch);
+        UpdateSlots(MyTeamList,    BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole,
+                                              null, draft.ActiveCells, draft.FirstPickCell, _allyStyle));
+        UpdateSlots(EnemyTeamList, BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
+                                              _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell,
+                                              enemyArch));
 
         var myStyle    = ChampionTraits.StyleLabel(allyIds);
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
@@ -303,6 +304,28 @@ public partial class OverlayWindow
             DrawTeamLines(MyTeamLines,    MyTeamList,    myTeam,    myCombos);
             DrawTeamLines(EnemyTeamLines, EnemyTeamList, enemyTeam, enemyCombos);
         }, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Слоты колонки меняются на месте: строка, которая выглядит так же
+    /// (<see cref="ChampSlotCard.SameView"/>), остаётся тем же элементом на
+    /// экране. До 28.10 каждое событие драфта ставило новый список, все десять
+    /// строк пересоздавались, и карточка чемпиона под курсором закрывалась и
+    /// открывалась заново, стоило кому угодно навестись или залочить.
+    /// Изменившаяся строка убирается и вставляется заново, а не заменяется:
+    /// на замену WPF оставляет прежний элемент и только меняет ему данные — тогда
+    /// не проигралась бы волна «сейчас пикает» (она по Loaded), а открытая
+    /// карточка осталась бы со старым чемпионом.
+    /// </summary>
+    private static void UpdateSlots(ItemsControl list, List<ChampSlotCard> slots)
+    {
+        if (list.ItemsSource is not ObservableCollection<ChampSlotCard> now || now.Count != slots.Count)
+        {
+            list.ItemsSource = new ObservableCollection<ChampSlotCard>(slots);
+            return;
+        }
+        for (var i = 0; i < slots.Count; i++)
+            if (!now[i].SameView(slots[i])) { now.RemoveAt(i); now.Insert(i, slots[i]); }
     }
 
     // Палитра коннектор-линий (фиолетовый / бирюзовый / золотой), как в референсе.

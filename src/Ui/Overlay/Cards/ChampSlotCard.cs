@@ -76,4 +76,24 @@ public sealed class ChampSlotCard
     public string       FirstPickLabel  { get; init; } = "";
     public Visibility   FirstPickVisibility =>
         IsFirstPick ? Visibility.Visible : Visibility.Collapsed;
+
+    // Все открытые свойства — то, что видит разметка. Отражением, а не списком
+    // руками: новое свойство само попадает в сравнение и не застынет на экране.
+    private static readonly System.Reflection.PropertyInfo[] ViewProps =
+        typeof(ChampSlotCard).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+    /// <summary>
+    /// Строка выглядит так же, как <paramref name="o"/>: тогда её элемент на
+    /// экране можно не пересоздавать (см. OverlayWindow.UpdateSlots). Картинки
+    /// сравниваются по ссылке — IconCache и RoleIcons отдают один объект на
+    /// чемпиона и роль; списки — поэлементно.
+    /// </summary>
+    public bool SameView(ChampSlotCard o) => ViewProps.All(p =>
+    {
+        var (a, b) = (p.GetValue(this), p.GetValue(o));
+        return a is System.Collections.IEnumerable ea and not string
+               && b is System.Collections.IEnumerable eb
+            ? ea.Cast<object>().SequenceEqual(eb.Cast<object>())
+            : Equals(a, b);
+    });
 }
