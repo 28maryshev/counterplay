@@ -40,14 +40,14 @@ say "готовлю выгрузки из $DB"
 mkdir -p "$TMP/draft" "$TMP/stats"
 
 # Тир-лист и контрпики — страницы сайта; руны и сборки — то, что панель в
-# программе спрашивает у сайта; engine.json — данные драфт-инструмента сайта
-# (лежит в томе рядом с рунами и читается на лету, в сборку не вшивается).
+# программе спрашивает у сайта. engine.json (данные драфт-инструмента) больше
+# не выгружаем: инструмент с сайта убран 28.10.
 # Тир-лист: общий — в сборку, по серверам — в том (сайт берёт при выборе сервера).
 python3 "$HERE/export_tiers.py" --db "$DB" --out "$TMP/draft" --regions-out "$TMP/stats/tiers"
-python3 "$HERE/export_draft.py" --db "$DB" --out "$TMP/draft" --engine-out "$TMP/stats/draft"
+python3 "$HERE/export_draft.py" --db "$DB" --out "$TMP/draft"
 python3 "$HERE/export_runes.py" --db "$DB" --out "$TMP/stats"
 
-say "выгружено: $(ls "$TMP/draft" | wc -l) файлов данных, $(find "$TMP/stats/v1" -type f | wc -l) файлов рун, данные драфт-инструмента"
+say "выгружено: $(ls "$TMP/draft" | wc -l) файлов данных, $(find "$TMP/stats/v1" -type f | wc -l) файлов рун, $(ls "$TMP/stats/tiers" | wc -l) серверов тир-листа"
 
 # Патч в свежей выгрузке — по нему видно, что именно уехало.
 PATCH=$(python3 -c "import json,sys; print(json.load(open('$TMP/draft/tiers.json'))['patch'])" 2>/dev/null || echo '?')

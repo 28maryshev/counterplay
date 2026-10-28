@@ -21,8 +21,8 @@ stats.json (--out, вшивается в сборку сайта: страниц
     synergy        «чемпион|роль|союзник»             → [игры, победы], обе стороны
                    пары и все роли союзника вместе
 
-engine.json (--engine-out, читается сайтом на лету — драфт-инструмент): всё то
-же плюс
+engine.json (--engine-out, был для драфт-инструмента сайта; его убрали 28.10, и
+publish_site.sh флаг больше не передаёт): всё то же плюс
     synergyByRole  «чемпион|роль|союзник|его роль»    → [игры, победы], обе стороны
     cross          «чемпион|роль|враг|его роль»       → [игры, победы] — матчап
                    против врага другой роли (бот 2 на 2, лес против линий и т. д.)
@@ -98,13 +98,17 @@ def main():
                       GROUP BY champion_id, role, vs_champion_id, patch""", pair)
     print('matchup:', len(mu))
 
-    cross = weighted(f"""SELECT champion_id, role, vs_champion_id, vs_role, patch, SUM(games), SUM(wins)
-                         FROM botlane_matchup WHERE tier_bucket=? AND patch IN ({ph}) AND games>=?
-                         GROUP BY champion_id, role, vs_champion_id, vs_role, patch""", pair)
-    cross_games = con.execute(
-        f"SELECT COALESCE(SUM(games),0) FROM botlane_matchup WHERE tier_bucket=? AND patch IN ({ph})",
-        [args.tier, *patches]).fetchone()[0]
-    print('cross:', len(cross), '| игр:', cross_games)
+    # Кросс-матчапы нужны только engine.json, а это самая большая таблица базы:
+    # без --engine-out (драфт-инструмент с сайта убран 28.10) их не читаем.
+    cross, cross_games = {}, 0
+    if args.engine_out:
+        cross = weighted(f"""SELECT champion_id, role, vs_champion_id, vs_role, patch, SUM(games), SUM(wins)
+                             FROM botlane_matchup WHERE tier_bucket=? AND patch IN ({ph}) AND games>=?
+                             GROUP BY champion_id, role, vs_champion_id, vs_role, patch""", pair)
+        cross_games = con.execute(
+            f"SELECT COALESCE(SUM(games),0) FROM botlane_matchup WHERE tier_bucket=? AND patch IN ({ph})",
+            [args.tier, *patches]).fetchone()[0]
+        print('cross:', len(cross), '| игр:', cross_games)
 
     # Синергия симметрична, а записана одной строкой на сторону — складываем обе
     # стороны пары, как движок. Два вида: по роли союзника и по всем его ролям
