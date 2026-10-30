@@ -289,6 +289,33 @@ public partial class OverlayWindow
         AppSettings.SaveQuiet();
     }
 
+    /// <summary>
+    /// Раскладка на снимке драфта. Из сайдбара — сначала вид драфта с
+    /// заглушкой, потом размер.
+    ///
+    /// Окно меняет размер мгновенно, и WPF тут же перерисовывает его тем, что в
+    /// нём стоит. Раньше размер менялся первым: почти полсекунды, пока строился
+    /// подбор, в окне драфтового размера висела панель профиля («Игра найдена —
+    /// подтверди»), остальное пустое (видео владельца 30.10.2026). Теперь в эти
+    /// доли секунды видна заглушка драфта. Держит проверка tests/DraftEnter.
+    /// </summary>
+    private void EnterDraftLayout(DraftState draft)
+    {
+        if (_placementApplied || IdlePanel.Visibility != Visibility.Visible)
+        {
+            ApplyDraftPlacement();
+            return;
+        }
+        IdlePanel.Visibility     = Visibility.Collapsed;
+        PutDraftSkeleton(draft);
+        CompactScroll.Visibility = Visibility.Collapsed;
+        FullView.Visibility      = Visibility.Visible;
+        ApplyDraftPlacement();
+        // Размер, который раньше ставил возврат с ожидания в первой отрисовке
+        // (её RestoreModeSize панель профиля уже не застанет).
+        RestoreModeSize(fromIdle: true);
+    }
+
     /// Поставить окно по правилу из настроек. Ничего не делает, если окно уже
     /// подвинули руками в этом же драфте.
     private void ApplyDraftPlacement()
@@ -472,7 +499,9 @@ public partial class OverlayWindow
     }
 
     // Возврат к размеру активного режима (полный/компактный) при появлении пиков.
-    private void RestoreModeSize()
+    // fromIdle — окно только что было панелью профиля, хотя её уже убрали
+    // (EnterDraftLayout убирает её раньше, чем доходит до размера).
+    private void RestoreModeSize(bool fromIdle = false)
     {
         // Возвращаемся ли из экрана ожидания. Он ужимает окно до ширины сайдбара
         // (ShowIdle: SizeToContent.Height, Width = IdleW), и тогда «размер уже
@@ -482,7 +511,7 @@ public partial class OverlayWindow
         // нет и чемпион не роздан, подбирать не из чего — показывается ожидание.
         // Дальше скамейка приходит, кандидаты появляются, а окно так и остаётся
         // шириной с сайдбар, потому что восстановление размера пропускалось.
-        var fromIdle = IdlePanel.Visibility == Visibility.Visible;
+        fromIdle |= IdlePanel.Visibility == Visibility.Visible;
 
         IdlePanel.Visibility  = Visibility.Collapsed;
 

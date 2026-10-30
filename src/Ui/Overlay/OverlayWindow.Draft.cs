@@ -101,10 +101,10 @@ public partial class OverlayWindow
                 _draftSuppressed = false;      // …и запрет на авто-показ снят
                 _placementApplied = false;     // следующий драфт снова расставит окно
             }
-            else ApplyDraftPlacement();
             _lastRawDraft = draft;
             var eff = draft != null ? ApplyEnemyRoleOverrides(draft) : null;
             _lastDraft = eff;
+            if (eff is not null) EnterDraftLayout(eff);
             // Авто-раскладка ролей врагов + ручные метки меняют оппонента и
             // кросс-пары — пересчитываем подбор по эффективному драфту.
             if (recs != null && eff != null && _engine != null && !ReferenceEquals(eff, draft))
@@ -151,7 +151,7 @@ public partial class OverlayWindow
                 _draftSuppressed = false;
                 _placementApplied = false;
             }
-            else ApplyDraftPlacement();
+            else EnterDraftLayout(_lastDraft!);
 
             RenderCurrentState();
         });
@@ -334,6 +334,14 @@ public partial class OverlayWindow
     private void ShowDraftSkeleton(DraftState draft)
     {
         RestoreModeSize();
+        PutDraftSkeleton(draft);
+        ShowDraftView();
+    }
+
+    /// Заглушка драфта: составы команд и мерцающий центр, без размера окна и
+    /// без показа — их делают вызывающие (ShowDraftSkeleton, EnterDraftLayout).
+    private void PutDraftSkeleton(DraftState draft)
+    {
         PickHint.Visibility = Visibility.Collapsed;
 
         // Руны, если уже стояли, вернёт подбор (RenderFull) — как после банов.
@@ -344,7 +352,6 @@ public partial class OverlayWindow
         CenterSkelTop.Background = CenterSkelBottom.Background = Skeleton.Shimmer;
         CenterSkeleton.Visibility = Visibility.Visible;
         RenderTeams(draft);
-        ShowDraftView();
     }
 
     /// Вид драфта на экран (компактный не используется); в трее — только отрисовать.
