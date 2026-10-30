@@ -22,6 +22,10 @@ public static class LcuFinder
         return false;
     }
 
+    /// Имя процесса — один из процессов клиента LoL.
+    public static bool IsClientProcessName(string name) =>
+        ProcNames.Contains(name, StringComparer.OrdinalIgnoreCase);
+
     /// Находит путь к lockfile: сначала по запущенному процессу клиента
     /// (его папка = каталог установки), затем по типичным путям. null — не найден.
     ///
@@ -116,18 +120,43 @@ public static class LockfileReader
             var path = explicitPath ?? LcuFinder.FindLockfilePath();
             if (path != null && File.Exists(path))
             {
-                try { return Read(path); }
+                try
+                {
+                    var creds = Read(path);
+                    if (IsLive(creds)) return creds;
+                    // Файл от прошлого запуска клиента. Компьютер выключился
+                    // посреди игры, файл остался, а только что запущенный клиент
+                    // ещё не успел записать новый. Раньше такой файл принимался:
+                    // программа полминуты стучалась на мёртвый порт, и окно не
+                    // выходило из трея. Ждём новый, а пока — командная строка.
+                }
                 catch (IOException) { /* файл ещё дописывается — подождём */ }
                 // Пустой или недописанный файл. Раньше исключение выходило из
                 // цикла, и программа больше не подключалась: у китайского
                 // клиента (WeGame) lockfile пустой всегда.
                 catch (FormatException) { }
             }
-            if (explicitPath == null && LcuCommandLine.TryRead() is { } creds) return creds;
+            if (explicitPath == null && LcuCommandLine.TryRead() is { } fromCmd) return fromCmd;
             await Task.Delay(1000, ct);
         }
         ct.ThrowIfCancellationRequested();
         throw new OperationCanceledException(ct);
+    }
+
+    /// Жив ли процесс, записавший lockfile: номер из файла принадлежит
+    /// процессу с тем же именем (или одному из процессов клиента). После
+    /// перезагрузки номер старого клиента может достаться чужой программе —
+    /// поэтому сверяется и имя, а не только то, что процесс есть.
+    public static bool IsLive(LcuCredentials c)
+    {
+        try
+        {
+            using var p = Process.GetProcessById(c.Pid);
+            var name = p.ProcessName;
+            return string.Equals(name, c.Name, StringComparison.OrdinalIgnoreCase)
+                || LcuFinder.IsClientProcessName(name);
+        }
+        catch { return false; }   // процесса нет или он только что вышел
     }
 }
 
