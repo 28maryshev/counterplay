@@ -165,7 +165,8 @@ public sealed class LcuHttpClient : IDisposable
 {
     private readonly HttpClient _http;
 
-    public LcuHttpClient(LcuCredentials creds)
+    /// <param name="timeout">Срок ответа; не задан — 20 с. Короче — только проверкам.</param>
+    public LcuHttpClient(LcuCredentials creds, TimeSpan? timeout = null)
     {
         var handler = new HttpClientHandler
         {
@@ -183,7 +184,7 @@ public sealed class LcuHttpClient : IDisposable
         _http = new HttpClient(handler)
         {
             BaseAddress = new Uri(creds.HttpBase),
-            Timeout = TimeSpan.FromSeconds(20)
+            Timeout = timeout ?? TimeSpan.FromSeconds(20)
         };
 
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"riot:{creds.Password}"));
@@ -191,41 +192,57 @@ public sealed class LcuHttpClient : IDisposable
     }
 
     /// GET без бросков на 4xx/5xx: возвращает (код, тело).
-    public async Task<(int Status, string Body)> GetAsync(string path, CancellationToken ct)
-    {
-        using var resp = await _http.GetAsync(path, ct);
-        var body = await resp.Content.ReadAsStringAsync(ct);
-        return ((int)resp.StatusCode, body);
-    }
+    public Task<(int Status, string Body)> GetAsync(string path, CancellationToken ct) =>
+        SendAsync(c => _http.GetAsync(path, c), ct);
 
     // Запись в клиент (импорт рун, наборы предметов). Так же без бросков на 4xx/5xx.
 
     public async Task<(int Status, string Body)> PostAsync(string path, string json, CancellationToken ct)
     {
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var resp = await _http.PostAsync(path, content, ct);
-        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+        return await SendAsync(c => _http.PostAsync(path, content, c), ct);
     }
 
     public async Task<(int Status, string Body)> PutAsync(string path, string json, CancellationToken ct)
     {
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var resp = await _http.PutAsync(path, content, ct);
-        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+        return await SendAsync(c => _http.PutAsync(path, content, c), ct);
     }
 
-    public async Task<(int Status, string Body)> DeleteAsync(string path, CancellationToken ct)
-    {
-        using var resp = await _http.DeleteAsync(path, ct);
-        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
-    }
+    public Task<(int Status, string Body)> DeleteAsync(string path, CancellationToken ct) =>
+        SendAsync(c => _http.DeleteAsync(path, c), ct);
 
     public async Task<(int Status, string Body)> PatchAsync(string path, string json, CancellationToken ct)
     {
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
         using var req = new HttpRequestMessage(HttpMethod.Patch, path) { Content = content };
-        using var resp = await _http.SendAsync(req, ct);
-        return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+        return await SendAsync(c => _http.SendAsync(req, c), ct);
+    }
+
+    /// <summary>
+    /// Один запрос: ответ — (код, тело); клиент не ответил в срок —
+    /// HttpRequestException, как при оборванном соединении.
+    ///
+    /// Сам HttpClient о таймауте сообщает TaskCanceledException — тем же, чем
+    /// об отмене. А отмену цикл подключения понимает как выход из программы:
+    /// ошибки связи он пережидает, отмену пропускает наверх, и там она
+    /// закрывала программу молча. Клиент, который принял соединение и молчит, —
+    /// неудача связи, и выглядеть она должна так же. Отмена своим токеном
+    /// остаётся отменой: ею программа и закрывается.
+    /// </summary>
+    private async Task<(int Status, string Body)> SendAsync(
+        Func<CancellationToken, Task<HttpResponseMessage>> send, CancellationToken ct)
+    {
+        try
+        {
+            using var resp = await send(ct);
+            return ((int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new HttpRequestException(
+                $"клиент LoL не ответил за {_http.Timeout.TotalSeconds:0} с", ex);
+        }
     }
 
     public void Dispose() => _http.Dispose();
