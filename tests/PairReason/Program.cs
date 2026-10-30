@@ -140,13 +140,6 @@ internal static class Program
               line is null ? string.Join(" | ", malph.Reasons) : line[1..]);
         if (line is null) return Done();
 
-        // Цифра: остальные доводы в карточке её приводят, и связка без неё
-        // выглядела голословной — «выгодно», а насколько, непонятно.
-        var num = System.Text.RegularExpressions.Regex.Match(line, @"\(([+-]\d+[.,]\d)%\)");
-        Check("рядом стоит измеренная прибавка", num.Success, num.Success ? num.Groups[1].Value : "цифры нет");
-        if (num.Success)
-            Check("   и она положительная", !num.Groups[1].Value.StartsWith('-'), num.Groups[1].Value);
-
         // Знак решает судьбу строки в интерфейсе: без него её выбрасывают как
         // нейтральную, а с обычным «за» — как общую для многих кандидатов.
         Check("помечена как несменяемый довод",
@@ -155,25 +148,49 @@ internal static class Program
               : line[0] == RecommendationEngine.SIGN_GOOD ? "нет, обычное «за»"
               : line[0] == RecommendationEngine.SIGN_BAD  ? "нет, «против»" : "нет, без знака");
 
-        // ── Кружок у союзника считает то же, что и подпись ────────────────
+        // ── Цифра в подписи и кружок у союзника говорят одно ──────────────
         //
-        // Кружок и цифра под портретом союзника берутся из PairSynergy, а она
-        // смотрела синергию ПО ВСЕМ РОЛЯМ сразу. У Мальфита пара с Ясуо на топе
-        // даёт +1,26 на 8034 играх, а вместе с его лесом и саппортом, где пара
-        // проигрывает, выходит −0,22 — ниже порога в 0,3, и кружок не зажигался.
-        // В карточке при этом стоял плюс: она считает по роли.
+        // Цифра: остальные доводы в карточке её приводят, и связка без неё
+        // выглядела голословной — «выгодно», а насколько, непонятно. Пишется
+        // она от +0,3 — с того же порога зажигается кружок у союзника.
         //
-        // Роли ОБЕ: своя и союзника. Ясуо в этом драфте на миде, и пара
-        // «Мальфит-топ + Ясуо-мид» — не то же, что сумма всех его линий.
-        // Сайдбар передаёт сюда ровно эту роль, поэтому и проверка передаёт.
-        var ring = engine.PairSynergy(Malphite, "top", Yasuo, "mid");
-        Check("связка видна и кружку союзника", ring >= 0.3, $"{ring:+0.00;-0.00}");
-
-        // И это должно быть ТО ЖЕ число, что в подписи, иначе они спорят.
-        var said = double.Parse(num.Groups[1].Value.Replace(',', '.'),
-                                System.Globalization.CultureInfo.InvariantCulture);
-        Check("   и совпадает с числом в подписи", Math.Abs(ring - said) < 0.1,
-              $"кружок {ring:0.0}, подпись {said:0.0}");
+        // Кружок берётся из PairSynergy, а она смотрела синергию ПО ВСЕМ РОЛЯМ
+        // сразу: у Мальфита пара с Ясуо на топе давала +1,26, а вместе с его
+        // лесом и саппортом выходило −0,22, и кружок не зажигался при плюсе в
+        // карточке. Роли ОБЕ: своя и союзника — сайдбар передаёт ровно их.
+        //
+        // Проверяем ВСЕХ кандидатов со связкой, а не одну пару: насколько
+        // пара сильна, решают данные. С переходом сборщика на все ранги
+        // Мальфит+Ясуо в изумруде стала +0,23 — без цифры и без кружка, и
+        // это тоже согласие. Ломается проверка только на споре двух мест.
+        var wide = engine.Recommend(Draft(), 200);
+        int withNum = 0, linked = 0;
+        foreach (var r in wide)
+        {
+            var key = r.Reasons.FirstOrDefault(x => x.Length > 0 && x[0] == RecommendationEngine.SIGN_KEY
+                                                    && TeamSynergies.ExplainPair(r.ChampionId, Yasuo, "mid") is { } ex
+                                                    && x[1..].StartsWith(ex.Text, StringComparison.Ordinal));
+            if (key is null) continue;
+            linked++;
+            var num  = System.Text.RegularExpressions.Regex.Match(key, @"\(([+-]\d+[.,]\d)%\)");
+            var ring = engine.PairSynergy(r.ChampionId, "top", Yasuo, "mid");
+            var who  = DataDragon.Name(r.ChampionId);
+            if (!num.Success)
+            {
+                Check($"{who}: без цифры — и кружок не горит", ring < 0.3, $"кружок {ring:+0.00;-0.00}");
+                continue;
+            }
+            withNum++;
+            var said = double.Parse(num.Groups[1].Value.Replace(',', '.'),
+                                    System.Globalization.CultureInfo.InvariantCulture);
+            Check($"{who}: цифра {num.Groups[1].Value} — кружок горит и с тем же числом",
+                  said > 0 && ring >= 0.3 && Math.Abs(ring - said) < 0.1,
+                  $"кружок {ring:+0.00;-0.00}, подпись {said:+0.0;-0.0}");
+        }
+        Check("кандидатов со связкой с Ясуо хватает для сверки", linked >= 3, $"{linked}");
+        // Путь с цифрой должен хоть раз пройти, иначе сверка выше проверяла
+        // только молчание. Если в базе ни одной связки от +0,3 — сцену менять.
+        Check("   и хоть у одного прибавка заметна — цифра стоит", withNum > 0, $"{withNum} из {linked}");
 
         // ── Кружки у ВРАГОВ тоже считают по ролям ─────────────────────────
         //

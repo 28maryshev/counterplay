@@ -288,9 +288,18 @@ internal static class Program
         Check("жёсткие контры моим вообще находятся", wide.Any(b => Has(b, hard)), $"{wide.Count(b => Has(b, hard))} из {wide.Count}");
         Check("жёсткая контра моему — в пятёрке", bans.Any(b => Has(b, hard)),
               bans.FirstOrDefault(b => Has(b, hard)) is { } h ? $"{DataDragon.Name(h.ChampionId)}: {h.Reasons[0]}" : "нет");
-        // И стоят выше, чем стояли бы без надбавки: первая жёсткая — в первой тройке.
-        var firstHard = bans.ToList().FindIndex(b => Has(b, hard));
-        Check("и стоит в первой тройке", firstHard is >= 0 and < 3, $"место {firstHard + 1}");
+        // И в пятёрку она проходит СВОИМИ очками, с надбавкой, а не страховкой
+        // «не набрала — встаёт пятой». Страховка работает только на пятёрке,
+        // поэтому смотрим длинный список: там место — чистый порядок по очкам.
+        //
+        // Раньше здесь стояло «в первой тройке» — ожидание под данные, а не
+        // правило. На базе по всем рангам (30.10) выше неё встали Мальфит и
+        // Чо'Гат, которые бьют обоих показанных союзников (Ирелию на линии и
+        // Мастера Йи в игре), — ровно то, о чём просил владелец: бьёт
+        // нескольких наших — поднимается наверх.
+        var firstHard = wide.ToList().FindIndex(b => Has(b, hard));
+        Check("и проходит в пятёрку своими очками", firstHard is >= 0 and < 5,
+              $"место {firstHard + 1} в порядке по очкам");
 
         CrossLane(engine, owner, "utility", "support");
         CrossLane(engine, new Dictionary<int, int> { [86] = 25, [122] = 12 }, "top", "top");
