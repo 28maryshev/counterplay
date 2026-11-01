@@ -448,7 +448,7 @@
     "confirmBack": "放弃未保存的更改？",
     "confirmReset": "清空该池中的所有英雄？",
     "confirmSave": "保存对英雄池的更改？",
-    "duoMode": "双人组合选择：",
+    "duoMode": "双人组合选择",
     "duoAuto": "自动",
     "duoManual": "手动",
     "duoManualHint": "固定组合——可添加任意数量的双人组",

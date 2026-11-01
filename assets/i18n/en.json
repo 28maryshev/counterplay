@@ -448,7 +448,7 @@
     "confirmBack": "Discard unsaved changes?",
     "confirmReset": "Clear all champions from this pool?",
     "confirmSave": "Save changes to this pool?",
-    "duoMode": "Pair selection:",
+    "duoMode": "Pair selection",
     "duoAuto": "Auto",
     "duoManual": "Manual",
     "duoManualHint": "Fixed pairs — add as many duos as you like",

@@ -20,20 +20,41 @@ namespace Counterplay;
 // пары вручную, статистика пар, напарник.
 public sealed partial class PoolEditorWindow
 {
-    // Переключатель «Авто / Ручной» подбора дуо-пары.
-    private FrameworkElement ModeToggle()
+    /// Колонка подписей у строк «Ник напарника», «Подбор пары» и «Мои».
+    /// Строки живут в разных контейнерах (первая — в шапке, две другие — в
+    /// прокрутке), поэтому ширину делят через SharedSizeGroup: область общего
+    /// размера — корень окна (BuildUi).
+    private const string LabelColumn = "duoLabel";
+
+    /// <summary>
+    /// Строка «подпись — элементы». Три такие строки стоят столбиком, и раньше
+    /// каждая начинала свои элементы со своего места: подписи разной длины,
+    /// разного кегля и цвета. Теперь подписи одной колонкой и одного вида,
+    /// элементы начинаются с одной линии, высота строк одна.
+    /// </summary>
+    private static Grid LabeledRow(string label, params UIElement[] items)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 6),
-            VerticalAlignment = VerticalAlignment.Center };
-        row.Children.Add(new TextBlock
+        var g = new Grid { MinHeight = 30, Margin = new Thickness(0, 0, 0, 8) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = LabelColumn });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var text = new TextBlock
         {
-            Text = Loc.T("pool.duoMode"), Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
-            FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0)
-        });
-        row.Children.Add(ModeBtn(Loc.T("pool.duoManual"),  _manual, () => { if (!_manual) { _manual = true;  _dirty = true; RenderBody(); } }));
-        row.Children.Add(ModeBtn(Loc.T("pool.duoAuto"),   !_manual, () => { if (_manual)  { _manual = false; _dirty = true; RenderBody(); } }));
-        return row;
+            Text = label, Foreground = new SolidColorBrush(Color.FromRgb(0xC9, 0xD2, 0xDC)),
+            FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 14, 0),
+        };
+        g.Children.Add(text);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var i in items) row.Children.Add(i);
+        Grid.SetColumn(row, 1);
+        g.Children.Add(row);
+        return g;
     }
+
+    // Переключатель «Авто / Ручной» подбора дуо-пары.
+    private FrameworkElement ModeToggle() => LabeledRow(Loc.T("pool.duoMode"),
+        ModeBtn(Loc.T("pool.duoManual"),  _manual, () => { if (!_manual) { _manual = true;  _dirty = true; RenderBody(); } }),
+        ModeBtn(Loc.T("pool.duoAuto"),   !_manual, () => { if (_manual)  { _manual = false; _dirty = true; RenderBody(); } }));
 
     private static Button ModeBtn(string text, bool active, Action click)
     {
@@ -60,26 +81,17 @@ public sealed partial class PoolEditorWindow
     /// </summary>
     private FrameworkElement MineHeader()
     {
-        var label = SectionLabel(Loc.T("pool.mine"));
-        if (PoolStore.Current().Pools.Count == 0) return label;
+        if (PoolStore.Current().Pools.Count == 0) return LabeledRow(Loc.T("pool.mine"));
 
-        label.Margin = new Thickness(0);
-        label.VerticalAlignment = VerticalAlignment.Center;
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 6) };
-        row.Children.Add(label);
-
+        // Размером с «Ручной / Авто» строкой выше: кнопки одного столбика.
         var take = PoolUi.Btn(Loc.T("pool.fromMyPool"));
-        take.Margin = new Thickness(12, 0, 0, 0);
-        take.FontSize = 11;
-        take.Padding = new Thickness(10, 2, 10, 3);
         take.VerticalAlignment = VerticalAlignment.Center;
         take.Tag = "take-mine";
         take.Click += (_, _) =>
         {
             if (MyPoolPicker.Pick(this, PoolStore.Current().Pools) is { } p) TakeMine(p);
         };
-        row.Children.Add(take);
-        return row;
+        return LabeledRow(Loc.T("pool.mine"), take);
     }
 
     /// <summary>
@@ -247,20 +259,6 @@ public sealed partial class PoolEditorWindow
     /// </summary>
     private FrameworkElement MateRow()
     {
-        var row = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Margin = new Thickness(0, 0, 0, 14),
-        };
-        row.Children.Add(new TextBlock
-        {
-            Text = Loc.T("pool.friendNick"),
-            Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)),
-            FontSize = 10, FontWeight = FontWeights.Bold,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 10, 0),
-        });
-
         var holder = new Border { VerticalAlignment = VerticalAlignment.Center };
         var clear  = PoolUi.Btn(Loc.T("pool.mateReset"));
         clear.Margin = new Thickness(10, 0, 0, 0);
@@ -300,9 +298,7 @@ public sealed partial class PoolEditorWindow
         };
 
         Draw();
-        row.Children.Add(holder);
-        row.Children.Add(clear);
-        return row;
+        return LabeledRow(Loc.T("pool.friendNick"), holder, clear);
     }
 
     /// Список тех, с кем стояли в очереди соло/дуо. «Забыть» здесь нет —

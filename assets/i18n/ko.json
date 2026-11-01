@@ -448,7 +448,7 @@
     "confirmBack": "저장하지 않은 변경 사항을 취소할까요?",
     "confirmReset": "이 풀의 모든 챔피언을 지울까요?",
     "confirmSave": "풀 변경 사항을 저장할까요?",
-    "duoMode": "듀오 선택:",
+    "duoMode": "듀오 선택",
     "duoAuto": "자동",
     "duoManual": "수동",
     "duoManualHint": "고정 듀오 — 원하는 만큼 추가하세요",

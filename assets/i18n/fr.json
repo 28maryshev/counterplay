@@ -448,7 +448,7 @@
     "confirmBack": "Abandonner les modifications non enregistrées ?",
     "confirmReset": "Retirer tous les champions de ce pool ?",
     "confirmSave": "Enregistrer les modifications du pool ?",
-    "duoMode": "Choix de la paire :",
+    "duoMode": "Choix de la paire",
     "duoAuto": "Auto",
     "duoManual": "Manuel",
     "duoManualHint": "Paires fixes — ajoutez autant de duos que vous voulez",

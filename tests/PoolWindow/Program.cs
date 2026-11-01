@@ -699,6 +699,28 @@ internal static class Program
         Check("в ручном режиме кнопки нет", FindTagged(wm, "take-mine") is null, "нет");
         wm.Close(); Pump();
 
+        // Новый пул (плитка «+» передаёт null) открывается в авто-режиме.
+        var wn = new PoolEditorWindow(null, duo: true);
+        ShowHidden(wn); Pump();
+        // Content у «Экспорта» — значок с подписью, не строка: сравниваем через as.
+        var auto = Walk<Button>(wn).FirstOrDefault(b => b.Content as string == Loc.T("pool.duoAuto"));
+        var manualBtn = Walk<Button>(wn).FirstOrDefault(b => b.Content as string == Loc.T("pool.duoManual"));
+        Check("новый дуо-пул открывается в авто-режиме",
+              auto?.FontWeight == FontWeights.Bold && FindTagged(wn, "take-mine") is not null,
+              auto is null ? "кнопки «Авто» нет" : auto.FontWeight == FontWeights.Bold ? "авто" : "ручной");
+
+        // Владелец 1 ноября: три строки «Ник напарника», «Подбор пары», «Мои»
+        // стояли вразнобой — у каждой элементы начинались со своего места.
+        // Меряем, откуда начинается первый элемент каждой строки.
+        double X(FrameworkElement? e) => e is null ? double.NaN
+            : e.TransformToAncestor(wn).Transform(new System.Windows.Point(0, 0)).X;
+        var xs = new[] { X(FindTagged(wn, "mate-badge")), X(manualBtn), X(FindTagged(wn, "take-mine")) };
+        Check("ник, подбор пары и «Мои»: элементы начинаются с одной линии",
+              xs.All(x => !double.IsNaN(x)) && xs.Max() - xs.Min() < 1,
+              string.Join(" / ", xs.Select(x => double.IsNaN(x) ? "нет" : x.ToString("F0"))));
+        if (Environment.GetEnvironmentVariable("CP_SNAP") is { Length: > 0 } snapNew) Snap(wn, snapNew, "duo-new.png");
+        wn.Close(); Pump();
+
         // Личных пулов нет — брать не из чего.
         var pools = PoolStore.Current().Pools;
         var kept = pools.ToList();

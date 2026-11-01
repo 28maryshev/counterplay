@@ -84,8 +84,10 @@ public sealed partial class PoolEditorWindow : Window
     private bool _dirty;
 
     // Дуо: способ подбора. Manual — фиксированные связки (список пар), иначе автоподбор.
-    // По умолчанию Manual (для нового пула); существующий грузит сохранённый выбор.
-    private bool _manual = true;
+    // Новый пул открывается в авто: там обе половины по ролям и «Взять из
+    // моего пула», а пары руками — уже следующий шаг. Существующий грузит
+    // сохранённый выбор.
+    private bool _manual;
 
     private readonly List<ManualDuoPair> _manualPairs = [];
 
@@ -140,6 +142,9 @@ public sealed partial class PoolEditorWindow : Window
     private void BuildUi()
     {
         var root = new DockPanel { Margin = new Thickness(16) };
+        // Подписи строк дуо-пула делят одну колонку, хотя строки в шапке и в
+        // прокрутке — разные контейнеры (PoolEditorWindow.Duo.cs, LabeledRow).
+        Grid.SetIsSharedSizeScope(root, true);
 
         // Верх: имя слева + Назад/Сброс/Сохранить справа.
         var top = new DockPanel { Margin = new Thickness(0, 0, 0, _duo ? 8 : 14) };

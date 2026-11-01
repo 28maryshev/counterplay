@@ -448,7 +448,7 @@
     "confirmBack": "保存していない変更を破棄しますか？",
     "confirmReset": "このプールのチャンピオンをすべて削除しますか？",
     "confirmSave": "プールの変更を保存しますか？",
-    "duoMode": "ペア選択：",
+    "duoMode": "ペア選択",
     "duoAuto": "自動",
     "duoManual": "手動",
     "duoManualHint": "固定ペア — デュオはいくつでも追加できます",
