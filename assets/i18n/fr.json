@@ -432,7 +432,7 @@
     "import": "Importer",
     "close": "Fermer",
     "friend": "Ami",
-    "friendName": "Nom de l'ami",
+    "duoName": "Nom du pool duo",
     "mine": "Les miens",
     "friendPool": "Pool de l'ami",
     "noOther": "Aucun autre compte sur ce PC",

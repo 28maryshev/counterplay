@@ -177,7 +177,7 @@ public sealed partial class PoolEditorWindow : Window
         var nameWrap = new StackPanel { Margin = new Thickness(0, 0, 18, 0) };
         nameWrap.Children.Add(new TextBlock
         {
-            Text = _duo ? Loc.T("pool.friendName") : Loc.T("pool.name"),
+            Text = _duo ? Loc.T("pool.duoName") : Loc.T("pool.name"),
             Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0xA0, 0xB2)), FontSize = 10, FontWeight = FontWeights.Bold,
             Margin = new Thickness(0, 0, 0, 3)
         });
