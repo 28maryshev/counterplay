@@ -155,6 +155,27 @@ public partial class OverlayWindow
         return found != IntPtr.Zero;
     }
 
+    // Открыто ли окно самой игры — RiotWindowClass, «League of Legends (TM)
+    // Client», хоть на экране, хоть свёрнутое. Нужно трею: нексус взорван,
+    // клиент уже в WaitingForStats, а в игре ещё «Победа» и кнопка
+    // «Продолжить» — вылезать поверх неё нельзя (RestoreFromTray).
+    private static bool GameWindowOpen()
+    {
+        var found = false;
+        EnumWindows((h, _) =>
+        {
+            if (!IsWindowVisible(h)) return true;
+            var cls = new System.Text.StringBuilder(256);
+            GetClassName(h, cls, 256);
+            if (cls.ToString() != "RiotWindowClass") return true;
+            var title = new System.Text.StringBuilder(256);
+            GetWindowText(h, title, 256);
+            found = title.ToString().StartsWith("League of Legends", StringComparison.Ordinal);
+            return !found;
+        }, IntPtr.Zero);
+        return found;
+    }
+
     private void StartWindowFollow()
     {
         if (_followTimer != null) return;
@@ -209,6 +230,9 @@ public partial class OverlayWindow
         // хотя LCU ещё не подключён. Не трогаем во время игры и при ручном скрытии.
         if (_inTray && !_userHidden && !_gameActive && !_draftSuppressed && _lcuReady)
         {
+            // Игра кончилась, а её окно ещё открыто — ждём (см. RestoreFromTray).
+            // Без этого прятанное окно переставлялось бы к клиенту каждый такт.
+            if (GameWindowOpen()) return;
             RestoreFromTray();
             AnchorIfNotMoved();
             return;

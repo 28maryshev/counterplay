@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeWindows.cs" />
   </ItemGroup>
 
 </Project>

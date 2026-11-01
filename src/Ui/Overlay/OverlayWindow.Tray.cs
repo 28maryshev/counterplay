@@ -40,6 +40,11 @@ public partial class OverlayWindow
     // грузится). Ставится в Program при подключении, снимается при обрыве/ожидании.
     private bool _lcuReady;
 
+    // true = игра кончилась, но её окно ещё открыто: автовозврат из трея ждёт,
+    // пока оно закроется (см. RestoreFromTray). Только чтобы не писать в журнал
+    // на каждом такте слежения.
+    private bool _waitGameExit;
+
     public void SetGameActive(bool active)
     {
         if (_gameActive != active) Log.Write(active ? "игра началась" : "игра закончилась");
@@ -153,12 +158,24 @@ public partial class OverlayWindow
 
     /// Вернуть оверлей из трея. force=true — по явному действию пользователя
     /// (клик в трее). Автовозврат (force=false) не сработает, если пользователь
-    /// свернул окно сам.
+    /// свернул окно сам. Пока открыто окно игры, автовозврат ждёт его закрытия.
     public void RestoreFromTray(bool force = false) => Dispatcher.InvokeAsync(() =>
     {
         if (_userHidden && !force) return; // свёрнуто вручную — ждём действия пользователя
         _userHidden = false;
         if (!_inTray) return;
+        // Нексус взорван — клиент уже в WaitingForStats, а на экране ещё игра
+        // с «Победой» и кнопкой «Продолжить». Раньше окно вылезало поверх неё,
+        // там, где его оставили (хоть посередине), и кнопку было не нажать.
+        // Ждём: игра закроется — слежение за клиентом вернёт окно на своём
+        // такте (FollowClientWindow, фолбэк «завис в трее»).
+        if (!force && GameWindowOpen())
+        {
+            if (!_waitGameExit) Log.Write("жду, пока закроется окно игры");
+            _waitGameExit = true;
+            return;
+        }
+        _waitGameExit = false;
         Log.Write($"вернулся из трея ({(force ? "вручную" : "автоматически")})");
         _inTray = false;
         if (_tray != null) _tray.Visible = false;
