@@ -16,7 +16,8 @@ using VerticalAlignment = System.Windows.VerticalAlignment;
 
 namespace Counterplay;
 
-// Редактор пула — дуо-пул: переключатель режима, пары вручную, статистика пар, напарник.
+// Редактор пула — дуо-пул: переключатель режима, своя половина из личного пула,
+// пары вручную, статистика пар, напарник.
 public sealed partial class PoolEditorWindow
 {
     // Переключатель «Авто / Ручной» подбора дуо-пары.
@@ -48,6 +49,61 @@ public sealed partial class PoolEditorWindow
         b.Click += (_, _) => click();
         return b;
     }
+
+    /// <summary>
+    /// Заголовок своей половины с кнопкой «Взять из моего пула».
+    ///
+    /// Из своего личного пула пара складывалась только при загрузке пула
+    /// друга. Собирая её руками, свою половину приходилось набирать заново по
+    /// чемпиону, хотя она уже лежит в соседней плитке. Личных пулов нет —
+    /// брать не из чего, кнопки нет.
+    /// </summary>
+    private FrameworkElement MineHeader()
+    {
+        var label = SectionLabel(Loc.T("pool.mine"));
+        if (PoolStore.Current().Pools.Count == 0) return label;
+
+        label.Margin = new Thickness(0);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 6) };
+        row.Children.Add(label);
+
+        var take = PoolUi.Btn(Loc.T("pool.fromMyPool"));
+        take.Margin = new Thickness(12, 0, 0, 0);
+        take.FontSize = 11;
+        take.Padding = new Thickness(10, 2, 10, 3);
+        take.VerticalAlignment = VerticalAlignment.Center;
+        take.Tag = "take-mine";
+        take.Click += (_, _) =>
+        {
+            if (MyPoolPicker.Pick(this, PoolStore.Current().Pools) is { } p) TakeMine(p);
+        };
+        row.Children.Add(take);
+        return row;
+    }
+
+    /// <summary>
+    /// Своя половина пары — копия личного пула; то, что в ней было, уходит.
+    /// Открыто ради проверки: окно выбора пула модальное, и проверка зовёт
+    /// перенос напрямую.
+    ///
+    /// Списки ролей очищаются и заполняются НА МЕСТЕ, а не подменяются новыми:
+    /// окно выбора чемпионов не модальное, и открытое из строки роли допишет
+    /// выбранных в тот список, который запомнило при открытии.
+    /// </summary>
+    public void TakeMine(ChampPool pool)
+    {
+        foreach (var r in PoolSettingsWindow.Roles)
+        {
+            _mine[r].Clear();
+            if (pool.ByRole.TryGetValue(r, out var l)) _mine[r].AddRange(l.Where(id => id != 0).Distinct());
+        }
+        _dirty = true;
+        RenderBody();
+    }
+
+    /// Своя половина как сейчас на экране — для проверки.
+    public IReadOnlyDictionary<string, List<int>> MineNow => _mine;
 
     // Фиксированные ширины колонок связки: слот = самой длинной подписи роли
     // (Support), чтобы иконки не сдвигались и не закрывали WR/дельту.

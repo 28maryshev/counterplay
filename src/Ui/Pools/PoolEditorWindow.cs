@@ -217,7 +217,7 @@ public sealed partial class PoolEditorWindow : Window
             else
             {
                 // Авто: наборы по ролям, лучшая пара подбирается движком.
-                _body.Children.Add(SectionLabel(Loc.T("pool.mine")));
+                _body.Children.Add(MineHeader());
                 foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _mine));
                 _body.Children.Add(SectionLabel(Loc.T("pool.friendPool")));
                 foreach (var r in PoolSettingsWindow.Roles) _body.Children.Add(RoleRow(r, _friend));

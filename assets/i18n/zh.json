@@ -504,6 +504,8 @@
     "exported": "已保存：{0}",
     "pickMineTitle": "双人组合中你的一半",
     "pickMineHint": "“{0}”将成为好友的一半。选择你这边的池，或稍后再填。",
+    "pickMineEditHint": "所选池中的英雄将替换你在双人组合中的这一半。",
+    "fromMyPool": "从我的池中选取",
     "later": "稍后再填",
     "myWinratesPool": "你的胜率 · 池「{0}」· 最近 {1} 天",
     "duoWinrates": "双排胜率 · 与谁一起玩过 · 全部时间",

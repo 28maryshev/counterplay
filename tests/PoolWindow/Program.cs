@@ -78,7 +78,7 @@ internal static class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: период (и подпись по нему), ник, подвижная полоса, память места и подсказка выбора"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: период (и подпись по нему), ник, подвижная полоса, память места, подсказка выбора и своя половина из личного пула"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
@@ -253,6 +253,9 @@ internal static class Program
         Pump();
 
         MateVisible(d1);
+        Pump();
+
+        TakeMine(p);
         Pump();
 
         PickerHint();
@@ -651,6 +654,63 @@ internal static class Program
         else Check("блок кнопок найден", false, "не найден");
 
         w.Close();
+    }
+
+    /// <summary>
+    /// Свою половину дуо-пула можно взять из личного пула прямо в редакторе.
+    ///
+    /// Владелец 1 ноября: «выбрать за него героев можно, выбрать его ник
+    /// можно, а добавить себя — только при импорте». Свой личный пул вставал
+    /// в пару, только когда загружали пул друга; собирая пару руками, свою
+    /// половину набирали заново по чемпиону.
+    /// </summary>
+    private static void TakeMine(ChampPool mine)
+    {
+        Console.WriteLine();
+        var duo = new DuoPool { Id = "take", FriendName = "друг", Manual = false };
+        duo.Mine["top"] = [24];
+        duo.Friend["mid"] = [103];
+
+        var w = new PoolEditorWindow(duo, duo: true);
+        ShowHidden(w); Pump();
+        Check("в авто-режиме у «Мои» есть «Взять из моего пула»",
+              FindTagged(w, "take-mine") is not null, FindTagged(w, "take-mine") is null ? "кнопки нет" : "есть");
+
+        w.TakeMine(mine);
+        Pump();
+        var now = w.MineNow;
+        var sup = string.Join(",", now["support"]);
+        Check("своя половина стала личным пулом", sup == string.Join(",", mine.ByRole["support"]),
+              $"support: {sup}");
+        Check("то, что было в своей половине, ушло", now["top"].Count == 0,
+              $"top: {string.Join(",", now["top"])}");
+        Check("личный пул не связан с половиной (копия, а не тот же список)",
+              !ReferenceEquals(now["support"], mine.ByRole["support"]), "копия");
+        Check("пул в хранилище до «Сохранить» не тронут", duo.Mine["top"].SequenceEqual([24]),
+              $"top: {string.Join(",", duo.Mine["top"])}");
+        Check("кнопка на месте и после переноса", FindTagged(w, "take-mine") is not null, "да");
+        if (Environment.GetEnvironmentVariable("CP_SNAP") is { Length: > 0 } snap) Snap(w, snap, "take-mine.png");
+        w.Close(); Pump();
+
+        // В ручном режиме половин по ролям нет — брать некуда.
+        var manual = new DuoPool { Id = "take-m", FriendName = "друг", Manual = true };
+        var wm = new PoolEditorWindow(manual, duo: true);
+        ShowHidden(wm); Pump();
+        Check("в ручном режиме кнопки нет", FindTagged(wm, "take-mine") is null, "нет");
+        wm.Close(); Pump();
+
+        // Личных пулов нет — брать не из чего.
+        var pools = PoolStore.Current().Pools;
+        var kept = pools.ToList();
+        pools.Clear();
+        try
+        {
+            var we = new PoolEditorWindow(duo, duo: true);
+            ShowHidden(we); Pump();
+            Check("без личных пулов кнопки нет", FindTagged(we, "take-mine") is null, "нет");
+            we.Close(); Pump();
+        }
+        finally { pools.AddRange(kept); }
     }
 
     /// Первый элемент с такой меткой во всём дереве окна.

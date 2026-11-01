@@ -504,6 +504,8 @@
     "exported": "Gespeichert: {0}",
     "pickMineTitle": "Deine Hälfte des Duos",
     "pickMineHint": "„{0}“ wird die Hälfte deines Freundes. Wähle deinen Pool für dieses Duo — oder fülle ihn später.",
+    "pickMineEditHint": "Die Champions des gewählten Pools ersetzen deine Hälfte des Duos.",
+    "fromMyPool": "Aus meinem Pool",
     "later": "Später füllen",
     "myWinratesPool": "Deine Winrate · Pool „{0}“ · letzte {1} Tage",
     "duoWinrates": "Duo-Winrates · mit wem du gespielt hast · gesamt",

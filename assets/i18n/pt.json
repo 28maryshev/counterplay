@@ -504,6 +504,8 @@
     "exported": "Salvo: {0}",
     "pickMineTitle": "Sua metade da dupla",
     "pickMineHint": "“{0}” será a metade do seu amigo. Escolha o seu grupo para esta dupla ou preencha depois.",
+    "pickMineEditHint": "Os campeões do grupo escolhido substituem a sua metade da dupla.",
+    "fromMyPool": "Pegar do meu grupo",
     "later": "Preencher depois",
     "myWinratesPool": "O teu winrate · pool «{0}» · últimos {1} dias",
     "duoWinrates": "Winrate de duplas · com quem jogaste · desde sempre",

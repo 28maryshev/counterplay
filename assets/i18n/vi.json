@@ -504,6 +504,8 @@
     "exported": "Đã lưu: {0}",
     "pickMineTitle": "Nửa của bạn trong duo",
     "pickMineHint": "“{0}” sẽ là nửa của bạn bè. Chọn pool của bạn cho duo này, hoặc điền sau.",
+    "pickMineEditHint": "Tướng trong pool bạn chọn sẽ thay cho nửa của bạn trong duo.",
+    "fromMyPool": "Lấy từ pool của tôi",
     "later": "Điền sau",
     "myWinratesPool": "Tỷ lệ thắng của bạn · pool “{0}” · {1} ngày qua",
     "duoWinrates": "Tỷ lệ thắng cặp · đã chơi cùng ai · toàn thời gian",

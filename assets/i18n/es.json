@@ -504,6 +504,8 @@
     "exported": "Guardado: {0}",
     "pickMineTitle": "Tu mitad del dúo",
     "pickMineHint": "«{0}» será la mitad de tu amigo. Elige tu grupo para este dúo o complétalo más tarde.",
+    "pickMineEditHint": "Los campeones del grupo que elijas reemplazan tu mitad del dúo.",
+    "fromMyPool": "Tomar de mi grupo",
     "later": "Rellenar después",
     "myWinratesPool": "Tu winrate · pool «{0}» · últimos {1} días",
     "duoWinrates": "Winrate de dúos · con quién jugaste · histórico",

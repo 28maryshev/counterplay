@@ -504,6 +504,8 @@
     "exported": "저장했습니다: {0}",
     "pickMineTitle": "듀오에서 내 쪽",
     "pickMineHint": "“{0}”은(는) 친구 쪽이 됩니다. 내 쪽 풀을 고르거나 나중에 채우세요.",
+    "pickMineEditHint": "고른 풀의 챔피언이 듀오에서 내 쪽을 대신합니다.",
+    "fromMyPool": "내 풀에서 가져오기",
     "later": "나중에 채우기",
     "myWinratesPool": "내 승률 · 풀 “{0}” · 최근 {1}일",
     "duoWinrates": "듀오 승률 · 함께 플레이한 상대 · 전체 기간",

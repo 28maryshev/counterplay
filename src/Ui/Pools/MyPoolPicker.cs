@@ -31,7 +31,22 @@ static class MyPoolPicker
     {
         picked = null;
         if (mine.Count == 0) return true;   // выбирать не из чего — спрашивать не о чем
+        return Show(owner, mine, Loc.T("pool.pickMineHint", friendName), later: true, out picked);
+    }
 
+    /// <summary>
+    /// Тот же выбор из редактора дуо-пула, когда пару собирают руками, без
+    /// чужого файла. «Позже» здесь нет: человек уже в редакторе. null — передумали.
+    /// </summary>
+    public static ChampPool? Pick(Window owner, IReadOnlyList<ChampPool> mine)
+    {
+        if (mine.Count == 0) return null;
+        Show(owner, mine, Loc.T("pool.pickMineEditHint"), later: false, out var picked);
+        return picked;
+    }
+
+    private static bool Show(Window owner, IReadOnlyList<ChampPool> mine, string hint, bool later, out ChampPool? picked)
+    {
         var dlg = new Window
         {
             Title = Loc.T("pool.pickMineTitle"), Width = 380, SizeToContent = SizeToContent.Height, Owner = owner,
@@ -43,7 +58,7 @@ static class MyPoolPicker
         var sp = new StackPanel { Margin = new Thickness(16) };
         sp.Children.Add(new TextBlock
         {
-            Text = Loc.T("pool.pickMineHint", friendName),
+            Text = hint,
             Foreground = new SolidColorBrush(Color.FromRgb(0xD7, 0xDE, 0xE6)),
             TextWrapping = TextWrapping.Wrap, FontSize = 13, LineHeight = 18, Margin = new Thickness(0, 0, 0, 12)
         });
@@ -68,12 +83,16 @@ static class MyPoolPicker
             Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 8, 0, 0)
         };
-        var later = PoolUi.Btn(Loc.T("pool.later"));
-        later.Margin = new Thickness(0, 0, 8, 0);
-        later.Click += (_, _) => { ok = true; dlg.Close(); };
+        if (later)
+        {
+            var fillLater = PoolUi.Btn(Loc.T("pool.later"));
+            fillLater.Margin = new Thickness(0, 0, 8, 0);
+            fillLater.Click += (_, _) => { ok = true; dlg.Close(); };
+            btns.Children.Add(fillLater);
+        }
         var cancel = PoolUi.Btn(Loc.T("pool.cancel"));
         cancel.Click += (_, _) => dlg.Close();
-        btns.Children.Add(later); btns.Children.Add(cancel);
+        btns.Children.Add(cancel);
         sp.Children.Add(btns);
 
         dlg.Content = PoolUi.Chrome(dlg, dlg.Title, sp);
