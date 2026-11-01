@@ -349,8 +349,7 @@ partial class Program
         await socket.ConnectAsync(ct);
 
         var lastHash = "";
-        bool draftUnhidden = false; // сбрасывали ли ручное скрытие на этом драфте
-        CancellationTokenSource? hideCts = null; // запланированное скрытие в трей
+        var draftTray = new DraftTray(overlay, ct); // окно и трей по таймеру драфта
         // История ховеров своей команды за текущий драфт (cellId → чемпионы):
         // союзники в фазе банов перебирают несколько чемпионов — баны считаются
         // по всему показанному пулу, а не только по текущему наведению.
@@ -420,7 +419,7 @@ partial class Program
                         // всех: именно здесь появляются новые игры и связки.
                         _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "после игры", ct);
                         lastHash = "";
-                        draftUnhidden = false; // новый драфт снова снимет ручное скрытие
+                        draftTray.Ended(); // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
                         theirBansSeen = false;
                     }
@@ -435,7 +434,7 @@ partial class Program
                         // Конец драфта: в игру или дродж. НЕ восстанавливаем из трея —
                         // видимостью управляет фаза геймфлоу (Lobby/EndOfGame вернёт окно,
                         // GameStart оставит скрытым). Иначе при входе в игру окно всплывёт.
-                        hideCts?.Cancel(); hideCts = null;
+                        draftTray.Ended();
                         RunesDraftEnded();
                         overlay.UpdateRecommendations(null, null);
                         // Не просто статус: окно должно вернуться на экран готовности
@@ -445,7 +444,6 @@ partial class Program
                         ApplyNewDbIfReady();
                         ApplyUpdateIfIdle(overlay);
                         lastHash = "";
-                        draftUnhidden = false; // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
                         theirBansSeen = false;
                     }
@@ -461,34 +459,10 @@ partial class Program
                             SessionTracker.NoteDraftRole(meNow.ChampionId,
                                 RecommendationEngine.LcuToDbRole(draft.MyPosition));
 
-                        // За 5 секунд до конца финализации прячем оверлей в трей.
+                        // За 5 секунд до конца финализации — в трей; идёт драфт —
+                        // окну можно на экран (DraftTray).
                         var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);
-                        if (timerPhase == "FINALIZATION" && hideCts == null)
-                        {
-                            hideCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                            var delay = Math.Max(0, timeLeftMs - 5000);
-                            var token = hideCts.Token;
-                            _ = Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    await Task.Delay(TimeSpan.FromMilliseconds(delay), token);
-                                    overlay.SetGameActive(true); // вход в игру — подавляем авто-показ
-                                    if (!AppSettings.Current.KeepDuringGame) overlay.HideToTray();
-                                }
-                                catch (OperationCanceledException) { }
-                            }, token);
-                        }
-                        else if (timerPhase != "FINALIZATION")
-                        {
-                            // Активный драфт (не финализация) — авто-показ оверлея разрешён,
-                            // чтобы окно надёжно всплыло на новом чемп-селекте после игры.
-                            overlay.SetGameActive(false);
-                            // Один раз за драфт снимаем ручное скрытие: закрыл окно
-                            // раньше — на новом чемп-селекте оно всё равно вернётся
-                            // (но закрыть его В ТЕЧЕНИЕ драфта по-прежнему можно).
-                            if (!draftUnhidden) { overlay.AllowAutoShow(); draftUnhidden = true; }
-                        }
+                        draftTray.OnTimer(timerPhase, timeLeftMs);
 
                         var hash = DraftHash(draft);
                         if (hash == lastHash) break;
@@ -559,7 +533,7 @@ partial class Program
             }
         }
 
-        hideCts?.Cancel();
+        draftTray.Ended();
         RunesDraftEnded();
         engine?.Dispose();
         _refreshSession = null;
