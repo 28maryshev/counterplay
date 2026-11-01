@@ -673,7 +673,7 @@ internal static class Program
 
         var w = new PoolEditorWindow(duo, duo: true);
         ShowHidden(w); Pump();
-        Check("в авто-режиме у «Мои» есть «Взять из моего пула»",
+        Check("в авто-режиме у «Моя половина пула» есть «Выбрать из моих пулов»",
               FindTagged(w, "take-mine") is not null, FindTagged(w, "take-mine") is null ? "кнопки нет" : "есть");
 
         w.TakeMine(mine);
@@ -715,7 +715,7 @@ internal static class Program
         double X(FrameworkElement? e) => e is null ? double.NaN
             : e.TransformToAncestor(wn).Transform(new System.Windows.Point(0, 0)).X;
         var xs = new[] { X(FindTagged(wn, "mate-badge")), X(manualBtn), X(FindTagged(wn, "take-mine")) };
-        Check("ник, подбор пары и «Мои»: элементы начинаются с одной линии",
+        Check("ник, подбор пары и своя половина: элементы начинаются с одной линии",
               xs.All(x => !double.IsNaN(x)) && xs.Max() - xs.Min() < 1,
               string.Join(" / ", xs.Select(x => double.IsNaN(x) ? "нет" : x.ToString("F0"))));
         if (Environment.GetEnvironmentVariable("CP_SNAP") is { Length: > 0 } snapNew) Snap(wn, snapNew, "duo-new.png");

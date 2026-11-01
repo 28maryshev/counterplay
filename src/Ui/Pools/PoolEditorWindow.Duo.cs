@@ -20,7 +20,7 @@ namespace Counterplay;
 // пары вручную, статистика пар, напарник.
 public sealed partial class PoolEditorWindow
 {
-    /// Колонка подписей у строк «Ник напарника», «Подбор пары» и «Мои».
+    /// Колонка подписей у строк «Ник напарника», «Подбор пары» и «Моя половина пула».
     /// Строки живут в разных контейнерах (первая — в шапке, две другие — в
     /// прокрутке), поэтому ширину делят через SharedSizeGroup: область общего
     /// размера — корень окна (BuildUi).
@@ -72,7 +72,10 @@ public sealed partial class PoolEditorWindow
     }
 
     /// <summary>
-    /// Заголовок своей половины с кнопкой «Взять из моего пула».
+    /// Заголовок своей половины («Моя половина пула») с кнопкой «Выбрать из
+    /// моих пулов». Короткое «Мои» и «Взять из моего пула» владелец не понял:
+    /// неясно, о чём строка и что делает кнопка. «Мои» осталось только
+    /// заголовком колонки ручных пар — там ширина в слот чемпиона.
     ///
     /// Из своего личного пула пара складывалась только при загрузке пула
     /// друга. Собирая её руками, свою половину приходилось набирать заново по
@@ -81,17 +84,18 @@ public sealed partial class PoolEditorWindow
     /// </summary>
     private FrameworkElement MineHeader()
     {
-        if (PoolStore.Current().Pools.Count == 0) return LabeledRow(Loc.T("pool.mine"));
+        if (PoolStore.Current().Pools.Count == 0) return LabeledRow(Loc.T("pool.mineHalf"));
 
         // Размером с «Ручной / Авто» строкой выше: кнопки одного столбика.
         var take = PoolUi.Btn(Loc.T("pool.fromMyPool"));
         take.VerticalAlignment = VerticalAlignment.Center;
         take.Tag = "take-mine";
+        take.ToolTip = Loc.T("pool.fromMyPoolTip");
         take.Click += (_, _) =>
         {
             if (MyPoolPicker.Pick(this, PoolStore.Current().Pools) is { } p) TakeMine(p);
         };
-        return LabeledRow(Loc.T("pool.mine"), take);
+        return LabeledRow(Loc.T("pool.mineHalf"), take);
     }
 
     /// <summary>
