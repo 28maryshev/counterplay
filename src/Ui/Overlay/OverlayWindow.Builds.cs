@@ -106,10 +106,16 @@ public partial class OverlayWindow
     // на каждую перерисовку она не должна.
     private int _aiGlowFor;
 
+    // Строка подбора — всегда последняя: после ходовой сборки и второй, если
+    // она есть. Шкала и вспышка ищут её контейнер по этому номеру.
+    private int _aiRow = 1;
+
     private void RenderBuilds(ChampStats stats)
     {
         if (stats.Builds.Count == 0)
         {
+            // Иначе «Применить руны» поставил бы спеллы сборки прошлого чемпиона.
+            _shownBuilds = [];
             BuildList.Visibility = Visibility.Collapsed;
             return;
         }
@@ -128,15 +134,16 @@ public partial class OverlayWindow
             : new BuildAdvisor.Advice([], []);
         var adapted = advice.Builds;
 
-        // Строк всегда ДВЕ: ходовая сборка и подбор под врагов. Раньше их было
-        // то две, то три — сколько сборок пришло с сервера, столько и рисовали, —
-        // и панель прыгала по высоте, стоило навести на другого чемпиона. Вторая
-        // строка до появления подбора стоит блёклым пустым местом: видно, что там
-        // что-то будет.
-        _shownBuilds = [stats.Builds[0]];
-        _buildReasons = [""];
-        _buildChanged = [[]];
-        _buildIsAi = [false];
+        // Строки: ходовая сборка, вторая — только если выгрузка признала её
+        // настоящей (другая основа, тысячи игр, винрейт выше обычного; таких
+        // мало), и последней — подбор под врагов. До появления подбора его
+        // строка стоит блёклым пустым местом: видно, что там что-то будет.
+        // Панель рун теперь по взятому чемпиону, а не по наведённому, поэтому
+        // третья строка не дёргает её высоту на каждом ховере.
+        _shownBuilds = [.. stats.Builds];
+        _buildReasons = [.. stats.Builds.Select(_ => "")];
+        _buildChanged = [.. stats.Builds.Select(_ => new HashSet<int>())];
+        _buildIsAi = [.. stats.Builds.Select(_ => false)];
 
         // Показываем ОДНУ сборку под состав, а не набор вариантов: игрок покупает
         // один набор предметов, и выбор из двух «умных» сборок перекладывает на
@@ -174,13 +181,13 @@ public partial class OverlayWindow
             var isAi = _buildIsAi[i];
             var slots = new List<SlotVm>();
 
-            // CORE — набор, который реально играли вместе (у него и винрейт).
-            // Остальные слоты — ходовые докупки, которыми сборка добита до шести.
+            // CORE — набор, который реально играли вместе (у него и винрейт),
+            // выделен рамкой. Остальные слоты — ходовые докупки, которыми сборка
+            // добита до шести. Порядок — порядок покупки, как в выгрузке: раньше
+            // ядро шло первым, и предмет, который собирают первым, мог стоять
+            // четвёртым.
             var core = b.Core.Count > 0 ? b.Core.ToHashSet() : b.Items.Take(3).ToHashSet();
-            var ordered = isAi
-                ? b.Items.AsEnumerable()          // подбор показываем как есть, порядком закупки
-                : b.Items.Where(core.Contains).Concat(b.Items.Where(x => !core.Contains(x)));
-            foreach (var id in ordered.Take(6))
+            foreach (var id in b.Items.Take(6))
             {
                 var isCore = core.Contains(id);
                 var swapped = changed.Contains(id);
@@ -233,7 +240,8 @@ public partial class OverlayWindow
         // появляются предметы. Панель не меняет высоту, и заранее видно, где
         // будет подбор и сколько его ждать.
         var fill = Math.Min(enemies.Count, 5) / 5.0;
-        if (rows.Count == 1)
+        var aiReady = _buildIsAi.Contains(true);
+        if (!aiReady)
         {
             var empty = new List<SlotVm>();
             for (var k = 0; k < 6; k++)
@@ -271,13 +279,14 @@ public partial class OverlayWindow
             }
         }
 
+        _aiRow = rows.Count - 1;
         BuildList.ItemsSource = rows;
         BuildList.Visibility = Visibility.Visible;
 
         // Подбор появился — коротко подсвечиваем строку, чтобы её заметили: она
         // возникает в момент, когда человек смотрит на список чемпионов, а не на
         // панель сборок.
-        if (_shownBuilds.Count > 1 && _aiGlowFor != stats.ChampionId)
+        if (aiReady && _aiGlowFor != stats.ChampionId)
         {
             _aiGlowFor = stats.ChampionId;
             // Контейнеры строк создаются на следующем проходе разметки — до него
@@ -294,8 +303,7 @@ public partial class OverlayWindow
     /// список чемпионов и ловит движение краем глаза.
     private void GrowAiFill(double from, double to)
     {
-        // Пустая строка подбора всегда вторая: первая — ходовая сборка.
-        if (BuildList.ItemContainerGenerator.ContainerFromIndex(1) is not ContentPresenter cp) return;
+        if (BuildList.ItemContainerGenerator.ContainerFromIndex(_aiRow) is not ContentPresenter cp) return;
         cp.ApplyTemplate();
         if (cp.ContentTemplate?.FindName("AiFillBar", cp) is not FrameworkElement bar) return;
 
@@ -312,8 +320,7 @@ public partial class OverlayWindow
     /// подсветка отвлекала бы от самой сборки.
     private void GlowAiRow()
     {
-        // Подбор всегда идёт второй строкой: первая — обычная, самая ходовая.
-        if (BuildList.ItemContainerGenerator.ContainerFromIndex(1) is not UIElement row) return;
+        if (BuildList.ItemContainerGenerator.ContainerFromIndex(_aiRow) is not UIElement row) return;
 
         // Кольцо из шаблона строки. Свет от него куда плотнее, чем от содержимого:
         // у строки прозрачный фон, и свечение, построенное по иконкам, выходило
@@ -470,14 +477,19 @@ public partial class OverlayWindow
         RunesStatus.Visibility = Visibility.Visible;
 
         // Три части набора: core (ключевые предметы этой сборки), полный билд из
-        // 6 слотов и ситуативные — всё, что ещё часто берут на чемпионе.
+        // 6 слотов в порядке покупки — так он и встаёт в магазине игры — и
+        // ситуативные: другая сборка и ходовые предметы чемпиона. Раньше
+        // ситуативные брались только из прочих сборок, а вторая теперь бывает
+        // редко.
         var b = _shownBuilds[idx];
         var core = b.Core.Count > 0 ? b.Core : b.Items.Take(2).ToList();
         var full = b.Items;
         var situational = _runeStats.Builds
             .SelectMany(x => x.Items)
+            .Concat(_runeStats.Items.Select(i => i.Id))
             .Distinct()
             .Where(i => !full.Contains(i))
+            .Take(8)
             .ToList();
 
         var ok = await ExportBuildHandler(core, full, situational, _runeRole, _runeChampId, _runeChampName);

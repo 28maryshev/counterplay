@@ -20,6 +20,16 @@ RunesBuilds — сборка в файле рун есть и тогда, ког
   3. крошечная: вместе не покупают ничего и на 25 игр — сборки нет, выдумывать
      её нельзя.
 
+Порядок и вторая сборка (владелец, 02.11: «если на Шене первым всегда
+собирают Сердце стали, оно должно быть на первом месте»; вторую сборку — только
+если она реально есть). Раньше предметы шли по номеру, а вторым и третьим
+вариантом — всё, что отличалось двумя предметами, хоть с винрейтом 40%:
+  4. порядок покупки: первым — предмет, с которым чаще всего кончают игру на
+     этом пути; ботинки, даже если готовы раньше, — не первыми;
+  5. вторая сборка есть, с меткой alt: другая основа, тысячи игр, винрейт выше
+     обычного; та же основа с другими ботинками и проигрышный путь — мимо;
+  6. рядом только проигрышный путь — второй сборки нет.
+
 Временная база с настоящей схемой (collect.init_db). Рабочих баз не трогает.
 
     python tests/RunesBuilds/check.py        # 0 — всё хорошо, 1 — нет
@@ -47,8 +57,9 @@ def check(ok: bool, msg: str):
         failures.append(msg)
 
 
-def champ(con, cid: int, role: str, games: int, builds: list[tuple[list[int], int]]):
-    """Связка с одним кейстоуном и одной страницей рун — чтобы дошло до сборок."""
+def champ(con, cid: int, role: str, games: int, builds: list[tuple]):
+    """Связка с одним кейстоуном и одной страницей рун — чтобы дошло до сборок.
+    Строка сборки — (предметы, игры) или (предметы, игры, победы)."""
     wins = games // 2
     con.execute('INSERT INTO base_wr VALUES (?,?,?,?,?,?)', (cid, role, TIER, PATCH, games, wins))
     con.execute('INSERT INTO keystone_wr VALUES (?,?,?,?,?,?,?)',
@@ -56,9 +67,10 @@ def champ(con, cid: int, role: str, games: int, builds: list[tuple[list[int], in
     con.execute('INSERT INTO rune_page VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                 (cid, role, 8437, 8400, 8300, '8437,8401,8473,8242|8304,8347',
                  '5008,5001,5001', TIER, PATCH, games, wins))
-    for items, g in builds:
+    for items, g, *w in builds:
         con.execute('INSERT INTO item_build VALUES (?,?,?,?,?,?,?)',
-                    (cid, role, ','.join(map(str, sorted(items))), TIER, PATCH, g, g // 2))
+                    (cid, role, ','.join(map(str, sorted(items))), TIER, PATCH, g,
+                     w[0] if w else g // 2))
 
 
 con = collect.init_db(str(TMP / 'data.db'))
@@ -85,6 +97,26 @@ champ(con, 64, 'jungle', 2000, [(CLEAR, 300), (CLEAR + [3026], 100),
 # 3. Крошечная: наборы разные, вместе ни на 25 игр.
 tiny = [([1000 + i, 2000 + i, 3000 + i, 4000 + i], 9) for i in range(20)]
 champ(con, 7, 'mid', 220, tiny)
+
+# 4. Порядок покупки: путь A → ботинки → B → C, у A самый большой номер. Чаще
+#    всего игра кончается на одних ботинках (они дешевле), но первым всё равно
+#    должен встать A.
+A, B_, C_ = 6694, 3071, 3053
+champ(con, 266, 'top', 3000, [([3047], 500), ([A], 300), ([A, 3047], 400),
+                              ([A, 3047, B_], 300), ([A, 3047, B_, C_], 300), ([B_], 50)])
+
+# 5. Вторая сборка. Основа M, рядом три пути по 1 500 игр: L — другая основа и
+#    винрейт выше обычного; R — та же основа с другими ботинками (по точным
+#    наборам отличается двумя предметами, на деле — та же сборка); J — другая
+#    основа, но 40% побед.
+M = [6692, 3071, 6333, 3047]
+L = [3074, 6610, 3053, 3111]
+R = [6692, 3071, 6333, 3111]
+J = [3026, 3156, 3814, 3047]
+champ(con, 120, 'jungle', 8000, [(M, 2000, 1140), (R, 1500, 825), (L, 1500, 810), (J, 1500, 600)])
+
+# 6. Рядом с основой только проигрышный путь — второй сборки нет.
+champ(con, 122, 'top', 6000, [(M, 2000, 1140), (J, 1500, 600)])
 con.commit()
 con.close()
 
@@ -116,6 +148,27 @@ print('3. крошечная связка')
 d = export_runes.build_champ_role(ro, 7, 'mid', ps)
 check(d is not None, 'связка выгружается (руны есть)')
 check(d is not None and d['builds'] == [], f'сборку не выдумываем: {d["builds"] if d else None}')
+
+print('4. порядок покупки')
+d = export_runes.build_champ_role(ro, 266, 'top', ps)
+b = (d or {}).get('builds') or []
+check(bool(b) and b[0]['items'][:4] == [A, 3047, B_, C_],
+      f'A → ботинки → B → C, а не по номеру: {b[0]["items"] if b else None}')
+
+print('5. вторая сборка')
+d = export_runes.build_champ_role(ro, 120, 'jungle', ps)
+b = (d or {}).get('builds') or []
+check(len(b) == 2, f'сборок две — основная и вторая: {[x["core"] for x in b]}')
+check(bool(b) and b[0]['core'] == sorted(M) and not b[0].get('alt'), f'основная — M: {b[0]["core"] if b else None}')
+if len(b) > 1:
+    check(b[1]['core'] == sorted(L) and b[1].get('alt') is True,
+          f'вторая — L с меткой alt, а не та же основа R: {b[1]["core"]}, alt={b[1].get("alt")}')
+check(all(x['core'] != sorted(J) for x in b), 'проигрышного пути J нет')
+
+print('6. только проигрышный путь рядом')
+d = export_runes.build_champ_role(ro, 122, 'top', ps)
+b = (d or {}).get('builds') or []
+check(len(b) == 1, f'второй сборки нет: {[x["core"] for x in b]}')
 
 ro.close()
 shutil.rmtree(TMP, ignore_errors=True)

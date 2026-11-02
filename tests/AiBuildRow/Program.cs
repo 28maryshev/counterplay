@@ -15,13 +15,17 @@ namespace Counterplay.Tests;
 /// строка была блёклой целиком и без знака, а если менять было нечего, так и
 /// оставалась пустой при известном составе.
 ///
-/// 1. Мой чемпион выбран, врагов 0…4: вторая строка — пустая, знак виден и не
+/// 0. Строки по порядку: ходовая сборка, вторая — если она есть в данных
+///    (владелец, 02.11: «два варианта, как руны, третьим Counterplay AI»),
+///    подбор — последней. Предметы — в порядке из данных (порядок покупки), а
+///    не «сначала ядро».
+/// 1. Мой чемпион выбран, врагов 0…4: строка подбора — пустая, знак виден и не
 ///    тускнеет вместе с рамками, шкала дорастает до n/5.
 /// 2. Перерисовка без нового врага (ховер, выбор строки) шкалу не сбрасывает и
 ///    заново не растит.
-/// 3. Пятый враг — вторая строка с предметами: подбор или та же ходовая
+/// 3. Пятый враг — в строке подбора предметы: подбор или та же ходовая
 ///    сборка с подписью «уже отвечает составу».
-/// 4. Новый чемпион — шкала снова с нуля.
+/// 4. Новый чемпион без второй сборки — строк две, шкала снова с нуля.
 ///
 /// Руны — макет (RunesClient.UseMock), база матчей — настоящая, только чтение;
 /// настройки и пулы — в своей папке. CP_SNAP=папка — снимки окна на каждом шаге.
@@ -96,6 +100,18 @@ internal static class Program
         Check("у макета Шена есть сборка и ходовые предметы", stats.Builds.Count > 0 && stats.Items.Count > 0,
               $"{stats.Builds.Count} сборок, {stats.Items.Count} предметов");
 
+        // Файл: вторая сборка — только с меткой alt. В файлах до 02.11 вторыми
+        // шли сборки, отличавшиеся двумя предметами, хоть с 46% побед.
+        static string B(int first, string alt) =>
+            $"{{\"items\":[{first},3047,3075,3084,3190,3065],\"core\":[{first},3075,3084],\"games\":1500,\"wr\":52.0{alt}}}";
+        var parsed = RunesClient.Parse(
+            "{\"champion\":98,\"role\":\"top\",\"patches\":[\"16.21\"],\"games\":9000,\"wr\":51.0," +
+            "\"keystones\":[],\"vs\":{},\"items\":[],\"spells\":[]," +
+            $"\"builds\":[{B(3068, "")},{B(6662, "")},{B(3143, ",\"alt\":true")}]}}");
+        Check("из файла — ходовая и вторая с меткой alt; без метки — мимо",
+              parsed.Builds.Count == 2 && parsed.Builds[0].Items[0] == 3068 && parsed.Builds[1].Items[0] == 3143,
+              string.Join(" | ", parsed.Builds.Select(b => string.Join(",", b.Items))));
+
         void Draft(int me, int enemies)
         {
             var d = State(me, Enemies.Take(enemies).ToArray());
@@ -108,18 +124,32 @@ internal static class Program
         Pump();
         Check("руны и сборка на экране", Vis(w, "RunesBar") && Vis(w, "BuildList"), "");
 
+        // ── 0. Строки ───────────────────────────────────────────────────────
+        var rows = Rows(w);
+        Check("у Шена три строки: ходовая, вторая, подбор",
+              stats.Builds.Count == 2 && rows.Count == 3
+              && rows[0] is { Index: 0, AiVis: Visibility.Collapsed }
+              && rows[1] is { Index: 1, AiVis: Visibility.Collapsed, WrVis: Visibility.Visible }
+              && rows[2] is { Index: -1, AiVis: Visibility.Visible },
+              $"сборок {stats.Builds.Count}, строк {rows.Count}: "
+              + string.Join(", ", rows.Select(r => $"{r.Index}/{(r.AiVis == Visibility.Visible ? "AI" : r.WrText)}")));
+        var names = rows.Count > 0 ? rows[0].Slots.Select(x => x.Tip.Split(" · ")[0]).ToList() : [];
+        var want = stats.Builds[0].Items.Take(6).Select(ItemIcons.NameOf).ToList();
+        Check("предметы ходовой сборки — в порядке из данных", names.SequenceEqual(want),
+              $"{string.Join(", ", names)} (ждали {string.Join(", ", want)})");
+
         // ── 1. Враги по одному ──────────────────────────────────────────────
         for (var n = 0; n <= 4; n++)
         {
             if (n > 0) Draft(Shen, n);
             Settle();
-            var row = Row(w, 1);
+            var row = AiRow(w);
             var bar = Bar(w);
-            var want = 72.0 * n / 5;
-            Check($"врагов {n}: вторая строка пустая, знак виден, шкала {n}/5",
+            var width = 72.0 * n / 5;
+            Check($"врагов {n}: строка подбора пустая, знак виден, шкала {n}/5",
                   row is { Index: -1, AiVis: Visibility.Visible, FillVis: Visibility.Visible }
-                  && bar is not null && Math.Abs(bar.Width - want) < 0.5,
-                  $"строка {row?.Index}, знак {row?.AiVis}, шкала {bar?.Width:0.#} из 72 (ждали {want:0.#})");
+                  && bar is not null && Math.Abs(bar.Width - width) < 0.5,
+                  $"строка {row?.Index}, знак {row?.AiVis}, шкала {bar?.Width:0.#} из 72 (ждали {width:0.#})");
             if (n == 2)
             {
                 var dim = bar is null ? 0 : Lit(bar);
@@ -141,10 +171,10 @@ internal static class Program
         // ── 3. Пятый враг ───────────────────────────────────────────────────
         Draft(Shen, 5);
         Settle();
-        var full = Row(w, 1);
+        var full = AiRow(w);
         var adapted = full?.Slots.Any(x => x.Stroke is SolidColorBrush b && b.Color == System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7)) == true;
-        Check("пятый враг — во второй строке предметы, шкалы больше нет",
-              full is { Index: 1, AiVis: Visibility.Visible, FillVis: Visibility.Collapsed, RowOpacity: 1.0 }
+        Check("пятый враг — в строке подбора предметы, шкалы больше нет; она третья",
+              full is { Index: 2, AiVis: Visibility.Visible, FillVis: Visibility.Collapsed, RowOpacity: 1.0 }
               && full.Slots.All(x => x.HasTip),
               $"строка {full?.Index}, шкала {full?.FillVis}, предметов с названием {full?.Slots.Count(x => x.HasTip)} из 6");
         Console.WriteLine($"  {(adapted ? "подбор заменил предметы" : "менять нечего")}: {full?.TipHead}");
@@ -161,7 +191,10 @@ internal static class Program
         Pump();
         // Строка нарисована с той долей, от которой шкала растёт: у нового
         // чемпиона — ноль, а не 4/5 от прошлого.
-        var from = Row(w, 1)?.FillWidth;
+        var from = AiRow(w)?.FillWidth;
+        Check("у Браума второй сборки нет — строк две, подбор второй",
+              braum.Builds.Count == 1 && Rows(w).Count == 2 && AiRow(w) is { Index: -1 },
+              $"сборок {braum.Builds.Count}, строк {Rows(w).Count}");
         Settle();
         var end = Bar(w);
         Check("новый чемпион — шкала растёт с нуля до числа врагов",
@@ -185,15 +218,18 @@ internal static class Program
             FirstPickCell: -1, MyBanActionId: -1, MyBanInProgress: false);
     }
 
-    private static OverlayWindow.BuildRowVm? Row(Window w, int i) =>
+    private static List<OverlayWindow.BuildRowVm> Rows(Window w) =>
         (((ItemsControl)w.FindName("BuildList")).ItemsSource as IEnumerable<OverlayWindow.BuildRowVm>)?
-        .ElementAtOrDefault(i);
+        .ToList() ?? [];
 
-    /// Шкала во второй строке — из её шаблона.
+    /// Строка подбора — всегда последняя.
+    private static OverlayWindow.BuildRowVm? AiRow(Window w) => Rows(w).LastOrDefault();
+
+    /// Шкала в строке подбора — из её шаблона.
     private static FrameworkElement? Bar(Window w)
     {
         var list = (ItemsControl)w.FindName("BuildList");
-        if (list.ItemContainerGenerator.ContainerFromIndex(1) is not ContentPresenter cp) return null;
+        if (list.ItemContainerGenerator.ContainerFromIndex(Rows(w).Count - 1) is not ContentPresenter cp) return null;
         cp.ApplyTemplate();
         return cp.ContentTemplate?.FindName("AiFillBar", cp) as FrameworkElement;
     }

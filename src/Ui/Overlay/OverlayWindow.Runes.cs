@@ -233,11 +233,13 @@ public partial class OverlayWindow
         // привычный слот Флеша сохраняет импортёр). Спеллы берём из выбранной
         // сборки, иначе — из первой.
         var spellsOk = false;
-        if (ok && ApplySpellsHandler != null && _runeStats is { Builds.Count: > 0 })
+        // Индекс выбора — по строкам на экране (там ещё и подбор), а не по
+        // сборкам из файла.
+        if (ok && ApplySpellsHandler != null && _shownBuilds.Count > 0)
         {
-            var bIdx = _buildSelected >= 0 && _buildSelected < _runeStats.Builds.Count
+            var bIdx = _buildSelected >= 0 && _buildSelected < _shownBuilds.Count
                 ? _buildSelected : 0;
-            var spells = _runeStats.Builds[bIdx].Spells;
+            var spells = _shownBuilds[bIdx].Spells;
             if (spells.Count >= 2) spellsOk = await ApplySpellsHandler(spells);
         }
 

@@ -154,7 +154,7 @@ internal static class Program
         {
             enemy[n - 1].SelectedItem = DataDragon.Name(Enemies[n - 1]);
             Wait(0.7);
-            var row = Row(overlay, 1);
+            var row = AiRow(overlay);
             if (n < 5)
             {
                 if (n == 2)
@@ -163,8 +163,8 @@ internal static class Program
                           $"строка {row?.Index}, шкала {row?.FillVis}, взят {Last()?.Me?.ChampionId}");
                 continue;
             }
-            Check("пятый враг — во второй строке предметы",
-                  row is { Index: 1, FillVis: Visibility.Collapsed } && row.Slots.Count(x => x.HasTip) == 6,
+            Check("пятый враг — в строке подбора (последней) предметы",
+                  row is { Index: >= 1, FillVis: Visibility.Collapsed } && row.Slots.Count(x => x.HasTip) == 6,
                   $"строка {row?.Index}, предметов {row?.Slots.Count(x => x.HasTip)}");
         }
 
@@ -183,9 +183,10 @@ internal static class Program
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
     }
 
-    private static OverlayWindow.BuildRowVm? Row(Window w, int i) =>
+    /// Строка подбора — всегда последняя: после ходовой сборки и второй, если есть.
+    private static OverlayWindow.BuildRowVm? AiRow(Window w) =>
         (((ItemsControl)w.FindName("BuildList")).ItemsSource as IEnumerable<OverlayWindow.BuildRowVm>)?
-        .ElementAtOrDefault(i);
+        .LastOrDefault();
 
     // ── Общее ────────────────────────────────────────────────────────────────
 

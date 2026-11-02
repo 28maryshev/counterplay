@@ -33,7 +33,7 @@ public sealed record ChampStats(
     int ChampionId, string Role, string Patch, int Games,
     IReadOnlyList<RuneChoice> Keystones,
     IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> Vs,
-    IReadOnlyList<BuildData> Builds,    // до 3 вариантов сборки, у каждого свой экспорт
+    IReadOnlyList<BuildData> Builds,    // ходовая и, если есть, вторая; предметы в порядке покупки
     IReadOnlyList<ItemStat> Items);     // ходовые предметы чемпиона — материал для подбора под врагов
 
 /// <summary>
@@ -315,7 +315,7 @@ public static class RunesClient
                 [8369] = Math.Round(rnd.NextDouble() * 4 - 2, 1),
             });
 
-        // Три варианта сборки по 6 слотов: core (реально сыгранный набор) + докупки.
+        // Сборки по 6 слотов: core (реально сыгранный набор) + докупки.
         // Предметы — тоже по типу чемпиона: подбор под состав врагов выбирает
         // только из того, что чемпион реально собирает, и на общем списке его
         // было бы не проверить.
@@ -345,13 +345,18 @@ public static class RunesClient
             .ThenBy(x => (x * 7 + champ * 13) % 101)
             .ToArray();
 
-        var core3 = new Func<int, int[]>(shift => itemPool.Skip(shift).Take(6).ToArray());
+        // Вторая сборка есть не у всех: у чётных чемпионов (Шен) — есть, у
+        // нечётных (Браум) — нет, и песочница показывает оба вида панели.
+        // Предметы — в порядке покупки, и докупка стоит между предметами ядра,
+        // как в живых данных: ходовой предмет часто берут раньше редкого из ядра.
+        var six = new Func<int, int[]>(shift => itemPool.Skip(shift).Take(6).ToArray());
+        int[] Core(int[] s) => [s[0], s[2], s[3]];
         var builds = new List<BuildData>
         {
-            new(core3(0), core3(0).Take(3).ToArray(), 1830, W(53.7), [4, 12]),
-            new(core3(3), core3(3).Take(3).ToArray(), 940,  W(52.1), [4, 12]),
-            new(core3(6), core3(6).Take(3).ToArray(), 610,  W(51.4), [4, 12]),
+            new(six(0), Core(six(0)), 1830, W(53.7), [4, 12]),
         };
+        if (champ % 2 == 0)
+            builds.Add(new(six(6), Core(six(6)), 1240, W(52.9), [4, 12]));
         // Ходовые предметы для песочницы: те же, что в сборках выше, — чтобы
         // подбор под состав было на чём проверить без сети.
         var mockItems = itemPool
@@ -397,13 +402,18 @@ public static class RunesClient
                 vs[int.Parse(pair.Name)] = (pair.Value.GetProperty("games").GetInt32(), deltas);
             }
 
-        // До 3 вариантов сборки — у каждого своя кнопка экспорта в панели.
         var spellsEl = r.GetProperty("spells");
         var spells = spellsEl.GetArrayLength() > 0
             ? spellsEl[0].GetProperty("spells").EnumerateArray().Select(x => x.GetInt32()).ToList()
             : new List<int>();
 
-        var builds = r.GetProperty("builds").EnumerateArray().Take(3)
+        // Ходовая сборка и вторая — только с меткой alt: её ставит выгрузка,
+        // когда вторая правда другая и выигрывает на тысячах игр. В файлах до
+        // 02.11 вторыми шли сборки, отличавшиеся двумя предметами, хоть с 46%
+        // побед, — без метки такие не показываем.
+        var builds = r.GetProperty("builds").EnumerateArray()
+            .Where((b, i) => i == 0 || b.TryGetProperty("alt", out var alt) && alt.ValueKind == JsonValueKind.True)
+            .Take(2)
             .Select(b => new BuildData(
                 b.GetProperty("items").EnumerateArray().Select(x => x.GetInt32()).ToList(),
                 b.TryGetProperty("core", out var c)

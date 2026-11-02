@@ -48,6 +48,17 @@ MIN_BUILD_SHARE  = 1.0   # % сборок чемпиона; иначе сове�
 K_DELTA          = 800.0 # ужатие разницы по объёму: 10 пунктов на 400 играх — случайность
 PATCH_WINDOW     = 2     # сколько последних патчей агрегируем
 
+# ── Вторая сборка: только если она правда другая и правда выигрывает ──────
+# Раньше вторым и третьим вариантом шло всё, что отличалось двумя предметами,
+# — и в файлах лежали «вторые» сборки на 4 тыс. игр с разницей −3 пункта или
+# те же три предмета в другом порядке. Владелец (02.11): вторую показывать,
+# только если она реально есть — высокий винрейт на большом числе игр.
+ALT_MIN_GAMES    = 1000  # игр со второй сборкой
+ALT_MIN_DELTA    = 0.5   # лучше обычной игры той же длины (после ужатия)
+ALT_MAX_GAP      = 3.0   # и не сильно хуже основной: иначе зачем её брать
+ALT_MAX_SHARED   = 1     # из первых трёх легендарных общих с основной — не больше
+ALT_SEEDS        = 12    # от скольких ходовых предметов растим ядро второй сборки
+
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
 
 
@@ -114,22 +125,17 @@ def q(con, sql, params):
     return con.execute(sql, params).fetchall()
 
 
-def greedy_core(raw_builds, strata: dict, popular: list[int]):
-    """Запасная сборка, когда ни один точный набор не прошёл пороги.
+def grow_core(raw_builds, popular: list[int], seed: int | None = None) -> set[int]:
+    """Ядро, которое покупают вместе, — растёт по одному предмету.
 
-    Ядро растёт по одному предмету: каждый раз берётся тот, что чаще всего
-    докупали к уже набранному, — считаются все игры, где набранное куплено
-    целиком, хоть бы и с чем-то сверху. Так игры не дробятся по точным наборам.
-    Растёт до четырёх предметов, пока за ядром не меньше MIN_BUILD игр; меньше
-    трёх — это не сборка, отдаём None. Обувь в ядре одна.
-
-    Винрейт сравнивается с ожидаемым для длины тех же игр — как у предметов:
-    игры с ядром бывают разной длины, и сравнивать их с одной нельзя.
-    Возвращает (ядро, игры, победы, ожидаемый винрейт).
-    """
+    Каждый раз берётся тот, что чаще всего докупали к уже набранному: считаются
+    все игры, где набранное куплено целиком, хоть бы и с чем-то сверху. Так
+    игры не дробятся по точным наборам. Растёт до четырёх предметов, пока за
+    ядром не меньше MIN_BUILD игр. Обувь в ядре одна. seed — с какого предмета
+    начать (так ищется вторая сборка от другого первого предмета)."""
     rank = {i: n for n, i in enumerate(popular)}
-    core: set[int] = set()
-    has_boots = False
+    core: set[int] = {seed} if seed is not None else set()
+    has_boots = seed in BOOTS
     while len(core) < 4:
         cnt = defaultdict(int)
         for ids, g, _ in raw_builds:
@@ -146,9 +152,14 @@ def greedy_core(raw_builds, strata: dict, popular: list[int]):
             break
         core.add(best)
         has_boots = has_boots or best in BOOTS
-    if len(core) < 3:
-        return None
+    return core
 
+
+def core_games(core: set[int], raw_builds, strata: dict):
+    """Игры, где ядро куплено целиком: (игры, победы, ожидаемый винрейт).
+
+    Винрейт сравнивается с ожидаемым для длины тех же игр — как у предметов:
+    игры с ядром бывают разной длины, и сравнивать их с одной нельзя."""
     g = w = 0
     exp = 0.0
     for ids, rg, rw in raw_builds:
@@ -156,7 +167,168 @@ def greedy_core(raw_builds, strata: dict, popular: list[int]):
             g += rg
             w += rw
             exp += rg * strata.get(len(ids), 50.0)
-    return core, g, w, exp / g
+    return g, w, (exp / g if g else 50.0)
+
+
+def greedy_core(raw_builds, strata: dict, popular: list[int]):
+    """Запасная сборка, когда ни один точный набор не прошёл пороги.
+
+    Ядро — grow_core от пустого; меньше трёх предметов — это не сборка, отдаём
+    None. Возвращает (ядро, игры, победы, ожидаемый винрейт).
+    """
+    core = grow_core(raw_builds, popular)
+    if len(core) < 3:
+        return None
+    return (core, *core_games(core, raw_builds, strata))
+
+
+def purchase_order(items: list[int], raw_builds, popular: list[int]) -> list[int]:
+    """Предметы сборки в порядке покупки.
+
+    Порядка покупки в MATCH-V5 нет (он только в Timeline API), в базе лежит
+    итоговый набор. Но игра, кончившаяся на части сборки, — это её начало:
+    кто сдался с одним предметом из набора, купил его первым. Поэтому для
+    каждого предмета считаются игры, где ВСЁ купленное входит в эту сборку и
+    этот предмет среди купленного: первый предмет есть во всех таких играх,
+    шестой — только в полных. Чем больше игр, тем раньше предмет.
+
+    Первым всегда идёт легендарный предмет: ботинки дешевле и часто готовы
+    раньше него, но «первый предмет» для игрока — это тот, ради которого
+    копят (у Шена — Сердце стали), а ботинки докупают по дороге.
+    """
+    whole = set(items)
+    seen = defaultdict(int)
+    for ids, g, _ in raw_builds:
+        s = set(ids)
+        if s <= whole:
+            for i in s:
+                seen[i] += g
+    rank = {i: n for n, i in enumerate(popular)}
+    order = sorted(items, key=lambda i: (-seen[i], rank.get(i, len(rank))))
+    if order and order[0] in BOOTS:
+        first = next((n for n, i in enumerate(order) if i not in BOOTS), None)
+        if first:
+            order.insert(0, order.pop(first))
+    return order
+
+
+def main_items(items: list[int]) -> set[int]:
+    """Основа сборки — первые три легендарных предмета (ботинки не в счёт)."""
+    return set([i for i in items if i not in BOOTS][:3])
+
+
+def fill_to_six(core: set, popular: list[int]) -> list[int]:
+    """Сборка, добитая до шести слотов ходовыми предметами чемпиона.
+
+    Группировка идёт по ТОЧНОМУ набору предметов, а полные шестислотовые
+    сборки редки и разнообразны — самыми частыми наборами оказываются короткие
+    (люди заканчивают игру, не дособрав). В панели и в игровом магазине должен
+    быть полный список, а не три иконки."""
+    # Обувь в сборке одна. Добивка шла по популярности и спокойно ставила
+    # рядом вторую пару — в панели это выглядело как совет купить двое сапог.
+    ids = sorted(core)
+    has_boots = any(i in BOOTS for i in ids)
+    for extra in popular:
+        if len(ids) >= 6:
+            break
+        if extra in ids:
+            continue
+        if extra in BOOTS:
+            if has_boots:
+                continue
+            has_boots = True
+        ids.append(extra)
+    return ids
+
+
+def pick_builds(raw_builds, strata: dict, builds_total: int, items: list[dict],
+                it_g: dict, champ_wr: float) -> list[dict]:
+    """Основная сборка и, если она правда есть, вторая (с меткой alt)."""
+    popular = [i['id'] for i in items]   # уже отсортированы по числу игр
+
+    # Кандидаты: только то, что действительно собирают, и оценка — насколько
+    # сборка лучше обычной игры ТОЙ ЖЕ длины, ужатая по объёму.
+    cands = []
+    for ids, g, w in raw_builds:
+        if g < MIN_BUILD or len(ids) < MIN_BUILD_ITEMS:
+            continue
+        if not builds_total or 100.0 * g / builds_total < MIN_BUILD_SHARE:
+            continue
+        if len(ids) not in strata:
+            continue
+        delta = (wr(g, w) - strata[len(ids)]) * (g / (g + K_DELTA))
+        cands.append((set(ids), g, w, delta))
+    cands.sort(key=lambda c: c[3], reverse=True)
+
+    def build(core: set, g: int, delta: float) -> dict:
+        return {
+            # В порядке покупки: так их и показывает панель, и так они едут
+            # в магазин игры. Раньше шли по номеру предмета.
+            'items': purchase_order(fill_to_six(core, popular), raw_builds, popular),
+            'core': sorted(core),   # что реально играли вместе (у него и винрейт)
+            'games': g,
+            # wr остаётся абсолютным процентом: его читают и уже выпущенные
+            # версии программы, им нельзя подсунуть разницу вместо винрейта.
+            # Но считается он теперь от винрейта самого чемпиона — «с этой
+            # сборкой он играет вот так», а не «в этих играх побед было столько».
+            'wr': round(champ_wr + delta, 1),
+            # Разница отдельным полем: именно её честно показывать в панели.
+            'delta': round(delta, 1),
+        }
+
+    # Основная — лучший точный набор. Если ни один не прошёл пороги, ядро
+    # собираем сами: у чемпионов с разнообразными сборками игры дробятся по
+    # точным наборам (у Шена в поддержке самый частый набор из четырёх набирал
+    # 0.87% игр, у Пантеона на миде 0.89%), и панель стояла без сборки вовсе —
+    # так было у 156 связок из 710.
+    builds = []
+    if cands:
+        core, g, _, delta = cands[0]
+        builds.append(build(core, g, delta))
+    else:
+        fb = greedy_core(raw_builds, strata, popular)
+        if fb:
+            core, g, w, exp = fb
+            builds.append(build(core, g, (wr(g, w) - exp) * (g / (g + K_DELTA))))
+
+    # Вторая — только настоящая: другая основа и хороший винрейт на большом
+    # числе игр. Кандидаты — прочие точные наборы и ядра, выращенные от другого
+    # первого предмета: по точным наборам другой путь сборки дробится так же,
+    # как у Шена основной.
+    if builds:
+        main = builds[0]
+        base = main_items(main['items'])
+        alts = [(c, g, d) for c, g, _, d in cands[1:]]
+        for seed in popular[:ALT_SEEDS]:
+            # Ядро не наберёт игр больше, чем у его первого предмета.
+            if seed in BOOTS or seed in base or it_g[seed] < ALT_MIN_GAMES:
+                continue
+            core = grow_core(raw_builds, popular, seed)
+            if len(core) < MIN_BUILD_ITEMS:
+                continue
+            g, w, exp = core_games(core, raw_builds, strata)
+            alts.append((core, g, (wr(g, w) - exp) * (g / (g + K_DELTA))))
+        alts.sort(key=lambda a: a[2], reverse=True)
+        for core, g, delta in alts:
+            # Сначала дешёвые пороги, порядок покупки — только для прошедших.
+            if g < ALT_MIN_GAMES or delta < ALT_MIN_DELTA or delta < main['delta'] - ALT_MAX_GAP:
+                continue
+            alt = build(core, g, delta)
+            # Непохожесть — по ОСНОВЕ в порядке покупки: точные наборы,
+            # различавшиеся двумя предметами, на деле бывали теми же тремя
+            # первыми предметами в другом порядке плюс другие ботинки.
+            if len(main_items(alt['items']) & base) > ALT_MAX_SHARED:
+                continue
+            alt['alt'] = True       # программа показывает вторую строку только с меткой
+            builds.append(alt)
+            # Выращенное ядро бывает лучше лучшего точного набора (у Квинн в
+            # лесу — и по играм, и по винрейту): первой строкой идёт лучшая.
+            if alt['delta'] > main['delta']:
+                del alt['alt']
+                main['alt'] = True
+                builds.reverse()
+            break
+    return builds
 
 
 def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
@@ -304,99 +476,7 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
         })
         if len(items) >= 20:
             break
-    # Сборки. Группировка идёт по ТОЧНОМУ набору предметов, а полные шестислотовые
-    # сборки редки и разнообразны — самыми частыми наборами оказываются короткие
-    # (люди заканчивают игру, не дособрав). Поэтому каждую сборку добиваем до 6
-    # слотов самыми ходовыми предметами чемпиона, которых в ней ещё нет: в панели
-    # и в игровом магазине должен быть полный список, а не три иконки.
-    popular = [i['id'] for i in items]   # уже отсортированы по числу игр
-
-    # Кандидаты: только то, что действительно собирают, и оценка — насколько
-    # сборка лучше обычной игры ТОЙ ЖЕ длины, ужатая по объёму.
-    cands = []
-    for ids, g, w in raw_builds:
-        if g < MIN_BUILD or len(ids) < MIN_BUILD_ITEMS:
-            continue
-        if not builds_total or 100.0 * g / builds_total < MIN_BUILD_SHARE:
-            continue
-        if len(ids) not in strata:
-            continue
-        delta = (wr(g, w) - strata[len(ids)]) * (g / (g + K_DELTA))
-        cands.append((set(ids), g, w, delta))
-    cands.sort(key=lambda c: c[3], reverse=True)
-
-    # ВАРИАНТЫ ДОЛЖНЫ ОТЛИЧАТЬСЯ. Наборы группируются точным составом, поэтому
-    # три лучших по винрейту легко окажутся почти одинаковыми — показывать такое
-    # бессмысленно.
-    #
-    # Порог — по симметрической разности множеств. Замена ОДНОГО предмета даёт
-    # разность 2 (один ушёл, один пришёл), поэтому 2 мало: нужно 4, то есть
-    # минимум две замены. Проверено на синтетике: с порогом 2 в тройку попадали
-    # сборки, отличавшиеся одним предметом.
-    def fill_to_six(core: set) -> list[int]:
-        # Обувь в сборке одна. Добивка шла по популярности и спокойно ставила
-        # рядом вторую пару — в панели это выглядело как совет купить двое сапог.
-        ids = sorted(core)
-        has_boots = any(i in BOOTS for i in ids)
-        for extra in popular:
-            if len(ids) >= 6:
-                break
-            if extra in ids:
-                continue
-            if extra in BOOTS:
-                if has_boots:
-                    continue
-                has_boots = True
-            ids.append(extra)
-        return ids
-
-    MIN_DIFF = 4
-    builds = []
-    seen_full = []          # уже показанные наборы из 6 слотов
-    for core, g, w, delta in cands:
-        if len(builds) >= 3:
-            break
-        # Непохожесть проверяем и по CORE, и по ФИНАЛЬНОМУ набору: два разных core
-        # после добивки ходовыми предметами могут дать одинаковые 6 слотов
-        # (например [A,B] и [A,B,C] дополнятся до одного и того же) — такой дубль
-        # раньше и попадал в тройку.
-        full = set(fill_to_six(core))
-        if any(len(core ^ pc) < MIN_DIFF for pc, _ in seen_full):
-            continue
-        if any(full == pf for _, pf in seen_full):
-            continue
-        seen_full.append((core, full))
-        builds.append({
-            'items': fill_to_six(core),
-            'core': sorted(core),   # что реально играли вместе (у него и винрейт)
-            'games': g,
-            # wr остаётся абсолютным процентом: его читают и уже выпущенные
-            # версии программы, им нельзя подсунуть разницу вместо винрейта.
-            # Но считается он теперь от винрейта самого чемпиона — «с этой
-            # сборкой он играет вот так», а не «в этих играх побед было столько».
-            'wr': round(champ_wr + delta, 1),
-            # Разница отдельным полем: именно её честно показывать в панели.
-            'delta': round(delta, 1),
-        })
-    # Лучше показать одну-две честные сборки, чем три с дублем: если непохожих
-    # меньше трёх — так и оставляем.
-
-    # Ни один точный набор не прошёл пороги — собираем ядро сами. У чемпионов с
-    # разнообразными сборками игры дробятся по точным наборам: у Шена в поддержке
-    # самый частый набор из четырёх набирал 0.87% игр, у Пантеона на миде 0.89%,
-    # и панель стояла без сборки вовсе — так было у 156 связок из 710.
-    if not builds:
-        fb = greedy_core(raw_builds, strata, popular)
-        if fb:
-            core, g, w, exp = fb
-            delta = (wr(g, w) - exp) * (g / (g + K_DELTA))
-            builds.append({
-                'items': fill_to_six(core),
-                'core': sorted(core),
-                'games': g,
-                'wr': round(champ_wr + delta, 1),
-                'delta': round(delta, 1),
-            })
+    builds = pick_builds(raw_builds, strata, builds_total, items, it_g, champ_wr)
 
     spells = [
         {'spells': [int(x) for x in s.split(',')], 'games': g, 'wr': round(wr(g, w), 1)}
