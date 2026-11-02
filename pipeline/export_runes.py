@@ -114,6 +114,51 @@ def q(con, sql, params):
     return con.execute(sql, params).fetchall()
 
 
+def greedy_core(raw_builds, strata: dict, popular: list[int]):
+    """Запасная сборка, когда ни один точный набор не прошёл пороги.
+
+    Ядро растёт по одному предмету: каждый раз берётся тот, что чаще всего
+    докупали к уже набранному, — считаются все игры, где набранное куплено
+    целиком, хоть бы и с чем-то сверху. Так игры не дробятся по точным наборам.
+    Растёт до четырёх предметов, пока за ядром не меньше MIN_BUILD игр; меньше
+    трёх — это не сборка, отдаём None. Обувь в ядре одна.
+
+    Винрейт сравнивается с ожидаемым для длины тех же игр — как у предметов:
+    игры с ядром бывают разной длины, и сравнивать их с одной нельзя.
+    Возвращает (ядро, игры, победы, ожидаемый винрейт).
+    """
+    rank = {i: n for n, i in enumerate(popular)}
+    core: set[int] = set()
+    has_boots = False
+    while len(core) < 4:
+        cnt = defaultdict(int)
+        for ids, g, _ in raw_builds:
+            s = set(ids)
+            if core <= s:
+                for i in s - core:
+                    if not (has_boots and i in BOOTS):
+                        cnt[i] += g
+        if not cnt:
+            break
+        # При равенстве — ходовой предмет: выбор не зависит от порядка строк.
+        best = max(cnt, key=lambda i: (cnt[i], -rank.get(i, len(rank))))
+        if cnt[best] < MIN_BUILD:
+            break
+        core.add(best)
+        has_boots = has_boots or best in BOOTS
+    if len(core) < 3:
+        return None
+
+    g = w = 0
+    exp = 0.0
+    for ids, rg, rw in raw_builds:
+        if core <= set(ids):
+            g += rg
+            w += rw
+            exp += rg * strata.get(len(ids), 50.0)
+    return core, g, w, exp / g
+
+
 def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     """JSON одной связки чемпион+роль. None — данных мало, не публикуем."""
     ph = ','.join('?' * len(ps))
@@ -335,6 +380,23 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
         })
     # Лучше показать одну-две честные сборки, чем три с дублем: если непохожих
     # меньше трёх — так и оставляем.
+
+    # Ни один точный набор не прошёл пороги — собираем ядро сами. У чемпионов с
+    # разнообразными сборками игры дробятся по точным наборам: у Шена в поддержке
+    # самый частый набор из четырёх набирал 0.87% игр, у Пантеона на миде 0.89%,
+    # и панель стояла без сборки вовсе — так было у 156 связок из 710.
+    if not builds:
+        fb = greedy_core(raw_builds, strata, popular)
+        if fb:
+            core, g, w, exp = fb
+            delta = (wr(g, w) - exp) * (g / (g + K_DELTA))
+            builds.append({
+                'items': fill_to_six(core),
+                'core': sorted(core),
+                'games': g,
+                'wr': round(champ_wr + delta, 1),
+                'delta': round(delta, 1),
+            })
 
     spells = [
         {'spells': [int(x) for x in s.split(',')], 'games': g, 'wr': round(wr(g, w), 1)}
