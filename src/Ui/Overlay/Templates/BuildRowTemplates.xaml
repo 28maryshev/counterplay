@@ -11,8 +11,10 @@
    <Grid>
     <!-- Клик по строке выбирает сборку: она подсвечивается
          золотом, и видно, какую именно отправишь в клиент. -->
+    <!-- Блёклость пустой строки (RowOpacity) — только у рамок и
+         кнопки: знак подбора слева горит всегда. -->
     <Border Margin="0,0,0,3" Padding="4,2" CornerRadius="6" Cursor="Hand"
-            VerticalAlignment="Stretch" Opacity="{Binding RowOpacity}"
+            VerticalAlignment="Stretch"
             Background="{Binding RowBg}"
             BorderBrush="{Binding RowStroke}" BorderThickness="1.5"
             MouseLeftButtonDown="BuildRow_Click" Tag="{Binding Index}"
@@ -53,19 +55,6 @@
            фирменный знак. Подбор — это наша работа, а не цифра
            из статистики, и подписан он так же, как кнопка пика. -->
       <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,7,0">
-        <!-- Пустое место под будущий подбор: те же две строки,
-             что у винрейта, только пустыми плашками. Без них
-             колонка схлопывалась, и ряды предметов у соседних
-             строк начинались с разных мест. -->
-        <StackPanel Visibility="{Binding SkelVis}" HorizontalAlignment="Right">
-          <Border Width="46" Height="13" CornerRadius="3"
-                  Background="#12FFFFFF" BorderBrush="#33557089"
-                  BorderThickness="1"/>
-          <Border Width="30" Height="9" CornerRadius="3" Margin="0,3,0,0"
-                  HorizontalAlignment="Right"
-                  Background="#12FFFFFF" BorderBrush="#33557089"
-                  BorderThickness="1"/>
-        </StackPanel>
         <StackPanel Visibility="{Binding WrVis}">
           <TextBlock Text="{Binding WrText}" TextAlignment="Right"
                      FontFamily="{StaticResource DisplayFont}" FontSize="13" FontWeight="Bold"
@@ -86,8 +75,27 @@
               <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/><Run Text=" AI" Foreground="#36D6E7"/>
             </TextBlock>
           </StackPanel>
+          <!-- Пока подбора нет — шкала: сколько врагов из пяти уже
+               выбрали. Ширину задаёт код (FillWidth, а рост —
+               GrowAiFill), полная — ширина знака над ней. Градиент
+               в абсолютных координатах: короткая шкала — это начало
+               полной, а не сжатая в неё целиком. -->
+          <Border Width="72" Height="3" CornerRadius="1.5" Margin="0,4,0,1"
+                  HorizontalAlignment="Right" Background="#2236D6E7"
+                  Visibility="{Binding FillVis}">
+            <Border x:Name="AiFillBar" HorizontalAlignment="Left" CornerRadius="1.5"
+                    Width="{Binding FillWidth}">
+              <Border.Background>
+                <LinearGradientBrush MappingMode="Absolute" StartPoint="0,0" EndPoint="72,0">
+                  <GradientStop Color="#2B6FD0" Offset="0"/>
+                  <GradientStop Color="#36D6E7" Offset="0.6"/>
+                  <GradientStop Color="#8CE6FF" Offset="1"/>
+                </LinearGradientBrush>
+              </Border.Background>
+            </Border>
+          </Border>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                      Margin="0,1,0,0">
+                      Margin="0,1,0,0" Visibility="{Binding HintVis}">
             <TextBlock Text="{Binding GamesText}" TextAlignment="Right"
                        TextTrimming="CharacterEllipsis"
                        FontFamily="{StaticResource UiFont}" FontSize="9"
@@ -125,7 +133,7 @@
       <!-- Только слоты. Причина подбора живёт в подсказке всей
            строки: подписью она раздвигала ряд предметов, а
            ширина панели и так на пределе. -->
-      <Border Grid.Column="1" ClipToBounds="True">
+      <Border Grid.Column="1" ClipToBounds="True" Opacity="{Binding RowOpacity}">
         <ItemsControl ItemsSource="{Binding Slots}"
                       HorizontalAlignment="Left" VerticalAlignment="Center">
           <ItemsControl.ItemsPanel>
@@ -210,7 +218,7 @@
              MinWidth, а не Width: длинному переводу есть куда
              вырасти, но ниже этого кнопка не съёживается. -->
       <Border Grid.Column="2" Margin="8,0,0,0" MinWidth="66" Height="28"
-              Padding="9,0" CornerRadius="6"
+              Padding="9,0" CornerRadius="6" Opacity="{Binding RowOpacity}"
               Cursor="Hand" VerticalAlignment="Center"
               Background="{Binding ExportBg}" BorderBrush="{Binding ExportStroke}"
               BorderThickness="1.5"

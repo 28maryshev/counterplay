@@ -83,6 +83,7 @@ public partial class OverlayWindow
             _runeSelected = 0;
             _buildSelected = -1;   // новый чемпион — прошлый выбор сборки не в счёт
             _aiGlowFor = 0;        // и подсветку подбора показываем заново
+            _aiFillShown = 0;      // шкала подбора растёт с нуля до числа врагов
             RenderRuneOptions(opponentId);
 
             ApplyRunesText.Text = Loc.T("runes.apply");

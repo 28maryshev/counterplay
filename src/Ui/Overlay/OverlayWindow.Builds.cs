@@ -43,10 +43,19 @@ public partial class OverlayWindow
         Brush RowBg, Brush RowStroke,
         string Reason, Visibility ReasonVis,
         Visibility WrVis, Visibility AiVis, string TipHead,
-        // Пустое место под будущий подбор: блёклая строка без кнопки и без
-        // знака вопроса — показывать там нечего, пока подбор не появился.
-        Visibility HintVis, double RowOpacity, Visibility SkelVis,
+        // Пустое место под будущий подбор: блёклые рамки и кнопка без знака
+        // вопроса, а слева горящий знак и шкала — сколько врагов уже выбрали.
+        // RowOpacity гасит только рамки и кнопку, знак не тускнеет.
+        Visibility HintVis, double RowOpacity, Visibility FillVis, double FillWidth,
         Brush ExportBg, Brush ExportStroke, Brush ExportFg);
+
+    /// Длина шкалы под знаком подбора; совпадает с шириной знака в шаблоне.
+    private const double AiFillMax = 72;
+
+    // Сколько шкалы уже показано (0…1): на новом пике врага она дорастает
+    // отсюда, а не с нуля. Строку перерисовывает каждый ховер — без этого шкала
+    // заново росла бы на каждое движение мыши.
+    private double _aiFillShown;
 
     private static readonly Brush AiBrush    = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
 
@@ -140,16 +149,21 @@ public partial class OverlayWindow
             _buildIsAi.Add(true);
         }
 
-        // Что сказать во второй строке, пока подбора нет. Состав известен
-        // целиком, а менять нечего — так и говорим: молчание выглядит как
-        // поломка. И не просто «менять нечего», а что именно состав требует и
-        // почему это уже куплено, иначе читается как отказ.
-        var ghostTip = enemies.Count >= 5
-            ? (advice.Covered.Count > 0
-                ? Loc.T("runes.aiCovered") + "\n"
-                  + string.Join("\n", advice.Covered.Select(c => "• " + c))
-                : Loc.T("runes.aiCovered"))
-            : Loc.T("runes.aiSoon");
+        // Состав известен целиком, а менять нечего — подбор всё равно приходит:
+        // шкала дошла до конца, и игрок ждёт предметы. Это та же ходовая сборка,
+        // и в подсказке — что именно состав требует и почему это уже куплено;
+        // пустая строка читалась бы как отказ или поломка. Только если подбор
+        // правда считался: без справочника предметов или ходовых предметов
+        // чемпиона он пуст, потому что судить не по чему, — тогда строка ждёт.
+        var covered = enemies.Count >= 5 && _engine is not null && adapted.Count == 0
+                      && ItemFacts.Loaded && stats.Items.Count > 0;
+        if (covered)
+        {
+            _shownBuilds.Add(stats.Builds[0]);
+            _buildReasons.Add(string.Join("\n", advice.Covered.Select(c => "• " + c)));
+            _buildChanged.Add([]);
+            _buildIsAi.Add(true);
+        }
 
         var rows = new List<BuildRowVm>();
         for (int i = 0; i < _shownBuilds.Count; i++)
@@ -204,17 +218,21 @@ public partial class OverlayWindow
                 // набор целиком никто не играл, и чужой процент был бы враньём —
                 // вместо него подпись о том, откуда набор взялся.
                 TipHead: isAi
-                    ? Loc.T("runes.aiTipHead")
+                    ? (covered ? Capitalize(Loc.T("runes.aiCovered")) : Loc.T("runes.aiTipHead"))
                     : Loc.T("runes.buildTip", b.Winrate.ToString("0.0"), FormatGames(b.Games)),
                 HintVis: isAi ? Visibility.Visible : Visibility.Collapsed,
                 RowOpacity: 1.0,
-                SkelVis: Visibility.Collapsed,
+                FillVis: Visibility.Collapsed,
+                FillWidth: 0,
                 ExportBg: ExportFill, ExportStroke: ExportEdge, ExportFg: ExportText));
         }
 
-        // Подбора пока нет — вторую строку занимает его блёклый след: шесть
-        // пустых рамок и наш знак. Так панель не меняет высоту, когда подбор
-        // появляется, и заранее видно, где он будет.
+        // Подбора пока нет — вторую строку занимает его след: шесть блёклых
+        // рамок, а слева наш знак, который горит всегда, и шкала — сколько
+        // врагов из пяти уже выбрали. Шкала дошла до конца — на месте рамок
+        // появляются предметы. Панель не меняет высоту, и заранее видно, где
+        // будет подбор и сколько его ждать.
+        var fill = Math.Min(enemies.Count, 5) / 5.0;
         if (rows.Count == 1)
         {
             var empty = new List<SlotVm>();
@@ -225,8 +243,6 @@ public partial class OverlayWindow
                 Index: -1,                      // не выбирается и не экспортируется
                 Slots: empty,
                 ExportText: "",
-                // Ни знака, ни подписей: место под подбор — это пустое место, а
-                // не выключенный подбор. Знак и подпись появятся вместе с ним.
                 WrText: "",
                 WrBrush: AiBrush,
                 GamesText: "",
@@ -235,14 +251,24 @@ public partial class OverlayWindow
                 Reason: "",
                 ReasonVis: Visibility.Collapsed,
                 WrVis: Visibility.Collapsed,
-                AiVis: Visibility.Collapsed,
-                TipHead: ghostTip,
+                AiVis: Visibility.Visible,
+                TipHead: Loc.T("runes.aiSoon"),
                 HintVis: Visibility.Collapsed,
                 RowOpacity: 0.38,
-                SkelVis: Visibility.Visible,
+                FillVis: Visibility.Visible,
+                // Шкала рисуется уже показанной долей; до новой она дорастёт
+                // анимацией (GrowAiFill) — иначе перескок не заметить.
+                FillWidth: AiFillMax * _aiFillShown,
                 // Та же кнопка, только пустая: текст прозрачный, чтобы ширина
                 // осталась кнопочной.
                 ExportBg: SkelFill, ExportStroke: SkelEdge, ExportFg: Transparent));
+
+            if (fill != _aiFillShown)
+            {
+                var from = _aiFillShown;
+                _aiFillShown = fill;
+                Dispatcher.BeginInvoke(new Action(() => GrowAiFill(from, fill)), DispatcherPriority.Loaded);
+            }
         }
 
         BuildList.ItemsSource = rows;
@@ -251,13 +277,33 @@ public partial class OverlayWindow
         // Подбор появился — коротко подсвечиваем строку, чтобы её заметили: она
         // возникает в момент, когда человек смотрит на список чемпионов, а не на
         // панель сборок.
-        if (adapted.Count > 0 && _aiGlowFor != stats.ChampionId)
+        if (_shownBuilds.Count > 1 && _aiGlowFor != stats.ChampionId)
         {
             _aiGlowFor = stats.ChampionId;
             // Контейнеры строк создаются на следующем проходе разметки — до него
             // подсвечивать нечего.
             Dispatcher.BeginInvoke(new Action(GlowAiRow), DispatcherPriority.Loaded);
         }
+    }
+
+    private static string Capitalize(string s) =>
+        s.Length > 0 ? char.ToUpper(s[0]) + s[1..] : s;
+
+    /// Шкала под знаком подбора дорастает до новой доли — враг выбрал ещё
+    /// одного. Растёт заметно, но коротко: игрок в этот момент смотрит на
+    /// список чемпионов и ловит движение краем глаза.
+    private void GrowAiFill(double from, double to)
+    {
+        // Пустая строка подбора всегда вторая: первая — ходовая сборка.
+        if (BuildList.ItemContainerGenerator.ContainerFromIndex(1) is not ContentPresenter cp) return;
+        cp.ApplyTemplate();
+        if (cp.ContentTemplate?.FindName("AiFillBar", cp) is not FrameworkElement bar) return;
+
+        var grow = new DoubleAnimation(AiFillMax * from, AiFillMax * to, TimeSpan.FromMilliseconds(450))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        bar.BeginAnimation(WidthProperty, grow);
     }
 
     /// Вспышка вокруг строки подбора: свет вспыхивает белым почти мгновенно, а
