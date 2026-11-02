@@ -126,9 +126,10 @@ static partial class TestMode
         // песочнице клик по карточке менял кнопку, а слот оставался с прежним,
         // и весь путь «ткнул в кандидата → смотрю его» проверить было нельзя.
         overlay.HoverHandler = async id => { await Task.Delay(150, ct); panel?.SetMy(id); return 200; };
-        // Лок из оверлея — туда же: в песочнице мой слот всегда ховер
-        // (PickIntentId), отдельного «залочено» она не изображает.
-        overlay.LockHandler  = async id => { await Task.Delay(300, ct); panel?.SetMy(id); return 200; };
+        // Лок из оверлея — туда же, но взятым: после «Выбрать» мой чемпион
+        // уходит в драфт как у клиента, и появляются руны и сборка. Пока лок
+        // изображался наведением, панели рун в песочнице не было с 16.09.
+        overlay.LockHandler  = async id => { await Task.Delay(300, ct); panel?.LockMy(id); return 200; };
         // Баны: без этих хендлеров кнопка бана в песочнице не появлялась вовсе
         // (клик по тир-листу/карточке молча выходил, а UpdateBanBar их проверяет).
         overlay.BanHoverHandler = async _ => { await Task.Delay(150, ct); return 200; };

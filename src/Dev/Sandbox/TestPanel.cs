@@ -126,6 +126,15 @@ sealed partial class TestPanel : Window
     // её владелец (я / союзник / враг) взял этого чемпиона в свою очередь. Для видео.
     private readonly Dictionary<int, int> _planned = new();
 
+    // Мой пик подтверждён кнопкой «Выбрать» в окне. До этого мой чемпион уходит
+    // в драфт наведением, после — взятым, как у клиента. Руны и сборка ждут
+    // именно взятого (с 16.09), и пока песочница отдавала только наведение,
+    // панели рун в ней не было вовсе.
+    private bool _myLocked;
+
+    // Идёт установка чемпиона из LockMy: смена в моём слоте не снимает пик.
+    private bool _locking;
+
     // ── Фаза банов, как в рейтинге ──────────────────────────────────────────
     //
     // «Баны» запускают живую фазу на МОИХ данных (профиль «мой аккаунт», моя
@@ -242,7 +251,7 @@ sealed partial class TestPanel : Window
                 Margin = new Thickness(0, 0, 6, 0), IsChecked = i == 2, // по умолчанию я — мид
                 ToolTip = "Мой слот"
             };
-            _meRadio[i].Checked += (_, _) => { if (_banSim) ReseatBans(); Recompute(); };
+            _meRadio[i].Checked += (_, _) => { _myLocked = false; if (_banSim) ReseatBans(); Recompute(); };
             _meRadio[i].Click += (_, _) => _meChosen = true;   // только клик мышью, не установка из кода
             DockPanel.SetDock(_meRadio[i], Dock.Left);
             row.Children.Add(_meRadio[i]);
@@ -590,6 +599,18 @@ sealed partial class TestPanel : Window
         if (_idByName.ContainsKey(name)) _ally[MeCell()].SelectedItem = name;
     }
 
+    /// Пик подтверждён в окне: чемпион в моём слоте становится взятым. Он мог
+    /// уже стоять там от наведения — тогда SelectionChanged не придёт, поэтому
+    /// пересчёт зовём сами.
+    public void LockMy(int champId)
+    {
+        _locking = true;
+        try { SetMy(champId); }
+        finally { _locking = false; }
+        _myLocked = CellChamp(MeCell()) == champId;
+        Recompute();
+    }
+
     // Собирает DraftState из панели и обновляет оверлей.
     private void Recompute()
     {
@@ -636,8 +657,10 @@ sealed partial class TestPanel : Window
                 }
                 continue;
             }
-            // Мой чемпион — как ховер (PickIntent): подбор продолжает показывать список.
-            my.Add(new DraftPlayer(i, isMe ? 0 : champ, isMe ? champ : 0, _rowRoles[i], isMe,
+            // Мой чемпион — наведение (PickIntent), пока пик не подтверждён в
+            // окне; после «Выбрать» — взятый, и тогда приходят руны и сборка.
+            var hovered = isMe && !_myLocked;
+            my.Add(new DraftPlayer(i, hovered ? 0 : champ, hovered ? champ : 0, _rowRoles[i], isMe,
                                    Puuid: puuid));
         }
         var their = new List<DraftPlayer>();
@@ -653,7 +676,9 @@ sealed partial class TestPanel : Window
 
         // В тесте считаем, что сейчас мой ход пикать (кроме банфазы) — чтобы
         // работала кнопка выбора чемпиона через интерфейс. actionId условный.
-        bool myPick = _stage != TestStage.Bans;
+        // Пик подтверждён — ход сделан: клиент больше не присылает действие
+        // моего пика, и кнопки «Выбрать» нет.
+        bool myPick = _stage != TestStage.Bans && !_myLocked;
 
         // Чей ход: при авто-драфте — текущая группа _simGroups (в парных ходах
         // подсвечиваются сразу двое), иначе мой слот.

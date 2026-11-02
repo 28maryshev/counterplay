@@ -21,6 +21,8 @@ sealed partial class TestPanel
     private void OnChampChanged(int cell)
     {
         if (!_autoSetting) _autoPicked.Remove(cell);
+        // Мой слот сменили руками или наведением — пик снова не подтверждён.
+        if (cell == MeCell() && !_locking) _myLocked = false;
         Recompute();
     }
 

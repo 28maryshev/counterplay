@@ -178,6 +178,7 @@ sealed partial class TestPanel
         foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
         _autoPicked.Clear();
         _planned.Clear();
+        _myLocked = false;
         _ready = true;
         _overlay.UpdateRecommendations(null, null);
         _overlay.DraftEnded();
@@ -215,6 +216,7 @@ sealed partial class TestPanel
             _overlay.DraftEnded();
             _overlay.HideRunes();
             _stage = TestStage.Ready;
+            _myLocked = false;
             UpdateStageButtons();
         }
         _overlay.RestoreFromTray(force: true);
