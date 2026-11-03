@@ -63,6 +63,7 @@ internal static class Program
         // ── Контры: три штуки и все — из этой роли ─────────────────────────
         var short3 = new List<string>();
         var aliens = new List<string>();
+        var worse  = new List<string>();
         var checkedPairs = 0;
         foreach (var role in Roles)
             foreach (var enemy in plays[role])
@@ -72,11 +73,25 @@ internal static class Program
                 if (ids.Count != 3)
                     short3.Add($"{DataDragon.Name(enemy)} ({role}): {ids.Count}");
                 foreach (var id in ids)
+                {
                     if (!plays[role].Contains(id))
                         aliens.Add($"{DataDragon.Name(id)} против {DataDragon.Name(enemy)} ({role})");
+                    // Наведение на этого чемпиона в той же роли рисует под врагом
+                    // VersusDelta. Владелец 03.11: Браум в контрах у Нами, а при
+                    // наведении на Браума под ней «vs −0,5». Контра должна играть
+                    // против него лучше, чем обычно, а не просто выигрывать чаще
+                    // половины за счёт собственной силы в патче.
+                    var vs = engine.VersusDelta(id, role, enemy, role);
+                    if (vs <= 0)
+                        worse.Add($"{DataDragon.Name(id)} против {DataDragon.Name(enemy)} ({role}): {vs:+0.0;-0.0}");
+                }
             }
 
-        Check($"контр ровно три у каждого из {checkedPairs}", short3.Count == 0, Few(short3));
+        Check("контры при наведении не в минусе против него", worse.Count == 0, Few(worse));
+        // Ровно три — не всегда: против сильного в патче чемпиона (Когмао,
+        // Джинкс) лучше обычного не играет почти никто, а проигрышную пару
+        // контрой не назовёшь. Но таких единицы.
+        Check($"по три у 90% из {checkedPairs}", short3.Count <= checkedPairs / 10, Few(short3));
         Check("и все они эту роль играют", aliens.Count == 0, Few(aliens));
 
         // ── Роль врага правда участвует ────────────────────────────────────

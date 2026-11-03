@@ -82,20 +82,33 @@ public sealed partial class RecommendationEngine
 
             var rows = ReadHintRows(cmd);
             double gMin = minGames ?? HINT_MIN_GAMES, eMin = minEdge ?? HINT_MIN_EDGE;
-            var strict = rows.Where(r => r.Games >= gMin && WilsonLower(r.Wins, r.Games) > eMin)
-                             .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
-            if (!fill) return strict.Take(top).ToList();
-
-            // Сначала те, у кого перевес настоящий…
-            var winning = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr > 0.50)
-                              .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
-            // …и только потом ровные пары. Против чемпиона вроде Джинкс роль
-            // может не знать НИ ОДНОГО победного матчапа: лучший ответ там —
-            // тот, кто не проигрывает. Ниже этой границы уже проигрыш, и
-            // называть его контрой нельзя даже ради третьей иконки.
-            var even = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr >= HINT_EVEN_WR)
-                           .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
-            return strict.Concat(winning).Concat(even).DistinctBy(r => r.Id).Take(top).ToList();
+            IEnumerable<HintRow> picks = rows
+                .Where(r => r.Games >= gMin && WilsonLower(r.Wins, r.Games) > eMin)
+                .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
+            if (fill)
+            {
+                // Сначала те, у кого перевес настоящий…
+                var winning = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr > 0.50)
+                                  .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
+                // …и только потом ровные пары. Против чемпиона вроде Джинкс роль
+                // может не знать НИ ОДНОГО победного матчапа: лучший ответ там —
+                // тот, кто не проигрывает. Ниже этой границы уже проигрыш, и
+                // называть его контрой нельзя даже ради третьей иконки.
+                var even = rows.Where(r => r.Games >= HINT_FILL_GAMES && r.Wr >= HINT_EVEN_WR)
+                               .OrderByDescending(r => WilsonLower(r.Wins, r.Games));
+                picks = picks.Concat(winning).Concat(even).DistinctBy(r => r.Id);
+            }
+            // Выигрывать у него чаще половины мало: сильный в патче чемпион
+            // выигрывает у всех. Контра — тот, кто против него играет ЛУЧШЕ, чем
+            // обычно, — то самое число, что наведение на кандидата рисует под
+            // врагом (VersusDelta). Иначе Браум (52,1% сам по себе, 51,7% против
+            // Нами) стоял в контрах у Нами, а наведение на него давало «vs −0,5».
+            // Против того, у кого так не играет никто (Когмао), иконок меньше
+            // трёх: лучше пусто, чем контра, которая сама себе противоречит.
+            // Считаем лениво — до первых top, а не по всем кандидатам роли.
+            if (byRole)
+                picks = picks.Where(r => VersusDelta(r.Id, enemyRole!, enemyId, enemyRole!) > 0);
+            return picks.Take(top).ToList();
         }
         catch { return []; }
     }
