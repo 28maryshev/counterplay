@@ -44,7 +44,7 @@ public sealed class MetricRow
             var v = d.Value(r);
             return new MetricRow
             {
-                Label     = Loc.T(d.Key),
+                Label     = LabelOf(d.Key, r),
                 Text      = (v >= 0 ? "+" : "") + v.ToString("F1"),
                 TextColor = d.TextColor,
                 Bar       = Scaled(v, max[i], d.Floor),
@@ -52,6 +52,12 @@ public sealed class MetricRow
                 Strong    = highlight && max[i] > 0.05 && v >= max[i] - 0.05,
             };
         })];
+
+    /// Подпись показателя. Пока соперник на линии не выбран, в «против
+    /// оппонента» стоит ожидаемый матчап вслепую (Recommendation.Blind) — и
+    /// подписан он так же, чтобы не читаться как матчап с кем-то конкретным.
+    public static string LabelOf(string key, Recommendation r) =>
+        Loc.T(key == "metric.direct" && r.Blind ? "metric.blind" : key);
 
     /// Лидер по каждому показателю среди кандидатов (в порядке Defs).
     public static double[] MaxOf(IReadOnlyCollection<Recommendation> recs) =>

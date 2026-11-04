@@ -69,18 +69,7 @@ public sealed partial class RecommendationEngine
         var candidates = only?.ToList() ?? GetCandidates(myRole);
         Console.WriteLine($"  [диаг] role={myRole}  tier={TierBucket}  патчи={PatchDisplay}  кандидатов={candidates.Count}");
 
-        // Исключаем из кандидатов: залоченные пики обеих команд, баны, а также
-        // чемпионов, наведённых (ховер) ЧУЖИМИ слотами — их уже не запикать.
-        // СВОЙ пик/ховер НЕ исключаем: хочу видеть его в списке (насколько «угадал»).
-        var taken = new HashSet<int>();
-        foreach (var p in state.MyTeam.Concat(state.TheirTeam))
-        {
-            if (p.IsLocalPlayer) continue;            // мой слот — оставляем в подборе
-            if (p.ChampionId != 0) taken.Add(p.ChampionId);
-            else if (p.PickIntentId != 0) taken.Add(p.PickIntentId);
-        }
-        foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
-            if (b != 0) taken.Add(b);
+        var taken = TakenBy(state);
 
         // Мой уже выбранный (или наведённый) чемпион — чтобы пометить и гарантированно показать.
         var myPickId = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
@@ -144,12 +133,27 @@ public sealed partial class RecommendationEngine
         var knownEnemies = state.TheirTeam.Count(p => p.EffectiveChampionId != 0);
         var wSynergy = W_SYNERGY + (W_SYN_MAX - W_SYNERGY) * Math.Max(0.0, 1.0 - knownEnemies / 5.0);
 
-        // ── Драфт-фичи (архетип/нейтральность) ──────────────────────────────
+        // ── Вслепую: соперник ещё не выбран ─────────────────────────────────
+        // Нулём «против оппонента» это больше не считается: вместо него —
+        // ожидаемый матчап против того, кого возьмут в ответ (BlindRisk), из
+        // тех, кого ещё можно взять (без взятых и забаненных). У бота так же
+        // считается ещё не выбранный дуо врага. Прочие линии сюда не входят:
+        // разброс мида против их леса втрое меньше, чем против их мида, и на
+        // оценке это сотые доли очка (замер 04.11 — в журнале).
+        //
+        // И только если соперник сможет ответить: кто-то из врагов пикает
+        // после меня (ExposedToCounter). Последний пик дождётся оппонента сам —
+        // на его ходу тот уже известен, и пугать его контрами незачем; без
+        // этого в фазе банов у последнего пика вслепую сдвигало и вес пула в
+        // банах (PoolOdds).
+        var anyUnknown = knownEnemies < 5 && state.ExposedToCounter;
+        var laneBlind  = anyUnknown && directOppId == 0;
+        var duoBlind   = anyUnknown && duoRole != null && enemyDuoId == 0
+                         && !otherEnemies.Any(e => e.Role == duoRole);
+
+        // ── Драфт-фичи (архетип) ────────────────────────────────────────────
         var allEnemyIds = state.TheirTeam
             .Where(p => p.EffectiveChampionId != 0).Select(p => p.EffectiveChampionId).ToList();
-        // Неопределённость драфта: 1.0 если врагов не видно, 0 если все 5 + есть оппонент.
-        var uncertainty = Math.Clamp(
-            1.0 - knownEnemies / 5.0 + (directOppId == 0 ? 0.2 : 0.0), 0.0, 1.0);
         // Доминирующий архетип врага определяем при 2+ известных пиках.
         ChampionTraits.Arch? enemyDom = allEnemyIds.Count >= 2
             ? ChampionTraits.Dominant(allEnemyIds) : null;
@@ -223,9 +227,9 @@ public sealed partial class RecommendationEngine
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
-                // Драфт-фичи: нейтральность, трифекта, анти-стиль.
+                // Драфт-фичи: трифекта, анти-стиль.
                 var (draftBonus, styleScore, draftReasons) =
-                    DraftFit(champId, enemyDom, uncertainty);
+                    DraftFit(champId, enemyDom);
 
                 // Item value (п.1) + баланс типа урона (AD/AP): влияют на СКОР (штраф за
                 // стак уязвимости/типа урона, бонус за наказание врага), но в тексте
@@ -243,9 +247,17 @@ public sealed partial class RecommendationEngine
                     ? RawBotlane(champId, myRole, enemyDuoId, duoRole) : (0.0, 0.0);
                 var botlaneDelta = PureVs(btg, btw);
 
-                if (botlaneDelta >= 0.8)
+                // Вслепую — ожидаемое вместо настоящего, с теми же весами.
+                var laneRisk = laneBlind ? Blind(champId, myRole, myRole, taken) : BlindRisk.None;
+                var duoRisk  = duoBlind  ? Blind(champId, myRole, duoRole!, taken) : BlindRisk.None;
+                if (laneBlind) directDelta  = laneRisk.Value;
+                if (duoBlind)  botlaneDelta = duoRisk.Value;
+                if (laneBlind && BlindReason(laneRisk) is { } blindLine) draftReasons.Add(blindLine);
+
+                // Строки про их бот — только про настоящего, выбранного дуо.
+                if (!duoBlind && botlaneDelta >= 0.8)
                     draftReasons.Add(Good(Loc.T("reason.botlaneGood", DataDragon.Name(enemyDuoId))));
-                else if (botlaneDelta <= -1.2)
+                else if (!duoBlind && botlaneDelta <= -1.2)
                     draftReasons.Add(Bad(Loc.T("reason.botlaneBad", DataDragon.Name(enemyDuoId))));
 
                 var personalDelta = PersonalDelta(champId);   // «у меня на нём идёт»
@@ -284,8 +296,10 @@ public sealed partial class RecommendationEngine
                 // АДК (и наоборот), но раньше полоска показывала только матчап со
                 // своей же ролью: пока вражеский саппорт не выбран, там стоял ноль,
                 // хотя счёт уже учитывал контру против их адк.
+                // Вслепую здесь ожидаемое (BlindRisk) — полоска подписана «вслепую».
                 var shownDirect = directDelta + botlaneDelta;
-                return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons);
+                return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
+                                          Blind: laneBlind);
             })
             .OrderByDescending(r => r.Score)
             .ToList();
@@ -303,6 +317,27 @@ public sealed partial class RecommendationEngine
         return ordered.Take(topN)
             .Select((r, i) => r with { Rank = i + 1, IsMyPick = r.ChampionId == myPickId })
             .ToList();
+    }
+
+    /// <summary>
+    /// Кого уже не взять: залоченные пики обеих команд, баны и чемпионы,
+    /// наведённые (ховер) ЧУЖИМИ слотами. СВОЙ пик/ховер не в счёт: подбор
+    /// хочет видеть его в списке (насколько «угадал»), а вслепую мой ховер —
+    /// не мой лок, соперник его взять может. Одно правило на подбор и на
+    /// расчёт вслепую (кого соперник ещё может взять против меня).
+    /// </summary>
+    private static HashSet<int> TakenBy(DraftState state)
+    {
+        var taken = new HashSet<int>();
+        foreach (var p in state.MyTeam.Concat(state.TheirTeam))
+        {
+            if (p.IsLocalPlayer) continue;            // мой слот — оставляем в подборе
+            if (p.ChampionId != 0) taken.Add(p.ChampionId);
+            else if (p.PickIntentId != 0) taken.Add(p.PickIntentId);
+        }
+        foreach (var b in state.MyTeamBans.Concat(state.TheirTeamBans))
+            if (b != 0) taken.Add(b);
+        return taken;
     }
 
     /// До max ВЫГОДНЫХ пиков из пула (Score > 0), отсортированы по силе. Если ни

@@ -13,6 +13,7 @@
   "metric": {
     "base": "Forza in questa patch",
     "direct": "Contro l'avversario",
+    "blind": "Pick alla cieca",
     "team": "Contro la loro squadra",
     "style": "Contro il loro stile",
     "synergy": "Sinergia con gli alleati"
@@ -81,7 +82,7 @@
   },
   "draft": {
     "style": "Stile: {0}",
-    "pickHint": "⚠ Scegli prima dei nemici — un counter è possibile. Prendi una scelta neutrale o scambia con chi ha già l'avversario bloccato.",
+    "pickHint": "⚠ Scegli prima dei nemici — un counter è possibile. I consigli ne tengono già conto: prendi uno «sicuro alla cieca» o scambia con chi ha già l'avversario bloccato.",
     "counterItems": "Item che counter-ano te e la squadra:",
     "banBadge": "BAN"
   },
@@ -268,7 +269,9 @@
     "mixed": "Misto"
   },
   "reason": {
-    "neutral": "Scelta neutrale — sicura finché la comp nemica non è chiara.",
+    "blindSafe": "Sicuro alla cieca: ~{0}% di probabilità di trovare un counter",
+    "blindRisky": "Rischioso alla cieca: ~{0}% di probabilità di trovare un counter ({1})",
+    "blindRiskyAny": "Rischioso alla cieca: ~{0}% di probabilità di trovare un counter",
     "dmgStack": "La squadra accumula già danno {0} — un item di armatura/MR ne annulla diversi.",
     "dmgBalance": "Bilancia il danno della squadra ({0}).",
     "aramFront": "Alla squadra manca una frontline — tu porti ingaggio/resistenza.",
@@ -736,6 +739,10 @@
     "colPatch": "patch {0}",
     "banned": "bannato {0}%",
     "fromPool": "dal pool",
+    "blindSafe": "sicuro alla cieca",
+    "blindRisky": "rischioso alla cieca",
+    "tipBlind": "Alla cieca: ~{0}% di probabilità di trovare un counter (in media nella corsia ~{1}%)",
+    "tipCounters": "Counter più frequenti: {0}",
     "empty": "Nessuna partita in {0} negli ultimi 30 giorni e nessun pool per questo ruolo — scegli dalla tier list qui sotto.",
     "failed": "Il client non l’ha accettato",
     "tipRecord": "Vittorie / sconfitte in 30 giorni: {0} / {1}",

@@ -147,7 +147,9 @@
     "master": "Mestre+"
   },
   "reason": {
-    "neutral": "Pick neutro — seguro até a composição inimiga ficar clara.",
+    "blindSafe": "Seguro às cegas: ~{0}% de chance de pegar um counter",
+    "blindRisky": "Arriscado às cegas: ~{0}% de chance de pegar um counter ({1})",
+    "blindRiskyAny": "Arriscado às cegas: ~{0}% de chance de pegar um counter",
     "dmgStack": "O time já acumula dano {0} — um item de armadura/RM anula vários.",
     "dmgBalance": "Equilibra o dano do time ({0}).",
     "aramFront": "O time carece de linha de frente — você traz engage/resistência.",
@@ -196,6 +198,7 @@
   "metric": {
     "base": "Força neste patch",
     "direct": "Vs seu oponente",
+    "blind": "Pick às cegas",
     "team": "Vs o time deles",
     "style": "Vs o estilo deles",
     "synergy": "Sinergia com aliados"
@@ -241,7 +244,7 @@
   },
   "draft": {
     "style": "Estilo: {0}",
-    "pickHint": "⚠ Você escolhe antes dos inimigos — um counter é possível. Pegue um pick neutro ou troque com alguém cujo oponente já está definido.",
+    "pickHint": "⚠ Você escolhe antes dos inimigos — um counter é possível. As sugestões já levam isso em conta: pegue um “seguro às cegas” ou troque com alguém cujo oponente já está definido.",
     "counterItems": "Itens que counteram você e o time:",
     "banBadge": "BAN"
   },
@@ -736,6 +739,10 @@
     "colPatch": "patch {0}",
     "banned": "banido {0}%",
     "fromPool": "do pool",
+    "blindSafe": "seguro às cegas",
+    "blindRisky": "arriscado às cegas",
+    "tipBlind": "Às cegas: ~{0}% de chance de pegar um counter (média da rota ~{1}%)",
+    "tipCounters": "Counters mais comuns: {0}",
     "empty": "Sem partidas de {0} nos últimos 30 dias e sem pool para essa rota — escolha pela tier list abaixo.",
     "failed": "O cliente não aceitou",
     "tipRecord": "Vitórias / derrotas em 30 dias: {0} / {1}",

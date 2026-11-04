@@ -213,23 +213,20 @@ public sealed partial class RecommendationEngine
         return 1.0 - (1.0 - STALE_FLOOR) * (daysSince - FreshDays) / (StaleDays - FreshDays);
     }
 
-    // Драфт-фичи: нейтральный пик (при неопределённости), трифекта композиций
-    // и анти-стиль (инструменты против доминирующего архетипа врага).
-    // Возвращает суммарный взвешенный бонус к score и причины для UI.
-    // StyleScore — отдельно вклад «против стиля врага» (трифекта+анти-стиль), для показа в карточке.
+    // Драфт-фичи: трифекта композиций и анти-стиль (инструменты против
+    // доминирующего архетипа врага). Возвращает суммарный взвешенный бонус к
+    // score и причины для UI. StyleScore — отдельно вклад «против стиля врага»
+    // (трифекта+анти-стиль), для показа в карточке.
+    //
+    // Здесь же жил «нейтральный пик» — ручной список из двенадцати чемпионов с
+    // надбавкой, пока враги не видны. Его заменил расчёт по данным (часть
+    // Blind, 04.11.2026): в списке был, например, Галио, которому по базе на
+    // деле достаются выгодные матчапы — его берут контрпиком, а не вслепую.
     private static (double Bonus, double StyleScore, List<string> Reasons) DraftFit(
-        int champId, ChampionTraits.Arch? enemyDom, double uncertainty)
+        int champId, ChampionTraits.Arch? enemyDom)
     {
         double bonus = 0, styleScore = 0;
         var reasons = new List<string>();
-
-        // 5. Нейтральный пик — безопасен при неизвестном составе.
-        if (ChampionTraits.IsNeutral(champId) && uncertainty > 0.1)
-        {
-            bonus += W_NEUTRAL * uncertainty;
-            if (uncertainty >= 0.5)
-                reasons.Add(Loc.T("reason.neutral"));
-        }
 
         if (enemyDom is { } dom)
         {

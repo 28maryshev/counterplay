@@ -209,4 +209,20 @@ sealed partial class TestPanel
         var hit = _idByName.Keys.FirstOrDefault(n => n.StartsWith(text, StringComparison.CurrentCultureIgnoreCase));
         return hit != null ? _idByName[hit] : 0;
     }
+
+    /// <summary>
+    /// «Кто-то из врагов пикает после меня» — как ExposedToCounter у клиента:
+    /// подбор считает пик вслепую только тогда (последнему пику оппонент к его
+    /// ходу уже известен). С авто-драфтом — по его порядку (_simGroups): после
+    /// моей группы есть враг без чемпиона. Без авто-драфта порядка нет —
+    /// считаем как первый пик: пока у врагов пустой слот, ответить могут.
+    /// </summary>
+    private bool Exposed(int meIdx, IReadOnlyList<DraftPlayer> their)
+    {
+        if (_myLocked) return false;
+        bool Empty(int cell) => cell >= 5 && cell - 5 < their.Count && their[cell - 5].ChampionId == 0;
+        if (_simTurn < 0) return their.Any(p => p.ChampionId == 0);
+        var mine = Array.FindIndex(_simGroups, g => g.Contains(meIdx));
+        return _simGroups.Skip(mine + 1).Any(g => g.Any(Empty));
+    }
 }

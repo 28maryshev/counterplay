@@ -13,6 +13,7 @@
   "metric": {
     "base": "Sức mạnh bản này",
     "direct": "So với đối thủ",
+    "blind": "Chọn mù",
     "team": "So với đội địch",
     "style": "So với lối chơi địch",
     "synergy": "Phối hợp với đồng đội"
@@ -81,7 +82,7 @@
   },
   "draft": {
     "style": "Lối chơi: {0}",
-    "pickHint": "⚠ Bạn chọn trước địch — có thể bị khắc chế. Chọn tướng an toàn hoặc đổi với người đã có đối thủ khóa cứng.",
+    "pickHint": "⚠ Bạn chọn trước địch — có thể bị khắc chế. Gợi ý đã tính đến điều này: chọn tướng \"an toàn khi chọn mù\" hoặc đổi với người đã có đối thủ khóa cứng.",
     "counterItems": "Đồ khắc chế bạn và đội:",
     "banBadge": "CẤM"
   },
@@ -268,7 +269,9 @@
     "mixed": "Hỗn hợp"
   },
   "reason": {
-    "neutral": "Lựa chọn trung lập — an toàn cho đến khi rõ đội hình địch.",
+    "blindSafe": "Chọn mù an toàn: ~{0}% khả năng gặp tướng khắc chế",
+    "blindRisky": "Chọn mù rủi ro: ~{0}% khả năng gặp tướng khắc chế ({1})",
+    "blindRiskyAny": "Chọn mù rủi ro: ~{0}% khả năng gặp tướng khắc chế",
     "dmgStack": "Đội đã dồn sát thương {0} — một món giáp/kháng phép vô hiệu nhiều người.",
     "dmgBalance": "Cân bằng sát thương của đội ({0}).",
     "aramFront": "Đội thiếu tuyến đầu — bạn mang lại mở giao tranh/độ trâu.",
@@ -736,6 +739,10 @@
     "colPatch": "phiên bản {0}",
     "banned": "bị cấm {0}%",
     "fromPool": "từ pool",
+    "blindSafe": "an toàn khi chọn mù",
+    "blindRisky": "rủi ro khi chọn mù",
+    "tipBlind": "Chọn mù: ~{0}% khả năng gặp tướng khắc chế (trung bình đường ~{1}%)",
+    "tipCounters": "Khắc chế thường gặp: {0}",
     "empty": "30 ngày qua không có trận ở vị trí {0} và cũng không có pool — hãy chọn từ tier list bên dưới.",
     "failed": "Client không chấp nhận",
     "tipRecord": "Thắng / thua trong 30 ngày: {0} / {1}",

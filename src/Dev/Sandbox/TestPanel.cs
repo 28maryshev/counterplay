@@ -711,7 +711,7 @@ sealed partial class TestPanel : Window
         var pickAction = myPick || planning ? 1 : -1;
         var draft = new DraftState(
             my, their, ourBans, theirBans, my[meIdx], _rowRoles[meIdx],
-            opp, false, banPhase, [], false,
+            opp, Exposed(meIdx, their), banPhase, [], false,
             pickAction, myPick && myTurn, active, firstPick,
             banPhase && !_myBanDone ? 1 : -1, banPhase && !_myBanDone && !planning,
             MyBanDone: _myBanDone,    // как у клиента: сделанный бан остаётся сделанным и на пиках

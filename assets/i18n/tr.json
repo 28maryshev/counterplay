@@ -149,6 +149,7 @@
   "metric": {
     "base": "Bu yamadaki güç",
     "direct": "Rakibine karşı",
+    "blind": "Kör seçim",
     "team": "Takımlarına karşı",
     "style": "Onların tarzına karşı",
     "synergy": "Müttefiklerle sinerji"
@@ -194,7 +195,7 @@
   },
   "draft": {
     "style": "Tarz: {0}",
-    "pickHint": "⚠ Düşmanlardan önce seçim yapıyorsun — kontrlenmen mümkün. Nötr bir seçim yap ya da rakibi zaten kilitlenmiş biriyle sırayı değiştir.",
+    "pickHint": "⚠ Düşmanlardan önce seçim yapıyorsun — kontrlenmen mümkün. Öneriler bunu zaten hesaba katıyor: \"kör seçime uygun\" birini al ya da rakibi zaten kilitlenmiş biriyle sırayı değiştir.",
     "counterItems": "Seni ve takımı kontrleyen eşyalar:",
     "banBadge": "BAN"
   },
@@ -373,7 +374,9 @@
     "mixed": "Karışık"
   },
   "reason": {
-    "neutral": "Nötr seçim — düşman kompozisyonu netleşene kadar güvenli.",
+    "blindSafe": "Kör seçime uygun: counter ile karşılaşma ihtimali ~%{0}",
+    "blindRisky": "Kör seçimde riskli: counter ile karşılaşma ihtimali ~%{0} ({1})",
+    "blindRiskyAny": "Kör seçimde riskli: counter ile karşılaşma ihtimali ~%{0}",
     "dmgStack": "Takım zaten {0} hasar biriktiriyor — tek bir zırh/MR eşyası birkaçını etkisiz kılar.",
     "dmgBalance": "Takımın hasarını dengeler ({0}).",
     "aramFront": "Takımda frontline eksik — sen engage/tanklık getiriyorsun.",
@@ -736,6 +739,10 @@
     "colPatch": "yama {0}",
     "banned": "yasaklanma %{0}",
     "fromPool": "havuzdan",
+    "blindSafe": "kör seçime uygun",
+    "blindRisky": "kör seçimde riskli",
+    "tipBlind": "Kör seçim: counter ile karşılaşma ihtimali ~%{0} (koridor ortalaması ~%{1})",
+    "tipCounters": "En sık counterlar: {0}",
     "empty": "Son 30 günde {0} rolünde maç yok, bu rol için havuz da yok — aşağıdaki tier listesinden seç.",
     "failed": "İstemci kabul etmedi",
     "tipRecord": "30 günde galibiyet / mağlubiyet: {0} / {1}",

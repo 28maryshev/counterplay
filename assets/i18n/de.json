@@ -147,7 +147,9 @@
     "master": "Master+"
   },
   "reason": {
-    "neutral": "Neutraler Pick — sicher, bis die gegnerische Komposition klar ist.",
+    "blindSafe": "Sicher als Blind-Pick: ~{0}% Chance auf einen Konter",
+    "blindRisky": "Riskant als Blind-Pick: ~{0}% Chance auf einen Konter ({1})",
+    "blindRiskyAny": "Riskant als Blind-Pick: ~{0}% Chance auf einen Konter",
     "dmgStack": "Team häuft bereits {0} Schaden — ein Rüstungs-/MR-Item entschärft mehrere.",
     "dmgBalance": "Gleicht den Schaden des Teams aus ({0}).",
     "aramFront": "Dem Team fehlt eine Frontlinie — du bringst Engage/Tankiness.",
@@ -196,6 +198,7 @@
   "metric": {
     "base": "Stärke in diesem Patch",
     "direct": "Gegen deinen Gegner",
+    "blind": "Blind-Pick",
     "team": "Gegen ihr Team",
     "style": "Gegen ihren Spielstil",
     "synergy": "Synergie mit Verbündeten"
@@ -241,7 +244,7 @@
   },
   "draft": {
     "style": "Stil: {0}",
-    "pickHint": "⚠ Du pickst vor den Gegnern — ein Konter ist möglich. Nimm einen neutralen Pick oder tausche mit jemandem, dessen Gegner schon feststeht.",
+    "pickHint": "⚠ Du pickst vor den Gegnern — ein Konter ist möglich. Die Empfehlungen berücksichtigen das schon: Nimm einen „sicher als Blind-Pick“ oder tausche mit jemandem, dessen Gegner schon feststeht.",
     "counterItems": "Items, die dich & das Team kontern:",
     "banBadge": "BAN"
   },
@@ -736,6 +739,10 @@
     "colPatch": "Patch {0}",
     "banned": "gebannt {0}%",
     "fromPool": "aus dem Pool",
+    "blindSafe": "sicher als Blind-Pick",
+    "blindRisky": "riskant als Blind-Pick",
+    "tipBlind": "Blind: ~{0}% Chance auf einen Konter (üblich auf der Lane ~{1}%)",
+    "tipCounters": "Häufigste Konter: {0}",
     "empty": "Keine Spiele auf {0} in den letzten 30 Tagen und kein Pool dafür — wähle aus der Tier-Liste unten.",
     "failed": "Der Client hat es nicht angenommen",
     "tipRecord": "Siege / Niederlagen in 30 Tagen: {0} / {1}",

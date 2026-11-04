@@ -7,6 +7,7 @@
   "metric": {
     "base": "Puissance ce patch",
     "direct": "Vs ton adversaire",
+    "blind": "Pick à l'aveugle",
     "team": "Vs leur équipe",
     "style": "Vs leur style",
     "synergy": "Synergie avec les alliés"
@@ -85,7 +86,7 @@
   },
   "draft": {
     "style": "Style : {0}",
-    "pickHint": "⚠ Tu pick avant les ennemis — un counter est possible. Prends un pick neutre ou échange avec un allié dont l'adversaire est déjà verrouillé.",
+    "pickHint": "⚠ Tu pick avant les ennemis — un contre est possible. Les conseils en tiennent déjà compte : prends un champion « sûr à l'aveugle » ou échange avec un allié dont l'adversaire est déjà verrouillé.",
     "counterItems": "Objets qui te counter toi et l'équipe :",
     "banBadge": "BAN"
   },
@@ -373,7 +374,9 @@
     "mixed": "Mixte"
   },
   "reason": {
-    "neutral": "Pick neutre — sûr tant que la compo ennemie n'est pas claire.",
+    "blindSafe": "Sûr à l'aveugle : ~{0}% de risque de tomber sur un contre",
+    "blindRisky": "Risqué à l'aveugle : ~{0}% de risque de tomber sur un contre ({1})",
+    "blindRiskyAny": "Risqué à l'aveugle : ~{0}% de risque de tomber sur un contre",
     "dmgStack": "L'équipe cumule déjà des dégâts {0} — un objet d'armure/RM en neutralise plusieurs.",
     "dmgBalance": "Équilibre les dégâts de l'équipe ({0}).",
     "aramFront": "L'équipe manque de front — tu apportes engage/résistance.",
@@ -736,6 +739,10 @@
     "colPatch": "patch {0}",
     "banned": "banni {0}%",
     "fromPool": "du pool",
+    "blindSafe": "sûr à l'aveugle",
+    "blindRisky": "risqué à l'aveugle",
+    "tipBlind": "À l'aveugle : ~{0}% de risque de tomber sur un contre (en moyenne sur la voie ~{1}%)",
+    "tipCounters": "Contres les plus fréquents : {0}",
     "empty": "Aucune partie en {0} sur les 30 derniers jours et pas de pool pour ce rôle — choisis dans la tier list ci-dessous.",
     "failed": "Le client ne l’a pas accepté",
     "tipRecord": "Victoires / défaites sur 30 jours : {0} / {1}",

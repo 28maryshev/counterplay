@@ -25,6 +25,7 @@
   "metric": {
     "base": "Fuerza este parche",
     "direct": "Vs tu rival",
+    "blind": "Pick a ciegas",
     "team": "Vs su equipo",
     "style": "Vs su estilo",
     "synergy": "Sinergia con aliados"
@@ -70,7 +71,7 @@
   },
   "draft": {
     "style": "Estilo: {0}",
-    "pickHint": "⚠ Eliges antes que los enemigos — pueden contrapickearte. Elige un pick neutral o cambia con alguien cuyo rival ya esté confirmado.",
+    "pickHint": "⚠ Eliges antes que los enemigos — pueden contrapickearte. Las recomendaciones ya lo tienen en cuenta: elige uno «seguro a ciegas» o cambia con alguien cuyo rival ya esté confirmado.",
     "counterItems": "Objetos que os contrarrestan a ti y al equipo:",
     "banBadge": "BAN"
   },
@@ -373,7 +374,9 @@
     "master": "Máster+"
   },
   "reason": {
-    "neutral": "Pick neutral — seguro hasta que se aclare la composición enemiga.",
+    "blindSafe": "Seguro a ciegas: ~{0}% de probabilidad de toparte con un counter",
+    "blindRisky": "Arriesgado a ciegas: ~{0}% de probabilidad de toparte con un counter ({1})",
+    "blindRiskyAny": "Arriesgado a ciegas: ~{0}% de probabilidad de toparte con un counter",
     "dmgStack": "El equipo ya acumula daño {0} — un objeto de armadura/RM anula a varios.",
     "dmgBalance": "Equilibra el daño del equipo ({0}).",
     "aramFront": "Al equipo le falta línea frontal — aportas enganche/resistencia.",
@@ -736,6 +739,10 @@
     "colPatch": "parche {0}",
     "banned": "baneado {0}%",
     "fromPool": "del pool",
+    "blindSafe": "seguro a ciegas",
+    "blindRisky": "arriesgado a ciegas",
+    "tipBlind": "A ciegas: ~{0}% de probabilidad de toparte con un counter (lo habitual en la línea ~{1}%)",
+    "tipCounters": "Counters más comunes: {0}",
     "empty": "Sin partidas de {0} en los últimos 30 días y sin pool para ese rol — elige en la tier list de abajo.",
     "failed": "El cliente no lo aceptó",
     "tipRecord": "Victorias / derrotas en 30 días: {0} / {1}",

@@ -13,6 +13,7 @@
   "metric": {
     "base": "Siła w tym patchu",
     "direct": "Przeciw przeciwnikowi",
+    "blind": "Pick w ciemno",
     "team": "Przeciw ich drużynie",
     "style": "Przeciw ich stylowi",
     "synergy": "Synergia z sojusznikami"
@@ -81,7 +82,7 @@
   },
   "draft": {
     "style": "Styl: {0}",
-    "pickHint": "⚠ Wybierasz przed wrogami — możliwa kontra. Weź neutralny pick lub zamień się z kimś, czyj przeciwnik jest już zablokowany.",
+    "pickHint": "⚠ Wybierasz przed wrogami — możliwa kontra. Podpowiedzi już to uwzględniają: weź kogoś „bezpiecznego w ciemno” lub zamień się z kimś, czyj przeciwnik jest już zablokowany.",
     "counterItems": "Przedmioty kontrujące ciebie i drużynę:",
     "banBadge": "BAN"
   },
@@ -268,7 +269,9 @@
     "mixed": "Mieszany"
   },
   "reason": {
-    "neutral": "Neutralny pick — bezpieczny, dopóki komp wroga nie jest jasny.",
+    "blindSafe": "Bezpieczny w ciemno: ~{0}% szans na trafienie na kontrę",
+    "blindRisky": "Ryzykowny w ciemno: ~{0}% szans na trafienie na kontrę ({1})",
+    "blindRiskyAny": "Ryzykowny w ciemno: ~{0}% szans na trafienie na kontrę",
     "dmgStack": "Drużyna już kumuluje obrażenia {0} — jeden przedmiot pancerza/MR wyłącza kilku.",
     "dmgBalance": "Równoważy obrażenia drużyny ({0}).",
     "aramFront": "Drużynie brakuje frontline — ty dajesz inicjację/wytrzymałość.",
@@ -736,6 +739,10 @@
     "colPatch": "patch {0}",
     "banned": "banowany {0}%",
     "fromPool": "z puli",
+    "blindSafe": "bezpieczny w ciemno",
+    "blindRisky": "ryzykowny w ciemno",
+    "tipBlind": "W ciemno: ~{0}% szans na trafienie na kontrę (średnio na linii ~{1}%)",
+    "tipCounters": "Najczęstsze kontry: {0}",
     "empty": "Brak gier na roli {0} w ostatnich 30 dniach i brak puli na nią — wybierz z tier listy poniżej.",
     "failed": "Klient tego nie przyjął",
     "tipRecord": "Wygrane / przegrane w 30 dni: {0} / {1}",

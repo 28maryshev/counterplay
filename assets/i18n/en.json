@@ -39,6 +39,7 @@
   "metric": {
     "base": "Strength this patch",
     "direct": "Vs your opponent",
+    "blind": "Blind pick",
     "team": "Vs their team",
     "style": "Vs their style",
     "synergy": "Synergy with allies"
@@ -107,7 +108,7 @@
   },
   "draft": {
     "style": "Style: {0}",
-    "pickHint": "⚠ You pick before the enemies — a counter is possible. Take a neutral pick or swap with someone whose opponent is already locked.",
+    "pickHint": "⚠ You pick before the enemies — a counter is possible. Picks already account for it: take one marked “safe to blind” or swap with someone whose opponent is already locked.",
     "counterItems": "Items that counter you & the team:",
     "banBadge": "BAN"
   },
@@ -294,7 +295,9 @@
     "mixed": "Mixed"
   },
   "reason": {
-    "neutral": "Neutral pick — safe until the enemy comp is clear.",
+    "blindSafe": "Safe to blind: ~{0}% chance to run into a counter",
+    "blindRisky": "Risky to blind: ~{0}% chance to run into a counter ({1})",
+    "blindRiskyAny": "Risky to blind: ~{0}% chance to run into a counter",
     "dmgStack": "Team already stacks {0} damage — one armor/MR item shuts down several.",
     "dmgBalance": "Balances the team's damage ({0}).",
     "aramFront": "Team lacks a frontline — you bring engage/tankiness.",
@@ -736,6 +739,10 @@
     "colPatch": "patch {0}",
     "banned": "banned {0}%",
     "fromPool": "from pool",
+    "blindSafe": "safe to blind",
+    "blindRisky": "risky to blind",
+    "tipBlind": "Blind: ~{0}% chance to run into a counter (lane average ~{1}%)",
+    "tipCounters": "Most common counters: {0}",
     "empty": "No games on {0} in the last 30 days and no pool for it — pick from the tier list below.",
     "failed": "The client didn’t accept it",
     "tipRecord": "Wins / losses in 30 days: {0} / {1}",

@@ -13,4 +13,5 @@ public sealed record Recommendation(
     double StyleDelta,    // вклад «против стиля врага» (трифекта + анти-стиль)
     string[] Reasons,
     int    Rank   = 0,    // место в полном списке (1 = лучший)
-    bool   IsMyPick = false); // это мой уже выбранный/наведённый чемпион
+    bool   IsMyPick = false,  // это мой уже выбранный/наведённый чемпион
+    bool   Blind = false);    // оппонента ещё нет: DirectDelta — ожидаемый матчап вслепую (BlindRisk)

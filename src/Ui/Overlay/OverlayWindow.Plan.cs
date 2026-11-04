@@ -52,13 +52,17 @@ public partial class OverlayWindow
         if (_engine is null || role.Length == 0) return [];
         var selected = _pickHoverId > 0 ? _pickHoverId : draft.Me?.PickIntentId ?? 0;
 
+        // Здесь игрок решает, кого брать первым пиком, — и у каждого из его
+        // чемпионов видно, насколько его легко законтрить (BlindRisk): тот же
+        // расчёт, что в карточках подбора.
         var lane = SessionTracker.LaneChamps(role, _engine.RoleShare).Take(PlanRowCount).ToList();
         if (lane.Count > 0)
-            return [.. lane.Select(c => PlanRowOf(c.ChampionId, c, role, selected))];
+            return [.. lane.Select(c => PlanRowOf(c.ChampionId, c, role, selected,
+                                                  blind: _engine.BlindFor(draft, c.ChampionId, role)))];
 
         var pool = PoolStore.ActiveForRole(role).Mine.Where(id => id > 0).Distinct().Take(PlanRowCount).ToList();
         fromPool = pool.Count > 0;
-        return [.. pool.Select(id => PlanRowOf(id, null, role, selected))];
+        return [.. pool.Select(id => PlanRowOf(id, null, role, selected, blind: _engine.BlindFor(draft, id, role)))];
     }
 
     /// Заметка строки вместо «банят N%» / «из пула» и строки к её подсказке —
@@ -66,7 +70,7 @@ public partial class OverlayWindow
     private readonly record struct PlanNote(string Text, string Brush, IReadOnlyList<string> Tip);
 
     private PlanRow PlanRowOf(int id, SessionTracker.LaneChamp? c, string role, int selected,
-                              PlanNote? note = null)
+                              PlanNote? note = null, BlindRisk? blind = null)
     {
         var name  = DataDragon.Name(id);
         var patch = _engine!.PatchWr(id, role);
@@ -86,6 +90,7 @@ public partial class OverlayWindow
         }
         if (ban > 0) tip.Add(Loc.T("ban.rateTip", name, ban.ToString("F1"), _engine.Patch));
         if (note is { } n) tip.AddRange(n.Tip);
+        var (blindNote, blindBrush) = BlindNote(blind, tip);
 
         var delta = patch?.Delta;
         return new PlanRow
@@ -95,11 +100,14 @@ public partial class OverlayWindow
             Icon       = IconCache.Get(id),
             Name       = name,
             Games      = c?.Games ?? 0,
+            // Заметка одна: бан-рейт важнее (мейна могут забанить), потом —
+            // вслепую, потом «из пула».
             Note       = note?.Text
                        ?? (ban >= PlanBanTag ? Loc.T("plan.banned", ban.ToString("0"))
-                           : c is null ? Loc.T("plan.fromPool") : ""),
+                           : blindNote ?? (c is null ? Loc.T("plan.fromPool") : "")),
             NoteBrush  = note?.Brush
-                       ?? (ban >= 2 * PlanBanTag ? "#FF5A4D" : ban >= PlanBanTag ? "#F0A93C" : "#6E8598"),
+                       ?? (ban >= 2 * PlanBanTag ? "#FF5A4D" : ban >= PlanBanTag ? "#F0A93C"
+                           : blindNote is not null ? blindBrush : "#6E8598"),
             WrText     = c is null ? "—" : $"{c.WinRate:0}%",
             WrBrush    = c is { Games: >= PlanMinGamesColor } ? WinrateColor.Hex(c.WinRate) : "#8AA0B2",
             GamesText  = c is null ? "" : $"· {c.Games}",
@@ -111,6 +119,26 @@ public partial class OverlayWindow
             DeltaText  = delta is { } d ? (d >= 0 ? "▲" : "▼") + Math.Abs(d).ToString("F1") : "",
             DeltaBrush = delta >= PlanDeltaColor ? "#57C98A" : delta <= -PlanDeltaColor ? "#E05B5B" : "#6E8598",
             Tip        = string.Join("\n", tip),
+        };
+    }
+
+    /// <summary>
+    /// Вслепую у строки плана: в подсказку — всегда (шанс нарваться на контру
+    /// против обычного для линии и самые частые контры), в заметку — только
+    /// когда чемпион заметно надёжнее или опаснее типичного; пороги те же, что
+    /// у строки в карточке подбора (BlindRisk.Verdict).
+    /// </summary>
+    private static (string? Note, string Brush) BlindNote(BlindRisk? blind, List<string> tip)
+    {
+        if (blind is not { Typical: > 0 } b) return (null, "");
+        tip.Add(Loc.T("plan.tipBlind", $"{100 * b.Chance:F0}", $"{100 * b.Typical:F0}"));
+        if (b.Counters.Count > 0)
+            tip.Add(Loc.T("plan.tipCounters", string.Join(", ", b.Counters.Select(DataDragon.Name))));
+        return b.Verdict switch
+        {
+            > 0 => (Loc.T("plan.blindSafe"), "#57C98A"),
+            < 0 => (Loc.T("plan.blindRisky"), "#F0A93C"),
+            _   => (null, ""),
         };
     }
 

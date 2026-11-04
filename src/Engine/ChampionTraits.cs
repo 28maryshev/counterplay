@@ -1,31 +1,14 @@
 ﻿namespace Counterplay;
 
 /// <summary>
-/// Слой качественных атрибутов чемпионов (архетип, нейтральность, инструменты).
+/// Слой качественных атрибутов чемпионов (архетип, инструменты).
 /// Авто-сид: выводится из тегов <see cref="ChampionTags"/> (ручная разметка) и
 /// классов Data Dragon (Fighter/Tank/Mage/…). Используется для драфт-фич:
-/// нейтральные пики, трифекта композиций, анти-стиль.
+/// трифекта композиций, анти-стиль.
 /// </summary>
 public static class ChampionTraits
 {
     public enum Arch { FrontToBack, Dive, PickPoke }
-
-    // Нейтральные чемпионы — лезут в любую компу без жёсткой завязки (ценны в блайнде).
-    private static readonly HashSet<int> NeutralSet =
-    [
-        103, // Ахри
-        61,  // Орианна
-        267, // Нами
-        43,  // Карма
-        222, // Джинкс
-        523, // Афелиос
-        15,  // Сивир
-        81,  // Эзреаль
-        254, // Вай
-        104, // Грейвз
-        3,   // Галио
-        113, // Седжуани
-    ];
 
     // championId → вектор архетипа (frontToBack, dive, pickPoke), нормированный.
     public static (double F2B, double Dive, double Pick) Archetype(int id)
@@ -96,8 +79,6 @@ public static class ChampionTraits
         if (f >= d && f >= p) return Arch.FrontToBack;
         return d >= p ? Arch.Dive : Arch.PickPoke;
     }
-
-    public static bool IsNeutral(int id) => NeutralSet.Contains(id);
 
     /// Доминирующий архетип одного чемпиона (для значка). null — неизвестен.
     public static Arch? ChampArch(int id)
