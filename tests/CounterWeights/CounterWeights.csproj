@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Вес контры по ролям — по исходам матчей (pipeline/calibrate.py): три копии
+       формулы (движок, бот, калибровка) сходятся, раскладка держит замер
+       (лес — меньше всех, средний вес прежний), а подбор на живой базе (только
+       чтение) кладёт известный матчап с весом роли и ожидаемое вслепую — с
+       весом W_BLIND. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+  </ItemGroup>
+
+</Project>

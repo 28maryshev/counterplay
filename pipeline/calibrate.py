@@ -1,181 +1,223 @@
 # -*- coding: utf-8 -*-
 """
-Калибровка весов движка рекомендаций по реальным исходам матчей.
+Калибровка веса контры по ролям — по исходам настоящих матчей.
 
-Использует таблицу drafts (пишется collect.py начиная с этой версии): по каждому
-матчу считает те же факторы, что движок (база / прямая контра / кросс-лейн /
-синергия — чистые дельты с темпером), берёт разность фич команд и обучает
-логистическую регрессию «фичи → победа». Выученные коэффициенты — это и есть
-оптимальные веса W_* (печатаются нормированными к W_BASE=1.0).
+Вопрос: сколько настоящих пунктов победы несёт один пункт контры, который
+показывает движок (матчап минус своя база, с доверием по объёму пары), — на
+каждой линии и в каждой паре ролей. Цифра контры — правда пополам с шумом
+малых выборок, и доля правды у ролей разная: в лесу она меньше всех.
 
-Запуск:  py -3.12 pipeline\\calibrate.py --db pipeline\\data.db --tier emerald
+Как считается. По каждому драфту патча — разность команд по факторам:
+  * сила — сумма TierPower пятёрки (текущий патч, усадка на 2000 игр);
+  * чистая контра по каждой паре ролей (5 линий + 10 пар разных ролей):
+    то, что движок видит у кандидатов против одного и того же соперника,
+    k = d + t·база соперника, где d — дельта движка, t = g/(g+50).
+Логистическая регрессия «разность → победа»; коэффициент × 2 / 0,04 — доля
+правды (пара входит в признак за обе команды; 0,04 логита — пункт победы у
+50%).
 
-Честное предупреждение: агрегаты содержат те же игры, что и драфты (утечка),
-поэтому веса слегка оптимистичны. Для порядка величин и соотношений — годится;
-для строгой оценки собери драфты на новом патче и калибруйся по нему.
+Две ловушки, из-за которых прежняя версия врала:
+  1. Утечка. Агрегаты собраны из тех же матчей — пара на десяти играх
+     «предсказывает» исход, в котором сама участвовала. Здесь из каждого
+     агрегата вычитается сам матч (leave-one-out), поэтому выжимка должна быть
+     ОДНИМ снимком: агрегаты и драфты из одних и тех же игр
+     (ops/pull-calib.sh снимает их одной транзакцией).
+  2. Сила внутри контры. «Матчап минус своя база» несёт ещё и силу соперника,
+     и регрессия делила её между «силой» и «контрой». Признак k её вычитает.
+
+Запуск:
+  bash ops/pull-calib.sh                    # → calib-slice.db
+  python pipeline/calibrate.py --db calib-slice.db
+
+Чистый Python, без numpy: 600 тыс. драфтов — минуты три-четыре.
+Константы сглаживания повторяют движок — при правке там сверить здесь.
 """
 import argparse
 import json
 import math
-import random
 import sqlite3
-from collections import defaultdict
+import sys
+from array import array
 
-# Константы сглаживания — как в движке (RecommendationEngine.cs).
-K, K_PAIR = 50.0, 20.0
-BASE_CONF, MATCHUP_CONF, CONF_GAMES = 250.0, 50.0, 60.0
-
-CROSS_ROLES = {
-    'adc': ('support',), 'support': ('adc',),
-    'jungle': ('top', 'mid', 'adc', 'support'),
-    'top': ('jungle',), 'mid': ('jungle',),
-}
+K, K_PAIR, MATCHUP_CONF = 50.0, 20.0, 50.0
+TIER_SHRINK = 2000.0           # TierPower: усадка к 50% на 2000 игр текущего патча
+PREV_WEIGHT = 0.6              # вес прошлого патча в агрегатах (PW движка)
+ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
+PAIRS = [(a, b) for i, a in enumerate(ROLES) for b in ROLES[i:]]
+ROLE_RU = {'top': 'топ', 'jungle': 'лес', 'mid': 'мид', 'adc': 'АДК', 'support': 'саппорт'}
 
 
 def delta(g, w, k):
     return ((w + k / 2.0) / (g + k) - 0.5) * 100 if g > 0 else 0.0
 
 
-def load(con, tier):
-    base, matchup, syn, cross = {}, {}, defaultdict(lambda: [0, 0]), {}
-    for c, r, g, w in con.execute(
-            "SELECT champion_id, role, SUM(games), SUM(wins) FROM base_wr "
-            "WHERE tier_bucket=? GROUP BY 1,2", (tier,)):
-        base[(c, r)] = (g, w)
+def patches(con, tier):
+    ps = [r[0] for r in con.execute(
+        "SELECT DISTINCT patch FROM drafts WHERE tier_bucket=?", (tier,)) if r[0] and r[0][0].isdigit()]
+    ps.sort(key=lambda s: tuple(int(x) for x in s.split('.')))
+    return ps
+
+
+def load(con, tier, cur, prev):
+    pw = f"CASE patch WHEN '{cur}' THEN 1.0 WHEN '{prev}' THEN {PREV_WEIGHT} ELSE 0 END"
+    where = "tier_bucket=? AND patch IN (?, ?)"
+    base = {(c, r): (g, w) for c, r, g, w in con.execute(
+        f"SELECT champion_id, role, SUM(games*{pw}), SUM(wins*{pw}) FROM base_wr WHERE {where} GROUP BY 1,2",
+        (tier, cur, prev))}
+    power = {(c, r): (g, w) for c, r, g, w in con.execute(
+        "SELECT champion_id, role, SUM(games), SUM(wins) FROM base_wr WHERE tier_bucket=? AND patch=? GROUP BY 1,2",
+        (tier, cur))}
+    pair = {}
     for c, r, v, g, w in con.execute(
-            "SELECT champion_id, role, vs_champion_id, SUM(games), SUM(wins) FROM matchup "
-            "WHERE tier_bucket=? GROUP BY 1,2,3", (tier,)):
-        matchup[(c, r, v)] = (g, w)
-    # Синергия симметрична — суммируем обе стороны пары (как движок).
-    for c, r, a, g, w in con.execute(
-            "SELECT champion_id, role, ally_id, SUM(games), SUM(wins) FROM synergy "
-            "WHERE tier_bucket=? GROUP BY 1,2,3", (tier,)):
-        s = syn[(c, r, a)]; s[0] += g; s[1] += w
-    for a, ar, c, g, w in con.execute(
-            "SELECT champion_id, ally_role, ally_id, SUM(games), SUM(wins) FROM synergy "
-            "WHERE tier_bucket=? GROUP BY 1,2,3", (tier,)):
-        s = syn[(c, ar, a)]; s[0] += g; s[1] += w
+            f"SELECT champion_id, role, vs_champion_id, SUM(games*{pw}), SUM(wins*{pw}) FROM matchup "
+            f"WHERE {where} GROUP BY 1,2,3", (tier, cur, prev)):
+        pair[(c, r, v, r)] = (g, w)
     for c, r, v, vr, g, w in con.execute(
-            "SELECT champion_id, role, vs_champion_id, vs_role, SUM(games), SUM(wins) "
-            "FROM botlane_matchup WHERE tier_bucket=? GROUP BY 1,2,3,4", (tier,)):
-        cross[(c, r, v, vr)] = (g, w)
-    return base, matchup, syn, cross
+            f"SELECT champion_id, role, vs_champion_id, vs_role, SUM(games*{pw}), SUM(wins*{pw}) "
+            f"FROM botlane_matchup WHERE {where} GROUP BY 1,2,3,4", (tier, cur, prev)):
+        pair[(c, r, v, vr)] = (g, w)
+    return base, power, pair
 
 
-def team_features(team, enemy, base, matchup, syn, cross):
-    """Фичи команды: [base, direct, cross, synergy] — как факторы движка."""
-    f_base = f_dir = f_cross = f_syn = 0.0
-    for role, champ in team.items():
-        bg, bw = base.get((champ, role), (0, 0))
-        raw_base = delta(bg, bw, K)
-        f_base += raw_base * (bg / (bg + BASE_CONF)) if bg else 0.0
+def features(A, B, wa, base, power, pair):
+    """Разность команд A и B; wa — победила ли A. Из каждого агрегата вычтен сам матч."""
+    def raw_base(c, r, won):
+        g, w = base.get((c, r), (0, 0))
+        return delta(g - 1, w - won, K)
 
-        def pure(g, w):
-            return (delta(g, w, K_PAIR) - raw_base) * (g / (g + MATCHUP_CONF)) if g > 0 else 0.0
+    def tier_power(c, r, won):
+        g, w = power.get((c, r), (0, 0))
+        return ((w - won) + TIER_SHRINK / 2) / ((g - 1) + TIER_SHRINK) * 100 - 50
 
-        opp = enemy.get(role)
-        if opp:
-            g, w = matchup.get((champ, role, opp), (0, 0))
-            f_dir += pure(g, w)
+    def k(c, r, o, vr, won):
+        g, w = pair.get((c, r, o, vr), (0, 0))
+        if g <= 1:
+            return 0.0
+        g -= 1; w -= won
+        t = g / (g + MATCHUP_CONF)
+        return (delta(g, w, K_PAIR) - raw_base(c, r, won) + raw_base(o, vr, 1 - won)) * t
 
-        cg = cw = 0
-        for cr in CROSS_ROLES.get(role, ()):
-            e = enemy.get(cr)
-            if e:
-                g, w = cross.get((champ, role, e, cr), (0, 0))
-                cg += g; cw += w
-        f_cross += pure(cg, cw)
-
-        sg = sw = 0
-        for arole, ally in team.items():
-            if arole == role:
-                continue
-            g, w = syn.get((champ, role, ally), (0, 0))
-            sg += g; sw += w
-        if sg > 0:
-            f_syn += (delta(sg, sw, K_PAIR) - raw_base) * (sg / (sg + CONF_GAMES))
-    return [f_base, f_dir, f_cross, f_syn]
+    f = [sum(tier_power(A[r], r, wa) for r in ROLES) - sum(tier_power(B[r], r, 1 - wa) for r in ROLES)]
+    for a, b in PAIRS:
+        x = k(A[a], a, B[b], b, wa) - k(B[b], b, A[a], a, 1 - wa)
+        if a != b:
+            x += k(A[b], b, B[a], a, wa) - k(B[a], a, A[b], b, 1 - wa)
+        f.append(x)
+    return f
 
 
-def logistic_fit(X, y, epochs=300, lr=0.05):
-    n, d = len(X), len(X[0])
-    wts = [0.0] * d
-    for _ in range(epochs):
-        grad = [0.0] * d
-        for xi, yi in zip(X, y):
-            z = sum(w * x for w, x in zip(wts, xi))
-            p = 1.0 / (1.0 + math.exp(-max(-30, min(30, z))))
-            e = p - yi
+def solve(M, v):
+    """Гаусс с выбором ведущего: M·x = v (M маленькая, ~17×17)."""
+    n = len(v)
+    a = [row[:] + [v[i]] for i, row in enumerate(M)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(a[r][col]))
+        a[col], a[piv] = a[piv], a[col]
+        for r in range(n):
+            if r != col and a[r][col]:
+                f = a[r][col] / a[col][col]
+                for j in range(col, n + 1):
+                    a[r][j] -= f * a[col][j]
+    return [a[i][n] / a[i][i] for i in range(n)]
+
+
+def inverse_diag(M):
+    n = len(M)
+    return [solve(M, [1.0 if j == i else 0.0 for j in range(n)])[i] for i in range(n)]
+
+
+def logistic(X, y, d, iters=4):
+    """IRLS (Ньютон). X — плоский массив по d признаков на матч (первый — единица)."""
+    n = len(y)
+    b = [0.0] * d
+    H = None
+    for it in range(iters):
+        H = [[0.0] * d for _ in range(d)]
+        g = [0.0] * d
+        for i in range(n):
+            row = X[i * d:(i + 1) * d]
+            z = sum(bj * xj for bj, xj in zip(b, row))
+            p = 1.0 / (1.0 + math.exp(-max(-30.0, min(30.0, z))))
+            wgt = p * (1 - p); e = y[i] - p
             for j in range(d):
-                grad[j] += e * xi[j]
+                xj = row[j]
+                g[j] += e * xj
+                hj = H[j]; wx = wgt * xj
+                for m in range(j, d):
+                    hj[m] += wx * row[m]
         for j in range(d):
-            wts[j] -= lr * grad[j] / n
-    return wts
+            for m in range(j):
+                H[j][m] = H[m][j]
+        step = solve(H, g)
+        b = [bj + sj for bj, sj in zip(b, step)]
+        print(f"  шаг {it + 1}: наибольшая поправка {max(abs(s) for s in step):.2e}", flush=True)
+        if max(abs(s) for s in step) < 1e-9:
+            break
+    se = [math.sqrt(max(v, 0.0)) for v in inverse_diag(H)]
+    return b, se
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Калибровка весов движка по драфтам")
-    ap.add_argument('--db', default='pipeline/data.db')
+    sys.stdout.reconfigure(encoding='utf-8')
+    ap = argparse.ArgumentParser(description="Доля правды в цифре контры по ролям — по исходам матчей")
+    ap.add_argument('--db', default='calib-slice.db', help='выжимка ops/pull-calib.sh')
     ap.add_argument('--tier', default='emerald')
-    ap.add_argument('--min-drafts', type=int, default=2000)
+    ap.add_argument('--patch', help='патч драфтов (по умолчанию последний)')
+    ap.add_argument('--prev', help='прошлый патч в агрегатах (по умолчанию предыдущий)')
+    ap.add_argument('--avg-weight', type=float, default=2.1,
+                    help='средний вес контры на линии по ролям — его калибровка сохраняет')
+    ap.add_argument('--min-drafts', type=int, default=50000)
     args = ap.parse_args()
 
     con = sqlite3.connect(args.db)
     try:
-        drafts = con.execute(
-            "SELECT win_team, slots FROM drafts WHERE tier_bucket=?", (args.tier,)).fetchall()
+        ps = patches(con, args.tier)
     except sqlite3.OperationalError:
-        print("таблицы drafts ещё нет — прогони сбор обновлённым collect.py, драфты начнут копиться")
+        print("в выжимке нет таблицы drafts — сними её ops/pull-calib.sh")
         return
-    print(f"драфтов в базе ({args.tier}): {len(drafts)}")
-    if len(drafts) < args.min_drafts:
-        print(f"мало данных (<{args.min_drafts}) — собери матчи обновлённым collect.py и повтори")
+    if not ps:
+        print(f"драфтов {args.tier} нет")
         return
+    cur = args.patch or ps[-1]
+    prev = args.prev or next((p for p in reversed([r[0] for r in con.execute(
+        "SELECT DISTINCT patch FROM base_wr WHERE tier_bucket=?", (args.tier,))]) if p != cur), cur)
+    print(f"драфты {args.tier} {cur}, агрегаты {cur}×1.0 + {prev}×{PREV_WEIGHT}")
 
-    print("загружаю агрегаты…")
-    base, matchup, syn, cross = load(con, args.tier)
-
-    X, y = [], []
-    for win_team, slots_json in drafts:
-        slots = json.loads(slots_json)
-        teams = defaultdict(dict)
-        for s in slots:
-            teams[s['t']][s['r']] = s['c']
-        if len(teams) != 2:
+    base, power, pair = load(con, args.tier, cur, prev)
+    d = 1 + 1 + len(PAIRS)
+    X = array('d'); y = array('d')
+    for i, (win, slots) in enumerate(con.execute(
+            "SELECT win_team, slots FROM drafts WHERE tier_bucket=? AND patch=?", (args.tier, cur))):
+        t = {100: {}, 200: {}}
+        for s in json.loads(slots):
+            t[s['t']][s['r']] = s['c']
+        if len(t[100]) != 5 or len(t[200]) != 5:
             continue
-        (ta, ra), (tb, rb) = teams.items()
-        fa = team_features(ra, rb, base, matchup, syn, cross)
-        fb = team_features(rb, ra, base, matchup, syn, cross)
-        X.append([a - b for a, b in zip(fa, fb)])
-        y.append(1.0 if win_team == ta else 0.0)
+        wa = 1 if win == 100 else 0
+        X.append(1.0); X.extend(features(t[100], t[200], wa, base, power, pair)); y.append(wa)
+        if i % 100000 == 0:
+            print(f"  драфтов разобрано: {i}", flush=True)
+    if len(y) < args.min_drafts:
+        print(f"мало драфтов ({len(y)} < {args.min_drafts}) — оценки будут шумнее самих различий")
+        return
+    print(f"матчей: {len(y)}; регрессия…")
+    b, se = logistic(X, y, d)
 
-    # Нормировка фич (иначе градиенту тяжело) + train/test 80/20.
-    rnd = random.Random(42)
-    idx = list(range(len(X))); rnd.shuffle(idx)
-    cut = int(len(idx) * 0.8)
-    scale = [max(1e-9, sum(abs(X[i][j]) for i in idx[:cut]) / cut) for j in range(4)]
-    Xn = [[x / s for x, s in zip(row, scale)] for row in X]
+    print(f"\nсила (TierPower): {b[1] / 0.04:.2f} пп победы на пункт (теория — около 1)")
+    print("\nдоля правды в пункте контры (настоящих пп на показанный пп):")
+    trust = {}
+    for (a, bb), bj, sj in zip(PAIRS, b[2:], se[2:]):
+        trust[(a, bb)] = 2 * bj / 0.04
+        name = ROLE_RU[a] if a == bb else f"{ROLE_RU[a]} ↔ {ROLE_RU[bb]}"
+        print(f"  {name:18} {2 * bj / 0.04:5.2f} ± {2 * sj / 0.04:.2f}")
 
-    wts = logistic_fit([Xn[i] for i in idx[:cut]], [y[i] for i in idx[:cut]])
-    # Возврат к исходному масштабу фич.
-    wts = [w / s for w, s in zip(wts, scale)]
-
-    correct = 0
-    for i in idx[cut:]:
-        z = sum(w * x for w, x in zip(wts, X[i]))
-        correct += (z > 0) == (y[i] > 0.5)
-    acc = correct / max(1, len(idx) - cut)
-
-    names = ['W_BASE', 'W_DIRECT', 'W_CROSS', 'W_SYNERGY']
-    print(f"\nточность предсказания исхода по драфту (holdout): {acc:.1%}")
-    print("сырые коэффициенты:", {n: round(w, 4) for n, w in zip(names, wts)})
-    if abs(wts[0]) > 1e-9:
-        norm = [w / wts[0] for w in wts]
-        print("нормировано к W_BASE=1.0 (это и есть веса движка):")
-        for n, w in zip(names, norm):
-            print(f"  {n:10s} = {w:5.2f}")
-    print("\nвнимание: агрегаты включают эти же игры (утечка) — соотношения верны,"
-          "\nабсолютную точность проверяй на драфтах нового патча.")
+    lanes = [trust[(r, r)] for r in ROLES]
+    g = args.avg_weight / (sum(lanes) / len(lanes))
+    print(f"\nдля RecommendationEngine.Weights (средний вес {args.avg_weight}):")
+    print(f"  W_COUNTER_PP = {g:.2f}")
+    for r in ROLES:
+        print(f"  LaneTrust {r:8} {trust[(r, r)]:.2f}  → вес {g * trust[(r, r)]:.2f}")
+    print(f"  бот 2 на 2 (АДК ↔ саппорт) {trust[('adc', 'support')]:.2f}  → вес {g * trust[('adc', 'support')]:.2f}")
 
 
 if __name__ == '__main__':

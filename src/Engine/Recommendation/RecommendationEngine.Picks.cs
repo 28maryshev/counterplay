@@ -58,7 +58,7 @@ public sealed partial class RecommendationEngine
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
-        var wDirect = DirectWeight(myRole); // вес прямой контры зависит от роли
+        var wDirect = DirectWeight(myRole); // вес контры на линии — по доле правды роли (Weights)
 
         // Чемпионы моего активного пула на эту роль — им «комфорт» пула (см.
         // ComfortDelta). Normal/пул не активен → пусто, флора нет.
@@ -103,10 +103,6 @@ public sealed partial class RecommendationEngine
         var enemyDuoId = duoRole == null ? 0 : state.TheirTeam
             .Where(p => p.EffectiveChampionId != 0 && LcuToDbRole(p.Position) == duoRole)
             .Select(p => p.EffectiveChampionId).FirstOrDefault();
-        // Если виден ВЕСЬ вражеский бот (и прямой оппонент, и дуо) — даём боту
-        // чуть больший вес: пик можно подогнать под известный 2v2.
-        var wBotlane = (duoRole != null && enemyDuoId != 0 && directOppId != 0)
-            ? W_BOTLANE_BOTH : W_BOTLANE;
 
         // ПРОЧИЕ враги (не лейн-оппонент и не дуо-партнёр — те покрыты своими
         // факторами): каждому определяем роль (позиция, иначе частая роль по
@@ -150,6 +146,9 @@ public sealed partial class RecommendationEngine
         var laneBlind  = anyUnknown && directOppId == 0;
         var duoBlind   = anyUnknown && duoRole != null && enemyDuoId == 0
                          && !otherEnemies.Any(e => e.Role == duoRole);
+        // Вслепую ожидаемое уже в настоящих пунктах (пары усажены) — свой вес.
+        var wLane = laneBlind ? W_BLIND : wDirect;
+        var wDuo  = duoBlind  ? W_BLIND : W_BOTLANE;
 
         // ── Драфт-фичи (архетип) ────────────────────────────────────────────
         var allEnemyIds = state.TheirTeam
@@ -247,7 +246,7 @@ public sealed partial class RecommendationEngine
                     ? RawBotlane(champId, myRole, enemyDuoId, duoRole) : (0.0, 0.0);
                 var botlaneDelta = PureVs(btg, btw);
 
-                // Вслепую — ожидаемое вместо настоящего, с теми же весами.
+                // Вслепую — ожидаемое вместо настоящего (вес — W_BLIND, см. wLane).
                 var laneRisk = laneBlind ? Blind(champId, myRole, myRole, taken) : BlindRisk.None;
                 var duoRisk  = duoBlind  ? Blind(champId, myRole, duoRole!, taken) : BlindRisk.None;
                 if (laneBlind) directDelta  = laneRisk.Value;
@@ -272,10 +271,10 @@ public sealed partial class RecommendationEngine
                 comfortDelta  *= guard;
                 personalDelta *= guard;
 
-                var score   = W_BASE * baseDelta + wDirect * directDelta + W_OTHER * otherDelta
+                var score   = W_BASE * baseDelta + wLane * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + wBotlane * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta
+                            + wDuo * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta
                             + W_PERSONAL * personalDelta;
                 var reasonList = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                               otherDelta, otherByEnemy, baseDelta,

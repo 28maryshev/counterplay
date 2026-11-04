@@ -362,6 +362,8 @@ others  = avg( (delta(g_e, w_e, 50) − rawBase) * g_e/(g_e + 50) )
 syn     = avg( (delta(g_a, w_a, 50) − rawBase) * g_a/(g_a + 60) )
 
 W_DIRECT(R): top 2.5 · jungle 2.2 · mid 2.0 · support 2.0 · adc 1.8
+// с 04.11.2026 — по исходам матчей: 3.7 × доля правды в цифре контры
+// (top 2.63 · mid 2.59 · adc 1.96 · support 1.81 · jungle 1.48), см. bot/lib/scoring.js
 
 score = 1.0*base + W_DIRECT(R)*direct + 0.8*others + 1.2*syn
 ```

@@ -20,11 +20,15 @@ const W_OTHER = 0.6; // прочие враги по таблице своей �
 const W_CROSS = 1.2; // прочие враги по кросс-ролевым матчапам (основной путь)
 const W_SYNERGY = 1.2; // вес синергии, когда все пятеро врагов известны…
 const W_SYN_MAX = 1.5; // …и когда не известен ни один
-const W_BOTLANE = 1.5; // бот 2 на 2: против вражеского дуо-партнёра
-const W_BOTLANE_BOTH = 1.8; // …когда виден весь вражеский бот
 const BOTLANE_MIN_GAMES = 20000; // меньше кросс-данных — слагаемое бота молчит
-// Вес прямой контры по роли: топ изолирован — контра решает больше всего; бот — 2 на 2.
-const W_DIRECT = { top: 2.5, jungle: 2.2, mid: 2.0, support: 2.0, adc: 1.8 };
+// Вес контры на линии = очки за настоящий пункт контры × доля правды в цифре
+// контры этой роли. Доли — замер по исходам матчей (pipeline/calibrate.py,
+// 04.11.2026, изумруд 16.21): топ 0,71, мид 0,70, АДК 0,53, саппорт 0,49,
+// лес 0,40, бот 2 на 2 — 0,52. Как в программе (RecommendationEngine.Weights).
+const W_COUNTER_PP = 3.7;
+const LANE_TRUST = { top: 0.71, jungle: 0.4, mid: 0.7, adc: 0.53, support: 0.49 };
+const W_DIRECT = Object.fromEntries(Object.entries(LANE_TRUST).map(([r, t]) => [r, W_COUNTER_PP * t]));
+const W_BOTLANE = W_COUNTER_PP * 0.52; // бот 2 на 2: против вражеского дуо-партнёра
 
 /** Сглаженная дельта от 50% в процентных пунктах. */
 const delta = (g, w, k = K) => (g > 0 ? ((w + k / 2) / (g + k) - 0.5) * 100 : 0);
@@ -66,7 +70,6 @@ function score(candId, role, enemies, allies) {
   // Бот — это 2 на 2: адк и саппорт контрят ещё и вражеского дуо-партнёра.
   const duoRole = role === 'adc' ? 'support' : role === 'support' ? 'adc' : null;
   const duoId = duoRole ? enemies[duoRole] || 0 : 0;
-  const wBotlane = duoRole && duoId && directId ? W_BOTLANE_BOTH : W_BOTLANE;
 
   // Прочие враги (кроме оппонента и дуо-партнёра): сперва кросс-ролевой матчап
   // «моя роль против его роли», нет такой пары — таблица своей роли. Каждый путь
@@ -118,10 +121,10 @@ function score(candId, role, enemies, allies) {
 
   const total =
     W_BASE * base +
-    (W_DIRECT[role] ?? 2.2) * direct +
+    (W_DIRECT[role] ?? W_COUNTER_PP * 0.57) * direct +
     W_OTHER * others +
     wSynergy * syn +
-    wBotlane * botlane +
+    W_BOTLANE * botlane +
     W_CROSS * cross;
 
   return {
