@@ -294,18 +294,50 @@ def drop_key(used: str):
         KEY_FILE.unlink(missing_ok=True)
 
 
-def wait_for_key() -> str:
-    """Ждёт ключ от бота. Просит его один раз, потом молча поллит."""
-    asked = False
+# Напоминания о ключе. Сутки ключа кончаются в любое время, просьба уходит в
+# Discord, когда владелец спит или занят, и одно сообщение легко пропустить, а
+# без ключа сбор стоит. Поэтому, пока ключа нет, просьба повторяется: через час
+# после первой, потом через два, дальше каждые три часа. Паузы растут, чтобы
+# долгое ожидание (ночь, выходные) не заваливало канал.
+KEY_REMIND_GAPS = (3600, 2 * 3600, 3 * 3600)
+
+
+def remind_gap(sent: int) -> int:
+    """Пауза до следующего напоминания, когда их уже отправлено `sent`.
+    Последняя пауза в списке повторяется до прихода ключа."""
+    return KEY_REMIND_GAPS[min(sent, len(KEY_REMIND_GAPS) - 1)]
+
+
+def wait_for_key(since: float | None = None) -> str:
+    """Ждёт ключ от бота: просит сразу, потом напоминает по KEY_REMIND_GAPS.
+
+    `since` — когда сбор встал (истёк прошлый ключ); от него считается «сбор
+    стоит N» в напоминании. Расписание напоминаний идёт от первой просьбы, а не
+    от `since`: между ними бывает публикация на минуты и часы, и напоминание не
+    должно прилетать следом за самой просьбой."""
+    asked_at = None
+    next_at = 0.0
+    sent = 0
     while True:
         key = read_key()
         if key:
             return key
-        if not asked:
+        now = time.time()
+        if asked_at is None:
             set_status(state='waiting_key')
             notify('🔑 Нужен свежий Riot API-ключ — пришли его командой '
                    f'`/collect key:RGAPI-…` (ключ живёт 24 ч).\n{matches_line()}')
-            asked = True
+            asked_at = now
+            next_at = now + remind_gap(0)
+        elif now >= next_at:
+            stopped = since if since is not None else asked_at
+            notify(f'⏰ Ключа всё ещё нет — сбор стоит {human_span(now - stopped)}. '
+                   'Пришли новый: `/collect key:RGAPI-…` (на портале — '
+                   '**Regenerate API Key**).')
+            sent += 1
+            ops_log.record('key_reminder', state='waiting_key', sent=sent,
+                           waited_min=round((now - stopped) / 60))
+            next_at = now + remind_gap(sent)
         time.sleep(POLL)
 
 
@@ -596,8 +628,10 @@ def main():
     key_at = 0.0    # когда этот ключ у нас появился — см. KEY_WARMUP_SEC
     warmups = 0     # сколько раз он ответил отказом, ещё не разойдясь по сети Riot
     rechecks = 0    # сколько раз переспросили Riot про отказ посреди сбора
+    key_gone_at = None  # когда истёк прошлый ключ — для «сбор стоит N» в напоминаниях
     while True:
-        key = wait_for_key()
+        key = wait_for_key(key_gone_at)
+        key_gone_at = None
         # base_matches — точка отсчёта для «+N за текущий ключ» в heartbeat.
         set_status(state='collecting', regions=regions, buckets=buckets,
                    base_matches=db_matches())
@@ -699,6 +733,7 @@ def main():
             # пока не нажать Regenerate, так что скопированный с экрана ключ
             # может принести лишь остаток чужих суток.
             lived = time.time() - key_at if key_at else 0.0
+            key_gone_at = time.time()
             drop_key(key)
             set_status(state='key_expired', collected=got, lived_min=round(lived / 60))
             ops_log.record('key_expired', collected=got, matches=db_matches(),
