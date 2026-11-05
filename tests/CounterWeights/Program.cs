@@ -27,7 +27,7 @@ internal static class Program
 {
     private static int _fails;
 
-    private const int Yasuo = 157, LeeSin = 64, Jinx = 222, Thresh = 412;
+    private const int Yasuo = 157, LeeSin = 64, Jinx = 222, Thresh = 412, Yone = 777, Ahri = 103;
 
     private static readonly string[] Roles = ["top", "jungle", "mid", "adc", "support"];
 
@@ -77,6 +77,8 @@ internal static class Program
 
     private static double DirectWeight(string role) => (double)E.GetMethod("DirectWeight", Any)!.Invoke(null, [role])!;
 
+    private static double CrossTrust(string a, string b) => (double)E.GetMethod("CrossTrust", Any)!.Invoke(null, [a, b])!;
+
     private static void Sources()
     {
         Console.WriteLine("── три копии формулы ──");
@@ -94,7 +96,7 @@ internal static class Program
         // Бот
         var bg = Regex.Match(bot, @"const W_COUNTER_PP = ([\d.]+);");
         var bt = Regex.Match(bot, @"const LANE_TRUST = \{([^}]*)\}");
-        var bb = Regex.Match(bot, @"const W_BOTLANE = W_COUNTER_PP \* ([\d.]+);");
+        var bb = Regex.Match(bot, @"const BOT_DUO_TRUST = ([\d.]+);");
         Check("бот: W_COUNTER_PP как в программе", bg.Success && Math.Abs(Num(bg.Groups[1].Value) - g) < 1e-9,
               bg.Success ? $"{bg.Groups[1].Value} и {g}" : "строки нет");
         var botLane = bt.Success
@@ -107,6 +109,22 @@ internal static class Program
               bb.Success ? $"{bb.Groups[1].Value} и {botTrust:F2}" : "строки нет");
         Check("нет надбавки «виден весь их бот» ни в программе, ни в боте",
               !engine.Contains("W_BOTLANE_BOTH") && !bot.Contains("W_BOTLANE_BOTH"), "");
+
+        // Прочие враги: доля правды у каждой пары ролей своя, одна и та же в обеих копиях.
+        var bc = Regex.Match(bot, @"const CROSS_TRUST = \{([^}]*)\}");
+        var botCross = bc.Success
+            ? Regex.Matches(bc.Groups[1].Value, @"'(\w+)\|(\w+)':\s*([\d.]+|BOT_DUO_TRUST)")
+                   .ToDictionary(m => (m.Groups[1].Value, m.Groups[2].Value),
+                                 m => m.Groups[3].Value == "BOT_DUO_TRUST" ? botTrust : Num(m.Groups[3].Value))
+            : [];
+        var pairs = Roles.SelectMany((a, i) => Roles.Skip(i + 1).Select(b => string.CompareOrdinal(a, b) < 0 ? (a, b) : (b, a))).ToList();
+        var crossDiff = pairs.Where(p => !botCross.TryGetValue(p, out var v) || Math.Abs(v - CrossTrust(p.Item1, p.Item2)) > 1e-9).ToList();
+        Check("бот: доли правды прочих врагов по парам ролей как в программе", bc.Success && crossDiff.Count == 0,
+              crossDiff.Count == 0 ? $"{pairs.Count} пар" : "расходятся: " + string.Join(", ", crossDiff.Select(p => $"{p.Item1}|{p.Item2}")));
+        Check("пара АДК и саппорта у прочих врагов — та же, что у бота 2 на 2",
+              Math.Abs(CrossTrust("support", "adc") - botTrust) < 1e-9 && Math.Abs(CrossTrust("adc", "support") - botTrust) < 1e-9, "");
+        Check("нет единого веса прочих врагов (W_CROSS) ни в программе, ни в боте",
+              !Regex.IsMatch(engine, @"\bW_CROSS\b") && !Regex.IsMatch(bot, @"\bW_CROSS\b"), "");
 
         // Калибровка: её сглаживание обязано повторять движок, иначе она мерит
         // долю правды не той цифры, что показывает подбор.
@@ -135,6 +153,10 @@ internal static class Program
               Math.Abs(mean - 2.1) < 0.05, $"{mean:F3}");
         Check("вслепую — W_COUNTER_PP (ожидаемое уже в настоящих пунктах)", C("W_BLIND") == g, $"{C("W_BLIND")}");
         Check("доли правды — доли (0…1)", trust.Values.Append(botTrust).All(t => t is > 0 and < 1), "");
+        Check("лес — самый «командный»: его пары с чужими линиями весомее, чем у топа",
+              Roles.Where(r => r is not ("jungle" or "top")).All(r => CrossTrust("jungle", r) > CrossTrust("top", r)), "");
+        Check("стиль врага по замеру: инструменты против стиля почти ничего не весят, трифекта — больше",
+              C("W_STYLE") < 0.2 && C("W_TRIFECTA") > C("W_STYLE"), $"трифекта {C("W_TRIFECTA")}, инструменты {C("W_STYLE")}");
     }
 
     // ── Подбор на живой базе ────────────────────────────────────────────────
@@ -161,6 +183,12 @@ internal static class Program
         Expect(engine, "лес против Ли Сина", Draft("jungle", [new(5, LeeSin, 0, "jungle", false)]), "jungle", [LeeSin],
                r => DirectWeight("jungle") * r.DirectDelta, expectBlind: false);
 
+        // Саппорт, у врагов топ и мид, их бот не выбран: линия и дуо — вслепую,
+        // каждый из видимых врагов — своим слагаемым с весом своей пары ролей.
+        Expect(engine, "саппорт, у врагов топ Ёнэ и мид Ари", Draft("utility",
+                   [new(5, Yone, 0, "top", false), new(6, Ahri, 0, "middle", false)]), "support", [Yone, Ahri],
+               r => C("W_BLIND") * r.DirectDelta, expectBlind: true, others: [(Yone, "top"), (Ahri, "mid")]);
+
         // АДК против всего их бота: линия с весом АДК, их саппорт — W_BOTLANE,
         // и без надбавки за то, что видна вся пара.
         Expect(engine, "АДК против Джинкс и Треша", Draft("bottom",
@@ -170,6 +198,26 @@ internal static class Program
                    var bot = engine.VersusDelta(r.ChampionId, "adc", Thresh, "support");
                    return DirectWeight("adc") * (r.DirectDelta - bot) + C("W_BOTLANE") * bot;
                }, expectBlind: false);
+    }
+
+    /// Прочие враги — как в подборе: пара разных ролей, если она есть в базе
+    /// (своим слагаемым, вес пары ролей), иначе пул по таблице своей роли.
+    private static double Others(RecommendationEngine engine, int id, string role, List<(int Id, string Role)> others)
+    {
+        if (others.Count == 0) return 0;
+        static (double G, double W) Gw(object? o) { var t = ((double, double))o!; return (t.Item1, t.Item2); }
+        double Dl(double g, double w, double k) => (double)E.GetMethod("Delta", Any)!.Invoke(null, [g, w, k])!;
+        var (bg, bw) = Gw(E.GetMethod("RawBase", Any)!.Invoke(engine, [id, role]));
+        var rawBase = Dl(bg, bw, C("K"));
+        double Pure(double g, double w) => g > 0 ? (Dl(g, w, C("K_PAIR")) - rawBase) * (g / (g + C("MATCHUP_CONF"))) : 0.0;
+        double sum = 0, omg = 0, omw = 0;
+        foreach (var (e, er) in others)
+        {
+            var (cg, cw) = Gw(E.GetMethod("RawBotlane", Any)!.Invoke(engine, [id, role, e, er]));
+            if (cg > 0) sum += C("W_COUNTER_PP") * CrossTrust(role, er) * Pure(cg, cw);
+            else { var (mg, mw) = Gw(E.GetMethod("RawMatchup", Any)!.Invoke(engine, [id, role, e])); omg += mg; omw += mw; }
+        }
+        return sum + C("W_OTHER") * Pure(omg, omw);
     }
 
     private static DraftState Draft(string pos, List<DraftPlayer> enemies)
@@ -188,7 +236,8 @@ internal static class Program
     /// функциями движка). Союзников, пулов и журнала нет — личные слагаемые и
     /// синергия молчат; врагов кроме названных нет — «прочие» тоже.
     private static void Expect(RecommendationEngine engine, string name, DraftState state, string role, List<int> enemies,
-                               Func<Recommendation, double> counter, bool expectBlind)
+                               Func<Recommendation, double> counter, bool expectBlind,
+                               List<(int Id, string Role)>? others = null)
     {
         var recs = engine.Recommend(state, 400);
         var bad = new List<string>();
@@ -204,7 +253,7 @@ internal static class Program
                      + C("W_EXPLOIT") * ItemValue.ExploitBonus(id, enemies).Bonus
                      + C("W_STRUCT") * (double)st.GetType().GetField("Item1")!.GetValue(st)!
                      + C("W_DMGBAL") * ItemValue.DamageBalance(id, [], enemies).Delta;
-            var want = C("W_BASE") * r.BaseDelta + counter(r) + rest;
+            var want = C("W_BASE") * r.BaseDelta + counter(r) + Others(engine, id, role, others ?? []) + rest;
             if (Math.Abs(want - r.Score) > 1e-6 || r.Blind != expectBlind)
                 bad.Add($"{id}: {r.Score:F3} ≠ {want:F3}{(r.Blind != expectBlind ? " (вслепую?)" : "")}");
         }

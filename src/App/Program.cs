@@ -24,6 +24,10 @@ partial class Program
         // Диагностический прогон движка рекомендаций (настройка весов), затем выход.
         if (args.Contains("--drafttest")) { DraftTest.Run().GetAwaiter().GetResult(); return; }
 
+        // Признаки «против стиля врага» по драфтам выжимки — для замера весов по
+        // исходам (pipeline/calibrate.py). Пишет только в переданный файл.
+        if (args.Length >= 2 && args[0] == "--style-features") { Environment.Exit(StyleFeatures.Run(args[1])); return; }
+
         // Дымовая проверка собранной программы (release.ps1, tests/Smoke): окна
         // скрыты, данные во временной папке, итог — кодом выхода. До замка
         // единственного экземпляра: рядом может работать настоящая программа.

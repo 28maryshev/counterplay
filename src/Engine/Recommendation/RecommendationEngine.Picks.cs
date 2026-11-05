@@ -193,8 +193,12 @@ public sealed partial class RecommendationEngine
                 // контекст пары, сигнал ~1.8 пп), если его в базе нет — same-role
                 // фолбэк. Каждый пул складывает игры/победы и сглаживается один
                 // раз — редкие пары не обнуляются делением на количество врагов.
+                // Кросс-ролевые пары идут в счёт каждая своим слагаемым с весом
+                // своей пары ролей (CrossWeight) и складываются; пул — только
+                // для показа «против их команды».
                 double oxg = 0, oxw = 0;                      // пул кросс-матчапов
                 double omg = 0, omw = 0;                      // пул same-role фолбэка
+                double crossScore = 0;
                 var otherByEnemy = new List<(int Id, double Delta)>();
                 foreach (var (eid, erole) in otherEnemies)
                 {
@@ -203,7 +207,9 @@ public sealed partial class RecommendationEngine
                     if (cg > 0)
                     {
                         oxg += cg; oxw += cw;
-                        otherByEnemy.Add((eid, PureVs(cg, cw)));
+                        var d = PureVs(cg, cw);
+                        crossScore += CrossWeight(myRole, erole) * d;
+                        otherByEnemy.Add((eid, d));
                     }
                     else
                     {
@@ -213,7 +219,6 @@ public sealed partial class RecommendationEngine
                     }
                 }
                 var otherDelta = PureVs(omg, omw);
-                var crossDelta = PureVs(oxg, oxw);
                 // «Против их команды» на карточке — все прочие враги одним пулом
                 // (кросс-ролевые пары, где их нет — пары той же роли). В счёт идут
                 // оба канала по отдельности со своими весами, а показать надо
@@ -274,7 +279,7 @@ public sealed partial class RecommendationEngine
                 var score   = W_BASE * baseDelta + wLane * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + wDuo * botlaneDelta + W_CROSS * crossDelta + W_DMGBAL * dmgDelta
+                            + wDuo * botlaneDelta + crossScore + W_DMGBAL * dmgDelta
                             + W_PERSONAL * personalDelta;
                 var reasonList = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                               otherDelta, otherByEnemy, baseDelta,

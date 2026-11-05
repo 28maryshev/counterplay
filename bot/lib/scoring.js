@@ -17,7 +17,6 @@ const CONF_GAMES = 60; // доверие к синергии по объёму
 
 const W_BASE = 1.0;
 const W_OTHER = 0.6; // прочие враги по таблице своей роли (запасной путь)
-const W_CROSS = 1.2; // прочие враги по кросс-ролевым матчапам (основной путь)
 const W_SYNERGY = 1.2; // вес синергии, когда все пятеро врагов известны…
 const W_SYN_MAX = 1.5; // …и когда не известен ни один
 const BOTLANE_MIN_GAMES = 20000; // меньше кросс-данных — слагаемое бота молчит
@@ -28,7 +27,23 @@ const BOTLANE_MIN_GAMES = 20000; // меньше кросс-данных — с�
 const W_COUNTER_PP = 3.7;
 const LANE_TRUST = { top: 0.71, jungle: 0.4, mid: 0.7, adc: 0.53, support: 0.49 };
 const W_DIRECT = Object.fromEntries(Object.entries(LANE_TRUST).map(([r, t]) => [r, W_COUNTER_PP * t]));
-const W_BOTLANE = W_COUNTER_PP * 0.52; // бот 2 на 2: против вражеского дуо-партнёра
+const BOT_DUO_TRUST = 0.52;
+const W_BOTLANE = W_COUNTER_PP * BOT_DUO_TRUST; // бот 2 на 2: против вражеского дуо-партнёра
+// Прочие враги — каждый своим слагаемым с долей правды своей пары ролей
+// (замер 05.11.2026), и они складываются. Ключ — роли по алфавиту.
+const CROSS_TRUST = {
+  'adc|jungle': 0.27,
+  'adc|mid': 0.27,
+  'adc|support': BOT_DUO_TRUST,
+  'adc|top': 0.25,
+  'jungle|mid': 0.37,
+  'jungle|support': 0.33,
+  'jungle|top': 0.2,
+  'mid|support': 0.18,
+  'mid|top': 0.09,
+  'support|top': 0.06
+};
+const crossWeight = (a, b) => W_COUNTER_PP * (CROSS_TRUST[[a, b].sort().join('|')] ?? 0);
 
 /** Сглаженная дельта от 50% в процентных пунктах. */
 const delta = (g, w, k = K) => (g > 0 ? ((w + k / 2) / (g + k) - 0.5) * 100 : 0);
@@ -74,13 +89,14 @@ function score(candId, role, enemies, allies) {
   // Прочие враги (кроме оппонента и дуо-партнёра): сперва кросс-ролевой матчап
   // «моя роль против его роли», нет такой пары — таблица своей роли. Каждый путь
   // копит игры и победы отдельно и сглаживается один раз.
-  let xg = 0, xw = 0, og = 0, ow = 0;
+  let xg = 0, xw = 0, og = 0, ow = 0, crossScore = 0;
   for (const [eRole, eId] of Object.entries(enemies)) {
     if (!eId || eId === directId || (duoRole && eId === duoId)) continue;
     const x = dl.wCross(candId, role, eId, eRole);
     if (x) {
       xg += x.g;
       xw += x.w;
+      crossScore += crossWeight(role, eRole) * pureVs(x.g, x.w);
     } else {
       const m = dl.wMatchup(candId, eId, role);
       if (m) {
@@ -125,7 +141,7 @@ function score(candId, role, enemies, allies) {
     W_OTHER * others +
     wSynergy * syn +
     W_BOTLANE * botlane +
-    W_CROSS * cross;
+    crossScore;
 
   return {
     score: total,
@@ -139,4 +155,4 @@ function score(candId, role, enemies, allies) {
   };
 }
 
-module.exports = { score, delta, adjPct, K, W_DIRECT };
+module.exports = { score, delta, adjPct, K, W_DIRECT, CROSS_TRUST };

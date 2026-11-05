@@ -25,8 +25,15 @@
   2. Сила внутри контры. «Матчап минус своя база» несёт ещё и силу соперника,
      и регрессия делила её между «силой» и «контрой». Признак k её вычитает.
 
+Ещё два признака — «против стиля врага» (трифекта архетипов и инструменты
+против доминанты врага, веса W_TRIFECTA и W_STYLE). Метки чемпионов живут
+только в программе, поэтому признаки по драфтам считает она:
+`Counterplay.exe --style-features calib-slice.db` кладёт таблицу draft_style.
+Нет таблицы — стиль просто не мерится.
+
 Запуск:
   bash ops/pull-calib.sh                    # → calib-slice.db
+  Counterplay.exe --style-features calib-slice.db   # необязательно: стиль
   python pipeline/calibrate.py --db calib-slice.db
 
 Чистый Python, без numpy: 600 тыс. драфтов — минуты три-четыре.
@@ -184,17 +191,25 @@ def main():
     print(f"драфты {args.tier} {cur}, агрегаты {cur}×1.0 + {prev}×{PREV_WEIGHT}")
 
     base, power, pair = load(con, args.tier, cur, prev)
-    d = 1 + 1 + len(PAIRS)
+    try:
+        style = {m: (w, s) for m, w, s in con.execute("SELECT match_id, want, style FROM draft_style")}
+    except sqlite3.OperationalError:
+        style = {}
+    print("стиль врага: " + (f"признаки по {len(style)} драфтам" if style else "таблицы draft_style нет — не мерю"))
+    d = 1 + 1 + len(PAIRS) + (2 if style else 0)
     X = array('d'); y = array('d')
-    for i, (win, slots) in enumerate(con.execute(
-            "SELECT win_team, slots FROM drafts WHERE tier_bucket=? AND patch=?", (args.tier, cur))):
+    for i, (mid, win, slots) in enumerate(con.execute(
+            "SELECT match_id, win_team, slots FROM drafts WHERE tier_bucket=? AND patch=?", (args.tier, cur))):
         t = {100: {}, 200: {}}
         for s in json.loads(slots):
             t[s['t']][s['r']] = s['c']
         if len(t[100]) != 5 or len(t[200]) != 5:
             continue
         wa = 1 if win == 100 else 0
-        X.append(1.0); X.extend(features(t[100], t[200], wa, base, power, pair)); y.append(wa)
+        X.append(1.0); X.extend(features(t[100], t[200], wa, base, power, pair))
+        if style:
+            X.extend(style.get(mid, (0.0, 0.0)))
+        y.append(wa)
         if i % 100000 == 0:
             print(f"  драфтов разобрано: {i}", flush=True)
     if len(y) < args.min_drafts:
@@ -211,6 +226,13 @@ def main():
         name = ROLE_RU[a] if a == bb else f"{ROLE_RU[a]} ↔ {ROLE_RU[bb]}"
         print(f"  {name:18} {2 * bj / 0.04:5.2f} ± {2 * sj / 0.04:.2f}")
 
+    if style:
+        sw, ss = b[2 + len(PAIRS)], b[3 + len(PAIRS)]
+        ew, es = se[2 + len(PAIRS)], se[3 + len(PAIRS)]
+        print("\nстиль врага (настоящих пп на единицу признака, сумма по пятёрке):")
+        print(f"  трифекта (Want)     {sw / 0.04:6.3f} ± {ew / 0.04:.3f}")
+        print(f"  инструменты (Style) {ss / 0.04:6.3f} ± {es / 0.04:.3f}")
+
     lanes = [trust[(r, r)] for r in ROLES]
     g = args.avg_weight / (sum(lanes) / len(lanes))
     print(f"\nдля RecommendationEngine.Weights (средний вес {args.avg_weight}):")
@@ -218,6 +240,12 @@ def main():
     for r in ROLES:
         print(f"  LaneTrust {r:8} {trust[(r, r)]:.2f}  → вес {g * trust[(r, r)]:.2f}")
     print(f"  бот 2 на 2 (АДК ↔ саппорт) {trust[('adc', 'support')]:.2f}  → вес {g * trust[('adc', 'support')]:.2f}")
+    print("  CrossTrust (прочие враги, на каждого):")
+    for a, bb in PAIRS:
+        if a != bb and (a, bb) != ('adc', 'support'):
+            print(f"    {a:8} ↔ {bb:8} {trust[(a, bb)]:.2f}  → вес {g * trust[(a, bb)]:.2f}")
+    if style:
+        print(f"  W_TRIFECTA = {g * sw / 0.04:.2f}   W_STYLE = {g * ss / 0.04:.2f}")
 
 
 if __name__ == '__main__':

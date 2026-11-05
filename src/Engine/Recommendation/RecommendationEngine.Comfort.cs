@@ -230,28 +230,7 @@ public sealed partial class RecommendationEngine
 
         if (enemyDom is { } dom)
         {
-            var (f2b, dive, pick) = ChampionTraits.Archetype(champId);
-
-            // 2. Трифекта: что нужно взять, чтобы побить доминанту врага.
-            //    dive ← frontToBack, pickPoke ← dive, frontToBack ← pickPoke.
-            var want = dom switch
-            {
-                ChampionTraits.Arch.Dive       => f2b,
-                ChampionTraits.Arch.PickPoke   => dive,
-                _                              => pick, // FrontToBack ← pickPoke
-            };
-
-            // 3. Анти-стиль: конкретные инструменты против стиля врага.
-            double style = dom switch
-            {
-                ChampionTraits.Arch.PickPoke =>
-                    ChampionTraits.Gapclose(champId) + ChampionTraits.Engage(champId),
-                ChampionTraits.Arch.Dive =>
-                    ChampionTraits.Peel(champId) + ChampionTraits.Disengage(champId),
-                _ /* FrontToBack */ =>
-                    (ChampionTraits.LongRange(champId) ? 2 : 0) + ChampionTraits.Burst(champId),
-            };
-
+            var (want, style) = StyleParts(champId, dom);
             styleScore = W_TRIFECTA * want + W_STYLE * style;
             bonus += styleScore;
 
@@ -265,6 +244,36 @@ public sealed partial class RecommendationEngine
         }
 
         return (bonus, styleScore, reasons);
+    }
+
+    /// <summary>
+    /// Две части «против стиля врага» без весов — одна формула на подбор и на
+    /// замер по исходам (StyleFeatures): иначе мерили бы не то, что считаем.
+    /// Want — трифекта, насколько архетип чемпиона бьёт доминанту врага (дайв ←
+    /// «фронт-ту-бэк», пик-поук ← дайв, «фронт-ту-бэк» ← пик-поук). Style —
+    /// конкретные инструменты против неё: против пик-поука — сближение и
+    /// инициация, против дайва — защита и отход, против «фронт-ту-бэк» — дальность
+    /// (2) и взрывной урон.
+    /// </summary>
+    public static (double Want, double Style) StyleParts(int champId, ChampionTraits.Arch dom)
+    {
+        var (f2b, dive, pick) = ChampionTraits.Archetype(champId);
+        var want = dom switch
+        {
+            ChampionTraits.Arch.Dive     => f2b,
+            ChampionTraits.Arch.PickPoke => dive,
+            _                            => pick,
+        };
+        double style = dom switch
+        {
+            ChampionTraits.Arch.PickPoke =>
+                ChampionTraits.Gapclose(champId) + ChampionTraits.Engage(champId),
+            ChampionTraits.Arch.Dive =>
+                ChampionTraits.Peel(champId) + ChampionTraits.Disengage(champId),
+            _ /* FrontToBack */ =>
+                (ChampionTraits.LongRange(champId) ? 2 : 0) + ChampionTraits.Burst(champId),
+        };
+        return (want, style);
     }
 
     /// Личный винрейт игрока на чемпионе как дельта к 50%: «у меня на нём идёт».
