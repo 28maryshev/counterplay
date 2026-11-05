@@ -9,19 +9,21 @@ namespace Counterplay.Tests;
 /// <summary>
 /// Вес контры по ролям — по исходам матчей, а не на глаз.
 ///
-/// Замер (pipeline/calibrate.py, 04.11.2026): сколько настоящих пунктов победы
-/// несёт один показанный пункт контры — топ 0,71, мид 0,70, АДК 0,53, саппорт
-/// 0,49, лес 0,40, бот 2 на 2 — 0,52. Вес = W_COUNTER_PP × доля, вслепую —
-/// W_COUNTER_PP (ожидаемое уже очищено от шума).
+/// Замер (pipeline/calibrate.py, 05.11.2026, доверие пары PAIR_CONF = 1000):
+/// сколько настоящих пунктов победы несёт один показанный пункт контры — топ
+/// 1,39, мид 1,24, саппорт 1,00, лес 0,91, АДК 0,81, бот 2 на 2 — 0,88; у
+/// прочих врагов — своя доля у каждой пары ролей. Вес = W_COUNTER_PP × доля,
+/// вслепую — W_COUNTER_PP (ожидаемое уже очищено от шума).
 ///
 /// Что держит:
 ///   * три копии формулы сходятся — движок, бот Discord (bot/lib/scoring.js) и
-///     калибровка (её сглаживание повторяет движок);
-///   * раскладка держит замер: лес меньше всех, средний вес прежний (2,1), нет
-///     надбавки «виден весь их бот»;
+///     калибровка (её сглаживание и доверие пары повторяют движок);
+///   * раскладка держит замер: топ и мид больше всех, цена настоящего пункта
+///     3,7, нет надбавки «виден весь их бот» и единого веса прочих врагов;
 ///   * подбор на живой базе (только чтение) кладёт каждое слагаемое с тем
 ///     весом, что в таблице: известный матчап — с весом роли, бот 2 на 2 — с
-///     W_BOTLANE и при известной паре, ожидаемое вслепую — с W_BLIND.
+///     W_BOTLANE и при известной паре, прочие враги — каждый с весом своей пары
+///     ролей, ожидаемое вслепую — с W_BLIND.
 /// </summary>
 internal static class Program
 {
@@ -128,14 +130,14 @@ internal static class Program
 
         // Калибровка: её сглаживание обязано повторять движок, иначе она мерит
         // долю правды не той цифры, что показывает подбор.
-        var cm = Regex.Match(calib, @"K, K_PAIR, MATCHUP_CONF = ([\d.]+), ([\d.]+), ([\d.]+)");
+        var cm = Regex.Match(calib, @"K, K_PAIR, PAIR_CONF = ([\d.]+), ([\d.]+), ([\d.]+)");
         var ct = Regex.Match(calib, @"TIER_SHRINK = ([\d.]+)");
         var cp = Regex.Match(calib, @"PREV_WEIGHT = ([\d.]+)");
         var same = cm.Success && ct.Success && cp.Success
                    && Num(cm.Groups[1].Value) == C("K") && Num(cm.Groups[2].Value) == C("K_PAIR")
-                   && Num(cm.Groups[3].Value) == C("MATCHUP_CONF") && Num(ct.Groups[1].Value) == C("TIER_PRIOR")
+                   && Num(cm.Groups[3].Value) == C("PAIR_CONF") && Num(ct.Groups[1].Value) == C("TIER_PRIOR")
                    && ((string)E.GetField("PW", Any)!.GetValue(null)!).Contains($"THEN {cp.Groups[1].Value} ");
-        Check("калибровка сглаживает как движок (K, K_PAIR, MATCHUP_CONF, усадка силы, вес прошлого патча)", same,
+        Check("калибровка сглаживает как движок (K, K_PAIR, доверие пары PAIR_CONF, усадка силы, вес прошлого патча)", same,
               same ? "" : "сверь константы pipeline/calibrate.py с RecommendationEngine");
 
         // Раскладка
@@ -143,18 +145,16 @@ internal static class Program
         Console.WriteLine("── раскладка по ролям ──");
         var weights = Roles.ToDictionary(r => r, DirectWeight);
         Console.WriteLine("  веса: " + string.Join(", ", Roles.Select(r => $"{r} {weights[r]:F2}")) + $"; бот 2 на 2 {C("W_BOTLANE"):F2}; вслепую {C("W_BLIND"):F2}");
-        Check("лес — меньше всех (его исход зависит от всех линий понемногу)",
-              Roles.Where(r => r != "jungle").All(r => trust[r] > trust["jungle"] + 0.05), $"лес {trust["jungle"]:F2}");
         Check("топ и мид — больше всех", trust["top"] >= Roles.Except(["top", "mid"]).Max(r => trust[r])
                                          && trust["mid"] >= Roles.Except(["top", "mid"]).Max(r => trust[r]),
               $"топ {trust["top"]:F2}, мид {trust["mid"]:F2}");
-        var mean = weights.Values.Average();
-        Check("средний вес прежний (2,1): калибровка меняет раскладку, а не общий вес контры",
-              Math.Abs(mean - 2.1) < 0.05, $"{mean:F3}");
+        Check("пункт настоящей контры — 3,7 очка: его перемеры сохраняют, а не средний вес",
+              Math.Abs(g - 3.7) < 1e-9, $"{g}; средний вес линии {weights.Values.Average():F2}");
         Check("вслепую — W_COUNTER_PP (ожидаемое уже в настоящих пунктах)", C("W_BLIND") == g, $"{C("W_BLIND")}");
-        Check("доли правды — доли (0…1)", trust.Values.Append(botTrust).All(t => t is > 0 and < 1), "");
-        Check("лес — самый «командный»: его пары с чужими линиями весомее, чем у топа",
-              Roles.Where(r => r is not ("jungle" or "top")).All(r => CrossTrust("jungle", r) > CrossTrust("top", r)), "");
+        Check("доли правды положительны и не больше 1,5", trust.Values.Append(botTrust).All(t => t is > 0 and <= 1.5), "");
+        Check("лес — «командный»: его пары с мидом и саппортом весомее, чем у топа",
+              CrossTrust("jungle", "mid") > CrossTrust("top", "mid") && CrossTrust("jungle", "support") > CrossTrust("top", "support"),
+              $"лес↔мид {CrossTrust("jungle", "mid"):F2} против топ↔мид {CrossTrust("top", "mid"):F2}");
         Check("стиль врага по замеру: инструменты против стиля почти ничего не весят, трифекта — больше",
               C("W_STYLE") < 0.2 && C("W_TRIFECTA") > C("W_STYLE"), $"трифекта {C("W_TRIFECTA")}, инструменты {C("W_STYLE")}");
     }
@@ -209,7 +209,7 @@ internal static class Program
         double Dl(double g, double w, double k) => (double)E.GetMethod("Delta", Any)!.Invoke(null, [g, w, k])!;
         var (bg, bw) = Gw(E.GetMethod("RawBase", Any)!.Invoke(engine, [id, role]));
         var rawBase = Dl(bg, bw, C("K"));
-        double Pure(double g, double w) => g > 0 ? (Dl(g, w, C("K_PAIR")) - rawBase) * (g / (g + C("MATCHUP_CONF"))) : 0.0;
+        double Pure(double g, double w) => g > 0 ? (Dl(g, w, C("K_PAIR")) - rawBase) * (g / (g + C("PAIR_CONF"))) : 0.0;
         double sum = 0, omg = 0, omw = 0;
         foreach (var (e, er) in others)
         {

@@ -333,7 +333,8 @@ internal static class Program
             var st = Draft("middle", enemies: [new DraftPlayer(5, c0, 0, "top", false)], bans: [c1]);
             var y2 = engine.Recommend(st, 1, [Yasuo]).First();
             var taken = new HashSet<int> { c0, c1 };
-            var ry2 = engine.Blind(Yasuo, "mid", "mid", taken);
+            // Взятый врагом топ ещё и сдвигает поле их мида (кто с кем в одной команде).
+            var ry2 = engine.Blind(Yasuo, "mid", "mid", taken, [(c0, "top")]);
             Check("видна часть врагов, мида нет — по-прежнему вслепую", y2.Blind, "");
             Check($"контры Ясуо ({DataDragon.Name(c0)}, {DataDragon.Name(c1)}) заняты — шанс ниже, ожидаемое выше",
                   ry2.Chance < ry.Chance && ry2.Value > ry.Value,
@@ -368,15 +369,61 @@ internal static class Program
             var st = Draft("utility", enemies: [new DraftPlayer(5, Thresh, 0, "utility", false)]);
             var sup = engine.Recommend(st, 200);
             var taken = new HashSet<int> { Thresh };
+            // Ожидаемое против их АДК — по полю, сдвинутому их саппортом: АДК
+            // берут под саппорта (FieldWeights).
             var bad = sup.Where(r => Math.Abs(r.DirectDelta
                           - (engine.VersusDelta(r.ChampionId, "support", Thresh, "support")
-                             + engine.Blind(r.ChampionId, "support", "adc", taken).Value)) > 1e-6).ToList();
+                             + engine.Blind(r.ChampionId, "support", "adc", taken, [(Thresh, "support")]).Value)) > 1e-6).ToList();
             Check("саппорт: их АДК не выбран — в «против оппонента» матчап + ожидаемое против АДК",
                   sup.Count > 0 && bad.Count == 0, $"расходится у {bad.Count} из {sup.Count}");
             Check("саппорт: соперник по линии известен — полоска не «вслепую»", sup.All(r => !r.Blind), "");
             var empty = sup.SelectMany(r => r.Reasons).Where(x => x.Contains("()") || x.Contains("( )")).ToList();
             Check("саппорт: нет строк про бот врага с пустым именем", empty.Count == 0, string.Join(" | ", empty.Take(2)));
         }
+
+        FieldChecks(engine);
+    }
+
+    // ── Поле соперника по уже взятым врагам ─────────────────────────────────
+    // Их саппорта берут под их АДК: при известном АДК поле саппорта заметно
+    // сдвигается (замер 05.11 — угадывание на 15,7% лучше), при известных топе и
+    // миде — почти нет. Без взятых врагов — то же поле, что раньше.
+    private static void FieldChecks(RecommendationEngine engine)
+    {
+        Console.WriteLine();
+        Console.WriteLine("── поле соперника по уже взятым врагам ──");
+        const int Samira = 360, Yone = 777;
+        var none = new HashSet<int>();
+        static double Tv(IReadOnlyList<(int Id, double Share)> a, IReadOnlyList<(int Id, double Share)> b) =>
+            0.5 * a.Zip(b).Sum(x => Math.Abs(x.First.Share - x.Second.Share));
+        var basis = engine.FieldShares("support");
+        var empty = engine.FieldShares("support", []);
+        Check("без взятых врагов — поле прежнее", Tv(basis, empty) < 1e-12, "");
+        var withAdc = engine.FieldShares("support", [(Samira, "adc")]);
+        var withTopMid = engine.FieldShares("support", [(Yone, "top"), (Ahri, "mid")]);
+        Check("их АДК (Самира) заметно сдвигает поле их саппорта", Tv(basis, withAdc) > 0.10,
+              $"сдвиг {100 * Tv(basis, withAdc):F1}%; вверх: " + string.Join(", ", withAdc.Zip(basis)
+                  .OrderByDescending(x => x.First.Share - x.Second.Share).Take(3).Select(x => DataDragon.Name(x.First.Id))));
+        Check("их топ и мид почти не сдвигают поле их саппорта", Tv(basis, withTopMid) < 0.06,
+              $"сдвиг {100 * Tv(basis, withTopMid):F1}%");
+        Check("поле нормировано", Math.Abs(withAdc.Sum(x => x.Share) - 1) < 1e-9, "");
+
+        var plain = engine.Blind(Thresh, "support", "support", none);
+        var cond  = engine.Blind(Thresh, "support", "support", new HashSet<int> { Samira }, [(Samira, "adc")]);
+        Check("ожидаемое вслепую при известном их АДК — своё", Math.Abs(plain.Value - cond.Value) > 1e-6 || Math.Abs(plain.Chance - cond.Chance) > 1e-6,
+              $"Треш: {plain.Value:+0.00;-0.00} → {cond.Value:+0.00;-0.00}, шанс {100 * plain.Chance:F0}% → {100 * cond.Chance:F0}%");
+
+        // Подбор: их АДК виден, их саппорт — нет; линия вслепую по сдвинутому полю.
+        var st = Draft("utility", enemies: [new DraftPlayer(5, Samira, 0, "bottom", false)]);
+        var sup = engine.Recommend(st, 200);
+        var taken = new HashSet<int> { Samira };
+        var bad = sup.Where(r => Math.Abs(r.DirectDelta
+                      - (engine.Blind(r.ChampionId, "support", "support", taken, [(Samira, "adc")]).Value
+                         + engine.VersusDelta(r.ChampionId, "support", Samira, "adc"))) > 1e-6).ToList();
+        Check("подбор: при известном их АДК линия вслепую — по сдвинутому полю",
+              sup.Count > 0 && sup.All(r => r.Blind) && bad.Count == 0, $"расходится у {bad.Count} из {sup.Count}");
+        Check("строка пула (BlindFor) — тоже по сдвинутому полю",
+              Math.Abs(engine.BlindFor(st, Thresh, "support").Value - cond.Value) < 1e-12, "");
     }
 
     // Самые надёжные и самые рискованные вслепую — чтобы глянуть глазами.

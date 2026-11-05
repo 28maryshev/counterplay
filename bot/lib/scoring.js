@@ -12,7 +12,8 @@ const dl = require('../db/dataLayer');
 const K = 50; // сглаживание базового винрейта
 const K_PAIR = 20; // сглаживание парных таблиц (матчапы, синергия)
 const BASE_CONF = 250; // доверие к базе по объёму
-const MATCHUP_CONF = 50; // доверие к паре по объёму
+const MATCHUP_CONF = 50; // доверие к паре синергии по объёму (не мерено)
+const PAIR_CONF = 1000; // доверие к матчапу по объёму — по исходам 05.11.2026, как в программе
 const CONF_GAMES = 60; // доверие к синергии по объёму
 
 const W_BASE = 1.0;
@@ -22,26 +23,26 @@ const W_SYN_MAX = 1.5; // …и когда не известен ни один
 const BOTLANE_MIN_GAMES = 20000; // меньше кросс-данных — слагаемое бота молчит
 // Вес контры на линии = очки за настоящий пункт контры × доля правды в цифре
 // контры этой роли. Доли — замер по исходам матчей (pipeline/calibrate.py,
-// 04.11.2026, изумруд 16.21): топ 0,71, мид 0,70, АДК 0,53, саппорт 0,49,
-// лес 0,40, бот 2 на 2 — 0,52. Как в программе (RecommendationEngine.Weights).
+// 05.11.2026, изумруд 16.21, доверие пары 1000): топ 1,39, мид 1,24, саппорт
+// 1,00, лес 0,91, АДК 0,81, бот 2 на 2 — 0,88. Как в программе (RecommendationEngine.Weights).
 const W_COUNTER_PP = 3.7;
-const LANE_TRUST = { top: 0.71, jungle: 0.4, mid: 0.7, adc: 0.53, support: 0.49 };
+const LANE_TRUST = { top: 1.39, jungle: 0.91, mid: 1.24, adc: 0.81, support: 1.0 };
 const W_DIRECT = Object.fromEntries(Object.entries(LANE_TRUST).map(([r, t]) => [r, W_COUNTER_PP * t]));
-const BOT_DUO_TRUST = 0.52;
+const BOT_DUO_TRUST = 0.88;
 const W_BOTLANE = W_COUNTER_PP * BOT_DUO_TRUST; // бот 2 на 2: против вражеского дуо-партнёра
 // Прочие враги — каждый своим слагаемым с долей правды своей пары ролей
 // (замер 05.11.2026), и они складываются. Ключ — роли по алфавиту.
 const CROSS_TRUST = {
-  'adc|jungle': 0.27,
-  'adc|mid': 0.27,
+  'adc|jungle': 0.62,
+  'adc|mid': 0.61,
   'adc|support': BOT_DUO_TRUST,
-  'adc|top': 0.25,
-  'jungle|mid': 0.37,
-  'jungle|support': 0.33,
-  'jungle|top': 0.2,
-  'mid|support': 0.18,
-  'mid|top': 0.09,
-  'support|top': 0.06
+  'adc|top': 0.61,
+  'jungle|mid': 0.88,
+  'jungle|support': 0.8,
+  'jungle|top': 0.59,
+  'mid|support': 0.54,
+  'mid|top': 0.43,
+  'support|top': 0.35
 };
 const crossWeight = (a, b) => W_COUNTER_PP * (CROSS_TRUST[[a, b].sort().join('|')] ?? 0);
 
@@ -68,7 +69,8 @@ function score(candId, role, enemies, allies) {
 
   // ЧИСТАЯ контра: винрейт пары минус собственная сила кандидата, с поправкой на
   // объём пары — иначе сильные чемпионы патча выглядели бы «контрпиками всех».
-  const pureVs = (g, w) => (g > 0 ? (delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0);
+  const pureVs = (g, w) => (g > 0 ? (delta(g, w, K_PAIR) - rawBase) * (g / (g + PAIR_CONF)) : 0);
+  const synVs = (g, w) => (g > 0 ? (delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0);
 
   // Оппонент по линии.
   const directId = enemies[role] || 0;
@@ -117,7 +119,7 @@ function score(candId, role, enemies, allies) {
     if (!s) continue;
     sg += s.g;
     sw += s.w;
-    const d = pureVs(s.g, s.w); // только для объяснения: кто из союзников лучшая пара
+    const d = synVs(s.g, s.w); // только для объяснения: кто из союзников лучшая пара
     if (!bestSyn || d > bestSyn.d) {
       bestSyn = { d, allyId: aId, adjWr: adjPct(s.g, s.w), games: Math.round(s.rawG) };
     }

@@ -146,6 +146,9 @@ public sealed partial class RecommendationEngine
         var laneBlind  = anyUnknown && directOppId == 0;
         var duoBlind   = anyUnknown && duoRole != null && enemyDuoId == 0
                          && !otherEnemies.Any(e => e.Role == duoRole);
+        // Поле соперника вслепую — с поправкой на уже взятых врагов (их саппорт
+        // под их АДК и т. п., см. FieldWeights).
+        var known = KnownEnemies(state);
         // Вслепую ожидаемое уже в настоящих пунктах (пары усажены) — свой вес.
         var wLane = laneBlind ? W_BLIND : wDirect;
         var wDuo  = duoBlind  ? W_BLIND : W_BOTLANE;
@@ -183,7 +186,7 @@ public sealed partial class RecommendationEngine
                 // и мета-чемпионы возглавляли бы список «как контрпики». Плюс темпер
                 // по объёму пары: 4 игры 4 победы больше не дают фантомных +8пп.
                 double PureVs(double g, double w) =>
-                    g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0.0;
+                    g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + PAIR_CONF)) : 0.0;
 
                 // Прямой оппонент — отдельный матчап
                 var (dg, dw)    = directOppId != 0 ? RawMatchup(champId, myRole, directOppId) : (0, 0);
@@ -252,8 +255,8 @@ public sealed partial class RecommendationEngine
                 var botlaneDelta = PureVs(btg, btw);
 
                 // Вслепую — ожидаемое вместо настоящего (вес — W_BLIND, см. wLane).
-                var laneRisk = laneBlind ? Blind(champId, myRole, myRole, taken) : BlindRisk.None;
-                var duoRisk  = duoBlind  ? Blind(champId, myRole, duoRole!, taken) : BlindRisk.None;
+                var laneRisk = laneBlind ? Blind(champId, myRole, myRole, taken, known) : BlindRisk.None;
+                var duoRisk  = duoBlind  ? Blind(champId, myRole, duoRole!, taken, known) : BlindRisk.None;
                 if (laneBlind) directDelta  = laneRisk.Value;
                 if (duoBlind)  botlaneDelta = duoRisk.Value;
                 if (laneBlind && BlindReason(laneRisk) is { } blindLine) draftReasons.Add(blindLine);
@@ -370,7 +373,7 @@ public sealed partial class RecommendationEngine
 
         var (g, w) = enemyRole.Length > 0 ? RawBotlane(champId, myRole, enemyId, enemyRole) : (0.0, 0.0);
         if (g <= 0) (g, w) = RawMatchup(champId, myRole, enemyId);
-        return g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0.0;
+        return g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + PAIR_CONF)) : 0.0;
     }
 
     /// Вклад «против стиля» в расчёте на ОДНОГО врага: та же трифекта и тот же

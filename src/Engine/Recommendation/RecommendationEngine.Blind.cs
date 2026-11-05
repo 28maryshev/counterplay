@@ -83,14 +83,90 @@ public sealed partial class RecommendationEngine
         return prof;
     }
 
+    // ── Поле соперника по уже взятым врагам ─────────────────────────────────
+    // Кого враг возьмёт на роль, зависит от его уже взятых тиммейтов: саппорта
+    // берут под своего АДК, АДК — под саппорта. Замер 05.11.2026 по 636 тыс.
+    // драфтов (кто с кем в одной команде, без самого драфта): саппорт по их АДК
+    // угадывается на 15,7% лучше, АДК по саппорту — на 14,5%, лес по
+    // остальным — на 3,8%, а саппорт по их топу и миду — на 0,6% (почти ничего).
+    // Наивный Байес по парам из таблицы синергии: доля × Π по взятым
+    // (совместные игры + FIELD_PRIOR·доля) / (игры тиммейта + FIELD_PRIOR) / доля.
+    private readonly Dictionary<(int K, string KRole, string Role), (Dictionary<int, double> Co, double Total)> _coPicks = new();
+
+    private (Dictionary<int, double> Co, double Total) CoPicks(int k, string kRole, string role)
+    {
+        if (_coPicks.TryGetValue((k, kRole, role), out var hit)) return hit;
+        var co = new Dictionary<int, double>();
+        try
+        {
+            // Пара записана одной строкой в любую сторону — берём обе.
+            var cmd = _db.CreateCommand();
+            cmd.CommandText = $@"
+                SELECT champion_id, SUM(games*{PW}) FROM synergy
+                WHERE ally_id=@k AND ally_role=@kr AND role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                GROUP BY champion_id
+                UNION ALL
+                SELECT ally_id, SUM(games*{PW}) FROM synergy
+                WHERE champion_id=@k AND role=@kr AND ally_role=@r AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)
+                GROUP BY ally_id";
+            cmd.Parameters.AddWithValue("@k",  k);
+            cmd.Parameters.AddWithValue("@kr", kRole);
+            cmd.Parameters.AddWithValue("@r",  role);
+            cmd.Parameters.AddWithValue("@t",  TierBucket);
+            cmd.Parameters.AddWithValue("@p1", _p1);
+            cmd.Parameters.AddWithValue("@p2", _p2);
+            cmd.Parameters.AddWithValue("@p3", _p3);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+                if (!rd.IsDBNull(1)) co[rd.GetInt32(0)] = co.GetValueOrDefault(rd.GetInt32(0)) + rd.GetDouble(1);
+        }
+        catch { /* нет таблицы — поле без поправки */ }
+        return _coPicks[(k, kRole, role)] = (co, co.Values.Sum());
+    }
+
+    // Кто из врагов уже известен и на какой роли: позиция из драфта (окно
+    // раскладывает скрытые роли само), иначе — самая частая роль чемпиона.
+    private List<(int Id, string Role)> KnownEnemies(DraftState state) =>
+        [.. state.TheirTeam.Where(p => p.EffectiveChampionId != 0)
+            .Select(p => (p.EffectiveChampionId,
+                          LcuToDbRole(p.Position) is { Length: > 0 } r ? r : InferPrimaryRole(p.EffectiveChampionId)))];
+
+    // Ключ поправки: только тиммейты на ДРУГИХ ролях (на своей — это он сам).
+    private static string KnownKey(IReadOnlyList<(int Id, string Role)> known, string role) =>
+        string.Join(",", known.Where(k => k.Id != 0 && k.Role.Length > 0 && k.Role != role)
+                              .Select(k => $"{k.Id}:{k.Role}").Order());
+
+    private readonly Dictionary<string, Dictionary<int, double>> _fieldWeights = new();
+
+    // Доли поля роли с поправкой на уже взятых врагов (без нормировки — её
+    // делает BlindMath по сумме долей).
+    private Dictionary<int, double> FieldWeights(string role, IReadOnlyList<(int Id, string Role)> known, string key)
+    {
+        var ck = role + "|" + key;
+        if (_fieldWeights.TryGetValue(ck, out var hit)) return hit;
+        if (_fieldWeights.Count > 256) _fieldWeights.Clear();
+        var field = RoleField(role);
+        var w = field.ToDictionary(x => x.Id, x => x.Share);
+        foreach (var (k, kr) in known)
+        {
+            if (k == 0 || kr.Length == 0 || kr == role) continue;
+            var (co, total) = CoPicks(k, kr, role);
+            if (total <= 0) continue;
+            foreach (var x in field)
+                w[x.Id] *= (co.GetValueOrDefault(x.Id) + FIELD_PRIOR * x.Share) / (total + FIELD_PRIOR) / x.Share;
+        }
+        return _fieldWeights[ck] = w;
+    }
+
     // Соперники, которых ещё можно взять против меня: поле роли без меня самого
-    // и без тех, кто уже взят, наведён чужими или забанен. Пара без игр — центр
-    // чемпиона со всем истинным разбросом: про неё ничего не известно.
+    // и без тех, кто уже взят, наведён чужими или забанен, с долями по уже
+    // взятым врагам. Пара без игр — центр чемпиона со всем истинным разбросом:
+    // про неё ничего не известно.
     private List<(int Id, double Share, BlindMath.Est Pair)> BlindField(
-        BlindMath.Profile prof, int champId, string vsRole, IReadOnlySet<int> taken) =>
+        BlindMath.Profile prof, int champId, string vsRole, IReadOnlySet<int> taken, Dictionary<int, double> weights) =>
         [.. RoleField(vsRole)
             .Where(x => x.Id != champId && !taken.Contains(x.Id))
-            .Select(x => (x.Id, x.Share, prof.Of(x.Id)))];
+            .Select(x => (x.Id, weights.GetValueOrDefault(x.Id, x.Share), prof.Of(x.Id)))];
 
     // Результат на драфт: подбор в одном событии зовётся несколько раз (общий
     // список, пул, наведение, вес пула в банах, напарник), а интеграл худшего
@@ -108,14 +184,15 @@ public sealed partial class RecommendationEngine
     /// Ясуо, которого и так постоянно контрят, второй раз за это не платит.
     /// </summary>
     private (double Raw, double Chance, List<(int Id, double Share, BlindMath.Est Pair)> Field) BlindRaw(
-        int champId, string myRole, string vsRole, IReadOnlySet<int> taken, string takenKey)
+        int champId, string myRole, string vsRole, IReadOnlySet<int> taken, string takenKey,
+        Dictionary<int, double> weights, string knownKey)
     {
-        var key = $"{champId}|{myRole}|{vsRole}|{takenKey}";
+        var key = $"{champId}|{myRole}|{vsRole}|{takenKey}|{knownKey}";
         if (_blindRaw.TryGetValue(key, out var hit)) return hit;
         if (_blindRaw.Count > 4000) _blindRaw.Clear();   // драфтов за жизнь движка много
 
         var prof  = BlindProfile(champId, myRole, vsRole);
-        var field = BlindField(prof, champId, vsRole, taken);
+        var field = BlindField(prof, champId, vsRole, taken, weights);
         var pairs = field.Select(f => (f.Share, f.Pair)).ToList();
         var raw   = BLIND_COUNTER_RATE * BlindMath.ExpectedMin(pairs, BLIND_POOL)
                   + (1 - BLIND_COUNTER_RATE) * BlindMath.ExpectedAny(pairs)
@@ -131,9 +208,10 @@ public sealed partial class RecommendationEngine
     // «надёжен» и «рискован» относительно него.
     private readonly Dictionary<string, (double Raw, double Chance)> _blindCenter = new();
 
-    private (double Raw, double Chance) BlindCenter(string myRole, string vsRole, IReadOnlySet<int> taken, string takenKey)
+    private (double Raw, double Chance) BlindCenter(string myRole, string vsRole, IReadOnlySet<int> taken, string takenKey,
+                                                    Dictionary<int, double> weights, string knownKey)
     {
-        var key = $"{myRole}|{vsRole}|{takenKey}";
+        var key = $"{myRole}|{vsRole}|{takenKey}|{knownKey}";
         if (_blindCenter.TryGetValue(key, out var c)) return c;
         if (_blindCenter.Count > 64) _blindCenter.Clear();
         var mine = RoleField(myRole);
@@ -142,7 +220,7 @@ public sealed partial class RecommendationEngine
         double raw = 0, chance = 0;
         foreach (var x in mine)
         {
-            var r = BlindRaw(x.Id, myRole, vsRole, taken, takenKey);
+            var r = BlindRaw(x.Id, myRole, vsRole, taken, takenKey, weights, knownKey);
             raw    += x.Share * r.Raw / w;
             chance += x.Share * r.Chance / w;
         }
@@ -154,17 +232,22 @@ public sealed partial class RecommendationEngine
     /// роли vsRole (своей линии или, у бота, вражеского дуо). taken — кого
     /// соперник уже не возьмёт: взятые, наведённые чужими, баны. Один расчёт
     /// на общий подбор и на пул игрока: карточки пула, подсказка напарнику и
-    /// вес пула в банах идут через тот же Recommend.
+    /// вес пула в банах идут через тот же Recommend. known — уже взятые враги
+    /// с ролями: по ним поле соперника сдвигается (их саппорт — под их АДК).
     /// </summary>
-    public BlindRisk Blind(int champId, string myRole, string vsRole, IReadOnlySet<int> taken)
+    public BlindRisk Blind(int champId, string myRole, string vsRole, IReadOnlySet<int> taken,
+                           IReadOnlyList<(int Id, string Role)>? known = null)
     {
         if (champId == 0 || RoleField(vsRole).Count == 0) return BlindRisk.None;
+        known ??= [];
         var tk = TakenKey(taken);
-        var (raw, chance, field) = BlindRaw(champId, myRole, vsRole, taken, tk);
+        var kk = KnownKey(known, vsRole);
+        var weights = FieldWeights(vsRole, known, kk);
+        var (raw, chance, field) = BlindRaw(champId, myRole, vsRole, taken, tk, weights, kk);
         // Назвать можно только уверенные контры: пара в среднем хуже порога.
         var counters = field.Where(f => f.Pair.Mean <= -BlindMath.COUNTER_PP)
                             .OrderByDescending(f => f.Share).Select(f => f.Id).Take(2).ToList();
-        var center = BlindCenter(myRole, vsRole, taken, tk);
+        var center = BlindCenter(myRole, vsRole, taken, tk, weights, kk);
         var value  = raw - center.Raw;
         return new BlindRisk(value, chance, center.Chance, BlindProfile(champId, myRole, vsRole).True,
                              counters, Verdict(value, chance, center.Chance));
@@ -173,12 +256,19 @@ public sealed partial class RecommendationEngine
     /// Вслепую против своей линии в этом драфте — для строк пула вне подбора
     /// (фаза объявления): кто уже недоступен, считается как в подборе.
     public BlindRisk BlindFor(DraftState state, int champId, string role) =>
-        Blind(champId, role, role, TakenBy(state));
+        Blind(champId, role, role, TakenBy(state), KnownEnemies(state));
 
     /// Кто играет роль и какую долю её пиков забирает — поле, из которого
-    /// соперник «тянет» пул.
-    public IReadOnlyList<(int Id, double Share)> FieldShares(string role) =>
-        [.. RoleField(role).Select(x => (x.Id, x.Share))];
+    /// соперник «тянет» пул. С known — доли с поправкой на уже взятых врагов
+    /// (нормированы к единице).
+    public IReadOnlyList<(int Id, double Share)> FieldShares(string role,
+                                                             IReadOnlyList<(int Id, string Role)>? known = null)
+    {
+        if (known is null || known.Count == 0) return [.. RoleField(role).Select(x => (x.Id, x.Share))];
+        var w = FieldWeights(role, known, KnownKey(known, role));
+        var sum = w.Values.Sum();
+        return [.. RoleField(role).Select(x => (x.Id, sum > 0 ? w[x.Id] / sum : 0.0))];
+    }
 
     /// Профиль чемпиона против роли — для проверки и разборов: центр, разбросы,
     /// что достаётся на деле, усаженные пары.

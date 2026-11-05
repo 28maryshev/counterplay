@@ -5,13 +5,16 @@
 Вопрос: сколько настоящих пунктов победы несёт один пункт контры, который
 показывает движок (матчап минус своя база, с доверием по объёму пары), — на
 каждой линии и в каждой паре ролей. Цифра контры — правда пополам с шумом
-малых выборок, и доля правды у ролей разная: в лесу она меньше всех.
+малых выборок, и доля правды у ролей разная.
 
 Как считается. По каждому драфту патча — разность команд по факторам:
   * сила — сумма TierPower пятёрки (текущий патч, усадка на 2000 игр);
   * чистая контра по каждой паре ролей (5 линий + 10 пар разных ролей):
     то, что движок видит у кандидатов против одного и того же соперника,
-    k = d + t·база соперника, где d — дельта движка, t = g/(g+50).
+    k = d + t·база соперника, где d — дельта движка, t = g/(g+PAIR_CONF).
+Доверие пары PAIR_CONF = 1000 игр подобрано по исходам перебором (50, 300,
+1000, 3000, 8000 — отдельно для своей линии и для пар разных ролей): у 1000
+правдоподобие исходов выше на 377 единиц логарифма, чем у прежних 50.
 Логистическая регрессия «разность → победа»; коэффициент × 2 / 0,04 — доля
 правды (пара входит в признак за обе команды; 0,04 логита — пункт победы у
 50%).
@@ -46,7 +49,7 @@ import sqlite3
 import sys
 from array import array
 
-K, K_PAIR, MATCHUP_CONF = 50.0, 20.0, 50.0
+K, K_PAIR, PAIR_CONF = 50.0, 20.0, 1000.0   # PAIR_CONF — доверие пары g/(g+1000), подобрано по исходам 05.11.2026
 TIER_SHRINK = 2000.0           # TierPower: усадка к 50% на 2000 игр текущего патча
 PREV_WEIGHT = 0.6              # вес прошлого патча в агрегатах (PW движка)
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
@@ -101,7 +104,7 @@ def features(A, B, wa, base, power, pair):
         if g <= 1:
             return 0.0
         g -= 1; w -= won
-        t = g / (g + MATCHUP_CONF)
+        t = g / (g + PAIR_CONF)
         return (delta(g, w, K_PAIR) - raw_base(c, r, won) + raw_base(o, vr, 1 - won)) * t
 
     f = [sum(tier_power(A[r], r, wa) for r in ROLES) - sum(tier_power(B[r], r, 1 - wa) for r in ROLES)]
@@ -171,8 +174,8 @@ def main():
     ap.add_argument('--tier', default='emerald')
     ap.add_argument('--patch', help='патч драфтов (по умолчанию последний)')
     ap.add_argument('--prev', help='прошлый патч в агрегатах (по умолчанию предыдущий)')
-    ap.add_argument('--avg-weight', type=float, default=2.1,
-                    help='средний вес контры на линии по ролям — его калибровка сохраняет')
+    ap.add_argument('--points', type=float, default=3.7,
+                    help='очков оценки за настоящий пункт контры (W_COUNTER_PP) — его калибровка сохраняет')
     ap.add_argument('--min-drafts', type=int, default=50000)
     args = ap.parse_args()
 
@@ -234,9 +237,11 @@ def main():
         print(f"  инструменты (Style) {ss / 0.04:6.3f} ± {es / 0.04:.3f}")
 
     lanes = [trust[(r, r)] for r in ROLES]
-    g = args.avg_weight / (sum(lanes) / len(lanes))
-    print(f"\nдля RecommendationEngine.Weights (средний вес {args.avg_weight}):")
-    print(f"  W_COUNTER_PP = {g:.2f}")
+    # Сохраняется цена настоящего пункта, а не средний вес: вес — на показанный
+    # пункт, а при другом доверии пары (PAIR_CONF) показанный пункт другой.
+    # 3.7 выбрано 04.11.2026 (при доверии 50 это давало прежний средний вес 2.1).
+    g = args.points
+    print(f"\nдля RecommendationEngine.Weights (W_COUNTER_PP = {g}, средний вес линии {g * sum(lanes) / len(lanes):.2f}):")
     for r in ROLES:
         print(f"  LaneTrust {r:8} {trust[(r, r)]:.2f}  → вес {g * trust[(r, r)]:.2f}")
     print(f"  бот 2 на 2 (АДК ↔ саппорт) {trust[('adc', 'support')]:.2f}  → вес {g * trust[('adc', 'support')]:.2f}")
