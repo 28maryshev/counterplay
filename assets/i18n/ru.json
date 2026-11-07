@@ -284,10 +284,6 @@
     "ban": "БАН"
   },
   "cat": {
-    "cc": "контроль (Mercs/тенасити)",
-    "autoCrit": "крит/авто-атаку (Steelcaps/Frozen Heart)",
-    "shield": "щиты (Serpent's Fang)",
-    "heal": "хил (Grievous Wounds)",
     "physical": "физический",
     "magic": "магический"
   },

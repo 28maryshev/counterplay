@@ -142,7 +142,7 @@
       "b": "{0} isolates the target, you finish"
     },
     "artillery": {
-      "a": "Long-range poke and siege with {0}"
+      "a": "Long-range poke together with your ally {0}"
     },
     "channel": {
       "a": "{0}'s cc holds targets for your ult",
@@ -284,10 +284,6 @@
     "ban": "BAN"
   },
   "cat": {
-    "cc": "cc (Mercs/tenacity)",
-    "autoCrit": "crit/autos (Steelcaps/Frozen Heart)",
-    "shield": "shields (Serpent's Fang)",
-    "heal": "healing (Grievous Wounds)",
     "physical": "physical",
     "magic": "magic"
   },

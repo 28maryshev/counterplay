@@ -128,11 +128,22 @@ internal static class Program
             "reason.exploitCc", "reason.exploitAuto", "reason.vulnCc", "reason.vulnAuto",
             "reason.vulnShield", "reason.vulnHeal",
         ];
-        foreach (var (lang, doc) in new[] { ("ru", ru), ("en", en) })
+        // Все 15 языков: строка есть (без неё язык молча берёт английскую) и
+        // плейсхолдеры те же, что в английской, — иначе подстановка уронит
+        // строку или потеряет цифру.
+        static string Holes(string s) =>
+            string.Join(",", System.Text.RegularExpressions.Regex.Matches(s, @"\{\d\}").Select(m => m.Value).Order());
+        foreach (var file in Directory.GetFiles(Path.Combine(repo, "assets/i18n"), "*.json").Order())
         {
+            var lang = Path.GetFileNameWithoutExtension(file);
+            var doc = JsonDocument.Parse(File.ReadAllText(file)).RootElement;
             var missing = keys.Where(k => Get(doc, k) is null).ToList();
-            Check($"{lang}: все строки тегов и иконок ({keys.Length})", missing.Count == 0,
-                  missing.Count == 0 ? "есть" : string.Join(", ", missing));
+            var holes = keys.Where(k => Get(doc, k) is { } v && Get(en, k) is { } e
+                                        && Holes(v.GetString() ?? "") != Holes(e.GetString() ?? "")).ToList();
+            Check($"{lang}: все строки тегов и иконок ({keys.Length}), плейсхолдеры как в английском",
+                  missing.Count == 0 && holes.Count == 0,
+                  missing.Count + holes.Count == 0 ? "да"
+                  : string.Join(", ", missing.Take(4).Concat(holes.Take(4).Select(h => h + " — плейсхолдеры"))));
         }
     }
 
@@ -261,6 +272,7 @@ internal static class Program
         w.SetEngine(engine);
         Pump();
         var list = (ItemsControl)w.FindName("FullRecList");
+        TagsFit(w);
         for (var i = 0; i < scenes.Length; i++)
         {
             var draft = scenes[i].Draft;
@@ -285,6 +297,46 @@ internal static class Program
             if (snap is { Length: > 0 }) Snap(list, snap, $"pick-badges-{i + 1}.png");
         }
         w.Close();
+    }
+
+    /// <summary>
+    /// Каждая подпись тега на каждом из 15 языков (с числом) влезает в колонку
+    /// карточки: длиннее — WrapPanel обрежет плашку. Мерка — тот же шрифт и
+    /// кегль, что в шаблоне (UiFont, 12, SemiBold), плюс значок, отступы и рамка.
+    /// </summary>
+    private static void TagsFit(Window w)
+    {
+        const double Column = 230, Chrome = 13 + 5 + 6 + 9 + 2;   // значок, зазор, отступы, рамка
+        var font = (System.Windows.Media.FontFamily)w.FindResource("UiFont");
+        var face = new Typeface(font, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var dpi = VisualTreeHelper.GetDpi(w).PixelsPerDip;
+        var repo = FindRepo();
+        var bad = new List<string>();
+        double widest = 0; var widestText = "";
+        foreach (var file in Directory.GetFiles(Path.Combine(repo, "assets/i18n"), "*.json").Order())
+        {
+            var lang = Path.GetFileNameWithoutExtension(file);
+            var doc = JsonDocument.Parse(File.ReadAllText(file)).RootElement;
+            var labels = new List<string>();
+            foreach (var sec in new[] { "pickTag", "pairShort" })
+                if (doc.TryGetProperty(sec, out var s))
+                    foreach (var p in s.EnumerateObject().Where(p => p.Name != "teamTip"))
+                    {
+                        var v = p.Value.GetString() ?? "";
+                        labels.Add(sec == "pairShort" || p.Name == "synergyWord" ? v + " +0,0%"
+                                   : v.Replace("{0}", p.Name.StartsWith("blind") ? "00" : "+0,0"));
+                    }
+            foreach (var text in labels)
+            {
+                var ft = new FormattedText(text, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Windows.FlowDirection.LeftToRight, face, 12, System.Windows.Media.Brushes.White, dpi);
+                var width = ft.WidthIncludingTrailingWhitespace + Chrome;
+                if (width > widest) { widest = width; widestText = $"{lang}: «{text}»"; }
+                if (width > Column) bad.Add($"{lang}: «{text}» {width:0} px");
+            }
+        }
+        Check($"подписи тегов на всех языках влезают в колонку ({Column:0} px)", bad.Count == 0,
+              bad.Count == 0 ? $"самая широкая — {widestText}, {widest:0} px" : string.Join("; ", bad.Take(4)));
     }
 
     /// <summary>

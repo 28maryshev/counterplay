@@ -6,15 +6,9 @@
 /// </summary>
 public static class ItemValue
 {
+    // Слова о категориях — у подсказок иконок карточки пика (reason.vulnCc…,
+    // exploitCc…): своя фраза на категорию, с предметами, как в клиенте.
     public enum Cat { Cc, AutoCrit, Shield, Heal }
-
-    public static string CatName(Cat c) => Loc.T(c switch
-    {
-        Cat.Cc       => "cat.cc",
-        Cat.AutoCrit => "cat.autoCrit",
-        Cat.Shield   => "cat.shield",
-        _            => "cat.heal",
-    });
 
     // Профиль уязвимостей набора: [cc, autoCrit, shield, heal].
     private static double[] Profile(IEnumerable<int> ids)
