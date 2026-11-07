@@ -15,9 +15,14 @@ namespace Counterplay.Tests;
 /// хп, фласки — в верхней части». Блок собирал пару «Доран по роли + зелье»,
 /// а Лука и Шлема Дорана, появившихся позже, программа не знала вовсе.
 ///
+/// Следом (07.11, по первому варианту): «Уничтожитель, Атлас мира, три питомца
+/// леса — вот это лишнее». Уничтожителя нет нигде, питомцы — только у леса,
+/// Атлас — только у поддержки.
+///
 /// Меряет:
-/// - в каждой роли в блоке все стартовые предметы, без повторов; ходовые для
-///   роли первыми, за ними оба зелья;
+/// - в каждой роли в блоке все общие стартовые предметы, без повторов; ходовые
+///   для роли первыми, за ними оба зелья; питомцы и Атлас — только у своей
+///   роли, Уничтожителя нет ни у кого;
 /// - список сверен с нынешним Data Dragon: каждый предмет продаётся на Ущелье,
 ///   и нет стартового предмета, которого в списке нет — Riot добавит нового
 ///   Дорана, проверка его назовёт;
@@ -29,9 +34,18 @@ internal static class Program
 
     private const BindingFlags Hidden = BindingFlags.NonPublic | BindingFlags.Static;
 
-    // Длинный меч и Тотем контроля носят метку Lane, но в блок стартовых не
-    // идут: меч — компонент сборки, тотем — покупка с базы.
-    private static readonly HashSet<int> NotStarters = [1036, 2055];
+    private static readonly string[] Roles = ["adc", "mid", "top", "support", "jungle", ""];
+
+    // Носят признаки стартового, но в блок не идут. Длинный меч — компонент
+    // сборки, Тотем контроля — покупка с базы, Уничтожитель — лишний (владелец).
+    private const int Cull = 1083;
+    private static readonly HashSet<int> NotStarters = [1036, 2055, Cull];
+
+    // Только своей роли: Атлас мира — поддержке, питомцы — лесу.
+    private static readonly Dictionary<int, string> RoleOnly = new()
+    {
+        [3865] = "support", [1101] = "jungle", [1102] = "jungle", [1103] = "jungle",
+    };
 
     private static async Task<int> Main()
     {
@@ -42,14 +56,16 @@ internal static class Program
         AppPaths.RootOverride = root;
 
         var t = typeof(RunesImporter);
-        var all = (int[])t.GetField("AllStarters", Hidden)!.GetValue(null)!;
+        var common = (int[])t.GetField("CommonStarters", Hidden)!.GetValue(null)!;
         var potions = (int[])t.GetField("Potions", Hidden)!.GetValue(null)!;
         int[] Start(string role) => (int[])t.GetMethod("StartItems", Hidden)!.Invoke(null, [role])!;
         int[] Own(string role)   => (int[])t.GetMethod("RoleStarters", Hidden)!.Invoke(null, [role])!;
+        // Всё, что программа хоть кому-то ставит в блок.
+        var all = common.Concat(Roles.SelectMany(Own)).Distinct().ToArray();
 
-        // ── Каждая роль: всё стартовое, своё первым ────────────────────────
+        // ── Каждая роль: всё общее, своё первым, чужого нет ────────────────
         Console.WriteLine("без сети (названия предметов не загружены):");
-        CheckRoles(all, potions, Start, Own);
+        CheckRoles(common, potions, Start, Own);
 
         // ── Список против нынешнего Data Dragon ────────────────────────────
         Console.WriteLine();
@@ -78,7 +94,7 @@ internal static class Program
             .Select(kv => $"{kv.Key} {Name(kv.Value)}")
             .ToList();
         Check("в Data Dragon нет стартовых предметов мимо списка", missed.Count == 0,
-              missed.Count == 0 ? "все в списке" : "добавить в RunesImporter.AllStarters: " + string.Join(", ", missed));
+              missed.Count == 0 ? "все в списке" : "добавить в RunesImporter.CommonStarters или RoleStarters: " + string.Join(", ", missed));
 
         // ── Отсев по патчу с загруженными названиями ───────────────────────
         Console.WriteLine();
@@ -87,13 +103,13 @@ internal static class Program
         await ItemIcons.LoadNamesAsync("en_US", CancellationToken.None);
         Check("названия загрузились", ItemIcons.NamesLoaded, DataDragon.Version);
         Check("несуществующий предмет отсеивается", !ItemIcons.InPatch(999_999), "999999");
-        CheckRoles(all, potions, Start, Own);
+        CheckRoles(common, potions, Start, Own);
 
         try { Directory.Delete(root, recursive: true); } catch { }
         return Finish();
     }
 
-    private static void CheckRoles(int[] all, int[] potions,
+    private static void CheckRoles(int[] common, int[] potions,
                                    Func<string, int[]> start, Func<string, int[]> own)
     {
         foreach (var (role, first) in new (string, int)[]
@@ -102,9 +118,15 @@ internal static class Program
             var list = start(role);
             var mine = own(role);
             var name = role == "" ? "роль неизвестна" : role;
-            var lacking = all.Except(list).ToList();
-            Check($"{name}: все стартовые ({all.Length})", lacking.Count == 0,
+            var lacking = common.Except(list).ToList();
+            Check($"{name}: все общие стартовые ({common.Length})", lacking.Count == 0,
                   lacking.Count == 0 ? $"{list.Length} в блоке" : "нет: " + string.Join(", ", lacking));
+            var foreign = list.Where(id => id == Cull || (RoleOnly.TryGetValue(id, out var r) && r != role)).ToList();
+            Check($"{name}: нет лишнего (Уничтожитель, чужие питомцы и Атлас)", foreign.Count == 0,
+                  foreign.Count == 0 ? "нет" : "есть: " + string.Join(", ", foreign));
+            var ownOnly = RoleOnly.Where(kv => kv.Value == role).Select(kv => kv.Key).Except(list).ToList();
+            Check($"{name}: своё на месте", ownOnly.Count == 0,
+                  ownOnly.Count == 0 ? "да" : "нет: " + string.Join(", ", ownOnly));
             Check($"{name}: без повторов", list.Distinct().Count() == list.Length, string.Join(" ", list));
             Check($"{name}: первым {first}", list.FirstOrDefault() == first, $"первым {list.FirstOrDefault()}");
             var head = mine.Concat(potions).ToArray();
@@ -151,7 +173,7 @@ internal static class Program
     private static int Finish()
     {
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: в каждой роли все стартовые предметы патча, своё первым"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: в каждой роли все общие стартовые и своё, лишнего нет"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
