@@ -121,7 +121,9 @@ internal static class Program
             .. PairKinds.Select(k => $"pairShort.{k}"),
             "reason.hardMatchups", "reason.synBad", "reason.pairBad", "reason.fewGames", "reason.patchUp",
             "reason.patchDown", "reason.noDive", "reason.noPoke", "reason.noFront", "reason.notOwned",
-            "reason.counterItems", "reason.offStyle",
+            "reason.counterItems", "reason.offStyle", "reason.personalUp", "reason.personalDown",
+            "reason.exploitCc", "reason.exploitAuto", "reason.vulnCc", "reason.vulnAuto",
+            "reason.vulnShield", "reason.vulnHeal",
         ];
         foreach (var (lang, doc) in new[] { ("ru", ru), ("en", en) })
         {

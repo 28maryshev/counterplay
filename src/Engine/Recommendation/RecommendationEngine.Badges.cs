@@ -158,9 +158,9 @@ public sealed partial class RecommendationEngine
         if (Math.Abs(f.Personal) < ICON_PERSONAL || _forMate) return;
         var (g, w) = MyHistory().Recent(f.ChampId);
         if (g <= 0) return;
-        var tip = Loc.T("reason.personalWr", $"{100.0 * w / g:F0}", g);
-        if (f.Personal > 0) plus.Add(Icon("personalUp", 1, tip));
-        else minus.Add(Icon("personalDown", -1, tip));
+        var pct = $"{100.0 * w / g:F0}";
+        if (f.Personal > 0) plus.Add(Icon("personalUp", 1, Loc.T("reason.personalUp", pct, g)));
+        else minus.Add(Icon("personalDown", -1, Loc.T("reason.personalDown", pct, g)));
     }
 
     /// Против их стиля: есть чем ответить — плюс (как строка «против дайва»);
@@ -180,22 +180,31 @@ public sealed partial class RecommendationEngine
     }
 
     /// Состав своей команды: тип урона и общая уязвимость (одним предметом
-    /// гасят многих), плюс — наказывает вынужденный предмет врага.
+    /// гасят многих), плюс — наказывает вынужденный предмет врага. Подсказки —
+    /// своя на каждую категорию: какие предметы купит враг, названия как в клиенте.
     private static void CompIcons(PickFacts f, List<PickIcon> plus, List<PickIcon> minus)
     {
-        if (f.Exploit.Bonus > 0 && f.Exploit.Forced is { } forced)
-            plus.Add(Icon("exploit", 1, Loc.T("reason.exploit", ItemValue.CatName(forced))));
+        // Бонус дают только две категории (ItemValue.ExploitBonus).
+        if (f.Exploit.Bonus > 0 && f.Exploit.Forced switch
+            {
+                ItemValue.Cat.Cc       => "reason.exploitCc",
+                ItemValue.Cat.AutoCrit => "reason.exploitAuto",
+                _                      => null,
+            } is { } exploitTip)
+            plus.Add(Icon("exploit", 1, Loc.T(exploitTip)));
 
         var kind = Loc.T(f.Dmg.Ad ? "cat.physical" : "cat.magic");
         if (f.Dmg.Delta > 0) plus.Add(Icon("dmgBalance", 1, Loc.T("reason.dmgBalance", kind)));
         else if (f.Dmg.Stack) minus.Add(Icon("dmgStack", -1, Loc.T("reason.dmgStack", kind)));
 
         if (f.Vuln.Penalty > 0 && f.Vuln.Cat is { } cat && f.Vuln.Count >= 2)
-        {
-            var line = Loc.T(f.Vuln.Count >= 4 ? "reason.vulnNearAll"
-                           : f.Vuln.Count == 3 ? "reason.vuln3" : "reason.vuln2");
-            minus.Add(Icon("vuln", -1, $"{Capital(line)}: {ItemValue.CatName(cat)}"));
-        }
+            minus.Add(Icon("vuln", -1, Loc.T(cat switch
+            {
+                ItemValue.Cat.Cc       => "reason.vulnCc",
+                ItemValue.Cat.AutoCrit => "reason.vulnAuto",
+                ItemValue.Cat.Shield   => "reason.vulnShield",
+                _                      => "reason.vulnHeal",
+            }, f.Vuln.Count)));
     }
 
     /// ARAM: врагов нет — синергия тегом без названия связки, дыры состава и
@@ -225,6 +234,4 @@ public sealed partial class RecommendationEngine
 
     /// Число со знаком для тега и подсказки: «+1,3», «−0,7» (типографский минус).
     private static string Num(double v) => (v >= 0 ? "+" : "−") + Math.Abs(v).ToString("F1");
-
-    private static string Capital(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
 }
