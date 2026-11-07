@@ -62,6 +62,9 @@ echo "patch_seen=$(docker exec counterplay-bot node -e '
   const { kvGet } = require("/app/db/botDb");
   process.stdout.write([kvGet("patchwatch_last_official"), kvGet("patchwatch_last_ready")].join("/"));
 ' 2>/dev/null)"
+# Зеркало обновлений программы (app/ в бакете базы): совпадает ли его фид с
+# тегом latest на GitHub. Отстало — игроки из Китая не получат выпуск.
+echo "app_mirror=$(docker exec counterplay-collector python mirror_app.py --check 2>&1 | tail -1 | cut -c1-160)"
 # Простой: последние снимки журнала эксплуатации. Если счётчик не двигался, а
 # состояние collecting — сбор встал, сколько бы бодро ни выглядел статус.
 python3 - <<'PY' 2>/dev/null
@@ -128,6 +131,15 @@ else
   else
     warn "патч: у Riot $live, а сторож помнит $seen_official — объявление в течение часа (:45 UTC)"
   fi
+
+  # Зеркало обновлений. Отставание сразу после выпуска возможно, только если
+  # шаг зеркала в release.ps1 не прошёл: он догоняет его в том же выпуске.
+  mir=$(val "$R" app_mirror)
+  case "$mir" in
+    "зеркало совпадает"*) ok "$mir" ;;
+    "") warn "зеркало обновлений не сверено (mirror_app.py не ответил)" ;;
+    *) bad "$mir — догнать: ssh collector 'docker exec counterplay-collector python mirror_app.py'" ;;
+  esac
 
   free=$(val "$R" disk_free_gb)
   if   [ "${free:-0}" -lt 3 ]; then bad "диск: свободно ${free} ГБ — публикация не влезет"
