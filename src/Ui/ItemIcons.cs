@@ -174,6 +174,10 @@ public static class ItemIcons
 
     public static string NameOf(int id) => _names?.GetValueOrDefault(id) ?? $"#{id}";
 
+    /// Предмет есть в нынешнем патче. Названия ещё не загружены (нет сети) —
+    /// не знаем, и считаем, что есть: лишний значок лучше пустого блока.
+    public static bool InPatch(int id) => _names is not { Count: > 0 } || _names.ContainsKey(id);
+
     /// Описание предмета на языке игрока. Пусто — описания нет (или ещё не
     /// загрузились): подсказка тогда покажет одно название.
     public static string DescOf(int id) => _descs.GetValueOrDefault(id, "");
