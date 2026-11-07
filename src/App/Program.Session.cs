@@ -347,6 +347,8 @@ partial class Program
 
         await using var socket = new LcuEventSocket(creds);
         await socket.ConnectAsync(ct);
+        // WebSocket открылся — клиент принял пароль: это и есть «подключились».
+        ReportClientConnected(creds, ct);
 
         var lastHash = "";
         var draftTray = new DraftTray(overlay, ct); // окно и трей по таймеру драфта

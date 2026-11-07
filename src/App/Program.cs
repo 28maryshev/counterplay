@@ -103,6 +103,7 @@ partial class Program
         // Анонимный пинг для статистики активных пользователей. Запуск
         // песочницы — не пользователь.
         if (!sandbox) _ = Telemetry.PingAsync();
+        _clientReportOn = !sandbox;
 
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };

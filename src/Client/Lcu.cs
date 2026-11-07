@@ -88,6 +88,11 @@ public sealed record LcuCredentials(string Name, int Pid, int Port, string Passw
 
     public string HttpBase => $"https://127.0.0.1:{Port}";
     public Uri    WsUri    => new($"wss://127.0.0.1:{Port}/");
+
+    /// Откуда взяты: "lockfile" или "cmdline" (командная строка LeagueClientUx,
+    /// так подключается китайский клиент). Уходит сайту отчётом о подключении
+    /// (`Telemetry.ReportClientAsync`): по нему видно, работает ли запасной путь.
+    public string Via { get; init; } = "lockfile";
 }
 
 /// <summary>Поиск и парсинг lockfile клиента LoL.</summary>

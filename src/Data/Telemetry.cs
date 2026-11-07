@@ -57,6 +57,34 @@ public static class Telemetry
         catch { /* телеметрия не критична — молчим */ }
     }
 
+    /// <summary>
+    /// Отчёт о подключении к клиенту League: подключились ли, каким путём и
+    /// узнаётся ли окно клиента. Шлёт его `Program.ClientReport` не чаще раза
+    /// за запуск на каждый исход.
+    ///
+    /// Пинг при запуске этого не знает: он уходит раньше, чем программа
+    /// видит клиент. Без отчёта нельзя было сказать, работает ли подключение
+    /// к китайскому клиенту: запуски от игроков из CN шли, а подключилась ли
+    /// программа хоть раз, было неизвестно (журнал 2026-11-08).
+    /// </summary>
+    /// <param name="ok">true — подключились; false — клиент запущен, а подключиться не вышло.</param>
+    /// <param name="via">"lockfile" или "cmdline"; null — учётных данных не нашлось вовсе.</param>
+    /// <param name="window">Узнаётся ли окно клиента по правилу окна драфта.</param>
+    /// <param name="other">Класс и заголовок окна клиента, если оно не узнаётся.</param>
+    public static async Task ReportClientAsync(bool ok, string? via, bool? window, string? other)
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            if (Secret.Length > 0)
+                http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
+            var json = JsonSerializer.Serialize(new { installId = DeviceId(), ok, via, window, other });
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            await http.PostAsync(Url + "/client", content);
+        }
+        catch { /* как и пинг: не дошло — не беда */ }
+    }
+
     /// Когда программа появилась на этом компьютере. Берём дату создания своей
     /// папки в %APPDATA% — она заводится при первом запуске и переживает
     /// обновления: для того, кто поставил Counterplay месяц назад, она месячной

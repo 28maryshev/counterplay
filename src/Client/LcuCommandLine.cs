@@ -50,7 +50,7 @@ public static partial class LcuCommandLine
         var token = TokenArg().Match(cmd);
         if (!port.Success || !token.Success) return null;
         if (!int.TryParse(port.Groups[1].Value, out var p) || p is <= 0 or > 65535) return null;
-        return new LcuCredentials("LeagueClient", pid, p, token.Groups[1].Value, "https");
+        return new LcuCredentials("LeagueClient", pid, p, token.Groups[1].Value, "https") { Via = "cmdline" };
     }
 
     // ── Командная строка чужого процесса ──────────────────────────────────

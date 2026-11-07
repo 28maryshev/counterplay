@@ -70,6 +70,14 @@ internal static class Program
         Check(c?.Port == 60123, $"порт из --app-port, не из --riotclient-app-port ({c?.Port})");
         Check(c?.Password == "Tok-En_123", $"пароль из --remoting-auth-token ({c?.Password})");
         Check(c?.HttpBase == "https://127.0.0.1:60123", $"адрес клиента ({c?.HttpBase})");
+        // По этой пометке отчёт о подключении говорит сайту, что сработал запасной путь.
+        Check(c?.Via == "cmdline", $"пометка пути — cmdline ({c?.Via})");
+        Check(new LcuCredentials("LeagueClient", 1, 2, "p", "https").Via == "lockfile",
+              "данные из lockfile помечены lockfile");
+        Check(ClientWindowProbe.Recognized("RCLIENT", "League of Legends")
+              && !ClientWindowProbe.Recognized("RCLIENT", "英雄联盟")
+              && !ClientWindowProbe.Recognized("RiotWindowClass", "League of Legends (TM) Client"),
+              "окно клиента узнаётся по тому же правилу, что у окна драфта");
 
         var bare = LcuCommandLine.Parse("LeagueClientUx.exe --remoting-auth-token=xyz --app-port=7000", 1);
         Check(bare?.Port == 7000 && bare.Password == "xyz", "аргументы без кавычек");
@@ -115,5 +123,14 @@ internal static class Program
         }
         catch (Exception ex) { ws = $"{ex.GetType().Name}: {ex.Message}"; }
         Check(ws == "подключён", $"WebSocket с паролем из командной строки ({ws})");
+
+        // Проба окна для отчёта о подключении: окна ищутся у процесса
+        // LeagueClientUx, и обычный клиент должен узнаваться. Свёрнутый клиент
+        // окна не показывает — тогда пункт не про то.
+        var w = ClientWindowProbe.Probe();
+        if (w.Other is null && !w.Matched)
+            Console.WriteLine("  —    окно клиента не на экране (свёрнут?) — пробу окна не проверить");
+        else
+            Check(w.Matched, $"проба узнаёт окно обычного клиента ({w.Other ?? "узнано"})");
     }
 }

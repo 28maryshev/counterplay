@@ -121,6 +121,7 @@ partial class Program
         // и мигать «соединение потеряно» из-за секундной заминки незачем. Если и
         // вторая не удалась — тогда говорим, значит дело серьёзнее.
         var quiet = false;
+        StartClientFailWatch(ct);
         while (!ct.IsCancellationRequested)
         {
             // Клиента нет — ни драфта, ни игры: самое спокойное время.
@@ -132,6 +133,7 @@ partial class Program
                 overlay.ShowStatus(Loc.T("status.waitingClient"));
             }
             var creds = await LockfileReader.WaitForAsync(lockfilePath, ct);
+            _lastVia = creds.Via;
 
             try
             {
