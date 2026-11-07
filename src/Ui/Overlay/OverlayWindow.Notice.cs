@@ -18,6 +18,7 @@ using Size = System.Windows.Size;
 namespace Counterplay;
 
 // Окно драфта — сообщения с сайта на плашке и разовое уведомление об автозапуске.
+// Опрос на той же плашке — OverlayWindow.NoticePoll.cs.
 public partial class OverlayWindow
 {
     // ── Автозапуск: разовое уведомление после включения ──────────────────────
@@ -83,10 +84,13 @@ public partial class OverlayWindow
 
     private async Task RefreshNoticeAsync()
     {
-        if (!await Notice.RefreshAsync()) return;
+        var change = await Notice.RefreshAsync();
+        if (change == Notice.Change.None) return;
         await Dispatcher.InvokeAsync(() =>
         {
-            _noticeIndex = 0;   // набор сменился — показываем с начала
+            // Набор сменился — показываем с начала. Сменились только голоса в
+            // опросе — перерисовываем то, что на экране.
+            if (change == Notice.Change.Content) _noticeIndex = 0;
             ApplyNotice();
         });
     }
@@ -111,6 +115,9 @@ public partial class OverlayWindow
         };
         _noticeRotate.Tick += (_, _) =>
         {
+            // Под курсором и пока уходит голос — не сменяем: человек целится в
+            // вариант опроса, и новая плашка под мышью приняла бы клик за свой.
+            if (_noticeHover || _pollSending is not null) return;
             _noticeIndex++;
             ApplyNotice();
         };
@@ -121,7 +128,14 @@ public partial class OverlayWindow
     /// сообщениями и с языком — пересчитываем только тогда, а не каждый тик.
     private string _noticeSig = "";
 
-    private void ApplyNotice()
+    /// Курсор над плашкой — очередь сообщений стоит.
+    private bool _noticeHover;
+
+    private void BetaCard_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) => _noticeHover = true;
+
+    private void BetaCard_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) => _noticeHover = false;
+
+    internal void ApplyNotice()
     {
         var list = Notice.Active();
         if (list.Count == 0) _noticeIndex = 0;
@@ -139,11 +153,12 @@ public partial class OverlayWindow
     /// ними: короткое — сайдбар поджался, длинное — вырос. Человек в этот
     /// момент ничего не делает, а окно под ним дёргается.
     ///
-    /// Меряем ТЕКСТ, а не плашку целиком. Живую плашку измерить не вышло: WPF
-    /// отдаёт размер, посчитанный для прежнего текста, сколько ни сбрасывай
-    /// мерку вручную — длинный абзац выходил в 76 точек вместо 145. Поэтому
-    /// текст меряется отдельным блоком с той же типографикой, а плашке задаётся
-    /// минимум по САМОМУ тексту: всё остальное в ней от сообщения не зависит.
+    /// Меряем ТЕКСТ (с опросом, если он есть), а не плашку целиком. Живую
+    /// плашку измерить не вышло: WPF отдаёт размер, посчитанный для прежнего
+    /// текста, сколько ни сбрасывай мерку вручную — длинный абзац выходил в 76
+    /// точек вместо 145. Поэтому изменчивая часть (BetaBody) меряется отдельным
+    /// блоком с той же типографикой, и минимум задаётся ей: всё остальное в
+    /// плашке от сообщения не зависит.
     ///
     /// Кроме строки ссылки — она есть не у всех. Если ссылка есть хоть у
     /// одного, у остальных прячем её местом, а не выбрасываем: иначе высота
@@ -153,13 +168,16 @@ public partial class OverlayWindow
     {
         if (list.Count < 2)
         {
-            BetaText.MinHeight = 0;
+            BetaBody.MinHeight = 0;
             _noticeSig = "";
             _noticeKeepLink = false;
             return;
         }
 
-        var sig = string.Join("", list.Select(i => i.Text + "|" + i.Head + "|" + i.Link));
+        // Варианты опроса — тоже часть высоты. Выбор в подпись не входит:
+        // строка варианта до ответа и после одной высоты (PollTemplates).
+        var sig = string.Join("", list.Select(i => i.Text + "|" + i.Head + "|" + i.Link + "|"
+            + string.Join("/", i.Poll?.Select(o => o.Text) ?? [])));
         if (sig == _noticeSig) return;
         _noticeSig = sig;
 
@@ -185,9 +203,9 @@ public partial class OverlayWindow
         {
             ruler.Text = item.Text;
             ruler.Measure(new Size(inner, double.PositiveInfinity));
-            tallest = Math.Max(tallest, ruler.DesiredSize.Height);
+            tallest = Math.Max(tallest, ruler.DesiredSize.Height + MeasurePoll(item, inner));
         }
-        BetaText.MinHeight = tallest;
+        BetaBody.MinHeight = tallest;
 
         // Ссылка есть хоть у одного — место под неё держим у всех.
         _noticeKeepLink = list.Any(i => !string.IsNullOrWhiteSpace(i.Link));
@@ -204,6 +222,7 @@ public partial class OverlayWindow
 
         // Нет сообщения — обычный текст «пишите в поддержку».
         BetaText.Text = n?.Text ?? Loc.T("ready.beta");
+        RenderPoll(n);
         // Одного восклицательного знака мало — предупреждение должно бросаться в
         // глаза: слово целиком и по треугольнику с каждой стороны.
         // Заголовок плашки: у неполадки всегда «ВНИМАНИЕ», у обычного сообщения —

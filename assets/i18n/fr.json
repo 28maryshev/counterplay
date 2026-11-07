@@ -690,6 +690,12 @@
       "tip": "Astuce",
       "update": "Mise à jour",
       "question": "Question"
+    },
+    "poll": {
+      "hint": "Répondez pour voir les résultats",
+      "votes": "Votes : {0}",
+      "failed": "Envoi impossible — réessayez plus tard",
+      "closed": "Ce sondage est terminé"
     }
   },
   "sync": {

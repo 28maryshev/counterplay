@@ -690,6 +690,12 @@
       "tip": "Consiglio",
       "update": "Aggiornamento",
       "question": "Domanda"
+    },
+    "poll": {
+      "hint": "Rispondi per vedere i risultati",
+      "votes": "Voti: {0}",
+      "failed": "Invio non riuscito — riprova più tardi",
+      "closed": "Questo sondaggio è chiuso"
     }
   },
   "sync": {

@@ -152,6 +152,35 @@ internal static class Smoke
             Lobby("""[{"puuid":"SMOKE-me"}]""");
             w.ShowReady(Loc.T("status.readyIdle"));
         });
+        await Step("опрос на плашке", async () =>
+        {
+            // Свой опрос вместо сообщений сайта. Голос не настоящий: при
+            // Notice.Frozen NoticePoll считает его на месте и на сайт не ходит.
+            Notice.Frozen = true;
+            File.WriteAllText(Path.Combine(AppPaths.Root, "notice.json"), """
+                {"items":[{"id":"smoke","kind":"info","head":"question","text":{"en":"Smoke?"},
+                  "poll":{"options":[{"id":"a","text":{"en":"Yes"}},{"id":"b","text":{"en":"No"}}],
+                          "counts":{"a":2}}}]}
+                """);
+            Notice.LoadCached();
+            w.ShowReadyPhase("Lobby");   // плашка живёт на экране готовности
+            w.ApplyNotice();
+            await Settle();
+
+            var poll = (ItemsControl)w.FindName("BetaPoll");
+            if (poll.Items.Count != 2) throw new InvalidOperationException($"вариантов {poll.Items.Count} вместо 2");
+            var holder = (DependencyObject)poll.ItemContainerGenerator.ContainerFromIndex(1);
+            var button = Find<System.Windows.Controls.Button>(holder, _ => true)
+                         ?? throw new InvalidOperationException("у варианта нет кнопки");
+            button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            await Settle();
+
+            var rows = poll.Items.Cast<OverlayWindow.PollOptionVm>().ToList();
+            if (rows.Any(r => r.CanVote) || rows[1].Score != "1 · 33%")
+                throw new InvalidOperationException(
+                    $"после голоса нет итога: {string.Join(" | ", rows.Select(r => r.Score))}");
+            w.ShowReady(Loc.T("status.readyIdle"));
+        });
 
         var db = RecommendationEngine.FindDb();
         if (db is null) Note("базы матчей нет — драфт не проверялся");

@@ -690,6 +690,12 @@
       "tip": "İpucu",
       "update": "Güncelleme",
       "question": "Soru"
+    },
+    "poll": {
+      "hint": "Sonuçları görmek için yanıtla",
+      "votes": "Oy: {0}",
+      "failed": "Gönderilemedi — sonra tekrar dene",
+      "closed": "Bu anket kapandı"
     }
   },
   "sync": {

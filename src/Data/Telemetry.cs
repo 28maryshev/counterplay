@@ -18,7 +18,8 @@ public static class Telemetry
     // Полноценной защитой это быть не может — из .exe строку всё равно достанут,
     // — но и лежать открытым текстом в публичном репозитории ей незачем.
     // Пусто (обычная dotnet build без параметра) — шлём без заголовка.
-    private static readonly string Secret =
+    // Тем же секретом подписан голос в опросе на плашке (NoticePoll).
+    internal static readonly string Secret =
         typeof(Telemetry).Assembly
             .GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
             .Cast<System.Reflection.AssemblyMetadataAttribute>()

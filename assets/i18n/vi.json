@@ -690,6 +690,12 @@
       "tip": "Mẹo",
       "update": "Cập nhật",
       "question": "Câu hỏi"
+    },
+    "poll": {
+      "hint": "Trả lời để xem kết quả",
+      "votes": "Lượt bình chọn: {0}",
+      "failed": "Không gửi được — hãy thử lại sau",
+      "closed": "Cuộc bình chọn đã kết thúc"
     }
   },
   "sync": {

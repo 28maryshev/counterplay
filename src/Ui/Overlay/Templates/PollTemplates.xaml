@@ -1,0 +1,78 @@
+﻿<ResourceDictionary x:Class="Counterplay.PollTemplates"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
+  </ResourceDictionary.MergedDictionaries>
+
+  <!-- Вариант ответа в опросе на плашке сообщений (PollOptionVm).
+
+       До ответа — кнопка: кружок выбора и текст, под курсором подсвечивается.
+       После ответа та же строка становится полосой: заливка по доле голосов,
+       справа «голосов · процент», свой вариант — золотом с закрашенным кружком.
+
+       Раскладка в обоих видах одна и та же: правый столбец держит место и до
+       ответа. Иначе текст переносился бы по-разному и плашка меняла высоту
+       ровно в момент нажатия. -->
+  <DataTemplate x:Key="PollOptionTemplate">
+    <Button Tag="{Binding}" Click="PollOption_Click" Margin="0,0,0,4" Focusable="False"
+            Cursor="Hand" IsHitTestVisible="{Binding CanVote}">
+      <Button.Template>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Box" CornerRadius="5" BorderThickness="1" BorderBrush="#2EFFFFFF"
+                  Background="#0AFFFFFF" SnapsToDevicePixels="True">
+            <Grid>
+              <!-- Полоса доли голосов: два столбца по долям, залит первый. -->
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="{Binding Fill}"/>
+                  <ColumnDefinition Width="{Binding Rest}"/>
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Bar" CornerRadius="4" Background="#1CFFFFFF"/>
+              </Grid>
+              <Grid Margin="8,4,8,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="15"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="58"/>
+                </Grid.ColumnDefinitions>
+                <Ellipse x:Name="Dot" Width="9" Height="9" Stroke="#7C97AC" StrokeThickness="1.2"
+                         HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <TextBlock x:Name="Label" Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap"
+                           FontFamily="{StaticResource UiFont}" FontSize="12" LineHeight="15"
+                           Foreground="#D7DEE6" VerticalAlignment="Center"/>
+                <TextBlock x:Name="Score" Grid.Column="2" Text="{Binding Score}"
+                           FontFamily="{StaticResource UiFont}" FontSize="11"
+                           Foreground="#9FB3C4" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Box" Property="BorderBrush" Value="#9936D6E7"/>
+              <Setter TargetName="Box" Property="Background" Value="#1436D6E7"/>
+              <Setter TargetName="Dot" Property="Stroke" Value="#36D6E7"/>
+            </Trigger>
+            <!-- Голос уходит на сайт — варианты не нажимаются. -->
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Box" Property="Opacity" Value="0.55"/>
+            </Trigger>
+            <!-- Ответил: кружки остаются только у своего варианта. -->
+            <DataTrigger Binding="{Binding Voted}" Value="True">
+              <Setter TargetName="Dot" Property="Visibility" Value="Hidden"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Mine}" Value="True">
+              <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+              <Setter TargetName="Dot" Property="Fill" Value="#FFE066"/>
+              <Setter TargetName="Dot" Property="Stroke" Value="#FFE066"/>
+              <Setter TargetName="Bar" Property="Background" Value="#47C89B3C"/>
+              <Setter TargetName="Box" Property="BorderBrush" Value="#66C89B3C"/>
+              <Setter TargetName="Label" Property="Foreground" Value="#FFE066"/>
+              <Setter TargetName="Score" Property="Foreground" Value="#FFE066"/>
+            </DataTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Button.Template>
+    </Button>
+  </DataTemplate>
+</ResourceDictionary>

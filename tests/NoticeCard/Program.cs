@@ -114,8 +114,8 @@ internal static class Program
         w.ShowReadyPhase("Lobby");   // плашка живёт на экране готовности
         Pump();
         var card = (Border)w.FindName("BetaCard")!;
-        var text = (TextBlock)w.FindName("BetaText")!;
-        var r = (card.ActualHeight, text.MinHeight);
+        var body = (StackPanel)w.FindName("BetaBody")!;   // текст и опрос — минимум у них
+        var r = (card.ActualHeight, body.MinHeight);
         w.Close();
         Pump();
         return r;
