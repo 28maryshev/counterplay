@@ -292,6 +292,8 @@ internal static class Program
     /// самый яркий, у остальных меньше, но не совсем плохо различимо». Внутри
     /// вида и цвета: у сильнейшего — самая яркая, яркость растёт с цифрой,
     /// заметно слабый — заметно тусклее, а текст не бледнее нижнего края.
+    /// Лидер во всю силу — с мягким свечением своего цвета (владелец, тот же
+    /// день: «лучший тег с самым высоким процентом — небольшое свечение в цвет»).
     /// </summary>
     private static void Brightness(string scene, List<FullRecCard> cards)
     {
@@ -306,7 +308,12 @@ internal static class Program
             for (var k = 1; k < byValue.Count; k++)
                 if (byValue[k].Strength + 1e-9 < byValue[k - 1].Strength)
                     problems.Add($"{g.Key.Kind}: «{byValue[k].Text}» тусклее «{byValue[k - 1].Text}»");
-            if (byValue.Any(t => Alpha(t.Fg) < 0xA0)) problems.Add($"{g.Key.Kind}: текст бледнее нижнего края");
+            if (byValue.Any(t => Alpha(t.Fg) < 0x88)) problems.Add($"{g.Key.Kind}: текст бледнее нижнего края");
+            // Свечение — у лидера вида и цвета во всю силу, и только у него.
+            var glowing = byValue.Where(t => t.Glow is not null).ToList();
+            if (glowing.Any(t => Math.Abs(t.Value) < Math.Abs(top.Value) - 1e-9 || t.Strength < 1 - 1e-9))
+                problems.Add($"{g.Key.Kind}: светится не лидер — «{glowing[0].Text}»");
+            if (top.Strength >= 1 - 1e-9 && top.Glow is null) problems.Add($"{g.Key.Kind}: лидер «{top.Text}» не светится");
             var low = byValue[0];
             if (byValue.Count > 1 && Math.Abs(top.Value) - Math.Abs(low.Value) >= 1.0 && top.Strength - low.Strength < 0.2)
                 problems.Add($"{g.Key.Kind}: «{low.Text}» почти как «{top.Text}»");
@@ -315,7 +322,8 @@ internal static class Program
         }
         Console.WriteLine($"  (сила → яркость: {string.Join("; ", shown)})");
         Check($"{scene}: яркость тегов по силе", problems.Count == 0,
-              problems.Count == 0 ? "сильнейший ярче всех, слабые тусклее, но читаются" : string.Join("; ", problems.Take(3)));
+              problems.Count == 0 ? $"сильнейший ярче всех и светится (свечений {cards.SelectMany(c => c.Tags).Count(x => x.Glow is not null)}), слабые тусклее, но читаются"
+                                  : string.Join("; ", problems.Take(3)));
     }
 
     // ── Сцены ─────────────────────────────────────────────────────────────

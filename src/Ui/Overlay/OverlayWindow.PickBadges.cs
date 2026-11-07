@@ -18,10 +18,25 @@ public partial class OverlayWindow
     // Яркость тега — от его силы среди показанных того же вида и цвета (владелец,
     // 07.11: «линия у Кейтлин ярче всех — её тег самый яркий»). Альфа текста,
     // рамки и заливки от слабого к сильнейшему; нижний край — чтобы слабый тег
-    // оставался читаемым.
-    private const byte TAG_FG_MIN = 0xA0, TAG_FG_MAX = 0xFF;
-    private const byte TAG_LINE_MIN = 0x45, TAG_LINE_MAX = 0xE0;
-    private const byte TAG_BG_MIN = 0x10, TAG_BG_MAX = 0x30;
+    // оставался читаемым (и его же владелец попросил опустить ещё немного).
+    private const byte TAG_FG_MIN = 0x88, TAG_FG_MAX = 0xFF;
+    private const byte TAG_LINE_MIN = 0x35, TAG_LINE_MAX = 0xE0;
+    private const byte TAG_BG_MIN = 0x0C, TAG_BG_MAX = 0x30;
+
+    // Лидер вида и цвета во всю силу — с мягким свечением своего цвета. Только
+    // полная сила: слабый лидер (у всех линия около +0,3) не светится.
+    private static readonly System.Windows.Media.Effects.Effect PlusGlow  = Glow(PlusColor);
+    private static readonly System.Windows.Media.Effects.Effect MinusGlow = Glow(MinusColor);
+
+    private static System.Windows.Media.Effects.Effect Glow(Color c)
+    {
+        var e = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = c, BlurRadius = 10, ShadowDepth = 0, Opacity = 0.65,
+        };
+        e.Freeze();
+        return e;
+    }
 
     /// Нижний край шкалы силы, пп: лидер слабее — тоже не во всю яркость (у всех
     /// линия около +0,3 — ярких нет). Те же пороги, что у полосок справа
@@ -59,9 +74,11 @@ public partial class OverlayWindow
             var top = Math.Max(leaders.GetValueOrDefault((t.Kind, t.Sign)), TagFloor(t.Kind));
             var s = Math.Clamp(Math.Abs(t.Value) / top, 0, 1);
             var c = t.Sign >= 0 ? PlusColor : MinusColor;
+            var lead = s >= 1 - 1e-9;
             return new TagVm(t.Kind, t.Sign, Glyphs.Of(t.Kind), t.Text, t.Tip,
                 Frozen(c, Lerp(TAG_FG_MIN, TAG_FG_MAX, s)), Frozen(c, Lerp(TAG_BG_MIN, TAG_BG_MAX, s)),
-                Frozen(c, Lerp(TAG_LINE_MIN, TAG_LINE_MAX, s)), t.Value, s);
+                Frozen(c, Lerp(TAG_LINE_MIN, TAG_LINE_MAX, s)), t.Value, s,
+                lead ? (t.Sign >= 0 ? PlusGlow : MinusGlow) : null);
         })];
 
     private static byte Lerp(byte a, byte b, double t) => (byte)Math.Round(a + (b - a) * t);
