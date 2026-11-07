@@ -83,10 +83,11 @@ partial class Program
     /// Прямые ссылки на файлы релизов (CDN GitHub) лимитом НЕ ограничены.
     /// Тег `latest` — катящийся: release.ps1 перезаливает в него фид и пакеты,
     /// поэтому адрес всегда один и тот же.
+    ///
+    /// Рядом с GitHub — зеркало на своём домене (`MirroredUpdateSource`): в
+    /// Китае GitHub режут, и обновления туда не доходили.
     /// </summary>
-    static Velopack.Sources.IUpdateSource UpdateSource =>
-        new Velopack.Sources.SimpleWebSource(
-            "https://github.com/28maryshev/counterplay/releases/download/latest/");
+    static Velopack.Sources.IUpdateSource UpdateSource => new MirroredUpdateSource();
 
     // Фоновая проверка обновлений: первый заход через 10 минут, дальше раз в час.
     // С автозапуском программа висит в
