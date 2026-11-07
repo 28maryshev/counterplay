@@ -33,6 +33,7 @@ internal static class Program
         await DownloadFallsBack();
         await CancelDoesNotFallBack();
         Addresses();
+        await LiveFeeds();
 
         Console.WriteLine(_fails == 0 ? "\nВСЁ В ПОРЯДКЕ" : $"\nНЕ ПРОШЛО: {_fails}");
         return _fails == 0 ? 0 : 1;
@@ -215,5 +216,39 @@ internal static class Program
               "зеркало — папка app/ на домене базы (туда заливает pipeline/mirror_app.py)");
         Check(MirroredUpdateSource.GithubUrl.EndsWith("/releases/download/latest/"),
               "GitHub — катящийся тег latest");
+    }
+
+    // ── настоящие адреса (нужна сеть) ────────────────────────────────────
+
+    private sealed class QuietLogger : IVelopackLogger
+    {
+        public void Log(VelopackLogLevel level, string? message, Exception? exception) { }
+    }
+
+    // Источник, каким его создаёт программа: оба фида отвечают одной версией,
+    // и выбирается зеркало. Отстало зеркало — проверка это и скажет. Без сети
+    // — пропуск.
+    private static async Task LiveFeeds()
+    {
+        Console.WriteLine("настоящие фиды:");
+        var mirror = new SimpleWebSource(MirroredUpdateSource.MirrorUrl);
+        var github = new SimpleWebSource(MirroredUpdateSource.GithubUrl);
+        var log = new QuietLogger();
+        string Top(VelopackAssetFeed f) => f.Assets.Select(a => a.Version).Max()?.ToString() ?? "пусто";
+        string m, g;
+        try { m = Top(await mirror.GetReleaseFeed(log, "Counterplay", "win")); }
+        catch (Exception ex) { m = "ошибка: " + ex.Message; }
+        try { g = Top(await github.GetReleaseFeed(log, "Counterplay", "win")); }
+        catch (Exception ex) { g = "ошибка: " + ex.Message; }
+        if (m.StartsWith("ошибка") && g.StartsWith("ошибка"))
+        {
+            Console.WriteLine($"  —    сети нет (зеркало: {m}; GitHub: {g}) — проверять нечего");
+            return;
+        }
+        Check(m == g, $"зеркало не отстало от GitHub (зеркало {m}, GitHub {g})");
+
+        var s = new MirroredUpdateSource();
+        var f = await s.GetReleaseFeed(log, "Counterplay", "win");
+        Check(s.ChosenName == "зеркало" && Top(f) == g, $"программа берёт зеркало ({s.ChosenName}, {Top(f)})");
     }
 }
