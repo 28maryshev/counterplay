@@ -13,11 +13,26 @@ public partial class OverlayWindow
     private static readonly Color MinusColor = Color.FromRgb(0xF0, 0x6A, 0x5E);
 
     private static readonly Brush PlusFg     = Frozen(PlusColor, 0xFF);
-    private static readonly Brush PlusBg     = Frozen(PlusColor, 0x1F);
-    private static readonly Brush PlusLine   = Frozen(PlusColor, 0x8C);
     private static readonly Brush MinusFg    = Frozen(MinusColor, 0xFF);
-    private static readonly Brush MinusBg    = Frozen(MinusColor, 0x1F);
-    private static readonly Brush MinusLine  = Frozen(MinusColor, 0x8C);
+
+    // Яркость тега — от его силы среди показанных того же вида и цвета (владелец,
+    // 07.11: «линия у Кейтлин ярче всех — её тег самый яркий»). Альфа текста,
+    // рамки и заливки от слабого к сильнейшему; нижний край — чтобы слабый тег
+    // оставался читаемым.
+    private const byte TAG_FG_MIN = 0xA0, TAG_FG_MAX = 0xFF;
+    private const byte TAG_LINE_MIN = 0x45, TAG_LINE_MAX = 0xE0;
+    private const byte TAG_BG_MIN = 0x10, TAG_BG_MAX = 0x30;
+
+    /// Нижний край шкалы силы, пп: лидер слабее — тоже не во всю яркость (у всех
+    /// линия около +0,3 — ярких нет). Те же пороги, что у полосок справа
+    /// (MetricRow.Defs); у «вслепую» — отрыв шанса контры от обычного.
+    private static double TagFloor(string kind) => kind switch
+    {
+        "lane"    => MetricRow.Defs.First(d => d.Key == "metric.direct").Floor,
+        "team"    => MetricRow.Defs.First(d => d.Key == "metric.team").Floor,
+        "synergy" => MetricRow.Defs.First(d => d.Key == "metric.synergy").Floor,
+        _         => 15.0,
+    };
 
     /// Иконка, которая есть у такой доли кандидатов, бледнеет: «сетап под ганки»
     /// у всех саппортов подряд выбрать между ними не помогает. Та же доля, что
@@ -31,11 +46,25 @@ public partial class OverlayWindow
         return b;
     }
 
-    private static List<TagVm> TagsOf(Recommendation r) =>
+    /// Сильнейший тег каждого вида и цвета среди показанных — мерка яркости.
+    private static Dictionary<(string Kind, int Sign), double> TagLeaders(IEnumerable<Recommendation> recs) =>
+        recs.SelectMany(r => r.Badges?.Tags ?? [])
+            .GroupBy(t => (t.Kind, t.Sign))
+            .ToDictionary(g => g.Key, g => g.Max(t => Math.Abs(t.Value)));
+
+    private static List<TagVm> TagsOf(Recommendation r, IReadOnlyDictionary<(string Kind, int Sign), double> leaders) =>
         r.Badges is not { } b ? []
-        : [.. b.Tags.Select(t => t.Sign >= 0
-            ? new TagVm(Glyphs.Of(t.Kind), t.Text, t.Tip, PlusFg, PlusBg, PlusLine)
-            : new TagVm(Glyphs.Of(t.Kind), t.Text, t.Tip, MinusFg, MinusBg, MinusLine))];
+        : [.. b.Tags.Select(t =>
+        {
+            var top = Math.Max(leaders.GetValueOrDefault((t.Kind, t.Sign)), TagFloor(t.Kind));
+            var s = Math.Clamp(Math.Abs(t.Value) / top, 0, 1);
+            var c = t.Sign >= 0 ? PlusColor : MinusColor;
+            return new TagVm(t.Kind, t.Sign, Glyphs.Of(t.Kind), t.Text, t.Tip,
+                Frozen(c, Lerp(TAG_FG_MIN, TAG_FG_MAX, s)), Frozen(c, Lerp(TAG_BG_MIN, TAG_BG_MAX, s)),
+                Frozen(c, Lerp(TAG_LINE_MIN, TAG_LINE_MAX, s)), t.Value, s);
+        })];
+
+    private static byte Lerp(byte a, byte b, double t) => (byte)Math.Round(a + (b - a) * t);
 
     /// <summary>
     /// Иконки карточки: от движка (уже по порядку: плюсы, связки, минусы) и

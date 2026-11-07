@@ -76,7 +76,9 @@ public partial class OverlayWindow
                     .. WindowIcons(notOwned, items, ChampionTraits.ChampArch(r.ChampionId), _allyStyle)];
         }
         var commonIcons = CommonIcons([.. recs.Select(AllIcons)]);
-        List<TagVm>  Tags(Recommendation r)  => cfg.DraftReasons ? TagsOf(r) : [];
+        // Яркость тегов — от сильнейшего того же вида среди показанных (та же мерка у пула).
+        var tagLeaders  = TagLeaders(recs);
+        List<TagVm>  Tags(Recommendation r)  => cfg.DraftReasons ? TagsOf(r, tagLeaders) : [];
         List<IconVm> Icons(Recommendation r) => cfg.DraftReasons ? IconsOf(AllIcons(r), commonIcons) : [];
 
         // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ»): лучший из пула на мою

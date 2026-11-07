@@ -48,7 +48,8 @@ public sealed partial class RecommendationEngine
             var pct = $"{100 * f.Risk.Chance:F0}";
             tags.Add(new PickTag("blind", f.Risk.Verdict,
                 Loc.T(f.Risk.Verdict > 0 ? "pickTag.blindSafe" : "pickTag.blindRisky", pct),
-                Plain(BlindReason(f.Risk) ?? "")));
+                Plain(BlindReason(f.Risk) ?? ""),
+                100 * Math.Abs(f.Risk.Chance - f.Risk.Typical)));   // насколько шанс не как у всех, пп
             return;
         }
         if (f.LaneOppId == 0 && f.DuoOppId == 0) return;
@@ -69,7 +70,7 @@ public sealed partial class RecommendationEngine
             tip.Add(Loc.T(f.Duo > 0 ? "reason.botlaneGood" : "reason.botlaneBad", DataDragon.Name(f.DuoOppId)));
 
         tags.Add(new PickTag("lane", Math.Sign(f.Lane),
-            Loc.T("pickTag.lane", Num(f.Lane)), string.Join("\n", tip)));
+            Loc.T("pickTag.lane", Num(f.Lane)), string.Join("\n", tip), f.Lane));
     }
 
     private static void TeamTag(PickFacts f, List<PickTag> tags)
@@ -82,7 +83,7 @@ public sealed partial class RecommendationEngine
             .Select(e => $"{DataDragon.Name(e.Id)} ({Num(e.Delta)}%)").ToList();
         var tip = named.Count == 0 ? Loc.T("pickTag.teamTip")
                 : Loc.T(good ? "reason.favMatchups" : "reason.hardMatchups", string.Join(", ", named));
-        tags.Add(new PickTag("team", good ? 1 : -1, Loc.T("pickTag.team", Num(f.Team)), tip));
+        tags.Add(new PickTag("team", good ? 1 : -1, Loc.T("pickTag.team", Num(f.Team)), tip, f.Team));
     }
 
     /// Тег синергии и иконки связок. На теге — самая сильная названная связка,
@@ -107,14 +108,14 @@ public sealed partial class RecommendationEngine
             inTag = top.Kind ?? "";
             var label = top.Kind is { } k ? Loc.T($"pairShort.{k}") : Loc.T("pickTag.synergyWord");
             var tip = pairs.Count > 0 ? string.Join("\n", pairs.Select(PairLine)) : Loc.T("reason.fitsTeam");
-            tags.Add(new PickTag("synergy", 1, $"{label} {Num(f.Synergy)}%", tip));
+            tags.Add(new PickTag("synergy", 1, $"{label} {Num(f.Synergy)}%", tip, f.Synergy));
         }
         else if (f.Synergy <= -TAG_SYN_BAD)
         {
             var named = f.ByAlly.Where(a => a.Delta < 0).OrderBy(a => a.Delta).Take(2)
                 .Select(a => $"{DataDragon.Name(a.Id)} ({Num(a.Delta)}%)");
             tags.Add(new PickTag("synergy", -1, Loc.T("pickTag.synergy", Num(f.Synergy)),
-                Loc.T("reason.synBad", string.Join(", ", named))));
+                Loc.T("reason.synBad", string.Join(", ", named)), f.Synergy));
             worst = [];   // худшие союзники уже в подсказке тега
         }
 
@@ -163,20 +164,46 @@ public sealed partial class RecommendationEngine
         else minus.Add(Icon("personalDown", -1, Loc.T("reason.personalDown", pct, g)));
     }
 
-    /// Против их стиля: есть чем ответить — плюс (как строка «против дайва»);
-    /// нечем совсем (ни архетипа, ни инструментов) — минус.
+    /// <summary>
+    /// Стиль врага, о котором иконка может говорить: только ЯВНЫЙ
+    /// (<see cref="ChampionTraits.DominantStyle"/> — тот же порог, что у подсветки
+    /// стиля своей команды), а «фронт-ту-бэк» — только если у врагов есть танк.
+    /// В счёте стиль берётся мягче (просто перевес), но подсказка говорит
+    /// словами «их команда стоит за крепким фронтом», и без порога она врала:
+    /// владелец (07.11) увидел «не пробивает их фронт» против Вейн, Эвелинн,
+    /// Мэл и Лулу — «они даже фронтлайн не пикнули»; фронт-ту-бэк там дали
+    /// гиперкерри и щиты Лулу.
+    /// </summary>
+    private static ChampionTraits.Arch? ShownEnemyStyle(IReadOnlyList<int> enemies)
+    {
+        var style = ChampionTraits.DominantStyle(enemies);
+        return style == ChampionTraits.Arch.FrontToBack && !enemies.Any(ChampionTraits.IsTanky) ? null : style;
+    }
+
+    /// <summary>
+    /// Против их стиля: есть чем ответить — плюс (как строка «против дайва»).
+    /// Минус — только когда ответить правда нечем, по тем же словам, что в
+    /// подсказке: против дайва — ни пила, ни отхода, ни рывков; против пока —
+    /// ни рывков, ни захода, и сам не бьёт издалека; против фронта — ближний
+    /// бой без поука и бёрста. Дальняя атака — тоже дальность: у Джинкс её
+    /// нет в метках, а ракеты есть (владелец, 07.11).
+    /// </summary>
     private static void StyleIcons(PickFacts f, List<PickIcon> plus, List<PickIcon> minus)
     {
-        if (f.EnemyDom is not { } dom) return;
-        var (want, tools) = StyleParts(f.ChampId, dom);
-        var (good, goodText, bad) = dom switch
+        if (f.EnemyStyle is not { } dom) return;
+        var id = f.ChampId;
+        var (want, tools) = StyleParts(id, dom);
+        var (good, goodText, bad, helpless) = dom switch
         {
-            ChampionTraits.Arch.Dive     => ("antiDive",  "reason.antiDive",     "noDive"),
-            ChampionTraits.Arch.PickPoke => ("antiPoke",  "reason.antiPickPoke", "noPoke"),
-            _                            => ("antiFront", "reason.antiFront",    "noFront"),
+            ChampionTraits.Arch.Dive => ("antiDive", "reason.antiDive", "noDive",
+                ChampionTraits.Peel(id) == 0 && ChampionTraits.Disengage(id) == 0 && ChampionTraits.Gapclose(id) == 0),
+            ChampionTraits.Arch.PickPoke => ("antiPoke", "reason.antiPickPoke", "noPoke",
+                ChampionTraits.Gapclose(id) == 0 && ChampionTraits.Engage(id) == 0 && !ChampionTraits.LongRange(id)),
+            _ => ("antiFront", "reason.antiFront", "noFront",
+                !DataDragon.IsRanged(id) && !ChampionTraits.LongRange(id) && ChampionTraits.Burst(id) == 0),
         };
         if (tools >= ICON_STYLE_TOOLS) plus.Add(Icon(good, 1, Loc.T(goodText)));
-        else if (want <= 0 && tools <= 0) minus.Add(Icon(bad, -1, Loc.T($"reason.{bad}")));
+        else if (want <= 0 && helpless) minus.Add(Icon(bad, -1, Loc.T($"reason.{bad}")));
     }
 
     /// Состав своей команды: тип урона и общая уязвимость (одним предметом
@@ -213,7 +240,7 @@ public sealed partial class RecommendationEngine
     {
         var tags = new List<PickTag>();
         if (synDelta > 0.5)
-            tags.Add(new PickTag("synergy", 1, Loc.T("pickTag.synergy", Num(synDelta)), Loc.T("reason.fitsTeam")));
+            tags.Add(new PickTag("synergy", 1, Loc.T("pickTag.synergy", Num(synDelta)), Loc.T("reason.fitsTeam"), synDelta));
         var icons = new List<PickIcon>();
         var wr = $"{50 + baseDelta:F1}";
         if (baseDelta >= 2.5) icons.Add(Icon("patchOp", 1, Loc.T("reason.baseTop", wr)));

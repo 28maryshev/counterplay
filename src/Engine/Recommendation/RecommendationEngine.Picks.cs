@@ -159,6 +159,7 @@ public sealed partial class RecommendationEngine
         // Доминирующий архетип врага определяем при 2+ известных пиках.
         ChampionTraits.Arch? enemyDom = allEnemyIds.Count >= 2
             ? ChampionTraits.Dominant(allEnemyIds) : null;
+        var enemyStyle = ShownEnemyStyle(allEnemyIds);   // строже — только для иконок
 
         // Item value (п.1): союзники (без меня) и враги для профиля уязвимостей.
         var vulnAllyIds = allyData.Select(a => a.Id).ToList();
@@ -310,7 +311,7 @@ public sealed partial class RecommendationEngine
                 var facts = new PickFacts(champId, myRole,
                     shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
                     teamDelta, otherByEnemy, synDelta, synByAlly, grade, baseDelta, comfortDelta, personalDelta,
-                    enemyDom, dmg, vuln, exploitBy, structReasons);
+                    enemyStyle, dmg, vuln, exploitBy, structReasons);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
                                           Blind: laneBlind, Facts: facts);
             })

@@ -36,7 +36,8 @@ internal static class Program
 
     private const int Malphite = 54, Yasuo = 157, LeeSin = 64, Jinx = 222, Lulu = 117,
                       Darius = 122, Zed = 238, Viego = 234, Caitlyn = 51, Morgana = 25,
-                      Ahri = 103, Orianna = 61, Garen = 86, Leona = 89, Ezreal = 81, Thresh = 412;
+                      Ahri = 103, Orianna = 61, Garen = 86, Leona = 89, Ezreal = 81, Thresh = 412,
+                      Kayn = 141, Aurora = 893, Evelynn = 28, Mel = 800, Vayne = 67;
 
     [STAThread]
     private static int Main()
@@ -67,6 +68,7 @@ internal static class Program
             ("топ против Дариуса, Ясуо в команде", TopVsDarius()),
             ("мид первым пиком, вслепую", BlindMid()),
             ("саппорт против Кейтлин и Морганы", SupportVsBot()),
+            ("стрелок против Вейн, Эвелинн, Мэл и Лулу", AdcVsVayne()),
         };
         var all = new List<(string Scene, Recommendation R)>();
         foreach (var (name, draft) in scenes)
@@ -79,6 +81,7 @@ internal static class Program
         Console.WriteLine();
         Engine(all);
         Owner(engine);
+        Front(engine, scenes);
         Blind(all.Where(x => x.Scene.Contains("вслепую")).Select(x => x.R).ToList());
 
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -196,6 +199,34 @@ internal static class Program
               : r is null ? "нет кандидата" : Line(r));
     }
 
+    /// <summary>
+    /// «Их фронт»: владелец (07.11) увидел «не пробивает их фронт» у Джинкс против
+    /// Вейн, Эвелинн, Мэл и Лулу — «они даже фронтлайн не пикнули, и у Джинкс
+    /// есть дальность». Иконки про их фронт — только если у врагов есть танк;
+    /// «не пробьёт» — никогда у тех, кто бьёт издалека.
+    /// </summary>
+    private static void Front(RecommendationEngine engine, (string Name, DraftState Draft)[] scenes)
+    {
+        var bad = new List<string>();
+        foreach (var (name, draft) in scenes)
+        {
+            var enemies = draft.TheirTeam.Select(p => p.EffectiveChampionId).Where(id => id != 0).ToList();
+            var tank = enemies.Any(ChampionTraits.IsTanky);
+            foreach (var r in engine.Recommend(draft, 8))
+                foreach (var i in r.Badges?.Icons ?? [])
+                {
+                    if (i.Kind is "antiFront" or "noFront" && !tank) bad.Add($"{Who(r)}: «{i.Title}» без танка у врагов ({name})");
+                    if (i.Kind == "noFront" && DataDragon.IsRanged(r.ChampionId)) bad.Add($"{Who(r)}: «{i.Title}» при дальней атаке");
+                }
+        }
+        Check("иконки «их фронт» — только при танке у врагов, «не пробьёт» — не у дальних", bad.Count == 0,
+              bad.Count == 0 ? "да" : string.Join("; ", bad.Take(4)));
+        var jinx = engine.Recommend(AdcVsVayne(), 1, [Jinx]).FirstOrDefault();
+        var front = jinx?.Badges?.Icons.Where(i => i.Kind is "antiFront" or "noFront").Select(i => i.Title).ToList() ?? [];
+        Check("Джинкс против Вейн, Эвелинн, Мэл и Лулу — про их фронт ни слова", jinx is not null && front.Count == 0,
+              jinx is null ? "нет кандидата" : front.Count == 0 ? Line(jinx) : string.Join(", ", front));
+    }
+
     /// Вслепую тег совпадает с выводом движка — со строкой «надёжен / рискован».
     private static void Blind(List<Recommendation> recs)
     {
@@ -243,6 +274,7 @@ internal static class Program
                   $"карточек {cards.Count}, с тегами {withTags}, с иконками {withIcons}");
             var faded = cards.SelectMany(c => c.Icons).Count(x => x.Faded);
             Console.WriteLine($"  (бледных иконок: {faded})");
+            Brightness(scenes[i].Name, cards);
 
             // Текста доводов в карточках больше нет — только теги и иконки.
             var old = Enumerable.Range(0, list.Items.Count)
@@ -253,6 +285,37 @@ internal static class Program
             if (snap is { Length: > 0 }) Snap(list, snap, $"pick-badges-{i + 1}.png");
         }
         w.Close();
+    }
+
+    /// <summary>
+    /// Яркость тегов (владелец, 07.11): «линия у Кейтлин ярче всех — её тег
+    /// самый яркий, у остальных меньше, но не совсем плохо различимо». Внутри
+    /// вида и цвета: у сильнейшего — самая яркая, яркость растёт с цифрой,
+    /// заметно слабый — заметно тусклее, а текст не бледнее нижнего края.
+    /// </summary>
+    private static void Brightness(string scene, List<FullRecCard> cards)
+    {
+        static byte Alpha(System.Windows.Media.Brush b) => ((SolidColorBrush)b).Color.A;
+        var problems = new List<string>();
+        var shown = new List<string>();
+        foreach (var g in cards.SelectMany(c => c.Tags).GroupBy(t => (t.Kind, t.Sign)))
+        {
+            var byValue = g.OrderBy(t => Math.Abs(t.Value)).ToList();
+            var top = byValue[^1];
+            if (byValue.Any(t => Alpha(t.Fg) > Alpha(top.Fg))) problems.Add($"{g.Key.Kind}: ярче лидера");
+            for (var k = 1; k < byValue.Count; k++)
+                if (byValue[k].Strength + 1e-9 < byValue[k - 1].Strength)
+                    problems.Add($"{g.Key.Kind}: «{byValue[k].Text}» тусклее «{byValue[k - 1].Text}»");
+            if (byValue.Any(t => Alpha(t.Fg) < 0xA0)) problems.Add($"{g.Key.Kind}: текст бледнее нижнего края");
+            var low = byValue[0];
+            if (byValue.Count > 1 && Math.Abs(top.Value) - Math.Abs(low.Value) >= 1.0 && top.Strength - low.Strength < 0.2)
+                problems.Add($"{g.Key.Kind}: «{low.Text}» почти как «{top.Text}»");
+            shown.Add($"{g.Key.Kind}{(g.Key.Sign < 0 ? "−" : "+")} " +
+                      string.Join(" ", byValue.Select(t => $"{Math.Abs(t.Value):0.0}→{t.Strength:0.00}")));
+        }
+        Console.WriteLine($"  (сила → яркость: {string.Join("; ", shown)})");
+        Check($"{scene}: яркость тегов по силе", problems.Count == 0,
+              problems.Count == 0 ? "сильнейший ярче всех, слабые тусклее, но читаются" : string.Join("; ", problems.Take(3)));
     }
 
     // ── Сцены ─────────────────────────────────────────────────────────────
@@ -270,6 +333,14 @@ internal static class Program
         [new(5, Darius, 0, "top", false), new(6, Viego, 0, "jungle", false), new(7, Zed, 0, "middle", false),
          new(8, Caitlyn, 0, "bottom", false), new(9, Morgana, 0, "utility", false)],
         0, "top", exposed: false);
+
+    // Снимок владельца 07.11: я — стрелок; у врагов Вейн, Эвелинн, Мэл, Лулу (топа нет).
+    private static DraftState AdcVsVayne() => Draft(
+        [new(0, Darius, 0, "top", false), new(1, Kayn, 0, "jungle", false), new(2, Aurora, 0, "middle", false),
+         new(3, 0, 0, "bottom", true), new(4, Leona, 0, "utility", false)],
+        [new(5, 0, 0, "top", false), new(6, Evelynn, 0, "jungle", false), new(7, Mel, 0, "middle", false),
+         new(8, Vayne, 0, "bottom", false), new(9, Lulu, 0, "utility", false)],
+        3, "bottom", exposed: false);
 
     private static DraftState BlindMid() => Draft(
         [new(0, 0, 0, "middle", true), new(1, LeeSin, 0, "jungle", false), new(2, 0, 0, "top", false),
