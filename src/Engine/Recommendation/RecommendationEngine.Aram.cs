@@ -48,10 +48,10 @@ public sealed partial class RecommendationEngine
 
             double gap = 0;
             var reasons = new List<string>();
-            if (!hasFront && (ChampionTraits.IsTanky(champId) || ChampionTags.Has(champId, "engage")))
-            { gap += 2.5; reasons.Add(Good(Loc.T("reason.aramFront"))); }
-            if (!hasHeal && ChampionTraits.HealReliant(champId))
-            { gap += 1.5; reasons.Add(Good(Loc.T("reason.aramHeal"))); }
+            var front = !hasFront && (ChampionTraits.IsTanky(champId) || ChampionTags.Has(champId, "engage"));
+            var heal  = !hasHeal && ChampionTraits.HealReliant(champId);
+            if (front) { gap += 2.5; reasons.Add(Good(Loc.T("reason.aramFront"))); }
+            if (heal)  { gap += 1.5; reasons.Add(Good(Loc.T("reason.aramHeal"))); }
             if (ChampionTraits.LongRange(champId)) gap += 0.8;
 
             var comfort = ComfortDelta(champId);
@@ -65,7 +65,8 @@ public sealed partial class RecommendationEngine
 
             var score = W_ARAM_BASE * baseDelta + W_ARAM_SYN * synDelta
                       + W_ARAM_DMG * dmgDelta + W_ARAM_GAP * gap + W_POOL * comfort;
-            return new Recommendation(champId, score, baseDelta, 0, 0, synDelta, comfort, 0, [.. reasons]);
+            return new Recommendation(champId, score, baseDelta, 0, 0, synDelta, comfort, 0, [.. reasons],
+                                      Badges: AramBadges(baseDelta, synDelta, comfort, front, heal));
         })
         .OrderByDescending(r => r.Score)
         .ToList();

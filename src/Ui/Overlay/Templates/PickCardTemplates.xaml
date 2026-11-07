@@ -128,39 +128,69 @@
                          FontFamily="{StaticResource DisplayFont}"
                          FontSize="21" FontWeight="Bold"
                          TextTrimming="CharacterEllipsis"/>
-              <!-- Нет чемпиона на аккаунте -->
-              <Border Background="#22F0402F" BorderBrush="#F0402F" BorderThickness="1"
-                      CornerRadius="3" Padding="5,1" HorizontalAlignment="Left"
-                      Margin="0,2,0,1" Visibility="{Binding NotOwnedVisibility}">
-                <TextBlock Text="{Binding NotOwnedLabel}" Foreground="#FF6A5A"
-                           FontFamily="{StaticResource UiFont}" FontSize="11" FontWeight="Bold"/>
-              </Border>
               <TextBlock Text="{Binding WinRate}" Foreground="#4A6880"
                          FontFamily="{StaticResource UiFont}" FontSize="12"/>
-              <TextBlock Foreground="#8AA6BC"
-                         loc:ReasonInlines.Segments="{Binding ReasonSegs}"
-                         FontFamily="{StaticResource UiFont}" FontSize="12"
-                         TextWrapping="Wrap" Margin="0,7,0,0" LineHeight="18"/>
-
-              <!-- Итемы, которыми враг контрит состав -->
-              <StackPanel Margin="0,8,0,0" Visibility="{Binding CounterItemsVisibility}">
-                <TextBlock Text="{loc:T draft.counterItems}" Foreground="#7C97AC"
-                           FontFamily="{StaticResource UiFont}" FontSize="10"/>
-                <ItemsControl ItemsSource="{Binding CounterItems}" Margin="0,3,0,0">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border CornerRadius="3" Margin="0,0,4,0"
-                              BorderBrush="#4A3A22" BorderThickness="1"
-                              ToolTip="{Binding Name}">
-                        <Image Source="{Binding Icon}" Width="22" Height="22"/>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </StackPanel>
+              <!-- Теги: ключевые выводы про драфт с цифрой («Линия +1,3%»).
+                   Плашка цветом знака: зелёная за пик, красная против. -->
+              <ItemsControl ItemsSource="{Binding Tags}" Margin="0,7,0,0"
+                            Visibility="{Binding TagsVisibility}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border CornerRadius="10" BorderThickness="1" Padding="6,2,9,2" Margin="0,0,5,5"
+                            Background="{Binding Bg}" BorderBrush="{Binding Border}"
+                            ToolTipService.InitialShowDelay="250">
+                      <Border.ToolTip>
+                        <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" MaxWidth="300"/>
+                      </Border.ToolTip>
+                      <StackPanel Orientation="Horizontal">
+                        <Viewbox Width="13" Height="13" VerticalAlignment="Center">
+                          <Canvas Width="24" Height="24">
+                            <Path Data="{Binding Glyph}" Stroke="{Binding Fg}" StrokeThickness="2.2"
+                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                          </Canvas>
+                        </Viewbox>
+                        <TextBlock Text="{Binding Text}" Foreground="{Binding Fg}" Margin="5,0,0,0"
+                                   FontFamily="{StaticResource UiFont}" FontSize="12" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <!-- Иконки: признаки без текста (сила в патче, комфорт, связки,
+                   перекос урона…), имя и фраза — в подсказке. Общие для
+                   большинства кандидатов бледнее (Opacity). -->
+              <ItemsControl ItemsSource="{Binding Icons}" Margin="-3,1,0,0"
+                            Visibility="{Binding IconsVisibility}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Width="26" Height="26" Background="Transparent" Opacity="{Binding Opacity}"
+                            ToolTipService.InitialShowDelay="250">
+                      <Border.ToolTip>
+                        <StackPanel MaxWidth="300">
+                          <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold"/>
+                          <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                          <TextBlock Text="{Binding Note}" Foreground="#7C97AC" FontSize="11"
+                                     TextWrapping="Wrap" Margin="0,5,0,0"
+                                     Visibility="{Binding NoteVisibility}"/>
+                        </StackPanel>
+                      </Border.ToolTip>
+                      <Viewbox Width="18" Height="18">
+                        <Canvas Width="24" Height="24">
+                          <Path Data="{Binding Glyph}" Stroke="{Binding Fg}" StrokeThickness="2"
+                                StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        </Canvas>
+                      </Viewbox>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </StackPanel>
 
             <!-- Показатели: справа, по центру бокса. Отступ справа — место

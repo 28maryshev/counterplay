@@ -14,4 +14,6 @@ public sealed record Recommendation(
     string[] Reasons,
     int    Rank   = 0,    // место в полном списке (1 = лучший)
     bool   IsMyPick = false,  // это мой уже выбранный/наведённый чемпион
-    bool   Blind = false);    // оппонента ещё нет: DirectDelta — ожидаемый матчап вслепую (BlindRisk)
+    bool   Blind = false,     // оппонента ещё нет: DirectDelta — ожидаемый матчап вслепую (BlindRisk)
+    PickFacts?  Facts  = null,   // из чего строятся теги и иконки (только у подбора пика)
+    PickBadges? Badges = null);  // теги и иконки карточки — у показанных кандидатов

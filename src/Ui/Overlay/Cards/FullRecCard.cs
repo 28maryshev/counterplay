@@ -26,8 +26,11 @@ public sealed class FullRecCard
     public string       ScoreColor { get; init; } = "#C89B3C";
     public string       WinRate    { get; init; } = "";
     public ImageSource? Icon       { get; init; }
-    public string       ReasonText { get; init; } = "";
-    public IEnumerable<ReasonSeg> ReasonSegs { get; init; } = [];
+    // Теги (выводы с цифрой) и иконки (признаки без текста) — вместо строк доводов.
+    public List<TagVm>  Tags  { get; init; } = [];
+    public List<IconVm> Icons { get; init; } = [];
+    public Visibility   TagsVisibility  => Tags.Count  > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility   IconsVisibility => Icons.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     // Показатели справа (порядок и цвета — MetricRow.Defs).
     public List<MetricRow> Metrics { get; init; } = [];
     public string       ArchGlyph  { get; init; } = "";
@@ -43,13 +46,6 @@ public sealed class FullRecCard
     public string       ArchRing      => ArchStrong ? "#F5D77A" : "#00000000";
     public double       ArchRingWidth => ArchStrong ? 2.0 : 0.0;
     public List<string> SynDashes  { get; init; } = []; // цвета связок с союзниками
-
-    // Иконки предметов, которыми враг контрит состав (см. ItemValue.CounterItems).
-    // С названием: предметов в таблице два десятка, и по значку узнаётся далеко
-    // не каждый — название всплывает при наведении.
-    public List<CounterItemVm> CounterItems { get; init; } = [];
-    public Visibility CounterItemsVisibility =>
-        CounterItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     // Мой уже выбранный чемпион — выделяем карточку и показываем бейдж.
     public bool         IsMyPick   { get; init; }
@@ -79,10 +75,8 @@ public sealed class FullRecCard
     public bool         CanDislike { get; init; }
     public string       DislikeTip => Loc.T("dislike.tip", Dislikes.HideGames);
 
-    // Чемпиона нет на аккаунте — красная рамка + надпись «нет чемпиона».
+    // Чемпиона нет на аккаунте — красная рамка; объяснение — красная иконка замка.
     public bool         NotOwned      { get; init; }
-    public string       NotOwnedLabel { get; init; } = "";
-    public Visibility   NotOwnedVisibility => NotOwned ? Visibility.Visible : Visibility.Collapsed;
 
     // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ») — подпись слота.
     public bool         FromPool   { get; init; }

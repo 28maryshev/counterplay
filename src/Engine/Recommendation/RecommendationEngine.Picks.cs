@@ -241,13 +241,14 @@ public sealed partial class RecommendationEngine
                 // Item value (п.1) + баланс типа урона (AD/AP): влияют на СКОР (штраф за
                 // стак уязвимости/типа урона, бонус за наказание врага), но в тексте
                 // причин НЕ выводятся — уязвимости показываем строкой итем-иконок внизу.
-                var (vulnPen, _, _)   = ItemValue.VulnPenalty(champId, vulnAllyIds);
-                var (exploit, _)      = ItemValue.ExploitBonus(champId, allEnemyIds);
-                var (dmgDelta, _, _)  = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
+                var vuln              = ItemValue.VulnPenalty(champId, vulnAllyIds);
+                var exploitBy         = ItemValue.ExploitBonus(champId, allEnemyIds);
+                var dmg               = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
+                var (vulnPen, exploit, dmgDelta) = (vuln.Penalty, exploitBy.Bonus, dmg.Delta);
 
                 // Структурная синергия джангл↔саппорт (п.4).
                 var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId, vulnAllyIds);
-                draftReasons.AddRange(structReasons);
+                draftReasons.AddRange(structReasons.Select(s => s.Text));
 
                 // Бот 2v2: матчап против вражеского дуо-партнёра (кросс-роль).
                 var (btg, btw)   = _botlaneReady && enemyDuoId != 0 && duoRole != null
@@ -305,8 +306,13 @@ public sealed partial class RecommendationEngine
                 // хотя счёт уже учитывал контру против их адк.
                 // Вслепую здесь ожидаемое (BlindRisk) — полоска подписана «вслепую».
                 var shownDirect = directDelta + botlaneDelta;
+                var grade = PickGrade(champId, myRole);
+                var facts = new PickFacts(champId, myRole,
+                    shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
+                    teamDelta, otherByEnemy, synDelta, synByAlly, grade, baseDelta, comfortDelta, personalDelta,
+                    enemyDom, dmg, vuln, exploitBy, structReasons);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
-                                          Blind: laneBlind);
+                                          Blind: laneBlind, Facts: facts);
             })
             .OrderByDescending(r => r.Score)
             .ToList();
@@ -321,8 +327,13 @@ public sealed partial class RecommendationEngine
         // Топ-6: мой уже выбранный чемпион остаётся в подборе наравне со всеми и
         // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
         // он выпадает из списка так же, как любой другой кандидат.
+        // Теги и иконки — только показанным: им нужен винрейт по патчам (запрос в базу).
         return ordered.Take(topN)
-            .Select((r, i) => r with { Rank = i + 1, IsMyPick = r.ChampionId == myPickId })
+            .Select((r, i) => r with
+            {
+                Rank = i + 1, IsMyPick = r.ChampionId == myPickId,
+                Badges = r.Facts is { } f ? BuildBadges(f) : null,
+            })
             .ToList();
     }
 
@@ -504,11 +515,12 @@ public sealed partial class RecommendationEngine
 
     // Структурные правила синергии джангл↔саппорт (п.4): не из статистики, а из
     // логики команды («агро-джанглеру нужен сетап», «оллин-АДК нужен инициатор»).
-    private static (double Bonus, List<string> Reasons) StructuralBonus(
+    // Доводы — с видом: из него карточка берёт иконку связки (wombo, jgSetup…).
+    private static (double Bonus, List<(string Kind, string Text)> Reasons) StructuralBonus(
         int champId, string myRole, int jungleAllyId, int adcAllyId, IReadOnlyList<int> allyIds)
     {
         double b = 0;
-        var reasons = new List<string>();
+        var reasons = new List<(string Kind, string Text)>();
 
         // Тимфайт-вомбо: у кандидата свой мощный AoE/канал-ульт, а у команды уже есть
         // ядро таких же ультов И кто-то умеет собрать/зафиксировать пачку → его ульт
@@ -519,7 +531,7 @@ public sealed partial class RecommendationEngine
             if (aoeAllies >= 2 && allyIds.Any(TeamSynergies.IsGrouper))
             {
                 b += Math.Min(aoeAllies, 3) * 0.7; // +1.4 … +2.1 (×W_STRUCT)
-                reasons.Add(Good(Loc.T("reason.womboAoe")));
+                reasons.Add(("wombo", Good(Loc.T("reason.womboAoe"))));
             }
         }
 
@@ -531,7 +543,7 @@ public sealed partial class RecommendationEngine
             if (ChampionTraits.HardCc(champId) >= 1)
             {
                 b += 1;
-                reasons.Add(Good(Loc.T("reason.jgSetup", DataDragon.Name(jungleAllyId))));
+                reasons.Add(("jgSetup", Good(Loc.T("reason.jgSetup", DataDragon.Name(jungleAllyId)))));
             }
             if (ChampionTraits.EarlyPower(champId) >= 2) b += 0.5;
             if (ChampionTraits.EarlyPower(champId) == 0) b -= 1;
@@ -543,12 +555,12 @@ public sealed partial class RecommendationEngine
             if (ChampionTraits.EngageDependentAdc(adcAllyId) && ChampionTraits.Engage(champId) >= 2)
             {
                 b += 1;
-                reasons.Add(Good(Loc.T("reason.adcEngage", DataDragon.Name(adcAllyId))));
+                reasons.Add(("adcEngage", Good(Loc.T("reason.adcEngage", DataDragon.Name(adcAllyId)))));
             }
             if (ChampionTraits.ScaleAdcCarry(adcAllyId) && ChampionTraits.Peel(champId) >= 2)
             {
                 b += 1;
-                reasons.Add(Good(Loc.T("reason.adcScale", DataDragon.Name(adcAllyId))));
+                reasons.Add(("adcScale", Good(Loc.T("reason.adcScale", DataDragon.Name(adcAllyId)))));
             }
         }
 

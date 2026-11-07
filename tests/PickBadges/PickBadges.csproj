@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Теги и иконки карточки пика: цифры тегов — те же, что в подборе; «линия»
+       и «вслепую» не вместе; порядок иконок; минусы видны; значки и строки
+       есть у каждого вида; окно рисует их на карточках. CP_SNAP — снимок. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+  </ItemGroup>
+
+</Project>

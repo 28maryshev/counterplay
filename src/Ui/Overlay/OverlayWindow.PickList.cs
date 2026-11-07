@@ -40,36 +40,6 @@ public partial class OverlayWindow
         // масштабируются, а сам он — в золотой рамке (MetricRow).
         var metricMax = MetricRow.MaxOf(recs);
 
-        // Имена чемпионов драфта → цвет их архетипа (подсветка имён в обоснованиях).
-        // Имена чемпионов в доводах красим по СТОРОНЕ: свои зелёным, враги
-        // красным. Раньше цвет брался от архетипа — три-четыре разных оттенка,
-        // и по строке «выгодные матчапы против Калиста, Талон» нельзя было
-        // сходу понять, свои это или чужие. Сторона важнее архетипа: она
-        // отвечает на первый вопрос, который задаёт глаз.
-        // Свои — бирюзой слова «Counter» из логотипа (#36D6E7), враги — красным
-        // из «Play». Цвета программы, а не случайные: глаз их уже знает.
-        const string AllyColor  = "#36D6E7";
-        const string EnemyColor = "#E06464";
-
-        var nameColor = new Dictionary<string, string>();
-        if (draft != null)
-        {
-            void Paint(IEnumerable<DraftPlayer> side, string color)
-            {
-                foreach (var p in side)
-                {
-                    var id = p.EffectiveChampionId;
-                    if (id == 0) continue;
-                    var nm = DataDragon.Name(id);
-                    if (!string.IsNullOrEmpty(nm)) nameColor[nm] = color;
-                }
-            }
-            // Врагов красим первыми: если один и тот же чемпион почему-то есть
-            // в обоих составах, «свой» важнее.
-            Paint(draft.TheirTeam, EnemyColor);
-            Paint(draft.MyTeam,    AllyColor);
-        }
-
         // Союзники без меня — для расчёта контр-предметов состава.
         var allyNoMe = draft?.MyTeam.Where(p => !p.IsLocalPlayer && p.EffectiveChampionId != 0)
                                     .Select(p => p.EffectiveChampionId).ToList() ?? [];
@@ -92,6 +62,22 @@ public partial class OverlayWindow
             var role = RunesClient.ResolveRole(champ, enemyRole.GetValueOrDefault(champ, ""));
             return role is null ? null : RunesClient.CachedItems(champ, role);
         }
+
+        // Иконки карточки: от движка и окна (нет на аккаунте, контр-предметы,
+        // не тот стиль). Какие из них общие — по общему подбору: у карточек
+        // пула та же мерка, иначе одна иконка была бы яркой сверху и бледной ниже.
+        var cfg = AppSettings.Current;
+        List<PickIcon> AllIcons(Recommendation r)
+        {
+            var items = cfg.DraftItems
+                ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow, BuildOf).ToList() : [];
+            var notOwned = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId);
+            return [.. r.Badges?.Icons ?? [],
+                    .. WindowIcons(notOwned, items, ChampionTraits.ChampArch(r.ChampionId), _allyStyle)];
+        }
+        var commonIcons = CommonIcons([.. recs.Select(AllIcons)]);
+        List<TagVm>  Tags(Recommendation r)  => cfg.DraftReasons ? TagsOf(r) : [];
+        List<IconVm> Icons(Recommendation r) => cfg.DraftReasons ? IconsOf(AllIcons(r), commonIcons) : [];
 
         // Пик из активного пула («ТВОЙ ПУЛ ПРОТИВ ВРАГОВ»): лучший из пула на мою
         // роль против врагов — отдельной СИНЕЙ карточкой сверху. Дуо-пул: рядом —
@@ -127,13 +113,13 @@ public partial class OverlayWindow
                         ScoreColor = pr.Score >= 0 ? "#6AB0FF" : "#E05050",
                         WinRate    = $"WR ~{50.0 + pr.BaseDelta:F1}%",
                         Icon       = IconCache.Get(pr.ChampionId),
-                        ReasonSegs = ReasonSegments(pr.Reasons, nameColor),
+                        Tags       = Tags(pr),
+                        Icons      = Icons(pr),
                         Metrics    = MetricRow.Of(pr, metricMax, highlight: false),
                         ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
                         SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
                         DuoIcon    = duoIcon, DuoName = duoName,
                         NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),
-                        NotOwnedLabel = Loc.T("rec.notOwned"),
                         CanDislike    = Dislikable(pr.ChampionId),
                     });
                     poolIds.Add(pr.ChampionId);
@@ -300,12 +286,6 @@ public partial class OverlayWindow
             catch { /* нет данных по связке — покажем список как есть */ }
         }
 
-        // Сколько кандидатов приводят ровно эту причину — по ней и отсеиваем общие.
-        var reasonFreq = new Dictionary<string, int>();
-        foreach (var r in recs)
-            foreach (var reason in r.Reasons)
-                reasonFreq[reason] = reasonFreq.GetValueOrDefault(reason) + 1;
-
         var generalCards = recs
             .Where(r => !poolIds.Contains(r.ChampionId))
             // Нет на аккаунте — можно не показывать вовсе: список станет короче,
@@ -316,7 +296,6 @@ public partial class OverlayWindow
         {
             var (ag, ac, at) = ArchBadge(r.ChampionId);
             var candArch = ChampionTraits.ChampArch(r.ChampionId);
-            var cfg = AppSettings.Current;
             return new FullRecCard
             {
                 ChampionId = r.ChampionId,
@@ -329,10 +308,8 @@ public partial class OverlayWindow
                 ScoreColor = r.Score >= 0 ? "#C89B3C" : "#E05050",
                 WinRate    = $"WR ~{50.0 + r.BaseDelta:F1}%",
                 Icon       = IconCache.Get(r.ChampionId),
-                // Маркеры «•» + имена чемпионов цветом их архетипа (см. ReasonSegments).
-                ReasonSegs = cfg.DraftReasons
-                    ? ReasonSegments(Distinctive(r.Reasons, reasonFreq, recs.Count), nameColor)
-                    : [],
+                Tags       = Tags(r),
+                Icons      = Icons(r),
                 MetricsVisibility = cfg.DraftMetrics ? Visibility.Visible : Visibility.Collapsed,
                 Metrics    = MetricRow.Of(r, metricMax, highlight: true),
                 ArchGlyph  = cfg.DraftArch ? ag : "",
@@ -341,14 +318,8 @@ public partial class OverlayWindow
                 ArchStrong = _allyStyle != null && candArch == _allyStyle,
                 ArchDim    = _allyStyle != null && candArch != _allyStyle,
                 SynDashes  = SynDashesFor(r.ChampionId, allyIds, comboColorByName),
-                CounterItems = cfg.DraftItems
-                    ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow, BuildOf)
-                        .Select(id => new CounterItemVm(ItemIcons.Get(id), ItemIcons.NameOf(id)))
-                        .Where(x => x.Icon != null).ToList()
-                    : [],
                 // Чемпиона нет на аккаунте (только если владение вообще известно).
                 NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId),
-                NotOwnedLabel = Loc.T("rec.notOwned"),
                 CanDislike    = Dislikable(r.ChampionId),
             };
         }).ToList();
@@ -397,106 +368,5 @@ public partial class OverlayWindow
             _pickHoverId = 0;
         UpdatePickBar();
         if (draft != null) RenderTeams(draft);
-    }
-
-    // Разбивает причины на сегменты: маркер «•», перевод строк между причинами и
-    // имена чемпионов, покрашенные в цвет их архетипа (nameColor).
-    /// Оставляет причины, которые действительно РАЗЛИЧАЮТ кандидатов.
-    ///
-    /// Половина строк в карточках — про команду, а не про пик: «Кейтлин хрупкая,
-    /// прикрывай её» повторяется у каждого саппорта подряд. Читать одно и то же
-    /// пять раз бессмысленно, а выбрать по этому нельзя. Поэтому доводы, которые
-    /// встречаются почти у всех, из карточек убираем — но не жадно: минимум две
-    /// строки в карточке остаются всегда, иначе получится пусто.
-    private const int REASONS_SHOWN = 4;
-
-    private static int ReasonSign(string r) => r.Length == 0 ? 0
-        : r[0] == RecommendationEngine.SIGN_GOOD ?  1
-        : r[0] == RecommendationEngine.SIGN_KEY  ?  1
-        : r[0] == RecommendationEngine.SIGN_BAD  ? -1 : 0;
-
-    /// Довод, который нельзя выбрасывать как общий: связка с конкретным
-    /// союзником. Она одинакова у всех подходящих кандидатов — и именно поэтому
-    /// отсев общих строк убирал её у всех сразу.
-    private static bool KeyReason(string r) =>
-        r.Length > 0 && r[0] == RecommendationEngine.SIGN_KEY;
-
-    private static string[] Distinctive(string[] reasons, Dictionary<string, int> freq, int total)
-    {
-        // Нейтральные доводы («ровный матчап», «часто пикается») не говорят ни за,
-        // ни против — на выбор они не влияют, а место занимают. Выкидываем.
-        var meaningful = reasons.Where(r => ReasonSign(r) != 0).ToList();
-
-        // Общие для почти всех кандидатов — про команду, а не про пик: читать
-        // одно и то же в каждой карточке бессмысленно.
-        if (total > 2)
-        {
-            var common = Math.Max(2, (int)Math.Ceiling(total * 0.6));
-            var kept = meaningful
-                .Where(r => KeyReason(r) || freq.GetValueOrDefault(r) < common).ToList();
-            if (kept.Count >= 2) meaningful = kept;
-        }
-
-        // Совсем пусто — лучше нейтральная строка, чем карточка без объяснения.
-        if (meaningful.Count == 0) meaningful = reasons.Take(1).ToList();
-
-        // Сперва доводы «за», потом «против»: сначала зачем брать, затем чего
-        // опасаться. Внутри групп порядок движка сохраняем — он по значимости.
-        return [.. meaningful
-            .Select((r, i) => (r, i))
-            .OrderByDescending(x => ReasonSign(x.r))
-            .ThenBy(x => x.i)
-            .Select(x => x.r)
-            .Take(REASONS_SHOWN)];
-    }
-
-    private static List<ReasonSeg> ReasonSegments(string[] reasons, Dictionary<string, string> nameColor)
-    {
-        var segs = new List<ReasonSeg>();
-        System.Text.RegularExpressions.Regex? rx = null;
-        if (nameColor.Count > 0)
-        {
-            var alt = string.Join("|", nameColor.Keys.OrderByDescending(n => n.Length)
-                .Select(System.Text.RegularExpressions.Regex.Escape));
-            rx = new System.Text.RegularExpressions.Regex("(" + alt + ")");
-        }
-        for (int i = 0; i < reasons.Length; i++)
-        {
-            if (i > 0) segs.Add(new ReasonSeg { Break = true });
-
-            // Первый символ строки — знак довода (см. RecommendationEngine).
-            // Красим им ТОЛЬКО маркер: подсветить всю строку целиком значило бы
-            // сделать полотно ещё пестрее, а так знак читается боковым зрением,
-            // и глазу не нужно вчитываться, чтобы понять «за» это или «против».
-            var raw  = reasons[i];
-            var sign = raw.Length > 0 ? raw[0] : '\0';
-            var text = sign is RecommendationEngine.SIGN_GOOD or RecommendationEngine.SIGN_BAD
-                                or RecommendationEngine.SIGN_KEY
-                ? raw[1..] : raw;
-            segs.Add(new ReasonSeg
-            {
-                Text  = "•  ",
-                Color = sign switch
-                {
-                    RecommendationEngine.SIGN_GOOD => "#4CE38B",
-                    // Связка — тоже довод «за», и точка у неё того же цвета:
-                    // отдельный цвет добавил бы пестроты, не добавив смысла.
-                    RecommendationEngine.SIGN_KEY  => "#4CE38B",
-                    RecommendationEngine.SIGN_BAD  => "#FF6B5E",
-                    _                              => "#6E8598",   // нейтральный факт
-                }
-            });
-
-            var line = text;
-            if (rx is null) { segs.Add(new ReasonSeg { Text = line }); continue; }
-            foreach (var part in rx.Split(line))
-            {
-                if (part.Length == 0) continue;
-                segs.Add(nameColor.TryGetValue(part, out var c)
-                    ? new ReasonSeg { Text = part, Color = c }
-                    : new ReasonSeg { Text = part });
-            }
-        }
-        return segs;
     }
 }

@@ -30,6 +30,14 @@
     </None>
   </ItemGroup>
 
+  <!-- Лицензии чужого кода (значки Tabler Icons, MIT) — рядом с приложением:
+       MIT требует отдавать текст лицензии вместе с программой. -->
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <!-- Шрифт Geist (OFL, Vercel) — встраиваем в сборку для UI/описаний -->
   <ItemGroup>
     <Resource Include="assets\fonts\Geist-Regular.ttf" />
