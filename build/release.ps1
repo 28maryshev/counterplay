@@ -382,6 +382,22 @@ if ($Upload) {
     throw "the 'latest' feed does not advertise $Version - auto-update will not see it"
   }
   Write-Host "Update feed refreshed (tag 'latest'): $($feed.Name -join ', ')" -ForegroundColor Green
+
+  # 6. Зеркало обновлений на своём домене (data.counterplays.com/app/) — для
+  # Китая, где GitHub режут (журнал 2026-11-08). Догоняет его сборщик: ключи R2
+  # есть только у него (pipeline/mirror_app.py). Сбой выпуск НЕ останавливает:
+  # программа сравнивает оба фида и возьмёт GitHub. Но Китай без зеркала
+  # выпуск не получит — поэтому громкое предупреждение и команда, чтобы догнать.
+  $mirrorCmd = "docker exec counterplay-collector python mirror_app.py"
+  Write-Host "Mirroring the update feed to data.counterplays.com/app/ ..." -ForegroundColor Cyan
+  $mirrorOut = @(ssh -o BatchMode=yes -o ConnectTimeout=15 collector $mirrorCmd 2>&1 | ForEach-Object { "$_" })
+  if ($LASTEXITCODE -eq 0 -and ($mirrorOut -join "`n") -match [regex]::Escape($Version)) {
+    Write-Host "Mirror is on $Version" -ForegroundColor Green
+  } else {
+    Write-Host "warn: the mirror did not catch up with $Version - players in China will not get it." -ForegroundColor Yellow
+    Write-Host "      Catch up: ssh collector '$mirrorCmd'" -ForegroundColor Yellow
+    $mirrorOut | Select-Object -Last 5 | ForEach-Object { Write-Host "      $_" -ForegroundColor DarkYellow }
+  }
 }
 
 # ── Housekeeping: keep only the last $KeepReleases versions in .\Releases ─────
