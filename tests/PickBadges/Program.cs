@@ -17,8 +17,8 @@ namespace Counterplay.Tests;
 /// за пик, красные против, объяснение при наведении.
 ///
 /// Меряет:
-/// - у каждого показанного кандидата есть значки; тегов не больше трёх,
-///   «линия» и «вслепую» вместе не бывают;
+/// - у каждого показанного кандидата есть значки; тегов с цифрой не больше
+///   трёх, «линия» и «вслепую» вместе не бывают;
 /// - цифра тега — та же, что в подборе (DirectDelta, OtherDelta, SynergyDelta),
 ///   знак тега — знак цифры;
 /// - иконки по порядку: плюсы, связки с союзниками, минусы;
@@ -27,7 +27,11 @@ namespace Counterplay.Tests;
 ///   на карточке есть (тегом или иконкой);
 /// - вслепую тег совпадает с выводом движка (надёжен / рискован);
 /// - красное правда бывает: хотя бы один красный тег и красная иконка;
-/// - окно: на карточках теги и иконки, строк доводов и ряда предметов нет.
+/// - окно: на карточках теги и иконки, строк доводов и ряда предметов нет;
+/// - чего не хватает стилю (владелец, 09.11: «если команда фронт-ту-бэк — нужен
+///   фронт»): фронт-ту-бэк без танка, пик/пок без дизэнгейджа, дайв без захода —
+///   тег ровно у тех, кто дыру закрывает; дыры нет — тега нет; у закрывающих
+///   окно не ставит «не в стиле команды».
 /// С CP_SNAP — снимки карточек в эту папку.
 /// </summary>
 internal static class Program
@@ -37,7 +41,10 @@ internal static class Program
     private const int Malphite = 54, Yasuo = 157, LeeSin = 64, Jinx = 222, Lulu = 117,
                       Darius = 122, Zed = 238, Viego = 234, Caitlyn = 51, Morgana = 25,
                       Ahri = 103, Orianna = 61, Garen = 86, Leona = 89, Ezreal = 81, Thresh = 412,
-                      Kayn = 141, Aurora = 893, Evelynn = 28, Mel = 800, Vayne = 67;
+                      Kayn = 141, Aurora = 893, Evelynn = 28, Mel = 800, Vayne = 67,
+                      Kayle = 10, Sejuani = 113, Jayce = 126, Nidalee = 76, Xerath = 101,
+                      Riven = 92, Samira = 360, Pyke = 555, Janna = 40, Blitzcrank = 53,
+                      JarvanIV = 59, KhaZix = 121;
 
     [STAThread]
     private static int Main()
@@ -69,6 +76,9 @@ internal static class Program
             ("мид первым пиком, вслепую", BlindMid()),
             ("саппорт против Кейтлин и Морганы", SupportVsBot()),
             ("стрелок против Вейн, Эвелинн, Мэл и Лулу", AdcVsVayne()),
+            ("топ во фронт-ту-бэк без танка", TopF2bNoTank()),
+            ("саппорт в пик/пок без дизэнгейджа", SupportPokeNoDisengage()),
+            ("лес в дайв без захода", JungleDiveNoEngage()),
         };
         var all = new List<(string Scene, Recommendation R)>();
         foreach (var (name, draft) in scenes)
@@ -82,6 +92,7 @@ internal static class Program
         Engine(all);
         Owner(engine);
         Front(engine, scenes);
+        Needs(engine);
         Blind(all.Where(x => x.Scene.Contains("вслепую")).Select(x => x.R).ToList());
 
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -94,7 +105,8 @@ internal static class Program
 
     // ── Строки и значки ───────────────────────────────────────────────────
 
-    private static readonly string[] TagKinds = ["lane", "blind", "team", "synergy"];
+    private static readonly string[] NeedKinds = ["needFront", "needDisengage", "needEngage"];
+    private static readonly string[] TagKinds = ["lane", "blind", "team", "synergy", .. NeedKinds];
     private static readonly string[] PairKinds =
         ["airborne", "orianna", "immortal", "enchanter", "hook", "burst_pick", "isolate",
          "artillery", "channel", "peel", "frontline", "double_engage"];
@@ -127,6 +139,7 @@ internal static class Program
             "reason.counterItems", "reason.offStyle", "reason.personalUp", "reason.personalDown",
             "reason.exploitCc", "reason.exploitAuto", "reason.vulnCc", "reason.vulnAuto",
             "reason.vulnShield", "reason.vulnHeal",
+            .. NeedKinds.Select(k => $"reason.{k}"),
         ];
         // Все 15 языков: строка есть (без неё язык молча берёт английскую) и
         // плейсхолдеры те же, что в английской, — иначе подстановка уронит
@@ -158,8 +171,10 @@ internal static class Program
         Check("у каждого показанного есть значки", noBadges.Count == 0, noBadges.Count == 0 ? $"{all.Count} кандидатов" : string.Join(", ", noBadges));
         var recs = all.Select(x => x.R).Where(r => r.Badges is not null).ToList();
 
-        var many = recs.Where(r => r.Badges!.Tags.Count > 3).Select(Who).ToList();
-        Check("тегов не больше трёх", many.Count == 0, many.Count == 0 ? "да" : string.Join(", ", many));
+        var many = recs.Where(r => r.Badges!.Tags.Count(t => !IsNeed(t.Kind)) > 3
+                                || r.Badges.Tags.Count(t => IsNeed(t.Kind)) > 1).Select(Who).ToList();
+        Check("тегов с цифрой не больше трёх, нужды стиля — не больше одного", many.Count == 0,
+              many.Count == 0 ? "да" : string.Join(", ", many));
         var both = recs.Where(r => r.Badges!.Tags.Any(t => t.Kind == "lane") && r.Badges.Tags.Any(t => t.Kind == "blind")).Select(Who).ToList();
         Check("«линия» и «вслепую» вместе не бывают", both.Count == 0, both.Count == 0 ? "да" : string.Join(", ", both));
 
@@ -238,6 +253,58 @@ internal static class Program
               jinx is null ? "нет кандидата" : front.Count == 0 ? Line(jinx) : string.Join(", ", front));
     }
 
+    /// <summary>
+    /// Чего не хватает стилю команды (владелец, 09.11: «если например команда
+    /// фронт-ту-бэк, нужен фронт»; «если собирается определённый стиль —
+    /// добавить то, чего не хватает»). В каждой сцене союзники явно собирают
+    /// стиль без его ключевой части: тег стоит ровно у тех, кто её даёт, и у
+    /// названных поимённо — есть у закрывающего и нет у прочих. С танком в
+    /// фронт-ту-бэке тега нет ни у кого; в сцене без явного стиля — тоже.
+    /// </summary>
+    private static void Needs(RecommendationEngine engine)
+    {
+        var cases = new (string Scene, DraftState Draft, string Kind, Func<int, bool> Fills, int Yes, int No)[]
+        {
+            ("фронт-ту-бэк без танка", TopF2bNoTank(), "needFront", ChampionTraits.Frontline, Malphite, Jayce),
+            ("пик/пок без дизэнгейджа", SupportPokeNoDisengage(), "needDisengage", ChampionTraits.Disengager, Janna, Blitzcrank),
+            ("дайв без захода", JungleDiveNoEngage(), "needEngage", ChampionTraits.Initiator, JarvanIV, KhaZix),
+        };
+        foreach (var (scene, draft, kind, fills, yes, no) in cases)
+        {
+            var recs = engine.Recommend(draft, 8);
+            var wrong = recs.Where(r => (r.Badges?.Tags.Any(t => t.Kind == kind) == true) != fills(r.ChampionId))
+                            .Select(r => $"{Who(r)} {(fills(r.ChampionId) ? "без тега" : "с тегом")}").ToList();
+            var other = recs.SelectMany(r => r.Badges?.Tags ?? []).Where(t => IsNeed(t.Kind) && t.Kind != kind)
+                            .Select(t => t.Text).Distinct().ToList();
+            var with = recs.Count(r => r.Badges?.Tags.Any(t => t.Kind == kind) == true);
+            Check($"{scene}: тег «{Loc.T($"pickTag.{kind}")}» — ровно у тех, кто закрывает дыру",
+                  wrong.Count == 0 && other.Count == 0,
+                  wrong.Count + other.Count == 0 ? $"с тегом {with} из {recs.Count}"
+                  : string.Join(", ", wrong.Concat(other.Select(o => $"чужой тег «{o}»")).Take(4)));
+
+            Recommendation? One(int id) => engine.Recommend(draft, 1, [id]).FirstOrDefault();
+            var y = One(yes);
+            var n = One(no);
+            var yTag = y?.Badges?.Tags.FirstOrDefault(t => t.Kind == kind);
+            var nTag = n?.Badges?.Tags.FirstOrDefault(t => t.Kind == kind);
+            Check($"{scene}: у {DataDragon.Name(yes)} тег есть, у {DataDragon.Name(no)} — нет",
+                  yTag is not null && n is not null && nTag is null,
+                  yTag is not null ? $"«{yTag.Text}»: {yTag.Tip}" : y is null ? "нет кандидата" : Line(y));
+        }
+
+        // Дыры нет — тега нет: тот же фронт-ту-бэк, но в лесу Сежуани.
+        var tankedDraft = TopF2bNoTank(withTank: true);
+        var tanked = engine.Recommend(tankedDraft, 8).Concat(engine.Recommend(tankedDraft, 1, [Malphite]))
+                           .Where(r => r.Badges?.Tags.Any(t => IsNeed(t.Kind)) == true).Select(Who).ToList();
+        Check("фронт-ту-бэк с танком в команде — тега нужды нет ни у кого", tanked.Count == 0,
+              tanked.Count == 0 ? "нет" : string.Join(", ", tanked));
+        // Явного стиля нет (сцена с Ясуо: Ли Син, Ясуо, Джинкс, Лулу) — молчим.
+        var mixed = engine.Recommend(TopVsDarius(), 8)
+                          .Where(r => r.Badges?.Tags.Any(t => IsNeed(t.Kind)) == true).Select(Who).ToList();
+        Check("состав без явного стиля — тега нужды нет", mixed.Count == 0,
+              mixed.Count == 0 ? "нет" : string.Join(", ", mixed));
+    }
+
     /// Вслепую тег совпадает с выводом движка — со строкой «надёжен / рискован».
     private static void Blind(List<Recommendation> recs)
     {
@@ -273,6 +340,9 @@ internal static class Program
         Pump();
         var list = (ItemsControl)w.FindName("FullRecList");
         TagsFit(w);
+        var needCards = 0;
+        var offStyleOnNeed = new List<string>();
+        var staleStyle = new List<string>();
         for (var i = 0; i < scenes.Length; i++)
         {
             var draft = scenes[i].Draft;
@@ -287,6 +357,19 @@ internal static class Program
             var faded = cards.SelectMany(c => c.Icons).Count(x => x.Faded);
             Console.WriteLine($"  (бледных иконок: {faded})");
             Brightness(scenes[i].Name, cards);
+            needCards += cards.Count(c => c.Tags.Any(t => IsNeed(t.Kind)));
+            offStyleOnNeed.AddRange(cards.Where(c => c.Tags.Any(t => IsNeed(t.Kind))
+                                                  && c.Icons.Any(x => x.Title == Loc.T("pickIcon.offStyle")))
+                                         .Select(c => c.Name));
+            // «Не в стиле команды» — по стилю союзников ЭТОГО драфта. До 09.11
+            // карточки судили по стилю с прошлого обновления: _allyStyle
+            // обновлял RenderTeams в самом конце RenderFull.
+            var style = ChampionTraits.DominantStyle(
+                [.. draft.MyTeam.Select(p => p.EffectiveChampionId).Where(id => id != 0)]);
+            staleStyle.AddRange(cards.Where(c => !c.Tags.Any(t => IsNeed(t.Kind)))
+                .Where(c => c.Icons.Any(x => x.Title == Loc.T("pickIcon.offStyle"))
+                            != (style is { } st && ChampionTraits.ChampArch(c.ChampionId) is { } a && a != st))
+                .Select(c => $"{c.Name} ({scenes[i].Name})"));
 
             // Текста доводов в карточках больше нет — только теги и иконки.
             var old = Enumerable.Range(0, list.Items.Count)
@@ -296,6 +379,11 @@ internal static class Program
             Check($"{scenes[i].Name}: строк доводов нет", old == 0, $"{old}");
             if (snap is { Length: > 0 }) Snap(list, snap, $"pick-badges-{i + 1}.png");
         }
+        Check("окно: у закрывающих дыру стиля нет «не в стиле команды»", needCards > 0 && offStyleOnNeed.Count == 0,
+              offStyleOnNeed.Count > 0 ? string.Join(", ", offStyleOnNeed)
+              : needCards == 0 ? "ни одной карточки с тегом нужды" : $"карточек с тегом нужды {needCards}");
+        Check("окно: «не в стиле команды» — по стилю этой команды, а не прошлого обновления", staleStyle.Count == 0,
+              staleStyle.Count == 0 ? "да" : string.Join(", ", staleStyle.Take(4)) + (staleStyle.Count > 4 ? $" и ещё {staleStyle.Count - 4}" : ""));
         w.Close();
     }
 
@@ -402,6 +490,29 @@ internal static class Program
          new(8, Vayne, 0, "bottom", false), new(9, Lulu, 0, "utility", false)],
         3, "bottom", exposed: false);
 
+    // Чего не хватает стилю. Враги одни и те же — дело в своих.
+    private static List<DraftPlayer> Enemies() =>
+        [new(5, Darius, 0, "top", false), new(6, Viego, 0, "jungle", false), new(7, Ahri, 0, "middle", false),
+         new(8, Caitlyn, 0, "bottom", false), new(9, Morgana, 0, "utility", false)];
+
+    // Кейл, Джинкс, Лулу — фронт-ту-бэк без танка; лес ещё не выбрал (или Сежуани).
+    private static DraftState TopF2bNoTank(bool withTank = false) => Draft(
+        [new(0, 0, 0, "top", true), new(1, withTank ? Sejuani : 0, 0, "jungle", false), new(2, Kayle, 0, "middle", false),
+         new(3, Jinx, 0, "bottom", false), new(4, Lulu, 0, "utility", false)],
+        Enemies(), 0, "top", exposed: false);
+
+    // Джейс, Нидали, Ксерат, Эзреаль — пик/пок, отбиться от захода нечем.
+    private static DraftState SupportPokeNoDisengage() => Draft(
+        [new(0, Jayce, 0, "top", false), new(1, Nidalee, 0, "jungle", false), new(2, Xerath, 0, "middle", false),
+         new(3, Ezreal, 0, "bottom", false), new(4, 0, 0, "utility", true)],
+        Enemies(), 4, "utility", exposed: false);
+
+    // Ривен, Зед, Самира, Пайк — дайв, начать драку некому.
+    private static DraftState JungleDiveNoEngage() => Draft(
+        [new(0, Riven, 0, "top", false), new(1, 0, 0, "jungle", true), new(2, Zed, 0, "middle", false),
+         new(3, Samira, 0, "bottom", false), new(4, Pyke, 0, "utility", false)],
+        Enemies(), 1, "jungle", exposed: false);
+
     private static DraftState BlindMid() => Draft(
         [new(0, 0, 0, "middle", true), new(1, LeeSin, 0, "jungle", false), new(2, 0, 0, "top", false),
          new(3, 0, 0, "bottom", false), new(4, 0, 0, "utility", false)],
@@ -417,6 +528,8 @@ internal static class Program
         4, "utility", exposed: false);
 
     // ── Помощники ─────────────────────────────────────────────────────────
+
+    private static bool IsNeed(string kind) => kind.StartsWith("need");
 
     private static bool IsLink(string kind) =>
         kind.StartsWith("pair.") || kind is "jgSetup" or "adcEngage" or "adcScale" or "wombo";

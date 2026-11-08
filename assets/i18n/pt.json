@@ -208,7 +208,10 @@
     "vulnCc": "Você depende de controle, e com você serão {0} campeões assim no time. Passos de Mercúrio e tenacidade vão enfraquecer todos vocês de uma vez.",
     "vulnAuto": "Você depende de ataques básicos, e com você serão {0} campeões assim no time. Botas Galvanizadas de Aço e Coração Congelado vão enfraquecer todos vocês de uma vez.",
     "vulnShield": "Você depende de escudos, e com você serão {0} campeões assim no time. A Presa da Serpente vai enfraquecer todos vocês de uma vez.",
-    "vulnHeal": "Você depende de cura, e com você serão {0} campeões assim no time. Itens de anticura (efeito Ferimentos) vão enfraquecer todos vocês de uma vez."
+    "vulnHeal": "Você depende de cura, e com você serão {0} campeões assim no time. Itens de anticura (efeito Ferimentos) vão enfraquecer todos vocês de uma vez.",
+    "needFront": "Seu time está montando front-to-back, mas não há tanque na frente. Este pick segura a linha de frente e absorve dano pelos carries.",
+    "needDisengage": "Seu time está montando pick/poke, mas ninguém consegue parar um engage inimigo. Este pick afasta os inimigos e deixa o time recuar.",
+    "needEngage": "Seu time está montando dive, mas ninguém consegue iniciar a luta. Este pick abre com um engage que o resto pode seguir."
   },
   "metric": {
     "base": "Força neste patch",
@@ -832,7 +835,10 @@
     "team": "Vs o time {0}%",
     "teamTip": "Confrontos contra os outros inimigos, além do seu oponente de rota",
     "synergy": "Sinergia {0}%",
-    "synergyWord": "Sinergia"
+    "synergyWord": "Sinergia",
+    "needFront": "Linha de frente",
+    "needDisengage": "Disengage",
+    "needEngage": "Engage"
   },
   "pairShort": {
     "airborne": "Knock-up para a ult",

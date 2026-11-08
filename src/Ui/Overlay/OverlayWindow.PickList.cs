@@ -35,6 +35,10 @@ public partial class OverlayWindow
         _comboIndex  = myCombos.Select((c, i) => (c.Name, i))
                                .ToDictionary(x => x.Name, x => x.i);
         _allyIdsNow  = allyIds;
+        // Стиль команды — до карточек: по нему иконка «не в стиле команды» и
+        // приглушённый значок стиля. RenderTeams пишет его же, но зовётся в
+        // конце, и до 09.11 карточки судили по стилю с прошлого обновления.
+        if (draft != null) _allyStyle = ChampionTraits.DominantStyle(allyIds);
 
         // Лидер по каждому показателю среди показанных пиков: по нему полосы
         // масштабируются, а сам он — в золотой рамке (MetricRow).
@@ -72,8 +76,9 @@ public partial class OverlayWindow
             var items = cfg.DraftItems
                 ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow, BuildOf).ToList() : [];
             var notOwned = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId);
+            var fillsNeed = r.Badges?.Tags.Any(t => t.Kind.StartsWith("need")) == true;
             return [.. r.Badges?.Icons ?? [],
-                    .. WindowIcons(notOwned, items, ChampionTraits.ChampArch(r.ChampionId), _allyStyle)];
+                    .. WindowIcons(notOwned, items, ChampionTraits.ChampArch(r.ChampionId), _allyStyle, fillsNeed)];
         }
         var commonIcons = CommonIcons([.. recs.Select(AllIcons)]);
         // Яркость тегов — от сильнейшего того же вида среди показанных (та же мерка у пула).

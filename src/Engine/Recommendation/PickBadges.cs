@@ -4,8 +4,9 @@ namespace Counterplay;
 /// Тег карточки пика — ключевой вывод про этот драфт с цифрой: линия, вслепую,
 /// против команды, синергия. Kind — вид (по нему окно берёт значок), Sign —
 /// +1 за пик, −1 против; Text — что написано на плашке, Tip — подсказка.
-/// Value — сила вывода, пп (у «вслепую» — насколько шанс контры не как у всех):
-/// по ней окно делает самый сильный тег вида самым ярким.
+/// Value — сила вывода, пп (у «вслепую» — насколько шанс контры не как у всех;
+/// у тегов нужды стиля — доля уже выбранных союзников, 0..1): по ней окно
+/// делает самый сильный тег вида самым ярким.
 /// </summary>
 public sealed record PickTag(string Kind, int Sign, string Text, string Tip, double Value);
 
@@ -34,6 +35,7 @@ public sealed record PickFacts(
     bool LaneBlind, BlindRisk Risk,
     double Team, IReadOnlyList<(int Id, double Delta)> ByEnemy,
     double Synergy, IReadOnlyList<(int Id, string Role, double Delta)> ByAlly,
+    IReadOnlyList<int> AllyIds,        // союзники без меня — по ним «чего не хватает стилю»
     string Grade, double BaseDelta, double Comfort, double Personal,
     ChampionTraits.Arch? EnemyStyle,   // явный стиль врага для иконок (ShownEnemyStyle), не тот, что в счёте
     (double Delta, bool Stack, bool Ad) Dmg,

@@ -208,7 +208,10 @@
     "vulnCc": "Du setzt auf CC, und mit dir sind es dann {0} solche Champions im Team. Merkurs Schuhe und Zähigkeit schwächen euch alle auf einmal.",
     "vulnAuto": "Du setzt auf Autoattacken, und mit dir sind es dann {0} solche Champions im Team. Beschichtete Stahlkappen und Gefrorenes Herz schwächen euch alle auf einmal.",
     "vulnShield": "Du setzt auf Schilde, und mit dir sind es dann {0} solche Champions im Team. Giftzahn der Schlange schwächt euch alle auf einmal.",
-    "vulnHeal": "Du setzt auf Heilung, und mit dir sind es dann {0} solche Champions im Team. Anti-Heal (Klaffende Wunden) schwächt euch alle auf einmal."
+    "vulnHeal": "Du setzt auf Heilung, und mit dir sind es dann {0} solche Champions im Team. Anti-Heal (Klaffende Wunden) schwächt euch alle auf einmal.",
+    "needFront": "Dein Team baut auf Front-to-Back, aber vorne steht kein Tank. Dieser Pick hält die Frontlinie und fängt Schaden für deine Carrys ab.",
+    "needDisengage": "Dein Team baut auf Pick/Poke, aber niemand kann ein gegnerisches Engage stoppen. Dieser Pick stößt Gegner weg und verschafft euch Abstand.",
+    "needEngage": "Dein Team baut auf Dive, aber niemand kann den Kampf eröffnen. Dieser Pick liefert das Engage, dem die anderen folgen."
   },
   "metric": {
     "base": "Stärke in diesem Patch",
@@ -832,7 +835,10 @@
     "team": "Gegen ihr Team {0}%",
     "teamTip": "Matchups gegen die übrigen Gegner, also ohne deinen Lane-Gegner",
     "synergy": "Synergie {0}%",
-    "synergyWord": "Synergie"
+    "synergyWord": "Synergie",
+    "needFront": "Frontlinie",
+    "needDisengage": "Disengage",
+    "needEngage": "Engage"
   },
   "pairShort": {
     "airborne": "Knock-up fürs Ult",

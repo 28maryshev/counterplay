@@ -431,7 +431,10 @@
     "vulnCc": "Dependes del control y, contigo, habrá {0} campeones así en el equipo. Las Botas de mercurio y la tenacidad os debilitarán a todos a la vez.",
     "vulnAuto": "Dependes de los autoataques y, contigo, habrá {0} campeones así en el equipo. Las Botas blindadas y el Corazón de hielo os debilitarán a todos a la vez.",
     "vulnShield": "Dependes de los escudos y, contigo, habrá {0} campeones así en el equipo. El Colmillo de serpiente os debilitará a todos a la vez.",
-    "vulnHeal": "Dependes de la curación y, contigo, habrá {0} campeones así en el equipo. La anticuración (Heridas graves) os debilitará a todos a la vez."
+    "vulnHeal": "Dependes de la curación y, contigo, habrá {0} campeones así en el equipo. La anticuración (Heridas graves) os debilitará a todos a la vez.",
+    "needFront": "Tu equipo se arma en front-to-back, pero no hay tanque delante. Este pick sostiene la línea frontal y absorbe daño por tus carries.",
+    "needDisengage": "Tu equipo se arma en pick/poke, pero nadie puede frenar un engage enemigo. Este pick aleja a los enemigos y deja que tu equipo se retire.",
+    "needEngage": "Tu equipo se arma en dive, pero nadie puede iniciar la pelea. Este pick abre con un engage que el resto puede seguir."
   },
   "pool": {
     "slotLabel": "Pick de tu pool",
@@ -832,7 +835,10 @@
     "team": "Vs su equipo {0}%",
     "teamTip": "Enfrentamientos contra el resto de enemigos, sin contar a tu rival de línea",
     "synergy": "Sinergia {0}%",
-    "synergyWord": "Sinergia"
+    "synergyWord": "Sinergia",
+    "needFront": "Línea frontal",
+    "needDisengage": "Disengage",
+    "needEngage": "Engage"
   },
   "pairShort": {
     "airborne": "Derribo para la ulti",

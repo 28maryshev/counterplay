@@ -310,7 +310,7 @@ public sealed partial class RecommendationEngine
                 var grade = PickGrade(champId, myRole);
                 var facts = new PickFacts(champId, myRole,
                     shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
-                    teamDelta, otherByEnemy, synDelta, synByAlly, grade, baseDelta, comfortDelta, personalDelta,
+                    teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, grade, baseDelta, comfortDelta, personalDelta,
                     enemyStyle, dmg, vuln, exploitBy, structReasons);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
                                           Blind: laneBlind, Facts: facts);

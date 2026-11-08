@@ -46,6 +46,8 @@ public partial class OverlayWindow
         "lane"    => MetricRow.Defs.First(d => d.Key == "metric.direct").Floor,
         "team"    => MetricRow.Defs.First(d => d.Key == "metric.team").Floor,
         "synergy" => MetricRow.Defs.First(d => d.Key == "metric.synergy").Floor,
+        // Нужда стиля: Value — доля выбранных союзников, во всю силу — у последнего пика.
+        var k when k.StartsWith("need") => 1.0,
         _         => 15.0,
     };
 
@@ -109,11 +111,14 @@ public partial class OverlayWindow
                       .GroupBy(k => k).Where(g => g.Count() >= need).Select(g => g.Key)];
     }
 
-    /// Иконки окна — минусы, которых движок не видит.
+    /// Иконки окна — минусы, которых движок не видит. «Не в стиле команды» не
+    /// ставится тому, кто закрывает дыру этого стиля (тег нужды): Жанна в
+    /// пик/поке сама по себе фронт-ту-бэк, но поуку она и нужна.
     private static IEnumerable<PickIcon> WindowIcons(bool notOwned, IReadOnlyList<int> counterItems,
-                                                     ChampionTraits.Arch? cand, ChampionTraits.Arch? team)
+                                                     ChampionTraits.Arch? cand, ChampionTraits.Arch? team,
+                                                     bool fillsNeed)
     {
-        if (cand is { } c && team is { } t && c != t)
+        if (cand is { } c && team is { } t && c != t && !fillsNeed)
             yield return new PickIcon("offStyle", -1, Loc.T("pickIcon.offStyle"),
                 Loc.T("reason.offStyle", ArchName(t), ArchName(c)));
         if (counterItems.Count > 0)

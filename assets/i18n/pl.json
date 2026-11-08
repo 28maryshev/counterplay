@@ -326,7 +326,10 @@
     "vulnCc": "Opierasz się na cc, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Obuwie Merkurego i nieustępliwość osłabią was wszystkich naraz.",
     "vulnAuto": "Opierasz się na atakach podstawowych, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Pancerniaki i Mroźne Serce osłabią was wszystkich naraz.",
     "vulnShield": "Opierasz się na tarczach, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Wężowy Kieł osłabi was wszystkich naraz.",
-    "vulnHeal": "Opierasz się na leczeniu, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Przedmioty z Głębokimi Ranami osłabią was wszystkich naraz."
+    "vulnHeal": "Opierasz się na leczeniu, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Przedmioty z Głębokimi Ranami osłabią was wszystkich naraz.",
+    "needFront": "Twoja drużyna buduje front-to-back, ale z przodu nie ma tanka. Ten pick utrzyma frontline i przyjmie obrażenia za carry.",
+    "needDisengage": "Twoja drużyna buduje pick/poke, ale nikt nie zatrzyma wrogiej inicjacji. Ten pick odepchnie wrogów i pozwoli wam się wycofać.",
+    "needEngage": "Twoja drużyna buduje dive, ale nikt nie zacznie walki. Ten pick da inicjację, za którą pójdzie reszta."
   },
   "rec": {
     "yourPick": "TWÓJ PICK",
@@ -832,7 +835,10 @@
     "team": "Przeciw drużynie {0}%",
     "teamTip": "Matchupy przeciw pozostałym wrogom, poza twoim przeciwnikiem na linii",
     "synergy": "Synergia {0}%",
-    "synergyWord": "Synergia"
+    "synergyWord": "Synergia",
+    "needFront": "Frontline",
+    "needDisengage": "Disengage",
+    "needEngage": "Inicjacja"
   },
   "pairShort": {
     "airborne": "Podrzut pod ulti",

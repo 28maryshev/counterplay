@@ -326,7 +326,10 @@
     "vulnCc": "Bạn dựa vào khống chế, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Giày Thủy Ngân và Kháng Hiệu Ứng sẽ làm yếu tất cả cùng lúc.",
     "vulnAuto": "Bạn chủ yếu dựa vào đòn đánh thường, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Giày Thép Gai và Tim Băng sẽ làm yếu tất cả cùng lúc.",
     "vulnShield": "Bạn dựa vào lá chắn, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Kiếm Ác Xà sẽ làm yếu tất cả cùng lúc.",
-    "vulnHeal": "Bạn dựa vào hồi máu, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Đồ giảm hồi máu (Vết Thương Sâu) sẽ làm yếu tất cả cùng lúc."
+    "vulnHeal": "Bạn dựa vào hồi máu, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Đồ giảm hồi máu (Vết Thương Sâu) sẽ làm yếu tất cả cùng lúc.",
+    "needFront": "Đội bạn đang dựng lối front-to-back nhưng chưa có tướng đỡ đòn đứng trước. Lựa chọn này giữ tuyến đầu và chịu sát thương thay cho chủ lực.",
+    "needDisengage": "Đội bạn đang dựng lối pick/poke nhưng không ai chặn được đợt mở giao tranh của địch. Lựa chọn này đẩy địch ra và giúp đội lùi về giữ khoảng cách.",
+    "needEngage": "Đội bạn đang dựng lối lao vào nhưng không ai mở được giao tranh. Lựa chọn này mở giao tranh để cả đội theo vào."
   },
   "rec": {
     "yourPick": "LỰA CHỌN CỦA BẠN",
@@ -832,7 +835,10 @@
     "team": "So với đội địch {0}%",
     "teamTip": "Đối đầu với các tướng địch còn lại, ngoài đối thủ cùng đường",
     "synergy": "Phối hợp {0}%",
-    "synergyWord": "Phối hợp"
+    "synergyWord": "Phối hợp",
+    "needFront": "Tuyến đầu",
+    "needDisengage": "Ngắt giao tranh",
+    "needEngage": "Mở giao tranh"
   },
   "pairShort": {
     "airborne": "Hất tung cho chiêu cuối",
