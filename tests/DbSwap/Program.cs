@@ -43,6 +43,7 @@ internal static class Program
 
         Lock();
         Swap();
+        Engine();
         Bar();
 
         Console.WriteLine();
@@ -294,12 +295,135 @@ internal static class Program
         }
     }
 
-    private static void Make(string p)
+    // ── 4. Движок после подмены ─────────────────────────────────────────────
+    //
+    // 8 ноября у владельца центр окна драфта висел на заглушке до перезапуска.
+    // Связь с клиентом оборвалась, сессия вышла исключением и бросила движок
+    // открытым — он держал базу. Скачанная фоном база не подменялась, а
+    // программа при неудачной подмене оставалась вовсе без движка.
+    private static void Engine()
     {
+        Console.WriteLine();
+        Console.WriteLine("Движок после подмены");
+
+        var dir = Path.Combine(Path.GetTempPath(), "cp-dbswap-engine");
+        Try(() => Directory.Delete(dir, true));
+        Directory.CreateDirectory(dir);
+        DataDb.DirOverride = dir;
+        var clock = new DateTime(2026, 11, 8, 17, 0, 0, DateTimeKind.Utc);
+        var swap = new EngineSwap(() => clock);
+        SqliteConnection? leaked = null;
+
+        try
+        {
+            Make(Db, 1);                 // рабочая база
+            Make(Pending, 2);            // скачанная фоном
+            SqliteConnection.ClearAllPools();
+
+            // Брошенный движок прошлой сессии: соединение открыто, и его
+            // никто не закроет.
+            leaked = new SqliteConnection($"Data Source={Db}");
+            leaked.Open();
+            using (var q = leaked.CreateCommand()) { q.CommandText = "SELECT x FROM t"; q.ExecuteScalar(); }
+
+            var first = new FakeEngine(Db);
+            var engine = swap.Apply(first, () => new FakeEngine(DataDb.LocalPath), out var swapped);
+            Check("файл держат — подмена не проходит", !swapped, swapped ? "прошла" : "не прошла");
+            Check("движок при этом есть", engine is not null,
+                  engine is null ? "движка нет: рекомендаций не будет до перезапуска" : "есть");
+            Check("и считает на прежней базе", engine?.Value() == 1, $"читает {engine?.Value()}");
+            Check("прежний движок закрыт", first.Disposed, first.Disposed ? "да" : "держит файл");
+
+            // Пауза: на каждом событии лобби движок не пересобирается.
+            clock += EngineSwap.RetryPause - TimeSpan.FromMinutes(1);
+            var again = swap.Apply(engine, () => new FakeEngine(DataDb.LocalPath), out _);
+            Check("в паузе после неудачи движок не трогают",
+                  ReferenceEquals(again, engine) && engine is { Disposed: false },
+                  ReferenceEquals(again, engine) ? "тот же" : "пересобран");
+
+            // Брошенный отпустили, пауза вышла — подмена проходит.
+            leaked.Dispose();
+            leaked = null;
+            clock += TimeSpan.FromMinutes(2);
+            var fresh = swap.Apply(engine, () => new FakeEngine(DataDb.LocalPath), out swapped);
+            Check("после паузы подмена проходит", swapped, swapped ? "да" : "нет");
+            Check("движок на свежей базе", fresh?.Value() == 2, $"читает {fresh?.Value()}");
+            fresh?.Dispose();
+
+            // Закрытие при выходе из сессии исключением. Движок за сессию
+            // пересобирается — закрыть надо последний, а не первый.
+            Make(Pending, 3);
+            SqliteConnection.ClearAllPools();
+            FakeEngine? live = new(Db);
+            var firstLive = live;
+            try
+            {
+                using (EngineSwap.CloseOnExit(() => live))
+                {
+                    live.Dispose();
+                    live = new FakeEngine(Db);
+                    throw new IOException("связь с клиентом оборвалась");
+                }
+            }
+            catch (IOException) { }
+            Check("обрыв сессии закрывает последний движок", firstLive != live && live.Disposed,
+                  live.Disposed ? "закрыт" : "держит файл");
+            clock += EngineSwap.RetryPause;
+            var afterDrop = swap.Apply<FakeEngine>(null, () => new FakeEngine(DataDb.LocalPath), out swapped);
+            Check("после обрыва база подменяется", swapped && afterDrop?.Value() == 3,
+                  swapped ? $"читает {afterDrop?.Value()}" : "файл держат");
+            afterDrop?.Dispose();
+
+            // Сессия должна этим пользоваться: Program разложен на части.
+            var root = new DirectoryInfo(AppContext.BaseDirectory);
+            while (root is not null && !File.Exists(Path.Combine(root.FullName, "Counterplay.csproj")))
+                root = root.Parent;
+            var session = root is null ? "" : string.Concat(
+                Directory.GetFiles(Path.Combine(root.FullName, "src", "App"), "Program*.cs")
+                         .Select(File.ReadAllText));
+            Check("сессия закрывает движок при любом выходе",
+                  session.Contains("EngineSwap.CloseOnExit(() => engine)"), "Program*.cs");
+            Check("сессия подменяет базу через EngineSwap", session.Contains("engineSwap.Apply("), "Program*.cs");
+        }
+        finally
+        {
+            leaked?.Dispose();
+            SqliteConnection.ClearAllPools();
+            DataDb.DirOverride = null;
+            Try(() => Directory.Delete(dir, true));
+        }
+    }
+
+    /// Подставной движок: держит базу открытой так же, как настоящий.
+    private sealed class FakeEngine : IDisposable
+    {
+        private readonly SqliteConnection _db;
+        public bool Disposed { get; private set; }
+
+        public FakeEngine(string path)
+        {
+            _db = new SqliteConnection($"Data Source={path}");
+            _db.Open();
+            Value();
+        }
+
+        public long Value()
+        {
+            using var q = _db.CreateCommand();
+            q.CommandText = "SELECT x FROM t";
+            return (long)(q.ExecuteScalar() ?? 0L);
+        }
+
+        public void Dispose() { _db.Dispose(); Disposed = true; }
+    }
+
+    private static void Make(string p, int value = 1)
+    {
+        Try(() => File.Delete(p));
         using var c = new SqliteConnection($"Data Source={p}");
         c.Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "CREATE TABLE IF NOT EXISTS t(x); INSERT INTO t VALUES(1);";
+        cmd.CommandText = $"CREATE TABLE IF NOT EXISTS t(x); INSERT INTO t VALUES({value});";
         cmd.ExecuteNonQuery();
     }
 

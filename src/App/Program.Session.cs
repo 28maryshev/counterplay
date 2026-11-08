@@ -139,6 +139,10 @@ partial class Program
         overlay.BanLockHandler  = champId => RunesImporter.LockChampionAsync(http, myBanActionId, champId, ct);
 
         RecommendationEngine? engine = null;
+        // Закрыть движок при ЛЮБОМ выходе: обрыв связи выходит отсюда
+        // исключением, и брошенный движок держал базу до перезапуска.
+        using var closeEngine = EngineSwap.CloseOnExit(() => engine);
+        var engineSwap = new EngineSwap();
         // Скачанное фоном могло дождаться этого момента — сейчас движка ещё нет,
         // базу никто не держит.
         DataDb.ApplySwap();
@@ -163,24 +167,27 @@ partial class Program
         ///
         /// Зовётся только между драфтами. Подмена требует закрыть соединение с
         /// базой, а посреди драфта это отняло бы рекомендации на те полсекунды,
-        /// ради которых программу и открывают.
+        /// ради которых программу и открывают. Подмена не вышла — движок всё
+        /// равно собирается, на прежней базе (см. <see cref="EngineSwap"/>).
         /// </summary>
         void ApplyNewDbIfReady()
         {
-            if (!DataDb.SwapReady) return;
+            if (!engineSwap.Due) return;
             try
             {
                 var old = engine;
-                engine = null;          // наружу битый движок не отдаём
-                old?.Dispose();         // отпускаем файл базы
-                if (!DataDb.ApplySwap()) return;   // занята — подождём ещё
-
-                dbPath = RecommendationEngine.FindDb();
-                if (dbPath is null) return;
-                engine = RecommendationEngine.Create(dbPath, tierBucket ?? "emerald");
-                engine.Mastery = mastery;
-                overlay.SetEngine(engine);
-                Log.Write("движок пересобран на свежей базе");
+                engine = null;          // закрытый движок наружу не отдаём
+                engine = engineSwap.Apply(old, () =>
+                {
+                    dbPath = RecommendationEngine.FindDb();
+                    if (dbPath is null) return null;
+                    var fresh = RecommendationEngine.Create(dbPath, tierBucket ?? "emerald");
+                    fresh.Mastery = mastery;
+                    return fresh;
+                }, out var swapped);
+                if (engine is not null) overlay.SetEngine(engine);
+                Log.Write(swapped ? "движок пересобран на свежей базе"
+                                  : $"движок пересобран на прежней базе, подмена — через {EngineSwap.RetryPause.TotalMinutes:0} мин");
             }
             catch (Exception ex)
             {
@@ -537,8 +544,7 @@ partial class Program
 
         draftTray.Ended();
         RunesDraftEnded();
-        engine?.Dispose();
-        _refreshSession = null;
+        _refreshSession = null;     // движок закроет closeEngine — и при обрыве тоже
     }
 
     // Достаёт фазу таймера чемп-селекта и остаток времени (мс).
