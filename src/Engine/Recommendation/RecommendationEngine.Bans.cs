@@ -78,7 +78,12 @@ public sealed partial class RecommendationEngine
         var chosen  = PickBans(cands, victims, top + spare);
         if (spare > 0)
             chosen = [.. Dislikes.Apply(chosen, x => x.C.Id, Dislikes.Kind.Ban, myRole).Take(top)];
-        return [.. chosen.Select(x => new BanRec(x.C.Id, x.Score, BanReasons(x.C, victims, myRole)))];
+        return [.. chosen.Select(x =>
+        {
+            var reasons = BanReasons(x.C, victims, myRole);
+            return new BanRec(x.C.Id, x.Score, [.. reasons.Select(r => r.Text)])
+                { ReasonPoints = [.. reasons.Select(r => r.Points)] };
+        })];
     }
 
     /// Кого банить нельзя или незачем: взятых и наведённых, уже забаненных,
@@ -411,8 +416,11 @@ public sealed partial class RecommendationEngine
     ///
     /// Контры называют поимённо, кого бьют, и пикрейт кандидата на той линии,
     /// где он их встречает.
+    ///
+    /// Вместе с текстом — очки подписанной части (у тира и пикрейта — 0): по ним
+    /// проверка видит, почему строка про меня не поднялась (ниже порога).
     /// </summary>
-    private string[] BanReasons(BanCandidate c, List<BanVictim> victims, string myRole)
+    private (string Text, double Points)[] BanReasons(BanCandidate c, List<BanVictim> victims, string myRole)
     {
         string WithPick(IEnumerable<BanHit> hits, string text)
         {
@@ -461,15 +469,15 @@ public sealed partial class RecommendationEngine
             Loc.T("reason.alsoTeam", string.Join(", ", n.Take(3).Select(Name))));
 
         var order = parts.OrderByDescending(p => p.Points).ToList();
-        var texts = new List<string>();
+        var texts = new List<(string Text, double Points)>();
         if (order.Count > 0)
         {
-            texts.Add(order[0].Text);
+            texts.Add((order[0].Text, order[0].Points));
             var rest = order.Skip(1).ToList();
             // Строка про меня — на второе место, остальные — по очкам.
             var mine = order[0].Mine ? -1 : rest.FindIndex(p => p.Mine && p.Points >= BAN_REASON_MINE);
             if (mine > 0) { var m = rest[mine]; rest.RemoveAt(mine); rest.Insert(0, m); }
-            texts.AddRange(rest.Select(p => p.Text));
+            texts.AddRange(rest.Select(p => (p.Text, p.Points)));
         }
 
         // Место в тир-листе — на линии, где он опаснее всего (нет контр — на моей).
@@ -477,10 +485,10 @@ public sealed partial class RecommendationEngine
         // должен выделять, как прежде «S или A по месту» (верхние 14%).
         var lane = c.Hits.OrderByDescending(h => h.Value).Select(h => h.Role).FirstOrDefault() ?? myRole;
         if (c.PickOn.ContainsKey(lane) && TierGrade(c.Id, lane) == "OP")
-            texts.Add(Loc.T("reason.tierGrade", "OP"));
-        if (c.PickHigh) texts.Add(Loc.T("reason.pickRate", $"{c.PickOn[myRole]:F1}"));
-        if (texts.Count == 0) texts.Add(Loc.T("reason.notablePick"));
-        return [.. texts.Distinct()];
+            texts.Add((Loc.T("reason.tierGrade", "OP"), 0));
+        if (c.PickHigh) texts.Add((Loc.T("reason.pickRate", $"{c.PickOn[myRole]:F1}"), 0));
+        if (texts.Count == 0) texts.Add((Loc.T("reason.notablePick"), 0));
+        return [.. texts.DistinctBy(t => t.Text)];
     }
 
     /// <summary>

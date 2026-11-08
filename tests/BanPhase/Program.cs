@@ -615,16 +615,30 @@ internal static class Program
         var state = Snapshot(team, team[4], "utility");
         var hist = new Dictionary<int, HashSet<int>> { [0] = [86, 36], [1] = [876], [2] = [90], [3] = [145] };
         var bans = engine.RecommendBans(state, hist, top: 5);
+        double Pts(BanRec b, int i) => i < b.ReasonPoints.Length ? b.ReasonPoints[i] : 0;
+        string WithPts(BanRec b) => string.Join(" | ", b.Reasons.Select((r, i) => $"{r} [{Pts(b, i):F1}]"));
         foreach (var b in bans)
-            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {string.Join(" | ", b.Reasons.Take(2))}");
+            Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {WithPts(b)}");
 
         string Head(string key, int args) => Loc.T(key, [.. Enumerable.Repeat<object>("\u0001", args)]).Split('\u0001')[0];
         string[] mineHeads = [Head("reason.hardCounter", 2), Head("reason.countersPoolPick", 2),
                               Head("reason.countersMyPick", 1), Head("reason.alsoPool", 1)];
         bool AboutMe(string r) => mineHeads.Any(h => r.StartsWith(h, StringComparison.Ordinal));
-        var lost = bans.Where(b => b.Reasons.Any(AboutMe) && !b.Reasons.Take(2).Any(AboutMe)).ToList();
-        Check("строка про мой пул в первых двух — у каждого, у кого она есть", lost.Count == 0,
-              string.Join("; ", lost.Select(b => $"{DataDragon.Name(b.ChampionId)}: {string.Join(" | ", b.Reasons)}")));
+        // Правило 14.10 в движке: строка про меня поднимается на второе место,
+        // если за меня набрано не меньше BAN_REASON_MINE очков; доля меньше —
+        // шум, её место по очкам. Порог берём из движка, а не пишем второй раз.
+        // До 09.11 проверка порога не знала и падала с 04.11, когда база
+        // обновилась и у Ёнэ «Мешает и твоему пулу» стала весить меньше очка.
+        var mineMin = typeof(RecommendationEngine).GetField("BAN_REASON_MINE",
+            BindingFlags.NonPublic | BindingFlags.Static)?.GetRawConstantValue() as double?;
+        Check("порог BAN_REASON_MINE найден в движке", mineMin is not null,
+              mineMin is null ? "поле переименовано или убрано" : $"{mineMin:F1}");
+        Check("у каждого довода есть очки", bans.All(b => b.ReasonPoints.Length == b.Reasons.Length),
+              string.Join(", ", bans.Where(b => b.ReasonPoints.Length != b.Reasons.Length).Select(b => DataDragon.Name(b.ChampionId))));
+        var lost = bans.Where(b => !b.Reasons.Take(2).Any(AboutMe)
+                                && b.Reasons.Where((r, i) => AboutMe(r) && Pts(b, i) >= (mineMin ?? 0)).Any()).ToList();
+        Check($"строка про мой пул весом от {mineMin ?? 0:F1} в первых двух — у каждого, у кого она есть", lost.Count == 0,
+              string.Join("; ", lost.Select(b => $"{DataDragon.Name(b.ChampionId)}: {WithPts(b)}")));
         var hard = Head("reason.hardCounter", 2);
         var pool = Head("reason.countersPoolPick", 2);
         var both = bans.Where(b => b.Reasons.Any(r => r.StartsWith(hard, StringComparison.Ordinal))
