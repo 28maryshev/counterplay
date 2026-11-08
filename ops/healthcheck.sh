@@ -349,7 +349,7 @@ fi
 head2 "ВОРОНКА УСТАНОВОК (48 ч)"
 F=$(ssh -o BatchMode=yes -o ConnectTimeout=15 "${SITE_JUMP[@]}" "$SITE" "docker exec counterplay-site-db-1 \
   psql -U counterplay -d counterplay -t -A -F'|' -c \
-  \"SELECT (SELECT count(*) FROM downloads WHERE created_at > now() - interval '48 hours'),
+  \"SELECT (SELECT count(*) FROM downloads WHERE NOT bot AND created_at > now() - interval '48 hours'),
            (SELECT count(*) FROM installs WHERE fresh AND first_seen > now() - interval '48 hours'),
            (SELECT coalesce(extract(epoch FROM now() - max(first_seen))::int / 3600, -1) FROM installs WHERE fresh),
            (SELECT count(DISTINCT install_id) FROM heartbeats WHERE created_at > now() - interval '24 hours');\"" 2>/dev/null)

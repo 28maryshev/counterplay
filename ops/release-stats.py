@@ -157,7 +157,7 @@ SELECT 'month', to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM'), count(DISTINC
 SELECT 'new', to_char(first_seen AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
   FROM installs WHERE fresh;
 SELECT 'dl', to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
-  FROM downloads;
+  FROM downloads WHERE NOT bot;  -- загрузки ферм ботов (сайт, lib/bot-nets.ts) не в счёт
 WITH r(ver, t) AS (VALUES {windows})
 SELECT 'rel', r.ver,
        count(DISTINCT h.install_id) FILTER (WHERE h.created_at <  r.t),
