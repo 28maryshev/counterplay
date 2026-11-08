@@ -38,12 +38,14 @@
     </None>
   </ItemGroup>
 
-  <!-- Шрифт Geist (OFL, Vercel) — встраиваем в сборку для UI/описаний -->
+  <!-- Шрифт интерфейса Ubuntu Sans (Ubuntu Font Licence 1.0, Canonical) — встроен
+       в сборку. Статические файлы по начертаниям: переменный шрифт WPF не умеет,
+       показал бы одно начертание. Лицензия — в THIRD-PARTY-NOTICES.md. -->
   <ItemGroup>
-    <Resource Include="assets\fonts\Geist-Regular.ttf" />
-    <Resource Include="assets\fonts\Geist-Medium.ttf" />
-    <Resource Include="assets\fonts\Geist-SemiBold.ttf" />
-    <Resource Include="assets\fonts\Geist-Bold.ttf" />
+    <Resource Include="assets\fonts\UbuntuSans-Regular.ttf" />
+    <Resource Include="assets\fonts\UbuntuSans-Medium.ttf" />
+    <Resource Include="assets\fonts\UbuntuSans-SemiBold.ttf" />
+    <Resource Include="assets\fonts\UbuntuSans-Bold.ttf" />
   </ItemGroup>
 
   <!-- Эмблемы рангов (Community Dragon, CDN Riot) — для трекера сессии -->

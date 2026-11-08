@@ -8,7 +8,9 @@
     кодом, и до сих пор им доставалось системное оформление.
   -->
 
-  <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+  <!-- Шрифт интерфейса. Тот же задан в Overlay/OverlayResources.xaml для окна
+       драфта (там ещё DisplayFont и NumberFont) — менять оба места вместе. -->
+  <FontFamily x:Key="UiFont">/assets/fonts/#Ubuntu Sans, Segoe UI</FontFamily>
 
   <!--
     Всплывающая подсказка.

@@ -289,7 +289,7 @@ static class PoolUi
     public static Button GoldBtn(string text) { Ensure(); return new Button { Content = text, Style = GoldStyle }; }
 
     // Стрелки ⭱/⭳ есть ровно в одном системном шрифте (Segoe UI Symbol), а
-    // интерфейс набран Geist — просим шрифт для значка явно, чтобы не зависеть
+    // интерфейс набран Ubuntu Sans — просим шрифт для значка явно, чтобы не зависеть
     // от того, как система подберёт замену.
     public static readonly System.Windows.Media.FontFamily SymbolFont = new("Segoe UI Symbol, Segoe UI");
 

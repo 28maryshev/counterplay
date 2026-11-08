@@ -30,12 +30,15 @@
        видно, какая часть уйдёт с поражением. -->
   <SolidColorBrush x:Key="LpRiskFill" Color="#E8503F"/>
 
-  <!-- Основной текст — Geist (встроен в сборку), как на сайте. Запасной Segoe UI. -->
-  <FontFamily x:Key="UiFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
-  <!-- Заголовки/имена — тоже Geist, чтобы весь интерфейс был единым шрифтом. -->
-  <FontFamily x:Key="DisplayFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
-  <!-- Цифры позиции — тоже Geist (единый шрифт). -->
-  <FontFamily x:Key="NumberFont">/assets/fonts/#Geist, Segoe UI</FontFamily>
+  <!-- Основной текст — Ubuntu Sans (встроен в сборку). Тот же шрифт задан в
+       Theme.xaml для остальных окон — менять оба места вместе. Запасной Segoe UI
+       добирает знаки, которых в шрифте нет: вьетнамские буквы со значками, →, ★. -->
+  <FontFamily x:Key="UiFont">/assets/fonts/#Ubuntu Sans, Segoe UI</FontFamily>
+  <!-- Заголовки/имена — тоже Ubuntu Sans. Ключ отдельный: сюда можно поставить
+       другой шрифт для заголовков, не трогая мелкий текст. -->
+  <FontFamily x:Key="DisplayFont">/assets/fonts/#Ubuntu Sans, Segoe UI</FontFamily>
+  <!-- Цифры позиции — тоже Ubuntu Sans. -->
+  <FontFamily x:Key="NumberFont">/assets/fonts/#Ubuntu Sans, Segoe UI</FontFamily>
 
   <!-- Выпадающий список ролей врага — в цветах кнопки-чипа (тёмный фон,
        рамка #557089, золотая подсветка выбранного/наведённого пункта). -->
