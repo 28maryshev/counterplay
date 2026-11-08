@@ -437,6 +437,7 @@ cmd_status() {
 ask_pass() {  # $1 — подсказка; пароль в переменную PASS
   [ -t 0 ] || die "пароль спрашивается в терминале: запусти команду в обычном окне Git Bash"
   read -rs -p "$1" PASS; echo
+  PASS=${PASS%$'\r'}   # консоль Windows бывает, что отдаёт и возврат каретки
 }
 
 cmd_secrets_export() {
@@ -453,9 +454,16 @@ cmd_secrets_export() {
   for p in "${SECRETS_SITE[@]}"; do put "$SITE/$p" "$tmp/site/$p"; done
   cygpath -w "$HOME" > "$tmp/home.path"
   [ "$n" -gt 0 ] || die "нечего упаковывать"
-  ask_pass "Пароль для архива ключей (не короче 12 знаков): "
-  [ ${#PASS} -ge 12 ] || die "пароль короче 12 знаков"
-  p2="$PASS"; ask_pass "Ещё раз: "; [ "$PASS" = "$p2" ] || die "пароли не совпали"
+  # Ввод не виден, опечататься легко — три попытки, а не выход с первой.
+  local try ok=0
+  for try in 1 2 3; do
+    ask_pass "Пароль для архива ключей (не короче 12 знаков, набор не виден): "
+    if [ ${#PASS} -lt 12 ]; then echo "  короче 12 знаков (${#PASS}) — ещё раз"; continue; fi
+    p2="$PASS"; ask_pass "Ещё раз тот же: "
+    if [ "$PASS" = "$p2" ]; then ok=1; break; fi
+    echo "  не совпали (знаков: ${#p2} и ${#PASS}) — ещё раз"
+  done
+  [ "$ok" = 1 ] || die "три попытки не вышли — запусти команду заново"
   tar czf - -C "$tmp" home counterplay site home.path |
     BRAIN_PASS="$PASS" openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:BRAIN_PASS |
     rsh "umask 077; cat > ~/$R_SECRETS.new && mv ~/$R_SECRETS.new ~/$R_SECRETS" ||
