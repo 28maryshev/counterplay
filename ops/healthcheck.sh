@@ -425,9 +425,29 @@ if [ -f "$DIR/handbook/check.py" ]; then
 else
   warn "нет справочника handbook/"
 fi
-for f in "$HOME/.ssh/config" "$HOME/.claude/projects/c--Counterplay/memory/MEMORY.md"; do
+for f in "$HOME/.ssh/config" "$DIR/.claude/memory/MEMORY.md"; do
   [ -f "$f" ] && ok "на месте: $(basename "$f")" || warn "нет файла: $f"
 done
+
+# База знаний (ops/brain-sync.sh): сверяем с тем, что знаем о сервере с прошлой
+# отправки, — сеть здесь не трогаем, ничего не меняем.
+BG="$DIR/.claude/brain.git"
+if [ -d "$BG" ]; then
+  bk() { git --git-dir="$BG" --work-tree="$DIR" "$@"; }
+  ahead=$(bk rev-list --count origin/main..HEAD 2>/dev/null || echo '?')
+  [ "$ahead" = 0 ] && ok "база знаний: всё отправлено на сервер" ||
+    warn "база знаний: не отправлено коммитов: $ahead — bash ops/brain-sync.sh push"
+  st="$HOME/.claude/brain-sync/pushed"
+  if [ -f "$st" ]; then
+    age=$(( ($(date +%s) - $(stat -c %Y "$st")) / 3600 ))
+    [ "$age" -le 48 ] && ok "база знаний: последняя отправка $age ч назад" ||
+      warn "база знаний не отправлялась $age ч — хуки в .claude/settings.local.json на месте?"
+  fi
+  [ -L "$HOME/.claude/projects/c--Counterplay/memory" ] && ok "память Claude смотрит в .claude/memory" ||
+    warn "память Claude не связана с .claude/memory — bash ops/brain-sync.sh setup"
+else
+  warn "база знаний на этой машине не настроена — bash ops/brain-sync.sh setup"
+fi
 
 # ───────────────────────────── итог ─────────────────────────────
 echo

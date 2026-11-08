@@ -56,3 +56,12 @@ if [ -d "$BOOK" ]; then
 fi
 
 echo "в хранилище уедет со следующим суточным бэкапом (или сразу: ssh $HOST '. ~/.backup.env && ~/backup-collector.sh')"
+
+# База знаний — журнал, справочник, CLAUDE.md, память Claude и остальное, что
+# нужно другой машине, — едет своим путём (git, ops/brain-sync.sh). Хуки Claude
+# отправляют её сами, но после записи в журнал не ждём следующего хука.
+if [ -d "$DIR/.claude/brain.git" ]; then
+  bash "$DIR/ops/brain-sync.sh" push
+else
+  echo "база знаний на этой машине не настроена: bash ops/brain-sync.sh setup"
+fi
