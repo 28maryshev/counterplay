@@ -174,8 +174,9 @@
                             ToolTipService.InitialShowDelay="250">
                       <Border.ToolTip>
                         <StackPanel MaxWidth="300">
-                          <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold"/>
-                          <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                          <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold"
+                                     FontSize="14" TextWrapping="Wrap"/>
+                          <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" Margin="0,3,0,0"/>
                           <TextBlock Text="{Binding Note}" Foreground="#7C97AC" FontSize="11"
                                      TextWrapping="Wrap" Margin="0,5,0,0"
                                      Visibility="{Binding NoteVisibility}"/>
