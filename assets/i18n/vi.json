@@ -328,7 +328,7 @@
     "vulnShield": "Bạn dựa vào lá chắn, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Kiếm Ác Xà sẽ làm yếu tất cả cùng lúc.",
     "vulnHeal": "Bạn dựa vào hồi máu, và tính cả bạn thì đội sẽ có {0} tướng như vậy. Đồ giảm hồi máu (Vết Thương Sâu) sẽ làm yếu tất cả cùng lúc.",
     "needFront": "Đội bạn đang dựng lối front-to-back nhưng chưa có tướng đỡ đòn đứng trước. Lựa chọn này giữ tuyến đầu và chịu sát thương thay cho chủ lực.",
-    "needDisengage": "Đội bạn đang dựng lối pick/poke nhưng không ai chặn được đợt mở giao tranh của địch. Lựa chọn này đẩy địch ra và giúp đội lùi về giữ khoảng cách.",
+    "needDisengage": "Đội bạn đang dựng lối pick/poke nhưng không ai chặn được đợt mở giao tranh của địch. Lựa chọn này phá đợt mở giao tranh của địch và giúp đội lùi về giữ khoảng cách.",
     "needEngage": "Đội bạn đang dựng lối lao vào nhưng không ai mở được giao tranh. Lựa chọn này mở giao tranh để cả đội theo vào."
   },
   "rec": {

@@ -433,7 +433,7 @@
     "vulnShield": "Dependes de los escudos y, contigo, habrá {0} campeones así en el equipo. El Colmillo de serpiente os debilitará a todos a la vez.",
     "vulnHeal": "Dependes de la curación y, contigo, habrá {0} campeones así en el equipo. La anticuración (Heridas graves) os debilitará a todos a la vez.",
     "needFront": "Tu equipo se arma en front-to-back, pero no hay tanque delante. Este pick sostiene la línea frontal y absorbe daño por tus carries.",
-    "needDisengage": "Tu equipo se arma en pick/poke, pero nadie puede frenar un engage enemigo. Este pick aleja a los enemigos y deja que tu equipo se retire.",
+    "needDisengage": "Tu equipo se arma en pick/poke, pero nadie puede frenar un engage enemigo. Este pick corta su engage y deja que tu equipo se retire.",
     "needEngage": "Tu equipo se arma en dive, pero nadie puede iniciar la pelea. Este pick abre con un engage que el resto puede seguir."
   },
   "pool": {

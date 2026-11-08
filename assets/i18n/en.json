@@ -354,7 +354,7 @@
     "vulnShield": "You rely on shields, and with you there will be {0} such champions on the team. Serpent's Fang will weaken all of you at once.",
     "vulnHeal": "You rely on healing, and with you there will be {0} such champions on the team. Anti-heal (Grievous Wounds) will weaken all of you at once.",
     "needFront": "Your team is building front-to-back but has no tank up front. This pick holds the front line and soaks damage for your carries.",
-    "needDisengage": "Your team is building pick/poke but nobody can stop an enemy engage. This pick pushes enemies off and lets your team back away.",
+    "needDisengage": "Your team is building pick/poke but nobody can stop an enemy engage. This pick breaks their engage and lets your team back away.",
     "needEngage": "Your team is building dive but nobody can start the fight. This pick opens with an engage the rest can follow."
   },
   "rec": {

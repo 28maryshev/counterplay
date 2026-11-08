@@ -433,7 +433,7 @@
     "vulnShield": "Kalkanlara dayanıyorsun ve seninle birlikte takımda böyle {0} şampiyon olacak. Yılan Dişi hepinizi birden zayıflatır.",
     "vulnHeal": "İyileşmeye dayanıyorsun ve seninle birlikte takımda böyle {0} şampiyon olacak. İyileşmeyi azaltan eşyalar (Ağır Yara) hepinizi birden zayıflatır.",
     "needFront": "Takımın front-to-back kuruyor ama önde tank yok. Bu seçim frontline'ı tutar ve carry'ler yerine hasarı üstlenir.",
-    "needDisengage": "Takımın pick/poke kuruyor ama rakip engage'i durduracak kimse yok. Bu seçim rakipleri iter ve takımın geri çekilmesini sağlar.",
+    "needDisengage": "Takımın pick/poke kuruyor ama rakip engage'i durduracak kimse yok. Bu seçim engage'lerini bozar ve takımın geri çekilmesini sağlar.",
     "needEngage": "Takımın dive kuruyor ama savaşı başlatacak kimse yok. Bu seçim, diğerlerinin takip edeceği engage'i açar."
   },
   "pool": {

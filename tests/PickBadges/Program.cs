@@ -44,7 +44,7 @@ internal static class Program
                       Kayn = 141, Aurora = 893, Evelynn = 28, Mel = 800, Vayne = 67,
                       Kayle = 10, Sejuani = 113, Jayce = 126, Nidalee = 76, Xerath = 101,
                       Riven = 92, Samira = 360, Pyke = 555, Janna = 40, Blitzcrank = 53,
-                      JarvanIV = 59, KhaZix = 121;
+                      JarvanIV = 59, KhaZix = 121, Alistar = 12, Poppy = 78, Taric = 44, Soraka = 16;
 
     [STAThread]
     private static int Main()
@@ -263,11 +263,15 @@ internal static class Program
     /// </summary>
     private static void Needs(RecommendationEngine engine)
     {
-        var cases = new (string Scene, DraftState Draft, string Kind, Func<int, bool> Fills, int Yes, int No)[]
+        // Поимённо: у кого тег обязан быть. Алистар и Поппи — слово владельца
+        // (09.11: «алистар, поппи тоже дизэнгейдж»), Тарик и Сорака — из
+        // добавленных тем же днём.
+        var cases = new (string Scene, DraftState Draft, string Kind, Func<int, bool> Fills, int[] Yes, int No)[]
         {
-            ("фронт-ту-бэк без танка", TopF2bNoTank(), "needFront", ChampionTraits.Frontline, Malphite, Jayce),
-            ("пик/пок без дизэнгейджа", SupportPokeNoDisengage(), "needDisengage", ChampionTraits.Disengager, Janna, Blitzcrank),
-            ("дайв без захода", JungleDiveNoEngage(), "needEngage", ChampionTraits.Initiator, JarvanIV, KhaZix),
+            ("фронт-ту-бэк без танка", TopF2bNoTank(), "needFront", ChampionTraits.Frontline, [Malphite], Jayce),
+            ("пик/пок без дизэнгейджа", SupportPokeNoDisengage(), "needDisengage", ChampionTraits.Disengager,
+             [Janna, Alistar, Poppy, Taric, Soraka], Blitzcrank),
+            ("дайв без захода", JungleDiveNoEngage(), "needEngage", ChampionTraits.Initiator, [JarvanIV], KhaZix),
         };
         foreach (var (scene, draft, kind, fills, yes, no) in cases)
         {
@@ -283,13 +287,17 @@ internal static class Program
                   : string.Join(", ", wrong.Concat(other.Select(o => $"чужой тег «{o}»")).Take(4)));
 
             Recommendation? One(int id) => engine.Recommend(draft, 1, [id]).FirstOrDefault();
-            var y = One(yes);
+            var missed = yes.Where(id => One(id)?.Badges?.Tags.Any(t => t.Kind == kind) != true)
+                            .Select(id => DataDragon.Name(id)).ToList();
             var n = One(no);
-            var yTag = y?.Badges?.Tags.FirstOrDefault(t => t.Kind == kind);
             var nTag = n?.Badges?.Tags.FirstOrDefault(t => t.Kind == kind);
-            Check($"{scene}: у {DataDragon.Name(yes)} тег есть, у {DataDragon.Name(no)} — нет",
-                  yTag is not null && n is not null && nTag is null,
-                  yTag is not null ? $"«{yTag.Text}»: {yTag.Tip}" : y is null ? "нет кандидата" : Line(y));
+            var names = string.Join(", ", yes.Select(id => DataDragon.Name(id)));
+            Check($"{scene}: тег есть у {names}, у {DataDragon.Name(no)} — нет",
+                  missed.Count == 0 && n is not null && nTag is null,
+                  missed.Count > 0 ? $"без тега: {string.Join(", ", missed)}"
+                  : n is null ? $"нет кандидата {DataDragon.Name(no)}"
+                  : nTag is not null ? $"у {DataDragon.Name(no)} «{nTag.Text}»"
+                  : One(yes[0])?.Badges?.Tags.First(t => t.Kind == kind).Tip ?? "");
         }
 
         // Дыры нет — тега нет: тот же фронт-ту-бэк, но в лесу Сежуани.

@@ -328,7 +328,7 @@
     "vulnShield": "Opierasz się na tarczach, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Wężowy Kieł osłabi was wszystkich naraz.",
     "vulnHeal": "Opierasz się na leczeniu, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Przedmioty z Głębokimi Ranami osłabią was wszystkich naraz.",
     "needFront": "Twoja drużyna buduje front-to-back, ale z przodu nie ma tanka. Ten pick utrzyma frontline i przyjmie obrażenia za carry.",
-    "needDisengage": "Twoja drużyna buduje pick/poke, ale nikt nie zatrzyma wrogiej inicjacji. Ten pick odepchnie wrogów i pozwoli wam się wycofać.",
+    "needDisengage": "Twoja drużyna buduje pick/poke, ale nikt nie zatrzyma wrogiej inicjacji. Ten pick przerwie ich inicjację i pozwoli wam się wycofać.",
     "needEngage": "Twoja drużyna buduje dive, ale nikt nie zacznie walki. Ten pick da inicjację, za którą pójdzie reszta."
   },
   "rec": {

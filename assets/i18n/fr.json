@@ -433,7 +433,7 @@
     "vulnShield": "Tu comptes sur les boucliers, et avec toi, l'équipe aura {0} champions de ce type. Le Crochet de serpent vous affaiblira tous d'un coup.",
     "vulnHeal": "Tu comptes sur les soins, et avec toi, l'équipe aura {0} champions de ce type. Les effets anti-soins (Hémorragie) vous affaibliront tous d'un coup.",
     "needFront": "Ton équipe part sur du front-to-back, mais aucun tank devant. Ce pick tient le front et encaisse les dégâts pour tes carrys.",
-    "needDisengage": "Ton équipe part sur du pick/poke, mais personne ne peut stopper un engage adverse. Ce pick repousse les ennemis et permet de reculer.",
+    "needDisengage": "Ton équipe part sur du pick/poke, mais personne ne peut stopper un engage adverse. Ce pick casse leur engage et permet de reculer.",
     "needEngage": "Ton équipe part sur du dive, mais personne ne peut lancer le combat. Ce pick ouvre avec un engage que les autres peuvent suivre."
   },
   "pool": {
