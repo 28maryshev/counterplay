@@ -180,6 +180,21 @@ def init_db(path: str) -> sqlite3.Connection:
             ts    INTEGER
         );
 
+        -- Сила по времени игры (с 09.11.2026): игры и победы чемпиона на роли по
+        -- длительности матча — bucket 0: до 25 минут, 1: 25–35, 2: дольше 35.
+        -- Программа считает из неё, кто силён рано, а кто поздно (вместо меток
+        -- aggressive/scale), и «кто сильнее к какой минуте» у обеих команд.
+        CREATE TABLE IF NOT EXISTS duration_wr (
+            champion_id  INTEGER,
+            role         TEXT,
+            tier_bucket  TEXT,
+            patch        TEXT,
+            bucket       INTEGER,
+            games        INTEGER DEFAULT 0,
+            wins         INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, tier_bucket, patch, bucket)
+        );
+
         -- Баланс урона по чемпиону: сумма урона ПО ЧЕМПИОНАМ, разбитая по типам.
         -- Даёт реальные доли физ/маг/чистого вместо оценок «на глаз».
         CREATE TABLE IF NOT EXISTS champion_damage (
@@ -577,6 +592,12 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
 
     t1, t2 = team_ids[0], team_ids[1]
 
+    # Отрезок длительности для duration_wr. gameDuration в MATCH-V5 — секунды
+    # (с 11.20). Ремейки (досрочная сдача) про силу по времени ничего не говорят.
+    duration = info.get('gameDuration', 0) or 0
+    remake = any(p.get('gameEndedInEarlySurrender') for p in participants)
+    dur_bucket = None if remake or duration <= 0 else 0 if duration < 25 * 60 else 1 if duration < 35 * 60 else 2
+
     for side_a, side_b in ((t1, t2), (t2, t1)):
         for role, p in teams[side_a].items():
             champ = p['championId']
@@ -589,6 +610,10 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
             upsert(con, 'region_wr',
                    ['champion_id', 'role', 'region', 'tier_bucket', 'tier', 'patch'],
                    [champ, role, region, tier_bucket, tier, patch], win)
+            if dur_bucket is not None:
+                upsert(con, 'duration_wr',
+                       ['champion_id', 'role', 'tier_bucket', 'patch', 'bucket'],
+                       [champ, role, tier_bucket, patch, dur_bucket], win)
 
             # Баланс урона: суммы урона ПО ЧЕМПИОНАМ по типам (физ/маг/чистый).
             ph = p.get('physicalDamageDealtToChampions', 0) or 0

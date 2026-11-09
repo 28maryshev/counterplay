@@ -53,8 +53,10 @@ UPLOAD_TIMEOUT = (15, 300)
 RETRIES = 3
 
 # Таблицы, которые реально читает движок программы (RecommendationEngine.cs).
+# duration_wr (с 09.11.2026) — сила по времени игры; пока сборщик её не завёл,
+# копирование таблицу просто пропускает.
 ENGINE_TABLES = ['base_wr', 'matchup', 'synergy', 'botlane_matchup', 'champion_bans',
-                 'champion_damage']
+                 'champion_damage', 'duration_wr']
 BUCKETS = ['silver', 'gold', 'emerald', 'master']
 KEEP_PATCHES = 3     # движок считает по 2 свежим, третий нужен ему для «удержания»
                      # нового патча (RecommendationEngine.PatchReady). Больше класть
