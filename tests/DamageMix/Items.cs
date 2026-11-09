@@ -26,7 +26,7 @@ internal static class Items
     private const int Nautilus = 111, Trynda = 23, Kalista = 429, Brand = 63, Yone = 777, Zed = 238;
     private const int Ornn = 516, Galio = 3;
     private const int Rammus = 33, Malphite = 54, Malzahar = 90, Soraka = 16, Lulu = 117,
-                      Aatrox = 266, Jinx = 222, Thresh = 412, Ahri = 103;
+                      Gangplank = 41, Jinx = 222, Thresh = 412, Ahri = 103;
 
     // Составы врага. Названия — по тому, КТО там есть: от этого и зависит,
     // какой предмет вообще кто-то купит.
@@ -34,7 +34,10 @@ internal static class Items
     private static readonly int[] NoEnchanter   = [Brand, Kalista, Trynda, Zed, Yone];
     private static readonly int[] OnlyCarries   = [Kalista, Brand, Yone, Trynda, Zed];
     private static readonly int[] TwoTanks      = [Nautilus, Ornn, Kalista, Brand, Yone];
-    private static readonly int[] FighterAndTanks = [Aatrox, Zed, Nautilus, Ornn, Rammus];
+    // Боец — Гангпланк. До 09.11 им был Атрокс, но тогда у него не было меток
+    // вовсе (класс Fighter); по ревизии разметки он джаггернаут — «толстый
+    // фронт», как Дариус и Гарен, и в контр-предметах считается танком.
+    private static readonly int[] FighterAndTanks = [Gangplank, Zed, Nautilus, Ornn, Rammus];
     private static readonly int[] TwoEnchanters   = [Soraka, Lulu, Nautilus, Rammus, Ornn];
 
     // ID предметов названы здесь заново нарочно: если их переписать в движке,

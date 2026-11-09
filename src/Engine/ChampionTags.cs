@@ -9,31 +9,31 @@ public static class ChampionTags
     private static readonly Dictionary<int, string[]> T = new()
     {
         // ── Supports ──────────────────────────────────────────────────────────
-        [412] = ["hook", "engage", "cc"],              // Thresh
+        [412] = ["hook", "engage", "hard_cc"],              // Thresh
         [111] = ["hook", "engage", "hard_cc"],         // Nautilus
-        [53]  = ["hook", "engage", "cc"],              // Blitzcrank
+        [53]  = ["hook", "engage", "hard_cc"],              // Blitzcrank
         // Пайк стоял в одном ряду с Трешем и Блицкранком — как хук-ТАНК. Но у
         // Riot он Support+Assassin, и полкита не было записано вовсе:
         // невидимость на W, рывок на E, добивающий ульт. Без них архетип
         // считался чистым подловом, хотя дайва в нём не меньше.
-        [555] = ["hook", "cc", "roam", "burst", "stealth", "mobility"], // Pyke
+        [555] = ["hook", "hard_cc", "roam", "burst", "stealth", "mobility"], // Pyke
         [89]  = ["engage", "hard_cc"],                 // Leona
         [526] = ["engage", "hard_cc"],                 // Rell
-        [497] = ["engage", "cc", "xayah_pair"],        // Rakan
+        [497] = ["engage", "hard_cc", "xayah_pair"],        // Rakan
         [44]  = ["peel", "heal", "ult_invuln"],        // Taric
-        [117] = ["peel", "shield", "cc"],              // Lulu
+        [117] = ["peel", "shield", "hard_cc"],              // Lulu
         [40]  = ["peel", "disengage", "shield"],       // Janna
         // 147 — Серафина, не Сорака (подпись была неверной до 09.11): щит и
         // лечение W, корень и оглушение E, ульт очаровывает.
-        [147] = ["peel", "heal", "shield", "cc"],      // Seraphine
+        [147] = ["peel", "heal", "shield", "hard_cc"],      // Seraphine
         [16]  = ["peel", "heal"],                      // Soraka
-        [267] = ["peel", "cc", "nami_e"],              // Nami
+        [267] = ["peel", "hard_cc", "nami_e"],              // Nami
         [43]  = ["peel", "poke", "range_poke", "shield"], // Karma (поук-энчантер → пик/пок)
         [235] = ["poke", "peel"],                      // Senna
         [161] = ["poke", "burst"],                     // Vel'Koz
-        [143] = ["poke", "cc", "zone"],                // Zyra
+        [143] = ["poke", "hard_cc", "zone"],                // Zyra
         [63]  = ["poke", "burst"],                     // Brand
-        [25]  = ["shield", "cc", "poke"],              // Morgana
+        [25]  = ["shield", "hard_cc", "poke"],              // Morgana
         [201] = ["peel", "engage", "passive_auto"],    // Braum
         [37]  = ["peel", "heal", "shield", "hard_cc"], // Sona (AoE-стан R, баффы/хил)
         // До 09.11 номера перепутаны: под 902 стояла «Рената», под 888 — «Ренгар»
@@ -41,8 +41,8 @@ public static class ChampionTags
         // занимается: щиты, спасение союзника, ульт обращает их заход против
         // своих), 902 — Милио (щит и ускорение, отбрасывание, ульт лечит и
         // снимает контроль). Ренгар — 107, записан у джанглеров.
-        [888] = ["peel", "shield", "utility", "cc"],   // Renata Glasc
-        [902] = ["peel", "shield", "heal", "utility", "cc"], // Milio
+        [888] = ["peel", "shield", "utility", "hard_cc"],   // Renata Glasc
+        [902] = ["peel", "shield", "heal", "utility", "hard_cc"], // Milio
         // Алистара не было вовсе — архетип шёл от класса Data Dragon, а заход и
         // пил считались нулём. Заход Q+W, удар головой, ульт — живучесть.
         [12]  = ["engage", "hard_cc", "tank", "peel"], // Alistar
@@ -65,16 +65,16 @@ public static class ChampionTags
         [42]  = ["poke", "mobility"],                  // Corki
 
         // ── Junglers ──────────────────────────────────────────────────────────
-        [79]  = ["engage", "cc", "dive"],              // Gragas
+        [79]  = ["engage", "hard_cc", "dive"],              // Gragas
         [59]  = ["engage", "hard_cc", "ult_trap"],     // Jarvan IV
         [254] = ["dive", "hard_cc"],                   // Vi (нокбэк Q, нокап/супресс R)
         [120] = ["engage", "dive", "hard_cc"],         // Hecarim (R — фир + отбрасывание)
         [154] = ["engage", "hard_cc"],                 // Zac (нокап E, отбрасывание R)
         [107] = ["dive", "burst"],                     // Rengar
         [141] = ["dive", "burst"],                     // Kayn
-        [64]  = ["dive", "cc"],                        // Lee Sin
+        [64]  = ["dive", "hard_cc"],                        // Lee Sin
         [203] = ["cc", "utility"],                     // Kindred
-        [56]  = ["engage", "cc"],                      // Nocturne (fear+dive)
+        [56]  = ["engage", "hard_cc"],                      // Nocturne (fear+dive)
         [113] = ["engage", "hard_cc"],                 // Sejuani (стан E/R)
 
         // ── Midlaners ─────────────────────────────────────────────────────────
@@ -86,18 +86,18 @@ public static class ChampionTags
         [157] = ["ult_airborne", "dash", "dive", "mobility"],   // Yasuo
         [777] = ["ult_airborne", "dash", "dive", "mobility", "burst"], // Yone
         [54]  = ["engage", "hard_cc", "ult_malphite"], // Malphite
-        [134] = ["poke", "zone_control", "burst", "cc"], // Syndra (пик-маг, не дайв)
+        [134] = ["poke", "zone_control", "burst", "hard_cc"], // Syndra (пик-маг, не дайв)
         // Ари — не поук-маг: она заходит чармом, снимает цель и уходит тремя
         // рывками ульта. Ни взрыва, ни подвижности в тегах не было.
-        [103] = ["poke", "cc", "burst", "mobility"],   // Ahri
+        [103] = ["poke", "hard_cc", "burst", "mobility"],   // Ahri
         [84]  = ["dive", "burst"],                     // Akali
         [105] = ["dive", "burst"],                     // Fizz
         [85]  = ["engage", "hard_cc", "dive"],         // Kennen (AoE-стан R/W-проки)
 
         // ── Топы ──────────────────────────────────────────────────────────────
         [122] = ["dive", "juggernaut", "hard_cc"],     // Darius
-        [31]  = ["cc", "dive", "scale", "tank"],       // Cho'Gath
-        [114] = ["dive", "cc"],                        // Fiora
+        [31]  = ["hard_cc", "dive", "scale", "tank"],       // Cho'Gath
+        [114] = ["dive", "hard_cc"],                        // Fiora
         [86]  = ["juggernaut", "tank"],                // Garen
         // Иллаой — не инициатор и не дайвер (было «cc, engage, dive»): драку не
         // начинает, в тыл нырнуть нечем, жёсткого контроля нет. Её игра —
@@ -105,7 +105,7 @@ public static class ChampionTags
         [420] = ["juggernaut", "zone_control"],        // Illaoi
         [516] = ["engage", "cc", "hard_cc", "tank"],   // Ornn
         [150] = ["engage", "hard_cc", "poke", "scale"],// Gnar
-        [126] = ["poke", "cc", "burst"],               // Jayce
+        [126] = ["poke", "hard_cc", "burst"],               // Jayce
         [10]  = ["scale", "hypercarry", "ult_invuln"], // Kayle
         [240] = ["aggressive", "dive", "hard_cc"],     // Kled
         [897] = ["tank", "engage", "hard_cc"],         // K'Sante
@@ -113,9 +113,9 @@ public static class ChampionTags
         [92]  = ["dive", "burst", "mobility"],         // Riven
         [14]  = ["engage", "hard_cc", "tank"],         // Sion
         [98]  = ["engage", "hard_cc", "peel", "tank"], // Shen
-        [27]  = ["cc", "tank"],                        // Singed
+        [27]  = ["hard_cc", "tank"],                        // Singed
         [23]  = ["dive", "scale", "kill_lane"],        // Tryndamere (сплит-дайв, не гиперкэрри)
-        [48]  = ["juggernaut", "sustain", "cc"],       // Trundle (джаггернаут фронта, не дайв)
+        [48]  = ["juggernaut", "sustain", "hard_cc"],       // Trundle (джаггернаут фронта, не дайв)
         [106] = ["dive", "engage", "hard_cc", "tank"], // Volibear
         [62]  = ["engage", "hard_cc", "dive", "burst"],// Wukong
         [83]  = ["zone_control", "scale"],             // Yorick
@@ -137,7 +137,7 @@ public static class ChampionTags
         [421] = ["dive", "hard_cc", "sustain"],                // Rek'Sai (нокап при вылезании)
         [234] = ["dive", "hard_cc", "sustain"],                // Viego (стан W)
         [33]  = ["engage", "hard_cc", "tank"],                 // Rammus
-        [35]  = ["burst", "stealth", "cc"],                    // Shaco
+        [35]  = ["burst", "stealth", "hard_cc"],                    // Shaco
         [72]  = ["engage", "hard_cc", "dive", "tank"],         // Skarner
         [77]  = ["engage", "hard_cc", "tank", "dive"],         // Udyr
         [876] = ["cc", "hard_cc", "mobility", "poke"],         // Lillia
@@ -146,13 +146,13 @@ public static class ChampionTags
         // ── Дополнительные мидеры ────────────────────────────────────────────
         [1]   = ["burst", "hard_cc", "engage"],                // Annie
         [3]   = ["engage", "hard_cc", "tank", "peel"],         // Galio
-        [13]  = ["poke", "burst", "scale", "cc"],              // Ryze
+        [13]  = ["poke", "burst", "scale", "hard_cc"],              // Ryze
         [34]  = ["cc", "hard_cc", "zone_control"],             // Anivia
         [38]  = ["dive", "burst", "mobility", "cc"],           // Kassadin
         [45]  = ["burst", "cc", "hard_cc", "scale"],           // Veigar
-        [50]  = ["tank", "sustain", "cc", "zone_control"],     // Swain (дрейн-танк тимфайта)
+        [50]  = ["tank", "sustain", "hard_cc", "zone_control"],     // Swain (дрейн-танк тимфайта)
         [68]  = ["zone_control", "burst", "cc"],               // Rumble
-        [74]  = ["poke", "zone_control", "cc"],                // Heimerdinger
+        [74]  = ["poke", "zone_control", "hard_cc"],                // Heimerdinger
         [91]  = ["dive", "burst", "stealth", "mobility"],      // Talon
         [99]  = ["burst", "cc", "hard_cc", "poke", "shield"], // Lux
         [101] = ["poke", "burst", "cc", "hard_cc"],            // Xerath
@@ -165,7 +165,7 @@ public static class ChampionTags
         [166] = ["poke", "mobility", "cc"],                    // Akshan
         [246] = ["burst", "dive", "mobility", "cc", "hard_cc"],// Qiyana
         [268] = ["poke", "zone_control", "hard_cc", "scale"],  // Azir
-        [517] = ["dive", "burst", "mobility", "cc"],           // Sylas
+        [517] = ["dive", "burst", "mobility", "hard_cc"],           // Sylas
         [518] = ["poke", "zone_control", "burst", "cc", "hard_cc", "engage"], // Neeko (пик-маг)
         // ── Дополнительные ADC ───────────────────────────────────────────────
         [67]  = ["scale", "hypercarry", "needs_peel", "dive"], // Vayne
@@ -180,7 +180,7 @@ public static class ChampionTags
         [78]  = ["engage", "hard_cc", "peel", "tank"],         // Poppy
         [80]  = ["engage", "hard_cc", "dive", "burst"],        // Pantheon
         [223] = ["peel", "tank", "hard_cc", "sustain"],        // Tahm Kench
-        [350] = ["peel", "heal", "shield", "cc"],              // Yuumi
+        [350] = ["peel", "heal", "shield", "hard_cc"],              // Yuumi
 
         // Ревизия архетипов: раньше сидели на класс-фолбэке Data Dragon и
         // попадали не в свой стиль (Гангпланк «Fighter» → фронт-ту-бэк и т.п.).
@@ -192,6 +192,36 @@ public static class ChampionTags
         [58]  = ["dive", "aggressive", "burst"],               // Renekton — агро-дайв
         [76]  = ["poke", "range_poke", "mobility"],            // Nidalee — копейный поук
         [893] = ["poke", "zone_control", "mobility", "burst"], // Aurora — кайт-поук
+
+        // ── Ревизия 09.11: чемпионы, у которых меток не было вовсе ─────────
+        // Всё шло по классу Data Dragon. Метки по наборам умений; Локк, Юнара и
+        // Заахен оставлены на классе — их наборы не сверены.
+        [799] = ["dive", "mobility", "hard_cc"],        // Ambessa
+        [266] = ["juggernaut", "sustain", "hard_cc"],   // Aatrox
+        [432] = ["peel", "hard_cc", "roam", "utility"], // Bard
+        [233] = ["dive", "aggressive", "hard_cc", "sustain"],// Briar
+        [711] = ["burst", "hard_cc", "zone_control"],   // Vex
+        [112] = ["zone_control", "poke", "hard_cc", "scale"],// Viktor
+        [8] = ["sustain", "scale", "burst"],            // Vladimir
+        [36] = ["tank", "juggernaut", "sustain"],       // Dr. Mundo
+        [238] = ["burst", "mobility", "dive"],          // Zed
+        [39] = ["dive", "mobility", "hard_cc"],         // Irelia
+        [164] = ["dive", "mobility", "hard_cc"],        // Camille
+        [69] = ["zone_control", "hard_cc", "scale"],    // Cassiopeia
+        [55] = ["burst", "mobility", "dive"],           // Katarina
+        [133] = ["aggressive", "mobility", "roam"],     // Quinn
+        [7] = ["burst", "mobility", "hard_cc"],         // LeBlanc
+        [90] = ["zone_control", "hard_cc", "scale"],    // Malzahar
+        [11] = ["dive", "scale"],                       // Master Yi
+        [82] = ["juggernaut", "hard_cc", "sustain"],         // Mordekaiser
+        [800] = ["poke", "burst", "hard_cc"],           // Mel
+        [950] = ["burst", "dive", "mobility"],          // Naafiri
+        [875] = ["juggernaut", "engage", "hard_cc"],    // Sett
+        [901] = ["scale", "hypercarry", "poke"],        // Smolder
+        [4] = ["roam", "hard_cc", "poke"],              // Twisted Fate
+        [17] = ["poke", "zone_control"],                // Teemo
+        [910] = ["poke", "zone_control", "hard_cc", "scale"],// Hwei
+        [245] = ["burst", "mobility", "dive", "hard_cc"],// Ekko
     };
 
     public static IReadOnlyCollection<string> Get(int champId) =>
