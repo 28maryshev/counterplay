@@ -102,6 +102,8 @@ internal static class Program
         Front(engine, scenes);
         Needs(engine, scenes);
         GapRoles(engine, scenes);
+        Comp();
+        Punish(engine);
         Tempo(engine);
         Blind(all.Where(x => x.Scene.Contains("вслепую")).Select(x => x.R).ToList());
 
@@ -119,6 +121,9 @@ internal static class Program
         ["needFront", "needDisengage", "needEngage", "needPeel", "needCc", "needAp", "needAd",
          "needAntiTank", "needWaveclear", "needEarly"];
     private static readonly string[] TagKinds = ["lane", "blind", "team", "synergy", .. NeedKinds];
+    private static readonly string[] PunishKinds =
+        ["punishNoFront", "punishNoPeel", "punishNoDisengage", "punishNoCc", "punishOneDamage",
+         "punishNoAntiTank", "punishLate"];
     private static readonly string[] PairKinds =
         ["airborne", "orianna", "immortal", "enchanter", "hook", "burst_pick", "isolate",
          "artillery", "channel", "peel", "frontline", "double_engage"];
@@ -151,8 +156,10 @@ internal static class Program
             "reason.counterItems", "reason.offStyle", "reason.personalUp", "reason.personalDown",
             "reason.exploitCc", "reason.exploitAuto", "reason.vulnCc", "reason.vulnAuto",
             "reason.vulnShield", "reason.vulnHeal",
-            .. NeedKinds.Select(k => $"reason.{k}"), "reason.needFrontAny", "reason.needOpen",
-            "reason.offTempo",
+            .. NeedKinds.Select(k => $"reason.{k}"), "reason.needFrontAny", "reason.offTempo",
+            .. PunishKinds.Select(k => $"reason.{k}"),
+            "comp.header", "comp.enemyHeader", "comp.has", "comp.few", "comp.none", "comp.planLine",
+            "comp.planF2b", "comp.planDive", "comp.planPoke", "comp.planEarly", "comp.planLate",
         ];
         // Все 15 языков: строка есть (без неё язык молча берёт английскую) и
         // плейсхолдеры те же, что в английской, — иначе подстановка уронит
@@ -281,14 +288,14 @@ internal static class Program
     /// </summary>
     private static ((string Kind, Func<int, bool> Fills)[] Gaps, string? Red) Expected(string scene) => scene switch
     {
-        "топ против Дариуса, Ясуо в команде"        => ([GFront], "needFront"),
+        "топ против Дариуса, Ясуо в команде"        => ([GFront], null),
         "мид первым пиком, вслепую"                => ([], null),
-        "саппорт против Кейтлин и Морганы"          => ([GDis], "needDisengage"),
+        "саппорт против Кейтлин и Морганы"          => ([GDis], null),
         "стрелок против Вейн, Эвелинн, Мэл и Лулу"  => ([], null),
         "топ во фронт-ту-бэк без танка"             => ([GFront], null),
-        "саппорт в пик/пок без дизэнгейджа"         => ([GDis, GFront], "needDisengage"),
-        "лес в дайв без захода"                     => ([GEng, GFront, GAp], "needEngage"),
-        "саппорт к Ког'Мао без защиты"              => ([GEng, GPeel, GCc], "needEngage"),
+        "саппорт в пик/пок без дизэнгейджа"         => ([GDis, GFront], null),
+        "лес в дайв без захода"                     => ([GEng, GFront, GAp], null),
+        "саппорт к Ког'Мао без защиты"              => ([GEng, GPeel, GCc], null),
         "топ к поздней команде против танков"       => ([GFront, GPeel, GTank, GEarly], null),
         "мид последним к Зери без защиты"           => ([], null),
         _ => throw new ArgumentException(scene),
@@ -326,7 +333,10 @@ internal static class Program
                 var got = r.Badges?.Tags.Where(t => IsNeed(t.Kind)).Select(t => $"{(t.Sign > 0 ? "+" : "−")}{t.Kind}").ToList() ?? [];
                 if (!want.SequenceEqual(got))
                     wrong.Add($"{Who(r)}: ждали [{string.Join(" ", want)}], есть [{string.Join(" ", got)}]");
-                var weighted = green.Any(k => k is not ("needAp" or "needAd"));
+                // Надбавка — за все закрытые дыры с ценой (не только показанные
+                // теги); без цены по замеру 09.11: тип урона, отход, ранняя игра.
+                var weighted = gaps.Any(g => g.Fills(r.ChampionId)
+                                             && g.Kind is not ("needAp" or "needAd" or "needDisengage" or "needEarly"));
                 var bonus = r.Facts?.NeedBonus ?? 0;
                 if (weighted != bonus > 0) wrong.Add($"{Who(r)}: надбавка {bonus:0.00} при [{string.Join(" ", green)}]");
             }
@@ -347,8 +357,6 @@ internal static class Program
             ("Ког'Мао без защиты", SupportKogNoPeel(), "needPeel", 1, [Janna, Lulu], Blitzcrank),
             ("поздние против танков", TopLateVsTanks(), "needAntiTank", 1, [Fiora, Darius], Garen),
             ("поздние против танков", TopLateVsTanks(), "needEarly", 1, [Renekton], Garen),
-            // Последний пик: свой чемпион, посчитанный один (через only), тоже краснеет.
-            ("последний пик в пик/поке", SupportPokeNoDisengage(), "needDisengage", -1, [Blitzcrank], Janna),
         };
         foreach (var (scene, draft, kind, sign, yes, no) in named)
         {
@@ -396,6 +404,66 @@ internal static class Program
         }
         Check("дыры — только у ролей, чья это работа (мид без фронта и защиты керри и т.д.)", bad.Count == 0,
               bad.Count == 0 ? "да" : string.Join("; ", bad.Distinct().Take(4)) + (bad.Count > 4 ? $" и ещё {bad.Count - 4}" : ""));
+    }
+
+    /// <summary>
+    /// Полоса состава под колонкой команды и план на игру (владелец, 09.11:
+    /// «делай всё» — чек-лист вместо красных тегов на карточках). Пока команда
+    /// выбирает, чего нет — серое (0), когда выбрали все пятеро — красное (−1),
+    /// что есть — зелёное (1). Разбор — у сцен.
+    /// </summary>
+    private static void Comp()
+    {
+        string States(List<CompCheckVm> v) => string.Join(" ", v.Select(c => $"{c.Kind}:{c.State}"));
+        void Expect(string what, List<CompCheckVm> got, string want) =>
+            Check(what, States(got) == want, States(got) == want ? want : $"ждали «{want}», есть «{States(got)}»");
+
+        // Картус, Аурелион Сол, Джинкс против четырёх танков: танка нет (пока),
+        // Джинкс прикрыть некому (пока), контроль у Сола и Джинкс, по танкам
+        // бить нечем (пока), волны чистят, ранней силы нет (пока).
+        Expect("состав: поздние против танков, трое выбрали — чего нет, то серое",
+               OverlayWindow.CompChecks([Karthus, AurelionSol, Jinx], [Malphite2, Sejuani, Galio, Caitlyn, Leona]),
+               "needFront:0 needPeel:0 needCc:1 needAntiTank:0 needWaveclear:1 needEarly:0");
+        // Ренектон, Ка'Зикс, Зед, Ког'Мао и Жанна — все пятеро: дайв без
+        // инициатора — красное, остальное есть.
+        Expect("состав: дайв без инициатора, все пятеро — красное",
+               OverlayWindow.CompChecks([Renekton, KhaZix, Zed, KogMaw, Janna], [Darius, Viego, Ahri, Caitlyn, Morgana]),
+               "needFront:1 needEngage:-1 needPeel:1 needCc:1 needWaveclear:1");
+        Check("состав: один выбранный — полосы нет", OverlayWindow.CompChecks([LeeSin], []).Count == 0, "пусто");
+
+        var f2b = OverlayWindow.PlanText([Kayle, Jinx, Lulu]);
+        Check("план: Кейл, Джинкс, Лулу — фронт-ту-бэк и поздние",
+              f2b.Contains(Loc.T("comp.planF2b")) && f2b.Contains(Loc.T("comp.planLate")), f2b);
+        var early = OverlayWindow.PlanText([Renekton, Graves, Orianna, Leona]);
+        Check("план: Ренектон, Грейвз, Орианна, Леона — сильны рано",
+              early.Contains(Loc.T("comp.planEarly")) && !early.Contains(Loc.T("comp.planLate")), early);
+        Check("план: двое — молчим", OverlayWindow.PlanText([Kayle, Jinx]) == "", "пусто");
+    }
+
+    /// <summary>
+    /// Их слабость — зелёные иконки тем, кто её наказывает (владелец, 09.11:
+    /// «дыры врага — наказать»). Враги Джейс, Нидали, Ксерат, Эзреаль, Карма:
+    /// фронта нет — у Зеда (взрыв) «их фронт пуст»; пробивать танков нечем — у
+    /// Галио «танк им не по зубам»; отход у них есть (Карма) — «заход без
+    /// ответа» не у кого. У врагов с Дариусом «их фронт пуст» — ни у кого.
+    /// </summary>
+    private static void Punish(RecommendationEngine engine)
+    {
+        var draft = MidVsPoke();
+        bool Has(int id, string kind) => engine.Recommend(draft, 1, [id]).FirstOrDefault()?.Badges?.Icons
+                                               .Any(i => i.Kind == kind && i.Sign > 0) == true;
+        Check("их фронт пуст — у Зеда, не у Галио", Has(Zed, "punishNoFront") && !Has(Galio, "punishNoFront"),
+              $"Зед {Has(Zed, "punishNoFront")}, Галио {Has(Galio, "punishNoFront")}");
+        Check("танк им не по зубам — у Галио, не у Зеда", Has(Galio, "punishNoAntiTank") && !Has(Zed, "punishNoAntiTank"),
+              $"Галио {Has(Galio, "punishNoAntiTank")}, Зед {Has(Zed, "punishNoAntiTank")}");
+        var any = engine.Recommend(draft, 8).Concat(engine.Recommend(draft, 1, [Galio]))
+                        .Where(r => r.Badges?.Icons.Any(i => i.Kind == "punishNoDisengage") == true).Select(Who).ToList();
+        Check("у врагов есть отход (Карма) — «заход без ответа» ни у кого", any.Count == 0,
+              any.Count == 0 ? "нет" : string.Join(", ", any));
+        var front = engine.Recommend(TopVsDarius(), 8).Where(r => r.Badges?.Icons.Any(i => i.Kind == "punishNoFront") == true)
+                          .Select(Who).ToList();
+        Check("у врагов есть фронт (Дариус) — «их фронт пуст» ни у кого", front.Count == 0,
+              front.Count == 0 ? "нет" : string.Join(", ", front));
     }
 
     /// <summary>
@@ -449,6 +517,7 @@ internal static class Program
         var list = (ItemsControl)w.FindName("FullRecList");
         TagsFit(w);
         var needCards = 0;
+        var compShown = 0;
         var offStyleOnNeed = new List<string>();
         var staleStyle = new List<string>();
         for (var i = 0; i < scenes.Length; i++)
@@ -465,6 +534,7 @@ internal static class Program
             var faded = cards.SelectMany(c => c.Icons).Count(x => x.Faded);
             Console.WriteLine($"  (бледных иконок: {faded})");
             Brightness(scenes[i].Name, cards);
+            compShown += ((ItemsControl)w.FindName("MyComp")).Items.Count;
             // Закрывает дыру — зелёный тег; с одним красным «не в стиле» законно.
             needCards += cards.Count(c => c.Tags.Any(t => IsNeed(t.Kind) && t.Sign > 0));
             offStyleOnNeed.AddRange(cards.Where(c => c.Tags.Any(t => IsNeed(t.Kind) && t.Sign > 0)
@@ -486,11 +556,16 @@ internal static class Program
                 .Where(c => c is not null).SelectMany(c => Descendants(c!)).OfType<TextBlock>()
                 .Count(t => t.Text.StartsWith("•"));
             Check($"{scenes[i].Name}: строк доводов нет", old == 0, $"{old}");
-            if (snap is { Length: > 0 }) Snap(list, snap, $"pick-badges-{i + 1}.png");
+            if (snap is { Length: > 0 })
+            {
+                Snap(list, snap, $"pick-badges-{i + 1}.png");
+                Snap((FrameworkElement)((ScrollViewer)w.FindName("TeamScroll")).Content, snap, $"team-{i + 1}.png");   // своя колонка с полосой состава
+            }
         }
         Check("окно: у закрывающих дыру стиля нет «не в стиле команды»", needCards > 0 && offStyleOnNeed.Count == 0,
               offStyleOnNeed.Count > 0 ? string.Join(", ", offStyleOnNeed)
               : needCards == 0 ? "ни одной карточки с тегом нужды" : $"карточек с тегом нужды {needCards}");
+        Check("окно: полоса состава под своей колонкой заполнена", compShown > 0, $"плашек за все сцены {compShown}");
         Check("окно: «не в стиле команды» — по стилю этой команды, а не прошлого обновления", staleStyle.Count == 0,
               staleStyle.Count == 0 ? "да" : string.Join(", ", staleStyle.Take(4)) + (staleStyle.Count > 4 ? $" и ещё {staleStyle.Count - 4}" : ""));
         w.Close();
@@ -650,6 +725,15 @@ internal static class Program
          new(3, Zeri, 0, "bottom", false), new(4, Neeko, 0, "utility", false)],
         [new(5, Sion, 0, "top", false), new(6, Viego, 0, "jungle", false), new(7, Ahri, 0, "middle", false),
          new(8, Caitlyn, 0, "bottom", false), new(9, Morgana, 0, "utility", false)],
+        2, "middle", exposed: false);
+
+    // Мид против поука без фронта и без пробивания танков: Джейс, Нидали,
+    // Ксерат, Эзреаль, Карма. Свои — Ли Син, Джинкс, Леона.
+    private static DraftState MidVsPoke() => Draft(
+        [new(0, 0, 0, "top", false), new(1, LeeSin, 0, "jungle", false), new(2, 0, 0, "middle", true),
+         new(3, Jinx, 0, "bottom", false), new(4, Leona, 0, "utility", false)],
+        [new(5, Jayce, 0, "top", false), new(6, Nidalee, 0, "jungle", false), new(7, Xerath, 0, "middle", false),
+         new(8, Ezreal, 0, "bottom", false), new(9, Karma, 0, "utility", false)],
         2, "middle", exposed: false);
 
     // Ренектон и Грейвз сильны рано, Орианна и Леона — ровно, поздних нет.

@@ -338,8 +338,14 @@
     "needAntiTank": "敌方有坦克（{0}），我方却没人打得动。这个英雄能造成百分比生命或真实伤害。",
     "needWaveclear": "队伍里没人能快速清线，被围攻时防御塔会丢。这个英雄能远距离清线。",
     "needEarly": "整支队伍都是后期，出装前会被压着打。这个英雄从开局就强势。",
-    "needOpen": "你是最后一手，但队伍仍然缺少「{0}」，这个英雄补不上这个空缺。绿色标签的英雄能补上。",
-    "offTempo": "队伍前期强势、想速战速决，而这个英雄要到后期才发力。"
+    "offTempo": "队伍前期强势、想速战速决，而这个英雄要到后期才发力。",
+    "punishNoFront": "敌方没有前排，你和他们的后排之间没人阻挡。",
+    "punishNoPeel": "敌方大后期核心{0}没人保护，你能切到他。",
+    "punishNoDisengage": "敌方没有手段打断你的开团。",
+    "punishNoCc": "敌方几乎没有硬控，抓不住也拦不住你。",
+    "punishOneDamage": "敌方伤害几乎全是{0}伤害，一种防御就能挡住所有人。",
+    "punishNoAntiTank": "敌方没有手段打动坦克，你能站得更久。",
+    "punishLate": "敌方是后期阵容，在他们出装前施压。"
   },
   "rec": {
     "yourPick": "你的选择",
@@ -903,6 +909,26 @@
     "aramFront": "为队伍提供前排",
     "aramHeal": "为队伍提供治疗",
     "common": "几乎所有候选英雄都有这一项，所以图标变淡了：它帮不了你做选择",
-    "offTempo": "节奏不符"
+    "offTempo": "节奏不符",
+    "punishNoFront": "敌方前排空缺",
+    "punishNoPeel": "敌方核心无人保护",
+    "punishNoDisengage": "无法应对的开团",
+    "punishNoCc": "没有控制能留住你",
+    "punishOneDamage": "敌方伤害类型单一",
+    "punishNoAntiTank": "敌方打不动坦克",
+    "punishLate": "惩罚后期阵容"
+  },
+  "comp": {
+    "header": "阵容",
+    "enemyHeader": "敌方阵容",
+    "has": "有：{0}",
+    "few": "偏少，只有{0}",
+    "none": "没人有",
+    "planLine": "打法：{0}",
+    "planF2b": "在资源点附近五打五：前排在前，后排输出在后。",
+    "planDive": "一起同时切入敌方后排，不要一个一个进。",
+    "planPoke": "资源点前先消耗，抓落单的人；避免正面长时间团战。",
+    "planEarly": "前期强势——压线并在25分钟前结束比赛。",
+    "planLate": "后期发力——出装前稳住，安心发育。"
   }
 }

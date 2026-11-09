@@ -286,6 +286,8 @@ public partial class OverlayWindow
                         EnemyDmgAdText, EnemyDmgApText, EnemyDmgTrueText,
                         EnemyDmgBar, EnemyDmgWarn, ally: false);
 
+        RenderComp(allyIds, enemyIds);
+
         var myCombos    = DetectCombos(draft.MyTeam,    ally: true);
         var enemyCombos = DetectCombos(draft.TheirTeam, ally: false);
         _myComboCards                = ToCards(myCombos,    ally: true);

@@ -443,8 +443,14 @@
     "needAntiTank": "Rakipte tanklar var ({0}) ve takımında onları delebilecek kimse yok. Bu seçim can yüzdesine göre ya da gerçek hasar verir.",
     "needWaveclear": "Takımında dalgaları hızlı temizleyen kimse yok — kuşatmada kuleler düşer. Bu seçim koridoru uzaktan temizler.",
     "needEarly": "Bütün takımın geç açılıyor — eşyalardan önce baskı yiyeceksiniz. Bu seçim ilk dakikalardan güçlü.",
-    "needOpen": "Son seçen sensin ve “{0}” hâlâ eksik — bu seçim açığı kapatmıyor. Yeşil etiketler kapatanları gösterir.",
-    "offTempo": "Takımın erken güçlü ve oyunu hızlı bitirmek istiyor, ama bu seçim geç açılıyor."
+    "offTempo": "Takımın erken güçlü ve oyunu hızlı bitirmek istiyor, ama bu seçim geç açılıyor.",
+    "punishNoFront": "Rakipte frontline yok — seninle carry'leri arasında kimse durmuyor.",
+    "punishNoPeel": "Hypercarry'leri {0} korumasız — ona ulaşabilirsin.",
+    "punishNoDisengage": "Rakibin engage'ini bozacak bir şeyi yok.",
+    "punishNoCc": "Rakipte neredeyse hiç sert kitle kontrol yok — seni yakalayamaz, durduramaz.",
+    "punishOneDamage": "Rakibin hasarı neredeyse tamamen tek tür ({0}) — tek savunma türü herkesi karşılar.",
+    "punishNoAntiTank": "Rakibin tankları delecek bir şeyi yok — daha uzun dayanırsın.",
+    "punishLate": "Rakip geç açılıyor — eşyalarından önce baskı yap."
   },
   "pool": {
     "slotLabel": "Havuzundan seçim",
@@ -903,6 +909,26 @@
     "aramFront": "Takımın frontline'ı",
     "aramHeal": "Takım için iyileştirme",
     "common": "Neredeyse tüm adaylarda var, bu yüzden soluk gösteriliyor: seçim yapmana yardımcı olmaz",
-    "offTempo": "Yanlış tempo"
+    "offTempo": "Yanlış tempo",
+    "punishNoFront": "Frontline'ları boş",
+    "punishNoPeel": "Carry'leri korumasız",
+    "punishNoDisengage": "Karşılıksız engage",
+    "punishNoCc": "Seni tutacak bir şeyleri yok",
+    "punishOneDamage": "Hasarları tek tür",
+    "punishNoAntiTank": "Tank onlara ağır gelir",
+    "punishLate": "Geç açılanları cezalandırır"
+  },
+  "comp": {
+    "header": "KADRO",
+    "enemyHeader": "RAKİP KADRO",
+    "has": "Var: {0}",
+    "few": "Az, sadece {0}",
+    "none": "Kimsede yok",
+    "planLine": "Plan: {0}",
+    "planF2b": "Hedeflerde beşe beş savaşın: frontline önde, carry'ler arkada.",
+    "planDive": "Arka hatlarına birlikte ve aynı anda dalın — asla tek tek girmeyin.",
+    "planPoke": "Hedeflerden önce poke yapın, yalnız kalanları yakalayın; uzun önden savaşlara girmeyin.",
+    "planEarly": "Erken güçlüsünüz — koridorlara baskı yapın ve 25. dakikadan önce bitirin.",
+    "planLate": "Geç açılıyorsunuz — eşyalar gelene kadar güvenli oynayın ve farm yapın."
   }
 }

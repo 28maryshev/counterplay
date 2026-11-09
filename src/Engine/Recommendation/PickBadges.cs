@@ -36,6 +36,7 @@ public sealed record PickFacts(
     double Team, IReadOnlyList<(int Id, double Delta)> ByEnemy,
     double Synergy, IReadOnlyList<(int Id, string Role, double Delta)> ByAlly,
     IReadOnlyList<int> AllyIds,        // союзники без меня — по ним дыры состава и темп
+    IReadOnlyList<int> EnemyIds,       // все известные враги — их слабости (PunishIcons)
     IReadOnlyList<TeamGap> Gaps,       // дыры состава (RecommendationEngine.Needs.cs), по важности
     double NeedBonus,                  // надбавка за закрытые дыры — та же, что в счёте (до W_NEED)
     string Grade, double BaseDelta, double Comfort, double Personal,

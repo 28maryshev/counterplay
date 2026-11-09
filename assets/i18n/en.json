@@ -364,8 +364,14 @@
     "needAntiTank": "The enemy has tanks ({0}) and nobody on your team can break them. This pick deals percent-health or true damage.",
     "needWaveclear": "Nobody on your team clears waves fast — towers will fall under siege. This pick clears the lane from range.",
     "needEarly": "Your whole team comes online late — expect to be pushed around before items. This pick is strong from the first minutes.",
-    "needOpen": "You pick last and “{0}” is still missing — this pick doesn't fill the gap. Green tags mark the picks that do.",
-    "offTempo": "Your team is strong early and wants to end fast, but this pick comes online late."
+    "offTempo": "Your team is strong early and wants to end fast, but this pick comes online late.",
+    "punishNoFront": "The enemy has no front line — nobody stands between you and their carries.",
+    "punishNoPeel": "Their hypercarry {0} has nobody to protect them — you can reach them.",
+    "punishNoDisengage": "The enemy has nothing to stop your engage.",
+    "punishNoCc": "The enemy has almost no hard CC — they can't catch or stop you.",
+    "punishOneDamage": "Enemy damage is almost all {0} — one kind of defense covers everyone.",
+    "punishNoAntiTank": "The enemy has no way to break tanks — you will last longer.",
+    "punishLate": "The enemy comes online late — press them before their items."
   },
   "rec": {
     "yourPick": "YOUR PICK",
@@ -903,6 +909,26 @@
     "aramFront": "Frontline for the team",
     "aramHeal": "Healing for the team",
     "common": "Almost every candidate has it, so it is dimmed: it won't help you choose",
-    "offTempo": "Off tempo"
+    "offTempo": "Off tempo",
+    "punishNoFront": "Their front line is empty",
+    "punishNoPeel": "Their carry is unprotected",
+    "punishNoDisengage": "Engage they can't answer",
+    "punishNoCc": "Nothing to lock you down",
+    "punishOneDamage": "Their damage is one type",
+    "punishNoAntiTank": "Their team can't break tanks",
+    "punishLate": "Punishes late picks"
+  },
+  "comp": {
+    "header": "COMPOSITION",
+    "enemyHeader": "ENEMY COMPOSITION",
+    "has": "Covered by: {0}",
+    "few": "Thin, only {0}",
+    "none": "Nobody has it",
+    "planLine": "Game plan: {0}",
+    "planF2b": "Fight five on five around objectives: front line ahead, carries behind.",
+    "planDive": "Dive their back line together and at once — never go in one by one.",
+    "planPoke": "Poke before objectives and catch stragglers; avoid long head-on fights.",
+    "planEarly": "You are strong early — press the lanes and end before 25 minutes.",
+    "planLate": "You come online late — play safe and farm until your items are in."
   }
 }

@@ -220,8 +220,14 @@
     "needAntiTank": "Der Gegner hat Tanks ({0}), und niemand in deinem Team kommt durch. Dieser Pick macht Schaden abhängig vom Leben oder absoluten Schaden.",
     "needWaveclear": "Niemand in deinem Team räumt Wellen schnell — Türme fallen bei Belagerung. Dieser Pick räumt die Lane aus der Distanz.",
     "needEarly": "Dein ganzes Team kommt spät ins Spiel — vor den Items wird es unter Druck stehen. Dieser Pick ist von Anfang an stark.",
-    "needOpen": "Du wählst als Letzter, und „{0}“ fehlt immer noch — dieser Pick schließt die Lücke nicht. Grüne Tags zeigen, wer es tut.",
-    "offTempo": "Dein Team ist früh stark und will schnell beenden, aber dieser Pick kommt erst spät ins Spiel."
+    "offTempo": "Dein Team ist früh stark und will schnell beenden, aber dieser Pick kommt erst spät ins Spiel.",
+    "punishNoFront": "Der Gegner hat keine Frontlinie — niemand steht zwischen dir und ihren Carrys.",
+    "punishNoPeel": "Ihren Hypercarry {0} schützt niemand — du kommst an ihn ran.",
+    "punishNoDisengage": "Der Gegner hat nichts, um deinen Engage abzubrechen.",
+    "punishNoCc": "Der Gegner hat kaum harten CC — er kann dich weder fangen noch stoppen.",
+    "punishOneDamage": "Der gegnerische Schaden ist fast nur {0} — eine Art Verteidigung deckt alle ab.",
+    "punishNoAntiTank": "Der Gegner kommt nicht durch Tanks — du hältst länger durch.",
+    "punishLate": "Der Gegner kommt spät ins Spiel — setz ihn vor seinen Items unter Druck."
   },
   "metric": {
     "base": "Stärke in diesem Patch",
@@ -903,6 +909,26 @@
     "aramFront": "Frontlinie fürs Team",
     "aramHeal": "Heilung fürs Team",
     "common": "Fast alle Kandidaten haben das, deshalb ist es blass dargestellt: Bei der Wahl hilft es dir nicht.",
-    "offTempo": "Falsches Tempo"
+    "offTempo": "Falsches Tempo",
+    "punishNoFront": "Ihre Frontlinie ist leer",
+    "punishNoPeel": "Ihr Carry ist ungeschützt",
+    "punishNoDisengage": "Engage ohne Antwort",
+    "punishNoCc": "Nichts, um dich zu halten",
+    "punishOneDamage": "Ihr Schaden ist einseitig",
+    "punishNoAntiTank": "Tanks sind zu zäh für sie",
+    "punishLate": "Bestraft späte Picks"
+  },
+  "comp": {
+    "header": "ZUSAMMENSTELLUNG",
+    "enemyHeader": "GEGNERISCHE ZUSAMMENSTELLUNG",
+    "has": "Vorhanden: {0}",
+    "few": "Dünn, nur {0}",
+    "none": "Hat niemand",
+    "planLine": "Plan: {0}",
+    "planF2b": "Kämpft zu fünft an Objectives: Frontlinie vorn, Carrys dahinter.",
+    "planDive": "Divet gemeinsam und gleichzeitig in ihre Backline — nie einzeln rein.",
+    "planPoke": "Pokt vor Objectives und erwischt Einzelgänger; meidet lange Frontalkämpfe.",
+    "planEarly": "Ihr seid früh stark — drückt die Lanes und beendet vor Minute 25.",
+    "planLate": "Ihr kommt spät ins Spiel — spielt sicher und farmt bis zu euren Items."
   }
 }

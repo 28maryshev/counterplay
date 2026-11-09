@@ -34,6 +34,13 @@
 `Counterplay.exe --style-features calib-slice.db` кладёт таблицу draft_style.
 Нет таблицы — стиль просто не мерится.
 
+Дыры состава (с 09.11.2026, RecommendationEngine.Needs.cs): та же команда
+программы кладёт таблицу draft_gaps — по каждому виду дыры (фронт, отход,
+инициация, защита керри, контроль, тип урона, урон по танкам, волны, ранняя
+сила) 1/0 у полной пятёрки, разность команд. Коэффициент / 0,04 — пунктов
+победы, которые команда теряет с открытой дырой; со знаком минус — цена её
+закрытия, это и есть GapWeight движка (W_NEED = W_COUNTER_PP).
+
 Запуск:
   bash ops/pull-calib.sh                    # → calib-slice.db
   Counterplay.exe --style-features calib-slice.db   # необязательно: стиль
@@ -199,7 +206,13 @@ def main():
     except sqlite3.OperationalError:
         style = {}
     print("стиль врага: " + (f"признаки по {len(style)} драфтам" if style else "таблицы draft_style нет — не мерю"))
-    d = 1 + 1 + len(PAIRS) + (2 if style else 0)
+    try:
+        gcols = [r[1] for r in con.execute("PRAGMA table_info(draft_gaps)")][1:]
+        gaps = {r[0]: tuple(r[1:]) for r in con.execute("SELECT * FROM draft_gaps")} if gcols else {}
+    except sqlite3.OperationalError:
+        gcols, gaps = [], {}
+    print("дыры состава: " + (f"признаки по {len(gaps)} драфтам" if gaps else "таблицы draft_gaps нет — не мерю"))
+    d = 1 + 1 + len(PAIRS) + (2 if style else 0) + len(gcols)
     X = array('d'); y = array('d')
     for i, (mid, win, slots) in enumerate(con.execute(
             "SELECT match_id, win_team, slots FROM drafts WHERE tier_bucket=? AND patch=?", (args.tier, cur))):
@@ -212,6 +225,8 @@ def main():
         X.append(1.0); X.extend(features(t[100], t[200], wa, base, power, pair))
         if style:
             X.extend(style.get(mid, (0.0, 0.0)))
+        if gcols:
+            X.extend(gaps.get(mid, (0.0,) * len(gcols)))
         y.append(wa)
         if i % 100000 == 0:
             print(f"  драфтов разобрано: {i}", flush=True)
@@ -236,6 +251,14 @@ def main():
         print(f"  трифекта (Want)     {sw / 0.04:6.3f} ± {ew / 0.04:.3f}")
         print(f"  инструменты (Style) {ss / 0.04:6.3f} ± {es / 0.04:.3f}")
 
+    if gcols:
+        g0 = 2 + len(PAIRS) + (2 if style else 0)
+        print()
+        print("дыры состава (пунктов победы, которые стоит открытая дыра; минус — команда теряет):")
+        for i, c in enumerate(gcols):
+            n = sum(1 for v in gaps.values() if v[i] != 0)
+            print(f"  {c:10} {b[g0 + i] / 0.04:6.2f} ± {se[g0 + i] / 0.04:.2f}   (драфтов с разницей {n})")
+
     lanes = [trust[(r, r)] for r in ROLES]
     # Сохраняется цена настоящего пункта, а не средний вес: вес — на показанный
     # пункт, а при другом доверии пары (PAIR_CONF) показанный пункт другой.
@@ -251,6 +274,10 @@ def main():
             print(f"    {a:8} ↔ {bb:8} {trust[(a, bb)]:.2f}  → вес {g * trust[(a, bb)]:.2f}")
     if style:
         print(f"  W_TRIFECTA = {g * sw / 0.04:.2f}   W_STYLE = {g * ss / 0.04:.2f}")
+    if gcols:
+        print("  GapWeight (цена закрытой дыры, настоящих пп; W_NEED = W_COUNTER_PP):")
+        for i, c in enumerate(gcols):
+            print(f"    {c:10} {-b[g0 + i] / 0.04:.2f}")
 
 
 if __name__ == '__main__':

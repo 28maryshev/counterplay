@@ -338,8 +338,14 @@
     "needAntiTank": "Il nemico ha dei tank ({0}) e nessuno nella tua squadra riesce a sfondarli. Questo pick infligge danni in percentuale della salute o danni puri.",
     "needWaveclear": "Nessuno nella tua squadra pulisce le ondate in fretta: le torri cadranno sotto assedio. Questo pick pulisce la corsia dalla distanza.",
     "needEarly": "Tutta la tua squadra si accende tardi: prima degli oggetti verrete messi sotto pressione. Questo pick è forte dai primi minuti.",
-    "needOpen": "Scegli per ultimo e «{0}» manca ancora: questo pick non copre il buco. I tag verdi indicano chi lo fa.",
-    "offTempo": "La tua squadra è forte presto e vuole chiudere in fretta, ma questo pick si accende tardi."
+    "offTempo": "La tua squadra è forte presto e vuole chiudere in fretta, ma questo pick si accende tardi.",
+    "punishNoFront": "Il nemico non ha frontline — nessuno sta tra te e i loro carry.",
+    "punishNoPeel": "Nessuno protegge il loro hypercarry {0} — puoi raggiungerlo.",
+    "punishNoDisengage": "Il nemico non ha nulla per spezzare il tuo ingaggio.",
+    "punishNoCc": "Il nemico non ha quasi controllo duro — non può prenderti né fermarti.",
+    "punishOneDamage": "Il danno nemico è quasi tutto {0} — un solo tipo di difesa copre tutti.",
+    "punishNoAntiTank": "Il nemico non riesce a sfondare i tank — resisterai più a lungo.",
+    "punishLate": "Il nemico si accende tardi — mettilo sotto pressione prima dei suoi oggetti."
   },
   "rec": {
     "yourPick": "LA TUA SCELTA",
@@ -903,6 +909,26 @@
     "aramFront": "Frontline per la squadra",
     "aramHeal": "Cure per la squadra",
     "common": "Quasi tutti i candidati ce l'hanno, quindi è sbiadita: non ti aiuta a scegliere",
-    "offTempo": "Tempo sbagliato"
+    "offTempo": "Tempo sbagliato",
+    "punishNoFront": "La loro frontline è vuota",
+    "punishNoPeel": "Il loro carry è scoperto",
+    "punishNoDisengage": "Ingaggio senza risposta",
+    "punishNoCc": "Niente per fermarti",
+    "punishOneDamage": "Il loro danno è di un solo tipo",
+    "punishNoAntiTank": "I tank li mettono in difficoltà",
+    "punishLate": "Punisce i pick tardivi"
+  },
+  "comp": {
+    "header": "COMPOSIZIONE",
+    "enemyHeader": "COMPOSIZIONE NEMICA",
+    "has": "Presente: {0}",
+    "few": "Poco, solo {0}",
+    "none": "Nessuno",
+    "planLine": "Piano: {0}",
+    "planF2b": "Combattete in cinque agli obiettivi: frontline davanti, carry dietro.",
+    "planDive": "Tuffatevi insieme e nello stesso momento sulla loro backline — mai uno alla volta.",
+    "planPoke": "Fate poke prima degli obiettivi e prendete chi è isolato; evitate lunghi scontri frontali.",
+    "planEarly": "Siete forti presto — spingete le corsie e chiudete prima dei 25 minuti.",
+    "planLate": "Vi accendete tardi — giocate sicuri e farmate fino agli oggetti."
   }
 }

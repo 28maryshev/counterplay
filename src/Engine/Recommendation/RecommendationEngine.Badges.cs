@@ -18,12 +18,11 @@ public sealed partial class RecommendationEngine
     /// <summary>
     /// Теги и иконки показанного кандидата. Тегов с цифрой — не больше трёх:
     /// «линия» и «вслепую» вместе не бывают (вслепую оппонента нет); за ними —
-    /// теги дыр состава без цифры (<see cref="NeedTags"/>: до двух зелёных и
-    /// один красный у последнего пика). Иконки — сначала плюсы, потом связки
-    /// с союзниками, потом минусы. <paramref name="open"/> — дыра, которая
-    /// останется открытой, если последний пик её не закроет (<see cref="OpenGap"/>).
+    /// теги дыр состава без цифры (<see cref="NeedTags"/>: до двух зелёных).
+    /// Иконки — сначала плюсы (среди них — «их слабость», <see cref="PunishIcons"/>),
+    /// потом связки с союзниками, потом минусы.
     /// </summary>
-    private PickBadges BuildBadges(PickFacts f, TeamGap? open)
+    private PickBadges BuildBadges(PickFacts f)
     {
         var tags = new List<PickTag>();
         var plus = new List<PickIcon>();
@@ -33,7 +32,8 @@ public sealed partial class RecommendationEngine
         LaneTag(f, tags);
         TeamTag(f, tags);
         SynergyBadges(f, tags, links, minus);
-        NeedTags(f, open, tags);
+        NeedTags(f, tags);
+        PunishIcons(f, plus);
         PatchIcons(f, plus, minus);
         PlayerIcons(f, plus, minus);
         StyleIcons(f, plus, minus);

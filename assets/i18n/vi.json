@@ -338,8 +338,14 @@
     "needAntiTank": "Địch có tướng đỡ đòn ({0}) mà đội bạn không ai phá được. Lựa chọn này gây sát thương theo % máu hoặc sát thương chuẩn.",
     "needWaveclear": "Đội bạn không ai dọn lính nhanh — trụ sẽ mất khi bị vây. Lựa chọn này dọn đường từ xa.",
     "needEarly": "Cả đội bạn đều mạnh muộn — trước khi có đồ sẽ bị ép. Lựa chọn này mạnh ngay từ những phút đầu.",
-    "needOpen": "Bạn chọn cuối, mà đội vẫn thiếu \"{0}\" — lựa chọn này không lấp được khoảng trống. Thẻ xanh là những lựa chọn lấp được.",
-    "offTempo": "Đội bạn mạnh sớm và muốn kết thúc nhanh, nhưng lựa chọn này mạnh muộn."
+    "offTempo": "Đội bạn mạnh sớm và muốn kết thúc nhanh, nhưng lựa chọn này mạnh muộn.",
+    "punishNoFront": "Địch không có tuyến đầu — không ai đứng giữa bạn và chủ lực của họ.",
+    "punishNoPeel": "Chủ lực cuối trận {0} của địch không ai bảo kê — bạn với tới được.",
+    "punishNoDisengage": "Địch không có gì để chặn đợt mở giao tranh của bạn.",
+    "punishNoCc": "Địch gần như không có khống chế cứng — không bắt được, không cản được bạn.",
+    "punishOneDamage": "Sát thương địch gần như toàn sát thương {0} — một loại phòng thủ đỡ được tất cả.",
+    "punishNoAntiTank": "Địch không có cách phá tướng đỡ đòn — bạn trụ được lâu hơn.",
+    "punishLate": "Địch mạnh muộn — ép họ trước khi có đồ."
   },
   "rec": {
     "yourPick": "LỰA CHỌN CỦA BẠN",
@@ -903,6 +909,26 @@
     "aramFront": "Tuyến đầu cho đội",
     "aramHeal": "Hồi máu cho đội",
     "common": "Hầu như tướng gợi ý nào cũng có, nên biểu tượng được làm mờ: nó không giúp bạn chọn.",
-    "offTempo": "Lệch nhịp"
+    "offTempo": "Lệch nhịp",
+    "punishNoFront": "Tuyến đầu địch trống",
+    "punishNoPeel": "Chủ lực địch không ai bảo kê",
+    "punishNoDisengage": "Mở giao tranh không thể đỡ",
+    "punishNoCc": "Không gì giữ được bạn",
+    "punishOneDamage": "Sát thương địch chỉ một loại",
+    "punishNoAntiTank": "Địch không phá nổi đỡ đòn",
+    "punishLate": "Trừng phạt đội mạnh muộn"
+  },
+  "comp": {
+    "header": "ĐỘI HÌNH",
+    "enemyHeader": "ĐỘI HÌNH ĐỊCH",
+    "has": "Có: {0}",
+    "few": "Ít, chỉ {0}",
+    "none": "Không ai có",
+    "planLine": "Kế hoạch: {0}",
+    "planF2b": "Giao tranh năm đấu năm quanh mục tiêu: tuyến đầu phía trước, chủ lực phía sau.",
+    "planDive": "Cùng lúc lao vào tuyến sau của địch — đừng vào từng người một.",
+    "planPoke": "Cấu rỉa trước mục tiêu và bắt kẻ đi lẻ; tránh giao tranh trực diện kéo dài.",
+    "planEarly": "Đội bạn mạnh sớm — ép đường và kết thúc trước phút 25.",
+    "planLate": "Đội bạn mạnh muộn — chơi an toàn và farm đến khi đủ đồ."
   }
 }

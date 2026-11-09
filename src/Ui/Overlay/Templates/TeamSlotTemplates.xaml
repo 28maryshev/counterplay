@@ -397,4 +397,27 @@
     </Grid>
     </Border>
   </DataTemplate>
+  <!-- Полоса состава под колонкой команды (CompCheckVm): что у команды есть и
+       чего нет. Зелёная — есть, красная — нет и пиков не осталось, серая — пока
+       нет, но ещё выбирают. Кто закрывает — в подсказке. -->
+  <DataTemplate x:Key="CompCheckTemplate">
+    <Border CornerRadius="9" BorderThickness="1" Padding="5,1,7,1" Margin="0,0,4,4"
+            BorderBrush="{Binding Border}" Background="Transparent"
+            ToolTipService.InitialShowDelay="250">
+      <Border.ToolTip>
+        <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" MaxWidth="280"/>
+      </Border.ToolTip>
+      <StackPanel Orientation="Horizontal">
+        <Viewbox Width="11" Height="11" VerticalAlignment="Center">
+          <Canvas Width="24" Height="24">
+            <Path Data="{Binding Glyph}" Stroke="{Binding Fg}" StrokeThickness="2.2"
+                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+          </Canvas>
+        </Viewbox>
+        <TextBlock Text="{Binding Label}" Foreground="{Binding Fg}" Margin="4,0,0,0"
+                   FontFamily="{StaticResource UiFont}" FontSize="10.5" FontWeight="SemiBold"
+                   VerticalAlignment="Center"/>
+      </StackPanel>
+    </Border>
+  </DataTemplate>
 </ResourceDictionary>

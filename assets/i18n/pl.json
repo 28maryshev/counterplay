@@ -338,8 +338,14 @@
     "needAntiTank": "Wrogowie mają tanki ({0}), a w twojej drużynie nikt ich nie przebije. Ten pick zadaje obrażenia od zdrowia celu lub nieuchronne.",
     "needWaveclear": "Nikt w twojej drużynie nie czyści szybko fal — wieże padną przy oblężeniu. Ten pick wyczyści linię z dystansu.",
     "needEarly": "Cała twoja drużyna rozkręca się późno — przed przedmiotami będziecie pod presją. Ten pick jest silny od pierwszych minut.",
-    "needOpen": "Wybierasz ostatni, a „{0}” wciąż brakuje — ten pick nie łata dziury. Zielone tagi mają ci, którzy ją łatają.",
-    "offTempo": "Twoja drużyna jest silna wcześnie i chce szybko skończyć, a ten pick rozkręca się późno."
+    "offTempo": "Twoja drużyna jest silna wcześnie i chce szybko skończyć, a ten pick rozkręca się późno.",
+    "punishNoFront": "Wrogowie nie mają frontline'u — nikt nie stoi między tobą a ich carry.",
+    "punishNoPeel": "Ich hypercarry {0} nikt nie osłania — dobierzesz się do niego.",
+    "punishNoDisengage": "Wrogowie nie mają czym przerwać twojej inicjacji.",
+    "punishNoCc": "Wrogowie prawie nie mają twardej kontroli — nie złapią ani nie zatrzymają cię.",
+    "punishOneDamage": "Obrażenia wrogów są prawie same {0} — jeden typ obrony osłania wszystkich.",
+    "punishNoAntiTank": "Wrogowie nie mają czym przebić tanków — wytrzymasz dłużej.",
+    "punishLate": "Wrogowie rozkręcają się późno — dociskaj ich przed przedmiotami."
   },
   "rec": {
     "yourPick": "TWÓJ PICK",
@@ -903,6 +909,26 @@
     "aramFront": "Frontline dla drużyny",
     "aramHeal": "Leczenie dla drużyny",
     "common": "Prawie każdy kandydat ma tę ikonę, dlatego jest przygaszona: nie pomoże ci w wyborze",
-    "offTempo": "Nie to tempo"
+    "offTempo": "Nie to tempo",
+    "punishNoFront": "Ich frontline jest pusty",
+    "punishNoPeel": "Ich carry bez osłony",
+    "punishNoDisengage": "Inicjacja bez odpowiedzi",
+    "punishNoCc": "Nie mają czym cię trzymać",
+    "punishOneDamage": "Ich obrażenia są jednego typu",
+    "punishNoAntiTank": "Tank jest dla nich za twardy",
+    "punishLate": "Karze późne picki"
+  },
+  "comp": {
+    "header": "SKŁAD",
+    "enemyHeader": "SKŁAD WROGÓW",
+    "has": "Jest: {0}",
+    "few": "Mało, tylko {0}",
+    "none": "Nikt nie ma",
+    "planLine": "Plan: {0}",
+    "planF2b": "Walczcie w piątkę przy celach: frontline z przodu, carry z tyłu.",
+    "planDive": "Nurkujcie w ich tyły razem i naraz — nigdy pojedynczo.",
+    "planPoke": "Pokujcie przed celami i łapcie samotnych; unikajcie długich walk czołowych.",
+    "planEarly": "Jesteście silni wcześnie — dociskajcie linie i kończcie przed 25. minutą.",
+    "planLate": "Rozkręcacie się późno — grajcie bezpiecznie i farmcie do przedmiotów."
   }
 }

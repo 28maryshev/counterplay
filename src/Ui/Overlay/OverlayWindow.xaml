@@ -905,6 +905,18 @@
               <Canvas x:Name="MyTeamLines" IsHitTestVisible="False"/>
               </Grid>
 
+              <!-- Состав: что у команды есть и чего нет, и план на игру
+                   (OverlayWindow.Comp.cs). Сначала состав, потом связки —
+                   просьба владельца 09.11. -->
+              <TextBlock x:Name="MyCompHeader" Text="{loc:T comp.header}" Visibility="Collapsed"
+                         FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                         Foreground="#C89B3C" Margin="0,14,0,5"/>
+              <ItemsControl x:Name="MyComp" ItemTemplate="{StaticResource CompCheckTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+              <TextBlock x:Name="MyPlan" Visibility="Collapsed" TextWrapping="Wrap"
+                         FontFamily="{StaticResource UiFont}" FontSize="11" Foreground="#9FB3C4"
+                         Margin="0,2,0,0"/>
               <TextBlock x:Name="MyCombosHeader" Text="{loc:T team.combos}" Visibility="Collapsed"
                          FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                          Foreground="#C89B3C" Margin="0,14,0,0"/>
@@ -1397,6 +1409,12 @@
               <Canvas x:Name="EnemyTeamLines" IsHitTestVisible="False"/>
               </Grid>
 
+              <TextBlock x:Name="EnemyCompHeader" Text="{loc:T comp.enemyHeader}" Visibility="Collapsed"
+                         FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
+                         Foreground="#C84040" Margin="0,14,0,5"/>
+              <ItemsControl x:Name="EnemyComp" ItemTemplate="{StaticResource CompCheckTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
               <TextBlock x:Name="EnemyCombosHeader" Text="{loc:T team.enemyCombos}" Visibility="Collapsed"
                          FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                          Foreground="#C84040" Margin="0,14,0,0"/>

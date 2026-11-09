@@ -443,8 +443,14 @@
     "needAntiTank": "El rival tiene tanques ({0}) y nadie en tu equipo puede romperlos. Este pick hace daño por porcentaje de vida o daño verdadero.",
     "needWaveclear": "Nadie en tu equipo limpia oleadas rápido: las torres caerán en los asedios. Este pick limpia la línea a distancia.",
     "needEarly": "Todo tu equipo despierta tarde: antes de los objetos os van a presionar. Este pick es fuerte desde los primeros minutos.",
-    "needOpen": "Eliges último y «{0}» sigue faltando: este pick no cubre el hueco. Las etiquetas verdes marcan a los que sí.",
-    "offTempo": "Tu equipo es fuerte pronto y quiere acabar rápido, pero este pick despierta tarde."
+    "offTempo": "Tu equipo es fuerte pronto y quiere acabar rápido, pero este pick despierta tarde.",
+    "punishNoFront": "El rival no tiene línea frontal: nadie se interpone entre tú y sus carries.",
+    "punishNoPeel": "Nadie protege a su hipercarry {0}: puedes llegar a él.",
+    "punishNoDisengage": "El rival no tiene nada para cortar tu engage.",
+    "punishNoCc": "El rival casi no tiene control duro: no puede atraparte ni frenarte.",
+    "punishOneDamage": "El daño rival es casi todo {0}: un solo tipo de defensa cubre a todos.",
+    "punishNoAntiTank": "El rival no tiene cómo romper tanques: aguantarás más.",
+    "punishLate": "El rival despierta tarde: presiónalo antes de sus objetos."
   },
   "pool": {
     "slotLabel": "Pick de tu pool",
@@ -903,6 +909,26 @@
     "aramFront": "Línea frontal para el equipo",
     "aramHeal": "Curación para el equipo",
     "common": "Casi todos los candidatos lo tienen, por eso aparece atenuado: no te servirá para decidir",
-    "offTempo": "Fuera de ritmo"
+    "offTempo": "Fuera de ritmo",
+    "punishNoFront": "Su línea frontal está vacía",
+    "punishNoPeel": "Su carry está desprotegido",
+    "punishNoDisengage": "Engage sin respuesta",
+    "punishNoCc": "Nada para frenarte",
+    "punishOneDamage": "Su daño es de un solo tipo",
+    "punishNoAntiTank": "No pueden con los tanques",
+    "punishLate": "Castiga a los tardíos"
+  },
+  "comp": {
+    "header": "COMPOSICIÓN",
+    "enemyHeader": "COMPOSICIÓN RIVAL",
+    "has": "Lo tiene: {0}",
+    "few": "Poco, solo {0}",
+    "none": "Nadie lo tiene",
+    "planLine": "Plan: {0}",
+    "planF2b": "Peleen cinco contra cinco en los objetivos: línea frontal delante, carries detrás.",
+    "planDive": "Entren juntos y a la vez en su retaguardia; nunca de uno en uno.",
+    "planPoke": "Hagan poke antes de los objetivos y cacen rezagados; eviten peleas largas de frente.",
+    "planEarly": "Son fuertes pronto: presionen las líneas y acaben antes del minuto 25.",
+    "planLate": "Despiertan tarde: jueguen seguro y farmeen hasta tener objetos."
   }
 }

@@ -17,11 +17,36 @@ namespace Counterplay;
 /// По драфту: у каждой команды — доминанта ВРАЖЕСКОЙ пятёрки (как в подборе при
 /// всех известных врагах), у каждого своего чемпиона — Want (трифекта) и Style
 /// (инструменты), сумма по пятёрке. В таблицу — разность команды 100 и 200.
+///
+/// С 09.11 — ещё таблица draft_gaps: дыры состава полной пятёрки той же
+/// функцией, что у подбора (RecommendationEngine.TeamGaps без роли), по
+/// каждому виду 1 — открыта, 0 — нет; в таблицу — разность команд. Тип урона
+/// (needAp и needAd) — одним признаком: перекос в любую сторону.
 /// Пишет только в переданный файл; папку игрока не трогает (журнал выключен,
 /// справочник чемпионов — только чтение кэша).
 /// </summary>
 public static class StyleFeatures
 {
+    /// Виды дыр в порядке столбцов draft_gaps (calibrate.py читает их по именам).
+    public static readonly string[] GapColumns =
+        ["front", "disengage", "engage", "peel", "cc", "dmg", "antitank", "wave", "early"];
+
+    private static string GapColumn(string kind) => kind switch
+    {
+        "needFront" => "front", "needDisengage" => "disengage", "needEngage" => "engage",
+        "needPeel" => "peel", "needCc" => "cc", "needAp" or "needAd" => "dmg",
+        "needAntiTank" => "antitank", "needWaveclear" => "wave", "needEarly" => "early",
+        _ => throw new ArgumentException(kind),
+    };
+
+    private static double[] Gaps(List<int> mine, List<int> enemy)
+    {
+        var v = new double[GapColumns.Length];
+        foreach (var g in RecommendationEngine.TeamGaps(mine, enemy, null))
+            v[Array.IndexOf(GapColumns, GapColumn(g.Kind))] = 1;
+        return v;
+    }
+
     public static int Run(string dbPath)
     {
         Log.FileDisabled = true;
@@ -34,8 +59,11 @@ public static class StyleFeatures
         db.Open();
         Exec(db, "DROP TABLE IF EXISTS draft_style");
         Exec(db, "CREATE TABLE draft_style (match_id TEXT PRIMARY KEY, want REAL, style REAL)");
+        Exec(db, "DROP TABLE IF EXISTS draft_gaps");
+        Exec(db, $"CREATE TABLE draft_gaps (match_id TEXT PRIMARY KEY, {string.Join(", ", GapColumns.Select(c => c + " REAL"))})");
 
         var rows = new List<(string Id, double Want, double Style)>();
+        var gapRows = new List<(string Id, double[] Diff)>();
         using (var cmd = db.CreateCommand())
         {
             cmd.CommandText = "SELECT match_id, slots FROM drafts";
@@ -50,6 +78,9 @@ public static class StyleFeatures
                 var (wa, sa) = Side(teams[100], teams[200]);
                 var (wb, sb) = Side(teams[200], teams[100]);
                 rows.Add((rd.GetString(0), wa - wb, sa - sb));
+                var ga = Gaps(teams[100], teams[200]);
+                var gb = Gaps(teams[200], teams[100]);
+                gapRows.Add((rd.GetString(0), [.. ga.Zip(gb, (x, y) => x - y)]));
             }
         }
 
@@ -67,8 +98,24 @@ public static class StyleFeatures
                 ins.ExecuteNonQuery();
             }
         }
+        using (var ins = db.CreateCommand())
+        {
+            ins.Transaction = tx;
+            ins.CommandText = $"INSERT INTO draft_gaps VALUES (@m, {string.Join(", ", GapColumns.Select(c => "@" + c))})";
+            var pm = ins.Parameters.Add("@m", SqliteType.Text);
+            var ps = GapColumns.Select(c => ins.Parameters.Add("@" + c, SqliteType.Real)).ToArray();
+            foreach (var (id, diff) in gapRows)
+            {
+                pm.Value = id;
+                for (var i = 0; i < ps.Length; i++) ps[i].Value = diff[i];
+                ins.ExecuteNonQuery();
+            }
+        }
         tx.Commit();
         Console.WriteLine($"draft_style: {rows.Count} драфтов");
+        // Сколько команд с каждой дырой — чтобы видеть, хватит ли выборки на замер.
+        Console.WriteLine("draft_gaps: " + string.Join(", ", GapColumns.Select((c, i) =>
+            $"{c} {gapRows.Count(r => r.Diff[i] != 0)}")) + " драфтов с разницей");
         return 0;
     }
 

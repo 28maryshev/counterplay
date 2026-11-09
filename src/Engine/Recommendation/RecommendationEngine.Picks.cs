@@ -269,7 +269,7 @@ public sealed partial class RecommendationEngine
                 var grade = PickGrade(champId, myRole);
                 var facts = new PickFacts(champId, myRole,
                     shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
-                    teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, gaps, needBonus,
+                    teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, allEnemyIds, gaps, needBonus,
                     grade, baseDelta, comfortDelta, personalDelta,
                     enemyStyle, dmg, vuln, exploitBy, structReasons);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
@@ -289,15 +289,11 @@ public sealed partial class RecommendationEngine
         // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
         // он выпадает из списка так же, как любой другой кандидат.
         // Теги и иконки — только показанным: им нужен винрейт по патчам (запрос в базу).
-        // Открытая дыра последнего пика — по всей роли: закрыть её может и тот, кто
-        // не вошёл в показанные, а с only (свой пик, пул) посчитаны не все.
-        var open = vulnAllyIds.Count < 4 || gaps.Count == 0 ? null
-                 : OpenGap(only is null ? candidates : GetCandidates(myRole), taken, gaps);
         return ordered.Take(topN)
             .Select((r, i) => r with
             {
                 Rank = i + 1, IsMyPick = r.ChampionId == myPickId,
-                Badges = r.Facts is { } f ? BuildBadges(f, open) : null,
+                Badges = r.Facts is { } f ? BuildBadges(f) : null,
             })
             .ToList();
     }

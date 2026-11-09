@@ -15,18 +15,29 @@ public sealed partial class RecommendationEngine
     // выбрали». Дыры стиля — раньше, со стилем (DominantStyle — от двух).
     private const int GAP_ALLIES_MIN = 3;
     private const int NEED_TAGS_MAX = 2;          // зелёных тегов дыр на карточке
-    private const double NEED_RED_VALUE = 0.75;   // красный — без свечения: он у многих сразу
-    private const double NEED_BONUS_MAX = 1.5;    // сумма весов закрытых дыр, потолок
+    private const double NEED_BONUS_MAX = 1.5;    // сумма цен закрытых дыр, потолок, пп
 
-    // Важность дыр (доля W_NEED). Тип урона — 0: перекос уже в счёте
-    // (ItemValue.DamageBalance, W_DMGBAL), второй раз его не считаем.
-    private const double GAP_STYLE  = 1.0;   // ключевая часть стиля
-    private const double GAP_FRONT  = 1.0;   // фронт в любом составе
-    private const double GAP_PEEL   = 0.8;
-    private const double GAP_CC     = 0.6;
-    private const double GAP_TANK   = 0.8;
-    private const double GAP_WAVE   = 0.5;
-    private const double GAP_EARLY  = 0.5;
+    /// <summary>
+    /// Цена закрытой дыры, настоящих пунктов победы (в счёт — × W_NEED =
+    /// W_COUNTER_PP). Замер 09.11.2026 по исходам: изумруд 16.21, 807 тыс.
+    /// драфтов (StyleFeatures → draft_gaps, pipeline/calibrate.py); сколько
+    /// теряет команда, у которой дыра осталась открытой к концу драфта, при
+    /// силе и матчапах в той же регрессии. Правило переноса: оценка больше
+    /// двух погрешностей — как есть, меньше — половина, отрицательная — 0.
+    ///   волны      −0,89 ± 0,11 → 0,89     пил        −0,51 ± 0,10 → 0,51
+    ///   танки      −0,39 ± 0,11 → 0,39     инициация  −0,36 ± 0,17 → 0,36
+    ///   контроль   −1,09 ± 0,68 → 0,55     фронт      −0,11 ± 0,10 → 0,05
+    ///   отход      +0,19 ± 0,23 → 0        ранняя     5 драфтов — не измерить → 0
+    ///   тип урона  −3,68 ± 0,30 → 0: перекос уже в счёте (DamageBalance, W_DMGBAL)
+    /// До замера стояли на глаз 1,0 у фронта и отхода — по исходам они почти
+    /// ничего не стоят; теги остаются (владелец просил их видеть), вес — нет.
+    /// </summary>
+    private static readonly Dictionary<string, double> GapWeight = new()
+    {
+        ["needFront"] = 0.05, ["needDisengage"] = 0, ["needEngage"] = 0.36,
+        ["needPeel"] = 0.51, ["needCc"] = 0.55, ["needAp"] = 0, ["needAd"] = 0,
+        ["needAntiTank"] = 0.39, ["needWaveclear"] = 0.89, ["needEarly"] = 0,
+    };
 
     /// <summary>
     /// Чья это работа: дыру закрывает тот, чья роль за неё отвечает, — у прочих
@@ -64,52 +75,54 @@ public sealed partial class RecommendationEngine
     /// ранняя сила, если весь состав поздний. Вид не повторяется: фронт стиля
     /// и общий фронт — одна дыра. Только дыры, за которые отвечает моя роль
     /// (<see cref="GapRoles"/>): прочие этой роли не видны вовсе.
+    /// <paramref name="myRole"/> = null — все роли и без порога союзников: так
+    /// дыры полной пятёрки считают замер (StyleFeatures) и полоса состава в окне.
     /// </summary>
-    private static List<TeamGap> TeamGaps(IReadOnlyList<int> allies, IReadOnlyList<int> enemies, string myRole)
+    internal static List<TeamGap> TeamGaps(IReadOnlyList<int> allies, IReadOnlyList<int> enemies, string? myRole)
     {
         var gaps = new List<TeamGap>();
-        void Add(string kind, Func<int, bool> fills, string tip, double weight)
+        void Add(string kind, Func<int, bool> fills, string tip)
         {
-            if (!GapRoles[kind].Contains(myRole) || gaps.Any(g => g.Kind == kind)) return;
-            gaps.Add(new TeamGap(kind, fills, tip, weight));
+            if (myRole is not null && !GapRoles[kind].Contains(myRole)) return;
+            if (!gaps.Any(g => g.Kind == kind)) gaps.Add(new TeamGap(kind, fills, tip, GapWeight[kind]));
         }
         bool None(Func<int, bool> p) => !allies.Any(p);
 
         switch (ChampionTraits.DominantStyle(allies))
         {
             case ChampionTraits.Arch.FrontToBack when None(ChampionTraits.Frontline):
-                Add("needFront", ChampionTraits.Frontline, Loc.T("reason.needFront"), GAP_STYLE); break;
+                Add("needFront", ChampionTraits.Frontline, Loc.T("reason.needFront")); break;
             case ChampionTraits.Arch.PickPoke when None(ChampionTraits.Disengager):
-                Add("needDisengage", ChampionTraits.Disengager, Loc.T("reason.needDisengage"), GAP_STYLE); break;
+                Add("needDisengage", ChampionTraits.Disengager, Loc.T("reason.needDisengage")); break;
             case ChampionTraits.Arch.Dive when None(ChampionTraits.Initiator):
-                Add("needEngage", ChampionTraits.Initiator, Loc.T("reason.needEngage"), GAP_STYLE); break;
+                Add("needEngage", ChampionTraits.Initiator, Loc.T("reason.needEngage")); break;
         }
-        if (allies.Count < GAP_ALLIES_MIN) return gaps;
+        if (myRole is not null && allies.Count < GAP_ALLIES_MIN) return gaps;
 
         if (None(ChampionTraits.Frontline))
-            Add("needFront", ChampionTraits.Frontline, Loc.T("reason.needFrontAny"), GAP_FRONT);
+            Add("needFront", ChampionTraits.Frontline, Loc.T("reason.needFrontAny"));
 
         var carry = allies.FirstOrDefault(ChampionTraits.Hypercarry);
         if (carry != 0 && None(ChampionTraits.Peeler))
-            Add("needPeel", ChampionTraits.Peeler, Loc.T("reason.needPeel", DataDragon.Name(carry)), GAP_PEEL);
+            Add("needPeel", ChampionTraits.Peeler, Loc.T("reason.needPeel", DataDragon.Name(carry)));
 
         if (allies.Count(ChampionTraits.HasHardCc) < 2)
-            Add("needCc", ChampionTraits.HasHardCc, Loc.T("reason.needCc"), GAP_CC);
+            Add("needCc", ChampionTraits.HasHardCc, Loc.T("reason.needCc"));
 
         int ad = allies.Count(DataDragon.IsAdChampion), ap = allies.Count(DataDragon.IsApChampion);
-        if (ad >= 3 && ap == 0) Add("needAp", DataDragon.IsApChampion, Loc.T("reason.needAp"), 0);
-        else if (ap >= 3 && ad == 0) Add("needAd", DataDragon.IsAdChampion, Loc.T("reason.needAd"), 0);
+        if (ad >= 3 && ap == 0) Add("needAp", DataDragon.IsApChampion, Loc.T("reason.needAp"));
+        else if (ap >= 3 && ad == 0) Add("needAd", DataDragon.IsAdChampion, Loc.T("reason.needAd"));
 
         var tanks = enemies.Where(ChampionTraits.IsTanky).ToList();
         if (tanks.Count >= 2 && None(ChampionTraits.AntiTank))
             Add("needAntiTank", ChampionTraits.AntiTank,
-                Loc.T("reason.needAntiTank", string.Join(", ", tanks.Select(DataDragon.Name))), GAP_TANK);
+                Loc.T("reason.needAntiTank", string.Join(", ", tanks.Select(DataDragon.Name))));
 
         if (None(ChampionTraits.Waveclear))
-            Add("needWaveclear", ChampionTraits.Waveclear, Loc.T("reason.needWaveclear"), GAP_WAVE);
+            Add("needWaveclear", ChampionTraits.Waveclear, Loc.T("reason.needWaveclear"));
 
         if (allies.All(a => ChampionTraits.EarlyPower(a) <= 1))
-            Add("needEarly", a => ChampionTraits.EarlyPower(a) >= 3, Loc.T("reason.needEarly"), GAP_EARLY);
+            Add("needEarly", a => ChampionTraits.EarlyPower(a) >= 3, Loc.T("reason.needEarly"));
 
         return gaps;
     }
@@ -124,28 +137,15 @@ public sealed partial class RecommendationEngine
         Math.Min(NEED_BONUS_MAX, gaps.Where(g => g.Fills(champId)).Sum(g => g.Weight)) * allies / 4.0;
 
     /// <summary>
-    /// Дыра, которая останется открытой: ты выбираешь последним (четыре союзника
-    /// уже есть), а закрыть её может кто-то, кого на твою роль ещё можно взять
-    /// (<paramref name="rolePool"/> — кандидаты роли, не только показанные: свой
-    /// пик и пул считаются через only по одному). Берётся самая важная такая; у
-    /// тех, кто её не закрывает, на карточке — красный тег того же вида. Роли
-    /// закрыть нечем — молчим: выбирать не из чего, а красное у всех подряд
-    /// только шумит.
-    /// </summary>
-    private static TeamGap? OpenGap(IEnumerable<int> rolePool, IReadOnlySet<int> taken, IReadOnlyList<TeamGap> gaps)
-    {
-        var free = rolePool.Where(id => !taken.Contains(id)).ToList();
-        return gaps.FirstOrDefault(g => free.Any(g.Fills));
-    }
-
-    /// <summary>
-    /// Теги дыр на карточке: зелёные — дыры, которые этот пик закрывает (до
+    /// Теги дыр на карточке — зелёные: дыры, которые этот пик закрывает (до
     /// двух, по важности; «контроль» рядом с «инициацией» не повторяем —
-    /// заход и так с контролем), красный — открытая дыра последнего пика, если
-    /// он её не закрывает. Value — доля выбранных союзников (0,25…1): ярче к
-    /// последнему пику; у красного — постоянная, без свечения.
+    /// заход и так с контролем). Value — доля выбранных союзников (0,25…1):
+    /// ярче к последнему пику. Красных тегов «дыра так и останется» на карточке
+    /// больше нет (владелец, 09.11, по предложению: карточки перегружены, а
+    /// дыра — свойство команды): что у команды есть и чего нет, показывает
+    /// полоса состава под колонкой команды (OverlayWindow.Comp.cs).
     /// </summary>
-    private static void NeedTags(PickFacts f, TeamGap? open, List<PickTag> tags)
+    private static void NeedTags(PickFacts f, List<PickTag> tags)
     {
         var urgency = f.AllyIds.Count / 4.0;
         var shown = new List<string>();
@@ -156,11 +156,41 @@ public sealed partial class RecommendationEngine
             shown.Add(g.Kind);
             tags.Add(new PickTag(g.Kind, 1, Loc.T($"pickTag.{g.Kind}"), g.Tip, urgency));
         }
-        if (open is { } o && !o.Fills(f.ChampId))
-        {
-            var label = Loc.T($"pickTag.{o.Kind}");
-            tags.Add(new PickTag(o.Kind, -1, label, Loc.T("reason.needOpen", label), NEED_RED_VALUE));
-        }
+    }
+
+    /// <summary>
+    /// Их слабость — зелёные иконки тем, кто её наказывает (владелец, 09.11:
+    /// «дыры врага — наказать»). С трёх известных врагов: нет фронта — бьющим
+    /// издалека и взрывом; их гиперкерри некому прикрыть — ныряющим; нечем
+    /// сорвать заход — инициаторам; мало контроля — гиперкерри; урон один тип —
+    /// танкам; нечем пробивать танков — танкам; все поздние — ранним. Только
+    /// показ: в счёт свои дыры уже идут (W_NEED), а их дыры мерятся тем же
+    /// замером с другим знаком.
+    /// </summary>
+    private static void PunishIcons(PickFacts f, List<PickIcon> plus)
+    {
+        var e = f.EnemyIds;
+        if (e.Count < GAP_ALLIES_MIN) return;
+        var id = f.ChampId;
+        bool None(Func<int, bool> p) => !e.Any(p);
+        void Add(string kind, string tip) => plus.Add(Icon(kind, 1, tip));
+
+        if (None(ChampionTraits.Frontline) && (ChampionTraits.LongRange(id) || ChampionTraits.BurstThreat(id)))
+            Add("punishNoFront", Loc.T("reason.punishNoFront"));
+        var carry = e.FirstOrDefault(ChampionTraits.Hypercarry);
+        if (carry != 0 && None(ChampionTraits.Peeler) && (ChampionTraits.Gapclose(id) >= 2 || ChampionTraits.BurstThreat(id)))
+            Add("punishNoPeel", Loc.T("reason.punishNoPeel", DataDragon.Name(carry)));
+        if (None(ChampionTraits.Disengager) && ChampionTraits.Initiator(id))
+            Add("punishNoDisengage", Loc.T("reason.punishNoDisengage"));
+        if (e.Count(ChampionTraits.HasHardCc) < 2 && ChampionTraits.Hypercarry(id))
+            Add("punishNoCc", Loc.T("reason.punishNoCc"));
+        int ad = e.Count(DataDragon.IsAdChampion), ap = e.Count(DataDragon.IsApChampion);
+        if (ChampionTraits.Frontline(id) && ((ad >= 3 && ap == 0) || (ap >= 3 && ad == 0)))
+            Add("punishOneDamage", Loc.T("reason.punishOneDamage", Loc.T(ad >= 3 ? "cat.physical" : "cat.magic")));
+        if (ChampionTraits.Frontline(id) && None(ChampionTraits.AntiTank))
+            Add("punishNoAntiTank", Loc.T("reason.punishNoAntiTank"));
+        if (e.All(x => ChampionTraits.EarlyPower(x) <= 1) && ChampionTraits.EarlyPower(id) >= 3)
+            Add("punishLate", Loc.T("reason.punishLate"));
     }
 
     /// <summary>

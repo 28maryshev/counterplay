@@ -220,8 +220,14 @@
     "needAntiTank": "O inimigo tem tanques ({0}) e ninguém do seu time consegue derrubá-los. Este pick causa dano por porcentagem de vida ou dano verdadeiro.",
     "needWaveclear": "Ninguém do seu time limpa ondas rápido — as torres vão cair no cerco. Este pick limpa a rota à distância.",
     "needEarly": "Seu time inteiro fica forte tarde — antes dos itens vocês vão sofrer pressão. Este pick é forte desde os primeiros minutos.",
-    "needOpen": "Você escolhe por último e “{0}” ainda falta — este pick não fecha a lacuna. As tags verdes marcam quem fecha.",
-    "offTempo": "Seu time é forte cedo e quer terminar rápido, mas este pick só fica forte tarde."
+    "offTempo": "Seu time é forte cedo e quer terminar rápido, mas este pick só fica forte tarde.",
+    "punishNoFront": "O inimigo não tem linha de frente — ninguém fica entre você e os carries deles.",
+    "punishNoPeel": "Ninguém protege o hipercarry {0} deles — você consegue alcançá-lo.",
+    "punishNoDisengage": "O inimigo não tem nada para cortar o seu engage.",
+    "punishNoCc": "O inimigo quase não tem controle pesado — não consegue te pegar nem te parar.",
+    "punishOneDamage": "O dano inimigo é quase todo {0} — um só tipo de defesa cobre todos.",
+    "punishNoAntiTank": "O inimigo não tem como derrubar tanques — você vai aguentar mais.",
+    "punishLate": "O inimigo fica forte tarde — pressione antes dos itens deles."
   },
   "metric": {
     "base": "Força neste patch",
@@ -903,6 +909,26 @@
     "aramFront": "Linha de frente para o time",
     "aramHeal": "Cura para o time",
     "common": "Quase todas as sugestões têm isso, por isso o ícone fica apagado: ele não ajuda a escolher",
-    "offTempo": "Ritmo errado"
+    "offTempo": "Ritmo errado",
+    "punishNoFront": "A linha de frente deles está vazia",
+    "punishNoPeel": "O carry deles está desprotegido",
+    "punishNoDisengage": "Engage sem resposta",
+    "punishNoCc": "Nada para te prender",
+    "punishOneDamage": "O dano deles é de um tipo só",
+    "punishNoAntiTank": "Tanques são duros demais para eles",
+    "punishLate": "Pune os tardios"
+  },
+  "comp": {
+    "header": "COMPOSIÇÃO",
+    "enemyHeader": "COMPOSIÇÃO INIMIGA",
+    "has": "Tem: {0}",
+    "few": "Pouco, só {0}",
+    "none": "Ninguém tem",
+    "planLine": "Plano: {0}",
+    "planF2b": "Lutem cinco contra cinco nos objetivos: linha de frente na frente, carries atrás.",
+    "planDive": "Mergulhem juntos e ao mesmo tempo na retaguarda deles — nunca um por um.",
+    "planPoke": "Deem poke antes dos objetivos e peguem os isolados; evitem lutas longas de frente.",
+    "planEarly": "Vocês são fortes cedo — pressionem as rotas e terminem antes dos 25 minutos.",
+    "planLate": "Vocês ficam fortes tarde — joguem seguro e farmem até ter os itens."
   }
 }

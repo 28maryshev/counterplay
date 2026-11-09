@@ -4,6 +4,8 @@
 // Идентификаторы по championId из LCU / Data Dragon.
 public static class ChampionTags
 {
+    // Один чемпион — одна запись: при повторе номера действует последняя, а
+    // первая молча врёт читающему (до 09.11 так висели Ксин Жао, Аврора, Юми).
     private static readonly Dictionary<int, string[]> T = new()
     {
         // ── Supports ──────────────────────────────────────────────────────────
@@ -25,7 +27,6 @@ public static class ChampionTags
         // лечение W, корень и оглушение E, ульт очаровывает.
         [147] = ["peel", "heal", "shield", "cc"],      // Seraphine
         [16]  = ["peel", "heal"],                      // Soraka
-        [350] = ["peel", "heal"],                      // Yuumi
         [267] = ["peel", "cc", "nami_e"],              // Nami
         [43]  = ["peel", "poke", "range_poke", "shield"], // Karma (поук-энчантер → пик/пок)
         [235] = ["poke", "peel"],                      // Senna
@@ -67,7 +68,6 @@ public static class ChampionTags
         [79]  = ["engage", "cc", "dive"],              // Gragas
         [59]  = ["engage", "hard_cc", "ult_trap"],     // Jarvan IV
         [254] = ["dive", "hard_cc"],                   // Vi (нокбэк Q, нокап/супресс R)
-        [5]   = ["dive", "cc"],                        // Xin Zhao
         [120] = ["engage", "dive", "hard_cc"],         // Hecarim (R — фир + отбрасывание)
         [154] = ["engage", "hard_cc"],                 // Zac (нокап E, отбрасывание R)
         [107] = ["dive", "burst"],                     // Rengar
@@ -167,7 +167,6 @@ public static class ChampionTags
         [268] = ["poke", "zone_control", "hard_cc", "scale"],  // Azir
         [517] = ["dive", "burst", "mobility", "cc"],           // Sylas
         [518] = ["poke", "zone_control", "burst", "cc", "hard_cc", "engage"], // Neeko (пик-маг)
-        [893] = ["burst", "mobility", "cc", "dive"],           // Aurora
         // ── Дополнительные ADC ───────────────────────────────────────────────
         [67]  = ["scale", "hypercarry", "needs_peel", "dive"], // Vayne
         [110] = ["poke", "cc", "hard_cc", "scale"],            // Varus
