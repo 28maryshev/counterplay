@@ -99,7 +99,10 @@ public static class ChampionTags
         [31]  = ["cc", "dive", "scale", "tank"],       // Cho'Gath
         [114] = ["dive", "cc"],                        // Fiora
         [86]  = ["juggernaut", "tank"],                // Garen
-        [420] = ["cc", "engage", "dive"],              // Illaoi
+        // Иллаой — не инициатор и не дайвер (было «cc, engage, dive»): драку не
+        // начинает, в тыл нырнуть нечем, жёсткого контроля нет. Её игра —
+        // стоять и драться в своей зоне щупалец. Решение владельца 09.11.
+        [420] = ["juggernaut", "zone_control"],        // Illaoi
         [516] = ["engage", "cc", "hard_cc", "tank"],   // Ornn
         [150] = ["engage", "hard_cc", "poke", "scale"],// Gnar
         [126] = ["poke", "cc", "burst"],               // Jayce
