@@ -12,6 +12,7 @@ public sealed partial class RecommendationEngine
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
+        EnsureTempo();   // ранняя сила по данным, если в базе есть duration_wr (Tempo.cs)
         var wDirect = DirectWeight(myRole); // вес контры на линии — по доле правды роли (Weights)
 
         // Чемпионы моего активного пула на эту роль — им «комфорт» пула (см.

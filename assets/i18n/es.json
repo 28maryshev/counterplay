@@ -929,6 +929,7 @@
     "planDive": "Entren juntos y a la vez en su retaguardia; nunca de uno en uno.",
     "planPoke": "Hagan poke antes de los objetivos y cacen rezagados; eviten peleas largas de frente.",
     "planEarly": "Son fuertes pronto: presionen las líneas y acaben antes del minuto 25.",
-    "planLate": "Despiertan tarde: jueguen seguro y farmeen hasta tener objetos."
+    "planLate": "Despiertan tarde: jueguen seguro y farmeen hasta tener objetos.",
+    "tempo": "Por duración: menos de 25 min {0} · 25–35 {1} · más de 35 {2}"
   }
 }

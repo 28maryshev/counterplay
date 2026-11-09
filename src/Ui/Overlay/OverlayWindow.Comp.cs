@@ -31,9 +31,24 @@ public partial class OverlayWindow
         EnemyComp.ItemsSource = theirs;
         MyCompHeader.Visibility = mine.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         EnemyCompHeader.Visibility = theirs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        var plan = PlanText(allyIds);
+        var plan = string.Join("\n", new[] { PlanText(allyIds), TempoLine(_engine, allyIds) }.Where(x => x.Length > 0));
         MyPlan.Text = plan;
         MyPlan.Visibility = plan.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var foes = TempoLine(_engine, enemyIds);
+        EnemyTempo.Text = foes;
+        EnemyTempo.Visibility = foes.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// «По времени: до 25 мин +1,2 · 25–35 +0,3 · после 35 −0,8» — сумма силы
+    /// команды по отрезкам длительности (RecommendationEngine.TeamTempo, из
+    /// duration_wr). С трёх выбранных; данных нет — пусто.
+    /// </summary>
+    public static string TempoLine(RecommendationEngine? engine, IReadOnlyList<int> team)
+    {
+        if (engine is null || team.Count < 3 || engine.TeamTempo(team) is not { } t) return "";
+        static string N(double v) => (v >= 0 ? "+" : "−") + Math.Abs(v).ToString("F1");
+        return Loc.T("comp.tempo", N(t.Early), N(t.Mid), N(t.Late));
     }
 
     /// <summary>

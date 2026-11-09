@@ -929,6 +929,7 @@
     "planDive": "Dive their back line together and at once — never go in one by one.",
     "planPoke": "Poke before objectives and catch stragglers; avoid long head-on fights.",
     "planEarly": "You are strong early — press the lanes and end before 25 minutes.",
-    "planLate": "You come online late — play safe and farm until your items are in."
+    "planLate": "You come online late — play safe and farm until your items are in.",
+    "tempo": "By game length: under 25 min {0} · 25–35 {1} · over 35 {2}"
   }
 }

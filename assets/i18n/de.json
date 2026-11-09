@@ -929,6 +929,7 @@
     "planDive": "Divet gemeinsam und gleichzeitig in ihre Backline — nie einzeln rein.",
     "planPoke": "Pokt vor Objectives und erwischt Einzelgänger; meidet lange Frontalkämpfe.",
     "planEarly": "Ihr seid früh stark — drückt die Lanes und beendet vor Minute 25.",
-    "planLate": "Ihr kommt spät ins Spiel — spielt sicher und farmt bis zu euren Items."
+    "planLate": "Ihr kommt spät ins Spiel — spielt sicher und farmt bis zu euren Items.",
+    "tempo": "Nach Spieldauer: unter 25 Min. {0} · 25–35 {1} · über 35 {2}"
   }
 }

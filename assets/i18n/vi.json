@@ -929,6 +929,7 @@
     "planDive": "Cùng lúc lao vào tuyến sau của địch — đừng vào từng người một.",
     "planPoke": "Cấu rỉa trước mục tiêu và bắt kẻ đi lẻ; tránh giao tranh trực diện kéo dài.",
     "planEarly": "Đội bạn mạnh sớm — ép đường và kết thúc trước phút 25.",
-    "planLate": "Đội bạn mạnh muộn — chơi an toàn và farm đến khi đủ đồ."
+    "planLate": "Đội bạn mạnh muộn — chơi an toàn và farm đến khi đủ đồ.",
+    "tempo": "Theo thời lượng: dưới 25 phút {0} · 25–35 {1} · trên 35 {2}"
   }
 }

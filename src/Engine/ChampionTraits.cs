@@ -168,9 +168,18 @@ public static class ChampionTraits
         DataDragon.ClassTags(id).Contains("Tank");
 
     // ── Структурная синергия jg↔sup (п.4) ───────────────────────────────────
+
+    /// <summary>
+    /// Ранняя сила по данным — из винрейта по длительности матча
+    /// (RecommendationEngine.Tempo.cs, таблица duration_wr). Ставит движок, как
+    /// только прочтёт таблицу; нет таблицы или чемпиона в ней — метки ниже.
+    /// </summary>
+    public static IReadOnlyDictionary<int, int>? EarlyPowerData { get; set; }
+
     // Сила в ранней игре 0..3.
     public static int EarlyPower(int id)
     {
+        if (EarlyPowerData?.TryGetValue(id, out var data) == true) return data;
         if (ChampionTags.Has(id, "aggressive") || ChampionTags.Has(id, "kill_lane")) return 3;
         if (ChampionTags.Has(id, "hypercarry")) return 0; // гиперкэрри слабы рано
         if (ChampionTags.Has(id, "scale"))      return 1;

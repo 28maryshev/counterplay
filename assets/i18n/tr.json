@@ -929,6 +929,7 @@
     "planDive": "Arka hatlarına birlikte ve aynı anda dalın — asla tek tek girmeyin.",
     "planPoke": "Hedeflerden önce poke yapın, yalnız kalanları yakalayın; uzun önden savaşlara girmeyin.",
     "planEarly": "Erken güçlüsünüz — koridorlara baskı yapın ve 25. dakikadan önce bitirin.",
-    "planLate": "Geç açılıyorsunuz — eşyalar gelene kadar güvenli oynayın ve farm yapın."
+    "planLate": "Geç açılıyorsunuz — eşyalar gelene kadar güvenli oynayın ve farm yapın.",
+    "tempo": "Oyun süresine göre: 25 dk altı {0} · 25–35 {1} · 35 üstü {2}"
   }
 }

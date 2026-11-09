@@ -929,6 +929,7 @@
     "planDive": "Plongez ensemble et en même temps sur leur backline — jamais un par un.",
     "planPoke": "Pokez avant les objectifs et attrapez les isolés ; évitez les longs combats de face.",
     "planEarly": "Vous êtes forts tôt — pressez les lanes et finissez avant 25 minutes.",
-    "planLate": "Vous montez en puissance tard — jouez safe et farmez jusqu'à vos objets."
+    "planLate": "Vous montez en puissance tard — jouez safe et farmez jusqu'à vos objets.",
+    "tempo": "Selon la durée : moins de 25 min {0} · 25–35 {1} · plus de 35 {2}"
   }
 }

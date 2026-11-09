@@ -929,6 +929,7 @@
     "planDive": "Nurkujcie w ich tyły razem i naraz — nigdy pojedynczo.",
     "planPoke": "Pokujcie przed celami i łapcie samotnych; unikajcie długich walk czołowych.",
     "planEarly": "Jesteście silni wcześnie — dociskajcie linie i kończcie przed 25. minutą.",
-    "planLate": "Rozkręcacie się późno — grajcie bezpiecznie i farmcie do przedmiotów."
+    "planLate": "Rozkręcacie się późno — grajcie bezpiecznie i farmcie do przedmiotów.",
+    "tempo": "Wg długości gry: do 25 min {0} · 25–35 {1} · po 35 {2}"
   }
 }

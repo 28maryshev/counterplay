@@ -929,6 +929,7 @@
     "planDive": "Mergulhem juntos e ao mesmo tempo na retaguarda deles — nunca um por um.",
     "planPoke": "Deem poke antes dos objetivos e peguem os isolados; evitem lutas longas de frente.",
     "planEarly": "Vocês são fortes cedo — pressionem as rotas e terminem antes dos 25 minutos.",
-    "planLate": "Vocês ficam fortes tarde — joguem seguro e farmem até ter os itens."
+    "planLate": "Vocês ficam fortes tarde — joguem seguro e farmem até ter os itens.",
+    "tempo": "Por duração: até 25 min {0} · 25–35 {1} · após 35 {2}"
   }
 }
