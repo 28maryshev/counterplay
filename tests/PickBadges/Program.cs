@@ -48,7 +48,8 @@ internal static class Program
                       Riven = 92, Samira = 360, Pyke = 555, Janna = 40, Blitzcrank = 53,
                       JarvanIV = 59, KhaZix = 121, Alistar = 12, Poppy = 78, Taric = 44, Soraka = 16,
                       Renekton = 58, KogMaw = 96, Karthus = 30, AurelionSol = 136, Malphite2 = 54,
-                      Galio = 3, Fiora = 114, Graves = 104, Draven = 119;
+                      Galio = 3, Fiora = 114, Graves = 104, Draven = 119,
+                      Ekko = 245, Neeko = 518, Zeri = 221, Sion = 14, Karma = 43;
 
     [STAThread]
     private static int Main()
@@ -85,6 +86,7 @@ internal static class Program
             ("лес в дайв без захода", JungleDiveNoEngage()),
             ("саппорт к Ког'Мао без защиты", SupportKogNoPeel()),
             ("топ к поздней команде против танков", TopLateVsTanks()),
+            ("мид последним к Зери без защиты", MidLastZeri()),
         };
         var all = new List<(string Scene, Recommendation R)>();
         foreach (var (name, draft) in scenes)
@@ -99,6 +101,7 @@ internal static class Program
         Owner(engine);
         Front(engine, scenes);
         Needs(engine, scenes);
+        GapRoles(engine, scenes);
         Tempo(engine);
         Blind(all.Where(x => x.Scene.Contains("вслепую")).Select(x => x.R).ToList());
 
@@ -284,9 +287,10 @@ internal static class Program
         "стрелок против Вейн, Эвелинн, Мэл и Лулу"  => ([], null),
         "топ во фронт-ту-бэк без танка"             => ([GFront], null),
         "саппорт в пик/пок без дизэнгейджа"         => ([GDis, GFront], "needDisengage"),
-        "лес в дайв без захода"                     => ([GEng, GFront, GAp, GWave], "needEngage"),
-        "саппорт к Ког'Мао без защиты"              => ([GEng, GPeel, GCc, GAp], "needEngage"),
+        "лес в дайв без захода"                     => ([GEng, GFront, GAp], "needEngage"),
+        "саппорт к Ког'Мао без защиты"              => ([GEng, GPeel, GCc], "needEngage"),
         "топ к поздней команде против танков"       => ([GFront, GPeel, GTank, GEarly], null),
+        "мид последним к Зери без защиты"           => ([], null),
         _ => throw new ArgumentException(scene),
     };
 
@@ -359,6 +363,39 @@ internal static class Program
                   : extra ? $"у {DataDragon.Name(no)} есть"
                   : One(yes[0])?.Badges?.Tags.First(t => t.Kind == kind && t.Sign == sign).Tip ?? "");
         }
+    }
+
+    /// <summary>
+    /// Чья это работа (владелец, 09.11, по снимку: мид последним к Дариусу, Экко,
+    /// Нико и Зери — «у мидеров светится "защита керри", "фронтлайн", у них
+    /// этого не должно быть; проверь соответствия у других ролей»). Мидер и
+    /// стрелок не стоят во фронт и не прикрывают керри; стрелок не начинает и не
+    /// срывает заход; саппорт не чистит волны, не пробивает танков и не
+    /// отвечает за тип урона; лесник не чистит волны. Ни зелёным, ни красным —
+    /// и в счёт тоже. Галио и Карма на миде — поимённо: у них метки танка и
+    /// пила есть, а тегов быть не должно.
+    /// </summary>
+    private static void GapRoles(RecommendationEngine engine, (string Name, DraftState Draft)[] scenes)
+    {
+        var forbidden = new Dictionary<string, string[]>
+        {
+            ["middle"]  = ["needFront", "needPeel"],
+            ["bottom"]  = ["needFront", "needPeel", "needEngage", "needDisengage"],
+            ["utility"] = ["needWaveclear", "needAntiTank", "needAp", "needAd"],
+            ["jungle"]  = ["needWaveclear"],
+            ["top"]     = [],
+        };
+        var bad = new List<string>();
+        foreach (var (scene, draft) in scenes)
+        {
+            var no = forbidden[draft.MyPosition];
+            foreach (var r in engine.Recommend(draft, 8)
+                         .Concat(engine.Recommend(draft, 2, draft.MyPosition == "middle" ? [Galio, Karma] : [])))
+                foreach (var t in r.Badges?.Tags ?? [])
+                    if (no.Contains(t.Kind)) bad.Add($"{Who(r)}: «{(t.Sign < 0 ? "−" : "+")}{t.Text}» ({scene})");
+        }
+        Check("дыры — только у ролей, чья это работа (мид без фронта и защиты керри и т.д.)", bad.Count == 0,
+              bad.Count == 0 ? "да" : string.Join("; ", bad.Distinct().Take(4)) + (bad.Count > 4 ? $" и ещё {bad.Count - 4}" : ""));
     }
 
     /// <summary>
@@ -604,6 +641,16 @@ internal static class Program
         [new(5, Malphite2, 0, "top", false), new(6, Sejuani, 0, "jungle", false), new(7, Galio, 0, "middle", false),
          new(8, Caitlyn, 0, "bottom", false), new(9, Leona, 0, "utility", false)],
         0, "top", exposed: false);
+
+    // Снимок владельца 09.11: мид последним, у своих Дариус, Экко, Нико, Зери.
+    // Зери — гиперкерри без прикрытия, но прикрывать его — не работа мидера;
+    // фронт есть (Дариус), контроль есть, урон смешанный, волны чистят.
+    private static DraftState MidLastZeri() => Draft(
+        [new(0, Darius, 0, "top", false), new(1, Ekko, 0, "jungle", false), new(2, 0, 0, "middle", true),
+         new(3, Zeri, 0, "bottom", false), new(4, Neeko, 0, "utility", false)],
+        [new(5, Sion, 0, "top", false), new(6, Viego, 0, "jungle", false), new(7, Ahri, 0, "middle", false),
+         new(8, Caitlyn, 0, "bottom", false), new(9, Morgana, 0, "utility", false)],
+        2, "middle", exposed: false);
 
     // Ренектон и Грейвз сильны рано, Орианна и Леона — ровно, поздних нет.
     private static DraftState AdcEarlyTeam() => Draft(

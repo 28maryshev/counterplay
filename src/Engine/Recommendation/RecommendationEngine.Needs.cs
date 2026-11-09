@@ -29,6 +29,31 @@ public sealed partial class RecommendationEngine
     private const double GAP_EARLY  = 0.5;
 
     /// <summary>
+    /// Чья это работа: дыру закрывает тот, чья роль за неё отвечает, — у прочих
+    /// ни тега (зелёного или красного), ни надбавки. Владелец (09.11, по снимку:
+    /// мид последним к Зери без прикрытия, у всех мидеров красная «Защита
+    /// керри») — «у мидеров светится "защита керри", "фронтлайн", у них этого не
+    /// должно быть». Галио и Карма на миде метки танка и пила носят, но стоять
+    /// во фронте и прикрывать стрелка — работа топа, леса и саппорта. Стрелок
+    /// не начинает и не срывает заход; саппорт не чистит волны, не пробивает
+    /// танков и тип урона команды не делает (его урон мал); лесник волн не
+    /// чистит. Контроль и ранняя сила — с любой роли.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> GapRoles = new()
+    {
+        ["needFront"]     = ["top", "jungle", "support"],
+        ["needPeel"]      = ["top", "jungle", "support"],
+        ["needDisengage"] = ["top", "jungle", "mid", "support"],
+        ["needEngage"]    = ["top", "jungle", "mid", "support"],
+        ["needCc"]        = ["top", "jungle", "mid", "adc", "support"],
+        ["needAp"]        = ["top", "jungle", "mid", "adc"],
+        ["needAd"]        = ["top", "jungle", "mid", "adc"],
+        ["needAntiTank"]  = ["top", "jungle", "mid", "adc"],
+        ["needWaveclear"] = ["top", "mid", "adc"],
+        ["needEarly"]     = ["top", "jungle", "mid", "adc", "support"],
+    };
+
+    /// <summary>
     /// Дыры союзников без меня — по важности. Сначала ключевая часть стиля, если
     /// стиль явный (<see cref="ChampionTraits.DominantStyle"/>, тот же порог, что
     /// у подсветки стиля команды): фронт-ту-бэк без танка — фронт, пик/пок
@@ -37,14 +62,16 @@ public sealed partial class RecommendationEngine
     /// союзников): танк, защита гиперкерри, жёсткий контроль хотя бы у двоих,
     /// оба типа урона, урон по танкам, если у врагов их двое, чистка волн,
     /// ранняя сила, если весь состав поздний. Вид не повторяется: фронт стиля
-    /// и общий фронт — одна дыра.
+    /// и общий фронт — одна дыра. Только дыры, за которые отвечает моя роль
+    /// (<see cref="GapRoles"/>): прочие этой роли не видны вовсе.
     /// </summary>
-    private static List<TeamGap> TeamGaps(IReadOnlyList<int> allies, IReadOnlyList<int> enemies)
+    private static List<TeamGap> TeamGaps(IReadOnlyList<int> allies, IReadOnlyList<int> enemies, string myRole)
     {
         var gaps = new List<TeamGap>();
         void Add(string kind, Func<int, bool> fills, string tip, double weight)
         {
-            if (!gaps.Any(g => g.Kind == kind)) gaps.Add(new TeamGap(kind, fills, tip, weight));
+            if (!GapRoles[kind].Contains(myRole) || gaps.Any(g => g.Kind == kind)) return;
+            gaps.Add(new TeamGap(kind, fills, tip, weight));
         }
         bool None(Func<int, bool> p) => !allies.Any(p);
 

@@ -119,7 +119,7 @@ public sealed partial class RecommendationEngine
         var vulnAllyIds = allyData.Select(a => a.Id).ToList();
 
         // Дыры состава (Needs.cs): один раз на драфт — союзники и враги те же.
-        var gaps = TeamGaps(vulnAllyIds, allEnemyIds);
+        var gaps = TeamGaps(vulnAllyIds, allEnemyIds, myRole);
 
         // Структурная синергия (п.4): id союзных джанглера и АДК.
         var jungleAllyId = allyData.FirstOrDefault(a => a.Role == "jungle").Id;
