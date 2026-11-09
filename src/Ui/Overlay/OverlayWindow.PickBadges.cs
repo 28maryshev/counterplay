@@ -46,7 +46,8 @@ public partial class OverlayWindow
         "lane"    => MetricRow.Defs.First(d => d.Key == "metric.direct").Floor,
         "team"    => MetricRow.Defs.First(d => d.Key == "metric.team").Floor,
         "synergy" => MetricRow.Defs.First(d => d.Key == "metric.synergy").Floor,
-        // Нужда стиля: Value — доля выбранных союзников, во всю силу — у последнего пика.
+        // Дыры состава: Value — доля выбранных союзников, во всю силу — у последнего
+        // пика; у красного — постоянная 0,75, без свечения (Needs.cs).
         var k when k.StartsWith("need") => 1.0,
         _         => 15.0,
     };
@@ -112,7 +113,7 @@ public partial class OverlayWindow
     }
 
     /// Иконки окна — минусы, которых движок не видит. «Не в стиле команды» не
-    /// ставится тому, кто закрывает дыру этого стиля (тег нужды): Жанна в
+    /// ставится тому, кто закрывает дыру состава (зелёный тег дыры): Жанна в
     /// пик/поке сама по себе фронт-ту-бэк, но поуку она и нужна.
     private static IEnumerable<PickIcon> WindowIcons(bool notOwned, IReadOnlyList<int> counterItems,
                                                      ChampionTraits.Arch? cand, ChampionTraits.Arch? team,

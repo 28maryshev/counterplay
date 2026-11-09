@@ -76,7 +76,7 @@ public partial class OverlayWindow
             var items = cfg.DraftItems
                 ? ItemValue.CounterItems(r.ChampionId, allyNoMe, enemyNow, BuildOf).ToList() : [];
             var notOwned = _ownedChamps.Count > 0 && !_ownedChamps.Contains(r.ChampionId);
-            var fillsNeed = r.Badges?.Tags.Any(t => t.Kind.StartsWith("need")) == true;
+            var fillsNeed = r.Badges?.Tags.Any(t => t.Kind.StartsWith("need") && t.Sign > 0) == true;
             return [.. r.Badges?.Icons ?? [],
                     .. WindowIcons(notOwned, items, ChampionTraits.ChampArch(r.ChampionId), _allyStyle, fillsNeed)];
         }

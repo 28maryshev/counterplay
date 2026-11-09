@@ -434,7 +434,17 @@
     "vulnHeal": "Dependes de la curación y, contigo, habrá {0} campeones así en el equipo. La anticuración (Heridas graves) os debilitará a todos a la vez.",
     "needFront": "Tu equipo se arma en front-to-back, pero no hay tanque delante. Este pick sostiene la línea frontal y absorbe daño por tus carries.",
     "needDisengage": "Tu equipo se arma en pick/poke, pero nadie puede frenar un engage enemigo. Este pick corta su engage y deja que tu equipo se retire.",
-    "needEngage": "Tu equipo se arma en dive, pero nadie puede iniciar la pelea. Este pick abre con un engage que el resto puede seguir."
+    "needEngage": "Tu equipo se arma en dive, pero nadie puede iniciar la pelea. Este pick abre con un engage que el resto puede seguir.",
+    "needFrontAny": "Tu equipo aún no tiene tanque: nadie que se ponga delante y absorba daño. Este pick sostiene la línea frontal.",
+    "needPeel": "Tu equipo tiene un hipercarry, {0}, pero nadie que lo proteja. Este pick aleja a los divers de tu carry.",
+    "needCc": "Tu equipo casi no tiene control duro: nada para iniciar una pelea ni para frenarla. Este pick aporta aturdimientos, enraizamientos o derribos.",
+    "needAp": "Tu equipo hace casi solo daño físico: al rival le basta con armadura. Este pick aporta daño mágico.",
+    "needAd": "Tu equipo hace casi solo daño mágico: al rival le basta con resistencia mágica. Este pick aporta daño físico.",
+    "needAntiTank": "El rival tiene tanques ({0}) y nadie en tu equipo puede romperlos. Este pick hace daño por porcentaje de vida o daño verdadero.",
+    "needWaveclear": "Nadie en tu equipo limpia oleadas rápido: las torres caerán en los asedios. Este pick limpia la línea a distancia.",
+    "needEarly": "Todo tu equipo despierta tarde: antes de los objetos os van a presionar. Este pick es fuerte desde los primeros minutos.",
+    "needOpen": "Eliges último y «{0}» sigue faltando: este pick no cubre el hueco. Las etiquetas verdes marcan a los que sí.",
+    "offTempo": "Tu equipo es fuerte pronto y quiere acabar rápido, pero este pick despierta tarde."
   },
   "pool": {
     "slotLabel": "Pick de tu pool",
@@ -838,7 +848,14 @@
     "synergyWord": "Sinergia",
     "needFront": "Línea frontal",
     "needDisengage": "Disengage",
-    "needEngage": "Engage"
+    "needEngage": "Engage",
+    "needPeel": "Peel",
+    "needCc": "Control duro",
+    "needAp": "Daño mágico",
+    "needAd": "Daño físico",
+    "needAntiTank": "Antitanque",
+    "needWaveclear": "Limpieza de oleadas",
+    "needEarly": "Early game"
   },
   "pairShort": {
     "airborne": "Derribo para la ulti",
@@ -885,6 +902,7 @@
     "pairBad": "No combina con un aliado",
     "aramFront": "Línea frontal para el equipo",
     "aramHeal": "Curación para el equipo",
-    "common": "Casi todos los candidatos lo tienen, por eso aparece atenuado: no te servirá para decidir"
+    "common": "Casi todos los candidatos lo tienen, por eso aparece atenuado: no te servirá para decidir",
+    "offTempo": "Fuera de ritmo"
   }
 }

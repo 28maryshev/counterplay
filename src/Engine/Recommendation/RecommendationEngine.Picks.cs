@@ -3,56 +3,10 @@
 namespace Counterplay;
 
 // Движок подбора — подбор пиков: Recommend и всё, из чего складывается оценка кандидата
-// (матчапы, стиль, синергия пары, баланс урона, структура состава).
+// (матчапы, стиль, синергия пары, баланс урона, структура состава). Доли урона
+// из базы (DamageShare) — в Data.cs.
 public sealed partial class RecommendationEngine
 {
-    // ── Доли урона чемпиона (физ/маг/чистый) ────────────────────────────────
-    // Замеры из матчей (таблица champion_damage). Пока её нет в скачанной базе —
-    // возвращаем null, и оверлей падает на грубую оценку Data Dragon.
-    private bool? _dmgTable;
-
-    private readonly Dictionary<int, (double P, double M, double T)?> _dmgCache = new();
-
-    public (double Phys, double Magic, double True)? DamageShare(int champId)
-    {
-        if (_dmgTable == false) return null;
-        if (_dmgCache.TryGetValue(champId, out var hit)) return hit;
-
-        (double, double, double)? res = null;
-        try
-        {
-            if (_dmgTable is null)
-            {
-                var chk = _db.CreateCommand();
-                chk.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='champion_damage'";
-                _dmgTable = chk.ExecuteScalar() is not null;
-                if (_dmgTable == false) return null;
-            }
-
-            var cmd = _db.CreateCommand();
-            cmd.CommandText = @"
-                SELECT COALESCE(SUM(phys),0), COALESCE(SUM(magic),0), COALESCE(SUM(trued),0)
-                FROM champion_damage
-                WHERE champion_id=@c AND tier_bucket=@t AND patch IN (@p1,@p2,@p3)";
-            cmd.Parameters.AddWithValue("@c",  champId);
-            cmd.Parameters.AddWithValue("@t",  TierBucket);
-            cmd.Parameters.AddWithValue("@p1", _p1);
-            cmd.Parameters.AddWithValue("@p2", _p2);
-            cmd.Parameters.AddWithValue("@p3", _p3);
-            using var rd = cmd.ExecuteReader();
-            if (rd.Read())
-            {
-                double p = rd.GetDouble(0), m = rd.GetDouble(1), t = rd.GetDouble(2);
-                var sum = p + m + t;
-                if (sum > 0) res = (p / sum, m / sum, t / sum);
-            }
-        }
-        catch { _dmgTable = false; }
-
-        _dmgCache[champId] = res;
-        return res;
-    }
-
     public IReadOnlyList<Recommendation> Recommend(DraftState state, int topN = 6,
                                                    IReadOnlyCollection<int>? only = null)
     {
@@ -163,6 +117,9 @@ public sealed partial class RecommendationEngine
 
         // Item value (п.1): союзники (без меня) и враги для профиля уязвимостей.
         var vulnAllyIds = allyData.Select(a => a.Id).ToList();
+
+        // Дыры состава (Needs.cs): один раз на драфт — союзники и враги те же.
+        var gaps = TeamGaps(vulnAllyIds, allEnemyIds);
 
         // Структурная синергия (п.4): id союзных джанглера и АДК.
         var jungleAllyId = allyData.FirstOrDefault(a => a.Role == "jungle").Id;
@@ -281,11 +238,13 @@ public sealed partial class RecommendationEngine
                 comfortDelta  *= guard;
                 personalDelta *= guard;
 
+                var needBonus = NeedBonus(champId, gaps, vulnAllyIds.Count);   // закрывает дыры состава
+
                 var score   = W_BASE * baseDelta + wLane * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
                             - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
                             + wDuo * botlaneDelta + crossScore + W_DMGBAL * dmgDelta
-                            + W_PERSONAL * personalDelta;
+                            + W_PERSONAL * personalDelta + W_NEED * needBonus;
                 var reasonList = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                               otherDelta, otherByEnemy, baseDelta,
                                               PickGrade(champId, myRole), comfortDelta)
@@ -310,7 +269,8 @@ public sealed partial class RecommendationEngine
                 var grade = PickGrade(champId, myRole);
                 var facts = new PickFacts(champId, myRole,
                     shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
-                    teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, grade, baseDelta, comfortDelta, personalDelta,
+                    teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, gaps, needBonus,
+                    grade, baseDelta, comfortDelta, personalDelta,
                     enemyStyle, dmg, vuln, exploitBy, structReasons);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
                                           Blind: laneBlind, Facts: facts);
@@ -329,11 +289,15 @@ public sealed partial class RecommendationEngine
         // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
         // он выпадает из списка так же, как любой другой кандидат.
         // Теги и иконки — только показанным: им нужен винрейт по патчам (запрос в базу).
+        // Открытая дыра последнего пика — по всей роли: закрыть её может и тот, кто
+        // не вошёл в показанные, а с only (свой пик, пул) посчитаны не все.
+        var open = vulnAllyIds.Count < 4 || gaps.Count == 0 ? null
+                 : OpenGap(only is null ? candidates : GetCandidates(myRole), taken, gaps);
         return ordered.Take(topN)
             .Select((r, i) => r with
             {
                 Rank = i + 1, IsMyPick = r.ChampionId == myPickId,
-                Badges = r.Facts is { } f ? BuildBadges(f) : null,
+                Badges = r.Facts is { } f ? BuildBadges(f, open) : null,
             })
             .ToList();
     }

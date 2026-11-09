@@ -28,10 +28,12 @@ namespace Counterplay.Tests;
 /// - вслепую тег совпадает с выводом движка (надёжен / рискован);
 /// - красное правда бывает: хотя бы один красный тег и красная иконка;
 /// - окно: на карточках теги и иконки, строк доводов и ряда предметов нет;
-/// - чего не хватает стилю (владелец, 09.11: «если команда фронт-ту-бэк — нужен
-///   фронт»): фронт-ту-бэк без танка, пик/пок без дизэнгейджа, дайв без захода —
-///   тег ровно у тех, кто дыру закрывает; дыры нет — тега нет; у закрывающих
-///   окно не ставит «не в стиле команды».
+/// - дыры состава (владелец, 09.11: «если команда фронт-ту-бэк — нужен фронт»,
+///   и все варианты из поиска — «делай»): у каждой сцены свой список дыр по
+///   важности и красная дыра последнего пика; теги каждой карточки — ровно те,
+///   что из него следуют; надбавка в счёт — у закрывающих и только у них;
+///   «не тот темп» у гиперкерри в ранней команде; у закрывающих окно не ставит
+///   «не в стиле команды».
 /// С CP_SNAP — снимки карточек в эту папку.
 /// </summary>
 internal static class Program
@@ -44,7 +46,9 @@ internal static class Program
                       Kayn = 141, Aurora = 893, Evelynn = 28, Mel = 800, Vayne = 67,
                       Kayle = 10, Sejuani = 113, Jayce = 126, Nidalee = 76, Xerath = 101,
                       Riven = 92, Samira = 360, Pyke = 555, Janna = 40, Blitzcrank = 53,
-                      JarvanIV = 59, KhaZix = 121, Alistar = 12, Poppy = 78, Taric = 44, Soraka = 16;
+                      JarvanIV = 59, KhaZix = 121, Alistar = 12, Poppy = 78, Taric = 44, Soraka = 16,
+                      Renekton = 58, KogMaw = 96, Karthus = 30, AurelionSol = 136, Malphite2 = 54,
+                      Galio = 3, Fiora = 114, Graves = 104, Draven = 119;
 
     [STAThread]
     private static int Main()
@@ -79,6 +83,8 @@ internal static class Program
             ("топ во фронт-ту-бэк без танка", TopF2bNoTank()),
             ("саппорт в пик/пок без дизэнгейджа", SupportPokeNoDisengage()),
             ("лес в дайв без захода", JungleDiveNoEngage()),
+            ("саппорт к Ког'Мао без защиты", SupportKogNoPeel()),
+            ("топ к поздней команде против танков", TopLateVsTanks()),
         };
         var all = new List<(string Scene, Recommendation R)>();
         foreach (var (name, draft) in scenes)
@@ -92,7 +98,8 @@ internal static class Program
         Engine(all);
         Owner(engine);
         Front(engine, scenes);
-        Needs(engine);
+        Needs(engine, scenes);
+        Tempo(engine);
         Blind(all.Where(x => x.Scene.Contains("вслепую")).Select(x => x.R).ToList());
 
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -105,7 +112,9 @@ internal static class Program
 
     // ── Строки и значки ───────────────────────────────────────────────────
 
-    private static readonly string[] NeedKinds = ["needFront", "needDisengage", "needEngage"];
+    private static readonly string[] NeedKinds =
+        ["needFront", "needDisengage", "needEngage", "needPeel", "needCc", "needAp", "needAd",
+         "needAntiTank", "needWaveclear", "needEarly"];
     private static readonly string[] TagKinds = ["lane", "blind", "team", "synergy", .. NeedKinds];
     private static readonly string[] PairKinds =
         ["airborne", "orianna", "immortal", "enchanter", "hook", "burst_pick", "isolate",
@@ -139,7 +148,8 @@ internal static class Program
             "reason.counterItems", "reason.offStyle", "reason.personalUp", "reason.personalDown",
             "reason.exploitCc", "reason.exploitAuto", "reason.vulnCc", "reason.vulnAuto",
             "reason.vulnShield", "reason.vulnHeal",
-            .. NeedKinds.Select(k => $"reason.{k}"),
+            .. NeedKinds.Select(k => $"reason.{k}"), "reason.needFrontAny", "reason.needOpen",
+            "reason.offTempo",
         ];
         // Все 15 языков: строка есть (без неё язык молча берёт английскую) и
         // плейсхолдеры те же, что в английской, — иначе подстановка уронит
@@ -172,8 +182,9 @@ internal static class Program
         var recs = all.Select(x => x.R).Where(r => r.Badges is not null).ToList();
 
         var many = recs.Where(r => r.Badges!.Tags.Count(t => !IsNeed(t.Kind)) > 3
-                                || r.Badges.Tags.Count(t => IsNeed(t.Kind)) > 1).Select(Who).ToList();
-        Check("тегов с цифрой не больше трёх, нужды стиля — не больше одного", many.Count == 0,
+                                || r.Badges.Tags.Count(t => IsNeed(t.Kind) && t.Sign > 0) > 2
+                                || r.Badges.Tags.Count(t => IsNeed(t.Kind) && t.Sign < 0) > 1).Select(Who).ToList();
+        Check("тегов с цифрой не больше трёх, дыр — не больше двух зелёных и одного красного", many.Count == 0,
               many.Count == 0 ? "да" : string.Join(", ", many));
         var both = recs.Where(r => r.Badges!.Tags.Any(t => t.Kind == "lane") && r.Badges.Tags.Any(t => t.Kind == "blind")).Select(Who).ToList();
         Check("«линия» и «вслепую» вместе не бывают", both.Count == 0, both.Count == 0 ? "да" : string.Join(", ", both));
@@ -253,64 +264,116 @@ internal static class Program
               jinx is null ? "нет кандидата" : front.Count == 0 ? Line(jinx) : string.Join(", ", front));
     }
 
-    /// <summary>
-    /// Чего не хватает стилю команды (владелец, 09.11: «если например команда
-    /// фронт-ту-бэк, нужен фронт»; «если собирается определённый стиль —
-    /// добавить то, чего не хватает»). В каждой сцене союзники явно собирают
-    /// стиль без его ключевой части: тег стоит ровно у тех, кто её даёт, и у
-    /// названных поимённо — есть у закрывающего и нет у прочих. С танком в
-    /// фронт-ту-бэке тега нет ни у кого; в сцене без явного стиля — тоже.
-    /// </summary>
-    private static void Needs(RecommendationEngine engine)
-    {
-        // Поимённо: у кого тег обязан быть. Алистар и Поппи — слово владельца
-        // (09.11: «алистар, поппи тоже дизэнгейдж»), Тарик и Сорака — из
-        // добавленных тем же днём.
-        var cases = new (string Scene, DraftState Draft, string Kind, Func<int, bool> Fills, int[] Yes, int No)[]
-        {
-            ("фронт-ту-бэк без танка", TopF2bNoTank(), "needFront", ChampionTraits.Frontline, [Malphite], Jayce),
-            ("пик/пок без дизэнгейджа", SupportPokeNoDisengage(), "needDisengage", ChampionTraits.Disengager,
-             [Janna, Alistar, Poppy, Taric, Soraka], Blitzcrank),
-            ("дайв без захода", JungleDiveNoEngage(), "needEngage", ChampionTraits.Initiator, [JarvanIV], KhaZix),
-        };
-        foreach (var (scene, draft, kind, fills, yes, no) in cases)
-        {
-            var recs = engine.Recommend(draft, 8);
-            var wrong = recs.Where(r => (r.Badges?.Tags.Any(t => t.Kind == kind) == true) != fills(r.ChampionId))
-                            .Select(r => $"{Who(r)} {(fills(r.ChampionId) ? "без тега" : "с тегом")}").ToList();
-            var other = recs.SelectMany(r => r.Badges?.Tags ?? []).Where(t => IsNeed(t.Kind) && t.Kind != kind)
-                            .Select(t => t.Text).Distinct().ToList();
-            var with = recs.Count(r => r.Badges?.Tags.Any(t => t.Kind == kind) == true);
-            Check($"{scene}: тег «{Loc.T($"pickTag.{kind}")}» — ровно у тех, кто закрывает дыру",
-                  wrong.Count == 0 && other.Count == 0,
-                  wrong.Count + other.Count == 0 ? $"с тегом {with} из {recs.Count}"
-                  : string.Join(", ", wrong.Concat(other.Select(o => $"чужой тег «{o}»")).Take(4)));
+    // Виды дыр и кто их закрывает — те же признаки, что у движка.
+    private static readonly (string Kind, Func<int, bool> Fills) GFront = ("needFront", ChampionTraits.Frontline),
+        GDis = ("needDisengage", ChampionTraits.Disengager), GEng = ("needEngage", ChampionTraits.Initiator),
+        GPeel = ("needPeel", ChampionTraits.Peeler), GCc = ("needCc", ChampionTraits.HasHardCc),
+        GAp = ("needAp", DataDragon.IsApChampion), GTank = ("needAntiTank", ChampionTraits.AntiTank),
+        GWave = ("needWaveclear", ChampionTraits.Waveclear), GEarly = ("needEarly", id => ChampionTraits.EarlyPower(id) >= 3);
 
-            Recommendation? One(int id) => engine.Recommend(draft, 1, [id]).FirstOrDefault();
-            var missed = yes.Where(id => One(id)?.Badges?.Tags.Any(t => t.Kind == kind) != true)
-                            .Select(id => DataDragon.Name(id)).ToList();
-            var n = One(no);
-            var nTag = n?.Badges?.Tags.FirstOrDefault(t => t.Kind == kind);
-            var names = string.Join(", ", yes.Select(id => DataDragon.Name(id)));
-            Check($"{scene}: тег есть у {names}, у {DataDragon.Name(no)} — нет",
-                  missed.Count == 0 && n is not null && nTag is null,
-                  missed.Count > 0 ? $"без тега: {string.Join(", ", missed)}"
-                  : n is null ? $"нет кандидата {DataDragon.Name(no)}"
-                  : nTag is not null ? $"у {DataDragon.Name(no)} «{nTag.Text}»"
-                  : One(yes[0])?.Badges?.Tags.First(t => t.Kind == kind).Tip ?? "");
+    /// <summary>
+    /// Чего сцене не хватает — по важности — и какая дыра у последнего пика
+    /// останется красной. Списки выписаны руками из состава сцены (разбор — в
+    /// комментариях у сцен), а не повторяют код движка.
+    /// </summary>
+    private static ((string Kind, Func<int, bool> Fills)[] Gaps, string? Red) Expected(string scene) => scene switch
+    {
+        "топ против Дариуса, Ясуо в команде"        => ([GFront], "needFront"),
+        "мид первым пиком, вслепую"                => ([], null),
+        "саппорт против Кейтлин и Морганы"          => ([GDis], "needDisengage"),
+        "стрелок против Вейн, Эвелинн, Мэл и Лулу"  => ([], null),
+        "топ во фронт-ту-бэк без танка"             => ([GFront], null),
+        "саппорт в пик/пок без дизэнгейджа"         => ([GDis, GFront], "needDisengage"),
+        "лес в дайв без захода"                     => ([GEng, GFront, GAp, GWave], "needEngage"),
+        "саппорт к Ког'Мао без защиты"              => ([GEng, GPeel, GCc, GAp], "needEngage"),
+        "топ к поздней команде против танков"       => ([GFront, GPeel, GTank, GEarly], null),
+        _ => throw new ArgumentException(scene),
+    };
+
+    /// <summary>
+    /// Дыры состава (владелец, 09.11: «если например команда фронт-ту-бэк, нужен
+    /// фронт», «если собирается определённый стиль — добавить то, чего не
+    /// хватает», затем все варианты из поиска — «делай»). По каждой сцене:
+    /// зелёные теги карточки — первые две дыры из списка, которые она
+    /// закрывает («контроль» рядом с «инициацией» не повторяется), красный — дыра
+    /// последнего пика, если карточка её не закрывает; надбавка в счёт — только
+    /// у закрывающих взвешенную дыру. Поимённо — у кого тег обязан быть и у кого
+    /// его быть не должно (Алистар и Поппи — слово владельца). С танком в
+    /// фронт-ту-бэке дыр нет вовсе.
+    /// </summary>
+    private static void Needs(RecommendationEngine engine, (string Name, DraftState Draft)[] scenes)
+    {
+        foreach (var (scene, draft) in scenes.Append(("фронт-ту-бэк с Сежуани в лесу", TopF2bNoTank(withTank: true))))
+        {
+            var (gaps, red) = scene.StartsWith("фронт-ту-бэк с Сежуани") ? ([], null) : Expected(scene);
+            var recs = engine.Recommend(draft, 8);
+            var wrong = new List<string>();
+            foreach (var r in recs)
+            {
+                var green = new List<string>();
+                foreach (var g in gaps.Where(g => g.Fills(r.ChampionId)))
+                {
+                    if (green.Count >= 2) break;
+                    if (g.Kind == "needCc" && green.Contains("needEngage")) continue;
+                    green.Add(g.Kind);
+                }
+                var want = green.Select(k => $"+{k}").ToList();
+                if (red is { } rk && !gaps.First(g => g.Kind == rk).Fills(r.ChampionId)) want.Add($"−{rk}");
+                var got = r.Badges?.Tags.Where(t => IsNeed(t.Kind)).Select(t => $"{(t.Sign > 0 ? "+" : "−")}{t.Kind}").ToList() ?? [];
+                if (!want.SequenceEqual(got))
+                    wrong.Add($"{Who(r)}: ждали [{string.Join(" ", want)}], есть [{string.Join(" ", got)}]");
+                var weighted = green.Any(k => k is not ("needAp" or "needAd"));
+                var bonus = r.Facts?.NeedBonus ?? 0;
+                if (weighted != bonus > 0) wrong.Add($"{Who(r)}: надбавка {bonus:0.00} при [{string.Join(" ", green)}]");
+            }
+            var shown = recs.SelectMany(r => r.Badges?.Tags ?? []).Where(t => IsNeed(t.Kind))
+                            .GroupBy(t => (t.Sign > 0 ? "+" : "−") + t.Text).Select(g => $"{g.Key}×{g.Count()}");
+            Check($"{scene}: теги дыр и надбавка — как у состава", wrong.Count == 0,
+                  wrong.Count == 0 ? (gaps.Length == 0 ? "дыр нет" : string.Join(", ", shown))
+                  : string.Join("; ", wrong.Take(3)) + (wrong.Count > 3 ? $" и ещё {wrong.Count - 3}" : ""));
         }
 
-        // Дыры нет — тега нет: тот же фронт-ту-бэк, но в лесу Сежуани.
-        var tankedDraft = TopF2bNoTank(withTank: true);
-        var tanked = engine.Recommend(tankedDraft, 8).Concat(engine.Recommend(tankedDraft, 1, [Malphite]))
-                           .Where(r => r.Badges?.Tags.Any(t => IsNeed(t.Kind)) == true).Select(Who).ToList();
-        Check("фронт-ту-бэк с танком в команде — тега нужды нет ни у кого", tanked.Count == 0,
-              tanked.Count == 0 ? "нет" : string.Join(", ", tanked));
-        // Явного стиля нет (сцена с Ясуо: Ли Син, Ясуо, Джинкс, Лулу) — молчим.
-        var mixed = engine.Recommend(TopVsDarius(), 8)
-                          .Where(r => r.Badges?.Tags.Any(t => IsNeed(t.Kind)) == true).Select(Who).ToList();
-        Check("состав без явного стиля — тега нужды нет", mixed.Count == 0,
-              mixed.Count == 0 ? "нет" : string.Join(", ", mixed));
+        // Поимённо: тег обязан быть / быть не должно.
+        var named = new (string Scene, DraftState Draft, string Kind, int Sign, int[] Yes, int No)[]
+        {
+            ("фронт-ту-бэк без танка", TopF2bNoTank(), "needFront", 1, [Malphite], Jayce),
+            ("пик/пок без дизэнгейджа", SupportPokeNoDisengage(), "needDisengage", 1,
+             [Janna, Alistar, Poppy, Taric, Soraka], Blitzcrank),
+            ("дайв без захода", JungleDiveNoEngage(), "needEngage", 1, [JarvanIV], KhaZix),
+            ("Ког'Мао без защиты", SupportKogNoPeel(), "needPeel", 1, [Janna, Lulu], Blitzcrank),
+            ("поздние против танков", TopLateVsTanks(), "needAntiTank", 1, [Fiora, Darius], Garen),
+            ("поздние против танков", TopLateVsTanks(), "needEarly", 1, [Renekton], Garen),
+            // Последний пик: свой чемпион, посчитанный один (через only), тоже краснеет.
+            ("последний пик в пик/поке", SupportPokeNoDisengage(), "needDisengage", -1, [Blitzcrank], Janna),
+        };
+        foreach (var (scene, draft, kind, sign, yes, no) in named)
+        {
+            Recommendation? One(int id) => engine.Recommend(draft, 1, [id]).FirstOrDefault();
+            bool Has(int id) => One(id)?.Badges?.Tags.Any(t => t.Kind == kind && t.Sign == sign) == true;
+            var missed = yes.Where(id => !Has(id)).Select(id => DataDragon.Name(id)).ToList();
+            var extra = Has(no);
+            var label = $"{(sign > 0 ? "" : "красный ")}«{Loc.T($"pickTag.{kind}")}»";
+            Check($"{scene}: {label} есть у {string.Join(", ", yes.Select(id => DataDragon.Name(id)))}, у {DataDragon.Name(no)} — нет",
+                  missed.Count == 0 && !extra,
+                  missed.Count > 0 ? $"без тега: {string.Join(", ", missed)}"
+                  : extra ? $"у {DataDragon.Name(no)} есть"
+                  : One(yes[0])?.Badges?.Tags.First(t => t.Kind == kind && t.Sign == sign).Tip ?? "");
+        }
+    }
+
+    /// <summary>
+    /// «Не тот темп»: команда ранняя (Ренектон и Грейвз — агрессоры, поздних нет)
+    /// — гиперкерри Джинкс получает красную иконку, Дрейвен (сам агрессор) — нет.
+    /// </summary>
+    private static void Tempo(RecommendationEngine engine)
+    {
+        bool Off(int id) => engine.Recommend(AdcEarlyTeam(), 1, [id]).FirstOrDefault()?.Badges?.Icons
+                                  .Any(i => i.Kind == "offTempo" && i.Sign < 0) == true;
+        Check("ранняя команда: «не тот темп» у Джинкс, у Дрейвена — нет", Off(Jinx) && !Off(Draven),
+              $"Джинкс {(Off(Jinx) ? "с иконкой" : "без иконки")}, Дрейвен {(Off(Draven) ? "с иконкой" : "без иконки")}");
+        var calm = engine.Recommend(TopVsDarius(), 8).Where(r => r.Badges?.Icons.Any(i => i.Kind == "offTempo") == true)
+                         .Select(Who).ToList();
+        Check("команда не ранняя — «не тот темп» ни у кого", calm.Count == 0, calm.Count == 0 ? "нет" : string.Join(", ", calm));
     }
 
     /// Вслепую тег совпадает с выводом движка — со строкой «надёжен / рискован».
@@ -365,8 +428,9 @@ internal static class Program
             var faded = cards.SelectMany(c => c.Icons).Count(x => x.Faded);
             Console.WriteLine($"  (бледных иконок: {faded})");
             Brightness(scenes[i].Name, cards);
-            needCards += cards.Count(c => c.Tags.Any(t => IsNeed(t.Kind)));
-            offStyleOnNeed.AddRange(cards.Where(c => c.Tags.Any(t => IsNeed(t.Kind))
+            // Закрывает дыру — зелёный тег; с одним красным «не в стиле» законно.
+            needCards += cards.Count(c => c.Tags.Any(t => IsNeed(t.Kind) && t.Sign > 0));
+            offStyleOnNeed.AddRange(cards.Where(c => c.Tags.Any(t => IsNeed(t.Kind) && t.Sign > 0)
                                                   && c.Icons.Any(x => x.Title == Loc.T("pickIcon.offStyle")))
                                          .Select(c => c.Name));
             // «Не в стиле команды» — по стилю союзников ЭТОГО драфта. До 09.11
@@ -374,7 +438,7 @@ internal static class Program
             // обновлял RenderTeams в самом конце RenderFull.
             var style = ChampionTraits.DominantStyle(
                 [.. draft.MyTeam.Select(p => p.EffectiveChampionId).Where(id => id != 0)]);
-            staleStyle.AddRange(cards.Where(c => !c.Tags.Any(t => IsNeed(t.Kind)))
+            staleStyle.AddRange(cards.Where(c => !c.Tags.Any(t => IsNeed(t.Kind) && t.Sign > 0))
                 .Where(c => c.Icons.Any(x => x.Title == Loc.T("pickIcon.offStyle"))
                             != (style is { } st && ChampionTraits.ChampArch(c.ChampionId) is { } a && a != st))
                 .Select(c => $"{c.Name} ({scenes[i].Name})"));
@@ -509,17 +573,43 @@ internal static class Program
          new(3, Jinx, 0, "bottom", false), new(4, Lulu, 0, "utility", false)],
         Enemies(), 0, "top", exposed: false);
 
-    // Джейс, Нидали, Ксерат, Эзреаль — пик/пок, отбиться от захода нечем.
+    // Джейс, Нидали, Ксерат, Эзреаль — пик/пок, отбиться от захода нечем; танка
+    // тоже нет. Контроль у Джейса и Ксерата, урон смешанный, волны чистит Ксерат.
     private static DraftState SupportPokeNoDisengage() => Draft(
         [new(0, Jayce, 0, "top", false), new(1, Nidalee, 0, "jungle", false), new(2, Xerath, 0, "middle", false),
          new(3, Ezreal, 0, "bottom", false), new(4, 0, 0, "utility", true)],
         Enemies(), 4, "utility", exposed: false);
 
-    // Ривен, Зед, Самира, Пайк — дайв, начать драку некому.
+    // Ривен, Зед, Самира, Пайк — дайв, начать драку некому. И танка нет, урон
+    // весь физический, волны чистить некому; контроль есть у Ривен и Пайка.
     private static DraftState JungleDiveNoEngage() => Draft(
         [new(0, Riven, 0, "top", false), new(1, 0, 0, "jungle", true), new(2, Zed, 0, "middle", false),
          new(3, Samira, 0, "bottom", false), new(4, Pyke, 0, "utility", false)],
         Enemies(), 1, "jungle", exposed: false);
+
+    // Ренектон, Ка'Зикс, Зед, Ког'Мао — дайв без инициатора; гиперкерри Ког'Мао
+    // прикрыть некому; жёсткий контроль один (Ренектон); урон весь физический.
+    // Фронт есть — Ренектон.
+    private static DraftState SupportKogNoPeel() => Draft(
+        [new(0, Renekton, 0, "top", false), new(1, KhaZix, 0, "jungle", false), new(2, Zed, 0, "middle", false),
+         new(3, KogMaw, 0, "bottom", false), new(4, 0, 0, "utility", true)],
+        Enemies(), 4, "utility", exposed: false);
+
+    // Картус, Аурелион Сол, Джинкс — все поздние, танка нет, Джинкс прикрыть
+    // некому; у врагов четыре танка (Мальфит, Сежуани, Галио, Леона), а
+    // пробивать их нечем. Стиля явного нет (фронт-ту-бэк лишь чуть впереди).
+    private static DraftState TopLateVsTanks() => Draft(
+        [new(0, 0, 0, "top", true), new(1, Karthus, 0, "jungle", false), new(2, AurelionSol, 0, "middle", false),
+         new(3, Jinx, 0, "bottom", false), new(4, 0, 0, "utility", false)],
+        [new(5, Malphite2, 0, "top", false), new(6, Sejuani, 0, "jungle", false), new(7, Galio, 0, "middle", false),
+         new(8, Caitlyn, 0, "bottom", false), new(9, Leona, 0, "utility", false)],
+        0, "top", exposed: false);
+
+    // Ренектон и Грейвз сильны рано, Орианна и Леона — ровно, поздних нет.
+    private static DraftState AdcEarlyTeam() => Draft(
+        [new(0, Renekton, 0, "top", false), new(1, Graves, 0, "jungle", false), new(2, Orianna, 0, "middle", false),
+         new(3, 0, 0, "bottom", true), new(4, Leona, 0, "utility", false)],
+        Enemies(), 3, "bottom", exposed: false);
 
     private static DraftState BlindMid() => Draft(
         [new(0, 0, 0, "middle", true), new(1, LeeSin, 0, "jungle", false), new(2, 0, 0, "top", false),

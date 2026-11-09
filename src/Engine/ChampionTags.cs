@@ -21,8 +21,10 @@ public static class ChampionTags
         [44]  = ["peel", "heal", "ult_invuln"],        // Taric
         [117] = ["peel", "shield", "cc"],              // Lulu
         [40]  = ["peel", "disengage", "shield"],       // Janna
-        [147] = ["peel", "heal"],                      // Soraka
-        [16]  = ["peel", "heal"],                      // Soraka (alias)
+        // 147 — Серафина, не Сорака (подпись была неверной до 09.11): щит и
+        // лечение W, корень и оглушение E, ульт очаровывает.
+        [147] = ["peel", "heal", "shield", "cc"],      // Seraphine
+        [16]  = ["peel", "heal"],                      // Soraka
         [350] = ["peel", "heal"],                      // Yuumi
         [267] = ["peel", "cc", "nami_e"],              // Nami
         [43]  = ["peel", "poke", "range_poke", "shield"], // Karma (поук-энчантер → пик/пок)
@@ -33,8 +35,16 @@ public static class ChampionTags
         [25]  = ["shield", "cc", "poke"],              // Morgana
         [201] = ["peel", "engage", "passive_auto"],    // Braum
         [37]  = ["peel", "heal", "shield", "hard_cc"], // Sona (AoE-стан R, баффы/хил)
-        [902] = ["peel", "shield", "utility", "cc"],   // Renata Glasc (защита кэрри → фронт-ту-бэк)
-        [888] = ["engage", "poke"],                    // Rengar (sup rare)
+        // До 09.11 номера перепутаны: под 902 стояла «Рената», под 888 — «Ренгар»
+        // с метками «заход, поук». 888 — Рената (заходом и поуком она не
+        // занимается: щиты, спасение союзника, ульт обращает их заход против
+        // своих), 902 — Милио (щит и ускорение, отбрасывание, ульт лечит и
+        // снимает контроль). Ренгар — 107, записан у джанглеров.
+        [888] = ["peel", "shield", "utility", "cc"],   // Renata Glasc
+        [902] = ["peel", "shield", "heal", "utility", "cc"], // Milio
+        // Алистара не было вовсе — архетип шёл от класса Data Dragon, а заход и
+        // пил считались нулём. Заход Q+W, удар головой, ульт — живучесть.
+        [12]  = ["engage", "hard_cc", "tank", "peel"], // Alistar
 
         // ── ADC ───────────────────────────────────────────────────────────────
         [498] = ["xayah_pair", "scale"],               // Xayah

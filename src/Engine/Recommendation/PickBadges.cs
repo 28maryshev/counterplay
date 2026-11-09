@@ -35,7 +35,9 @@ public sealed record PickFacts(
     bool LaneBlind, BlindRisk Risk,
     double Team, IReadOnlyList<(int Id, double Delta)> ByEnemy,
     double Synergy, IReadOnlyList<(int Id, string Role, double Delta)> ByAlly,
-    IReadOnlyList<int> AllyIds,        // союзники без меня — по ним «чего не хватает стилю»
+    IReadOnlyList<int> AllyIds,        // союзники без меня — по ним дыры состава и темп
+    IReadOnlyList<TeamGap> Gaps,       // дыры состава (RecommendationEngine.Needs.cs), по важности
+    double NeedBonus,                  // надбавка за закрытые дыры — та же, что в счёте (до W_NEED)
     string Grade, double BaseDelta, double Comfort, double Personal,
     ChampionTraits.Arch? EnemyStyle,   // явный стиль врага для иконок (ShownEnemyStyle), не тот, что в счёте
     (double Delta, bool Stack, bool Ad) Dmg,

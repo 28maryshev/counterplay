@@ -17,11 +17,13 @@ public sealed partial class RecommendationEngine
 
     /// <summary>
     /// Теги и иконки показанного кандидата. Тегов с цифрой — не больше трёх:
-    /// «линия» и «вслепую» вместе не бывают (вслепую оппонента нет); четвёртым
-    /// может встать тег нужды стиля (без цифры). Иконки — сначала плюсы, потом
-    /// связки с союзниками, потом минусы.
+    /// «линия» и «вслепую» вместе не бывают (вслепую оппонента нет); за ними —
+    /// теги дыр состава без цифры (<see cref="NeedTags"/>: до двух зелёных и
+    /// один красный у последнего пика). Иконки — сначала плюсы, потом связки
+    /// с союзниками, потом минусы. <paramref name="open"/> — дыра, которая
+    /// останется открытой, если последний пик её не закроет (<see cref="OpenGap"/>).
     /// </summary>
-    private PickBadges BuildBadges(PickFacts f)
+    private PickBadges BuildBadges(PickFacts f, TeamGap? open)
     {
         var tags = new List<PickTag>();
         var plus = new List<PickIcon>();
@@ -31,11 +33,13 @@ public sealed partial class RecommendationEngine
         LaneTag(f, tags);
         TeamTag(f, tags);
         SynergyBadges(f, tags, links, minus);
-        NeedTag(f, tags);
+        NeedTags(f, open, tags);
         PatchIcons(f, plus, minus);
         PlayerIcons(f, plus, minus);
         StyleIcons(f, plus, minus);
         CompIcons(f, plus, minus);
+        TempoIcon(f, minus);
+        DropRepeats(tags, plus, links);
 
         return new PickBadges(tags, [.. plus, .. links, .. minus]);
     }
@@ -128,38 +132,6 @@ public sealed partial class RecommendationEngine
         if (worst.Count > 0)
             minus.Add(new PickIcon("pairBad", -1, Loc.T("pickIcon.pairBad"),
                 Loc.T("reason.pairBad", DataDragon.Name(worst[0].Id), Num(worst[0].Delta))));
-    }
-
-    /// <summary>
-    /// Чего не хватает стилю, который собирает команда (владелец, 09.11: «если
-    /// собирается определённый стиль — добавить то, чего не хватает, чтобы
-    /// дособрать»). Фронт-ту-бэк без танка — нужен фронт; пик/пок, которому
-    /// нечем сорвать чужой заход, — дизэнгейдж; дайв, которому некому начать
-    /// драку, — заход. Стиль — явный (<see cref="ChampionTraits.DominantStyle"/>,
-    /// тот же порог, что у подсветки стиля команды) и по союзникам без меня:
-    /// тег говорит, что этот пик закрывает дыру. Цифры нет, на счёт подбора тег
-    /// не влияет. Value — доля уже выбранных союзников: чем меньше пиков
-    /// осталось, тем вернее дыра и ярче тег.
-    /// </summary>
-    private static void NeedTag(PickFacts f, List<PickTag> tags)
-    {
-        if (TeamNeed(f.AllyIds) is not { } need || !need.Fills(f.ChampId)) return;
-        tags.Add(new PickTag(need.Kind, 1, Loc.T($"pickTag.{need.Kind}"), Loc.T($"reason.{need.Kind}"),
-                             f.AllyIds.Count / 4.0));
-    }
-
-    /// Чего не хватает стилю союзников: вид тега и кто эту дыру закрывает.
-    /// null — стиль не выражен или в команде такой уже есть.
-    private static (string Kind, Func<int, bool> Fills)? TeamNeed(IReadOnlyList<int> allies)
-    {
-        (string Kind, Func<int, bool> Fills)? need = ChampionTraits.DominantStyle(allies) switch
-        {
-            ChampionTraits.Arch.FrontToBack => ("needFront", ChampionTraits.Frontline),
-            ChampionTraits.Arch.PickPoke    => ("needDisengage", ChampionTraits.Disengager),
-            ChampionTraits.Arch.Dive        => ("needEngage", ChampionTraits.Initiator),
-            _                               => null,
-        };
-        return need is { } n && !allies.Any(n.Fills) ? n : null;
     }
 
     // ── Иконки ─────────────────────────────────────────────────────────

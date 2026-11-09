@@ -434,7 +434,17 @@
     "vulnHeal": "İyileşmeye dayanıyorsun ve seninle birlikte takımda böyle {0} şampiyon olacak. İyileşmeyi azaltan eşyalar (Ağır Yara) hepinizi birden zayıflatır.",
     "needFront": "Takımın front-to-back kuruyor ama önde tank yok. Bu seçim frontline'ı tutar ve carry'ler yerine hasarı üstlenir.",
     "needDisengage": "Takımın pick/poke kuruyor ama rakip engage'i durduracak kimse yok. Bu seçim engage'lerini bozar ve takımın geri çekilmesini sağlar.",
-    "needEngage": "Takımın dive kuruyor ama savaşı başlatacak kimse yok. Bu seçim, diğerlerinin takip edeceği engage'i açar."
+    "needEngage": "Takımın dive kuruyor ama savaşı başlatacak kimse yok. Bu seçim, diğerlerinin takip edeceği engage'i açar.",
+    "needFrontAny": "Takımında henüz tank yok — önde durup hasar alacak kimse yok. Bu seçim frontline'ı tutar.",
+    "needPeel": "Takımında bir hypercarry var, {0}, ama onu koruyacak kimse yok. Bu seçim dalanları carry'nden uzak tutar.",
+    "needCc": "Takımında neredeyse hiç sert kitle kontrol yok — savaşı başlatacak da durduracak da bir şey yok. Bu seçim sersemletme, köklendirme ya da havaya kaldırma getirir.",
+    "needAp": "Takımın neredeyse yalnızca fiziksel hasar veriyor — rakibe zırh yeter. Bu seçim büyü hasarı getirir.",
+    "needAd": "Takımın neredeyse yalnızca büyü hasarı veriyor — rakibe büyü direnci yeter. Bu seçim fiziksel hasar getirir.",
+    "needAntiTank": "Rakipte tanklar var ({0}) ve takımında onları delebilecek kimse yok. Bu seçim can yüzdesine göre ya da gerçek hasar verir.",
+    "needWaveclear": "Takımında dalgaları hızlı temizleyen kimse yok — kuşatmada kuleler düşer. Bu seçim koridoru uzaktan temizler.",
+    "needEarly": "Bütün takımın geç açılıyor — eşyalardan önce baskı yiyeceksiniz. Bu seçim ilk dakikalardan güçlü.",
+    "needOpen": "Son seçen sensin ve “{0}” hâlâ eksik — bu seçim açığı kapatmıyor. Yeşil etiketler kapatanları gösterir.",
+    "offTempo": "Takımın erken güçlü ve oyunu hızlı bitirmek istiyor, ama bu seçim geç açılıyor."
   },
   "pool": {
     "slotLabel": "Havuzundan seçim",
@@ -838,7 +848,14 @@
     "synergyWord": "Sinerji",
     "needFront": "Frontline",
     "needDisengage": "Disengage",
-    "needEngage": "Engage"
+    "needEngage": "Engage",
+    "needPeel": "Peel",
+    "needCc": "Sert kitle kontrol",
+    "needAp": "Büyü hasarı",
+    "needAd": "Fiziksel hasar",
+    "needAntiTank": "Tank delici",
+    "needWaveclear": "Dalga temizliği",
+    "needEarly": "Erken oyun"
   },
   "pairShort": {
     "airborne": "Havaya atma + ult",
@@ -885,6 +902,7 @@
     "pairBad": "Bir müttefikle uyumsuz",
     "aramFront": "Takımın frontline'ı",
     "aramHeal": "Takım için iyileştirme",
-    "common": "Neredeyse tüm adaylarda var, bu yüzden soluk gösteriliyor: seçim yapmana yardımcı olmaz"
+    "common": "Neredeyse tüm adaylarda var, bu yüzden soluk gösteriliyor: seçim yapmana yardımcı olmaz",
+    "offTempo": "Yanlış tempo"
   }
 }

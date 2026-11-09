@@ -329,7 +329,17 @@
     "vulnHeal": "Opierasz się na leczeniu, a licząc ciebie, w drużynie będzie {0} takich bohaterów. Przedmioty z Głębokimi Ranami osłabią was wszystkich naraz.",
     "needFront": "Twoja drużyna buduje front-to-back, ale z przodu nie ma tanka. Ten pick utrzyma frontline i przyjmie obrażenia za carry.",
     "needDisengage": "Twoja drużyna buduje pick/poke, ale nikt nie zatrzyma wrogiej inicjacji. Ten pick przerwie ich inicjację i pozwoli wam się wycofać.",
-    "needEngage": "Twoja drużyna buduje dive, ale nikt nie zacznie walki. Ten pick da inicjację, za którą pójdzie reszta."
+    "needEngage": "Twoja drużyna buduje dive, ale nikt nie zacznie walki. Ten pick da inicjację, za którą pójdzie reszta.",
+    "needFrontAny": "Twoja drużyna nie ma jeszcze tanka — nikt nie stoi z przodu i nie przyjmuje obrażeń. Ten pick utrzyma frontline.",
+    "needPeel": "Twoja drużyna ma hypercarry, {0}, ale nikt go nie osłania. Ten pick trzyma nurkujących z dala od carry.",
+    "needCc": "Twoja drużyna prawie nie ma twardej kontroli — nie ma czym zacząć walki ani jej zatrzymać. Ten pick doda ogłuszenia, unieruchomienia lub podrzucenia.",
+    "needAp": "Twoja drużyna zadaje prawie same obrażenia fizyczne — wrogom wystarczy pancerz. Ten pick doda obrażeń magicznych.",
+    "needAd": "Twoja drużyna zadaje prawie same obrażenia magiczne — wrogom wystarczy odporność na magię. Ten pick doda obrażeń fizycznych.",
+    "needAntiTank": "Wrogowie mają tanki ({0}), a w twojej drużynie nikt ich nie przebije. Ten pick zadaje obrażenia od zdrowia celu lub nieuchronne.",
+    "needWaveclear": "Nikt w twojej drużynie nie czyści szybko fal — wieże padną przy oblężeniu. Ten pick wyczyści linię z dystansu.",
+    "needEarly": "Cała twoja drużyna rozkręca się późno — przed przedmiotami będziecie pod presją. Ten pick jest silny od pierwszych minut.",
+    "needOpen": "Wybierasz ostatni, a „{0}” wciąż brakuje — ten pick nie łata dziury. Zielone tagi mają ci, którzy ją łatają.",
+    "offTempo": "Twoja drużyna jest silna wcześnie i chce szybko skończyć, a ten pick rozkręca się późno."
   },
   "rec": {
     "yourPick": "TWÓJ PICK",
@@ -838,7 +848,14 @@
     "synergyWord": "Synergia",
     "needFront": "Frontline",
     "needDisengage": "Disengage",
-    "needEngage": "Inicjacja"
+    "needEngage": "Inicjacja",
+    "needPeel": "Peel",
+    "needCc": "Twarda kontrola",
+    "needAp": "Obrażenia magiczne",
+    "needAd": "Obrażenia fizyczne",
+    "needAntiTank": "Na tanki",
+    "needWaveclear": "Czyszczenie fal",
+    "needEarly": "Wczesna gra"
   },
   "pairShort": {
     "airborne": "Podrzut pod ulti",
@@ -885,6 +902,7 @@
     "pairBad": "Źle pasuje do sojusznika",
     "aramFront": "Frontline dla drużyny",
     "aramHeal": "Leczenie dla drużyny",
-    "common": "Prawie każdy kandydat ma tę ikonę, dlatego jest przygaszona: nie pomoże ci w wyborze"
+    "common": "Prawie każdy kandydat ma tę ikonę, dlatego jest przygaszona: nie pomoże ci w wyborze",
+    "offTempo": "Nie to tempo"
   }
 }

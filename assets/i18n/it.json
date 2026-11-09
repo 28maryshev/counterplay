@@ -329,7 +329,17 @@
     "vulnHeal": "Fai affidamento sulle cure e, contando te, in squadra ci saranno {0} campioni così. Ai nemici basteranno gli item con Ferita grave per indebolirvi tutti insieme.",
     "needFront": "La tua squadra punta sul front-to-back, ma davanti non c'è un tank. Questo pick tiene la frontline e assorbe danni per i tuoi carry.",
     "needDisengage": "La tua squadra punta sul pick/poke, ma nessuno può fermare un ingaggio nemico. Questo pick spezza il loro ingaggio e vi lascia ritirare.",
-    "needEngage": "La tua squadra punta sul dive, ma nessuno può aprire lo scontro. Questo pick dà l'ingaggio che gli altri possono seguire."
+    "needEngage": "La tua squadra punta sul dive, ma nessuno può aprire lo scontro. Questo pick dà l'ingaggio che gli altri possono seguire.",
+    "needFrontAny": "La tua squadra non ha ancora un tank: nessuno sta davanti ad assorbire danni. Questo pick tiene la frontline.",
+    "needPeel": "La tua squadra ha un hypercarry, {0}, ma nessuno a proteggerlo. Questo pick tiene i diver lontani dal tuo carry.",
+    "needCc": "La tua squadra non ha quasi controllo duro: niente per iniziare uno scontro o fermarlo. Questo pick porta stordimenti, immobilizzazioni o lanci in aria.",
+    "needAp": "La tua squadra fa quasi solo danni fisici: al nemico basta l'armatura. Questo pick porta danni magici.",
+    "needAd": "La tua squadra fa quasi solo danni magici: al nemico basta la resistenza magica. Questo pick porta danni fisici.",
+    "needAntiTank": "Il nemico ha dei tank ({0}) e nessuno nella tua squadra riesce a sfondarli. Questo pick infligge danni in percentuale della salute o danni puri.",
+    "needWaveclear": "Nessuno nella tua squadra pulisce le ondate in fretta: le torri cadranno sotto assedio. Questo pick pulisce la corsia dalla distanza.",
+    "needEarly": "Tutta la tua squadra si accende tardi: prima degli oggetti verrete messi sotto pressione. Questo pick è forte dai primi minuti.",
+    "needOpen": "Scegli per ultimo e «{0}» manca ancora: questo pick non copre il buco. I tag verdi indicano chi lo fa.",
+    "offTempo": "La tua squadra è forte presto e vuole chiudere in fretta, ma questo pick si accende tardi."
   },
   "rec": {
     "yourPick": "LA TUA SCELTA",
@@ -838,7 +848,14 @@
     "synergyWord": "Sinergia",
     "needFront": "Frontline",
     "needDisengage": "Disengage",
-    "needEngage": "Ingaggio"
+    "needEngage": "Ingaggio",
+    "needPeel": "Peel",
+    "needCc": "Controllo duro",
+    "needAp": "Danni magici",
+    "needAd": "Danni fisici",
+    "needAntiTank": "Anti-tank",
+    "needWaveclear": "Waveclear",
+    "needEarly": "Early game"
   },
   "pairShort": {
     "airborne": "Knock-up per l'ult",
@@ -885,6 +902,7 @@
     "pairBad": "Male con un alleato",
     "aramFront": "Frontline per la squadra",
     "aramHeal": "Cure per la squadra",
-    "common": "Quasi tutti i candidati ce l'hanno, quindi è sbiadita: non ti aiuta a scegliere"
+    "common": "Quasi tutti i candidati ce l'hanno, quindi è sbiadita: non ti aiuta a scegliere",
+    "offTempo": "Tempo sbagliato"
   }
 }

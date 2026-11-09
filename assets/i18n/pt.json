@@ -211,7 +211,17 @@
     "vulnHeal": "Você depende de cura, e com você serão {0} campeões assim no time. Itens de anticura (efeito Ferimentos) vão enfraquecer todos vocês de uma vez.",
     "needFront": "Seu time está montando front-to-back, mas não há tanque na frente. Este pick segura a linha de frente e absorve dano pelos carries.",
     "needDisengage": "Seu time está montando pick/poke, mas ninguém consegue parar um engage inimigo. Este pick quebra o engage deles e deixa o time recuar.",
-    "needEngage": "Seu time está montando dive, mas ninguém consegue iniciar a luta. Este pick abre com um engage que o resto pode seguir."
+    "needEngage": "Seu time está montando dive, mas ninguém consegue iniciar a luta. Este pick abre com um engage que o resto pode seguir.",
+    "needFrontAny": "Seu time ainda não tem tanque — ninguém para ficar na frente e absorver dano. Este pick segura a linha de frente.",
+    "needPeel": "Seu time tem um hipercarry, {0}, mas ninguém para protegê-lo. Este pick mantém os divers longe do seu carry.",
+    "needCc": "Seu time quase não tem controle pesado — nada para iniciar uma luta nem para pará-la. Este pick traz atordoamentos, enraizamentos ou arremessos.",
+    "needAp": "Seu time causa quase só dano físico — armadura basta para o inimigo. Este pick traz dano mágico.",
+    "needAd": "Seu time causa quase só dano mágico — resistência mágica basta para o inimigo. Este pick traz dano físico.",
+    "needAntiTank": "O inimigo tem tanques ({0}) e ninguém do seu time consegue derrubá-los. Este pick causa dano por porcentagem de vida ou dano verdadeiro.",
+    "needWaveclear": "Ninguém do seu time limpa ondas rápido — as torres vão cair no cerco. Este pick limpa a rota à distância.",
+    "needEarly": "Seu time inteiro fica forte tarde — antes dos itens vocês vão sofrer pressão. Este pick é forte desde os primeiros minutos.",
+    "needOpen": "Você escolhe por último e “{0}” ainda falta — este pick não fecha a lacuna. As tags verdes marcam quem fecha.",
+    "offTempo": "Seu time é forte cedo e quer terminar rápido, mas este pick só fica forte tarde."
   },
   "metric": {
     "base": "Força neste patch",
@@ -838,7 +848,14 @@
     "synergyWord": "Sinergia",
     "needFront": "Linha de frente",
     "needDisengage": "Disengage",
-    "needEngage": "Engage"
+    "needEngage": "Engage",
+    "needPeel": "Peel",
+    "needCc": "Controle pesado",
+    "needAp": "Dano mágico",
+    "needAd": "Dano físico",
+    "needAntiTank": "Antitanque",
+    "needWaveclear": "Limpeza de onda",
+    "needEarly": "Early game"
   },
   "pairShort": {
     "airborne": "Knock-up para a ult",
@@ -885,6 +902,7 @@
     "pairBad": "Não combina com um aliado",
     "aramFront": "Linha de frente para o time",
     "aramHeal": "Cura para o time",
-    "common": "Quase todas as sugestões têm isso, por isso o ícone fica apagado: ele não ajuda a escolher"
+    "common": "Quase todas as sugestões têm isso, por isso o ícone fica apagado: ele não ajuda a escolher",
+    "offTempo": "Ritmo errado"
   }
 }

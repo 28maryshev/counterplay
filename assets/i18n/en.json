@@ -355,7 +355,17 @@
     "vulnHeal": "You rely on healing, and with you there will be {0} such champions on the team. Anti-heal (Grievous Wounds) will weaken all of you at once.",
     "needFront": "Your team is building front-to-back but has no tank up front. This pick holds the front line and soaks damage for your carries.",
     "needDisengage": "Your team is building pick/poke but nobody can stop an enemy engage. This pick breaks their engage and lets your team back away.",
-    "needEngage": "Your team is building dive but nobody can start the fight. This pick opens with an engage the rest can follow."
+    "needEngage": "Your team is building dive but nobody can start the fight. This pick opens with an engage the rest can follow.",
+    "needFrontAny": "Your team has no tank yet — nobody to stand in front and soak damage. This pick holds the front line.",
+    "needPeel": "Your team has a hypercarry, {0}, but nobody to protect them. This pick keeps divers off your carry.",
+    "needCc": "Your team has almost no hard CC — nothing to start a fight or stop one. This pick adds stuns, roots or knock-ups.",
+    "needAp": "Your team deals almost only physical damage — armor alone will do for the enemy. This pick adds magic damage.",
+    "needAd": "Your team deals almost only magic damage — magic resist alone will do for the enemy. This pick adds physical damage.",
+    "needAntiTank": "The enemy has tanks ({0}) and nobody on your team can break them. This pick deals percent-health or true damage.",
+    "needWaveclear": "Nobody on your team clears waves fast — towers will fall under siege. This pick clears the lane from range.",
+    "needEarly": "Your whole team comes online late — expect to be pushed around before items. This pick is strong from the first minutes.",
+    "needOpen": "You pick last and “{0}” is still missing — this pick doesn't fill the gap. Green tags mark the picks that do.",
+    "offTempo": "Your team is strong early and wants to end fast, but this pick comes online late."
   },
   "rec": {
     "yourPick": "YOUR PICK",
@@ -838,7 +848,14 @@
     "synergyWord": "Synergy",
     "needFront": "Frontline",
     "needDisengage": "Disengage",
-    "needEngage": "Engage"
+    "needEngage": "Engage",
+    "needPeel": "Peel",
+    "needCc": "Hard CC",
+    "needAp": "Magic damage",
+    "needAd": "Physical damage",
+    "needAntiTank": "Anti-tank",
+    "needWaveclear": "Waveclear",
+    "needEarly": "Early game"
   },
   "pairShort": {
     "airborne": "Knock-up into ult",
@@ -885,6 +902,7 @@
     "pairBad": "Bad with an ally",
     "aramFront": "Frontline for the team",
     "aramHeal": "Healing for the team",
-    "common": "Almost every candidate has it, so it is dimmed: it won't help you choose"
+    "common": "Almost every candidate has it, so it is dimmed: it won't help you choose",
+    "offTempo": "Off tempo"
   }
 }

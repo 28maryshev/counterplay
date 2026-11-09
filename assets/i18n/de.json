@@ -211,7 +211,17 @@
     "vulnHeal": "Du setzt auf Heilung, und mit dir sind es dann {0} solche Champions im Team. Anti-Heal (Klaffende Wunden) schwächt euch alle auf einmal.",
     "needFront": "Dein Team baut auf Front-to-Back, aber vorne steht kein Tank. Dieser Pick hält die Frontlinie und fängt Schaden für deine Carrys ab.",
     "needDisengage": "Dein Team baut auf Pick/Poke, aber niemand kann ein gegnerisches Engage stoppen. Dieser Pick bricht ihr Engage und verschafft euch Abstand.",
-    "needEngage": "Dein Team baut auf Dive, aber niemand kann den Kampf eröffnen. Dieser Pick liefert das Engage, dem die anderen folgen."
+    "needEngage": "Dein Team baut auf Dive, aber niemand kann den Kampf eröffnen. Dieser Pick liefert das Engage, dem die anderen folgen.",
+    "needFrontAny": "Dein Team hat noch keinen Tank — niemand steht vorne und fängt Schaden ab. Dieser Pick hält die Frontlinie.",
+    "needPeel": "Dein Team hat einen Hypercarry, {0}, aber niemand schützt ihn. Dieser Pick hält Diver von deinem Carry fern.",
+    "needCc": "Dein Team hat kaum harten CC — nichts, um einen Kampf zu starten oder zu stoppen. Dieser Pick bringt Stuns, Roots oder Knock-ups.",
+    "needAp": "Dein Team macht fast nur physischen Schaden — dem Gegner reicht Rüstung. Dieser Pick bringt Magieschaden.",
+    "needAd": "Dein Team macht fast nur Magieschaden — dem Gegner reicht Magieresistenz. Dieser Pick bringt physischen Schaden.",
+    "needAntiTank": "Der Gegner hat Tanks ({0}), und niemand in deinem Team kommt durch. Dieser Pick macht Schaden abhängig vom Leben oder absoluten Schaden.",
+    "needWaveclear": "Niemand in deinem Team räumt Wellen schnell — Türme fallen bei Belagerung. Dieser Pick räumt die Lane aus der Distanz.",
+    "needEarly": "Dein ganzes Team kommt spät ins Spiel — vor den Items wird es unter Druck stehen. Dieser Pick ist von Anfang an stark.",
+    "needOpen": "Du wählst als Letzter, und „{0}“ fehlt immer noch — dieser Pick schließt die Lücke nicht. Grüne Tags zeigen, wer es tut.",
+    "offTempo": "Dein Team ist früh stark und will schnell beenden, aber dieser Pick kommt erst spät ins Spiel."
   },
   "metric": {
     "base": "Stärke in diesem Patch",
@@ -838,7 +848,14 @@
     "synergyWord": "Synergie",
     "needFront": "Frontlinie",
     "needDisengage": "Disengage",
-    "needEngage": "Engage"
+    "needEngage": "Engage",
+    "needPeel": "Peel",
+    "needCc": "Harter CC",
+    "needAp": "Magieschaden",
+    "needAd": "Physischer Schaden",
+    "needAntiTank": "Anti-Tank",
+    "needWaveclear": "Waveclear",
+    "needEarly": "Early Game"
   },
   "pairShort": {
     "airborne": "Knock-up fürs Ult",
@@ -885,6 +902,7 @@
     "pairBad": "Passt schlecht zu einem Verbündeten",
     "aramFront": "Frontlinie fürs Team",
     "aramHeal": "Heilung fürs Team",
-    "common": "Fast alle Kandidaten haben das, deshalb ist es blass dargestellt: Bei der Wahl hilft es dir nicht."
+    "common": "Fast alle Kandidaten haben das, deshalb ist es blass dargestellt: Bei der Wahl hilft es dir nicht.",
+    "offTempo": "Falsches Tempo"
   }
 }
