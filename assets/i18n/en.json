@@ -930,6 +930,12 @@
     "planPoke": "Poke before objectives and catch stragglers; avoid long head-on fights.",
     "planEarly": "You are strong early — press the lanes and end before 25 minutes.",
     "planLate": "You come online late — play safe and farm until your items are in.",
-    "tempo": "By game length: under 25 min {0} · 25–35 {1} · over 35 {2}"
+    "tempo": "By game length: under 25 min {0} · 25–35 {1} · over 35 {2}",
+    "enemyPlanLine": "Their plan: {0}",
+    "enemyPlanF2b": "They will fight five on five at objectives behind their front line — don't hit into their tanks, go for their carries.",
+    "enemyPlanDive": "They will dive your back line all at once — stay together and protect your carries.",
+    "enemyPlanPoke": "They will poke before objectives and catch stragglers — don't walk alone, close the distance fast.",
+    "enemyPlanEarly": "They are strong early — survive the first 20 minutes and the game turns your way.",
+    "enemyPlanLate": "They come online late — press them early and don't drag the game out."
   }
 }

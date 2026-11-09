@@ -44,6 +44,11 @@ public static class Loc
         ?? Languages.First(l => l.Code == "en");
     public static string DDragonLocale => CurrentLang.DDragon;
 
+    /// Перечисление имён: «Дариус, Сион», в японском и китайском — «、» без пробела.
+    public static string ListSep => Current is "ja" or "zh" ? "、" : ", ";
+    /// Между двумя фразами подряд: в японском и китайском после «。» пробела нет.
+    public static string SentenceSep => Current is "ja" or "zh" ? "" : " ";
+
     private static string SettingsPath => Path.Combine(
         AppPaths.Root, "settings.json");
 

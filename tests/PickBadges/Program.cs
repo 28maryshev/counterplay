@@ -160,6 +160,8 @@ internal static class Program
             .. PunishKinds.Select(k => $"reason.{k}"),
             "comp.header", "comp.enemyHeader", "comp.has", "comp.few", "comp.none", "comp.planLine",
             "comp.planF2b", "comp.planDive", "comp.planPoke", "comp.planEarly", "comp.planLate",
+            "comp.enemyPlanLine", "comp.enemyPlanF2b", "comp.enemyPlanDive", "comp.enemyPlanPoke",
+            "comp.enemyPlanEarly", "comp.enemyPlanLate", "comp.tempo",
         ];
         // Все 15 языков: строка есть (без неё язык молча берёт английскую) и
         // плейсхолдеры те же, что в английской, — иначе подстановка уронит
@@ -438,6 +440,12 @@ internal static class Program
         Check("план: Ренектон, Грейвз, Орианна, Леона — сильны рано",
               early.Contains(Loc.T("comp.planEarly")) && !early.Contains(Loc.T("comp.planLate")), early);
         Check("план: двое — молчим", OverlayWindow.PlanText([Kayle, Jinx]) == "", "пусто");
+        // Их план (владелец, 09.11: «нужно знать, что задумали и враги»): те же
+        // признаки, слова — «что они попытаются и как этому мешать».
+        var their = OverlayWindow.PlanText([Renekton, KhaZix, Zed, Samira], enemy: true);
+        Check("их план: Ренектон, Ка'Зикс, Зед, Самира — нырнут в тыл, сильны рано",
+              their.StartsWith(Loc.T("comp.enemyPlanLine", "").TrimEnd()) && their.Contains(Loc.T("comp.enemyPlanDive"))
+              && their.Contains(Loc.T("comp.enemyPlanEarly")), their);
     }
 
     /// <summary>
@@ -560,6 +568,7 @@ internal static class Program
             {
                 Snap(list, snap, $"pick-badges-{i + 1}.png");
                 Snap((FrameworkElement)((ScrollViewer)w.FindName("TeamScroll")).Content, snap, $"team-{i + 1}.png");   // своя колонка с полосой состава
+                Snap((FrameworkElement)((FrameworkElement)w.FindName("EnemyComp")).Parent, snap, $"enemy-{i + 1}.png");   // колонка врагов: их состав и план
             }
         }
         Check("окно: у закрывающих дыру стиля нет «не в стиле команды»", needCards > 0 && offStyleOnNeed.Count == 0,

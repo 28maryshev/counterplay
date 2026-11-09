@@ -34,9 +34,9 @@ public partial class OverlayWindow
         var plan = string.Join("\n", new[] { PlanText(allyIds), TempoLine(_engine, allyIds) }.Where(x => x.Length > 0));
         MyPlan.Text = plan;
         MyPlan.Visibility = plan.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        var foes = TempoLine(_engine, enemyIds);
-        EnemyTempo.Text = foes;
-        EnemyTempo.Visibility = foes.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var foes = string.Join("\n", new[] { PlanText(enemyIds, enemy: true), TempoLine(_engine, enemyIds) }.Where(x => x.Length > 0));
+        EnemyPlan.Text = foes;
+        EnemyPlan.Visibility = foes.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>
@@ -85,8 +85,8 @@ public partial class OverlayWindow
             var gap = missing.GetValueOrDefault(kind);
             // Контроль считается «есть» с двоих: один — ещё дыра.
             var state = gap is null ? 1 : complete ? -1 : 0;
-            var tip = state > 0 ? Loc.T("comp.has", string.Join(", ", has))
-                    : has.Count > 0 ? Loc.T("comp.few", string.Join(", ", has))
+            var tip = state > 0 ? Loc.T("comp.has", string.Join(Loc.ListSep, has))
+                    : has.Count > 0 ? Loc.T("comp.few", string.Join(Loc.ListSep, has))
                     : Loc.T("comp.none");
             var (fg, line) = state switch
             {
@@ -100,24 +100,27 @@ public partial class OverlayWindow
     }
 
     /// <summary>
-    /// План на игру своей команды одной-двумя фразами: от явного стиля (как
-    /// драться) и от темпа (когда). С трёх выбранных; нет ни стиля, ни темпа —
-    /// пусто.
+    /// План на игру одной-двумя фразами: от явного стиля (как драться) и от
+    /// темпа (когда). С трёх выбранных; нет ни стиля, ни темпа — пусто.
+    /// <paramref name="enemy"/> — план врагов (владелец, 09.11: «нужно знать, что
+    /// задумали и враги»): те же признаки, но словами «что они попытаются и как
+    /// этому мешать» — ключи comp.enemyPlan*.
     /// </summary>
-    public static string PlanText(IReadOnlyList<int> team)
+    public static string PlanText(IReadOnlyList<int> team, bool enemy = false)
     {
         if (team.Count < 3) return "";
+        var key = enemy ? "comp.enemyPlan" : "comp.plan";
         var parts = new List<string>();
         switch (ChampionTraits.DominantStyle(team))
         {
-            case ChampionTraits.Arch.FrontToBack: parts.Add(Loc.T("comp.planF2b")); break;
-            case ChampionTraits.Arch.Dive:        parts.Add(Loc.T("comp.planDive")); break;
-            case ChampionTraits.Arch.PickPoke:    parts.Add(Loc.T("comp.planPoke")); break;
+            case ChampionTraits.Arch.FrontToBack: parts.Add(Loc.T(key + "F2b")); break;
+            case ChampionTraits.Arch.Dive:        parts.Add(Loc.T(key + "Dive")); break;
+            case ChampionTraits.Arch.PickPoke:    parts.Add(Loc.T(key + "Poke")); break;
         }
         int early = team.Count(a => ChampionTraits.EarlyPower(a) >= 3);
         int late = team.Count(a => ChampionTraits.EarlyPower(a) <= 1);
-        if (early >= 2 && late == 0) parts.Add(Loc.T("comp.planEarly"));
-        else if (late >= 2 && early == 0) parts.Add(Loc.T("comp.planLate"));
-        return parts.Count == 0 ? "" : Loc.T("comp.planLine", string.Join(" ", parts));
+        if (early >= 2 && late == 0) parts.Add(Loc.T(key + "Early"));
+        else if (late >= 2 && early == 0) parts.Add(Loc.T(key + "Late"));
+        return parts.Count == 0 ? "" : Loc.T(key + "Line", string.Join(Loc.SentenceSep, parts));
     }
 }

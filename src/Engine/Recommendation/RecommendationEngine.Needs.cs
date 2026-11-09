@@ -116,7 +116,7 @@ public sealed partial class RecommendationEngine
         var tanks = enemies.Where(ChampionTraits.IsTanky).ToList();
         if (tanks.Count >= 2 && None(ChampionTraits.AntiTank))
             Add("needAntiTank", ChampionTraits.AntiTank,
-                Loc.T("reason.needAntiTank", string.Join(", ", tanks.Select(DataDragon.Name))));
+                Loc.T("reason.needAntiTank", string.Join(Loc.ListSep, tanks.Select(DataDragon.Name))));
 
         if (None(ChampionTraits.Waveclear))
             Add("needWaveclear", ChampionTraits.Waveclear, Loc.T("reason.needWaveclear"));
