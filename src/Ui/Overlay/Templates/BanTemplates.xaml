@@ -69,6 +69,34 @@
     </Border>
   </DataTemplate>
 
+  <!-- Мой чемпион в полосе над советами банов (BanMinePanel): иконка, имя,
+       мой винрейт · игры. Наведение на бан обводит иконку кольцом со
+       свечением и числом справа (DrawBanThreat ищет её по имени MineIcon).
+       Забанен или взят другим — затемнён и перечёркнут. -->
+  <DataTemplate x:Key="BanMineChip">
+    <StackPanel HorizontalAlignment="Center" ToolTip="{Binding Tip}" Background="Transparent"
+                Opacity="{Binding ChipOpacity}">
+      <Grid x:Name="MineIcon" Width="38" Height="38" HorizontalAlignment="Center">
+        <Ellipse StrokeThickness="1.5" Stroke="#3A4B5F">
+          <Ellipse.Fill><ImageBrush ImageSource="{Binding Icon}" Stretch="UniformToFill"/></Ellipse.Fill>
+        </Ellipse>
+        <Grid Visibility="{Binding GoneVisibility}">
+          <Ellipse Fill="#88101820"/>
+          <TextBlock Text="✕" Foreground="#D8FF5A5A" FontSize="18"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+      </Grid>
+      <TextBlock Text="{Binding Name}" HorizontalAlignment="Center" Margin="0,3,0,0"
+                 MaxWidth="96" TextTrimming="CharacterEllipsis"
+                 FontFamily="{StaticResource UiFont}" FontSize="11" Foreground="#E8EEF5"/>
+      <TextBlock HorizontalAlignment="Center" FontFamily="{StaticResource NumberFont}" FontSize="11">
+        <Run Text="{Binding WrText, Mode=OneWay}" FontWeight="Bold">
+          <Run.Foreground><SolidColorBrush Color="{Binding WrBrush}"/></Run.Foreground>
+        </Run><Run Text="{Binding GamesText, Mode=OneWay}" Foreground="#6E8598"/>
+      </TextBlock>
+    </StackPanel>
+  </DataTemplate>
+
   <!-- Слот бана: портрет с крестом, как в тир-листе, имя и бан-рейт под ним.
        Пустой слот — пунктирный круг: бан ещё не сделан или скрыт. -->
   <DataTemplate x:Key="BanSlot">

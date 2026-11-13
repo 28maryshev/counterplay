@@ -48,21 +48,29 @@ public partial class OverlayWindow
     /// </summary>
     private List<PlanRow> PlanRowsFor(DraftState draft, string role, out bool fromPool)
     {
-        fromPool = false;
-        if (_engine is null || role.Length == 0) return [];
         var selected = _pickHoverId > 0 ? _pickHoverId : draft.Me?.PickIntentId ?? 0;
-
         // Здесь игрок решает, кого брать первым пиком, — и у каждого из его
         // чемпионов видно, насколько его легко законтрить (BlindRisk): тот же
         // расчёт, что в карточках подбора.
+        return [.. MyLaneChamps(role, out fromPool).Select(c => PlanRowOf(c.Id, c.Games, role, selected,
+                                                   blind: _engine!.BlindFor(draft, c.Id, role)))];
+    }
+
+    /// <summary>
+    /// Мои чемпионы на роли — те же у объявления пиков и у полосы над советами
+    /// банов: игры на ней за месяц, самые игранные первыми, не больше
+    /// PlanRowCount; игр нет — активный пул на роль (Games = null).
+    /// </summary>
+    private List<(int Id, SessionTracker.LaneChamp? Games)> MyLaneChamps(string role, out bool fromPool)
+    {
+        fromPool = false;
+        if (_engine is null || role.Length == 0) return [];
         var lane = SessionTracker.LaneChamps(role, _engine.RoleShare).Take(PlanRowCount).ToList();
-        if (lane.Count > 0)
-            return [.. lane.Select(c => PlanRowOf(c.ChampionId, c, role, selected,
-                                                  blind: _engine.BlindFor(draft, c.ChampionId, role)))];
+        if (lane.Count > 0) return [.. lane.Select(c => (c.ChampionId, (SessionTracker.LaneChamp?)c))];
 
         var pool = PoolStore.ActiveForRole(role).Mine.Where(id => id > 0).Distinct().Take(PlanRowCount).ToList();
         fromPool = pool.Count > 0;
-        return [.. pool.Select(id => PlanRowOf(id, null, role, selected, blind: _engine.BlindFor(draft, id, role)))];
+        return [.. pool.Select(id => (id, (SessionTracker.LaneChamp?)null))];
     }
 
     /// Заметка строки вместо «банят N%» / «из пула» и строки к её подсказке —

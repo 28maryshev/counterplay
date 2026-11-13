@@ -163,13 +163,21 @@ internal static class Program
     /// они мешают союзникам, вокруг их иконки — красный кружок, как у нас на
     /// этапе пиков».
     ///
+    /// Следом (13.11): «сверху над банами — топ наигранных за последнее время,
+    /// как на прошлом этапе, и при наведении — какой бан против них тоже плох,
+    /// красным свечением».
+    ///
     /// Сцена: фаза банов, мой бан не сделан, вся команда навела пики (Гарен,
-    /// Ли Син, Ари, Джинкс, я — Браум). Меряет: у каждого совета бана кольца
-    /// стоят ровно у тех наших, у кого движок видит заметную разницу
-    /// (|BanThreat| ≥ 0,3), число под портретом — это разница, «vs» перед ним,
-    /// цвет кольца по знаку (минус — красное); примерки в мой слот и колец
-    /// синергии нет; хоть один совет кому-то мешает; «контрит союзника X» в
-    /// подписи — у X минус; тир-лист в банах рисует то же, курсор ушёл — пусто.
+    /// Ли Син, Ари, Джинкс, я — Браум), союзник уже забанил Нами; за месяц на
+    /// саппорте я играл Сону, Хвэя, Юми, Нами, Эш. Меряет: полоса «мои
+    /// чемпионы» над советами — те пятеро по числу игр, Нами перечёркнута; у
+    /// каждого совета кольца стоят ровно у тех наших и тех моих из полосы, у
+    /// кого движок видит заметную разницу (|BanThreat| ≥ 0,3), числа — эта
+    /// разница («vs» у состава), цвет по знаку (минус — красное); у Нами
+    /// кольца нет; примерки в мой слот нет; хоть один совет мешает и составу, и
+    /// моим; названный в подписи («контрит союзника X», «мешает и твоему пулу
+    /// (X)») — в минусе; тир-лист в банах рисует то же, курсор ушёл — пусто; в
+    /// объявлении пиков тир-лист не рисует ничего.
     /// </summary>
     private static void BanHover(RecommendationEngine engine)
     {
@@ -178,6 +186,7 @@ internal static class Program
         var s = AppSettings.Current;
         s.DraftHover = true; s.BansTierList = true;
         s.DraftWidth = 1432; s.DraftHeight = 900;
+        SessionTracker.PreviewGames = MyMonth();
 
         var w = new OverlayWindow();
         ShowHidden(w);
@@ -196,75 +205,96 @@ internal static class Program
             .Select(c => c is null ? null : Card(c)).OfType<Border>().ToList();
         Check("советы банов на экране", cards.Count > 0, $"{cards.Count}");
 
+        var mineList = (ItemsControl)w.FindName("BanMineList");
+        var chips = mineList.Items.OfType<BanMineChip>().ToList();
+        Check("над советами — мои чемпионы по числу игр, забаненная Нами перечёркнута",
+              ((FrameworkElement)w.FindName("BanMinePanel")).Visibility == Visibility.Visible
+              && chips.Select(c => c.ChampionId).SequenceEqual([Sona, Hwei, Yuumi, Nami, Ashe])
+              && chips.Single(c => c.ChampionId == Nami).Gone && chips.Count(c => c.Gone) == 1,
+              string.Join(", ", chips.Select(c => DataDragon.Name(c.ChampionId) + (c.Gone ? " ✕" : ""))));
+
         var red = System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x5E);
         var green = System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B);
+        string Txt(double v) => (v >= 0 ? "+" : "") + v.ToString("F1");
+        // Кольца у портретов состава — дугой с разрывом под значок стиля, у
+        // иконок полосы — сплошные: по ним и различаем.
+        List<System.Windows.Shapes.Path> Rings(bool mine) => [.. art.Children.OfType<System.Windows.Shapes.Path>()
+            .Where(r => r.Data is EllipseGeometry == mine)];
+        List<string> TeamDrawn() => [.. art.Children.OfType<StackPanel>()
+            .Select(sp => string.Join(" ", sp.Children.OfType<TextBlock>().Select(t => t.Text))).OrderBy(t => t)];
+        List<string> MineDrawn() => [.. art.Children.OfType<TextBlock>().Select(t => t.Text).OrderBy(t => t)];
+        List<(string Name, double Vs)> TeamWant(int id) => [.. draft.MyTeam
+            .Select(p => (DataDragon.Name(p.EffectiveChampionId),
+                          engine.BanThreat(id, p.EffectiveChampionId, RecommendationEngine.LcuToDbRole(p.Position))))
+            .Where(x => Math.Abs(x.Item2) >= 0.3)];
+        List<(string Name, double Vs)> MineWant(int id) => [.. chips.Where(c => !c.Gone && c.ChampionId != id)
+            .Select(c => (DataDragon.Name(c.ChampionId), engine.BanThreat(id, c.ChampionId, "support")))
+            .Where(x => Math.Abs(x.Item2) >= 0.3)];
+        // Всё нарисованное — ровно по движку: кольца, их цвета и числа.
+        string? Mismatch(int id)
+        {
+            var team = TeamWant(id); var mine = MineWant(id);
+            var teamText = team.Select(x => "vs " + Txt(x.Vs)).OrderBy(t => t).ToList();
+            var mineText = mine.Select(x => Txt(x.Vs)).OrderBy(t => t).ToList();
+            var all = Rings(false).Concat(Rings(true)).ToList();
+            var reds = all.Count(r => r.Stroke is SolidColorBrush sb && sb.Color == red);
+            var greens = all.Count(r => r.Stroke is SolidColorBrush sb && sb.Color == green);
+            var both = team.Concat(mine).ToList();
+            var previews = art.Children.OfType<System.Windows.Shapes.Ellipse>().Count();
+            if (Rings(false).Count == team.Count && Rings(true).Count == mine.Count
+                && reds == both.Count(x => x.Vs < 0) && greens == both.Count(x => x.Vs >= 0)
+                && TeamDrawn().SequenceEqual(teamText) && MineDrawn().SequenceEqual(mineText) && previews == 0)
+                return null;
+            return $"{DataDragon.Name(id)}: состав [{string.Join("; ", TeamDrawn())}] ждали [{string.Join("; ", teamText)}], " +
+                   $"мои [{string.Join("; ", MineDrawn())}] ждали [{string.Join("; ", mineText)}], примерок {previews}";
+        }
+
         var wrong = new List<string>();
         var anyRed = false;
+        var anyMine = false;
         foreach (var b in cards)
         {
             var id = (int)b.Tag;
             Raise(b, Mouse.MouseEnterEvent);
             Pump();
-            // Чего ждём: по каждому нашему — разница движка.
-            var want = draft.MyTeam
-                .Select(p => (Name: DataDragon.Name(p.EffectiveChampionId),
-                              Vs: engine.BanThreat(id, p.EffectiveChampionId,
-                                                   RecommendationEngine.LcuToDbRole(p.Position))))
-                .Where(x => Math.Abs(x.Vs) >= 0.3).ToList();
-            var rings = art.Children.OfType<System.Windows.Shapes.Path>().ToList();
-            var lines = art.Children.OfType<StackPanel>()
-                .Select(sp => string.Join(" ", sp.Children.OfType<TextBlock>().Select(t => t.Text))).ToList();
-            var previews = art.Children.OfType<System.Windows.Shapes.Ellipse>().Count();
-            var redRings = rings.Count(r => r.Stroke is SolidColorBrush sb && sb.Color == red);
-            var greenRings = rings.Count(r => r.Stroke is SolidColorBrush sb && sb.Color == green);
-            anyRed |= redRings > 0;
-            var wantText = want.Select(x => "vs " + (x.Vs >= 0 ? "+" : "") + x.Vs.ToString("F1")).OrderBy(t => t).ToList();
-            Console.WriteLine($"  {DataDragon.Name(id),-14} колец {rings.Count} (красных {redRings}): " +
-                              $"{string.Join(", ", want.Select(x => $"{x.Name} {x.Vs:+0.0;-0.0}"))}");
-            if (rings.Count != want.Count || previews > 0
-                || redRings != want.Count(x => x.Vs < 0) || greenRings != want.Count(x => x.Vs >= 0)
-                || !lines.OrderBy(t => t).SequenceEqual(wantText))
-                wrong.Add($"{DataDragon.Name(id)}: нарисовано [{string.Join("; ", lines)}], " +
-                          $"ждали [{string.Join("; ", wantText)}], примерок {previews}");
+            var team = TeamWant(id); var mine = MineWant(id);
+            Console.WriteLine($"  {DataDragon.Name(id),-12} состав: {string.Join(", ", team.Select(x => $"{x.Name} {x.Vs:+0.0;-0.0}"))}" +
+                              $"   мои: {string.Join(", ", mine.Select(x => $"{x.Name} {x.Vs:+0.0;-0.0}"))}");
+            if (Mismatch(id) is { } m) wrong.Add(m);
+            anyRed  |= Rings(false).Any(r => r.Stroke is SolidColorBrush sb && sb.Color == red);
+            anyMine |= Rings(true).Any(r => r.Stroke is SolidColorBrush sb && sb.Color == red);
 
-            // «Контрит союзника X» — значит X против него в минусе.
+            // Назван в подписи — значит против него в минусе.
             var reason = ((RecCard)b.DataContext).Reason;
-            foreach (var p in draft.MyTeam)
+            foreach (var (champ, role) in draft.MyTeam
+                         .Select(p => (p.EffectiveChampionId, RecommendationEngine.LcuToDbRole(p.Position)))
+                         .Concat(chips.Where(c => !c.Gone).Select(c => (c.ChampionId, "support"))))
             {
-                var name = DataDragon.Name(p.EffectiveChampionId);
+                var name = DataDragon.Name(champ);
                 if (!reason.Contains(name)) continue;
-                var vs = engine.BanThreat(id, p.EffectiveChampionId, RecommendationEngine.LcuToDbRole(p.Position));
+                var vs = engine.BanThreat(id, champ, role);
                 if (vs >= 0) wrong.Add($"{DataDragon.Name(id)}: в подписи «{name}», а разница {vs:+0.00;-0.00}");
             }
             Raise(b, Mouse.MouseLeaveEvent);
             Pump();
         }
-        Check("у каждого совета — кольца и числа ровно по движку, без примерки и синергии",
+        Check("у каждого совета — кольца и числа у состава и у моих ровно по движку, без примерки",
               wrong.Count == 0, string.Join(" | ", wrong));
         Check("хоть один совет мешает кому-то из наших — красное кольцо", anyRed, "");
+        Check("хоть один совет мешает кому-то из моих в полосе — красное кольцо", anyMine, "");
         Check("курсор ушёл с карточки — подсветки нет", art.Children.Count == 0, $"{art.Children.Count}");
 
         // Тир-лист в банах: клик там банит, значит и наведение — про бан.
         var tier = (ItemsControl)w.FindName("TierList");
-        List<string> Want(int id) => [.. draft.MyTeam
-            .Select(p => engine.BanThreat(id, p.EffectiveChampionId, RecommendationEngine.LcuToDbRole(p.Position)))
-            .Where(v => Math.Abs(v) >= 0.3)
-            .Select(v => "vs " + (v >= 0 ? "+" : "") + v.ToString("F1")).OrderBy(t => t)];
-        List<string> Drawn() => [.. art.Children.OfType<StackPanel>()
-            .Select(sp => string.Join(" ", sp.Children.OfType<TextBlock>().Select(t => t.Text))).OrderBy(t => t)];
         var cells = Cells(tier);
-        var cell = cells.FirstOrDefault(c => Want((int)c.Tag).Count > 0);
-        Check("в тир-листе есть кому мешающий", cell is not null, $"ячеек {cells.Count}");
+        var cell = cells.FirstOrDefault(c => TeamWant((int)c.Tag).Count > 0 && MineWant((int)c.Tag).Count > 0);
+        Check("в тир-листе есть мешающий и составу, и моим", cell is not null, $"ячеек {cells.Count}");
         if (cell is not null)
         {
             Raise(cell, Mouse.MouseEnterEvent);
             Pump();
-            var drawn = Drawn();
-            Check($"тир-лист в банах ({DataDragon.Name((int)cell.Tag)}): кольца по движку, без примерки",
-                  drawn.SequenceEqual(Want((int)cell.Tag))
-                  && art.Children.OfType<System.Windows.Shapes.Path>().Count() == drawn.Count
-                  && !art.Children.OfType<System.Windows.Shapes.Ellipse>().Any(),
-                  $"[{string.Join("; ", drawn)}] ждали [{string.Join("; ", Want((int)cell.Tag))}]");
+            var m = Mismatch((int)cell.Tag);
+            Check($"тир-лист в банах ({DataDragon.Name((int)cell.Tag)}): кольца по движку", m is null, m ?? "");
             Raise(cell, Mouse.MouseLeaveEvent);
             Pump();
             Check("курсор ушёл с тир-листа — подсветки нет", art.Children.Count == 0, $"{art.Children.Count}");
@@ -274,7 +304,7 @@ internal static class Program
         // колец угрозы быть не должно.
         w.UpdateBans(null, draft with { InPlanning = true }, engine);
         Pump();
-        var planCell = Cells(tier).FirstOrDefault(c => Want((int)c.Tag).Count > 0);
+        var planCell = Cells(tier).FirstOrDefault(c => TeamWant((int)c.Tag).Count > 0);
         if (planCell is not null)
         {
             Raise(planCell, Mouse.MouseEnterEvent);
@@ -285,6 +315,7 @@ internal static class Program
         }
         else Check("объявление пиков: тир-лист на экране", false, "ячеек нет");
         w.Close();
+        SessionTracker.PreviewGames = null;
     }
 
     // Ячейки тир-листа, по которым можно навести: не забаненные.
@@ -300,7 +331,20 @@ internal static class Program
         return res;
     }
 
-    // Фаза банов, мой бан впереди, команда навела пики; враги скрыты.
+    private const int Sona = 37, Hwei = 910, Yuumi = 350, Nami = 267, Ashe = 22;
+
+    // Мой месяц на саппорте: больше всех Сона, меньше всех Эш.
+    private static List<SessionTracker.PreviewGame> MyMonth()
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new List<SessionTracker.PreviewGame>();
+        foreach (var (champ, n) in new[] { (Sona, 6), (Hwei, 5), (Yuumi, 4), (Nami, 3), (Ashe, 2) })
+            for (var i = 0; i < n; i++)
+                games.Add(new("", "", "solo", champ, 0, "support", "", now - 3600 * (games.Count + 1), i % 2 == 0));
+        return games;
+    }
+
+    // Фаза банов, мой бан впереди, команда навела пики, союзник забанил Нами; враги скрыты.
     private static DraftState BanScene()
     {
         var my = new List<DraftPlayer>
@@ -313,7 +357,7 @@ internal static class Program
         };
         var their = Enumerable.Range(5, 5).Select(c => new DraftPlayer(c, 0, 0, "", false)).ToList();
         return new DraftState(
-            MyTeam: my, TheirTeam: their, MyTeamBans: [], TheirTeamBans: [],
+            MyTeam: my, TheirTeam: their, MyTeamBans: [Nami], TheirTeamBans: [],
             Me: my[4], MyPosition: "utility", DirectOpponent: null, ExposedToCounter: false,
             InBanPhase: true, Bench: [], IsAram: false,
             MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [4],

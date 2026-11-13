@@ -958,6 +958,21 @@
                  советами — только когда тир-лист выключен в настройках. -->
             <ScrollViewer x:Name="BanScroll" Grid.Row="0" VerticalScrollBarVisibility="Hidden" Visibility="Collapsed">
               <StackPanel>
+                <!-- Мои чемпионы на роли за 30 дней (как в объявлении пиков):
+                     наведение на совет бана обводит тех, кому он мешает. -->
+                <Border x:Name="BanMinePanel" Visibility="Collapsed" Margin="0,3,0,3"
+                        Padding="12,8,12,6" CornerRadius="4" Background="#0CFFFFFF">
+                  <StackPanel>
+                    <TextBlock x:Name="BanMineTitle" Margin="0,0,0,6"
+                               FontFamily="{StaticResource DisplayFont}" FontSize="12" FontWeight="Bold"
+                               Foreground="#C89B3C"/>
+                    <ItemsControl x:Name="BanMineList" ItemTemplate="{StaticResource BanMineChip}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1" Columns="5"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
                 <ContentControl x:Name="BanHiddenStrip" Visibility="Collapsed"
                                 ContentTemplate="{StaticResource HiddenStripTemplate}"/>
                 <ItemsControl x:Name="BanFullList">

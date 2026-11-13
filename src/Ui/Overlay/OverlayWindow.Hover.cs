@@ -312,7 +312,36 @@ public partial class OverlayWindow
             DeltaRing(pt, vs);
             UnderPortrait(pt, VsLabel(), DeltaNum(vs));
         }
+
+        // Мои чемпионы в полосе над советами (RenderBanMine): против кого из
+        // них этот бан тоже плох. Иконка маленькая и без значка стиля — кольцо
+        // сплошное, число справа от неё: под иконкой имя.
+        if (BanScroll.Visibility != Visibility.Visible || BanMinePanel.Visibility != Visibility.Visible) return;
+        var myRole = RecommendationEngine.LcuToDbRole(_lastDraft.MyPosition);
+        for (int i = 0; i < BanMineList.Items.Count; i++)
+        {
+            if (BanMineList.Items[i] is not BanMineChip { Gone: false } chip || chip.ChampionId == champId) continue;
+            var vs = _engine.BanThreat(champId, chip.ChampionId, myRole);
+            if (Math.Abs(vs) < SYN_LINK_MIN || MineIconCenter(i) is not { } pt) continue;
+            DeltaRing(pt, vs, MINE_RING, gap: false);
+            var num = DeltaNum(vs);
+            num.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(num, pt.X + MINE_RING + 3);
+            Canvas.SetTop(num, pt.Y - num.DesiredSize.Height / 2);
+            SynLinks.Children.Add(num);
+        }
     }
+
+    // Кольцо у иконки полосы «мои чемпионы»: иконка 38, кольцо чуть снаружи.
+    private const double MINE_RING = 22;
+
+    // Центр иконки чемпиона в полосе «мои чемпионы» на слое подсветки.
+    private System.Windows.Point? MineIconCenter(int i) =>
+        BanMineList.ItemContainerGenerator.ContainerFromIndex(i) is ContentPresenter cp
+        && cp.ContentTemplate?.FindName("MineIcon", cp) is FrameworkElement icon && icon.IsVisible
+            ? icon.TransformToVisual(SynLinks).Transform(
+                  new System.Windows.Point(icon.ActualWidth / 2, icon.ActualHeight / 2))
+            : null;
 
     // Центр портрета строки состава в координатах слоя подсветки; (36, 42) —
     // центр портрета в координатах слота (см. DrawTeamLines).
@@ -331,19 +360,27 @@ public partial class OverlayWindow
     private static double DeltaStrength(double v) => Math.Min(1.0, Math.Abs(v) / 3.0);
 
     // Кольцо вокруг портрета цветом знака: чем больше величина, тем ярче и
-    // шире свечение.
-    private void DeltaRing(System.Windows.Point pt, double v)
+    // шире свечение. gap — разрыв под значок стиля (у портретов состава); у
+    // иконок без значка кольцо сплошное.
+    private void DeltaRing(System.Windows.Point pt, double v, double radius = 36, bool gap = true)
     {
         var color = DeltaColor(v);
         var strength = DeltaStrength(v);
         var glow = new SolidColorBrush(color) { Opacity = 0.35 + 0.6 * strength };
         glow.Freeze();
-        SynLinks.Children.Add(RingArc(pt, 36, glow, 1.5 + 2.5 * strength,
-            new System.Windows.Media.Effects.DropShadowEffect
+        var thickness = 1.5 + 2.5 * strength;
+        var effect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = color, ShadowDepth = 0,
+            BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
+        };
+        SynLinks.Children.Add(gap
+            ? RingArc(pt, radius, glow, thickness, effect)
+            : new System.Windows.Shapes.Path
             {
-                Color = color, ShadowDepth = 0,
-                BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
-            }));
+                Data = new EllipseGeometry(pt, radius, radius),
+                Stroke = glow, StrokeThickness = thickness, Effect = effect,
+            });
     }
 
     // Сама величина под портретом, цветом знака.

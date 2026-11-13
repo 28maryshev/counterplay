@@ -70,7 +70,46 @@ public partial class OverlayWindow
         // выключен в настройках — полосой над советами, иначе вернуть их негде.
         if (TierListBar.Visibility == Visibility.Visible) BanHiddenStrip.Visibility = Visibility.Collapsed;
         else ShowHiddenStrip(BanHiddenStrip, Dislikes.Kind.Ban);
+        RenderBanMine(draft);
         RenderTeams(draft);
+    }
+
+    /// <summary>
+    /// Полоса «мои чемпионы» над советами банов — те же, что в объявлении пиков
+    /// (MyLaneChamps). Наведение на совет бана обводит тех из них, кому он
+    /// мешает (DrawBanThreat): видно, против кого из моих бан плох (просьба
+    /// владельца, 13.11). Забанен или взят другим — перечёркнут: защищать его
+    /// поздно. Ни игр на роли, ни пула — полосы нет.
+    /// </summary>
+    private void RenderBanMine(DraftState draft)
+    {
+        var role = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+        var champs = MyLaneChamps(role, out var fromPool);
+        BanMinePanel.Visibility = champs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (champs.Count == 0) { BanMineList.ItemsSource = null; return; }
+
+        var gone = draft.MyTeamBans.Concat(draft.TheirTeamBans)
+            .Concat(draft.MyTeam.Where(p => !p.IsLocalPlayer).Select(p => p.EffectiveChampionId))
+            .Concat(draft.TheirTeam.Select(p => p.EffectiveChampionId))
+            .Where(id => id > 0).ToHashSet();
+        BanMineTitle.Text = Loc.T(fromPool ? "plan.titlePool" : "plan.title", RoleNameDb(role));
+        BanMineList.ItemsSource = champs.Select(c =>
+        {
+            var name = DataDragon.Name(c.Id);
+            // У чемпиона из пула игр нет — под именем пусто, заголовок говорит «Пул».
+            return new BanMineChip
+            {
+                ChampionId = c.Id,
+                Icon       = IconCache.Get(c.Id),
+                Name       = name,
+                WrText     = c.Games is { } g ? $"{g.WinRate:0}%" : "",
+                WrBrush    = c.Games is { Games: >= PlanMinGamesColor } g2 ? WinrateColor.Hex(g2.WinRate) : "#8AA0B2",
+                GamesText  = c.Games is { } g3 ? $" · {g3.Games}" : "",
+                Tip        = c.Games is { } g4
+                    ? name + "\n" + Loc.T("plan.tipRecord", g4.Wins, g4.Games - g4.Wins) : name,
+                Gone       = gone.Contains(c.Id),
+            };
+        }).ToList();
     }
 
     // Советы банов, показанные в этом драфте, по порядку на экране.
