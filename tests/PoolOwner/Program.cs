@@ -122,7 +122,96 @@ internal static class Program
         FiveStack();
         SandboxPair();
         NickTravels();
+        HalvesMirror();
     }
+
+    /// <summary>
+    /// Дуо-файл у напарника: зеркалятся не только люди, но и НАБОРЫ.
+    ///
+    /// В файле «Мои» — чемпионы отправителя, «Друга» — получателя. Раньше при
+    /// загрузке напарником зеркалился только хозяин второй половины, а наборы
+    /// оставались как у отправителя: получателю предлагали его же половиной
+    /// чемпионов друга, а напарнику — его собственные. Ручные связки так же:
+    /// «я играю Треша» приезжало Трешем мне, хотя Треш — его.
+    ///
+    /// И смежное: свой же дуо-файл без записанного напарника (перенос на другой
+    /// компьютер) делал напарником МЕНЯ САМОГО.
+    /// </summary>
+    private static void HalvesMirror()
+    {
+        const int HisSup = 412, MyAdc = 22;
+
+        // Друг выгружает нашу связку: его половина — саппорт, моя — стрелок.
+        PoolStore.SetAccount(Friend, "Harribon");
+        var ours = new DuoPool
+        {
+            Id = "dh", FriendName = "связка", FriendPuuid = Me, FriendNick = "я", Manual = true,
+            ManualPairs = [new ManualDuoPair { Mine = HisSup, MineRole = "support",
+                                               Friend = MyAdc, FriendRole = "adc" }],
+        };
+        ours.Mine["support"] = [HisSup];
+        ours.Friend["adc"] = [MyAdc];
+        var file = PoolFile.Export(ours);
+
+        // Я — его напарник: моя половина — стрелок, его — саппорт.
+        PoolStore.SetAccount(Me, "я");
+        var (_, mine, _, _) = PoolFile.ParseWithOwner(file);
+        Check("у напарника своя половина — его чемпионы",
+              Has(mine?.Mine, "adc", MyAdc) && !Has(mine?.Mine, "support", HisSup),
+              Show(mine?.Mine));
+        Check("   а половина друга — чемпионы отправителя",
+              Has(mine?.Friend, "support", HisSup) && !Has(mine?.Friend, "adc", MyAdc),
+              Show(mine?.Friend));
+        var pair = mine?.ManualPairs.FirstOrDefault();
+        Check("   ручная связка тоже зеркальна (чемпион и роль)",
+              pair is { Mine: MyAdc, MineRole: "adc", Friend: HisSup, FriendRole: "support" },
+              pair is null ? "нет связки" : $"{pair.Mine}/{pair.MineRole} + {pair.Friend}/{pair.FriendRole}");
+
+        // Кодом — тот же разбор, значит то же зеркало.
+        var (_, byCode, _, _) = PoolFile.ParseWithOwner(PoolFile.FromCode(PoolFile.ToCode(file))!);
+        Check("   кодом так же", Has(byCode?.Mine, "adc", MyAdc), Show(byCode?.Mine));
+
+        // Посторонний: связка чужая, стороны не трогаем — как записано.
+        PoolStore.SetAccount(Third, "третий");
+        var (_, forThird, _, _) = PoolFile.ParseWithOwner(file);
+        Check("у постороннего половины как в файле", Has(forThird?.Mine, "support", HisSup),
+              Show(forThird?.Mine));
+
+        // Сам отправитель (другой компьютер): всё как было.
+        PoolStore.SetAccount(Friend, "Harribon");
+        var (_, own, _, _) = PoolFile.ParseWithOwner(file);
+        Check("у отправителя половины как в файле", Has(own?.Mine, "support", HisSup),
+              Show(own?.Mine));
+        Check("   и напарник прежний", own?.FriendPuuid == Me, Tail(own?.FriendPuuid));
+
+        // Напарник в файле не записан (пул ещё не заходил в драфт вдвоём), а
+        // прислали его мне: напарник — отправитель, значит и наборы зеркальны.
+        var unpaired = new DuoPool { Id = "du", FriendName = "без напарника" };
+        unpaired.Mine["support"] = [HisSup];
+        unpaired.Friend["adc"] = [MyAdc];
+        var lone = PoolFile.Export(unpaired);
+
+        PoolStore.SetAccount(Me, "я");
+        var (_, got, _, _) = PoolFile.ParseWithOwner(lone);
+        Check("без записанного напарника: напарник — отправитель", got?.FriendPuuid == Friend,
+              Tail(got?.FriendPuuid));
+        Check("   и его чемпионы — в половине друга", Has(got?.Friend, "support", HisSup),
+              Show(got?.Friend));
+
+        // Тот же файл у самого отправителя: напарника нет, и это не он сам.
+        PoolStore.SetAccount(Friend, "Harribon");
+        var (_, self, _, _) = PoolFile.ParseWithOwner(lone);
+        Check("свой файл без напарника не делает напарником себя",
+              self?.FriendPuuid == "" && self?.FriendNick != "Harribon",
+              $"{Tail(self?.FriendPuuid)} / {self?.FriendNick}");
+        Check("   и половины на месте", Has(self?.Mine, "support", HisSup), Show(self?.Mine));
+    }
+
+    private static bool Has(Dictionary<string, List<int>>? half, string role, int champ) =>
+        half is not null && half.TryGetValue(role, out var l) && l.Contains(champ);
+
+    private static string Show(Dictionary<string, List<int>>? half) =>
+        half is null ? "—" : string.Join(", ", half.Select(kv => $"{kv.Key}:[{string.Join(",", kv.Value)}]"));
 
     /// <summary>
     /// Имя напарника доезжает получателю — иначе плитка у него молчит, хотя

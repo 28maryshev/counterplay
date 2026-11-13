@@ -139,24 +139,32 @@ public static class PoolFile
 
             if (e.Kind == "duo")
             {
+                // На какой стороне связки получатель. Зеркалится всё сразу —
+                // человек, имя, наборы и ручные пары: развернёшь одно без
+                // другого, и у напарника своей половиной окажутся чужие
+                // чемпионы (так и было до 13.11.2026).
+                var (friendPuuid, friendNick, mirror) = OtherSide(e);
+                var mine   = Roles(e.Mine);
+                var friend = Roles(e.Friend);
+                var pairs  = (e.ManualPairs ?? []).Where(p => p.Mine != 0 || p.Friend != 0).ToList();
                 var duo = new DuoPool
                 {
                     FriendName = Clean(e.Name),
-                    Mine = Roles(e.Mine),
-                    Friend = Roles(e.Friend),
+                    Mine   = mirror ? friend : mine,
+                    Friend = mirror ? mine : friend,
                     Manual = e.Manual,
-                    ManualPairs = (e.ManualPairs ?? []).Where(p => p.Mine != 0 || p.Friend != 0).ToList(),
-                    // Кто на второй половине.
-                    //
-                    // В файле записана пара «хозяин + его напарник». Если этот
-                    // напарник — Я, то для меня второй половиной становится сам
-                    // хозяин: связка та же, стороны зеркальны. Иначе берём то,
-                    // что записано, а без него — хозяина файла.
+                    ManualPairs = mirror
+                        ? pairs.Select(p => new ManualDuoPair
+                          {
+                              Mine = p.Friend, MineRole = p.FriendRole,
+                              Friend = p.Mine, FriendRole = p.MineRole,
+                          }).ToList()
+                        : pairs,
                     ShareSecret = e.Secret ?? "",
-                    FriendPuuid = OtherHalf(e),
+                    FriendPuuid = friendPuuid,
                     // Имя — под ТУ ЖЕ половину, что и puuid, иначе на плитке
                     // окажется имя одного человека, а считаться будет другой.
-                    FriendNick = OtherHalfNick(e),
+                    FriendNick = friendNick,
                 };
                 // Пустой пул грузить не во что: пометка нашей и осталась, а внутри
                 // ничего нет — честнее сказать, что файл не подошёл.
@@ -173,37 +181,34 @@ public static class PoolFile
         catch { return (null, null, "", ""); }
     }
 
-    /// Имя из чужого файла показывается в нашем окне — длину и переносы режем.
     /// <summary>
-    /// Кто для НАС хозяин второй половины дуо-файла.
+    /// Кто для НАС на второй половине дуо-файла и надо ли зеркалить стороны.
     ///
-    /// Записан напарник, и это я сам → второй половиной становится хозяин файла
-    /// (он прислал мне нашу же связку со своей стороны). Иначе — записанный
-    /// напарник, а если его нет, хозяин файла.
+    /// В файле записана пара «хозяин (половина «Мои») + его напарник (половина
+    /// «Друга»)». Решаем по тому, кто загружает:
+    ///   - я и есть хозяин (свой файл на другом компьютере) → как в файле;
+    ///     напарника не записано — его и нет: себя напарником не ставим;
+    ///   - я и есть записанный напарник → зеркально: второй половиной
+    ///     становится хозяин, его чемпионы — в половину друга;
+    ///   - напарник не записан, а хозяин — кто-то другой → файл прислал он,
+    ///     значит он и напарник: тоже зеркально;
+    ///   - я посторонний (или себя не знаем) → связка чужая, как в файле.
+    /// Имя — под ту же половину, что и puuid, иначе имя и счёт разъедутся.
     /// </summary>
-    private static string OtherHalf(Envelope e)
+    private static (string Puuid, string Nick, bool Mirror) OtherSide(Envelope e)
     {
-        var owner  = CleanPuuid(e.OwnerPuuid);
-        var friend = CleanPuuid(e.FriendPuuid);
+        var owner      = CleanPuuid(e.OwnerPuuid);
+        var friend     = CleanPuuid(e.FriendPuuid);
+        var ownerNick  = Clean(e.OwnerName);
+        var friendNick = Clean(e.FriendNick ?? "");
         var me = PoolStore.AccountPuuid ?? "";
-        if (friend.Length > 0 && friend.Equals(me, StringComparison.OrdinalIgnoreCase))
-            return owner;
-        return friend.Length > 0 ? friend : owner;
-    }
+        bool IsMe(string p) => p.Length > 0 && me.Length > 0
+                               && p.Equals(me, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Имя того, кто для НАС на второй половине. Пара к <see cref="OtherHalf"/>:
-    /// стороны выбираются одинаково, иначе имя и счёт разъедутся.
-    /// </summary>
-    private static string OtherHalfNick(Envelope e)
-    {
-        var friend = CleanPuuid(e.FriendPuuid);
-        var me = PoolStore.AccountPuuid ?? "";
-        // Зеркальный случай: напарник в файле — я, значит второй половиной стал
-        // отправитель, и имя нужно его.
-        if (friend.Length > 0 && friend.Equals(me, StringComparison.OrdinalIgnoreCase))
-            return Clean(e.OwnerName);
-        return Clean(e.FriendNick ?? "") is { Length: > 0 } n ? n : Clean(e.OwnerName);
+        if (IsMe(owner))  return (friend, friendNick, false);
+        if (IsMe(friend)) return (owner, ownerNick, true);
+        if (friend.Length == 0 && owner.Length > 0) return (owner, ownerNick, true);
+        return (friend, friendNick.Length > 0 ? friendNick : ownerNick, false);
     }
 
     /// <summary>
@@ -221,6 +226,7 @@ public static class PoolFile
         return t;
     }
 
+    /// Имя из чужого файла показывается в нашем окне — длину и переносы режем.
     private static string Clean(string? s)
     {
         var t = (s ?? "").Replace('\n', ' ').Replace('\r', ' ').Trim();
