@@ -193,24 +193,71 @@ site_push() {
 # Файлы разговоров только дописываются в конец, поэтому «новее» = «длиннее»:
 # своё длиннее серверного — отправить, серверное длиннее — забрать. Память
 # (memory/) сюда не входит, она едет через git выше.
+#
+# Регистр имени папки проекта не в счёт. Claude Code называет её по пути
+# проекта, а диск разные запуски пишут по-разному: «C--Counterplay» на одной
+# машине, «c--Counterplay» на другой. Windows считает это одной папкой, сервер
+# — двумя. Пока сравнение шло с учётом регистра, «чужая» серверная папка
+# скачивалась целиком на каждой сверке (~500 МБ раз в полчаса) и могла затереть
+# дописанный здесь разговор своей старой копией. Поэтому на сервере папка
+# проекта всегда строчными: sessions_pack так отправляет, sessions_fold сводит
+# то, что легло иначе. Имена внутри папки не трогаем: в именах tool-results
+# есть заглавные. Проверка — tests/SessionsCase.
+
+# Что отправить и что забрать. $1, $2 — списки «размер<TAB>путь» здесь и на
+# сервере; в $3 — здешние пути к отправке, в $4 — серверные к загрузке. С
+# сервера на один разговор берётся одна копия, самая длинная: две, разные лишь
+# регистром, легли бы здесь в один файл в случайном порядке.
+sessions_plan() {
+  local key='function key(p,  i) { i = index(p, "/"); return i ? tolower(substr(p, 1, i)) substr(p, i + 1) : tolower(p) }'
+  awk -F'\t' "$key"'
+    NR==FNR { if ($2 != "") { k = key($2); if (!(k in r) || $1 + 0 > r[k]) r[k] = $1 + 0 }; next }
+    $2 != "" { k = key($2); if (!(k in r) || $1 + 0 > r[k]) print $2 }' "$2" "$1" > "$3"
+  awk -F'\t' "$key"'
+    NR==FNR { if ($2 != "") { k = key($2); if (!(k in l) || $1 + 0 > l[k]) l[k] = $1 + 0 }; next }
+    $2 != "" { k = key($2); if (!(k in bs) || $1 + 0 > bs[k]) { bs[k] = $1 + 0; bp[k] = $2 } }
+    END { for (k in bp) if (!(k in l) || bs[k] > l[k]) print bp[k] }' "$1" "$2" > "$4"
+}
+
+# Здешние файлы по списку $2 (пути от $1) — архивом в stdout, папка проекта
+# строчными. tar честно ругается, если файл дописывается прямо сейчас (это
+# текущий разговор), — недописанный хвост уедет в следующий раз.
+sessions_pack() {
+  (cd "$1" && tar czf - --warning=no-file-changed --transform 's,^[^/]*,\L&,' -T "$2")
+}
+
+# На сервере: папки проектов с заглавными слить в строчные. Из двух копий
+# одного файла остаётся длинная (разговоры только дописываются). Выполняется
+# там, через declare -f, — поэтому без bash-особенностей.
+sessions_fold() {
+  cd "$1" || return 1
+  for d in *; do
+    t=$(printf '%s' "$d" | tr 'A-Z' 'a-z')
+    { [ -d "$d" ] && [ "$d" != "$t" ]; } || continue
+    (cd "$d" && find . -type f) | while IFS= read -r f; do
+      if [ -e "$t/$f" ] && [ "$(stat -c %s "$t/$f")" -ge "$(stat -c %s "$d/$f")" ]; then
+        rm -f "$d/$f"
+      else
+        mkdir -p "$(dirname "$t/$f")" && mv -f "$d/$f" "$t/$f"
+      fi
+    done
+    find "$d" -depth -type d -empty -delete
+  done
+}
+
 sessions_sync() {
   local tmp remote_list local_list nu nd rc
   tmp=$(mktemp -d)
   mkdir -p "$PROJECTS"
-  remote_list=$(rsh "mkdir -p ~/$R_SESS && chmod 700 ~/brain ~/$R_SESS && cd ~/$R_SESS && find . -type f -printf '%s\t%P\n'") ||
+  remote_list=$(rsh "mkdir -p ~/$R_SESS && chmod 700 ~/brain ~/$R_SESS && $(declare -f sessions_fold)
+                     sessions_fold ~/$R_SESS && find . -type f -printf '%s\t%P\n'") ||
     { say "переписка: сервер недоступен"; rm -rf "$tmp"; return 1; }
   local_list=$(cd "$PROJECTS" && find . \( -name memory -o -name 'memory.pre-brain*' \) -prune -o -type f -printf '%s\t%P\n')
   printf '%s\n' "$remote_list" > "$tmp/remote"; printf '%s\n' "$local_list" > "$tmp/local"
-  awk -F'\t' 'NR==FNR { if ($2 != "") r[$2] = $1; next }
-              $2 != "" && (!($2 in r) || $1 + 0 > r[$2] + 0) { print $2 }' "$tmp/remote" "$tmp/local" > "$tmp/up"
-  awk -F'\t' 'NR==FNR { if ($2 != "") l[$2] = $1; next }
-              $2 != "" && (!($2 in l) || $1 + 0 > l[$2] + 0) { print $2 }' "$tmp/local" "$tmp/remote" > "$tmp/down"
+  sessions_plan "$tmp/local" "$tmp/remote" "$tmp/up" "$tmp/down"
   nu=$(grep -c . "$tmp/up"); nd=$(grep -c . "$tmp/down")
   if [ "$nu" -gt 0 ]; then
-    # tar честно ругается, если файл дописывается прямо сейчас (это текущий
-    # разговор), — недописанный хвост уедет в следующий раз.
-    (cd "$PROJECTS" && tar czf - --warning=no-file-changed -T "$tmp/up" 2>>"$LOG") |
-      rsh "tar xzf - -C ~/$R_SESS"
+    sessions_pack "$PROJECTS" "$tmp/up" 2>>"$LOG" | rsh "tar xzf - -C ~/$R_SESS"
     rc=${PIPESTATUS[1]}
     [ "$rc" = 0 ] || { loud "переписка: отправка оборвалась — см. $LOG"; rm -rf "$tmp"; return 1; }
   fi
