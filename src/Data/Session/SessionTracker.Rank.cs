@@ -112,7 +112,9 @@ public static partial class SessionTracker
             if (last5.Count == 0) // свежая установка — показать хотя бы иконки из истории
                 last5 = history.Where(h => h.Queue == key).Take(5)
                     .Select(h => new RecentGame(h.ChampionId, h.Win, null)).ToList();
-            // Окно графика — три месяца: старое отваливается само.
+            // Окно графика — три месяца, но не меньше пяти последних игр
+            // (ChartWindow): старое отваливается само, а игры из истории старше
+            // окна всё равно дают линию.
             var chartFrom = DateTimeOffset.UtcNow.AddDays(-ChartDays).ToUnixTimeSeconds();
             var ranked2 = key is "solo" or "flex";
 
@@ -122,10 +124,11 @@ public static partial class SessionTracker
             // клиента и достоверны с первой секунды.
             var points = !ranked2 && q.Games.Count < MinGamesForChart
                 ? []
-                : (ranked2 ? q.Games.Select(g => (g.Ts, g.Wr)) : RunningWr(q.Games))
-                    .Where(g => g.Ts >= chartFrom)
-                    .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
-                    .ToList();
+                : ChartWindow(
+                    (ranked2 ? q.Games.Select(g => (g.Ts, g.Wr)) : RunningWr(q.Games))
+                        .Select(g => new WrPoint(DateTimeOffset.FromUnixTimeSeconds(g.Ts).LocalDateTime, g.Wr))
+                        .ToList(),
+                    p => p.Date, DateTimeOffset.FromUnixTimeSeconds(chartFrom).LocalDateTime);
 
             // Опора ранговых — первой точкой, чтобы линия шла от того винрейта,
             // с которым человек пришёл, а не от первой сыгранной игры.
@@ -179,6 +182,24 @@ public static partial class SessionTracker
             if (g.Win) wins++;
             yield return (g.Ts, SmoothWr(wins, n));
         }
+    }
+
+    /// <summary>
+    /// Окно графика: точки не старше <paramref name="since"/>, но не меньше
+    /// <see cref="MinGamesForChart"/> последних. Точки — по возрастанию времени.
+    ///
+    /// Одно правило и для журнала (90 дней), и для показа (30/90 из настроек).
+    /// Голое «не старше» оставляло пустой график при живой истории: на новом
+    /// компьютере все игры из клиента были старше окна, и вместо линии стояло
+    /// «график появится с пятой игры» над «В:2 - П:6» (владелец, 13.11). А после
+    /// перерыва первая новая игра сжимала линию в одну точку.
+    /// </summary>
+    public static List<T> ChartWindow<T>(IReadOnlyList<T> points, Func<T, DateTime> date, DateTime since)
+    {
+        var first = 0;
+        while (first < points.Count && date(points[first]) < since) first++;
+        first = Math.Min(first, Math.Max(0, points.Count - MinGamesForChart));
+        return points.Skip(first).ToList();
     }
 
     // ── Песочница: мои настоящие данные ─────────────────────────────────────

@@ -29,8 +29,7 @@ public partial class OverlayWindow
         IReadOnlyList<SessionTracker.LpPoint> pts = _sessionView?.RatingHistory ?? [];
         // Окно показа из настроек — то же самое, что и у графика винрейта.
         var since = DateTime.Now.AddDays(-Math.Max(1, AppSettings.Current.ChartDays));
-        if (pts.Count > 0 && pts.Any(p => p.Date >= since))
-            pts = pts.Where(p => p.Date >= since).ToList();
+        pts = SessionTracker.ChartWindow(pts, p => p.Date, since);
 
         double w = WrChart.ActualWidth > 4 ? WrChart.ActualWidth : 150;
         double h = WrChart.ActualHeight > 4 ? WrChart.ActualHeight : 58;
@@ -234,9 +233,9 @@ public partial class OverlayWindow
         }
 
         // Окно графика из настроек: 30 дней — текущая форма, 90 — тренд за сезон.
+        // Не меньше пяти последних игр: после перерыва линия не сжимается в точку.
         var since = DateTime.Now.AddDays(-Math.Max(1, AppSettings.Current.ChartDays));
-        if (pts.Count > 0 && pts.Any(p => p.Date >= since))
-            pts = pts.Where(p => p.Date >= since).ToList();
+        pts = SessionTracker.ChartWindow(pts, p => p.Date, since);
 
         // Журнал сезонный (сотни игр) — для рисования прореживаем до ~120 точек
         // равномерной выборкой, первая и последняя игры сохраняются всегда.

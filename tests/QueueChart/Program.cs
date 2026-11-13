@@ -21,6 +21,10 @@ namespace Counterplay.Tests;
 /// И на месте эмблемы ранга в этих очередях — силуэт карты (Ущелье или
 /// Бездна), а не пустота.
 ///
+/// Владелец 13 ноября, второй компьютер: восемь нормалов из истории (июнь —
+/// июль), а вместо графика «график появится с пятой игры». Окно графика — три
+/// месяца, и все игры из него выпадали. Теперь окно не уже пяти последних игр.
+///
 /// Своя папка (<c>AppPaths.RootOverride</c>), окно — невидимое.
 /// </summary>
 internal static class Program
@@ -42,7 +46,8 @@ internal static class Program
         try
         {
             var view = StoredPoints();
-            if (view is not null) Window(view);
+            var old = OldPoints();
+            if (view is not null && old is not null) Window(view, old);
         }
         finally { try { Directory.Delete(AppPaths.RootOverride, true); } catch { } }
 
@@ -88,7 +93,8 @@ internal static class Program
                             ["Games"] = Games([true, false, true, false], [100, 50, 66.7, 50])
                         }
                     }
-                }
+                },
+                [Old] = OldAccount(now)
             }
         }.ToJsonString());
 
@@ -106,6 +112,58 @@ internal static class Program
         return view;
     }
 
+    // ── 1б. Старые игры ────────────────────────────────────────────────────
+
+    private const string Old = "TEST-queuechart-old-000000000000000000000000000000000000000000000000";
+    private const long Day = 86400;
+
+    /// <summary>
+    /// Второй аккаунт — как у владельца 13 ноября: нормалы только полугодовой
+    /// давности (две победы, шесть поражений). ARAM — вернулся после перерыва:
+    /// шесть старых игр и одна вчерашняя.
+    /// </summary>
+    private static JsonObject OldAccount(long now)
+    {
+        JsonArray Games(bool[] wins, Func<int, long> ts) => new(wins.Select((w, i) => (JsonNode)new JsonObject
+        {
+            ["Ts"] = ts(i), ["ChampionId"] = 1, ["Win"] = w, ["Wr"] = 0
+        }).ToArray());
+        return new JsonObject
+        {
+            ["Nick"] = "давно",
+            ["SelectedQueue"] = "normal",
+            ["Queues"] = new JsonObject
+            {
+                ["normal"] = new JsonObject
+                {
+                    ["Games"] = Games([false, false, true, false, false, true, false, false],
+                                      i => now - 160 * Day + i * 3600)
+                },
+                ["aram"] = new JsonObject
+                {
+                    ["Games"] = Games([true, false, true, true, false, true, false],
+                                      i => i < 6 ? now - 150 * Day + i * 3600 : now - Day)
+                }
+            }
+        };
+    }
+
+    private static SessionTracker.SessionData? OldPoints()
+    {
+        Console.WriteLine("\nигры старше окна графика:");
+        var view = SessionTracker.StoredView(Old);
+        if (view is null) { Check("журнал второго аккаунта прочитался", false, "нет вида"); return null; }
+        var normal = view.Queues["normal"].WinrateHistory;
+        Check("нормалы, все игры старше трёх месяцев — на графике последние пять, а не пусто",
+              normal.Count == SessionTracker.MinGamesForChart, $"{normal.Count}");
+        Check("нормалы — последняя точка графика это последняя игра",
+              normal.Count > 0 && normal[^1].Date < DateTime.Now.AddDays(-100), normal.Count > 0 ? $"{normal[^1].Date:d}" : "—");
+        var aram = view.Queues["aram"].WinrateHistory;
+        Check("ARAM, одна свежая игра после перерыва — линия из пяти точек, а не одна точка",
+              aram.Count == SessionTracker.MinGamesForChart, $"{aram.Count}");
+        return view;
+    }
+
     // ── 2. Окно ────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -115,7 +173,7 @@ internal static class Program
     /// нормалах — линия винрейта; в ARAM подсказка под последними играми не
     /// обещает LP.
     /// </summary>
-    private static void Window(SessionTracker.SessionData stored)
+    private static void Window(SessionTracker.SessionData stored, SessionTracker.SessionData old)
     {
         Console.WriteLine("\nокно:");
         AppSettings.Current.ChartMode = "rating";
@@ -178,6 +236,19 @@ internal static class Program
             Check("соло без ранга — ни карты, ни полосы LP",
                   box.Visibility == Visibility.Collapsed && lpBar.Visibility == Visibility.Collapsed, "");
 
+            // Игры старше окна графика (второй компьютер, давний перерыв): линия
+            // по последним играм, а не обещание «появится с пятой игры».
+            AppSettings.Current.ChartDays = 30;
+            Show(w, old, "normal");
+            Check("нормалы, игры полугодовой давности — линия винрейта, а не заглушка",
+                  Line(chart) == SessionTracker.MinGamesForChart, $"{Line(chart)} точек; {Texts(chart)}");
+            Check("нормалы, игры полугодовой давности — без подсказки «появится с пятой игры»",
+                  hint.Visibility == Visibility.Collapsed, hint.Text);
+            Show(w, old, "aram");
+            Check("ARAM, окно 30 дней и одна игра в нём — линия из пяти последних игр",
+                  Line(chart) == SessionTracker.MinGamesForChart, $"{Line(chart)} точек");
+            AppSettings.Current.ChartDays = 90;
+
             // Данных нет вовсе (только поставили программу): тот же силуэт эмблемы,
             // а не квадратная плашка — «без игр» и «без ранга» выглядели по-разному.
             w.ShowSession(null);
@@ -218,6 +289,10 @@ internal static class Program
             .Where(b => b?.Background is not null)
             .Select(b => b!.Background)
             .ToList();
+
+    /// Сколько точек в линии графика (0 — линии нет).
+    private static int Line(Canvas c) =>
+        c.Children.OfType<System.Windows.Shapes.Polyline>().Select(p => p.Points.Count).DefaultIfEmpty(0).Max();
 
     private static string Texts(Canvas c) =>
         string.Join(" | ", c.Children.OfType<TextBlock>().Select(t => t.Text));
