@@ -464,7 +464,7 @@
     "ctaTipGain": "Sur tes {0} champions les plus joués ces 30 derniers jours, tu gagnes {1} % des parties ({2}), sur les autres {3} % ({4}). Un pool garde les suggestions sur tes champions — clique pour en créer un.",
     "ctaTip": "Pas encore de pool. Crée un pool avec tes champions : les suggestions les afficheront à part et plus haut. Clique pour ouvrir les réglages des pools.",
     "ctaCreate": "Créer un pool",
-    "firstTipTitle": "Comment composer un pool",
+    "firstTipTitle": "ATTENTION, À LIRE ABSOLUMENT",
     "firstTipText": "Ajoute seulement les champions que tu joues le plus ces derniers temps et avec lesquels tu réussis le mieux : 3 à 5 par rôle.\n\nN'ajoute pas tout le monde : un pool avec tous les champions recommande la même chose que sans pool. En bas de cette fenêtre, ton winrate par champion : regarde le nombre de parties et le winrate.",
     "firstTipOk": "Compris",
     "new": "Nouveau",

@@ -178,7 +178,7 @@ internal static class Program
         // играешь чаще всего и лучше всего получается; всех не надо».
         var tipTexts = opened?.FirstTip is { } ft ? Texts(ft) : [];
         Check("первое открытие без пулов — предупреждение «как собрать пул» поверх окна",
-              opened?.FirstTip is { IsVisible: true } && tipTexts.Contains(Loc.T("pool.firstTipTitle"))
+              opened?.FirstTip is { IsVisible: true } && tipTexts.Contains("ВНИМАНИЕ, ОБЯЗАТЕЛЬНО ПРОЧТИ")
               && tipTexts.Contains(Loc.T("pool.firstTipText")) && Loc.T("pool.firstTipText").Contains("чаще всего")
               && Loc.T("pool.firstTipText").Contains("Не добавляй всех"),
               string.Join(" | ", tipTexts.Select(t => t.Length > 40 ? t[..40] + "…" : t)));

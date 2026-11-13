@@ -464,7 +464,7 @@
     "ctaTipGain": "Con tus {0} campeones más jugados en los últimos 30 días ganas el {1}% de las partidas ({2}); con el resto, el {3}% ({4}). Un pool mantiene las sugerencias en tus campeones: haz clic para crear uno.",
     "ctaTip": "Aún no tienes pools. Crea un pool con tus campeones y las sugerencias los mostrarán aparte y más arriba. Haz clic para abrir los ajustes de pools.",
     "ctaCreate": "Crear pool",
-    "firstTipTitle": "Cómo armar un pool",
+    "firstTipTitle": "ATENCIÓN, LÉELO SIN FALTA",
     "firstTipText": "Añade solo los campeones que más has jugado últimamente y con los que mejor te va: 3–5 por rol.\n\nNo añadas a todos: un pool con todos los campeones recomienda lo mismo que no tener pool. Abajo en esta ventana está tu winrate por campeón: fíjate en las partidas y el winrate.",
     "firstTipOk": "Entendido",
     "new": "Nuevo",

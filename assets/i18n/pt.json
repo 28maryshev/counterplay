@@ -464,7 +464,7 @@
     "ctaTipGain": "Com seus {0} campeões mais jogados nos últimos 30 dias você vence {1}% das partidas ({2}); com os demais, {3}% ({4}). Um pool mantém as sugestões nos seus campeões — clique para criar um.",
     "ctaTip": "Ainda não há pools. Monte um pool com seus campeões e as sugestões vão mostrá-los à parte e mais acima. Clique para abrir as configurações de pool.",
     "ctaCreate": "Criar pool",
-    "firstTipTitle": "Como montar um pool",
+    "firstTipTitle": "ATENÇÃO, LEIA ISTO",
     "firstTipText": "Adicione só os campeões que você mais jogou ultimamente e com quem vai melhor — 3 a 5 por rota.\n\nNão adicione todos: um pool com todos os campeões recomenda o mesmo que nenhum pool. Na parte de baixo desta janela está seu winrate por campeão — veja partidas e winrate.",
     "firstTipOk": "Entendi",
     "new": "Novo",
