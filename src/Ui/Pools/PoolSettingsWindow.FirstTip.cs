@@ -1,7 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
+using Orientation = System.Windows.Controls.Orientation;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 
@@ -35,11 +38,16 @@ public sealed partial class PoolSettingsWindow
         AppSettings.SaveQuiet();
 
         var body = new StackPanel();
-        body.Children.Add(new TextBlock
+        // Заголовок с синим знаком «важно» впереди — тем же, что у сообщения
+        // «Важно» на экране готовности (владелец: «такой»), из той же таблицы.
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        head.Children.Add(ImportantMark());
+        head.Children.Add(new TextBlock
         {
             Text = Loc.T("pool.firstTipTitle"), FontSize = 17, FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Gold), Margin = new Thickness(0, 0, 0, 12),
+            Foreground = new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Center,
         });
+        body.Children.Add(head);
         body.Children.Add(new TextBlock
         {
             Text = Loc.T("pool.firstTipText"), FontSize = 13.5, LineHeight = 20,
@@ -70,6 +78,30 @@ public sealed partial class PoolSettingsWindow
         veil.Children.Add(card);
         host.Children.Add(veil);
         FirstTip = veil;
+    }
+
+    /// Синий треугольник с «!» — знак «важно» плашки сообщений
+    /// (OverlayWindow.NoticeMarks), в коробке 21×19, как там.
+    private static FrameworkElement ImportantMark()
+    {
+        var (data, fill, stroke, glyph, top) = OverlayWindow.NoticeMarks["important"];
+        static Brush B(string hex) => new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
+        var mark = new Grid
+        {
+            Width = 21, Height = 19, Margin = new Thickness(0, 0, 9, 0), VerticalAlignment = VerticalAlignment.Center,
+        };
+        mark.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse(data), Fill = B(fill), Stroke = B(stroke),
+            StrokeThickness = 1.3, StrokeLineJoin = PenLineJoin.Round,
+        });
+        mark.Children.Add(new TextBlock
+        {
+            Text = glyph, Foreground = Brushes.White, FontSize = 11, FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, top, 0, 0),
+        });
+        return mark;
     }
 
     /// «Понятно» — убрать предупреждение.

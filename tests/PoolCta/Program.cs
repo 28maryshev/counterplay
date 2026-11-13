@@ -182,6 +182,13 @@ internal static class Program
               && tipTexts.Contains(Loc.T("pool.firstTipText")) && Loc.T("pool.firstTipText").Contains("чаще всего")
               && Loc.T("pool.firstTipText").Contains("Не добавляй всех"),
               string.Join(" | ", tipTexts.Select(t => t.Length > 40 ? t[..40] + "…" : t)));
+        // Владелец: «добавь восклицательный синий знак в начале заголовка» —
+        // такой же, как у «Важно» на экране готовности.
+        Check("перед заголовком — синий треугольник с «!», как у «Важно»",
+              opened?.FirstTip is { } tipMark && Find<System.Windows.Shapes.Path>(tipMark) is
+                  { Fill: SolidColorBrush { Color: var mc } } && mc == Color.FromRgb(0x3A, 0x7B, 0xD5)
+              && Texts(tipMark).FirstOrDefault() == "!",
+              "");
         Check("показ запомнен сразу", AppSettings.Current.PoolFirstTipShown, "");
         if (opened?.FirstTip is { } tipEl && Find<Button>(tipEl) is { } okBtn) Click(okBtn);
         Pump();

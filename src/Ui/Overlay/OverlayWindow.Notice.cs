@@ -269,8 +269,9 @@ public partial class OverlayWindow
     /// неполадки, — и векторами, а не символами шрифта: нужного знака в
     /// системном шрифте может не оказаться, и вместо метки игрок увидел бы
     /// пустой квадрат. «BETA» в списке нет намеренно: это не сообщение, а
-    /// состояние программы, и знаков ему не нужно.
-    private static readonly Dictionary<string,
+    /// состояние программы, и знаков ему не нужно. Синий «важно» берёт и
+    /// предупреждение в окне пулов (PoolSettingsWindow.FirstTip) — поэтому internal.
+    internal static readonly Dictionary<string,
         (string Data, string Fill, string Stroke, string Glyph, double GlyphTop)>
         NoticeMarks = new()
         {
