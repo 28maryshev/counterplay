@@ -394,7 +394,8 @@ public partial class OverlayWindow
     /// зелёной подсветкой по периметру, клик — настройки пулов (PoolPool_Click).
     /// Есть цифра (PoolGain: насколько чаще я выигрываю на своих самых
     /// игранных, по журналу) — заголовок раздела вместо «Пул чемпионов»
-    /// зелёный: «Создай пул: на своих чемпионах +N% WR» (владелец, вечер 13.11:
+    /// зелёный: «Создай пул: на своих чемпионах» и цифра «+N% WR» тегом, как на
+    /// карточках пика (LeaderTag, TagTemplate) (владелец, вечер 13.11:
     /// «в названии — создай пул и получи +8% WR или что-то подобное»; «получи»
     /// заменено на «на своих чемпионах» — цифра измерена, а не обещана). Нет
     /// цифры — заголовок обычный. В подсказке кнопки и заголовка — оба
@@ -407,6 +408,7 @@ public partial class OverlayWindow
         PoolPoolLabel.Visibility    = noPools ? Visibility.Collapsed : Visibility.Visible;
         PoolPoolCta.Visibility      = noPools ? Visibility.Visible : Visibility.Collapsed;
         PoolTitleCta.Visibility     = gain is not null ? Visibility.Visible : Visibility.Collapsed;
+        PoolTitleTag.Visibility     = PoolTitleCta.Visibility;
         PoolSectionTitle.Visibility = gain is not null ? Visibility.Collapsed : Visibility.Visible;
         if (!noPools)
         {
@@ -422,8 +424,14 @@ public partial class OverlayWindow
             ? Loc.T("pool.ctaTipGain", t.Top, $"{t.TopWr:F0}", t.TopGames, $"{t.RestWr:F0}", t.RestGames)
             : Loc.T("pool.ctaTip");
         PoolPoolBtn.ToolTip  = tip;
-        PoolTitleCta.Text    = gain is { } g ? Loc.T("pool.ctaTitle", g.Gain) : "";
+        // Цифра — тегом, как на карточках пика (владелец, 13.11: «+8% WR пусть
+        // будет в виде тега, как у нас в центральной части»); значок — тот же
+        // «растущий график», что у тега силы в патче.
+        PoolTitleCta.Text    = gain is not null ? Loc.T("pool.ctaTitle") : "";
         PoolTitleCta.ToolTip = gain is not null ? tip : null;
+        PoolTitleTag.Content = gain is { } g
+            ? LeaderTag("poolGain", "patchStrong", +1, Loc.T("pool.ctaGain", g.Gain), tip, g.Gain)
+            : null;
         PoolPoolBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
         PoolPoolBtn.Background  = new SolidColorBrush(Color.FromArgb(0x16, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
         PoolPoolBtn.Effect = new DropShadowEffect

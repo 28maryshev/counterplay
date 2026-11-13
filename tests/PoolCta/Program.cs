@@ -11,6 +11,7 @@ using Counterplay;
 using Brush = System.Windows.Media.Brush;
 using Button = System.Windows.Controls.Button;
 using Color = System.Windows.Media.Color;
+using Size = System.Windows.Size;
 using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
 
 namespace Counterplay.Tests;
@@ -42,7 +43,7 @@ internal static class Program
 {
     private static int _fails;
 
-    private static readonly string[] NewKeys = ["pool.ctaTitle", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate"];
+    private static readonly string[] NewKeys = ["pool.ctaTitle", "pool.ctaGain", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate"];
 
     [STAThread]
     private static int Main()
@@ -135,15 +136,29 @@ internal static class Program
         var cta   = (TextBlock)w.FindName("PoolPoolCta");
         var title = (TextBlock)w.FindName("PoolSectionTitle");
         var call  = (TextBlock)w.FindName("PoolTitleCta");
+        var tag   = (ContentControl)w.FindName("PoolTitleTag");
         var row   = (FrameworkElement)w.FindName("PoolButtonsRow");
         Check("кнопки пула на экране (игры с драфтом есть)", row.Visibility == Visibility.Visible, "");
         Check("пулов нет — выбран «Обычный»", PoolStore.Current().ActiveKind == PoolKind.Normal, $"{PoolStore.Current().ActiveKind}");
         // Владелец, вечер 13.11: «в названии — создай пул и получи +8% WR, а
         // кнопку — “Создать пул”, тоже зелёную».
-        Check("заголовок раздела — зелёный призыв с цифрой вместо «Пул чемпионов»",
+        Check("заголовок раздела — зелёный призыв вместо «Пул чемпионов»",
               title.Visibility == Visibility.Collapsed && call.Visibility == Visibility.Visible
-              && call.Text == Loc.T("pool.ctaTitle", 15) && call.Text == "Создай пул: на своих чемпионах +15% WR"
-              && IsGreen(call.Foreground), $"«{call.Text}»");
+              && call.Text == "Создай пул из мейнов" && IsGreen(call.Foreground), $"«{call.Text}»");
+        // Следом: «+8% WR пусть будет в виде тега, как у нас в центральной
+        // части» — тот же шаблон и те же кисти, что у сильнейшего тега карточки.
+        Check("цифра — тегом, как на карточках пика: «+15% WR», зелёный, со значком и свечением",
+              tag.Visibility == Visibility.Visible && tag.Content is TagVm { Text: "+15% WR", Sign: 1, Glyph: not null, Glow: not null } tv
+              && IsGreen(tv.Fg) && tag.ContentTemplate == w.FindResource("TagTemplate"),
+              tag.Content is TagVm t0 ? $"«{t0.Text}»" : "тега нет");
+        // Заголовок с тегом помещается в строку панели, текст не обрезан.
+        var natural = new TextBlock { Text = call.Text, FontFamily = call.FontFamily, FontSize = call.FontSize, FontWeight = call.FontWeight };
+        natural.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var titleRow = (FrameworkElement)w.FindName("PoolTitleRow");
+        var panel = (FrameworkElement)titleRow.Parent;
+        Check("заголовок с тегом влезает в строку, текст целиком",
+              natural.DesiredSize.Width <= call.ActualWidth + 0.5 && titleRow.ActualWidth <= panel.ActualWidth,
+              $"текст {natural.DesiredSize.Width:F0} из {call.ActualWidth:F0}, строка {titleRow.ActualWidth:F0} из {panel.ActualWidth:F0} px");
         Check("кнопка — зелёное «Создать пул» вместо «Пул»",
               label.Visibility == Visibility.Collapsed && cta.Visibility == Visibility.Visible
               && cta.Text == "Создать пул" && IsGreen(cta.Foreground), $"«{cta.Text}»");
@@ -165,7 +180,7 @@ internal static class Program
         w.RefreshPoolMode();
         Pump();
         Check("игр мало — заголовок обычный, кнопка «Создать пул», подсказка без цифры",
-              title.Visibility == Visibility.Visible && call.Visibility == Visibility.Collapsed
+              title.Visibility == Visibility.Visible && call.Visibility == Visibility.Collapsed && tag.Visibility == Visibility.Collapsed
               && cta.Visibility == Visibility.Visible && cta.Text == "Создать пул"
               && (btn.ToolTip as string) == Loc.T("pool.ctaTip"),
               $"заголовок {title.Visibility}, призыв {call.Visibility}, «{cta.Text}» / {btn.ToolTip}");
@@ -190,7 +205,7 @@ internal static class Program
         Pump();
         Check("пул есть — снова «Пул» и «Пул чемпионов», без призыва и подсветки",
               label.Visibility == Visibility.Visible && cta.Visibility == Visibility.Collapsed
-              && title.Visibility == Visibility.Visible && call.Visibility == Visibility.Collapsed
+              && title.Visibility == Visibility.Visible && call.Visibility == Visibility.Collapsed && tag.Visibility == Visibility.Collapsed
               && btn.Effect is null && btn.ToolTip is null, $"эффект {btn.Effect?.GetType().Name ?? "нет"}");
         // «Создать пул» в узкой кнопке может лечь в две строки — ряд кнопок
         // (UniformGrid) от этого не растёт.

@@ -86,6 +86,17 @@ public partial class OverlayWindow
 
     private static byte Lerp(byte a, byte b, double t) => (byte)Math.Round(a + (b - a) * t);
 
+    /// Тег вне карточки — в полную силу своего цвета, как сильнейший тег на
+    /// карточках (те же кисти и свечение, шаблон TagTemplate один). Сейчас —
+    /// цифра «+N% WR» в заголовке раздела пулов (ApplyPoolCta).
+    private static TagVm LeaderTag(string kind, string glyph, int sign, string text, string tip, double value)
+    {
+        var c = sign >= 0 ? PlusColor : MinusColor;
+        return new TagVm(kind, sign, Glyphs.Of(glyph), text, tip,
+            Frozen(c, TAG_FG_MAX), Frozen(c, TAG_BG_MAX), Frozen(c, TAG_LINE_MAX), value, 1.0,
+            sign >= 0 ? PlusGlow : MinusGlow);
+    }
+
     /// <summary>
     /// Иконки карточки: от движка (уже по порядку: плюсы, связки, минусы) и
     /// окна — чего движок не знает: чемпиона нет на аккаунте, враги собирают

@@ -482,11 +482,16 @@
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#8AA0B2" VerticalAlignment="Center"/>
               <!-- Личных пулов нет и цифра есть — вместо заголовка зелёный призыв
-                   «Создай пул: на своих чемпионах +N% WR» (ApplyPoolCta). -->
+                   «Создай пул: на своих чемпионах» и цифра тегом, как теги на
+                   карточках пика (TagTemplate; ApplyPoolCta). Нижний отступ у
+                   плашки тега — 5, верхний здесь 5: по центру строки. -->
               <TextBlock x:Name="PoolTitleCta" Visibility="Collapsed"
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#57C98A" VerticalAlignment="Center"
-                         MaxWidth="300" TextTrimming="CharacterEllipsis"/>
+                         MaxWidth="175" TextTrimming="CharacterEllipsis"/>
+              <ContentControl x:Name="PoolTitleTag" Visibility="Collapsed" Focusable="False"
+                              ContentTemplate="{StaticResource TagTemplate}"
+                              Margin="6,5,0,0" VerticalAlignment="Center"/>
               <TextBlock x:Name="PoolActiveName" Visibility="Collapsed"
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#C89B3C" VerticalAlignment="Center" Margin="6,0,0,0"
