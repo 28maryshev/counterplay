@@ -227,7 +227,16 @@ if [ -z "$S" ]; then
 fi
 
 if [ -z "$S" ]; then
-  bad "не отвечает по ssh (ни напрямую, ни через коллектор)"
+  # Причину называем: на новой машине «не отвечает» на деле значит «нет
+  # отпечатка» или «нет ключа» — сервер жив, чинится на этой стороне.
+  why=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "${SITE_JUMP[@]}" "$SITE" true 2>&1)
+  case "$why" in
+    *"Host key verification failed"*)
+      bad "ssh не пускает: на этой машине нет отпечатка сервера сайта — один раз ssh $SITE и ответить yes (CHECKLIST: «Новая машина разработки»)" ;;
+    *"Permission denied"*|*"no such identity"*|*"No such file"*)
+      bad "ssh не пускает: нет ключа сервера сайта или он не тот — bash ops/brain-sync.sh secrets-import" ;;
+    *) bad "не отвечает по ssh (ни напрямую, ни через коллектор)" ;;
+  esac
 else
   ok "доступен по ssh"
   [ "$(val "$S" web)" = running ] && ok "контейнер сайта работает" || bad "сайт не запущен: $(val "$S" web)"
