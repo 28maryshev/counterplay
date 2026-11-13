@@ -442,7 +442,10 @@ ask_pass() {  # $1 — подсказка; пароль в переменную 
 
 cmd_secrets_export() {
   local tmp p n=0 PASS p2
-  tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+  # Путь подставляется сразу: ловушка EXIT срабатывает после возврата из
+  # функции, local tmp к тому времени уже нет — с '$tmp' папка с ключами
+  # оставалась во временной (tests/ShellTraps).
+  tmp=$(mktemp -d); trap "rm -rf '$tmp'" EXIT
   mkdir -p "$tmp/home" "$tmp/counterplay" "$tmp/site"
   put() {  # $1 — откуда, $2 — куда в архиве
     [ -f "$1" ] || { echo "  нет $1 — пропускаю"; return 0; }
@@ -473,7 +476,7 @@ cmd_secrets_export() {
 
 cmd_secrets_import() {
   local tmp PASS f rel dst old newhome have
-  tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+  tmp=$(mktemp -d); trap "rm -rf '$tmp'" EXIT   # путь сразу — см. secrets-export
   rsh "test -f ~/$R_SECRETS" || die "на сервере нет архива ключей: сначала secrets-export там, где ключи есть"
   ask_pass "Пароль архива ключей: "
   rsh "cat ~/$R_SECRETS" |
