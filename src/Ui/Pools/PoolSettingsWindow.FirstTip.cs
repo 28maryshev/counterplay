@@ -38,15 +38,22 @@ public sealed partial class PoolSettingsWindow
         AppSettings.SaveQuiet();
 
         var body = new StackPanel();
-        // Заголовок с синим знаком «важно» впереди — тем же, что у сообщения
-        // «Важно» на экране готовности (владелец: «такой»), из той же таблицы.
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
-        head.Children.Add(ImportantMark());
+        // Заголовок по центру, синий знак «важно» с двух сторон — как у
+        // сообщения «Важно» на экране готовности (владелец: «такой», «с двух
+        // сторон, заголовок по центру»), из той же таблицы знаков.
+        var head = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+        head.Children.Add(ImportantMark(new Thickness(0, 0, 9, 0)));
         head.Children.Add(new TextBlock
         {
             Text = Loc.T("pool.firstTipTitle"), FontSize = 17, FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Gold), VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxWidth = 340,
         });
+        head.Children.Add(ImportantMark(new Thickness(9, 0, 0, 0)));
         body.Children.Add(head);
         body.Children.Add(new TextBlock
         {
@@ -82,13 +89,13 @@ public sealed partial class PoolSettingsWindow
 
     /// Синий треугольник с «!» — знак «важно» плашки сообщений
     /// (OverlayWindow.NoticeMarks), в коробке 21×19, как там.
-    private static FrameworkElement ImportantMark()
+    private static FrameworkElement ImportantMark(Thickness margin)
     {
         var (data, fill, stroke, glyph, top) = OverlayWindow.NoticeMarks["important"];
         static Brush B(string hex) => new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
         var mark = new Grid
         {
-            Width = 21, Height = 19, Margin = new Thickness(0, 0, 9, 0), VerticalAlignment = VerticalAlignment.Center,
+            Width = 21, Height = 19, Margin = margin, VerticalAlignment = VerticalAlignment.Center,
         };
         mark.Children.Add(new System.Windows.Shapes.Path
         {

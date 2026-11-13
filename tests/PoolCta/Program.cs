@@ -13,6 +13,7 @@ using Button = System.Windows.Controls.Button;
 using Color = System.Windows.Media.Color;
 using Size = System.Windows.Size;
 using ButtonBase = System.Windows.Controls.Primitives.ButtonBase;
+using HorizontalAlignment = System.Windows.HorizontalAlignment;
 
 namespace Counterplay.Tests;
 
@@ -184,11 +185,15 @@ internal static class Program
               string.Join(" | ", tipTexts.Select(t => t.Length > 40 ? t[..40] + "…" : t)));
         // Владелец: «добавь восклицательный синий знак в начале заголовка» —
         // такой же, как у «Важно» на экране готовности.
-        Check("перед заголовком — синий треугольник с «!», как у «Важно»",
-              opened?.FirstTip is { } tipMark && Find<System.Windows.Shapes.Path>(tipMark) is
-                  { Fill: SolidColorBrush { Color: var mc } } && mc == Color.FromRgb(0x3A, 0x7B, 0xD5)
-              && Texts(tipMark).FirstOrDefault() == "!",
-              "");
+        // Следом: «с двух сторон, заголовок по центру».
+        var marks = opened?.FirstTip is { } tipMark ? All<System.Windows.Shapes.Path>(tipMark) : [];
+        var head = marks.FirstOrDefault() is { } m0 ? VisualTreeHelper.GetParent(VisualTreeHelper.GetParent(m0)) as StackPanel : null;
+        Check("заголовок по центру, синий треугольник с «!» с двух сторон, как у «Важно»",
+              marks.Count == 2 && marks.All(p => p.Fill is SolidColorBrush { Color: var mc } && mc == Color.FromRgb(0x3A, 0x7B, 0xD5))
+              && head is { HorizontalAlignment: HorizontalAlignment.Center } && head.Children.Count == 3
+              && head.Children[1] is TextBlock { Text: "ВНИМАНИЕ, ОБЯЗАТЕЛЬНО ПРОЧТИ" }
+              && head.Children[0] is Grid && head.Children[2] is Grid,
+              $"знаков {marks.Count}, заголовок {head?.HorizontalAlignment}");
         Check("показ запомнен сразу", AppSettings.Current.PoolFirstTipShown, "");
         if (opened?.FirstTip is { } tipEl && Find<Button>(tipEl) is { } okBtn) Click(okBtn);
         Pump();
@@ -283,6 +288,18 @@ internal static class Program
         void Walk(DependencyObject x)
         {
             if (x is TextBlock { Text.Length: > 0 } tb) res.Add(tb.Text);
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(x); i++) Walk(VisualTreeHelper.GetChild(x, i));
+        }
+        Walk(d);
+        return res;
+    }
+
+    private static List<T> All<T>(DependencyObject d) where T : DependencyObject
+    {
+        var res = new List<T>();
+        void Walk(DependencyObject x)
+        {
+            if (x is T t) res.Add(t);
             for (var i = 0; i < VisualTreeHelper.GetChildrenCount(x); i++) Walk(VisualTreeHelper.GetChild(x, i));
         }
         Walk(d);
