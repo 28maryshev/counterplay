@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
+using System.Windows.Media;
 using Counterplay;
+using Color = System.Windows.Media.Color;
 using Microsoft.Data.Sqlite;
 
 namespace Counterplay.Tests;
@@ -20,7 +22,8 @@ namespace Counterplay.Tests;
 /// - подмена: с данными ChampionTraits.EarlyPower берёт их, без — метки;
 /// - движок на настоящей базе без таблицы — силы по времени нет, подбор цел;
 /// - движок на копии базы с подложенной duration_wr — Tempo и TeamTempo есть,
-///   строка «по времени» в полосе состава собирается, ранняя сила подменена.
+///   плашки «винрейт по длине игры» в полосе состава собираются (отрезок,
+///   знак, «%», цвет по знаку), ранняя сила подменена.
 /// Копия базы — во временной папке; данные игрока не трогает.
 /// </summary>
 internal static class Program
@@ -96,30 +99,30 @@ internal static class Program
         var db = RecommendationEngine.FindDb();
         if (db is null) { Console.WriteLine("  базы нет — дальше нечем"); return; }
 
+        // Копия базы без таблицы. С 13.11 настоящая база приходит уже с
+        // duration_wr, поэтому «без таблицы» — только на копии с убранной.
+        var bare = Path.Combine(root, "bare.db");
+        File.Copy(db, bare);
+        Exec(bare, "DROP TABLE IF EXISTS duration_wr");
         ChampionTraits.EarlyPowerData = null;
-        using (var plain = RecommendationEngine.Create(db, "emerald"))
+        using (var plain = RecommendationEngine.Create(bare, "emerald"))
         {
             Check("база без duration_wr — силы по времени нет", plain.Tempo(222) is null && ChampionTraits.EarlyPowerData is null,
                   plain.Tempo(222) is null ? "нет" : "есть");
         }
+        SqliteConnection.ClearAllPools();
 
         // Копия базы с подложенной таблицей: Джинкс поздняя, Дрейвен ранний.
         var copy = Path.Combine(root, "data.db");
-        File.Copy(db, copy);
-        using (var con = new SqliteConnection($"Data Source={copy}"))
-        {
-            con.Open();
-            using var cmd = con.CreateCommand();
-            cmd.CommandText = @"
-                CREATE TABLE duration_wr (champion_id INTEGER, role TEXT, tier_bucket TEXT, patch TEXT, bucket INTEGER,
-                                          games INTEGER, wins INTEGER, PRIMARY KEY (champion_id, role, tier_bucket, patch, bucket));
-                INSERT INTO duration_wr SELECT c, 'adc', 'emerald', p.patch, b, 2000,
-                    CASE WHEN c = 222 THEN (CASE b WHEN 0 THEN 800 WHEN 1 THEN 1000 ELSE 1200 END)
-                         ELSE              (CASE b WHEN 0 THEN 1200 WHEN 1 THEN 1000 ELSE 800 END) END
-                FROM (SELECT 222 AS c UNION SELECT 119) JOIN (SELECT DISTINCT patch FROM base_wr) p
-                JOIN (SELECT 0 AS b UNION SELECT 1 UNION SELECT 2);";
-            cmd.ExecuteNonQuery();
-        }
+        File.Copy(bare, copy);
+        Exec(copy, @"
+            CREATE TABLE duration_wr (champion_id INTEGER, role TEXT, tier_bucket TEXT, patch TEXT, bucket INTEGER,
+                                      games INTEGER, wins INTEGER, PRIMARY KEY (champion_id, role, tier_bucket, patch, bucket));
+            INSERT INTO duration_wr SELECT c, 'adc', 'emerald', p.patch, b, 2000,
+                CASE WHEN c = 222 THEN (CASE b WHEN 0 THEN 800 WHEN 1 THEN 1000 ELSE 1200 END)
+                     ELSE              (CASE b WHEN 0 THEN 1200 WHEN 1 THEN 1000 ELSE 800 END) END
+            FROM (SELECT 222 AS c UNION SELECT 119) JOIN (SELECT DISTINCT patch FROM base_wr) p
+            JOIN (SELECT 0 AS b UNION SELECT 1 UNION SELECT 2);");
         SqliteConnection.ClearAllPools();
         using var engine = RecommendationEngine.Create(copy, "emerald");
         var jinx = engine.Tempo(222);
@@ -130,12 +133,29 @@ internal static class Program
         Check("ранняя сила подменена данными: Дрейвен 3, Джинкс 0",
               ChampionTraits.EarlyPower(119) == 3 && ChampionTraits.EarlyPower(222) == 0,
               $"Дрейвен {ChampionTraits.EarlyPower(119)}, Джинкс {ChampionTraits.EarlyPower(222)}");
-        // Данные только у Джинкс: строка команды — её сила, поздно с плюсом.
-        var line = OverlayWindow.TempoLine(engine, [222, 64, 89]);
-        Check("строка «по времени» для команды: поздняя Джинкс — плюс после 35",
-              line.StartsWith("По времени:") && line.Contains("после 35 +9,0") && line.Contains("до 25 мин −9,0"), line);
-        Check("двое — строки нет", OverlayWindow.TempoLine(engine, [222, 119]) == "", "пусто");
+        // Данные только у Джинкс: плашки команды — её сила, поздно с плюсом.
+        // Владелец, 13.11: цифры подписаны отрезком и «%», знак виден цветом —
+        // зелёная с плюсом, красная с минусом.
+        var chips = OverlayWindow.TempoChips(engine, [222, 64, 89]);
+        string Show(TempoChipVm c) => $"{c.Label} {c.Value}";
+        static Color Of(TempoChipVm c) => ((SolidColorBrush)c.Fg).Color;
+        Check("плашки «винрейт по длине игры»: до 25 мин −9,0% красная, после 35 мин +9,0% зелёная",
+              chips.Count == 3
+              && Show(chips[0]) == "до 25 мин −9,0%" && Show(chips[2]) == "после 35 мин +9,0%"
+              && Of(chips[0]).R > Of(chips[0]).G && Of(chips[2]).G > Of(chips[2]).R,
+              string.Join(" | ", chips.Select(c => $"{Show(c)} {Of(c)}")));
+        Check("подпись над плашками называет винрейт", Loc.T("comp.tempoHeader").Contains("Винрейт"), Loc.T("comp.tempoHeader"));
+        Check("двое — плашек нет", OverlayWindow.TempoChips(engine, [222, 119]).Count == 0, "пусто");
         SqliteConnection.ClearAllPools();
+    }
+
+    private static void Exec(string db, string sql)
+    {
+        using var con = new SqliteConnection($"Data Source={db}");
+        con.Open();
+        using var cmd = con.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
     }
 
     private static string Fmt((double Early, double Mid, double Late)? t) =>

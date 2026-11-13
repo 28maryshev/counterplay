@@ -420,4 +420,19 @@
       </StackPanel>
     </Border>
   </DataTemplate>
+  <!-- Винрейт команды по длине игры (TempoChipVm): отрезок и насколько команда
+       на нём выигрывает чаще или реже обычного. Плюс — зелёная, минус —
+       красная, около нуля — серая. Что это за цифра — в подсказке. -->
+  <DataTemplate x:Key="TempoChipTemplate">
+    <Border CornerRadius="9" BorderThickness="1" Padding="7,1,7,1" Margin="0,0,4,4"
+            BorderBrush="{Binding Border}" Background="Transparent"
+            ToolTipService.InitialShowDelay="250">
+      <Border.ToolTip>
+        <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" MaxWidth="280"/>
+      </Border.ToolTip>
+      <TextBlock FontFamily="{StaticResource UiFont}" FontSize="10.5" Foreground="{Binding Fg}"
+                 VerticalAlignment="Center"><Run Text="{Binding Label, Mode=OneWay}"/><Run Text=" "/><Run
+                 Text="{Binding Value, Mode=OneWay}" FontWeight="Bold"/></TextBlock>
+    </Border>
+  </DataTemplate>
 </ResourceDictionary>

@@ -31,24 +31,47 @@ public partial class OverlayWindow
         EnemyComp.ItemsSource = theirs;
         MyCompHeader.Visibility = mine.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         EnemyCompHeader.Visibility = theirs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        var plan = string.Join("\n", new[] { PlanText(allyIds), TempoLine(_engine, allyIds) }.Where(x => x.Length > 0));
+        var myTempo = TempoChips(_engine, allyIds);
+        MyTempo.ItemsSource = myTempo;
+        MyTempoPanel.Visibility = myTempo.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var foeTempo = TempoChips(_engine, enemyIds);
+        EnemyTempo.ItemsSource = foeTempo;
+        EnemyTempoPanel.Visibility = foeTempo.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var plan = PlanText(allyIds);
         MyPlan.Text = plan;
         MyPlan.Visibility = plan.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        var foes = string.Join("\n", new[] { PlanText(enemyIds, enemy: true), TempoLine(_engine, enemyIds) }.Where(x => x.Length > 0));
+        var foes = PlanText(enemyIds, enemy: true);
         EnemyPlan.Text = foes;
         EnemyPlan.Visibility = foes.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    // Сумма по отрезку ближе к нулю, чем на столько пп, — серая плашка: это
+    // шум, а не сила или слабость.
+    private const double TEMPO_NEUTRAL = 0.5;
+
     /// <summary>
-    /// «По времени: до 25 мин +1,2 · 25–35 +0,3 · после 35 −0,8» — сумма силы
+    /// Три плашки «винрейт по длине игры» под подписью comp.tempoHeader:
+    /// «до 25 мин −1,0%», «25–35 мин +0,6%», «после 35 мин −0,8%» — сумма силы
     /// команды по отрезкам длительности (RecommendationEngine.TeamTempo, из
-    /// duration_wr). С трёх выбранных; данных нет — пусто.
+    /// duration_wr), зелёные с плюсом, красные с минусом. С трёх выбранных;
+    /// данных нет — пусто.
+    /// Владелец, 13.11: строка «По времени: до 25 мин −1,0 · 25–35 +0,6 · после
+    /// 35 −0,8» читалась как шифр — не видно, что это винрейт и какая цифра к
+    /// какому отрезку.
     /// </summary>
-    public static string TempoLine(RecommendationEngine? engine, IReadOnlyList<int> team)
+    public static List<TempoChipVm> TempoChips(RecommendationEngine? engine, IReadOnlyList<int> team)
     {
-        if (engine is null || team.Count < 3 || engine.TeamTempo(team) is not { } t) return "";
-        static string N(double v) => (v >= 0 ? "+" : "−") + Math.Abs(v).ToString("F1");
-        return Loc.T("comp.tempo", N(t.Early), N(t.Mid), N(t.Late));
+        if (engine is null || team.Count < 3 || engine.TeamTempo(team) is not { } t) return [];
+        var tip = Loc.T("comp.tempoTip");
+        TempoChipVm Chip(string key, double v)
+        {
+            var (fg, line) = v >= TEMPO_NEUTRAL ? (Frozen(PlusColor, 0xFF), Frozen(PlusColor, 0x60))
+                           : v <= -TEMPO_NEUTRAL ? (Frozen(MinusColor, 0xFF), Frozen(MinusColor, 0x70))
+                           : (CompPendingFg, CompPendingLine);
+            var value = (v >= 0 ? "+" : "−") + Math.Abs(v).ToString("F1") + "%";
+            return new TempoChipVm(Loc.T(key), value, tip, fg, line);
+        }
+        return [Chip("comp.tempoEarly", t.Early), Chip("comp.tempoMid", t.Mid), Chip("comp.tempoLate", t.Late)];
     }
 
     /// <summary>

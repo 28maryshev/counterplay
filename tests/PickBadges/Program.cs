@@ -161,7 +161,8 @@ internal static class Program
             "comp.header", "comp.enemyHeader", "comp.has", "comp.few", "comp.none", "comp.planLine",
             "comp.planF2b", "comp.planDive", "comp.planPoke", "comp.planEarly", "comp.planLate",
             "comp.enemyPlanLine", "comp.enemyPlanF2b", "comp.enemyPlanDive", "comp.enemyPlanPoke",
-            "comp.enemyPlanEarly", "comp.enemyPlanLate", "comp.tempo",
+            "comp.enemyPlanEarly", "comp.enemyPlanLate", "comp.tempoHeader", "comp.tempoEarly",
+            "comp.tempoMid", "comp.tempoLate", "comp.tempoTip",
         ];
         // Все 15 языков: строка есть (без неё язык молча берёт английскую) и
         // плейсхолдеры те же, что в английской, — иначе подстановка уронит
