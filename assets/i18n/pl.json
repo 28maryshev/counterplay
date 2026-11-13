@@ -462,6 +462,7 @@
     "ctaGain": "+{0}% WR",
     "ctaTipGain": "Na swoich {0} najczęściej granych bohaterach z ostatnich 30 dni wygrywasz {1}% gier ({2}), na pozostałych {3}% ({4}). Pula trzyma podpowiedzi przy twoich bohaterach — kliknij, aby ją utworzyć.",
     "ctaTip": "Nie masz jeszcze puli. Ułóż pulę ze swoich bohaterów — podpowiedzi pokażą ich osobno i wyżej. Kliknij, aby otworzyć ustawienia puli.",
+    "ctaCreate": "utwórz pulę",
     "new": "Nowy",
     "rename": "Zmień nazwę",
     "delete": "Usuń",

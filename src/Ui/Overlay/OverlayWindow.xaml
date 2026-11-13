@@ -514,12 +514,18 @@
                           Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
                   <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
                   <!-- Пулов ещё нет — вместо «Пул» зелёный тег («+N% WR» по журналу
-                       игрока или «+ Пул»), зелёная подсветка по периметру, клик
-                       открывает настройки пулов (UpdatePoolButtons, PoolGain). -->
+                       игрока или «Пул») и под ним мелко «создать пул», зелёная
+                       подсветка по периметру, клик открывает настройки пулов
+                       (ApplyPoolCta, PoolGain). -->
                   <Button x:Name="PoolPoolBtn" Click="PoolPool_Click">
                     <Grid>
                       <TextBlock x:Name="PoolPoolLabel" Text="{loc:T pool.pool}"/>
-                      <TextBlock x:Name="PoolPoolCta" Visibility="Collapsed" Foreground="#57C98A"/>
+                      <StackPanel x:Name="PoolPoolCtaBox" Visibility="Collapsed">
+                        <TextBlock x:Name="PoolPoolCta" Foreground="#57C98A" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{loc:T pool.ctaCreate}" FontSize="9.5" FontWeight="Normal"
+                                   Foreground="#8FD4AE" HorizontalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
                     </Grid>
                   </Button>
                   <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>

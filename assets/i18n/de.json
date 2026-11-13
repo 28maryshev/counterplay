@@ -462,6 +462,7 @@
     "ctaGain": "+{0}% WR",
     "ctaTipGain": "Auf deinen {0} meistgespielten Champions der letzten 30 Tage gewinnst du {1}% der Spiele ({2}), auf den übrigen {3}% ({4}). Ein Pool hält die Auswahl bei deinen Champions – klicke, um einen anzulegen.",
     "ctaTip": "Noch keine Pools. Stell einen Pool aus deinen Champions zusammen – die Auswahl zeigt sie separat und stuft sie höher ein. Klicke, um die Pool-Einstellungen zu öffnen.",
+    "ctaCreate": "Pool erstellen",
     "new": "Neu",
     "rename": "Umbenennen",
     "delete": "Löschen",

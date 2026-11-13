@@ -462,6 +462,7 @@
     "ctaGain": "+{0}% WR",
     "ctaTipGain": "Con tus {0} campeones más jugados en los últimos 30 días ganas el {1}% de las partidas ({2}); con el resto, el {3}% ({4}). Un pool mantiene las sugerencias en tus campeones: haz clic para crear uno.",
     "ctaTip": "Aún no tienes pools. Crea un pool con tus campeones y las sugerencias los mostrarán aparte y más arriba. Haz clic para abrir los ajustes de pools.",
+    "ctaCreate": "crear pool",
     "new": "Nuevo",
     "rename": "Renombrar",
     "delete": "Eliminar",

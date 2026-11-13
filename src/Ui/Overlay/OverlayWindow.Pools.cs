@@ -392,7 +392,8 @@ public partial class OverlayWindow
     /// Личных пулов нет — кнопка «Пул» зовёт собрать первый (владелец, 13.11:
     /// «повысим интерес добавить пул»): вместо «Пул» зелёный тег — «+N% WR»,
     /// насколько чаще я выигрываю на своих самых игранных (PoolGain, по
-    /// журналу), или «+ Пул», если цифры нет; по периметру мягкая зелёная
+    /// журналу), или просто «Пул», если цифры нет; под ним мелко «создать
+    /// пул» (pool.ctaCreate, по просьбе владельца); по периметру мягкая зелёная
     /// подсветка; в подсказке — откуда цифра и что будет по клику (настройки
     /// пулов, PoolPool_Click). Дуо-пулы не в счёт: кнопка «Пул» — про личные.
     /// Пул появился — обычная кнопка (её вид ставит Set выше).
@@ -400,15 +401,19 @@ public partial class OverlayWindow
     private void ApplyPoolCta(bool noPools)
     {
         PoolPoolLabel.Visibility = noPools ? Visibility.Collapsed : Visibility.Visible;
-        PoolPoolCta.Visibility   = noPools ? Visibility.Visible : Visibility.Collapsed;
+        PoolPoolCtaBox.Visibility = noPools ? Visibility.Visible : Visibility.Collapsed;
         if (!noPools)
         {
             PoolPoolBtn.Effect  = null;
             PoolPoolBtn.ToolTip = null;
+            PoolPoolBtn.ClearValue(PaddingProperty);   // отступ — снова из стиля ряда
             return;
         }
+        // Две строки (тег и «создать пул») — в ту же высоту, что у соседей:
+        // ряд кнопок — UniformGrid, и выросла бы вся строка.
+        PoolPoolBtn.Padding = new Thickness(2, 1, 2, 1);
         var gain = PoolGain.ForMe();
-        PoolPoolCta.Text = gain is { } g ? Loc.T("pool.ctaGain", g.Gain) : "+ " + Loc.T("pool.pool");
+        PoolPoolCta.Text = gain is { } g ? Loc.T("pool.ctaGain", g.Gain) : Loc.T("pool.pool");
         PoolPoolBtn.ToolTip = gain is { } t
             ? Loc.T("pool.ctaTipGain", t.Top, $"{t.TopWr:F0}", t.TopGames, $"{t.RestWr:F0}", t.RestGames)
             : Loc.T("pool.ctaTip");

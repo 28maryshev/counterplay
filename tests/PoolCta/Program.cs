@@ -41,7 +41,7 @@ internal static class Program
 {
     private static int _fails;
 
-    private static readonly string[] NewKeys = ["pool.ctaGain", "pool.ctaTipGain", "pool.ctaTip"];
+    private static readonly string[] NewKeys = ["pool.ctaGain", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate"];
 
     [STAThread]
     private static int Main()
@@ -132,13 +132,17 @@ internal static class Program
         var btn   = (Button)w.FindName("PoolPoolBtn");
         var label = (TextBlock)w.FindName("PoolPoolLabel");
         var cta   = (TextBlock)w.FindName("PoolPoolCta");
+        var box   = (StackPanel)w.FindName("PoolPoolCtaBox");
         var row   = (FrameworkElement)w.FindName("PoolButtonsRow");
+        string Caption() => box.Children.OfType<TextBlock>().LastOrDefault()?.Text ?? "";
         Check("кнопки пула на экране (игры с драфтом есть)", row.Visibility == Visibility.Visible, "");
         Check("пулов нет — выбран «Обычный»", PoolStore.Current().ActiveKind == PoolKind.Normal, $"{PoolStore.Current().ActiveKind}");
-        Check("вместо «Пул» — зелёный тег «+15% WR»",
-              label.Visibility == Visibility.Collapsed && cta.Visibility == Visibility.Visible
-              && cta.Text == Loc.T("pool.ctaGain", 15) && IsGreen(cta.Foreground),
-              $"«{cta.Text}»");
+        Check("вместо «Пул» — зелёный тег «+15% WR», под ним мелко «создать пул»",
+              label.Visibility == Visibility.Collapsed && box.Visibility == Visibility.Visible
+              && cta.Text == Loc.T("pool.ctaGain", 15) && IsGreen(cta.Foreground)
+              && Caption() == Loc.T("pool.ctaCreate") && Caption() == "создать пул",
+              $"«{cta.Text}» / «{Caption()}»");
+        var ctaRowHeight = row.ActualHeight;
         Check("по периметру — зелёная подсветка", btn.Effect is DropShadowEffect { } fx && fx.Color == Color.FromRgb(0x57, 0xC9, 0x8A)
               && IsGreen(btn.BorderBrush), btn.Effect?.GetType().Name ?? "нет");
         var tip = btn.ToolTip as string ?? "";
@@ -155,18 +159,19 @@ internal static class Program
         SessionTracker.PreviewGames = Month(topWins: 36, restWins: 18, restGames: 4);
         w.RefreshPoolMode();
         Pump();
-        Check("игр мало — тег «+ Пул» без цифры", cta.Visibility == Visibility.Visible
-              && cta.Text == "+ " + Loc.T("pool.pool") && (btn.ToolTip as string) == Loc.T("pool.ctaTip"),
-              $"«{cta.Text}» / {btn.ToolTip}");
+        Check("игр мало — тег «Пул» без цифры, подпись та же", box.Visibility == Visibility.Visible
+              && cta.Text == Loc.T("pool.pool") && Caption() == Loc.T("pool.ctaCreate")
+              && (btn.ToolTip as string) == Loc.T("pool.ctaTip"),
+              $"«{cta.Text}» / «{Caption()}» / {btn.ToolTip}");
 
         // Смена языка — тег и подсказка переводятся (тег и подсказка ставятся
         // из кода, привязка их сама не переведёт).
         var ruTip = btn.ToolTip as string;
         Loc.SetLanguage("en");
         Pump();
-        Check("смена языка: тег и подсказка по-английски", (btn.ToolTip as string) == Loc.T("pool.ctaTip")
-              && (btn.ToolTip as string) != ruTip && cta.Text == "+ Pool",
-              $"«{cta.Text}» / {btn.ToolTip}");
+        Check("смена языка: тег, подпись и подсказка по-английски", (btn.ToolTip as string) == Loc.T("pool.ctaTip")
+              && (btn.ToolTip as string) != ruTip && cta.Text == "Pool" && Caption() == "create a pool",
+              $"«{cta.Text}» / «{Caption()}» / {btn.ToolTip}");
         Loc.SetLanguage("ru");
         Pump();
 
@@ -176,9 +181,12 @@ internal static class Program
         PoolStore.Persist();
         w.RefreshPoolMode();
         Pump();
-        Check("пул есть — снова «Пул», без тега и подсветки",
-              label.Visibility == Visibility.Visible && cta.Visibility == Visibility.Collapsed
+        Check("пул есть — снова «Пул», без тега, подписи и подсветки",
+              label.Visibility == Visibility.Visible && box.Visibility == Visibility.Collapsed
               && btn.Effect is null && btn.ToolTip is null, $"эффект {btn.Effect?.GetType().Name ?? "нет"}");
+        // Две строки на кнопке — в ту же высоту: ряд кнопок (UniformGrid) не растёт.
+        Check("ряд кнопок с подписью не выше обычного", ctaRowHeight <= row.ActualHeight + 2,
+              $"{ctaRowHeight:F0} против {row.ActualHeight:F0} px");
         Click(btn);
         Pump();
         Check("клик с пулом — включён пул, окна настроек нет",
