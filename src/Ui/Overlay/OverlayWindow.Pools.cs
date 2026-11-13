@@ -417,11 +417,11 @@ public partial class OverlayWindow
         PoolPoolBtn.ToolTip = gain is { } t
             ? Loc.T("pool.ctaTipGain", t.Top, $"{t.TopWr:F0}", t.TopGames, $"{t.RestWr:F0}", t.RestGames)
             : Loc.T("pool.ctaTip");
-        PoolPoolBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(0xC0, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
+        PoolPoolBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
         PoolPoolBtn.Background  = new SolidColorBrush(Color.FromArgb(0x16, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
         PoolPoolBtn.Effect = new DropShadowEffect
         {
-            Color = PoolCtaGreen, ShadowDepth = 0, BlurRadius = 10, Opacity = 0.55,
+            Color = PoolCtaGreen, ShadowDepth = 0, BlurRadius = 18, Opacity = 0.85,   // было 10 и 0,55 — владелец: «чуть больше»
         };
     }
 }
