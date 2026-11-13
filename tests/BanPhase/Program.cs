@@ -119,6 +119,7 @@ internal static class Program
         Console.WriteLine("контры к мейнам взвешены пикрейтом:");
         var rolePicks = Lanes.ToDictionary(r => r, r => engine.PickRates(r));
         var roleRef = Lanes.ToDictionary(r => r, r => rolePicks[r].Values.Where(p => p >= 0.5).Average());
+        var links = new Dictionary<string, double>();
         foreach (var (lcu, role, mains) in Cases)
         {
             SessionTracker.HistoryOverride = Hist(mains);
@@ -138,16 +139,31 @@ internal static class Program
             var rare = best.Where(b => b.Lane.Pick < 0.5).ToList();
             Check($"{role}: нет офф-меты (< 0,5% игр своей роли)", rare.Count == 0,
                   rare.Count == 0 ? "все играются" : string.Join(", ", rare.Select(b => $"{b.ChampionId} {b.Lane.Role} {b.Lane.Pick:F1}%")));
-            // Встречаемость сдвигает список к тем, кого берут: в среднем пятёрку
-            // берут чаще среднего регулярного пика их ролей.
-            var ratio = best.Average(b => b.Lane.Pick / b.Lane.Ref);
-            Check($"{role}: пятёрка банов берётся чаще среднего пика своих ролей", ratio > 1,
-                  $"в {ratio:F2} раза");
+            // Встречаемость сдвигает список к тем, кого берут. Меряем по всем
+            // кандидатам драфта (у кого есть очки — контры моим мейнам), а не по
+            // пятёрке: ранговая связь очков и встречаемости. До 13.11 мерили
+            // пятёрку против среднего регулярного пика роли — и проверка падала
+            // от данных: на базе 13.11 контры стрелкам в пятёрке реже среднего
+            // пика (0,85), потому что правило «не меньше двух прямых контр моему
+            // пулу» берёт их, какие есть. Связь по всем кандидатам с поправкой
+            // +0,19…+0,37 по ролям, без неё (Meet = 1) −0,05…+0,09.
+            double Ratio(int id) => Lanes.Max(r => rolePicks[r].GetValueOrDefault(id) / roleRef[r]);
+            var pool = engine.RecommendBans(Draft(lcu), top: 500);
+            var link = Spearman(pool.Select(b => b.Score).ToList(), pool.Select(b => Ratio(b.ChampionId)).ToList());
+            links[role] = link;
+            Check($"{role}: чем чаще кандидата берут, тем выше его очки (связь больше нуля)", link > 0,
+                  $"{link:+0.00;-0.00} по {pool.Count} кандидатам");
             Check($"{role}: прямых контр мейнам на моей линии — не меньше двух",
                   bans.Count(b => picks.GetValueOrDefault(b.ChampionId) >= 0.5 && b.Reasons.Any(r =>
                       r.StartsWith(PoolHead, StringComparison.Ordinal) || r.StartsWith(HardHead, StringComparison.Ordinal))) >= 2,
                   string.Join(", ", bans.Select(b => b.ChampionId)));
         }
+        // По одной роли связь шумит; в среднем по пяти она и есть поправка:
+        // с ней 0,27, без неё 0,04 (замер 13.11).
+        Check("поправка на встречаемость: связь очков и пикрейта в среднем по ролям от 0,15",
+              links.Count > 0 && links.Values.Average() >= 0.15,
+              $"{links.Values.DefaultIfEmpty(0).Average():+0.00;-0.00} ("
+              + string.Join(", ", links.Select(kv => $"{kv.Key} {kv.Value:+0.00;-0.00}")) + ")");
 
         // Подпись о контре пулу называет пикрейт — видно, почему этот бан, а не другой.
         // Формулировок две: «Контрит твой пул (…) · пик N%» и, если среди задетых
@@ -645,11 +661,29 @@ internal static class Program
                                 && b.Reasons.Any(r => r.StartsWith(pool, StringComparison.Ordinal))).ToList();
         Check("жёсткая контра и «контрит твой пул» — одна строка", both.Count == 0,
               string.Join(", ", both.Select(b => DataDragon.Name(b.ChampionId))));
-        var wukong = engine.RecommendBans(state, hist, top: 15).FirstOrDefault(b => b.ChampionId == 62);
+        // Сам случай со скриншота — правилом, а не именем. До 13.11 здесь
+        // требовался Вуконг, но с базой 13.11 его нет даже в пятнадцати, а то
+        // же самое случилось с Экко, Джинкс, Зайрой: «мешает команде» весит
+        // больше, чем контра союзнику на линии, — и стоит первой.
+        var fifteen = engine.RecommendBans(state, hist, top: 15);
         var team3 = Head("reason.alsoTeam", 1);
-        Check("у Вуконга первой — «мешает команде», а не контра Гарену",
-              wukong is not null && wukong.Reasons[0].StartsWith(team3, StringComparison.Ordinal),
-              wukong is null ? "Вуконга нет в пятнадцати" : string.Join(" | ", wukong.Reasons.Take(2)));
+        string[] allyHeads = [Head("reason.countersAlly", 1), Head("reason.countersMany", 1)];
+        bool AllyLine(string r) => allyHeads.Any(h => r.StartsWith(h, StringComparison.Ordinal));
+        var notFirst = fifteen.Where(b => b.ReasonPoints.Length > 0
+                                       && Pts(b, 0) < b.ReasonPoints.Max() - 1e-9).ToList();
+        Check("первая строка — самая весомая часть очков, у всех пятнадцати", notFirst.Count == 0,
+              string.Join("; ", notFirst.Select(b => $"{DataDragon.Name(b.ChampionId)}: {WithPts(b)}")));
+        // «Мешает команде» весит больше контры союзнику на линии — она первая.
+        var teamOver = fifteen.Where(b =>
+        {
+            var ti = Array.FindIndex(b.Reasons, r => r.StartsWith(team3, StringComparison.Ordinal));
+            var ai = Array.FindIndex(b.Reasons, AllyLine);
+            return ti >= 0 && ai >= 0 && Pts(b, ti) > Pts(b, ai) && Pts(b, ti) >= b.ReasonPoints.Max() - 1e-9;
+        }).ToList();
+        Check("случай Вуконга 14.10: «мешает команде» весит больше контры союзнику — первой стоит она",
+              teamOver.Count > 0 && teamOver.All(b => b.Reasons[0].StartsWith(team3, StringComparison.Ordinal)),
+              teamOver.Count == 0 ? "таких в пятнадцати нет — сцену пора менять"
+                  : string.Join("; ", teamOver.Select(b => $"{DataDragon.Name(b.ChampionId)}: {string.Join(" | ", b.Reasons.Take(2))}")));
         SessionTracker.HistoryOverride = null;
     }
 
@@ -1486,6 +1520,33 @@ internal static class Program
     // ── Общее ────────────────────────────────────────────────────────────────
 
     /// Журнал: на каждом мейне по двадцать свежих игр.
+    /// Ранговая корреляция Спирмена: +1 — порядок по одному совпадает с
+    /// порядком по другому, 0 — связи нет. Равные значения — средним рангом.
+    private static double Spearman(IReadOnlyList<double> a, IReadOnlyList<double> b)
+    {
+        static double[] Ranks(IReadOnlyList<double> v)
+        {
+            var order = Enumerable.Range(0, v.Count).OrderBy(i => v[i]).ToArray();
+            var r = new double[v.Count];
+            for (int i = 0; i < order.Length;)
+            {
+                var j = i;
+                while (j + 1 < order.Length && v[order[j + 1]] == v[order[i]]) j++;
+                for (var k = i; k <= j; k++) r[order[k]] = (i + j) / 2.0;
+                i = j + 1;
+            }
+            return r;
+        }
+        if (a.Count < 3) return 0;
+        var ra = Ranks(a); var rb = Ranks(b);
+        double ma = ra.Average(), mb = rb.Average(), sab = 0, saa = 0, sbb = 0;
+        for (int i = 0; i < ra.Length; i++)
+        {
+            sab += (ra[i] - ma) * (rb[i] - mb); saa += (ra[i] - ma) * (ra[i] - ma); sbb += (rb[i] - mb) * (rb[i] - mb);
+        }
+        return saa > 0 && sbb > 0 ? sab / Math.Sqrt(saa * sbb) : 0;
+    }
+
     private static SessionTracker.PlayHistory Hist(int[] mains) =>
         Hist(mains.ToDictionary(m => m, _ => 20));
 

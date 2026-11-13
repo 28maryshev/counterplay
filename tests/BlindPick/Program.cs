@@ -269,12 +269,24 @@ internal static class Program
         Check("первый пик: есть и «надёжен», и «рискован»", safe.Count > 0 && risky.Count > 0,
               $"надёжных {safe.Count}, рискованных {risky.Count} из {first.Count}");
         Check("ни у кого обеих строк сразу", !safe.Intersect(risky).Any(), "");
-        // Словами карточки: Ари — надёжна, Ясуо — рискован.
-        Check("в карточке Ари «надёжна вслепую»", safe.Any(r => r.ChampionId == Ahri),
-              string.Join(" | ", first.First(r => r.ChampionId == Ahri).Reasons.Select(x => x.TrimStart('', '', ''))));
-        Check("в карточке Ясуо «рискован вслепую» с названными контрами",
-              risky.Any(r => r.ChampionId == Yasuo && r.Reasons.Any(x => x.Contains("Рискован вслепую") && x.Contains("("))),
-              string.Join(" | ", first.First(r => r.ChampionId == Yasuo).Reasons));
+        // Словами карточки: самый надёжный по расчёту — «надёжен», самый
+        // рискованный — «рискован» с названными контрами. Кто это, решают
+        // данные: до 13.11 здесь стояли Ари и Ясуо, но с новой базой шанс
+        // контры у Ясуо упал с двух третей до 49%, у Ари — 46%, оба около
+        // типичного для мида, и вывод у обоих честно ноль.
+        var risks = first.Select(r => (Card: r, Risk: engine.Blind(r.ChampionId, "mid", "mid", none))).ToList();
+        var safest = risks.Where(x => x.Risk.Verdict == 1).OrderBy(x => x.Risk.Chance).FirstOrDefault();
+        var riskiest = risks.Where(x => x.Risk.Verdict == -1 && x.Risk.Counters.Count > 0)
+                            .OrderByDescending(x => x.Risk.Chance).FirstOrDefault();
+        Check("в карточке самого надёжного по расчёту — «надёжен вслепую»",
+              safest.Card is { } sc && safe.Contains(sc),
+              safest.Card is { } s1 ? $"{DataDragon.Name(s1.ChampionId)}, шанс {100 * safest.Risk.Chance:F0}%: "
+                  + string.Join(" | ", s1.Reasons.Select(x => x.TrimStart('', '', ''))) : "надёжных нет");
+        Check("в карточке самого рискованного — «рискован вслепую» с названными контрами",
+              riskiest.Card is { } rc
+              && rc.Reasons.Any(x => x.Contains("Рискован вслепую") && x.Contains("(")),
+              riskiest.Card is { } r1 ? $"{DataDragon.Name(r1.ChampionId)}, шанс {100 * riskiest.Risk.Chance:F0}%: "
+                  + string.Join(" | ", r1.Reasons) : "рискованных с контрами нет");
         Print(engine, "mid", first);
         foreach (var (role, pos) in new[] { ("top", "top"), ("jungle", "jungle"), ("adc", "bottom"), ("support", "utility") })
             Print(engine, role, engine.Recommend(Draft(pos), 200));
@@ -313,8 +325,27 @@ internal static class Program
             Check("строка пула: BlindFor считает недоступных как подбор",
                   Math.Abs(viaDraft.Value - direct.Value) < 1e-12 && Math.Abs(viaDraft.Chance - direct.Chance) < 1e-12,
                   $"{viaDraft.Value:+0.00;-0.00}, шанс {100 * viaDraft.Chance:F0}%");
-            Check("вывод: Ари надёжна (+1), Ясуо рискован (−1)", ra.Verdict == 1 && ry.Verdict == -1,
-                  $"Ари {ra.Verdict}, Ясуо {ry.Verdict}");
+            // Смысл вывода, а не имена: в одном драфте типичный шанс у всех
+            // карточек мида один, поэтому любой «надёжный» реже нарывается на
+            // контру, чем любой «рискованный», и со знаком очков не спорит —
+            // надёжный в плюсе, рискованный не выше нуля.
+            var safeR  = risks.Where(x => x.Risk.Verdict == 1).Select(x => x.Risk).ToList();
+            var riskyR = risks.Where(x => x.Risk.Verdict == -1).Select(x => x.Risk).ToList();
+            // И относительно типичного для роли: «надёжен» — заметно реже
+            // него, «рискован» — заметно чаще. Без этого пункта правило без
+            // условия на шанс («надёжен» за одни очки) проходило: на базе
+            // 13.11 добавлялся «надёжный» с шансом 49% при типичных ~48%.
+            var typical = risks.Select(x => x.Risk.Typical).DefaultIfEmpty(0).Average();
+            Check("вывод по смыслу: надёжные реже нарываются на контру, чем рискованные, и в плюсе",
+                  safeR.Count > 0 && riskyR.Count > 0
+                  && safeR.Max(r => r.Chance) < riskyR.Min(r => r.Chance)
+                  && safeR.All(r => r.Value > 0) && riskyR.All(r => r.Value <= 0),
+                  $"надёжные: шанс до {100 * safeR.DefaultIfEmpty(BlindRisk.None).Max(r => r.Chance):F0}%, "
+                  + $"рискованные: от {100 * riskyR.DefaultIfEmpty(BlindRisk.None).Min(r => r.Chance):F0}%");
+            Check("вывод по смыслу: надёжные — шанс ниже типичного для роли, рискованные — выше",
+                  safeR.All(r => r.Chance < r.Typical) && riskyR.All(r => r.Chance > r.Typical),
+                  $"типичный {100 * typical:F0}%; надёжные до {100 * safeR.DefaultIfEmpty(BlindRisk.None).Max(r => r.Chance):F0}%, "
+                  + $"рискованные от {100 * riskyR.DefaultIfEmpty(BlindRisk.None).Min(r => r.Chance):F0}%");
             Check("вывод совпадает со строкой карточки",
                   first.All(r => (engine.Blind(r.ChampionId, "mid", "mid", none).Verdict switch
                   {

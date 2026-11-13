@@ -73,6 +73,16 @@ internal static class Program
         if (db is null) { Console.WriteLine("базы нет — дальше проверять нечем"); return Finish(); }
         using var engine = RecommendationEngine.Create(db, "emerald");
         engine.Mastery = new Dictionary<int, long>();
+        // Ранняя сила — по меткам, а не по duration_wr. Сцены собраны на метках
+        // (ранние Ренектон и Дрейвен, поздний Гарен, гиперкерри Джинкс), а
+        // меряет проверка правила тегов, дыр и планов при заданной силе. С
+        // базой 13.11 сила считается по длине игр (Гарен по ним ранний,
+        // Ренектон — ровный), и пять пунктов падали от данных, а не от правил.
+        // Как данные превращаются в шкалу и подменяют метки — tests/TempoData.
+        engine.Tempo(0);                         // движок прочитал duration_wr один раз…
+        ChampionTraits.EarlyPowerData = null;    // …и метки возвращены до конца проверки
+        Check("ранняя сила в проверке — по меткам (данные по длине игр не подмешаны)",
+              ChampionTraits.EarlyPowerData is null, "");
         Assets(playerDir);
 
         var scenes = new (string Name, DraftState Draft)[]
