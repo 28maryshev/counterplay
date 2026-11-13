@@ -73,7 +73,7 @@ internal static class Program
                               Action<OverlayWindow, DraftState> start, DraftState draft)
     {
         Console.WriteLine($"вход в драфт ({what}):");
-        var w = new OverlayWindow();
+        var w = new OverlayWindow { FollowClient = false };   // настоящий клиент LoL проверке не указ
         ShowHidden(w);
         w.SetEngine(engine);
         w.DraftEnded();   // клиент в лобби — окно в виде сайдбара

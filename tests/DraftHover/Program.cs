@@ -69,7 +69,7 @@ internal static class Program
         s.DraftWidth = 1432; s.DraftHeight = 560; s.DraftPlacement = "remember";
         s.DraftLeft = -32000; s.DraftTop = -32000;
 
-        var w = new OverlayWindow();
+        var w = new OverlayWindow { FollowClient = false };   // настоящий клиент LoL проверке не указ
         ShowHidden(w);
         w.SetEngine(engine);
         Pump();
@@ -189,7 +189,7 @@ internal static class Program
         s.DraftWidth = 1432; s.DraftHeight = 900;
         SessionTracker.PreviewGames = MyMonth();
 
-        var w = new OverlayWindow();
+        var w = new OverlayWindow { FollowClient = false };
         ShowHidden(w);
         w.SetEngine(engine);
         Pump();

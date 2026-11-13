@@ -186,7 +186,7 @@ public partial class OverlayWindow
 
     private void FollowClientWindow()
     {
-        if (SandboxMode) return;   // песочнице клиент не указ
+        if (SandboxMode || !FollowClient) return;   // песочнице и проверкам клиент не указ
         if (!TryFindClientWindow(out var h))
         {
             // Клиент закрыт. Если он уже был открыт в этой сессии (человек наигрался

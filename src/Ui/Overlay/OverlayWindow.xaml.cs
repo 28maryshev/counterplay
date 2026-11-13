@@ -82,6 +82,12 @@ public partial class OverlayWindow : Window
     /// когда клиент свёрнут или закрыт. Боевой путь этим флагом не затронут.
     public bool SandboxMode { get; set; }
 
+    /// Следить за окном клиента LoL: свернул его — окно уходит в трей. Проверки
+    /// выключают: их окно слушалось НАСТОЯЩЕГО клиента — при свёрнутой лиге у
+    /// владельца (13.11) уходило в трей, и DraftEnter с DraftHover падали без
+    /// всякой поломки в коде. В отличие от SandboxMode раскладку не трогает.
+    public bool FollowClient { get; set; } = true;
+
     // Путь к логотипу рядом с приложением (если положен).
     private static string LogoPath =>
         System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "logo.ico");
