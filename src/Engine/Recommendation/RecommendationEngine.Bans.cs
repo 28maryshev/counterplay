@@ -503,6 +503,48 @@ public sealed partial class RecommendationEngine
     private static double Meet(double pickPct, double refPct) =>
         refPct > 0 ? Math.Clamp(Math.Sqrt(pickPct / refPct), 0.3, 2.0) : 1.0;
 
+    /// <summary>
+    /// Насколько кандидат в бан мешает нашему чемпиону — кольцо и число у
+    /// портрета союзника при наведении на бан. Число — как наш играет против
+    /// него, той же формулой, что у колец на пиках (VersusDelta): минус —
+    /// мешает, плюс — наш его сам бьёт.
+    ///
+    /// С какой линии враг его возьмёт, заранее не знать, поэтому число — худшее
+    /// для нашего по всем линиям, где кандидата берут не реже MIN_ROLE_SHARE
+    /// (тот же порог и те же линии, что у кандидатов банов: на линии нашего —
+    /// матчап, с других — пара в той же игре). Так кольцо сходится с подписью
+    /// карточки: «мешает команде (Ари)» набирается с любой из этих линий. Замер
+    /// 13.11 на 12 драфтах (229 названных в подписях): «линия союзника, иначе
+    /// основная» оставляла без красного кольца 12, «среднее по долям линий» — 7,
+    /// худшая — 0, а красных колец всего почти столько же (269 против 257). У
+    /// чемпиона одной линии все три — одно число. Нигде не берут — основная
+    /// линия. Позиции у нашего нет — основная роль его чемпиона.
+    /// </summary>
+    public double BanThreat(int threatId, int allyId, string allyRole)
+    {
+        if (threatId == 0 || allyId == 0 || threatId == allyId) return 0.0;
+        if (!DbRoles.Contains(allyRole)) allyRole = InferPrimaryRole(allyId);
+        if (allyRole.Length == 0) return 0.0;
+        var key = (threatId, allyId, allyRole);
+        if (_banThreat.TryGetValue(key, out var cached)) return cached;
+
+        var lanes = DbRoles.Where(r => LanePick(r).GetValueOrDefault(threatId) >= MIN_ROLE_SHARE * 100).ToList();
+        if (lanes.Count == 0 && InferPrimaryRole(threatId) is { Length: > 0 } main) lanes.Add(main);
+        return _banThreat[key] = lanes.Select(r => VersusDelta(allyId, allyRole, threatId, r))
+                                      .DefaultIfEmpty(0.0).Min();
+    }
+
+    // Наведение перерисовывается на каждом сдвиге списка и каждом заходе на
+    // карточку, а одно число — до десятка запросов. Кэш на жизнь движка
+    // (патч и бакет у движка одни).
+    private readonly Dictionary<(int, int, string), double> _banThreat = new();
+
+    // Пикрейт роли для BanThreat — запрос по всей роли. Кэш на жизнь движка.
+    private readonly Dictionary<string, Dictionary<int, double>> _lanePick = new();
+
+    private Dictionary<int, double> LanePick(string role) =>
+        _lanePick.TryGetValue(role, out var p) ? p : _lanePick[role] = RolePicks(role).Pick;
+
     /// Пикрейт чемпионов роли за последние патчи (% игр роли, с весами патчей)
     /// и средний пикрейт регулярного пика — тех, кого берут хотя бы в
     /// MIN_ROLE_SHARE игр.

@@ -36,8 +36,10 @@ public partial class OverlayWindow
     internal void PoolCell_Enter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int id || id <= 0) return;
-        DrawSynergyLinks(id);
-        ShowPoolMetrics(id);
+        DrawHoverArt(id);
+        // В банах строки показателей нет: полоса пула роли спрятана, а
+        // показатели подбора пика к бану не относятся.
+        if (!BanHover) ShowPoolMetrics(id);
     }
 
     internal void PoolCell_Leave(object sender, System.Windows.Input.MouseEventArgs e)
@@ -81,10 +83,43 @@ public partial class OverlayWindow
 
     internal void RecCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.Tag is int id) DrawSynergyLinks(id);
+        if (sender is FrameworkElement fe && fe.Tag is int id) DrawHoverArt(id);
     }
 
     internal void RecCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
+
+    // Карточка совета бана. Перечёркнутую (уже забанил союзник) не подсвечиваем:
+    // мешать он больше никому не может.
+    internal void BanCard_Enter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: RecCard { Gone: false } card }) DrawHoverArt(card.ChampionId);
+    }
+
+    internal void BanCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
+
+    // Ячейка тир-листа — только в банах: там клик по ней банит. В объявлении
+    // пиков тир-лист для обзора, подсветка пика — у карточек и пула роли.
+    // Уже забаненный или взятый — не подсвечиваем, как перечёркнутый совет.
+    internal void TierCell_Enter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (BanHover && sender is FrameworkElement { DataContext: TierCell { Banned: false } cell })
+            DrawHoverArt(cell.ChampionId);
+    }
+
+    internal void TierCell_Leave(object sender, System.Windows.Input.MouseEventArgs e) => ClearHoverArt();
+
+    // Наведение сейчас про бан: клик по тир-листу банит (TierCell_Click), а
+    // карточки — советы банов. В объявлении пиков клик наводит пик — там
+    // подсветка пика.
+    private bool BanHover => _lastDraft is { InBanPhase: true, InPlanning: false };
+
+    // Что рисовать при наведении: в банах — кому наведённый мешает, иначе —
+    // как кандидат встанет в состав.
+    private void DrawHoverArt(int champId)
+    {
+        if (BanHover) DrawBanThreat(champId);
+        else DrawSynergyLinks(champId);
+    }
 
     // Чья подсветка сейчас нарисована (0 — ничья).
     private int _hoverArtId;
@@ -110,7 +145,7 @@ public partial class OverlayWindow
     // тут же пропадала, а у соседа без связки — оставалась.
     private void TeamScroll_Changed(object sender, ScrollChangedEventArgs e)
     {
-        if (e.VerticalChange != 0 && _hoverArtId != 0) DrawSynergyLinks(_hoverArtId);
+        if (e.VerticalChange != 0 && _hoverArtId != 0) DrawHoverArt(_hoverArtId);
     }
 
     // Колесо у дна списка запоминает позицию ниже дна, и ScrollViewer доезжает
@@ -251,11 +286,90 @@ public partial class OverlayWindow
         };
     }
 
+    /// <summary>
+    /// Наведение на бан — совет или ячейку тир-листа в фазе банов: у каждого
+    /// нашего, кто уже взял или навёл чемпиона (у меня тоже), кольцо и число —
+    /// как он играет против наведённого (engine.BanThreat). Язык тот же, что у
+    /// врагов на пиках: красное «vs −2.4» — мешает, зелёное — наш его сам бьёт.
+    /// В подписи карточки было только «контрит союзника Гарен», без того,
+    /// насколько, и без остальных (просьба владельца, 13.11). Примерки в мой
+    /// слот и колец синергии здесь нет: бан — не пик.
+    /// </summary>
+    private void DrawBanThreat(int champId)
+    {
+        _hoverArtId = champId;
+        SynLinks.Children.Clear();
+        if (!AppSettings.Current.DraftHover) return;
+        if (champId == 0 || _engine is null || _lastDraft is null) return;
+
+        for (int i = 0; i < _lastDraft.MyTeam.Count && i < 5; i++)
+        {
+            var p  = _lastDraft.MyTeam[i];
+            var id = p.EffectiveChampionId;
+            if (id == 0 || id == champId) continue;
+            var vs = _engine.BanThreat(champId, id, RecommendationEngine.LcuToDbRole(p.Position));
+            if (Math.Abs(vs) < SYN_LINK_MIN || PortraitCenter(MyTeamList, i) is not { } pt) continue;
+            DeltaRing(pt, vs);
+            UnderPortrait(pt, VsLabel(), DeltaNum(vs));
+        }
+    }
+
+    // Центр портрета строки состава в координатах слоя подсветки; (36, 42) —
+    // центр портрета в координатах слота (см. DrawTeamLines).
+    private System.Windows.Point? PortraitCenter(ItemsControl list, int row) =>
+        list.ItemContainerGenerator.ContainerFromIndex(row) is FrameworkElement c
+            ? c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42))
+            : null;
+
+    // Один язык на обе стороны и на все фазы: зелёное — в нашу пользу,
+    // красное — против нас. С трёх пунктов — в полную силу.
+    private static readonly Color DeltaGood = Color.FromRgb(0x4C, 0xE3, 0x8B);
+    private static readonly Color DeltaBad  = Color.FromRgb(0xFF, 0x6B, 0x5E);
+
+    private static Color DeltaColor(double v) => v >= 0 ? DeltaGood : DeltaBad;
+
+    private static double DeltaStrength(double v) => Math.Min(1.0, Math.Abs(v) / 3.0);
+
+    // Кольцо вокруг портрета цветом знака: чем больше величина, тем ярче и
+    // шире свечение.
+    private void DeltaRing(System.Windows.Point pt, double v)
+    {
+        var color = DeltaColor(v);
+        var strength = DeltaStrength(v);
+        var glow = new SolidColorBrush(color) { Opacity = 0.35 + 0.6 * strength };
+        glow.Freeze();
+        SynLinks.Children.Add(RingArc(pt, 36, glow, 1.5 + 2.5 * strength,
+            new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = color, ShadowDepth = 0,
+                BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
+            }));
+    }
+
+    // Сама величина под портретом, цветом знака.
+    private static TextBlock DeltaNum(double v) =>
+        Num(Signed(v), DeltaColor(v), 0.6 + 0.4 * DeltaStrength(v));
+
+    // «vs» перед матчапом — чтобы число не читалось как синергия: у союзников на
+    // пиках такие же зелёные цифры, но там это пара.
+    private static TextBlock VsLabel() => Num("vs", Color.FromRgb(0x8A, 0xA0, 0xB2), 0.9);
+
+    // Строка подписей под портретом, по центру; до разделителя ещё есть место.
+    private void UnderPortrait(System.Windows.Point pt, params UIElement[] parts)
+    {
+        if (parts.Length == 0) return;
+        var line = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        foreach (var part in parts) line.Children.Add(part);
+        line.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(line, pt.X - line.DesiredSize.Width / 2);
+        Canvas.SetTop(line, pt.Y + 40);
+        SynLinks.Children.Add(line);
+    }
+
     // Союзник в смысловой связке с кандидатом, но без статистического перевеса.
     private void DrawAllyPair(int row)
     {
-        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
-        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
+        if (PortraitCenter(MyTeamList, row) is not { } pt) return;
 
         var cyan = System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7);
         SynLinks.Children.Add(RingArc(pt, 36, new SolidColorBrush(cyan) { Opacity = 0.5 }, 2,
@@ -269,35 +383,16 @@ public partial class OverlayWindow
     // красное — проигрывает), под ним само число, рядом — вклад против стиля.
     private void DrawEnemyMatchup(int row, double vs, double style, string archGlyph)
     {
-        if (EnemyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
-        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
-
-        var good     = vs >= 0;
-        var color    = good ? System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B)
-                            : System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x5E);
-        var strength = Math.Min(1.0, Math.Abs(vs) / 3.0);
-
-        if (Math.Abs(vs) >= SYN_LINK_MIN)
-        {
-            var glow = new SolidColorBrush(color) { Opacity = 0.35 + 0.6 * strength };
-            glow.Freeze();
-            SynLinks.Children.Add(RingArc(pt, 36, glow, 1.5 + 2.5 * strength,
-                new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color = color, ShadowDepth = 0,
-                    BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
-                }));
-        }
+        if (PortraitCenter(EnemyTeamList, row) is not { } pt) return;
 
         // Матчап и стиль в одну строку: цвет разделяет их лучше подписей —
         // зелёный/красный это «против него», янтарный — «против его стиля».
-        var line = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        var parts = new List<UIElement>();
         if (Math.Abs(vs) >= SYN_LINK_MIN)
         {
-            // «vs» — чтобы число не читалось как синергия: у союзников такие же
-            // зелёные цифры, но там это пара, а здесь матчап против врага.
-            line.Children.Add(Num("vs", System.Windows.Media.Color.FromRgb(0x8A, 0xA0, 0xB2), 0.9));
-            line.Children.Add(Num(Signed(vs), color, 0.6 + 0.4 * strength));
+            DeltaRing(pt, vs);
+            parts.Add(VsLabel());
+            parts.Add(DeltaNum(vs));
         }
         if (style >= 0.5)
         {
@@ -305,15 +400,10 @@ public partial class OverlayWindow
             // читалось как второй матчап, хотя это совсем другая величина —
             // насколько кандидат хорош против такого СТИЛЯ игры.
             var amber = System.Windows.Media.Color.FromRgb(0xE8, 0xB8, 0x4B);
-            if (archGlyph.Length > 0) line.Children.Add(Num(archGlyph, amber, 0.7));
-            line.Children.Add(Num("+" + style.ToString("F1"), amber, 0.85));
+            if (archGlyph.Length > 0) parts.Add(Num(archGlyph, amber, 0.7));
+            parts.Add(Num("+" + style.ToString("F1"), amber, 0.85));
         }
-        if (line.Children.Count == 0) return;
-
-        line.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(line, pt.X - line.DesiredSize.Width / 2);
-        Canvas.SetTop(line, pt.Y + 40);
-        SynLinks.Children.Add(line);
+        UnderPortrait(pt, [.. parts]);
     }
 
     private static TextBlock Num(string text, System.Windows.Media.Color color, double opacity) =>
@@ -412,38 +502,8 @@ public partial class OverlayWindow
     /// </summary>
     private void DrawAllySynergy(int row, double syn)
     {
-        if (MyTeamList.ItemContainerGenerator.ContainerFromIndex(row) is not FrameworkElement c) return;
-        // (36, 42) — центр портрета в координатах слота (см. DrawTeamLines)
-        var pt = c.TransformToVisual(SynLinks).Transform(new System.Windows.Point(36, 42));
-
-        var strength = Math.Min(1.0, Math.Abs(syn) / 3.0);
-        // Те же два цвета, что у вражеских портретов: один язык на обе стороны.
-        var green = syn >= 0 ? System.Windows.Media.Color.FromRgb(0x4C, 0xE3, 0x8B)
-                             : System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x5E);
-
-        var glow = new SolidColorBrush(green) { Opacity = 0.35 + 0.6 * strength };
-        glow.Freeze();
-        SynLinks.Children.Add(RingArc(pt, 36, glow, 1.5 + 2.5 * strength,
-            new System.Windows.Media.Effects.DropShadowEffect
-            {
-                Color = green, ShadowDepth = 0,
-                BlurRadius = 8 + 16 * strength, Opacity = 0.5 + 0.5 * strength,
-            }));
-
-        var num = new TextBlock
-        {
-            Text = (syn >= 0 ? "+" : "") + syn.ToString("F1"),
-            Foreground = new SolidColorBrush(green) { Opacity = 0.6 + 0.4 * strength },
-            FontSize = 11, FontWeight = FontWeights.Bold,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
-            {
-                Color = System.Windows.Media.Colors.Black, ShadowDepth = 0,
-                BlurRadius = 4, Opacity = 0.9,
-            },
-        };
-        num.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(num, pt.X - num.DesiredSize.Width / 2);
-        Canvas.SetTop(num, pt.Y + 40);   // под портретом, до разделителя ещё есть место
-        SynLinks.Children.Add(num);
+        if (PortraitCenter(MyTeamList, row) is not { } pt) return;
+        DeltaRing(pt, syn);
+        UnderPortrait(pt, DeltaNum(syn));
     }
 }

@@ -61,11 +61,13 @@
        у WR-столбца) + WR%. Бейдж грейда скрывается, когда грейда
        нет (ShowGrade=false). Общий шаблон для обоих столбцов. -->
   <DataTemplate x:Key="TierEmblem">
-    <!-- Клик: в банфазе наводит бан, в фазе пиков — пик. Background
+    <!-- Клик: в банфазе наводит бан, в фазе пиков — пик. Наведение в
+         банфазе — у союзников кольца «vs»: кому он мешает. Background
          прозрачный, но задан — иначе клики по пустоте не ловятся. -->
     <StackPanel x:Name="TierCellRoot" Margin="4,0,4,4" HorizontalAlignment="Center"
                 ToolTip="{Binding Tip}" Cursor="Hand" Background="Transparent"
-                MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}">
+                MouseLeftButtonDown="TierCell_Click" Tag="{Binding ChampionId}"
+                MouseEnter="TierCell_Enter" MouseLeave="TierCell_Leave">
       <Grid Width="36" Height="36" HorizontalAlignment="Center">
         <!-- Иконка чемпиона. При наведении её обводка краснеет и
              толстеет (см. триггер) — видно, что можно пикнуть/забанить. -->

@@ -9,11 +9,13 @@
   <!-- Карточка совета бана (BanFullList) и слот бана на панели банов команд. -->
   <DataTemplate x:Key="BanCardTemplate">
     <!-- Клик по карточке наводит бан в клиенте; рамка краснеет.
+         Наведение — у союзников кольца «vs»: кому он мешает (BanCard_Enter).
          Уже забанил союзник — карточка на месте, затемнена и
          перечёркнута, «БАН» справа нет (Gone). -->
     <Border Margin="0,3" CornerRadius="4" Padding="12,10" Cursor="Hand"
             Background="{Binding CardBg}" BorderThickness="1.5" Opacity="{Binding CardOpacity}"
-            MouseLeftButtonDown="BanCard_Click" Tag="{Binding ChampionId}">
+            MouseLeftButtonDown="BanCard_Click" Tag="{Binding ChampionId}"
+            MouseEnter="BanCard_Enter" MouseLeave="BanCard_Leave">
       <Border.Style>
         <Style TargetType="Border">
           <Setter Property="BorderBrush" Value="{Binding CardBorder}"/>

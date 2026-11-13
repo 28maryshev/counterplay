@@ -11,6 +11,12 @@ public partial class BanTemplates : ResourceDictionary
     private void BanCard_Click(object sender, MouseButtonEventArgs e) =>
         OverlayTemplates.Owner(sender)?.BanCard_Click(sender, e);
 
+    private void BanCard_Enter(object sender, System.Windows.Input.MouseEventArgs e) =>
+        OverlayTemplates.Owner(sender)?.BanCard_Enter(sender, e);
+
+    private void BanCard_Leave(object sender, System.Windows.Input.MouseEventArgs e) =>
+        OverlayTemplates.Owner(sender)?.BanCard_Leave(sender, e);
+
     private void BanDislike_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;   // до карточки клик не доходит — бан не наводится
