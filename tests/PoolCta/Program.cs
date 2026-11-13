@@ -28,10 +28,11 @@ namespace Counterplay.Tests;
 /// - цифра (PoolGain) на подставных числах: винрейт пяти самых игранных против
 ///   остальных; мало игр, разница не в плюс или в пределах ошибки — цифры нет;
 ///   чемпионы без игр в «свои» не идут;
-/// - окно: без пулов — выбран «Обычный», вместо «Пул» зелёный тег «+N% WR» по
-///   журналу, зелёная подсветка, в подсказке оба винрейта; клик открывает
-///   настройки пулов;
-/// - игр мало — тег «+ Пул» и подсказка без цифры;
+/// - окно: без пулов — выбран «Обычный», заголовок раздела — зелёный призыв
+///   «Создай пул: на своих чемпионах +N% WR» (цифра по журналу), кнопка —
+///   зелёное «Создать пул» с подсветкой, в подсказке оба винрейта; клик
+///   открывает настройки пулов;
+/// - игр мало — заголовок обычный, кнопка та же, подсказка без цифры;
 /// - пул появился — обычная кнопка без подсветки, клик включает пул, окна нет;
 /// - смена языка переводит тег и подсказку;
 /// - строки на 15 языках с теми же подстановками.
@@ -41,7 +42,7 @@ internal static class Program
 {
     private static int _fails;
 
-    private static readonly string[] NewKeys = ["pool.ctaGain", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate"];
+    private static readonly string[] NewKeys = ["pool.ctaTitle", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate"];
 
     [STAThread]
     private static int Main()
@@ -132,22 +133,26 @@ internal static class Program
         var btn   = (Button)w.FindName("PoolPoolBtn");
         var label = (TextBlock)w.FindName("PoolPoolLabel");
         var cta   = (TextBlock)w.FindName("PoolPoolCta");
-        var box   = (StackPanel)w.FindName("PoolPoolCtaBox");
+        var title = (TextBlock)w.FindName("PoolSectionTitle");
+        var call  = (TextBlock)w.FindName("PoolTitleCta");
         var row   = (FrameworkElement)w.FindName("PoolButtonsRow");
-        string Caption() => box.Children.OfType<TextBlock>().LastOrDefault()?.Text ?? "";
         Check("кнопки пула на экране (игры с драфтом есть)", row.Visibility == Visibility.Visible, "");
         Check("пулов нет — выбран «Обычный»", PoolStore.Current().ActiveKind == PoolKind.Normal, $"{PoolStore.Current().ActiveKind}");
-        Check("вместо «Пул» — зелёный тег «+15% WR», под ним мелко «создать пул»",
-              label.Visibility == Visibility.Collapsed && box.Visibility == Visibility.Visible
-              && cta.Text == Loc.T("pool.ctaGain", 15) && IsGreen(cta.Foreground)
-              && Caption() == Loc.T("pool.ctaCreate") && Caption() == "создать пул",
-              $"«{cta.Text}» / «{Caption()}»");
+        // Владелец, вечер 13.11: «в названии — создай пул и получи +8% WR, а
+        // кнопку — “Создать пул”, тоже зелёную».
+        Check("заголовок раздела — зелёный призыв с цифрой вместо «Пул чемпионов»",
+              title.Visibility == Visibility.Collapsed && call.Visibility == Visibility.Visible
+              && call.Text == Loc.T("pool.ctaTitle", 15) && call.Text == "Создай пул: на своих чемпионах +15% WR"
+              && IsGreen(call.Foreground), $"«{call.Text}»");
+        Check("кнопка — зелёное «Создать пул» вместо «Пул»",
+              label.Visibility == Visibility.Collapsed && cta.Visibility == Visibility.Visible
+              && cta.Text == "Создать пул" && IsGreen(cta.Foreground), $"«{cta.Text}»");
         var ctaRowHeight = row.ActualHeight;
         Check("по периметру — зелёная подсветка", btn.Effect is DropShadowEffect { } fx && fx.Color == Color.FromRgb(0x57, 0xC9, 0x8A)
               && IsGreen(btn.BorderBrush), btn.Effect?.GetType().Name ?? "нет");
         var tip = btn.ToolTip as string ?? "";
-        Check("в подсказке — оба винрейта и число игр", tip.Contains("60%") && tip.Contains("45%")
-              && tip.Contains("(60)") && tip.Contains("(40)"), tip);
+        Check("в подсказке кнопки и заголовка — оба винрейта и число игр", tip.Contains("60%") && tip.Contains("45%")
+              && tip.Contains("(60)") && tip.Contains("(40)") && (call.ToolTip as string) == tip, tip);
 
         Click(btn);
         Pump();
@@ -155,37 +160,41 @@ internal static class Program
         opened?.Close();
         opened = null;
 
-        // Игр мало — тег без цифры.
+        // Игр мало — цифры нет: заголовок обычный, кнопка та же.
         SessionTracker.PreviewGames = Month(topWins: 36, restWins: 18, restGames: 4);
         w.RefreshPoolMode();
         Pump();
-        Check("игр мало — тег «Пул» без цифры, подпись та же", box.Visibility == Visibility.Visible
-              && cta.Text == Loc.T("pool.pool") && Caption() == Loc.T("pool.ctaCreate")
+        Check("игр мало — заголовок обычный, кнопка «Создать пул», подсказка без цифры",
+              title.Visibility == Visibility.Visible && call.Visibility == Visibility.Collapsed
+              && cta.Visibility == Visibility.Visible && cta.Text == "Создать пул"
               && (btn.ToolTip as string) == Loc.T("pool.ctaTip"),
-              $"«{cta.Text}» / «{Caption()}» / {btn.ToolTip}");
+              $"заголовок {title.Visibility}, призыв {call.Visibility}, «{cta.Text}» / {btn.ToolTip}");
 
-        // Смена языка — тег и подсказка переводятся (тег и подсказка ставятся
-        // из кода, привязка их сама не переведёт).
+        // Смена языка — кнопка по привязке, подсказка ставится из кода и
+        // переводится пересчётом (UpdatePoolButtons в OnLanguageChanged).
         var ruTip = btn.ToolTip as string;
         Loc.SetLanguage("en");
         Pump();
-        Check("смена языка: тег, подпись и подсказка по-английски", (btn.ToolTip as string) == Loc.T("pool.ctaTip")
-              && (btn.ToolTip as string) != ruTip && cta.Text == "Pool" && Caption() == "create a pool",
-              $"«{cta.Text}» / «{Caption()}» / {btn.ToolTip}");
+        Check("смена языка: кнопка и подсказка по-английски", (btn.ToolTip as string) == Loc.T("pool.ctaTip")
+              && (btn.ToolTip as string) != ruTip && cta.Text == "Create pool",
+              $"«{cta.Text}» / {btn.ToolTip}");
         Loc.SetLanguage("ru");
         Pump();
 
-        // Пул появился — кнопка обычная, клик включает пул, окна нет.
+        // Пул появился — кнопка и заголовок обычные, клик включает пул, окна нет.
+        SessionTracker.PreviewGames = Month(topWins: 36, restWins: 18);
         var pools = PoolStore.Current();
         pools.Pools.Add(new ChampPool { Name = "Тест", ByRole = new() { ["support"] = [37, 117] } });
         PoolStore.Persist();
         w.RefreshPoolMode();
         Pump();
-        Check("пул есть — снова «Пул», без тега, подписи и подсветки",
-              label.Visibility == Visibility.Visible && box.Visibility == Visibility.Collapsed
+        Check("пул есть — снова «Пул» и «Пул чемпионов», без призыва и подсветки",
+              label.Visibility == Visibility.Visible && cta.Visibility == Visibility.Collapsed
+              && title.Visibility == Visibility.Visible && call.Visibility == Visibility.Collapsed
               && btn.Effect is null && btn.ToolTip is null, $"эффект {btn.Effect?.GetType().Name ?? "нет"}");
-        // Две строки на кнопке — в ту же высоту: ряд кнопок (UniformGrid) не растёт.
-        Check("ряд кнопок с подписью не выше обычного", ctaRowHeight <= row.ActualHeight + 2,
+        // «Создать пул» в узкой кнопке может лечь в две строки — ряд кнопок
+        // (UniformGrid) от этого не растёт.
+        Check("ряд кнопок с «Создать пул» не выше обычного", ctaRowHeight <= row.ActualHeight + 2,
               $"{ctaRowHeight:F0} против {row.ActualHeight:F0} px");
         Click(btn);
         Pump();

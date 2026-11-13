@@ -478,9 +478,15 @@
 
             <!-- Пул чемпионов: заголовок + имя выбранной связки рядом -->
             <StackPanel x:Name="PoolTitleRow" Orientation="Horizontal" Margin="0,12,0,6" HorizontalAlignment="Left">
-              <TextBlock Text="{loc:T pool.sectionTitle}"
+              <TextBlock x:Name="PoolSectionTitle" Text="{loc:T pool.sectionTitle}"
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#8AA0B2" VerticalAlignment="Center"/>
+              <!-- Личных пулов нет и цифра есть — вместо заголовка зелёный призыв
+                   «Создай пул: на своих чемпионах +N% WR» (ApplyPoolCta). -->
+              <TextBlock x:Name="PoolTitleCta" Visibility="Collapsed"
+                         FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
+                         Foreground="#57C98A" VerticalAlignment="Center"
+                         MaxWidth="300" TextTrimming="CharacterEllipsis"/>
               <TextBlock x:Name="PoolActiveName" Visibility="Collapsed"
                          FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="Bold"
                          Foreground="#C89B3C" VerticalAlignment="Center" Margin="6,0,0,0"
@@ -513,19 +519,15 @@
                           Content="{loc:T pool.settings}"
                           Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
                   <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
-                  <!-- Пулов ещё нет — вместо «Пул» зелёный тег («+N% WR» по журналу
-                       игрока или «Пул») и под ним мелко «создать пул», зелёная
-                       подсветка по периметру, клик открывает настройки пулов
-                       (ApplyPoolCta, PoolGain). -->
+                  <!-- Пулов ещё нет — вместо «Пул» зелёное «Создать пул» (не
+                       влезает в ширину — в две строки), зелёная подсветка по
+                       периметру, клик открывает настройки пулов (ApplyPoolCta). -->
                   <Button x:Name="PoolPoolBtn" Click="PoolPool_Click">
                     <Grid>
                       <TextBlock x:Name="PoolPoolLabel" Text="{loc:T pool.pool}"/>
-                      <StackPanel x:Name="PoolPoolCtaBox" Visibility="Collapsed">
-                        <TextBlock x:Name="PoolPoolCta" Foreground="#57C98A" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{loc:T pool.ctaCreate}" FontSize="9.5" FontWeight="Normal"
-                                   Foreground="#8FD4AE" HorizontalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"/>
-                      </StackPanel>
+                      <TextBlock x:Name="PoolPoolCta" Visibility="Collapsed" Text="{loc:T pool.ctaCreate}"
+                                 Foreground="#57C98A" FontSize="11.5" TextWrapping="Wrap"
+                                 TextAlignment="Center" HorizontalAlignment="Center"/>
                     </Grid>
                   </Button>
                   <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>

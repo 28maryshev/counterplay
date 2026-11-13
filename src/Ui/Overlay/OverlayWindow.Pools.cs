@@ -389,19 +389,25 @@ public partial class OverlayWindow
     private static readonly Color PoolCtaGreen = Color.FromRgb(0x57, 0xC9, 0x8A);
 
     /// <summary>
-    /// Личных пулов нет — кнопка «Пул» зовёт собрать первый (владелец, 13.11:
-    /// «повысим интерес добавить пул»): вместо «Пул» зелёный тег — «+N% WR»,
-    /// насколько чаще я выигрываю на своих самых игранных (PoolGain, по
-    /// журналу), или просто «Пул», если цифры нет; под ним мелко «создать
-    /// пул» (pool.ctaCreate, по просьбе владельца); по периметру мягкая зелёная
-    /// подсветка; в подсказке — откуда цифра и что будет по клику (настройки
-    /// пулов, PoolPool_Click). Дуо-пулы не в счёт: кнопка «Пул» — про личные.
-    /// Пул появился — обычная кнопка (её вид ставит Set выше).
+    /// Личных пулов нет — зовём собрать первый (владелец, 13.11: «повысим
+    /// интерес добавить пул»). Кнопка «Пул» — зелёное «Создать пул» с мягкой
+    /// зелёной подсветкой по периметру, клик — настройки пулов (PoolPool_Click).
+    /// Есть цифра (PoolGain: насколько чаще я выигрываю на своих самых
+    /// игранных, по журналу) — заголовок раздела вместо «Пул чемпионов»
+    /// зелёный: «Создай пул: на своих чемпионах +N% WR» (владелец, вечер 13.11:
+    /// «в названии — создай пул и получи +8% WR или что-то подобное»; «получи»
+    /// заменено на «на своих чемпионах» — цифра измерена, а не обещана). Нет
+    /// цифры — заголовок обычный. В подсказке кнопки и заголовка — оба
+    /// винрейта или что даст пул. Дуо-пулы не в счёт: кнопка «Пул» — про
+    /// личные. Пул появился — обычные кнопка и заголовок (вид кнопки ставит Set).
     /// </summary>
     private void ApplyPoolCta(bool noPools)
     {
-        PoolPoolLabel.Visibility = noPools ? Visibility.Collapsed : Visibility.Visible;
-        PoolPoolCtaBox.Visibility = noPools ? Visibility.Visible : Visibility.Collapsed;
+        var gain = noPools ? PoolGain.ForMe() : null;
+        PoolPoolLabel.Visibility    = noPools ? Visibility.Collapsed : Visibility.Visible;
+        PoolPoolCta.Visibility      = noPools ? Visibility.Visible : Visibility.Collapsed;
+        PoolTitleCta.Visibility     = gain is not null ? Visibility.Visible : Visibility.Collapsed;
+        PoolSectionTitle.Visibility = gain is not null ? Visibility.Collapsed : Visibility.Visible;
         if (!noPools)
         {
             PoolPoolBtn.Effect  = null;
@@ -409,14 +415,15 @@ public partial class OverlayWindow
             PoolPoolBtn.ClearValue(PaddingProperty);   // отступ — снова из стиля ряда
             return;
         }
-        // Две строки (тег и «создать пул») — в ту же высоту, что у соседей:
-        // ряд кнопок — UniformGrid, и выросла бы вся строка.
+        // «Создать пул» в узкой кнопке может лечь в две строки — в ту же высоту,
+        // что у соседей: ряд кнопок — UniformGrid, и выросла бы вся строка.
         PoolPoolBtn.Padding = new Thickness(2, 1, 2, 1);
-        var gain = PoolGain.ForMe();
-        PoolPoolCta.Text = gain is { } g ? Loc.T("pool.ctaGain", g.Gain) : Loc.T("pool.pool");
-        PoolPoolBtn.ToolTip = gain is { } t
+        var tip = gain is { } t
             ? Loc.T("pool.ctaTipGain", t.Top, $"{t.TopWr:F0}", t.TopGames, $"{t.RestWr:F0}", t.RestGames)
             : Loc.T("pool.ctaTip");
+        PoolPoolBtn.ToolTip  = tip;
+        PoolTitleCta.Text    = gain is { } g ? Loc.T("pool.ctaTitle", g.Gain) : "";
+        PoolTitleCta.ToolTip = gain is not null ? tip : null;
         PoolPoolBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
         PoolPoolBtn.Background  = new SolidColorBrush(Color.FromArgb(0x16, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
         PoolPoolBtn.Effect = new DropShadowEffect
