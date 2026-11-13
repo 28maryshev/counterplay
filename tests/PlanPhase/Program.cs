@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -468,6 +468,8 @@ internal static class Program
               rows.Take(4).Select(r => r.ChampionId).SequenceEqual([Sona, Ashe, Xerath, Trundle])
               && !rows.Any(r => r.ChampionId is Amumu or Kassadin),
               string.Join(", ", rows.Select(r => r.Name)));
+        // Игранных на саппорте семеро — строк шесть (было пять, владелец 13.11).
+        Check("строк шесть из семи игранных", rows.Count == 6, $"{rows.Count}");
         var sona = rows.FirstOrDefault(r => r.ChampionId == Sona);
         Check("у Соны: винрейт и игры, форма, LP, патч",
               sona is { WrText: "67%", GamesText: "· 6", LpText: "+44" } && sona.Form.Count == 6

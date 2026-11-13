@@ -968,7 +968,7 @@
                                Foreground="#C89B3C"/>
                     <ItemsControl x:Name="BanMineList" ItemTemplate="{StaticResource BanMineChip}">
                       <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><UniformGrid Rows="1" Columns="5"/></ItemsPanelTemplate>
+                        <ItemsPanelTemplate><UniformGrid Rows="1" Columns="6"/></ItemsPanelTemplate>
                       </ItemsControl.ItemsPanel>
                     </ItemsControl>
                   </StackPanel>

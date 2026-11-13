@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -169,8 +169,9 @@ internal static class Program
     ///
     /// Сцена: фаза банов, мой бан не сделан, вся команда навела пики (Гарен,
     /// Ли Син, Ари, Джинкс, я — Браум), союзник уже забанил Нами; за месяц на
-    /// саппорте я играл Сону, Хвэя, Юми, Нами, Эш. Меряет: полоса «мои
-    /// чемпионы» над советами — те пятеро по числу игр, Нами перечёркнута; у
+    /// саппорте я играл Сону, Хвэя, Юми, Нами, Эш, Лулу и Карму. Меряет: полоса «мои
+    /// чемпионы» над советами — шестеро самых игранных (Карма седьмая — не
+    /// влезла), Нами перечёркнута; у
     /// каждого совета кольца стоят ровно у тех наших и тех моих из полосы, у
     /// кого движок видит заметную разницу (|BanThreat| ≥ 0,3), числа — эта
     /// разница («vs» у состава), цвет по знаку (минус — красное); у Нами
@@ -207,9 +208,9 @@ internal static class Program
 
         var mineList = (ItemsControl)w.FindName("BanMineList");
         var chips = mineList.Items.OfType<BanMineChip>().ToList();
-        Check("над советами — мои чемпионы по числу игр, забаненная Нами перечёркнута",
+        Check("над советами — шесть моих по числу игр (седьмая Карма не влезла), забаненная Нами перечёркнута",
               ((FrameworkElement)w.FindName("BanMinePanel")).Visibility == Visibility.Visible
-              && chips.Select(c => c.ChampionId).SequenceEqual([Sona, Hwei, Yuumi, Nami, Ashe])
+              && chips.Select(c => c.ChampionId).SequenceEqual([Sona, Hwei, Yuumi, Nami, Ashe, Lulu])
               && chips.Single(c => c.ChampionId == Nami).Gone && chips.Count(c => c.Gone) == 1,
               string.Join(", ", chips.Select(c => DataDragon.Name(c.ChampionId) + (c.Gone ? " ✕" : ""))));
 
@@ -331,14 +332,15 @@ internal static class Program
         return res;
     }
 
-    private const int Sona = 37, Hwei = 910, Yuumi = 350, Nami = 267, Ashe = 22;
+    private const int Sona = 37, Hwei = 910, Yuumi = 350, Nami = 267, Ashe = 22, Lulu = 117, Karma = 43;
 
-    // Мой месяц на саппорте: больше всех Сона, меньше всех Эш.
+    // Мой месяц на саппорте: больше всех Сона; у Лулу и Кармы по игре, Лулу
+    // свежее — шестая она, Карма седьмая и в полосу не влезает.
     private static List<SessionTracker.PreviewGame> MyMonth()
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var games = new List<SessionTracker.PreviewGame>();
-        foreach (var (champ, n) in new[] { (Sona, 6), (Hwei, 5), (Yuumi, 4), (Nami, 3), (Ashe, 2) })
+        foreach (var (champ, n) in new[] { (Sona, 6), (Hwei, 5), (Yuumi, 4), (Nami, 3), (Ashe, 2), (Lulu, 1), (Karma, 1) })
             for (var i = 0; i < n; i++)
                 games.Add(new("", "", "solo", champ, 0, "support", "", now - 3600 * (games.Count + 1), i % 2 == 0));
         return games;
