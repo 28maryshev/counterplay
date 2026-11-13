@@ -80,6 +80,40 @@ static partial class TestMode
         try { File.WriteAllText(mark, ""); } catch { /* допишем в следующий раз — Union повторов не даст */ }
     }
 
+    /// Аккаунт песочницы без пулов — для профилей «без пулов» (зелёная кнопка
+    /// «Пул», 13.11). Пулы хранятся по аккаунту: у "test-account" — тестовые,
+    /// собранные руками, их не трогаем, а этот каждый раз начинается с нуля
+    /// (собранный в нём пул по зелёной кнопке при следующем заходе пропадает).
+    internal const string NoPoolsAccount = "test-account-nopools";
+
+    /// Пулы песочницы: пустые (true) или снова тестовые (false).
+    internal static void UseNoPools(bool on)
+    {
+        if (on)
+        {
+            PoolStore.SetAccount(NoPoolsAccount, "TEST");
+            PoolStore.ReplaceCurrent(null);
+        }
+        else PoolStore.SetAccount("test-account", "TEST");
+    }
+
+    /// <summary>
+    /// Тестовая история, где на пяти самых игранных выигрываешь чаще (5 из 8
+    /// игр, ~62%), — чтобы на зелёной кнопке «Пул» была видна цифра «+N% WR».
+    /// На обычной тестовой истории её нет: своих и остальных она выигрывает
+    /// почти поровну (PoolGain молчит).
+    /// </summary>
+    internal static List<SessionTracker.PreviewGame> MainsWinHistory()
+    {
+        var games = MakeGamePreview();
+        var since = DateTimeOffset.UtcNow.AddDays(-SessionTracker.RecentDays).ToUnixTimeSeconds();
+        var top = games.Where(g => g.Ts >= since && g.MyChampionId != 0)
+                       .GroupBy(g => g.MyChampionId).OrderByDescending(x => x.Count())
+                       .Take(PoolGain.TopChamps).Select(x => x.Key).ToHashSet();
+        var n = 0;
+        return [.. games.Select(g => top.Contains(g.MyChampionId) ? g with { Win = n++ % 8 < 5 } : g)];
+    }
+
     /// <summary>
     /// Тестовая история в дело (true) или прочь — профиль «мой аккаунт» (false).
     ///

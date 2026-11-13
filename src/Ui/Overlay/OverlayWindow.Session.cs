@@ -100,6 +100,8 @@ public partial class OverlayWindow
             // клиента уже после показа экрана, и без этого лента «мои чемпионы»
             // стояла пустой до первой смены фазы.
             UpdateMyChampsStrip();
+            // Цифра на зелёном теге «Пул» — из того же журнала.
+            ApplyPoolCta(PoolStore.Current().Pools.Count == 0);
         });
 
     // Рендер панели для выбранной очереди (Solo/Flex/Normal/ARAM).

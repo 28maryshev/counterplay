@@ -37,12 +37,16 @@ sealed partial class TestPanel
     private const int ThreeGamesProfile = 6;
     private const int AramProfile = 7;
     private const int DiamondProfile = 8;
+    /// Пулов нет — зелёная кнопка «Пул» (13.11): тег «+ Пул» на тестовой истории
+    /// и тег «+N% WR» на истории, где на своих выигрываешь чаще.
+    private const int NoPoolsProfile = 9;
+    private const int NoPoolsGainProfile = 10;
     /// Подпись экрана Ready: в песочнице с пометкой «TEST», кроме профиля для
     /// снимков на сайт — там экран как боевой.
     private string ReadyText => Loc.T("status.readyIdle")
         + (_profile.SelectedIndex == DiamondProfile ? "" : " · TEST");
     /// С этого места в списке — аккаунты из журнала (<see cref="_storedAccounts"/>).
-    private const int FirstStoredProfile = 9;
+    private const int FirstStoredProfile = 11;
     private IReadOnlyList<(string Key, string Nick)> _storedAccounts = [];
 
     // Выбор помнится отметкой в папке песочницы: settings.json — файл игрока,
@@ -75,11 +79,22 @@ sealed partial class TestPanel
         Recompute();
     }
 
+    // Пустые пулы песочницы включены (профили «без пулов»).
+    private bool _noPools;
+
+    // История «на своих чаще» подменена (профиль «без пулов, на своих чаще»).
+    private bool _mainsWin;
+
     // Показ выбранного сценария профиля: пустой / первая игра / полная история.
     private void ApplyProfileScenario()
     {
         var idx = _profile.SelectedIndex;
         var stored = idx - FirstStoredProfile;
+        // Пустые пулы — у отдельного аккаунта песочницы. Снять их — ДО смены
+        // данных (иначе «мой аккаунт» лёг бы копией в пустой аккаунт), включить —
+        // ПОСЛЕ (иначе возврат к тестовым данным засеял бы его тестовыми пулами).
+        var noPools = idx is NoPoolsProfile or NoPoolsGainProfile;
+        if (_noPools && !noPools) { TestMode.UseNoPools(false); _noPools = false; }
         // «Алмаз II» — тоже на моих данных: пул, ник и винрейты чемпионов
         // настоящие, подставные только ранг и график (TestMode.DiamondSession).
         UseAccountData(
@@ -87,6 +102,19 @@ sealed partial class TestPanel
             : stored >= 0 && stored < _storedAccounts.Count ? _storedAccounts[stored].Key
             : null,
             remember: idx == MyAccountProfile);
+        if (noPools && !_noPools) { TestMode.UseNoPools(true); _noPools = true; }
+        // История: «на своих чаще» — только у своего профиля, уход возвращает тестовую.
+        if (idx == NoPoolsGainProfile && !_mainsWin)
+        {
+            SessionTracker.PreviewGames = TestMode.MainsWinHistory();
+            _mainsWin = true;
+        }
+        else if (idx != NoPoolsGainProfile && _mainsWin)
+        {
+            if (_dataAccount is null) TestMode.UseTestHistory(_engine, true);
+            _mainsWin = false;
+        }
+        _overlay.RefreshPoolMode();
         // Снимок для сайта — без тестовых кнопок («Сохранить для драфта»,
         // «Логи»); подпись «TEST» снимает ReadyText. Пересобираем экран сами:
         // с «моего аккаунта» сюда аккаунт тот же, и UseAccountData выходит сразу.

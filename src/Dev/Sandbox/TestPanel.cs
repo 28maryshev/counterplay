@@ -333,6 +333,8 @@ sealed partial class TestPanel : Window
         _profile.Items.Add("Профиль: 3 игры");        // ThreeGamesProfile — порог ленты чемпионов
         _profile.Items.Add("Профиль: ARAM, 2 нормала"); // AramProfile — ленты чемпионов нет
         _profile.Items.Add("Профиль: алмаз II, 55%");   // DiamondProfile — для снимков на сайт
+        _profile.Items.Add("Профиль: без пулов");       // NoPoolsProfile — зелёная кнопка «Пул», тег «+ Пул»
+        _profile.Items.Add("Профиль: без пулов, на своих чаще"); // NoPoolsGainProfile — тег «+N% WR»
         // Аккаунты из журнала на этом компьютере — их экраны как есть (только
         // чтение): так видно настоящий аккаунт без ранговых, с нормалами и ARAM.
         _storedAccounts = SessionTracker.StoredAccounts();

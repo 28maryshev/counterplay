@@ -43,6 +43,7 @@ public partial class OverlayWindow
         ApplyReadyText();
         ShowSession(_session);
         ApplyNotice();                // текст сообщения — под новый язык
+        UpdatePoolButtons();          // зелёный тег «Пул» и его подсказка — из кода
 
         _ = ReloadNamesAsync();       // имена чемпионов под новую локаль
     }

@@ -26,15 +26,27 @@ public partial class OverlayWindow
 
     private void PoolSettings_Click(object sender, RoutedEventArgs e)
     {
-        // Открываем окно настроек пулов (одно на приложение). После изменений —
-        // обновляем кнопки и слот пула.
+        // Окно настроек пулов одно на приложение: открыто — поднимаем его.
         if (_poolSettings is { IsVisible: true }) { _poolSettings.Activate(); return; }
+        ShowPoolSettings(OpenPoolSettings());
+    }
+
+    /// Как показать окно настроек пулов. Проверки подменяют на показ невидимым
+    /// (окна в проверках — только скрытыми): кнопка «Пул» без пулов ведёт сюда же.
+    public Action<Window> ShowPoolSettings { get; set; } = w => w.Show();
+
+    /// <summary>
+    /// Новое окно настроек пулов, ещё не показанное. После изменений в нём —
+    /// обновляем кнопки и слот пула; закрыли — отдаём правки на сервер: пулы
+    /// правят здесь и только здесь, а ждать до конца следующей игры значит
+    /// рисковать ими зря.
+    /// </summary>
+    public PoolSettingsWindow OpenPoolSettings()
+    {
         _poolSettings = new PoolSettingsWindow(() => { UpdatePoolButtons(); RefreshPoolSlot(); }, _engine);
-        // Закрыли окно — отдаём правки на сервер. Пулы правят здесь и только
-        // здесь, а ждать до конца следующей игры значит рисковать ими зря.
         _poolSettings.Closed += (_, _) =>
             _ = SyncClient.AutoAsync(PoolStore.AccountPuuid, "правка пулов");
-        _poolSettings.Show();
+        return _poolSettings;
     }
 
     /// <summary>
@@ -284,7 +296,13 @@ public partial class OverlayWindow
         RefreshPoolSlot();
     }
 
-    private void PoolPool_Click(object sender, RoutedEventArgs e) => ShowPoolMenu(PoolKind.Pool, PoolPoolBtn);
+    // Пулов ещё нет — кнопка ведёт в настройки пулов собрать первый (раньше
+    // молча ничего не делала); есть хоть один — переключает на пул, как раньше.
+    private void PoolPool_Click(object sender, RoutedEventArgs e)
+    {
+        if (PoolStore.Current().Pools.Count == 0) PoolSettings_Click(sender, e);
+        else ShowPoolMenu(PoolKind.Pool, PoolPoolBtn);
+    }
 
     private void PoolDuo_Click(object sender, RoutedEventArgs e)  => ShowPoolMenu(PoolKind.Duo,  PoolDuoBtn);
 
@@ -351,6 +369,7 @@ public partial class OverlayWindow
         Set(PoolNormalBtn, kind == PoolKind.Normal);
         Set(PoolPoolBtn,   kind == PoolKind.Pool);
         Set(PoolDuoBtn,    kind == PoolKind.Duo);
+        ApplyPoolCta(a.Pools.Count == 0);
 
         // Имя выбранного пула / связки — в конце ряда.
         var name = kind switch
@@ -365,5 +384,39 @@ public partial class OverlayWindow
 
         // Режим сменился — подсказка о нём могла стать лишней (или нужной).
         UpdatePoolHint();
+    }
+
+    private static readonly Color PoolCtaGreen = Color.FromRgb(0x57, 0xC9, 0x8A);
+
+    /// <summary>
+    /// Личных пулов нет — кнопка «Пул» зовёт собрать первый (владелец, 13.11:
+    /// «повысим интерес добавить пул»): вместо «Пул» зелёный тег — «+N% WR»,
+    /// насколько чаще я выигрываю на своих самых игранных (PoolGain, по
+    /// журналу), или «+ Пул», если цифры нет; по периметру мягкая зелёная
+    /// подсветка; в подсказке — откуда цифра и что будет по клику (настройки
+    /// пулов, PoolPool_Click). Дуо-пулы не в счёт: кнопка «Пул» — про личные.
+    /// Пул появился — обычная кнопка (её вид ставит Set выше).
+    /// </summary>
+    private void ApplyPoolCta(bool noPools)
+    {
+        PoolPoolLabel.Visibility = noPools ? Visibility.Collapsed : Visibility.Visible;
+        PoolPoolCta.Visibility   = noPools ? Visibility.Visible : Visibility.Collapsed;
+        if (!noPools)
+        {
+            PoolPoolBtn.Effect  = null;
+            PoolPoolBtn.ToolTip = null;
+            return;
+        }
+        var gain = PoolGain.ForMe();
+        PoolPoolCta.Text = gain is { } g ? Loc.T("pool.ctaGain", g.Gain) : "+ " + Loc.T("pool.pool");
+        PoolPoolBtn.ToolTip = gain is { } t
+            ? Loc.T("pool.ctaTipGain", t.Top, $"{t.TopWr:F0}", t.TopGames, $"{t.RestWr:F0}", t.RestGames)
+            : Loc.T("pool.ctaTip");
+        PoolPoolBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(0xC0, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
+        PoolPoolBtn.Background  = new SolidColorBrush(Color.FromArgb(0x16, PoolCtaGreen.R, PoolCtaGreen.G, PoolCtaGreen.B));
+        PoolPoolBtn.Effect = new DropShadowEffect
+        {
+            Color = PoolCtaGreen, ShadowDepth = 0, BlurRadius = 10, Opacity = 0.55,
+        };
     }
 }

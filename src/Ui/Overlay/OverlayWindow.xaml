@@ -513,7 +513,15 @@
                           Content="{loc:T pool.settings}"
                           Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
                   <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
-                  <Button x:Name="PoolPoolBtn" Click="PoolPool_Click" Content="{loc:T pool.pool}"/>
+                  <!-- Пулов ещё нет — вместо «Пул» зелёный тег («+N% WR» по журналу
+                       игрока или «+ Пул»), зелёная подсветка по периметру, клик
+                       открывает настройки пулов (UpdatePoolButtons, PoolGain). -->
+                  <Button x:Name="PoolPoolBtn" Click="PoolPool_Click">
+                    <Grid>
+                      <TextBlock x:Name="PoolPoolLabel" Text="{loc:T pool.pool}"/>
+                      <TextBlock x:Name="PoolPoolCta" Visibility="Collapsed" Foreground="#57C98A"/>
+                    </Grid>
+                  </Button>
                   <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
                 </UniformGrid>
 
