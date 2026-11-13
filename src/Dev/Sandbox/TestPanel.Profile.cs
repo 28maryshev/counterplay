@@ -102,7 +102,15 @@ sealed partial class TestPanel
             : stored >= 0 && stored < _storedAccounts.Count ? _storedAccounts[stored].Key
             : null,
             remember: idx == MyAccountProfile);
-        if (noPools && !_noPools) { TestMode.UseNoPools(true); _noPools = true; }
+        if (noPools && !_noPools)
+        {
+            TestMode.UseNoPools(true);
+            _noPools = true;
+            // Предупреждение «как собрать пул» — снова как в первый раз: зайди
+            // в настройки пулов и увидишь. Песочница настройки на диск не
+            // пишет — у игрока отметка не меняется.
+            AppSettings.Current.PoolFirstTipShown = false;
+        }
         // История: «на своих чаще» — только у своего профиля, уход возвращает тестовую.
         if (idx == NoPoolsGainProfile && !_mainsWin)
         {

@@ -20,6 +20,8 @@ public sealed class AppSettings
     public bool ReadyLast5   { get; set; } = true;   // последние 5 игр с LP
     public bool ReadyWinrate { get; set; } = true;   // блок «винрейт + график»
     public bool ReadyPool    { get; set; } = true;   // пул чемпионов и его режимы
+    // Предупреждение «как собрать пул» уже показано (окно пулов, первое открытие без пулов).
+    public bool PoolFirstTipShown { get; set; }
     public bool ReadyChamps  { get; set; } = true;   // полоса «винрейт за 30 дней»
     public bool ReadyBeta    { get; set; } = true;   // плашка беты и поддержки
     public bool ReadyPhase   { get; set; } = true;   // строка фазы (Готов / Лобби / Драфт)

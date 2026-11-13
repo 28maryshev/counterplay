@@ -158,6 +158,7 @@ public sealed partial class PoolSettingsWindow : Window
         var decorated = new Grid();
         decorated.Children.Add(DecorBackground());
         decorated.Children.Add(layout);
+        AddFirstTip(decorated);   // пулов нет и окно впервые — «как собрать пул»
 
         var chrome = PoolUi.Chrome(this, Title, decorated, resizable: true);
         Content = chrome;

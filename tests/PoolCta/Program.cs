@@ -43,7 +43,7 @@ internal static class Program
 {
     private static int _fails;
 
-    private static readonly string[] NewKeys = ["pool.ctaTitle", "pool.ctaGain", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate"];
+    private static readonly string[] NewKeys = ["pool.ctaTitle", "pool.ctaGain", "pool.ctaTipGain", "pool.ctaTip", "pool.ctaCreate", "pool.firstTipTitle", "pool.firstTipText", "pool.firstTipOk"];
 
     [STAThread]
     private static int Main()
@@ -172,6 +172,27 @@ internal static class Program
         Click(btn);
         Pump();
         Check("клик без пулов — окно настроек пулов", opened is not null, "");
+
+        // Владелец, 13.11: «когда нет ни одного пула, при первом открытии
+        // настроек — по центру предупреждение: добавлять только тех, на ком
+        // играешь чаще всего и лучше всего получается; всех не надо».
+        var tipTexts = opened?.FirstTip is { } ft ? Texts(ft) : [];
+        Check("первое открытие без пулов — предупреждение «как собрать пул» поверх окна",
+              opened?.FirstTip is { IsVisible: true } && tipTexts.Contains(Loc.T("pool.firstTipTitle"))
+              && tipTexts.Contains(Loc.T("pool.firstTipText")) && Loc.T("pool.firstTipText").Contains("чаще всего")
+              && Loc.T("pool.firstTipText").Contains("Не добавляй всех"),
+              string.Join(" | ", tipTexts.Select(t => t.Length > 40 ? t[..40] + "…" : t)));
+        Check("показ запомнен сразу", AppSettings.Current.PoolFirstTipShown, "");
+        if (opened?.FirstTip is { } tipEl && Find<Button>(tipEl) is { } okBtn) Click(okBtn);
+        Pump();
+        Check("«Понятно» убирает предупреждение", opened is { FirstTip: null }, "");
+        opened?.Close();
+        opened = null;
+
+        // Второе открытие — уже без предупреждения.
+        Click(btn);
+        Pump();
+        Check("второе открытие — без предупреждения", opened is { FirstTip: null }, opened is null ? "окна нет" : "");
         opened?.Close();
         opened = null;
 
@@ -216,6 +237,14 @@ internal static class Program
         Check("клик с пулом — включён пул, окна настроек нет",
               opened is null && PoolStore.Current().ActiveKind == PoolKind.Pool, $"{PoolStore.Current().ActiveKind}");
 
+        // Пул уже есть — предупреждения нет и при «первом» открытии.
+        AppSettings.Current.PoolFirstTipShown = false;
+        var withPool = w.OpenPoolSettings();
+        ShowHidden(withPool);
+        Pump();
+        Check("пул есть — предупреждения нет", withPool.FirstTip is null && !AppSettings.Current.PoolFirstTipShown, "");
+        withPool.Close();
+
         w.Close();
     }
 
@@ -238,6 +267,27 @@ internal static class Program
         var per = restGames / 4;
         foreach (var c in new[] { 22, 161, 412, 89 }) Add(c, per, ref rw);
         return games;
+    }
+
+    /// Все тексты в поддереве: заголовок и текст предупреждения.
+    private static List<string> Texts(DependencyObject d)
+    {
+        var res = new List<string>();
+        void Walk(DependencyObject x)
+        {
+            if (x is TextBlock { Text.Length: > 0 } tb) res.Add(tb.Text);
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(x); i++) Walk(VisualTreeHelper.GetChild(x, i));
+        }
+        Walk(d);
+        return res;
+    }
+
+    private static T? Find<T>(DependencyObject d) where T : DependencyObject
+    {
+        if (d is T t) return t;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++)
+            if (Find<T>(VisualTreeHelper.GetChild(d, i)) is { } r) return r;
+        return null;
     }
 
     private static bool IsGreen(Brush? b) =>
