@@ -160,7 +160,7 @@ public static partial class SessionTracker
         }
 
         var selected = QueueKeys.Contains(acc.SelectedQueue) ? acc.SelectedQueue : "solo";
-        return new SessionData(nick, selected, views, BuildEvening(acc, DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+        return new SessionData(nick, selected, views);
     }
 
     /// <summary>

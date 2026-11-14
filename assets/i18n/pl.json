@@ -358,16 +358,6 @@
     "toPromo": "gier do awansu: {0}",
     "toDemote": "gier do spadku: {0}"
   },
-  "evening": {
-    "now": "Wieczór: gra {0}",
-    "nowScore": "Wieczór: gra {0} · {1}–{2}",
-    "split": "Pierwsze {0} gry — {1}% · potem — {2}%",
-    "afterTwo": "Po 2 porażkach z rzędu — {0}% (zwykle {1}%)",
-    "tired": "Później wieczorem wygrywasz rzadziej ({0}%) — może przerwa?",
-    "tilt": "Po dwóch porażkach wygrywasz {0}% — zrób przerwę",
-    "noTilt": "Po dwóch porażkach grasz jak zwykle — to nie matchmaking",
-    "tip": "Z twojego dziennika, {0} gier. Wieczór to gry z przerwami krótszymi niż godzina"
-  },
   "session": {
     "needGames": "Zagraj kilka gier z włączonym Counterplay — LP za grę i wykres winrate się zapełnią.",
     "signIn": "Zaloguj się w kliencie League — profil pojawi się sam.",
@@ -617,8 +607,6 @@
     "readyLast5Hint": "Bohaterowie z ostatnich meczów i LP za każdy z nich",
     "readyWinrate": "Winrate i wykres",
     "readyWinrateHint": "Wygrane i przegrane w sezonie, winrate i wykres obok",
-    "readyEvening": "Wieczór: winrate wg numeru gry",
-    "readyEveningHint": "Jak grasz na początku wieczoru i później oraz po dwóch porażkach z rzędu — z twojego dziennika gier",
     "chart": "Co pokazuje wykres",
     "chartHint": "Winrate w czasie albo jak zmieniała się ranga",
     "chartWinrate": "Winrate",

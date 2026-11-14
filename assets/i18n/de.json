@@ -42,16 +42,6 @@
     "toPromo": "Spiele bis Aufstieg: {0}",
     "toDemote": "Spiele bis Abstieg: {0}"
   },
-  "evening": {
-    "now": "Abend: Spiel {0}",
-    "nowScore": "Abend: Spiel {0} · {1}–{2}",
-    "split": "Erste {0} Spiele — {1}% · danach — {2}%",
-    "afterTwo": "Nach 2 Niederlagen in Folge — {0}% (sonst {1}%)",
-    "tired": "Später am Abend gewinnst du seltener ({0}%) — vielleicht eine Pause?",
-    "tilt": "Nach zwei Niederlagen gewinnst du {0}% — mach eine Pause",
-    "noTilt": "Nach zwei Niederlagen spielst du wie immer — am Matchmaking liegt es nicht",
-    "tip": "Aus deinem Spielprotokoll, {0} Spiele. Ein Abend sind Spiele mit Pausen unter einer Stunde"
-  },
   "session": {
     "needGames": "Spiele ein paar Spiele mit laufendem Counterplay – LP pro Spiel und der Winrate-Graph füllen sich.",
     "signIn": "Melde dich im League-Client an – dein Profil erscheint dann von selbst.",
@@ -617,8 +607,6 @@
     "readyLast5Hint": "Champions der letzten Spiele und die LP für jedes davon",
     "readyWinrate": "Winrate und Graph",
     "readyWinrateHint": "Siege und Niederlagen der Season, Winrate und der Graph daneben",
-    "readyEvening": "Abend: Siegquote nach Spielnummer",
-    "readyEveningHint": "Wie du am Anfang des Abends und später spielst und nach zwei Niederlagen in Folge — aus deinem Spielprotokoll",
     "chart": "Graph zeigt",
     "chartHint": "Winrate über die Zeit oder wie sich dein Rang bewegt",
     "chartWinrate": "Winrate",

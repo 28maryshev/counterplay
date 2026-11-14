@@ -358,16 +358,6 @@
     "toPromo": "số trận để thăng hạng: {0}",
     "toDemote": "số trận để rớt hạng: {0}"
   },
-  "evening": {
-    "now": "Tối nay: trận {0}",
-    "nowScore": "Tối nay: trận {0} · {1}–{2}",
-    "split": "{0} trận đầu — {1}% · về sau — {2}%",
-    "afterTwo": "Sau 2 trận thua liên tiếp — {0}% (thường {1}%)",
-    "tired": "Về khuya bạn thắng ít hơn ({0}%) — nghỉ một chút?",
-    "tilt": "Sau hai trận thua bạn thắng {0}% — hãy nghỉ",
-    "noTilt": "Sau hai trận thua bạn vẫn chơi như thường — không phải do ghép trận",
-    "tip": "Theo nhật ký, {0} trận. Buổi tối = các trận nghỉ giữa nhau dưới một giờ"
-  },
   "session": {
     "needGames": "Chơi vài trận khi Counterplay đang chạy — LP mỗi trận và biểu đồ tỉ lệ thắng sẽ được cập nhật.",
     "signIn": "Đăng nhập vào client League — hồ sơ của bạn sẽ tự hiện ra.",
@@ -617,8 +607,6 @@
     "readyLast5Hint": "Tướng trong các trận gần đây và LP của từng trận",
     "readyWinrate": "Tỉ lệ thắng và biểu đồ",
     "readyWinrateHint": "Số trận thắng thua trong mùa, tỉ lệ thắng và biểu đồ bên cạnh",
-    "readyEvening": "Buổi tối: tỉ lệ thắng theo số trận",
-    "readyEveningHint": "Bạn chơi thế nào đầu buổi tối và về sau, và sau hai trận thua liên tiếp — theo nhật ký trận đấu",
     "chart": "Biểu đồ hiển thị",
     "chartHint": "Tỉ lệ thắng theo thời gian, hoặc rank lên xuống",
     "chartWinrate": "Tỉ lệ thắng",

@@ -31,10 +31,7 @@ public static partial class SessionTracker
         IReadOnlyList<WrPoint> WinrateHistory,
         IReadOnlyList<LpPoint> RatingHistory);
 
-    /// <param name="Night">Вечер игрока по журналу (см. SessionTracker.Evening);
-    /// null — журнала нет.</param>
-    public sealed record SessionData(string Nick, string SelectedQueue, IReadOnlyDictionary<string, QueueView> Queues,
-                                     Evening? Night = null);
+    public sealed record SessionData(string Nick, string SelectedQueue, IReadOnlyDictionary<string, QueueView> Queues);
 
     /// Ключи очередей в порядке выпадающего списка.
     public static readonly string[] QueueKeys = ["solo", "flex", "normal", "aram"];
