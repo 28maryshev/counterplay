@@ -233,6 +233,8 @@ sealed class SettingsWindow : Window
             s.ReadyLast5,   v => { s.ReadyLast5 = v;   MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.readyWinrate"), Loc.T("settings.readyWinrateHint"),
             s.ReadyWinrate, v => { s.ReadyWinrate = v; MarkDirty(); }));
+        body.Children.Add(Row(Loc.T("settings.readyEvening"), Loc.T("settings.readyEveningHint"),
+            s.ReadyEvening, v => { s.ReadyEvening = v; MarkDirty(); }));
 
         // Переключатель данных графика — единственная настройка, где выбор не
         // «да/нет», а «что показывать».

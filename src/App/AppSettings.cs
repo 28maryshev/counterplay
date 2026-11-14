@@ -19,6 +19,7 @@ public sealed class AppSettings
     public bool ReadyRank    { get; set; } = true;   // эмблема, ник, ранг, LP, прогресс
     public bool ReadyLast5   { get; set; } = true;   // последние 5 игр с LP
     public bool ReadyWinrate { get; set; } = true;   // блок «винрейт + график»
+    public bool ReadyEvening { get; set; } = true;   // вечер: винрейт по номеру игры и после серии поражений
     public bool ReadyPool    { get; set; } = true;   // пул чемпионов и его режимы
     // Предупреждение «как собрать пул» уже показано (окно пулов, первое открытие без пулов).
     public bool PoolFirstTipShown { get; set; }

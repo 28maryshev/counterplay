@@ -101,6 +101,7 @@ public partial class OverlayWindow
         RankCard.Visibility       = V(s.ReadyRank);
         Last5Panel.Visibility     = V(s.ReadyLast5);
         WinrateRow.Visibility     = V(s.ReadyWinrate);
+        RenderEvening();          // сам решает, видно ли: настройка и хватает ли игр
         // Пул нужен только подбору: выключен подбор — вместо кнопок объяснение,
         // почему их нет и где включить обратно. Кнопки — см. ApplyPoolArea.
         ApplyPoolArea();

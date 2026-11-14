@@ -42,6 +42,16 @@
     "toPromo": "yükselmeye kalan maç: {0}",
     "toDemote": "düşmeye kalan maç: {0}"
   },
+  "evening": {
+    "now": "Akşam: {0}. maç",
+    "nowScore": "Akşam: {0}. maç · {1}–{2}",
+    "split": "İlk {0} maç — %{1} · sonrası — %{2}",
+    "afterTwo": "Art arda 2 yenilgiden sonra — %{0} (genelde %{1})",
+    "tired": "Akşamın ilerisinde daha az kazanıyorsun (%{0}) — mola mı?",
+    "tilt": "İki yenilgiden sonra %{0} kazanıyorsun — mola ver",
+    "noTilt": "İki yenilgiden sonra her zamanki gibi oynuyorsun — eşleştirme değil",
+    "tip": "Maç kaydına göre, {0} maç. Akşam: aralarında bir saatten az mola olan maçlar"
+  },
   "session": {
     "needGames": "Counterplay açıkken birkaç maç oyna — maç başına LP ve galibiyet grafiği dolacaktır.",
     "signIn": "League istemcisinde oturum aç — profilin kendiliğinden görünecek.",
@@ -607,6 +617,8 @@
     "readyLast5Hint": "Son maçlardaki şampiyonlar ve her birinin LP'si",
     "readyWinrate": "Kazanma oranı ve grafik",
     "readyWinrateHint": "Sezonun galibiyet-mağlubiyeti, kazanma oranı ve yanındaki grafik",
+    "readyEvening": "Akşam: maç sırasına göre kazanma oranı",
+    "readyEveningHint": "Akşamın başında ve sonrasında, art arda iki yenilgiden sonra nasıl oynadığın — maç kaydına göre",
     "chart": "Grafik neyi gösterir",
     "chartHint": "Zamana göre kazanma oranı ya da rankının hareketi",
     "chartWinrate": "Kazanma oranı",

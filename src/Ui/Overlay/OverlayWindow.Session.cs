@@ -114,6 +114,7 @@ public partial class OverlayWindow
         var v = d?.Queues.GetValueOrDefault(_selectedQueue);
         if (_emptyProfilePreview) v = null;   // тестовый предпросмотр «нет игр»
         _sessionView = v;
+        RenderEvening();   // вечер — по всему журналу, а не по выбранной очереди
 
         NickText.Text  = d?.Nick ?? "";
         QueueText.Text = Loc.T("session.queue." + _selectedQueue) + " ▾";

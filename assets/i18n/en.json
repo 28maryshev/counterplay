@@ -384,6 +384,16 @@
     "toPromo": "games to promotion: {0}",
     "toDemote": "games to demotion: {0}"
   },
+  "evening": {
+    "now": "Evening: game {0}",
+    "nowScore": "Evening: game {0} · {1}–{2}",
+    "split": "First {0} games — {1}% · later — {2}%",
+    "afterTwo": "After 2 losses in a row — {0}% (usually {1}%)",
+    "tired": "Later in the evening you win less ({0}%) — maybe take a break?",
+    "tilt": "After two losses you win {0}% — take a break",
+    "noTilt": "After two losses you play as usual — it's not matchmaking",
+    "tip": "From your game log, {0} games. An evening is games with breaks under an hour"
+  },
   "session": {
     "needGames": "Play a few games with Counterplay running — per-game LP and the winrate chart will fill in.",
     "signIn": "Sign in to the League client — your profile will appear on its own.",
@@ -607,6 +617,8 @@
     "readyLast5Hint": "Champions from recent matches and the LP for each",
     "readyWinrate": "Win rate and chart",
     "readyWinrateHint": "Season wins and losses, win rate and the chart beside it",
+    "readyEvening": "Evening: win rate by game number",
+    "readyEveningHint": "How you play early in the evening and later, and after two losses in a row — from your game log",
     "chart": "Chart shows",
     "chartHint": "Win rate over time, or how your rank moved",
     "chartWinrate": "Win rate",

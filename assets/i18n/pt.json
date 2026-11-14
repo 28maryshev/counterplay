@@ -42,6 +42,16 @@
     "toPromo": "partidas para subir: {0}",
     "toDemote": "partidas para cair: {0}"
   },
+  "evening": {
+    "now": "Noite: partida {0}",
+    "nowScore": "Noite: partida {0} · {1}–{2}",
+    "split": "Primeiras {0} — {1}% · depois — {2}%",
+    "afterTwo": "Após 2 derrotas seguidas — {0}% (normalmente {1}%)",
+    "tired": "Mais tarde você vence menos ({0}%) — que tal uma pausa?",
+    "tilt": "Após duas derrotas você vence {0}% — faça uma pausa",
+    "noTilt": "Após duas derrotas você joga como sempre — não é o matchmaking",
+    "tip": "Pelo seu registro, {0} partidas. Uma noite são partidas com pausas de menos de uma hora"
+  },
   "session": {
     "needGames": "Jogue algumas partidas com o Counterplay aberto — o LP por partida e o gráfico de winrate vão se preencher.",
     "signIn": "Entre no cliente do League — seu perfil vai aparecer sozinho.",
@@ -607,6 +617,8 @@
     "readyLast5Hint": "Campeões das últimas partidas e o LP de cada uma",
     "readyWinrate": "Winrate e gráfico",
     "readyWinrateHint": "Vitórias e derrotas da temporada, winrate e o gráfico ao lado",
+    "readyEvening": "Noite: winrate por número da partida",
+    "readyEveningHint": "Como você joga no começo da noite e depois, e após duas derrotas seguidas — pelo seu registro de partidas",
     "chart": "O que o gráfico mostra",
     "chartHint": "O winrate ao longo do tempo ou como o seu elo se moveu",
     "chartWinrate": "Winrate",
