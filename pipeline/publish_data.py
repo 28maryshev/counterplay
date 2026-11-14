@@ -69,6 +69,12 @@ PAIR_KEYS = {
     'synergy':         'champion_id, role, ally_id, ally_role',
     'botlane_matchup': 'champion_id, role, vs_champion_id, vs_role',
 }
+# Колонки, которых программа пока не читает, — в базу игрокам не кладём, чтобы
+# файл не рос зря. Линия в паре (14.11.2026, collect.LANE_COLS): копится для
+# калибровки (calibrate.py берёт полную базу через ops/pull-calib.sh); понадобится
+# программе — убрать отсюда.
+UNPUBLISHED = {'matchup': ('lane_games', 'lane_won', 'lane_lost', 'cs10_diff')}
+
 # «Длинный хвост»: пары с малым числом игр никогда не показываются — не кладём.
 # base_wr и champion_bans оставляем полностью (знаменатели пик/бан-рейта).
 PRUNE_MIN = {'matchup': 2, 'synergy': 2, 'botlane_matchup': 2}
@@ -136,6 +142,11 @@ def build_slim(full_path: Path, dest_path: Path, patches, bucket=None, matches=0
             if not row:
                 continue
             dst.execute(row[0])  # тот же DDL
+            # Неопубликованные колонки — долой из пустой таблицы (мгновенно).
+            for c in UNPUBLISHED.get(t, ()):
+                if c in [x[1] for x in dst.execute(f'PRAGMA table_info({t})')]:
+                    dst.execute(f'ALTER TABLE {t} DROP COLUMN {c}')
+            keep = ', '.join(x[1] for x in dst.execute(f'PRAGMA table_info({t})'))
             conds = [f'patch IN ({ph})']
             params = list(patches)
             if bucket:
@@ -144,7 +155,7 @@ def build_slim(full_path: Path, dest_path: Path, patches, bucket=None, matches=0
             if t in PRUNE_MIN:
                 conds.append('games>=?')
                 params.append(PRUNE_MIN[t])
-            dst.execute(f"INSERT INTO {t} SELECT * FROM src.{t} WHERE {' AND '.join(conds)}", params)
+            dst.execute(f"INSERT INTO {t} ({keep}) SELECT {keep} FROM src.{t} WHERE {' AND '.join(conds)}", params)
         # Сводка пар по ВСЕМ дивизионам — приор для разреженных пар.
         #
         # Данные по парам «чемпион против чемпиона» тонкие: в своём бакете у половины

@@ -41,10 +41,24 @@
 победы, которые команда теряет с открытой дырой; со знаком минус — цена её
 закрытия, это и есть GapWeight движка (W_NEED = W_COUNTER_PP).
 
+Слабая сторона (с 14.11.2026, флаг --lane): нужна ли команде линия, которая
+переживёт лейнинг без леса. Мысль про-игрока: две линии, которым нужна помощь,
+лес не вытянет — он успевает к одной. Сборщик с 14.11 пишет исход линии:
+агрегаты в matchup (lane_games, lane_lost) и у каждого слота драфта l (1/−1/0).
+По ним — ожидаемый шанс проиграть линию в этой паре (пара, усаженная к
+чемпиону на LANE_K игр, сам матч вычтен), минус средний по роли:
+  * основные эффекты — топ, мид и бот (по стрелку), в пунктах;
+  * «нет слабой стороны» — 1, если хрупки (шанс выше среднего) и топ, и бот.
+Коэффициент последнего / 0,04 — во сколько пунктов победы обходится команде
+отсутствие слабой стороны СВЕРХ того, что стоят сами две линии. С --lane
+регрессия идёт только по драфтам, у которых есть исход линии (собраны после
+14.11), — по старым признак не посчитать.
+
 Запуск:
   bash ops/pull-calib.sh                    # → calib-slice.db
   Counterplay.exe --style-features calib-slice.db   # необязательно: стиль
   python pipeline/calibrate.py --db calib-slice.db
+  python pipeline/calibrate.py --db calib-slice.db --lane   # + слабая сторона
 
 Чистый Python, без numpy: 600 тыс. драфтов — минуты три-четыре.
 Константы сглаживания повторяют движок — при правке там сверить здесь.
@@ -62,6 +76,9 @@ PREV_WEIGHT = 0.6              # вес прошлого патча в агре�
 ROLES = ['top', 'jungle', 'mid', 'adc', 'support']
 PAIRS = [(a, b) for i, a in enumerate(ROLES) for b in ROLES[i:]]
 ROLE_RU = {'top': 'топ', 'jungle': 'лес', 'mid': 'мид', 'adc': 'АДК', 'support': 'саппорт'}
+LANE_ROLES = ['top', 'mid', 'adc']   # бот-линия — по стрелку: флаг саппорта про ту же линию
+LANE_K = 100.0                        # пара линии усаживается к линии чемпиона на столько игр
+LANE_MIN_GAMES = 20000                # меньше игр с исходом линии в агрегатах — не мерю
 
 
 def delta(g, w, k):
@@ -94,6 +111,54 @@ def load(con, tier, cur, prev):
             f"FROM botlane_matchup WHERE {where} GROUP BY 1,2,3,4", (tier, cur, prev)):
         pair[(c, r, v, vr)] = (g, w)
     return base, power, pair
+
+
+def load_lane(con, tier, cur, prev):
+    """Агрегаты линии: чемпион на роли и пара → (игр с исходом линии, проиграно).
+    None — в выжимке нет колонок линии или игр с ней мало."""
+    if 'lane_games' not in [r[1] for r in con.execute("PRAGMA table_info(matchup)")]:
+        return None
+    pw = f"CASE patch WHEN '{cur}' THEN 1.0 WHEN '{prev}' THEN {PREV_WEIGHT} ELSE 0 END"
+    champ, pair = {}, {}
+    for c, r, v, g, l in con.execute(
+            f"SELECT champion_id, role, vs_champion_id, SUM(lane_games*{pw}), SUM(lane_lost*{pw}) FROM matchup "
+            f"WHERE tier_bucket=? AND patch IN (?, ?) AND role IN ('top', 'mid', 'adc') GROUP BY 1,2,3",
+            (tier, cur, prev)):
+        if not g:
+            continue
+        pair[(c, r, v)] = (g, l)
+        cg, cl = champ.get((c, r), (0.0, 0.0))
+        champ[(c, r)] = (cg + g, cl + l)
+    if sum(g for g, _ in champ.values()) < LANE_MIN_GAMES:
+        return None
+    avg = {}
+    for r in LANE_ROLES:
+        g = sum(v[0] for k, v in champ.items() if k[1] == r)
+        avg[r] = sum(v[1] for k, v in champ.items() if k[1] == r) / g if g else 0.0
+    return champ, pair, avg
+
+
+def lane_features(A, B, la, lane):
+    """Разность команд по линии: [топ, мид, бот, нет слабой стороны]. la —
+    исход линии слотов драфта {(команда, роль): l}; сам матч вычитается."""
+    champ, pair, avg = lane
+
+    def lost(team, c, r, o):
+        own = la.get((team, r))
+        g1, l1 = (1, 1 if own == -1 else 0) if own is not None else (0, 0)
+        cg, cl = champ.get((c, r), (0.0, 0.0))
+        cg, cl = cg - g1, cl - l1
+        prior = cl / cg if cg > 0 else avg[r]
+        pg, pl = pair.get((c, r, o), (0.0, 0.0))
+        pg, pl = max(pg - g1, 0.0), max(pl - l1, 0.0)
+        return (pl + LANE_K * prior) / (pg + LANE_K)
+
+    def side(team, T, O):
+        m = {r: lost(team, T[r], r, O[r]) - avg[r] for r in LANE_ROLES}
+        return [m[r] * 100 for r in LANE_ROLES] + [1.0 if m['top'] > 0 and m['adc'] > 0 else 0.0]
+
+    a, b = side(100, A, B), side(200, B, A)
+    return [x - y for x, y in zip(a, b)]
 
 
 def features(A, B, wa, base, power, pair):
@@ -184,6 +249,8 @@ def main():
     ap.add_argument('--points', type=float, default=3.7,
                     help='очков оценки за настоящий пункт контры (W_COUNTER_PP) — его калибровка сохраняет')
     ap.add_argument('--min-drafts', type=int, default=50000)
+    ap.add_argument('--lane', action='store_true',
+                    help='слабая сторона: только драфты с исходом линии (собраны с 14.11.2026)')
     args = ap.parse_args()
 
     con = sqlite3.connect(args.db)
@@ -212,21 +279,39 @@ def main():
     except sqlite3.OperationalError:
         gcols, gaps = [], {}
     print("дыры состава: " + (f"признаки по {len(gaps)} драфтам" if gaps else "таблицы draft_gaps нет — не мерю"))
-    d = 1 + 1 + len(PAIRS) + (2 if style else 0) + len(gcols)
+    lane = load_lane(con, args.tier, cur, prev) if args.lane else None
+    if args.lane:
+        print("слабая сторона: " + (f"средний проигрыш линии — " + ", ".join(
+            f"{ROLE_RU[r]} {lane[2][r] * 100:.1f}%" for r in LANE_ROLES) if lane
+            else "исхода линии в выжимке нет или мало — не мерю"))
+        if not lane:
+            return
+    d = 1 + 1 + len(PAIRS) + (2 if style else 0) + len(gcols) + (4 if lane else 0)
+    weak = [0, 0]   # драфтов, где у команд разное «нет слабой стороны» / всего с линией
     X = array('d'); y = array('d')
     for i, (mid, win, slots) in enumerate(con.execute(
             "SELECT match_id, win_team, slots FROM drafts WHERE tier_bucket=? AND patch=?", (args.tier, cur))):
         t = {100: {}, 200: {}}
+        la = {}
         for s in json.loads(slots):
             t[s['t']][s['r']] = s['c']
+            if 'l' in s:
+                la[(s['t'], s['r'])] = s['l']
         if len(t[100]) != 5 or len(t[200]) != 5:
             continue
+        if lane and not la:
+            continue   # драфт собран до 14.11 — исхода линии нет
         wa = 1 if win == 100 else 0
         X.append(1.0); X.extend(features(t[100], t[200], wa, base, power, pair))
         if style:
             X.extend(style.get(mid, (0.0, 0.0)))
         if gcols:
             X.extend(gaps.get(mid, (0.0,) * len(gcols)))
+        if lane:
+            lf = lane_features(t[100], t[200], la, lane)
+            X.extend(lf)
+            weak[0] += lf[3] != 0
+            weak[1] += 1
         y.append(wa)
         if i % 100000 == 0:
             print(f"  драфтов разобрано: {i}", flush=True)
@@ -258,6 +343,15 @@ def main():
         for i, c in enumerate(gcols):
             n = sum(1 for v in gaps.values() if v[i] != 0)
             print(f"  {c:10} {b[g0 + i] / 0.04:6.2f} ± {se[g0 + i] / 0.04:.2f}   (драфтов с разницей {n})")
+
+    if lane:
+        l0 = 2 + len(PAIRS) + (2 if style else 0) + len(gcols)
+        print()
+        print("линия (пунктов победы на пункт ожидаемого проигрыша линии сверх среднего):")
+        for i, r in enumerate(LANE_ROLES):
+            print(f"  {ROLE_RU[r]:8} {b[l0 + i] / 0.04:6.3f} ± {se[l0 + i] / 0.04:.3f}")
+        print(f"нет слабой стороны (топ и бот хрупки): {b[l0 + 3] / 0.04:6.2f} ± {se[l0 + 3] / 0.04:.2f} пп победы"
+              f"   (у команд по-разному в {weak[0]} из {weak[1]} драфтов)")
 
     lanes = [trust[(r, r)] for r in ROLES]
     # Сохраняется цена настоящего пункта, а не средний вес: вес — на показанный

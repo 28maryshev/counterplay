@@ -209,7 +209,12 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (champion_id, role, tier_bucket, patch)
         );
 
-        -- Противостояние на линии (один и тот же role у обоих)
+        -- Противостояние на линии (один и тот же role у обоих).
+        -- Линия (с 14.11.2026, см. LANE_COLS и lane_of): lane_games — игр, где
+        -- у обоих есть флаги исхода линии из challenges; lane_won / lane_lost —
+        -- выиграл / проиграл линию с явным перевесом (laningPhaseGoldExpAdvantage,
+        -- у соперников взаимоисключающий); cs10_diff — сумма «мои миньоны к 10-й
+        -- минус его» (у лесников — лесные). Ремейки не пишутся.
         CREATE TABLE IF NOT EXISTS matchup (
             champion_id    INTEGER,
             role           TEXT,
@@ -218,6 +223,10 @@ def init_db(path: str) -> sqlite3.Connection:
             patch          TEXT,
             games          INTEGER DEFAULT 0,
             wins           INTEGER DEFAULT 0,
+            lane_games     INTEGER DEFAULT 0,
+            lane_won       INTEGER DEFAULT 0,
+            lane_lost      INTEGER DEFAULT 0,
+            cs10_diff      INTEGER DEFAULT 0,
             PRIMARY KEY (champion_id, role, vs_champion_id, tier_bucket, patch)
         );
 
@@ -364,6 +373,15 @@ def init_db(path: str) -> sqlite3.Connection:
         con.execute("UPDATE processed_matches SET ts = strftime('%s','now') WHERE ts IS NULL")
         print('[схема] добавил processed_matches.ts', flush=True)
 
+    # Линия в паре (14.11.2026): колонки matchup. ALTER ADD COLUMN в SQLite
+    # меняет только схему — на гигабайтной таблице мгновенно; старые строки
+    # читаются с нулями по умолчанию.
+    cols = [c[1] for c in con.execute('PRAGMA table_info(matchup)')]
+    for c in LANE_COLS:
+        if c not in cols:
+            con.execute(f'ALTER TABLE matchup ADD COLUMN {c} INTEGER DEFAULT 0')
+            print(f'[схема] добавил matchup.{c}', flush=True)
+
     # Курсор обхода с 28.10 — на тир, а не на бакет. Строка бакета, уже
     # стоявшая на втором его тире (emerald → DIAMOND), переезжает на этот тир.
     con.execute('UPDATE OR IGNORE collect_cursor SET bucket = lower(tier) '
@@ -446,6 +464,29 @@ def mark_processed(con: sqlite3.Connection, match_id: str):
     # ts нужен уборке (prune_db): по нему видно, что матч уже вне окна сбора.
     con.execute("INSERT OR IGNORE INTO processed_matches (match_id, ts) "
                 "VALUES (?, strftime('%s','now'))", (match_id,))
+
+
+# Колонки линии в matchup (с 14.11.2026). Их же publish_data пока не кладёт в
+# базу программы (UNPUBLISHED): программа их не читает, а файл вырос бы зря.
+LANE_COLS = ('lane_games', 'lane_won', 'lane_lost', 'cs10_diff')
+
+
+def lane_of(p: dict, opp: dict, role: str):
+    """Исход линии игрока p против соперника opp той же роли — из challenges.
+
+    (won, lost, cs10_diff) или None, если у кого-то из двоих нет флага.
+    Флаг laningPhaseGoldExpAdvantage — «выиграл линию с явным перевесом по
+    золоту и опыту»; у соперников он взаимоисключающий (замер 14.11 на 590
+    парах: ни разу не оба), явный победитель — примерно в четверти линий.
+    Разница CS к 10-й: у лесников — лесные лагеря, у остальных — миньоны.
+    """
+    a, b = p.get('challenges') or {}, opp.get('challenges') or {}
+    fa, fb = a.get('laningPhaseGoldExpAdvantage'), b.get('laningPhaseGoldExpAdvantage')
+    if fa is None or fb is None:
+        return None
+    key = 'jungleCsBefore10Minutes' if role == 'jungle' else 'laneMinionsFirst10Minutes'
+    cs = round((a.get(key) or 0) - (b.get(key) or 0))
+    return int(bool(fa) and not fb), int(bool(fb) and not fa), cs
 
 
 def upsert(con: sqlite3.Connection, table: str, key_cols: list, key_vals: list, win: bool):
@@ -597,6 +638,7 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
     duration = info.get('gameDuration', 0) or 0
     remake = any(p.get('gameEndedInEarlySurrender') for p in participants)
     dur_bucket = None if remake or duration <= 0 else 0 if duration < 25 * 60 else 1 if duration < 35 * 60 else 2
+    lane_slot = {}   # (teamId, роль) → исход линии для слотов драфта (см. lane_of)
 
     for side_a, side_b in ((t1, t2), (t2, t1)):
         for role, p in teams[side_a].items():
@@ -631,12 +673,24 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
                                      trued = trued + ?""",
                     (champ, role, tier_bucket, patch, ph, mg, tr, ph, mg, tr))
 
-            # matchup — против оппонента той же роли
+            # matchup — против оппонента той же роли, с исходом линии (lane_of)
             opp = teams[side_b].get(role)
             if opp:
-                upsert(con, 'matchup',
-                       ['champion_id', 'role', 'vs_champion_id', 'tier_bucket', 'patch'],
-                       [champ, role, opp['championId'], tier_bucket, patch], win)
+                lane = None if remake else lane_of(p, opp, role)
+                lw, ll, cs = lane or (0, 0, 0)
+                lg = 1 if lane else 0
+                con.execute(
+                    """INSERT INTO matchup (champion_id, role, vs_champion_id, tier_bucket, patch,
+                                            games, wins, lane_games, lane_won, lane_lost, cs10_diff)
+                       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+                       ON CONFLICT (champion_id, role, vs_champion_id, tier_bucket, patch)
+                       DO UPDATE SET games = games + 1, wins = wins + ?,
+                                     lane_games = lane_games + ?, lane_won = lane_won + ?,
+                                     lane_lost = lane_lost + ?, cs10_diff = cs10_diff + ?""",
+                    (champ, role, opp['championId'], tier_bucket, patch,
+                     int(win), lg, lw, ll, cs, int(win), lg, lw, ll, cs))
+                if lane:
+                    lane_slot[(p['teamId'], role)] = lw - ll
 
             # synergy — с каждым союзником другой роли
             for ally_role, ally in teams[side_a].items():
@@ -699,7 +753,10 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
     # Полный драфт — сырьё для калибровки весов (calibrate.py).
     win_team = next((p['teamId'] for p in participants if p.get('win')), None)
     if win_team is not None:
-        slots = [{'t': tid, 'r': r, 'c': p['championId']}
+        # l — исход линии (1 выиграл, −1 проиграл, 0 ровно; нет флагов — нет
+        # ключа): калибровка вычитает сам матч из агрегатов линии (leave-one-out).
+        slots = [{'t': tid, 'r': r, 'c': p['championId'],
+                  **({'l': lane_slot[(tid, r)]} if (tid, r) in lane_slot else {})}
                  for tid, roles in teams.items() for r, p in roles.items()]
         con.execute(
             "INSERT OR IGNORE INTO drafts (match_id, tier_bucket, patch, win_team, slots) "
