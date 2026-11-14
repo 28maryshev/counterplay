@@ -392,6 +392,8 @@
     "tierGrade": "Bu yamada {0} tier",
     "alsoPool": "Havuzuna da zarar verir ({0})",
     "alsoTeam": "Takımına zarar verir ({0})",
+    "personalVs": "Ona karşı skorun: {0}–{1}",
+    "personalMatchup": "Bununla {0} karşısındaki maçların: {1}–{2}",
     "notablePick": "Bu yamada dikkat çeken bir seçim",
     "jgSetup": "Ormancın {0} agresif ama kendi CC'si yok; senin CC'n sayesinde koridoruna çok daha kolay gank atar.",
     "adcEngage": "ADC'n {0} savaş istiyor, sen de savaşları başlatabilirsin.",

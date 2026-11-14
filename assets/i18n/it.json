@@ -287,6 +287,8 @@
     "tierGrade": "Tier {0} in questa patch",
     "alsoPool": "Penalizza anche il tuo pool ({0})",
     "alsoTeam": "Penalizza la tua squadra ({0})",
+    "personalVs": "Il tuo bilancio contro di lui: {0}–{1}",
+    "personalMatchup": "Le tue partite con lui contro {0}: {1}–{2}",
     "notablePick": "Scelta rilevante in questa patch",
     "jgSetup": "Il tuo jungler {0} è aggressivo ma non ha cc, e il tuo cc gli rende più facile gankare la tua lane.",
     "adcEngage": "Il tuo ADC {0} cerca gli scontri e tu sai aprirli.",

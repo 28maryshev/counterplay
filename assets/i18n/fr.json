@@ -392,6 +392,8 @@
     "tierGrade": "Tier {0} ce patch",
     "alsoPool": "Gêne aussi ton pool ({0})",
     "alsoTeam": "Gêne ton équipe ({0})",
+    "personalVs": "Ton bilan contre lui : {0}–{1}",
+    "personalMatchup": "Tes parties avec lui contre {0} : {1}–{2}",
     "notablePick": "Pick notable ce patch",
     "jgSetup": "Ton jungler {0} est agressif mais n'a pas de contrôle à lui, et ton contrôle l'aide à ganker ta lane.",
     "adcEngage": "Ton ADC {0} veut des combats, et tu peux les lancer.",

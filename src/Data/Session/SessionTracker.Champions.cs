@@ -28,6 +28,7 @@ public static partial class SessionTracker
     {
         lock (StatsCache) { StatsCache.Clear(); _draftTimes = null; }
         _histCache = null;
+        _foeCache = null;
     }
 
     /// Окно «свежей формы». Журнал держится за весь сезон, но для подбора важно,

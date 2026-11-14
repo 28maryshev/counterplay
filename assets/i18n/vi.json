@@ -288,6 +288,8 @@
     "tierGrade": "Bậc {0} bản này",
     "alsoPool": "Cũng gây khó cho pool của bạn ({0})",
     "alsoTeam": "Gây khó cho đội bạn ({0})",
+    "personalVs": "Thành tích của bạn khi gặp tướng này: {0}–{1}",
+    "personalMatchup": "Trận của bạn với tướng này gặp {0}: {1}–{2}",
     "notablePick": "Lựa chọn đáng chú ý bản này",
     "jgSetup": "Đi rừng {0} của bạn chơi hổ báo nhưng không có khống chế, và khống chế của bạn giúp họ gank đường bạn dễ hơn.",
     "adcEngage": "Xạ thủ {0} thích giao tranh, và bạn biết cách mở màn.",

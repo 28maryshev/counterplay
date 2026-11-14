@@ -141,6 +141,7 @@ public static partial class SessionTracker
                 foreach (var d in s.Drop)
                 {
                     keep.Role ??= games[d].Role;
+                    keep.Foes ??= games[d].Foes;
                     drop.Add(d);
                 }
             }

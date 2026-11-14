@@ -234,10 +234,10 @@ public static partial class SyncClient
                     added = true;
                     if (copy is JsonObject c) byTs[(long)ts] = c;
                 }
-                // Та же игра: роль (её пишут с 1.3.61), номер и начало (с 1.3.63)
-                // берём оттуда, где они есть.
+                // Та же игра: роль (её пишут с 1.3.61), номер и начало (с 1.3.63),
+                // враги (с 1.3.91) берём оттуда, где они есть.
                 else
-                    foreach (var field in new[] { "Role", "Id", "Start" })
+                    foreach (var field in new[] { "Role", "Id", "Start", "Foes" })
                         if (own[field] is null && g[field] is { } v)
                             own[field] = v.DeepClone();
             }
@@ -303,6 +303,8 @@ public static partial class SyncClient
                 {
                     if (keep["Role"] is null && games[d]?["Role"] is { } role)
                         keep["Role"] = role.DeepClone();
+                    if (keep["Foes"] is null && games[d]?["Foes"] is { } foes)
+                        keep["Foes"] = foes.DeepClone();
                     drop.Add(d);
                 }
             }

@@ -159,12 +159,13 @@ public static partial class SessionTracker
                 // чём — ровно по той же причине ARAM не входит и в винрейт по
                 // чемпионам. Заодно экономим запрос подробной игры.
                 if (h.Queue == "aram") continue;
-                var (mates, myRole) = await FetchAlliesAsync(http, h.GameId, who!.Puuid, roleShare, ct);
+                var (mates, myRole, foes) = await FetchAlliesAsync(http, h.GameId, who!.Puuid, roleShare, ct);
                 // Роль из драфта главнее: там она выдана, а здесь угадана по
                 // доле ролей (клиент путает топ с лесом).
                 if (added.TryGetValue(h.GameId, out var fresh) && string.IsNullOrEmpty(fresh.Role)
                     && myRole.Length > 0)
                     fresh.Role = myRole;
+                SetFoes(acc, h.GameId, foes, myRole);
                 foreach (var a in mates)
                 {
                     var key = PairKey(a.Puuid, h.Queue, h.ChampionId, a.ChampionId, myRole, a.Role);
@@ -227,6 +228,13 @@ public static partial class SessionTracker
                 });
             }
         }
+
+        // 4c) Враги игр, у которых их ещё нет, — для личных матчапов (см.
+        //     SessionTracker.Foes). После 4b: при первом запуске журнал
+        //     наполняется прошлыми играми только там, и без этого шага враги
+        //     появились бы лишь со следующего обновления.
+        if (!string.IsNullOrEmpty(who?.Puuid))
+            await BackfillFoesAsync(http, acc, who!.Puuid, roleShare, ct);
 
         // 5) LP-дельты ранкед-очередей: разница абсолютного LP с прошлого снимка
         //    вешается на самую свежую добавленную игру этой очереди.
@@ -411,22 +419,28 @@ public static partial class SessionTracker
     /// Ремейки отдают одного участника вместо десяти (проверено на игре в 90
     /// секунд) — тогда просто вернётся пустой список, и связок не прибавится.
     /// </summary>
-    private static async Task<(List<Ally> Allies, string MyRole)> FetchAlliesAsync(
+    private static async Task<(List<Ally> Allies, string MyRole, Dictionary<string, int>? Foes)> FetchAlliesAsync(
         LcuHttpClient http, long gameId, string myPuuid,
         Func<int, string, double>? roleShare, CancellationToken ct)
     {
         var allies = new List<Ally>();
         var myRole = "";
+        // Враги по ролям — для личных матчапов (SessionTracker.Foes). null —
+        // клиент не ответил, спросим в другой раз; пустой — игру прочли, а
+        // состава нет (ремейк, игры больше нет), спрашивать бесполезно.
+        Dictionary<string, int>? foes = null;
         try
         {
             var (s, body) = await http.GetAsync($"/lol-match-history/v1/games/{gameId}", ct);
-            if (s != 200) return (allies, myRole);
+            if (s == 404) foes = [];
+            if (s != 200) return (allies, myRole, foes);
+            foes = [];
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
             if (!root.TryGetProperty("participants", out var parts)
                 || !root.TryGetProperty("participantIdentities", out var ids)
                 || parts.ValueKind != JsonValueKind.Array
-                || ids.ValueKind != JsonValueKind.Array) return (allies, myRole);
+                || ids.ValueKind != JsonValueKind.Array) return (allies, myRole, foes);
 
             // participantId → puuid и ник. Ник берём riot-овский (gameName), а
             // если его нет — старое имя призывателя.
@@ -450,23 +464,30 @@ public static partial class SessionTracker
             foreach (var e in parts.EnumerateArray())
                 if (puuidOf.GetValueOrDefault(GetInt(e, "participantId")) == myPuuid)
                     myTeam = GetInt(e, "teamId", -1);
-            if (myTeam < 0) return (allies, myRole);
+            if (myTeam < 0) return (allies, myRole, foes);
 
-            // Роли своей пятёрки: бот-линия из ответа клиента, остальные по
+            // Роли обеих пятёрок: бот-линия из ответа клиента, остальные по
             // доле роли (см. RolesOfTeam — метки клиента верны только на боте).
             var mine = new List<(int Pid, int Champ, string Lane, string Role)>();
+            var theirs = new List<(int Pid, int Champ, string Lane, string Role)>();
             foreach (var e in parts.EnumerateArray())
             {
-                if (GetInt(e, "teamId", -1) != myTeam) continue;
                 string lane = "", role = "";
                 if (e.TryGetProperty("timeline", out var tl))
                 {
                     if (tl.TryGetProperty("lane", out var l)) lane = l.GetString() ?? "";
                     if (tl.TryGetProperty("role", out var r)) role = r.GetString() ?? "";
                 }
-                mine.Add((GetInt(e, "participantId"), GetInt(e, "championId"), lane, role));
+                (GetInt(e, "teamId", -1) == myTeam ? mine : theirs)
+                    .Add((GetInt(e, "participantId"), GetInt(e, "championId"), lane, role));
             }
             var roleOf = RolesOfTeam(mine, roleShare);
+            if (theirs.Count == 5)
+            {
+                var foeRole = RolesOfTeam(theirs, roleShare);
+                foreach (var t in theirs)
+                    if (t.Champ > 0 && foeRole.TryGetValue(t.Pid, out var role)) foes[role] = t.Champ;
+            }
 
             foreach (var e in parts.EnumerateArray())
             {
@@ -482,7 +503,7 @@ public static partial class SessionTracker
             }
         }
         catch { /* подробная игра недоступна — связки просто не пополнятся */ }
-        return (allies, myRole);
+        return (allies, myRole, foes);
     }
 
     private static int GetInt(JsonElement e, string name, int fallback = 0) =>

@@ -169,6 +169,8 @@
     "tierGrade": "{0}-Tier in diesem Patch",
     "alsoPool": "Schadet auch deinem Pool ({0})",
     "alsoTeam": "Schadet deinem Team ({0})",
+    "personalVs": "Deine Bilanz gegen ihn: {0}–{1}",
+    "personalMatchup": "Deine Spiele damit gegen {0}: {1}–{2}",
     "notablePick": "Bemerkenswerter Pick in diesem Patch",
     "jgSetup": "Dein Jungler {0} ist aggressiv, hat aber kein eigenes CC, und mit deinem CC gelingen ihm Ganks auf deiner Lane leichter.",
     "adcEngage": "Dein ADC {0} will Kämpfe, und du kannst sie eröffnen.",

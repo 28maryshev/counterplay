@@ -42,6 +42,8 @@ public sealed partial class RecommendationEngine
         public double Meta;          // очки, когда защищать некого: множитель моей линии
         public bool PickHigh;        // на моей линии берут в полтора раза чаще среднего
         public readonly List<BanHit> Hits = [];
+        public PersonalVs? Mine;     // мои игры против него на моей линии (журнал)
+        public double Personal;      // очки за них: плюс — проигрываю, минус — обыгрываю
         public readonly Dictionary<string, double> PickOn = new();   // линия → пикрейт там, %
         public readonly Dictionary<string, double> MeetOn = new();   // линия → встречаемость (1 — как средний пик)
         public readonly Dictionary<string, double> LaneMult = new(); // линия → встречаемость × тир
@@ -305,6 +307,18 @@ public sealed partial class RecommendationEngine
             }
             AddCross(i, v, baseD);
         }
+
+        // Мои игры против кандидата на моей линии — сверх того, что статистика
+        // ждёт для моих чемпионов (см. PersonalVsFoes). Кому я проигрываю, тот
+        // поднимается; кого обыгрываю — опускается, и бан на него не тратится.
+        // Только если защищаем свой пул или пик: без них «моей линии» нет.
+        if (victims.Any(v => v.Mine))
+            foreach (var (x, p) in PersonalVsFoes(myRole))
+                if (p.Games >= PERSONAL_MIN_GAMES && On(x, myRole) is { } c)
+                {
+                    c.Mine = p;
+                    c.Personal = W_BAN_PERSONAL * -p.Edge * c.LaneMult[myRole];
+                }
         return [.. cands.Values];
 
         // Наш чемпион против кандидата на другой линии в той же игре: Вуконг в
@@ -344,7 +358,7 @@ public sealed partial class RecommendationEngine
     /// </summary>
     private static double BanScore(BanCandidate c, double[] covered)
     {
-        var sum = c.Meta;
+        var sum = c.Meta + c.Personal;
         foreach (var h in c.Hits) sum += h.Value * Math.Pow(BAN_REPEAT, covered[h.Victim]);
         var lanes = c.Hits.Where(h => !h.Cross && h.Strength >= BAN_HIT).Select(h => h.Role).Distinct().Count();
         return lanes > 1 ? sum * (1 + BAN_FLEX * (lanes - 1)) : sum;
@@ -472,6 +486,10 @@ public sealed partial class RecommendationEngine
             Loc.T("reason.alsoPool", string.Join(", ", n.Take(2).Select(Name))));
         Part(h => h.Cross && Ours(h), false, (n, _) =>
             Loc.T("reason.alsoTeam", string.Join(", ", n.Take(3).Select(Name))));
+        // Мои игры против него: только если я ему проигрываю — тогда это часть
+        // очков про меня. Обыгрываю — он и так опустился, писать не о чем.
+        if (c.Personal > 0 && c.Mine is { } my)
+            parts.Add((Loc.T("reason.personalVs", my.Wins, my.Games - my.Wins), c.Personal, true));
 
         var order = parts.OrderByDescending(p => p.Points).ToList();
         var texts = new List<(string Text, double Points)>();

@@ -282,6 +282,8 @@
     "tierGrade": "本版本 {0} 级",
     "alsoPool": "也克制你的英雄池（{0}）",
     "alsoTeam": "克制你的队伍（{0}）",
+    "personalVs": "你对阵它的战绩：{0}胜{1}负",
+    "personalMatchup": "你用它对阵{0}：{1}胜{2}负",
     "notablePick": "本版本值得一选",
     "jgSetup": "你的打野 {0} 很有攻击性，但自己没有控制。有了你的控制，他来你这路 gank 会容易得多。",
     "adcEngage": "你的 ADC {0} 想打团，而你能发起团战。",

@@ -139,6 +139,9 @@ public sealed partial class RecommendationEngine
         var wLane = laneBlind ? W_BLIND : wDirect;
         var wDuo  = duoBlind  ? W_BLIND : W_BOTLANE;
 
+        // Мои игры против соперника на линии по моим чемпионам — строка карточки.
+        var vsOpp = directOppId != 0 ? PersonalByChamp(directOppId, myRole) : null;
+
         // ── Драфт-фичи (архетип) ────────────────────────────────────────────
         var allEnemyIds = state.TheirTeam
             .Where(p => p.EffectiveChampionId != 0).Select(p => p.EffectiveChampionId).ToList();
@@ -288,6 +291,13 @@ public sealed partial class RecommendationEngine
                     var (pg, pw) = MyHistory().Recent(champId);
                     if (pg > 0)
                         reasonList.Add(Good(Loc.T("reason.personalWr", $"{100.0 * pw / pg:F0}", pg)));
+                }
+                // Мои игры на нём против соперника на линии (журнал): факт, а не
+                // очки — своих игр в одной паре горстка. От PERSONAL_CARD_GAMES.
+                if (vsOpp?.GetValueOrDefault(champId) is { Games: >= PERSONAL_CARD_GAMES } vs)
+                {
+                    var line = Loc.T("reason.personalMatchup", DataDragon.Name(directOppId), vs.Wins, vs.Games - vs.Wins);
+                    reasonList.Add(vs.Wins * 2 >= vs.Games ? Good(line) : Bad(line));
                 }
                 var reasons = reasonList.ToArray();
 

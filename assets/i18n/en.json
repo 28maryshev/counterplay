@@ -313,6 +313,8 @@
     "tierGrade": "{0} tier this patch",
     "alsoPool": "Also hurts your pool ({0})",
     "alsoTeam": "Hurts your team ({0})",
+    "personalVs": "Your record against them: {0}–{1}",
+    "personalMatchup": "Your games on it vs {0}: {1}–{2}",
     "notablePick": "Notable pick this patch",
     "jgSetup": "Your jungler {0} is aggressive but has no crowd control of their own, and your crowd control helps them gank your lane.",
     "adcEngage": "Your ADC {0} wants fights, and you can start them.",

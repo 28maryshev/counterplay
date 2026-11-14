@@ -392,6 +392,8 @@
     "tierGrade": "Tier {0} este parche",
     "alsoPool": "También perjudica a tu pool ({0})",
     "alsoTeam": "Perjudica a tu equipo ({0})",
+    "personalVs": "Tu balance contra él: {0}–{1}",
+    "personalMatchup": "Tus partidas con él contra {0}: {1}–{2}",
     "notablePick": "Pick destacado este parche",
     "jgSetup": "Tu jungla {0} es agresivo pero no tiene control propio, y con tu control le resulta más fácil gankear tu línea.",
     "adcEngage": "Tu ADC {0} quiere peleas, y tú puedes iniciarlas.",

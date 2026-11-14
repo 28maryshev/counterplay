@@ -287,6 +287,8 @@
     "tierGrade": "Tier {0} w tym patchu",
     "alsoPool": "Szkodzi też twojej puli ({0})",
     "alsoTeam": "Szkodzi twojej drużynie ({0})",
+    "personalVs": "Twój bilans przeciw niemu: {0}–{1}",
+    "personalMatchup": "Twoje gry nim przeciw {0}: {1}–{2}",
     "notablePick": "Znaczący pick w tym patchu",
     "jgSetup": "Twój jungler {0} jest agresywny, ale nie ma własnego cc, a z twoim cc łatwiej mu będzie gankować twoją linię.",
     "adcEngage": "Twój ADC {0} szuka walk, a ty potrafisz je zaczynać.",

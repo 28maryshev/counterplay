@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Личные матчапы: журнал пишет врагов по ролям и дочитывает их у старых
+       игр (подставной клиент, своя папка); баны поднимают тех, кому игрок
+       проигрывает, и опускают тех, кого он обыгрывает; карточка пика пишет
+       «твои игры на X против Y» (живая база, только чтение). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeLcu.cs" />
+  </ItemGroup>
+
+</Project>

@@ -26,6 +26,13 @@ public static partial class SessionTracker
         public long? Id { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public long? Start { get; set; }
+        // Враги по ролям базы (top/jungle/mid/adc/support → чемпион). Пишутся с
+        // 1.3.91 из подробной игры, как союзники; старые игры с номером
+        // дочитываются понемногу (см. SessionTracker.Foes). Пустой словарь —
+        // игру читали, а состава нет (ремейк, клиент не отдал): второй раз не
+        // спрашиваем.
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<string, int>? Foes { get; set; }
     }
 
     private sealed class QueueLog

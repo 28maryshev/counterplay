@@ -169,6 +169,8 @@
     "tierGrade": "Tier {0} neste patch",
     "alsoPool": "Também atrapalha seu pool ({0})",
     "alsoTeam": "Atrapalha seu time ({0})",
+    "personalVs": "Seu histórico contra ele: {0}–{1}",
+    "personalMatchup": "Suas partidas com ele contra {0}: {1}–{2}",
     "notablePick": "Pick notável neste patch",
     "jgSetup": "Seu caçador {0} é agressivo, mas não tem controle próprio, e o seu controle facilita os ganks dele na sua rota.",
     "adcEngage": "Seu ADC {0} quer lutas, e você consegue iniciá-las.",
