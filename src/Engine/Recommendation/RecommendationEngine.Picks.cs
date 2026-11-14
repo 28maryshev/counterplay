@@ -12,6 +12,9 @@ public sealed partial class RecommendationEngine
     {
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
+        // Союзник быстро перебирает чемпионов (AllyWaver) — его слот такой, под
+        // какой подбор уже посчитан, а не нынешнее наведение (Waver.cs).
+        state = Held(state);
         EnsureTempo();   // ранняя сила по данным, если в базе есть duration_wr (Tempo.cs)
 
         // Чемпионы моего активного пула на эту роль — им «комфорт» пула (см.
@@ -26,17 +29,7 @@ public sealed partial class RecommendationEngine
         // Мой уже выбранный (или наведённый) чемпион — чтобы пометить и гарантированно показать.
         var myPickId = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
 
-        // Напарник по активному дуо-пулу — ЧЕЛОВЕК из моей пати (см. Party).
-        // По чемпиону его больше не ищем: у друга с широким пулом случайный
-        // союзник, взявший оттуда чемпиона, сходил за напарника. Один раз на
-        // подбор: подбор по среднему (Waver.cs) считает драфт по нескольку раз.
-        var mateId = Party.MateChampion(state, PoolStore.ActiveDuo());
-
-        // Союзник мечется между чемпионами (AllyWaver) — счёт по среднему из
-        // показанных им: центр не скачет на каждое его наведение.
-        var ordered = Waverers(state) is { Count: > 0 } waver
-            ? ScoreWavering(state, myRole, candidates, mateId, waver)
-            : ScoreAll(state, myRole, candidates, mateId, hold: null);
+        var ordered = ScoreAll(state, myRole, candidates);
 
         // Кого игрок попросил не советовать (👎 на карточке): скрытых нет,
         // возвращающиеся — ниже своего места. Только в общем подборе: с only
@@ -61,11 +54,8 @@ public sealed partial class RecommendationEngine
     /// <summary>
     /// Оценка всех кандидатов на этом драфте, лучшие сверху — без «не
     /// советовать» и без тегов (их ставит <see cref="Recommend"/> показанным).
-    /// hold — кого не советовать сверх занятых: чемпионы, между которыми
-    /// мечется союзник (он может взять любого из них).
     /// </summary>
-    private List<Recommendation> ScoreAll(DraftState state, string myRole, IReadOnlyList<int> candidates,
-                                          int mateId, IReadOnlySet<int>? hold)
+    private List<Recommendation> ScoreAll(DraftState state, string myRole, IReadOnlyList<int> candidates)
     {
         var wDirect = DirectWeight(myRole); // вес контры на линии — по доле правды роли (Weights)
         var taken = TakenBy(state);
@@ -81,6 +71,11 @@ public sealed partial class RecommendationEngine
         var allyData = state.MyTeam
             .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
+
+        // Напарник по активному дуо-пулу — ЧЕЛОВЕК из моей пати (см. Party).
+        // По чемпиону его больше не ищем: у друга с широким пулом случайный
+        // союзник, взявший оттуда чемпиона, сходил за напарника.
+        var mateId = Party.MateChampion(state, PoolStore.ActiveDuo());
 
         // Сколько мы играем вдвоём СЕЙЧАС: от этого зависит, насколько громко
         // звучит дуо-вес (MATE_CONF). Считается ОДИН раз на драфт, а не на
@@ -163,7 +158,7 @@ public sealed partial class RecommendationEngine
         var adcAllyId    = allyData.FirstOrDefault(a => a.Role == "adc").Id;
 
         return candidates
-            .Where(id => !taken.Contains(id) && hold?.Contains(id) != true)
+            .Where(id => !taken.Contains(id))
             .Select(champId =>
             {
                 // Сила в патче — та же, что в тир-листе (TierPower): текущий

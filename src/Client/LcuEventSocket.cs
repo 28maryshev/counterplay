@@ -51,6 +51,28 @@ public sealed class LcuEventSocket : IAsyncDisposable
     // есть обрыв.
     private const int RecvTimeoutSec = 60;
 
+    /// <summary>
+    /// Служебное событие «будильника» (<see cref="WakeAt"/>): от клиента его не
+    /// бывает, данных в нём нет.
+    /// </summary>
+    public const string WakeUri = "counterplay:wake";
+
+    // Когда отдать будильник (UTC); MaxValue — не нужен.
+    private DateTime _wakeAt = DateTime.MaxValue;
+
+    /// <summary>
+    /// Отдать в поток событие <see cref="WakeUri"/> в этот момент. События
+    /// клиента его не сбивают; новый вызов заменяет прежний, MaxValue — снять.
+    /// Сработав, будильник снимается сам.
+    ///
+    /// Зачем: подбор держится на союзнике, который быстро перебирает
+    /// чемпионов, пока тот не успокоится на 5 секунд (<see cref="AllyWaver"/>).
+    /// Покой — это как раз отсутствие событий, и без будильника отпустить
+    /// подбор было бы не на чем. Звать между событиями, из того же цикла, что
+    /// читает поток: пока цикл разбирает событие, чтение стоит на yield.
+    /// </summary>
+    public void WakeAt(DateTime utc) => _wakeAt = utc;
+
     // Начатое, но ещё не завершённое чтение. Живёт МЕЖДУ проходами цикла — и это
     // здесь главное.
     //
@@ -75,20 +97,31 @@ public sealed class LcuEventSocket : IAsyncDisposable
             sb.Clear();
             bool endOfMessage = false;
             bool silent = false;      // истёк таймаут приёма — сокет проверим отправкой
+            bool woke = false;        // настал будильник (WakeAt) — отдать WakeUri
             while (!endOfMessage)
             {
                 // Буфер отдаём одному чтению за раз: пока оно не завершилось,
                 // трогать буфер нельзя.
                 _pendingRead ??= _ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
 
+                // Будильник раньше таймаута тишины — ждём до него. Только между
+                // сообщениями: разорвать начатое сообщение нечем.
+                var wait = TimeSpan.FromSeconds(RecvTimeoutSec);
+                var wakeIn = _wakeAt - DateTime.UtcNow;
+                var alarm = sb.Length == 0 && wakeIn < wait;
+                if (alarm) wait = wakeIn > TimeSpan.Zero ? wakeIn : TimeSpan.Zero;
+
                 // Таймер снимаем сразу, как только чтение вернулось: события
                 // идут часто, и брошенные таймеры копились бы сотнями.
                 using var tickCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                var tick = Task.Delay(TimeSpan.FromSeconds(RecvTimeoutSec), tickCts.Token);
+                var tick = Task.Delay(wait, tickCts.Token);
+                // Пришедшее событие важнее будильника: при обоих готовых WhenAny
+                // отдаёт первое по списку.
                 var done = await Task.WhenAny(_pendingRead, tick);
                 tickCts.Cancel();
                 if (done != _pendingRead)
                 {
+                    if (alarm) { woke = true; break; }
                     // Событий давно не было. Само по себе это нормально (тихое
                     // лобби) — проверяем сокет отправкой ниже, а чтение пусть
                     // ждёт дальше.
@@ -103,6 +136,14 @@ public sealed class LcuEventSocket : IAsyncDisposable
                     yield break;
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
                 endOfMessage = result.EndOfMessage;
+            }
+
+            if (woke)
+            {
+                // Чтение остаётся висеть и дождётся своего события.
+                _wakeAt = DateTime.MaxValue;
+                yield return new LcuEvent(WakeUri, "Wake", default);
+                continue;
             }
 
             if (silent)

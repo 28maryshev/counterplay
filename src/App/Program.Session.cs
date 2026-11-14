@@ -363,16 +363,27 @@ partial class Program
         // союзники в фазе банов перебирают несколько чемпионов — баны считаются
         // по всему показанному пулу, а не только по текущему наведению.
         var hoverHistory = new Dictionary<int, HashSet<int>>();
-        // Кто из союзников мечется между чемпионами: подбор считает его по
-        // среднему из показанных, и центр не скачет за каждым наведением.
+        // Кто из союзников быстро перебирает чемпионов: подбор держится, пока он
+        // не успокоится, и центр не скачет за каждым наведением.
         var waver = new AllyWaver();
+        // Последнее событие драфта: по будильнику сокета (союзник успокоился,
+        // а событий нет) оно разбирается заново.
+        LcuEvent? lastDraftEvent = null;
         // Вражеские баны уже показывались в этом драфте. Нужно одной строке
         // журнала: когда клиент их раскрывает — ещё в фазе банов или уже с
         // первым пиком (от этого зависит, увидит ли их панель банов).
         bool theirBansSeen = false;
 
-        await foreach (var ev in socket.ReadEventsAsync(ct))
+        await foreach (var got in socket.ReadEventsAsync(ct))
         {
+            // Будильник (AllyWaver.NextCalm): клиент молчит, а союзник успокоился —
+            // разбираем последний снимок драфта заново, со свежим временем.
+            var replay = got.Uri == LcuEventSocket.WakeUri;
+            var ev = replay ? lastDraftEvent : got;
+            if (ev is null) continue;
+            if (!replay && ev.Uri == "/lol-champ-select/v1/session")
+                lastDraftEvent = ev.EventType == "Delete" ? null : ev;
+
             switch (ev.Uri)
             {
                 case "/lol-summoner/v1/current-summoner":
@@ -434,6 +445,8 @@ partial class Program
                         draftTray.Ended(); // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
                         waver.Reset();
+                        lastDraftEvent = null;
+                        socket.WakeAt(DateTime.MaxValue);
                         theirBansSeen = false;
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
@@ -459,6 +472,8 @@ partial class Program
                         lastHash = "";
                         hoverHistory.Clear();
                         waver.Reset();
+                        lastDraftEvent = null;
+                        socket.WakeAt(DateTime.MaxValue);
                         theirBansSeen = false;
                     }
                     else
@@ -466,9 +481,13 @@ partial class Program
                         _restartSafe = false;   // идёт драфт — не до перезапуска
                         if (ForQueue(ChampSelectParser.Parse(ev.Data), queueId) is not { } draft) break;
                         // До отпечатка: «успокоился» меняет подбор без всякой
-                        // перемены в самом драфте. В ARAM наведений нет.
+                        // перемены в самом драфте. В ARAM наведений нет. Покой
+                        // наступает без событий — на него будильник сокета.
                         if (!draft.IsAram)
-                            draft = draft with { Wavering = waver.Observe(draft, DateTime.UtcNow) };
+                        {
+                            draft = draft with { HeldPicks = waver.Observe(draft, DateTime.UtcNow) };
+                            socket.WakeAt(waver.NextCalm);
+                        }
                         myPickActionId = draft.MyPickActionId;
                         myBanActionId  = draft.MyBanActionId;
                         // Выданная роль — в журнал игр: по ней следующая игра
@@ -479,8 +498,10 @@ partial class Program
 
                         // За 5 секунд до конца финализации — в трей; идёт драфт —
                         // окну можно на экран (DraftTray).
+                        // Повтор по будильнику — старый снимок с устаревшим
+                        // остатком таймера: трей по нему не трогаем.
                         var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);
-                        draftTray.OnTimer(timerPhase, timeLeftMs);
+                        if (!replay) draftTray.OnTimer(timerPhase, timeLeftMs);
 
                         var hash = DraftHash(draft);
                         if (hash == lastHash) break;
@@ -625,7 +646,8 @@ partial class Program
         // перейти от советов к банам команд.
         $"{s.MyBanActionId}:{s.MyBanInProgress}:{s.MyBanDone}|" +
         string.Join(",", s.ActiveCells) + $":{s.FirstPickCell}|" +
-        // Союзник начал или кончил метаться — подбор другой, хотя составы те же.
-        string.Join(";", (s.Wavering ?? new Dictionary<int, IReadOnlyList<int>>())
-            .OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{string.Join(".", kv.Value.Order())}"));
+        // Подбор начали или перестали держать на союзнике — он другой, хотя
+        // составы те же.
+        string.Join(";", (s.HeldPicks ?? new Dictionary<int, int>())
+            .OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{kv.Value}"));
 }
