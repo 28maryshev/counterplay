@@ -415,6 +415,7 @@ sealed partial class TestPanel : Window
             Margin = new Thickness(0, 0, 8, 0)
         });
         profileRow.Children.Add(_profile);
+        profileRow.Children.Add(EveningPicker());
         profileRow.Children.Add(_emptyProfile);
         profileRow.Children.Add(_missingChamps);
 

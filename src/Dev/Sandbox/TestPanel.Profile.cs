@@ -85,6 +85,33 @@ sealed partial class TestPanel
     // История «на своих чаще» подменена (профиль «без пулов, на своих чаще»).
     private bool _mainsWin;
 
+    // ── Вечер: состояния блока на экране профиля ─────────────────────────────
+
+    // Какой вечер показать (TestMode.EveningKinds): 0 — какой есть у профиля.
+    private readonly ComboBox _evening = new();
+
+    /// Выбор «Вечер» для строки сценария: каждое состояние блока «вечер» на
+    /// экране профиля можно посмотреть на любом профиле.
+    private ComboBox EveningPicker()
+    {
+        foreach (var k in TestMode.EveningKinds) _evening.Items.Add(k);
+        _evening.SelectedIndex = 0;
+        _evening.VerticalAlignment = VerticalAlignment.Center;
+        _evening.Margin = new Thickness(12, 0, 0, 0);
+        _evening.Width = 190;
+        _evening.ToolTip = "Блок «вечер» под винрейтом (этап «Ready / пул»): как в профиле — у «моего аккаунта» "
+                         + "настоящий из журнала, у коротких профилей его нет. Остальное — каждое состояние: "
+                         + "совет «сделай перерыв», спокойная строка «дело не в подборе», «может, перерыв?» поздно вечером, "
+                         + "мало игр — блока нет.";
+        _evening.SelectionChanged += (_, _) => ApplyProfileScenario();
+        return _evening;
+    }
+
+    /// Показ профиля с выбранным вечером.
+    private void ShowProfile(SessionTracker.SessionData? d) =>
+        _overlay.ShowSession(d is null || _evening.SelectedIndex <= 0 ? d
+                             : d with { Night = TestMode.EveningDemo(_evening.SelectedIndex) });
+
     // Показ выбранного сценария профиля: пустой / первая игра / полная история.
     private void ApplyProfileScenario()
     {
@@ -137,44 +164,44 @@ sealed partial class TestPanel
         switch (_profile.SelectedIndex)
         {
             case 1:
-                _overlay.ShowSession(TestMode.FirstGameSession);
+                ShowProfile(TestMode.FirstGameSession);
                 _overlay.SetChampsPreview(TestMode.FirstGameChamps);
                 break;
             case 2:
-                _overlay.ShowSession(TestMode.FiveGamesSession);
+                ShowProfile(TestMode.FiveGamesSession);
                 _overlay.SetChampsPreview(TestMode.FiveGamesChamps);
                 break;
             case 3:
-                _overlay.ShowSession(TestMode.ClimbSession);
+                ShowProfile(TestMode.ClimbSession);
                 _overlay.SetChampsPreview(null);
                 break;
             case UnrankedProfile:
-                _overlay.ShowSession(TestMode.UnrankedSession);
+                ShowProfile(TestMode.UnrankedSession);
                 _overlay.SetChampsPreview(null);
                 break;
             case ThreeGamesProfile:
-                _overlay.ShowSession(TestMode.ThreeGamesSession);
+                ShowProfile(TestMode.ThreeGamesSession);
                 _overlay.SetChampsPreview(TestMode.ThreeGamesChamps);
                 break;
             case AramProfile:
-                _overlay.ShowSession(TestMode.AramSession);
+                ShowProfile(TestMode.AramSession);
                 _overlay.SetChampsPreview(TestMode.AramChamps);
                 break;
             case DiamondProfile:
-                _overlay.ShowSession(TestMode.DiamondSession(SessionTracker.StoredView()));
+                ShowProfile(TestMode.DiamondSession(SessionTracker.StoredView()));
                 _overlay.SetChampsPreview(null);
                 break;
             case >= FirstStoredProfile when _profile.SelectedIndex - FirstStoredProfile < _storedAccounts.Count:
-                _overlay.ShowSession(SessionTracker.StoredView(
+                ShowProfile(SessionTracker.StoredView(
                     _storedAccounts[_profile.SelectedIndex - FirstStoredProfile].Key));
                 _overlay.SetChampsPreview(null);
                 break;
             case MyAccountProfile:
-                _overlay.ShowSession(SessionTracker.StoredView() ?? TestMode.FullSession);
+                ShowProfile(SessionTracker.StoredView() ?? TestMode.FullSession);
                 _overlay.SetChampsPreview(null);
                 break;
             default:
-                _overlay.ShowSession(TestMode.FullSession);
+                ShowProfile(TestMode.FullSession);
                 _overlay.SetChampsPreview(null);   // своя настоящая статистика
                 break;
         }
