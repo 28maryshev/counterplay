@@ -43,6 +43,7 @@ public sealed partial class RecommendationEngine
         public bool PickHigh;        // на моей линии берут в полтора раза чаще среднего
         public readonly List<BanHit> Hits = [];
         public readonly Dictionary<string, double> PickOn = new();   // линия → пикрейт там, %
+        public readonly Dictionary<string, double> MeetOn = new();   // линия → встречаемость (1 — как средний пик)
         public readonly Dictionary<string, double> LaneMult = new(); // линия → встречаемость × тир
     }
 
@@ -255,7 +256,8 @@ public sealed partial class RecommendationEngine
             if (!c.LaneMult.ContainsKey(role))
             {
                 c.PickOn[role] = pick;
-                c.LaneMult[role] = Meet(pick, rp.Ref) * TierMult(x, role);
+                c.MeetOn[role] = Meet(pick, rp.Ref, BanRate(x));
+                c.LaneMult[role] = c.MeetOn[role] * TierMult(x, role);
             }
             return c;
         }
@@ -292,8 +294,11 @@ public sealed partial class RecommendationEngine
                 // контр на линии против моих персонажей должен быть буст, и они
                 // по-любому должны быть в топах»).
                 // Жёсткая — только против того, кого мне правда предложат: Эш с
-                // долей 0,6% «жёсткой контрой» Блицкранка не делает.
-                var hard = v.Mine && s >= BAN_HARD
+                // долей 0,6% «жёсткой контрой» Блицкранка не делает. И только та,
+                // кого правда берут — не реже среднего пика роли (BAN_HARD_MEET):
+                // Маокай-саппорт с 0,9% при среднем 2,5% бил Сону на 4,5 очка,
+                // получал надбавку и место в пятёрке (владелец 14.11).
+                var hard = v.Mine && s >= BAN_HARD && c.MeetOn[v.Role] >= BAN_HARD_MEET
                            && (v.Kind != BanVictimKind.Pool || v.Weight >= W_BAN_POOL * BAN_HARD_SHARE);
                 c.Hits.Add(new BanHit(i, v.Role, s,
                     v.Weight * s * c.LaneMult[v.Role] * (hard ? W_BAN_HARD : 1.0), hard));
@@ -492,16 +497,23 @@ public sealed partial class RecommendationEngine
     }
 
     /// <summary>
-    /// Встречаемость кандидата в бан: корень из отношения его пикрейта на роли
-    /// к среднему пикрейту регулярного пика этой роли, в пределах 0,3…2.
+    /// Встречаемость кандидата в бан: как часто его возьмёт враг на этой линии
+    /// относительно среднего пика роли (1 — как типичный регулярный пик).
+    /// Средний пикрейт свой у каждой роли (у стрелков пиков меньше и каждый
+    /// берут чаще: 3,5% против 1,8% на топе).
     ///
-    /// Корень, а не прямая пропорция: популярный в семь раз не должен в семь
-    /// раз перевешивать силу контры — иначе список банов превращается в
-    /// список популярных. Средний пикрейт свой у каждой роли (у стрелков пиков
-    /// меньше и каждый берут чаще: 3,3% против 1,8% на топе).
+    /// Прямая пропорция: бан спасает ровно столько, как часто врага встречаешь,
+    /// × сколько он отнимает. До 14.11 был корень в пределах 0,3…2 («чтобы
+    /// список банов не стал списком популярных»), и кого берут в восемь раз
+    /// реже, весил меньше лишь втрое: владельцу-саппорту советовали Маокая с
+    /// пиком 0,9%, а Зайра (1,4%) стояла в пятёрке у половины драфтов.
+    ///
+    /// Пикрейт поправлен на баны: забаненного не берут, и пикрейт чемпиона,
+    /// которого банят в трети игр, занижает, как часто его взяли бы. Поправка
+    /// не больше чем вдвое.
     /// </summary>
-    private static double Meet(double pickPct, double refPct) =>
-        refPct > 0 ? Math.Clamp(Math.Sqrt(pickPct / refPct), 0.3, 2.0) : 1.0;
+    private static double Meet(double pickPct, double refPct, double banPct) =>
+        refPct > 0 ? pickPct / Math.Max(1 - banPct / 100, 0.5) / refPct : 1.0;
 
     /// <summary>
     /// Насколько кандидат в бан мешает нашему чемпиону — кольцо и число у

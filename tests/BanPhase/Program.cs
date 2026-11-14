@@ -18,7 +18,8 @@ namespace Counterplay.Tests;
 ///    Было: первым баном стоял Зилеан на топе (0,09% игр роли) за то, что «бьёт
 ///    Дариуса», Тарик в саппортах (0,6%) — за Брауна. Бан на того, кого почти
 ///    не берут, потрачен. Теперь офф-мета не кандидат вовсе, а сила контры
-///    умножается на встречаемость (корень из пикрейта к среднему по роли).
+///    умножается на встречаемость (пикрейт к среднему по роли; с 14.11 —
+///    прямая пропорция с поправкой на баны, см. 1и).
 /// 2. Тир-лист банов: на роли — кого банят чаще, роль чемпиону даёт четверть
 ///    его игр, бан-рейт полный. Без порога Ясуо вставал бы в стрелки.
 /// 3. После своего бана окно показывает баны обеих команд с бан-рейтом.
@@ -30,11 +31,12 @@ namespace Counterplay.Tests;
 /// 1е. Чем больше союзников показали, тем больше весит команда; «в игре» — для всех.
 /// 1ж. Сила в патче — только место в тир-листе, один раз на все линии.
 /// 1з. Доводы на карточке — по вкладу в очки; строка про мой пул не теряется.
+/// 1и. Редких в бан не советует; «жёсткая контра» — только частая (Program.Rare.cs).
 ///
 /// Считаем на живой базе игрока (только чтение). Нет базы — проверять нечего.
 /// Снимок окна для глаз: переменная CP_SNAP — папка, куда положить PNG.
 /// </summary>
-internal static class Program
+internal static partial class Program
 {
     private static int _fails;
 
@@ -78,6 +80,7 @@ internal static class Program
         Partners(engine);
         TeamGrows(engine);
         StrengthOnce(engine);
+        Rare(engine);
         ReasonOrder(engine);
         var snap = Environment.GetEnvironmentVariable("CP_SNAP");
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -246,7 +249,11 @@ internal static class Program
         var order = wideBans.Select(b => (Guard: Pos(b, r => r.StartsWith(ally, StringComparison.Ordinal) || r.StartsWith(many, StringComparison.Ordinal)),
                                           Tier: Pos(b, r => r.StartsWith(tier, StringComparison.Ordinal) && r.EndsWith(tierTail, StringComparison.Ordinal))))
                             .Where(x => x.Guard >= 0 && x.Tier >= 0).ToList();
-        Check("защита пиков — раньше места в тир-листе", order.Count > 0 && order.All(x => x.Guard < x.Tier), $"{order.Count} карточек с обоими");
+        // Карточек с обоими доводами на одной сцене может не оказаться: «OP-тир»
+        // получает только OP на своей самой опасной линии (на базе 14.11 — ни
+        // одного в первых сорока). Тогда порядок мерит перебор 600 драфтов (1и).
+        Check("защита пиков — раньше места в тир-листе", order.All(x => x.Guard < x.Tier),
+              order.Count > 0 ? $"{order.Count} карточек с обоими" : "на этой сцене обоих нет — см. перебор (1и)");
         SessionTracker.HistoryOverride = null;
     }
 
