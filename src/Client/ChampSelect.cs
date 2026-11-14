@@ -45,7 +45,12 @@ public sealed record DraftState(
     // Фаза объявления (PLANNING, 15 с до банов): все показывают, кого возьмут.
     // InBanPhase в ней тоже true — баны следующий шаг, — но окно показывает не
     // советы банов, а моих чемпионов на выданной роли.
-    bool InPlanning = false);
+    bool InPlanning = false,
+    // Союзники, которые мечутся между чемпионами (AllyWaver): ячейка → кого
+    // показал с начала метаний. Подбор считает их по среднему из показанных,
+    // а не по нынешнему наведению. null — никто не мечется. Клиент этого не
+    // присылает: ставит цикл драфта, разбор оставляет пустым.
+    IReadOnlyDictionary<int, IReadOnlyList<int>>? Wavering = null);
 
 public static class ChampSelectParser
 {

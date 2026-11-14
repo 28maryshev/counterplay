@@ -13,7 +13,6 @@ public sealed partial class RecommendationEngine
         var myRole = LcuToDbRole(state.MyPosition);
         if (string.IsNullOrEmpty(myRole)) return [];
         EnsureTempo();   // ранняя сила по данным, если в базе есть duration_wr (Tempo.cs)
-        var wDirect = DirectWeight(myRole); // вес контры на линии — по доле правды роли (Weights)
 
         // Чемпионы моего активного пула на эту роль — им «комфорт» пула (см.
         // ComfortDelta). Normal/пул не активен → пусто, флора нет.
@@ -24,10 +23,52 @@ public sealed partial class RecommendationEngine
         var candidates = only?.ToList() ?? GetCandidates(myRole);
         Console.WriteLine($"  [диаг] role={myRole}  tier={TierBucket}  патчи={PatchDisplay}  кандидатов={candidates.Count}");
 
-        var taken = TakenBy(state);
-
         // Мой уже выбранный (или наведённый) чемпион — чтобы пометить и гарантированно показать.
         var myPickId = state.MyTeam.FirstOrDefault(p => p.IsLocalPlayer)?.EffectiveChampionId ?? 0;
+
+        // Напарник по активному дуо-пулу — ЧЕЛОВЕК из моей пати (см. Party).
+        // По чемпиону его больше не ищем: у друга с широким пулом случайный
+        // союзник, взявший оттуда чемпиона, сходил за напарника. Один раз на
+        // подбор: подбор по среднему (Waver.cs) считает драфт по нескольку раз.
+        var mateId = Party.MateChampion(state, PoolStore.ActiveDuo());
+
+        // Союзник мечется между чемпионами (AllyWaver) — счёт по среднему из
+        // показанных им: центр не скачет на каждое его наведение.
+        var ordered = Waverers(state) is { Count: > 0 } waver
+            ? ScoreWavering(state, myRole, candidates, mateId, waver)
+            : ScoreAll(state, myRole, candidates, mateId, hold: null);
+
+        // Кого игрок попросил не советовать (👎 на карточке): скрытых нет,
+        // возвращающиеся — ниже своего места. Только в общем подборе: с only
+        // считают названных поимённо (пул, мой пик, наведённого), и пул
+        // отсеивает их сам (TopFromPool). Мой пик не трогаем.
+        if (only is null)
+            ordered = Dislikes.Apply(ordered, r => r.ChampionId, Dislikes.Kind.Pick, myRole, keep: myPickId);
+
+        // Топ-6: мой уже выбранный чемпион остаётся в подборе наравне со всеми и
+        // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
+        // он выпадает из списка так же, как любой другой кандидат.
+        // Теги и иконки — только показанным: им нужен винрейт по патчам (запрос в базу).
+        return ordered.Take(topN)
+            .Select((r, i) => r with
+            {
+                Rank = i + 1, IsMyPick = r.ChampionId == myPickId,
+                Badges = r.Facts is { } f ? BuildBadges(f) : null,
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Оценка всех кандидатов на этом драфте, лучшие сверху — без «не
+    /// советовать» и без тегов (их ставит <see cref="Recommend"/> показанным).
+    /// hold — кого не советовать сверх занятых: чемпионы, между которыми
+    /// мечется союзник (он может взять любого из них).
+    /// </summary>
+    private List<Recommendation> ScoreAll(DraftState state, string myRole, IReadOnlyList<int> candidates,
+                                          int mateId, IReadOnlySet<int>? hold)
+    {
+        var wDirect = DirectWeight(myRole); // вес контры на линии — по доле правды роли (Weights)
+        var taken = TakenBy(state);
 
         // Учитываем ховеры (EffectiveChampionId): рекомендации обновляются ещё
         // на этапе наведения чемпиона союзником/врагом, не дожидаясь лока.
@@ -40,11 +81,6 @@ public sealed partial class RecommendationEngine
         var allyData = state.MyTeam
             .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
             .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
-
-        // Напарник по активному дуо-пулу — ЧЕЛОВЕК из моей пати (см. Party).
-        // По чемпиону его больше не ищем: у друга с широким пулом случайный
-        // союзник, взявший оттуда чемпиона, сходил за напарника.
-        var mateId = Party.MateChampion(state, PoolStore.ActiveDuo());
 
         // Сколько мы играем вдвоём СЕЙЧАС: от этого зависит, насколько громко
         // звучит дуо-вес (MATE_CONF). Считается ОДИН раз на драфт, а не на
@@ -126,8 +162,8 @@ public sealed partial class RecommendationEngine
         var jungleAllyId = allyData.FirstOrDefault(a => a.Role == "jungle").Id;
         var adcAllyId    = allyData.FirstOrDefault(a => a.Role == "adc").Id;
 
-        var ordered = candidates
-            .Where(id => !taken.Contains(id))
+        return candidates
+            .Where(id => !taken.Contains(id) && hold?.Contains(id) != true)
             .Select(champId =>
             {
                 // Сила в патче — та же, что в тир-листе (TierPower): текущий
@@ -277,25 +313,6 @@ public sealed partial class RecommendationEngine
                                           Blind: laneBlind, Facts: facts);
             })
             .OrderByDescending(r => r.Score)
-            .ToList();
-
-        // Кого игрок попросил не советовать (👎 на карточке): скрытых нет,
-        // возвращающиеся — ниже своего места. Только в общем подборе: с only
-        // считают названных поимённо (пул, мой пик, наведённого), и пул
-        // отсеивает их сам (TopFromPool). Мой пик не трогаем.
-        if (only is null)
-            ordered = Dislikes.Apply(ordered, r => r.ChampionId, Dislikes.Kind.Pick, myRole, keep: myPickId);
-
-        // Топ-6: мой уже выбранный чемпион остаётся в подборе наравне со всеми и
-        // помечается, но НЕ пиннится — если из-за новых пиков он вышел из топа,
-        // он выпадает из списка так же, как любой другой кандидат.
-        // Теги и иконки — только показанным: им нужен винрейт по патчам (запрос в базу).
-        return ordered.Take(topN)
-            .Select((r, i) => r with
-            {
-                Rank = i + 1, IsMyPick = r.ChampionId == myPickId,
-                Badges = r.Facts is { } f ? BuildBadges(f) : null,
-            })
             .ToList();
     }
 

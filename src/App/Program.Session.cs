@@ -363,6 +363,9 @@ partial class Program
         // союзники в фазе банов перебирают несколько чемпионов — баны считаются
         // по всему показанному пулу, а не только по текущему наведению.
         var hoverHistory = new Dictionary<int, HashSet<int>>();
+        // Кто из союзников мечется между чемпионами: подбор считает его по
+        // среднему из показанных, и центр не скачет за каждым наведением.
+        var waver = new AllyWaver();
         // Вражеские баны уже показывались в этом драфте. Нужно одной строке
         // журнала: когда клиент их раскрывает — ещё в фазе банов или уже с
         // первым пиком (от этого зависит, увидит ли их панель банов).
@@ -430,6 +433,7 @@ partial class Program
                         lastHash = "";
                         draftTray.Ended(); // новый драфт снова снимет ручное скрытие
                         hoverHistory.Clear();
+                        waver.Reset();
                         theirBansSeen = false;
                     }
                     // ChampSelect: НЕ восстанавливаем здесь — показ управляется
@@ -454,12 +458,17 @@ partial class Program
                         ApplyUpdateIfIdle(overlay);
                         lastHash = "";
                         hoverHistory.Clear();
+                        waver.Reset();
                         theirBansSeen = false;
                     }
                     else
                     {
                         _restartSafe = false;   // идёт драфт — не до перезапуска
                         if (ForQueue(ChampSelectParser.Parse(ev.Data), queueId) is not { } draft) break;
+                        // До отпечатка: «успокоился» меняет подбор без всякой
+                        // перемены в самом драфте. В ARAM наведений нет.
+                        if (!draft.IsAram)
+                            draft = draft with { Wavering = waver.Observe(draft, DateTime.UtcNow) };
                         myPickActionId = draft.MyPickActionId;
                         myBanActionId  = draft.MyBanActionId;
                         // Выданная роль — в журнал игр: по ней следующая игра
@@ -615,5 +624,8 @@ partial class Program
         // Пустой бан (время вышло) не меняет списков банов, а окно обязано
         // перейти от советов к банам команд.
         $"{s.MyBanActionId}:{s.MyBanInProgress}:{s.MyBanDone}|" +
-        string.Join(",", s.ActiveCells) + $":{s.FirstPickCell}";
+        string.Join(",", s.ActiveCells) + $":{s.FirstPickCell}|" +
+        // Союзник начал или кончил метаться — подбор другой, хотя составы те же.
+        string.Join(";", (s.Wavering ?? new Dictionary<int, IReadOnlyList<int>>())
+            .OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{string.Join(".", kv.Value.Order())}"));
 }
