@@ -16,13 +16,14 @@ namespace Counterplay.Tests;
 /// а Лука и Шлема Дорана, появившихся позже, программа не знала вовсе.
 ///
 /// Следом (07.11, по первому варианту): «Уничтожитель, Атлас мира, три питомца
-/// леса — вот это лишнее». Уничтожителя нет нигде, питомцы — только у леса,
-/// Атлас — только у поддержки.
+/// леса — вот это лишнее». Питомцы — только у леса, Атлас — только у
+/// поддержки. 15.11: «adc в начальных итемах нужен cull» — Уничтожитель
+/// вернулся, но только стрелку.
 ///
 /// Меряет:
 /// - в каждой роли в блоке все общие стартовые предметы, без повторов; ходовые
-///   для роли первыми, за ними оба зелья; питомцы и Атлас — только у своей
-///   роли, Уничтожителя нет ни у кого;
+///   для роли первыми, за ними оба зелья; питомцы, Атлас и Уничтожитель —
+///   только у своей роли;
 /// - список сверен с нынешним Data Dragon: каждый предмет продаётся на Ущелье,
 ///   и нет стартового предмета, которого в списке нет — Riot добавит нового
 ///   Дорана, проверка его назовёт;
@@ -37,14 +38,15 @@ internal static class Program
     private static readonly string[] Roles = ["adc", "mid", "top", "support", "jungle", ""];
 
     // Носят признаки стартового, но в блок не идут. Длинный меч — компонент
-    // сборки, Тотем контроля — покупка с базы, Уничтожитель — лишний (владелец).
-    private const int Cull = 1083;
-    private static readonly HashSet<int> NotStarters = [1036, 2055, Cull];
+    // сборки, Тотем контроля — покупка с базы.
+    private static readonly HashSet<int> NotStarters = [1036, 2055];
 
-    // Только своей роли: Атлас мира — поддержке, питомцы — лесу.
+    // Только своей роли: Атлас мира — поддержке, питомцы — лесу, Уничтожитель —
+    // стрелку (владелец 15.11).
     private static readonly Dictionary<int, string> RoleOnly = new()
     {
         [3865] = "support", [1101] = "jungle", [1102] = "jungle", [1103] = "jungle",
+        [1083] = "adc",
     };
 
     private static async Task<int> Main()
@@ -121,8 +123,8 @@ internal static class Program
             var lacking = common.Except(list).ToList();
             Check($"{name}: все общие стартовые ({common.Length})", lacking.Count == 0,
                   lacking.Count == 0 ? $"{list.Length} в блоке" : "нет: " + string.Join(", ", lacking));
-            var foreign = list.Where(id => id == Cull || (RoleOnly.TryGetValue(id, out var r) && r != role)).ToList();
-            Check($"{name}: нет лишнего (Уничтожитель, чужие питомцы и Атлас)", foreign.Count == 0,
+            var foreign = list.Where(id => RoleOnly.TryGetValue(id, out var r) && r != role).ToList();
+            Check($"{name}: нет чужого (Уничтожитель, питомцы, Атлас)", foreign.Count == 0,
                   foreign.Count == 0 ? "нет" : "есть: " + string.Join(", ", foreign));
             var ownOnly = RoleOnly.Where(kv => kv.Value == role).Select(kv => kv.Key).Except(list).ToList();
             Check($"{name}: своё на месте", ownOnly.Count == 0,
