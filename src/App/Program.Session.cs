@@ -103,7 +103,10 @@ partial class Program
 
         var mastery = await PlayerInfo.GetMasteryAsync(http, ct); // пул игрока (комфорт)
         // Чемпионы аккаунта: которых нет — помечаем в рекомендациях «нет чемпиона».
-        overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));
+        // Только что запущенный клиент отвечает 404 и шлёт список событием позже.
+        var owned = new OwnedChamps(c => PlayerInfo.GetOwnedChampionsAsync(http, c),
+                                    overlay.SetOwnedChampions);
+        await owned.LoadAsync("подключение", ct);
         // Аккаунт (puuid) — ключ пулов чемпионов: подгружаем набор этого игрока.
         var (poolPuuid, poolName) = await PlayerInfo.GetAccountAsync(http, ct);
         PoolStore.SetAccount(poolPuuid, poolName);
@@ -269,8 +272,12 @@ partial class Program
                 // дуо-пул, новый пул и свежая история» — на диске всё было.
                 _ = SyncClient.AutoAsync(puuid, "вход в аккаунт", ct);
 
-                // Эло у нового аккаунта своё: и пул чемпионов, и владение
-                // чемпионами, и рекомендации считаются по нему.
+                // Чемпионы у нового аккаунта свои: прежний список забываем.
+                owned.Forget();
+                await owned.LoadAsync("вход в аккаунт", ct);
+
+                // Эло у нового аккаунта своё: и пул чемпионов, и рекомендации
+                // считаются по нему.
                 // Ранг ещё не прочитался — оставляем прежний бакет. Иначе на
                 // каждом старте качали бы базу «по умолчанию», а следом свою.
                 var bucket = await PlayerInfo.GetTierBucketAsync(http, ct)
@@ -282,7 +289,6 @@ partial class Program
                 }
                 Settings.Set("dataBucket", bucket);
                 mastery = await PlayerInfo.GetMasteryAsync(http, ct);
-                overlay.SetOwnedChampions(await PlayerInfo.GetOwnedChampionsAsync(http, ct));
 
                 if (engine is not null)
                 {
@@ -383,6 +389,7 @@ partial class Program
             if (ev is null) continue;
             if (!replay && ev.Uri == "/lol-champ-select/v1/session")
                 lastDraftEvent = ev.EventType == "Delete" ? null : ev;
+            if (owned.TryHandle(ev)) continue;   // список чемпионов аккаунта
 
             switch (ev.Uri)
             {
@@ -479,6 +486,7 @@ partial class Program
                     else
                     {
                         _restartSafe = false;   // идёт драфт — не до перезапуска
+                        _ = owned.EnsureAsync(ct);   // списка чемпионов всё нет — спросить ещё
                         if (ForQueue(ChampSelectParser.Parse(ev.Data), queueId) is not { } draft) break;
                         // До отпечатка: «успокоился» меняет подбор без всякой
                         // перемены в самом драфте. В ARAM наведений нет. Покой

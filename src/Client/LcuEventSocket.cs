@@ -177,12 +177,16 @@ public sealed class LcuEventSocket : IAsyncDisposable
     //
     // ВАЖНО: добавил ветку в Program — добавь тему и сюда. Забытое лобби стоило
     // целой поломки: состав пати читался только при запуске, и программа считала
-    // напарником случайного союзника с чемпионом из пула друга.
-    private static bool IsRelevant(string text) =>
+    // напарником случайного союзника с чемпионом из пула друга. Список чемпионов
+    // аккаунта (15.11) — та же история: клиент присылает его событием, а без
+    // темы здесь отметок «нет на аккаунте» не было весь сеанс. Темы проверяет
+    // tests/OwnedChamps.
+    public static bool IsRelevant(string text) =>
         text.Contains("/lol-champ-select/v1/session",     StringComparison.Ordinal) ||
         text.Contains("/lol-gameflow/v1/session",         StringComparison.Ordinal) ||
         text.Contains("/lol-lobby/v2/lobby",              StringComparison.Ordinal) ||
-        text.Contains("/lol-summoner/v1/current-summoner", StringComparison.Ordinal);
+        text.Contains("/lol-summoner/v1/current-summoner", StringComparison.Ordinal) ||
+        text.Contains(OwnedChamps.EventUri,               StringComparison.Ordinal);
 
     // Формат события: [8, "OnJsonApiEvent", { data, eventType, uri }]
     private static LcuEvent? TryParse(string text)

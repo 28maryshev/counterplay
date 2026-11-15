@@ -43,35 +43,41 @@ public static class PlayerInfo
 
     /// Чемпионы, которыми ВЛАДЕЕТ текущий аккаунт (championId). Ключ Riot не нужен —
     /// берём из LCU. Пусто, если недоступно (тогда предупреждение «нет чемпиона»
-    /// не показываем — не пугаем ложно).
+    /// не показываем — не пугаем ложно). Первые секунды после запуска клиент
+    /// отвечает 404 — список дошлёт событием, его ловит <see cref="OwnedChamps"/>.
     public static async Task<HashSet<int>> GetOwnedChampionsAsync(LcuHttpClient http, CancellationToken ct)
     {
-        var owned = new HashSet<int>();
         try
         {
-            var (status, body) = await http.GetAsync("/lol-champions/v1/owned-champions-minimal", ct);
-            if (status != 200) return owned;
-
+            var (status, body) = await http.GetAsync(OwnedChamps.EventUri, ct);
+            if (status != 200) return [];
             using var doc = JsonDocument.Parse(body);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return owned;
-
-            foreach (var c in doc.RootElement.EnumerateArray())
-            {
-                if (!c.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number)
-                    continue;
-                var id = idEl.GetInt32();
-                if (id <= 0) continue;
-                // Если есть флаг владения — уважаем его (эндпоинт может отдавать и
-                // free-to-play); иначе считаем владением.
-                bool ownedFlag = true;
-                if (c.TryGetProperty("ownership", out var own)
-                    && own.TryGetProperty("owned", out var o)
-                    && o.ValueKind is JsonValueKind.True or JsonValueKind.False)
-                    ownedFlag = o.GetBoolean();
-                if (ownedFlag) owned.Add(id);
-            }
+            return ParseOwnedChampions(doc.RootElement);
         }
-        catch { /* недоступно — пустой набор */ }
+        catch { return []; /* недоступно — пустой набор */ }
+    }
+
+    /// Список чемпионов аккаунта в том виде, как его отдаёт клиент: и ответ на
+    /// запрос, и данные события — один и тот же массив.
+    public static HashSet<int> ParseOwnedChampions(JsonElement root)
+    {
+        var owned = new HashSet<int>();
+        if (root.ValueKind != JsonValueKind.Array) return owned;
+        foreach (var c in root.EnumerateArray())
+        {
+            if (!c.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number)
+                continue;
+            var id = idEl.GetInt32();
+            if (id <= 0) continue;
+            // Если есть флаг владения — уважаем его (эндпоинт отдаёт и бесплатную
+            // ротацию с owned=false); иначе считаем владением.
+            bool ownedFlag = true;
+            if (c.TryGetProperty("ownership", out var own)
+                && own.TryGetProperty("owned", out var o)
+                && o.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                ownedFlag = o.GetBoolean();
+            if (ownedFlag) owned.Add(id);
+        }
         return owned;
     }
 
