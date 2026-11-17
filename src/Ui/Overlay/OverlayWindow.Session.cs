@@ -480,8 +480,10 @@ public partial class OverlayWindow
         RankSkel.Visibility     = v;
         RankLpSkel.Visibility   = v;
         WinrateSkel.Visibility  = v;
-        RankSkel.Background     = WlSkelBar.Background =
-        WrSkelBar.Background    = RankLpSkel.Background = still ? Skeleton.Still : Skeleton.Shimmer;
+        // Кисть — только на показ: взять блик значит запустить его (Skeleton.Shimmer).
+        if (on)
+            RankSkel.Background  = WlSkelBar.Background =
+            WrSkelBar.Background = RankLpSkel.Background = still ? Skeleton.Still : Skeleton.Shimmer;
 
         // Настоящие подписи прячем, чтобы они не просвечивали сквозь плашки.
         RankText.Visibility     = on ? Visibility.Hidden : Visibility.Visible;

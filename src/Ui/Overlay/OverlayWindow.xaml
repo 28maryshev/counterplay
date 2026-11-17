@@ -35,11 +35,18 @@
   <Grid>
 
     <!-- ═══════════════ ОСНОВНОЙ КОНТЕНТ ═══════════════ -->
+    <!-- Подложка с тенью — отдельным слоем ПОД содержимым, а не его предком.
+         Эффект на предке размывает тень заново на каждый кадр любой анимации
+         внутри, по всему окну: окно прозрачное (layered), и WPF перекладывает
+         его целиком. Игрок увидел это как «10% видеокарты» (17.11.2026). -->
     <Border Background="#D8071223" BorderBrush="{StaticResource WaveBrush}" BorderThickness="1.4"
             CornerRadius="4" Margin="5">
       <Border.Effect>
         <DropShadowEffect Color="Black" BlurRadius="16" ShadowDepth="3" Opacity="0.7"/>
       </Border.Effect>
+    </Border>
+    <!-- Рамка без кисти: та же толщина, чтобы содержимое встало, где стояло. -->
+    <Border BorderThickness="1.4" CornerRadius="4" Margin="5">
 
       <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
@@ -83,7 +90,10 @@
             </Ellipse.Fill>
           </Ellipse>
 
-          <!-- Потоки «ветра/дымки» — плавно дрейфуют -->
+          <!-- Потоки «ветра/дымки». Неподвижные: раньше дрейфовали бесконечной
+               анимацией по 4 пикселя в секунду — глазу почти незаметно, а окну
+               это 60 кадров в секунду всё время, пока оно открыто. Проверка
+               tests/IdleFrames держит, чтобы в покое окно кадров не рисовало. -->
           <Canvas>
             <Canvas.Resources>
               <!-- общий стиль кривой -->
@@ -97,53 +107,11 @@
             </Canvas.Resources>
 
             <Path Style="{StaticResource Wisp}"
-                  Data="M -80,90 C 220,30 520,170 820,90 S 1320,20 1640,130"
-                  RenderTransformOrigin="0.5,0.5">
-              <Path.RenderTransform><TranslateTransform x:Name="W1"/></Path.RenderTransform>
-              <Path.Triggers>
-                <EventTrigger RoutedEvent="Loaded">
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="W1" Storyboard.TargetProperty="X"
-                                       From="0" To="46" Duration="0:0:11"
-                                       AutoReverse="True" RepeatBehavior="Forever"/>
-                    </Storyboard>
-                  </BeginStoryboard>
-                </EventTrigger>
-              </Path.Triggers>
-            </Path>
-
+                  Data="M -80,90 C 220,30 520,170 820,90 S 1320,20 1640,130"/>
             <Path Style="{StaticResource Wisp}" Opacity="0.07"
-                  Data="M -80,260 C 260,200 560,330 880,250 S 1340,180 1660,300">
-              <Path.RenderTransform><TranslateTransform x:Name="W2"/></Path.RenderTransform>
-              <Path.Triggers>
-                <EventTrigger RoutedEvent="Loaded">
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="W2" Storyboard.TargetProperty="X"
-                                       From="0" To="-40" Duration="0:0:14"
-                                       AutoReverse="True" RepeatBehavior="Forever"/>
-                    </Storyboard>
-                  </BeginStoryboard>
-                </EventTrigger>
-              </Path.Triggers>
-            </Path>
-
+                  Data="M -80,260 C 260,200 560,330 880,250 S 1340,180 1660,300"/>
             <Path Style="{StaticResource Wisp}" Opacity="0.06"
-                  Data="M -80,440 C 240,380 540,510 860,430 S 1320,360 1660,470">
-              <Path.RenderTransform><TranslateTransform x:Name="W3"/></Path.RenderTransform>
-              <Path.Triggers>
-                <EventTrigger RoutedEvent="Loaded">
-                  <BeginStoryboard>
-                    <Storyboard>
-                      <DoubleAnimation Storyboard.TargetName="W3" Storyboard.TargetProperty="X"
-                                       From="0" To="36" Duration="0:0:17"
-                                       AutoReverse="True" RepeatBehavior="Forever"/>
-                    </Storyboard>
-                  </BeginStoryboard>
-                </EventTrigger>
-              </Path.Triggers>
-            </Path>
+                  Data="M -80,440 C 240,380 540,510 860,430 S 1320,360 1660,470"/>
           </Canvas>
         </Grid>
 
@@ -200,25 +168,11 @@
 
           <!-- ── Стадия загрузки/ожидания: точки + крупный статус + прогресс ── -->
           <StackPanel x:Name="LoadingInfo">
-            <!-- Три точки, поочередно медленно мигающие -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,18">
-              <StackPanel.Triggers>
-                <EventTrigger RoutedEvent="Loaded">
-                  <BeginStoryboard>
-                    <Storyboard RepeatBehavior="Forever">
-                      <DoubleAnimation Storyboard.TargetName="Dot1" Storyboard.TargetProperty="Opacity"
-                                       From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
-                                       BeginTime="0:0:0.0"/>
-                      <DoubleAnimation Storyboard.TargetName="Dot2" Storyboard.TargetProperty="Opacity"
-                                       From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
-                                       BeginTime="0:0:0.4"/>
-                      <DoubleAnimation Storyboard.TargetName="Dot3" Storyboard.TargetProperty="Opacity"
-                                       From="1.0" To="0.2" Duration="0:0:0.7" AutoReverse="True"
-                                       BeginTime="0:0:0.8"/>
-                    </Storyboard>
-                  </BeginStoryboard>
-                </EventTrigger>
-              </StackPanel.Triggers>
+            <!-- Три точки, поочерёдно медленно мигающие. Мигают, только пока
+                 видны (OverlayWindow.Status.cs, LoadingDots): запуск по Loaded
+                 крутил их вечно, и за скрытой панелью тоже. -->
+            <StackPanel x:Name="LoadingDots" Orientation="Horizontal" HorizontalAlignment="Center"
+                        Margin="0,0,0,18">
               <Ellipse x:Name="Dot1" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
               <Ellipse x:Name="Dot2" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>
               <Ellipse x:Name="Dot3" Width="12" Height="12" Fill="#C89B3C" Opacity="0.2" Margin="5,0"/>

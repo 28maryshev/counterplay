@@ -29,18 +29,66 @@ public partial class OverlayWindow
 
     /// Обновление скачано и встанет при следующем запуске: говорим об этом прямо
     /// и мигаем — иначе программа, живущая в трее сутками, так и останется старой.
+    ///
+    /// Мигание — несколько раз при каждом появлении окна, потом надпись просто
+    /// горит жёлтым. Вечное мигание до перезапуска рисовало окно 60 раз в
+    /// секунду сутками (игрок: «10% видеокарты», 17.11.2026), а запущенное, пока
+    /// окно в трее, и вовсе отмигало бы впустую.
     public void ShowUpdateReady(string version) => Dispatcher.InvokeAsync(() =>
     {
         VersionText.Text = Loc.T("ready.updateReady", version);
         VersionText.Foreground = new SolidColorBrush(
             System.Windows.Media.Color.FromRgb(0xF5, 0xD7, 0x7A));
         VersionText.FontWeight = FontWeights.Bold;
+        if (!_updateReady)
+        {
+            _updateReady = true;
+            VersionText.IsVisibleChanged += (_, e) => { if ((bool)e.NewValue) BlinkUpdateReady(); };
+        }
+        if (VersionText.IsVisible) BlinkUpdateReady();
+    });
+
+    private bool _updateReady;
+
+    private void BlinkUpdateReady() =>
         VersionText.BeginAnimation(OpacityProperty, new DoubleAnimation
         {
             From = 1.0, To = 0.25, Duration = TimeSpan.FromSeconds(0.9),
-            AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
+            AutoReverse = true, RepeatBehavior = new RepeatBehavior(4),
+            FillBehavior = FillBehavior.Stop,   // доиграло — надпись снова непрозрачная
         });
-    });
+
+    /// Точки экрана ожидания мигают, только пока их видно: панель ожидания
+    /// скрыта, окно в трее — часы анимации стоят. Запуск по Loaded в разметке
+    /// крутил их с первой секунды и до закрытия программы.
+    private void InitLoadingDots() =>
+        LoadingDots.IsVisibleChanged += (_, e) =>
+        {
+            if ((bool)e.NewValue) (_dotsWave ??= DotsWave()).Begin(this, isControllable: true);
+            else _dotsWave?.Stop(this);   // точки возвращаются к тусклым 0,2 из разметки
+        };
+
+    private Storyboard? _dotsWave;
+
+    /// Волна по трём точкам: каждая гаснет и разгорается за 1,4 с, следующая —
+    /// на 0,4 с позже; цикл 2,2 с с паузой после третьей.
+    private Storyboard DotsWave()
+    {
+        var wave = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        var dots = new[] { Dot1, Dot2, Dot3 };
+        for (var i = 0; i < dots.Length; i++)
+        {
+            var blink = new DoubleAnimation(1.0, 0.2, TimeSpan.FromSeconds(0.7))
+            {
+                AutoReverse = true,
+                BeginTime = TimeSpan.FromSeconds(0.4 * i),
+            };
+            Storyboard.SetTarget(blink, dots[i]);
+            Storyboard.SetTargetProperty(blink, new PropertyPath(OpacityProperty));
+            wave.Children.Add(blink);
+        }
+        return wave;
+    }
 
     /// <summary>
     /// Иконки доехали — перерисовать то, что сейчас на экране.
