@@ -658,8 +658,13 @@ internal static class Program
             if (glowing.Any(t => Math.Abs(t.Value) < Math.Abs(top.Value) - 1e-9 || t.Strength < 1 - 1e-9))
                 problems.Add($"{g.Key.Kind}: светится не лидер — «{glowing[0].Text}»");
             if (top.Strength >= 1 - 1e-9 && top.Glow is null) problems.Add($"{g.Key.Kind}: лидер «{top.Text}» не светится");
+            // «Заметно слабый» — и на пункт, и на четверть лидера: у тега «вслепую»
+            // цифры 10–35, и 19,3 против 22,1 («68%» и «71%») — почти ровня, их
+            // почти одинаковая яркость честная (база 17.11 уронила проверку на
+            // одном пункте).
             var low = byValue[0];
-            if (byValue.Count > 1 && Math.Abs(top.Value) - Math.Abs(low.Value) >= 1.0 && top.Strength - low.Strength < 0.2)
+            if (byValue.Count > 1 && Math.Abs(top.Value) - Math.Abs(low.Value) >= 1.0
+                && Math.Abs(low.Value) <= 0.75 * Math.Abs(top.Value) && top.Strength - low.Strength < 0.2)
                 problems.Add($"{g.Key.Kind}: «{low.Text}» почти как «{top.Text}»");
             shown.Add($"{g.Key.Kind}{(g.Key.Sign < 0 ? "−" : "+")} " +
                       string.Join(" ", byValue.Select(t => $"{Math.Abs(t.Value):0.0}→{t.Strength:0.00}")));
