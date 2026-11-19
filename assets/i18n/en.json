@@ -29,7 +29,8 @@
     "shardTenacity": "Tenacity shard",
     "laneAllIn": "{0} in lane goes all-in",
     "lanePoke": "{0} in lane pokes from range",
-    "aiVsLane": "vs {0} in lane: {1} pts ({2} games)",
+    "aiKsEdge": "beats other keystones vs {0}: {1} pts",
+    "aiKsWr": "wins more often than {0}: {1}% vs {2}%",
     "vsSquishy": "they have no tanky targets",
     "shardHealth": "Health shard"
   },

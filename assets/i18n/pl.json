@@ -425,7 +425,8 @@
     "shardTenacity": "Odłamek nieustępliwości",
     "laneAllIn": "{0} na linii wchodzi all-in",
     "lanePoke": "{0} na linii nęka z dystansu",
-    "aiVsLane": "przeciw {0} na linii: {1} pkt ({2} gier)",
+    "aiKsEdge": "przeciw {0} lepsza od innych run kluczowych: {1} pkt",
+    "aiKsWr": "wygrywa częściej niż {0}: {1}% wobec {2}%",
     "vsSquishy": "nie mają wytrzymałych celów",
     "shardHealth": "Odłamek zdrowia"
   },

@@ -109,7 +109,8 @@
     "shardTenacity": "Zähigkeits-Splitter",
     "laneAllIn": "{0} auf der Lane geht all-in",
     "lanePoke": "{0} auf der Lane pokt aus der Distanz",
-    "aiVsLane": "gegen {0} auf der Lane: {1} Pkt. ({2} Spiele)",
+    "aiKsEdge": "gegen {0} besser als andere Schlüsselrunen: {1} Pkt.",
+    "aiKsWr": "gewinnt öfter als {0}: {1} % gegen {2} %",
     "vsSquishy": "sie haben keine robusten Ziele",
     "shardHealth": "Lebens-Splitter"
   },

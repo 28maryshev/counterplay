@@ -31,6 +31,13 @@ public sealed record RuneChoice(
     /// Сами вторичные деревья — от игр кейстоуна (с 19.11): подбор меняет
     /// дерево только на то, что с этим кейстоуном играют.
     public IReadOnlyDictionary<int, double>? SubPick { get; init; }
+
+    /// Насколько кейстоун против этого оппонента лучше прочих кейстоунов, п.п.
+    /// VsDelta — это и сама линия, и руна: Шае против Зиггса тяжело с любыми
+    /// (Темп −2,4, Завоеватель −2,3, Натиск −2,2), и «−2,3» о Завоевателе не
+    /// говорит ничего. VsEdge — его поправка минус средняя поправка прочих;
+    /// 0 — своей поправки нет или сравнить не с чем.
+    public double VsEdge { get; init; }
 }
 
 /// <summary>
@@ -490,6 +497,16 @@ public static class RunesClient
             deltas = v.Deltas;
         }
 
+        // Поправка против оппонента — в основном сама линия, одна на все
+        // кейстоуны. Кейстоуну без своей поправки (игр с ним против этого
+        // оппонента мало) — средняя по прочим, а не ноль: иначе на тяжёлой
+        // линии он выходил бы на пару пунктов лучше только из-за пустоты.
+        var lane = deltas.Count > 0 ? deltas.Values.Average() : 0;
+        double Edge(int ks) =>
+            deltas.Count > 1 && deltas.TryGetValue(ks, out var d)
+                ? d - deltas.Where(x => x.Key != ks).Average(x => x.Value)
+                : 0;
+
         // Кейстоун, который на роли почти не берут, вариантом не бывает. Его
         // отсекает и выгрузка (MIN_KEYSTONE_SHARE), но файлы до 19.11 и кэш
         // Cloudflare ещё держат такие: у Эш стрелком первой стояла Хватка
@@ -498,8 +515,9 @@ public static class RunesClient
         var scored = (common.Count > 0 ? common : s.Keystones)
             .Select(k => k with
             {
-                VsDelta = deltas.GetValueOrDefault(k.Keystone),
+                VsDelta = deltas.TryGetValue(k.Keystone, out var d) ? d : lane,
                 VsGames = vsGames,
+                VsEdge = Edge(k.Keystone),
             })
             .OrderByDescending(k => k.Winrate + k.VsDelta)
             .ToList();

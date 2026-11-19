@@ -109,7 +109,8 @@
     "shardTenacity": "Direnç parçası",
     "laneAllIn": "{0} koridorda all-in yapıyor",
     "lanePoke": "{0} koridorda uzaktan dürtüyor",
-    "aiVsLane": "koridorda {0} karşısında: {1} puan ({2} maç)",
+    "aiKsEdge": "{0} karşısında diğer ana rünlerden iyi: {1} puan",
+    "aiKsWr": "{0} rününden daha sık kazanır: %{1} / %{2}",
     "vsSquishy": "dayanıklı hedefleri yok",
     "shardHealth": "Can parçası"
   },

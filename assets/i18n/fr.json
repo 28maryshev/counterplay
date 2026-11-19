@@ -322,7 +322,8 @@
     "shardTenacity": "Fragment de ténacité",
     "laneAllIn": "{0} en lane joue l'all-in",
     "lanePoke": "{0} en lane harcèle à distance",
-    "aiVsLane": "contre {0} en lane : {1} pts ({2} parties)",
+    "aiKsEdge": "contre {0}, meilleure que les autres runes clés : {1} pts",
+    "aiKsWr": "gagne plus souvent que {0} : {1} % contre {2} %",
     "vsSquishy": "ils n'ont aucune cible résistante",
     "shardHealth": "Fragment de PV"
   },

@@ -113,7 +113,8 @@ internal static class Program
                                     Dictionary<int, double>? share = null,
                                     Dictionary<int, double>? subPick = null,
                                     bool withShares = true, bool withPta = false,
-                                    Dictionary<int, double>? vsZed = null, int shard3 = 5011)
+                                    Dictionary<int, double>? vsZed = null, int shard3 = 5011,
+                                    double ptaWr = 49.5)
     {
         IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>> subShare =
             new Dictionary<int, IReadOnlyDictionary<int, double>>
@@ -130,7 +131,7 @@ internal static class Program
                 SubPick = withShares ? subPick ?? new() { [8400] = 55, [8300] = 45 } : null,
             };
         var list = new List<RuneChoice> { Ks(LT, 50.1, 89.7, 8000, [LT, 9111, 9104, row3], sub, secondary) };
-        if (withPta) list.Add(Ks(PTA, 49.5, 8.4, 8000, [PTA, 9111, 9104, Coup], 8300, [8345, 8347]));
+        if (withPta) list.Add(Ks(PTA, ptaWr, 8.4, 8000, [PTA, 9111, 9104, Coup], 8300, [8345, 8347]));
         var vs = new Dictionary<int, (int, Dictionary<int, double>)>();
         if (vsZed is not null) vs[Zed] = (900, vsZed);
         return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], []);
@@ -267,6 +268,29 @@ internal static class Program
         var noLane = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft);
         Check("без оппонента — Темп (лучший винрейт)", noLane?.Choice.Keystone == LT && noLane.KeystoneWhy is null,
               noLane is null ? "" : RuneIcons.NameOf(noLane.Choice.Keystone));
+
+        // Владелец (20.11, скриншот): Шая против Зиггса — подбор взял
+        // Завоевателя с причиной «против Зиггса: −2,3 п.п.». Против Зиггса в
+        // минусе все кейстоуны (Темп −2,4, Завоеватель −2,3, Натиск −2,2): это
+        // тяжёлая линия, а не плохая руна, а взят он за винрейт (52,5 против
+        // 51,7). Минус причиной не бывает; причина — то, чем он правда лучше.
+        var hard = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = -2.2, [LT] = -2.4 }), Soft, lane: Zed);
+        Check("тяжёлая линия, все кейстоуны в минусе — Темп без причины (он и так первый)",
+              hard?.Choice.Keystone == LT && hard.KeystoneWhy is null,
+              $"{(hard is null ? "—" : RuneIcons.NameOf(hard.Choice.Keystone))}: {hard?.KeystoneWhy}");
+        var xayah = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, ptaWr: 50.9,
+                                        vsZed: new() { [PTA] = -2.3, [LT] = -2.4 }), Soft, lane: Zed);
+        Check("тяжёлая линия, Натиск выше по винрейту — причина «побеждает чаще Темпа», без минуса",
+              xayah?.Choice.Keystone == PTA && xayah.KeystoneWhy is { } xw
+              && xw.Contains(RuneIcons.NameOf(LT)) && !xw.Contains('−') && !xw.Contains("-2"),
+              $"{(xayah is null ? "—" : RuneIcons.NameOf(xayah.Choice.Keystone))}: {xayah?.KeystoneWhy}");
+        // Поправки против Зеда только у Темпа (−3): у Натиска игр с ним мало.
+        // Натиску — средняя по прочим, а не ноль: иначе на тяжёлой линии он
+        // выходил бы на три пункта лучше только из-за малой выборки.
+        var thin = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [LT] = -3.0 }), Soft, lane: Zed);
+        Check("у Натиска нет поправки против Зеда — он не выигрывает за счёт пустоты: Темп",
+              thin?.Choice.Keystone == LT,
+              $"{(thin is null ? "—" : RuneIcons.NameOf(thin.Choice.Keystone))}: {thin?.KeystoneWhy}");
 
         // ── 6. Мягкий состав ────────────────────────────────────────────────
         var soft = Adapt(engine, Ashe_([8444, Overgrowth], row3: RuneAdvisor.CutDown), Soft);

@@ -332,7 +332,8 @@
     "shardTenacity": "Fragmento de tenacidad",
     "laneAllIn": "{0} en línea va all-in",
     "lanePoke": "{0} en línea hace poke a distancia",
-    "aiVsLane": "contra {0} en línea: {1} pts ({2} partidas)",
+    "aiKsEdge": "contra {0}, mejor que otras runas clave: {1} pts",
+    "aiKsWr": "gana más a menudo que {0}: {1}% frente a {2}%",
     "vsSquishy": "no tienen objetivos resistentes",
     "shardHealth": "Fragmento de vida"
   },

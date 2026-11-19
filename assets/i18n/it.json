@@ -425,7 +425,8 @@
     "shardTenacity": "Frammento di tenacia",
     "laneAllIn": "{0} in corsia va all-in",
     "lanePoke": "{0} in corsia fa poke dalla distanza",
-    "aiVsLane": "contro {0} in corsia: {1} punti ({2} partite)",
+    "aiKsEdge": "contro {0} meglio delle altre rune chiave: {1} punti",
+    "aiKsWr": "vince più spesso di {0}: {1}% contro {2}%",
     "vsSquishy": "non hanno bersagli resistenti",
     "shardHealth": "Frammento di salute"
   },

@@ -45,11 +45,16 @@ public static class RuneAdvisor
 
     /// Страница под соперников. Swaps пуст — менять нечего; Covered — чего
     /// состав требует и что на странице уже стоит: «менять нечего» без
-    /// объяснения читалось бы как отказ. KeystoneWhy — поправка против
-    /// оппонента, по которой выбран кейстоун; Trace — разбор для песочницы.
+    /// объяснения читалось бы как отказ. KeystoneWhy — чем выбранный
+    /// кейстоун лучше: против оппонента или винрейтом (null — он и так ходовой);
+    /// Trace — разбор для песочницы.
     public sealed record Advice(
         RuneChoice Choice, IReadOnlyList<Swap> Swaps, IReadOnlyList<Swap> Covered,
         string? KeystoneWhy, IReadOnlyList<string> Trace);
+
+    /// Кейстоун лучше прочих против оппонента хотя бы на столько, п.п., —
+    /// тогда это и причина. Меньше — шум: поправки уже ужаты по объёму.
+    public const double MinKeystoneEdge = 0.5;
 
     /// Реже этого руну на чемпионе не советуем, % игр (кейстоуна или вторичного дерева).
     public const double MinShare = 3.0;
@@ -92,13 +97,24 @@ public static class RuneAdvisor
         var trace = new List<string>();
 
         // ── Кейстоун: по данным против оппонента ──────────────────────────
-        var choice = RunesClient.Choices(stats, opp, 1)[0];
+        // Все кейстоуны по порядку (база + поправка против оппонента): первый —
+        // подбор, самый ходовой — то, с чем его сравнивать в причине.
+        var all = RunesClient.Choices(stats, opp, int.MaxValue);
+        var choice = all[0];
         if (slotOf(choice.Keystone) is null) return null;
+        var meta = all.MaxBy(k => k.PickRate)!;
         string? ksWhy = null;
-        if (opp is { } x && choice.VsGames > 0 && Math.Abs(choice.VsDelta) >= 0.1)
-            ksWhy = Loc.T("runes.aiVsLane", DataDragon.Name(x),
-                          (choice.VsDelta >= 0 ? "+" : "") + choice.VsDelta.ToString("0.0"),
-                          choice.VsGames.ToString("N0"));
+        // Причина — чем он правда лучше. Не сырая поправка против оппонента:
+        // в ней и сама линия, и «Завоеватель — против Зиггса −2,3» читалось
+        // как совет взять руну в минусе (владелец, 20.11), хотя в минусе там
+        // все. Лучше прочих против оппонента — так и пишем; иначе он взят за
+        // винрейт — пишем, чем лучше ходового; он и есть ходовой — молчим.
+        if (opp is { } x && choice.VsEdge >= MinKeystoneEdge)
+            ksWhy = Loc.T("runes.aiKsEdge", DataDragon.Name(x), "+" + choice.VsEdge.ToString("0.0"));
+        else if (choice.Keystone != meta.Keystone)
+            ksWhy = Loc.T("runes.aiKsWr", Rune(meta.Keystone),
+                          (choice.Winrate + choice.VsDelta).ToString("0.0"),
+                          (meta.Winrate + meta.VsDelta).ToString("0.0"));
         trace.Add(opp is { } y
             ? $"оппонент по линии: {DataDragon.Name(y)}"
               + (stats.Vs.ContainsKey(y) ? "" : " (поправок кейстоунов против него нет)")
@@ -109,8 +125,11 @@ public static class RuneAdvisor
             : "на линии: " + string.Join(", ", foes.Select(f => DataDragon.Name(f)
                 + (ChampionTraits.LanePoke(f) ? " (издалека)" : ChampionTraits.LaneAllIn(f) ? " (с наскока)" : " (тихо)")
                 + (ChampionTraits.LaneKnown(f) ? "" : " — нет в списках, по меткам"))));
-        trace.Add($"кейстоун: {Rune(choice.Keystone)} — {choice.Winrate:0.0}%"
-                  + (choice.VsGames > 0 ? $" {(choice.VsDelta >= 0 ? "+" : "")}{choice.VsDelta:0.0} против оппонента" : ""));
+        trace.Add("кейстоуны: " + string.Join(", ", all.Select(k =>
+                      $"{Rune(k.Keystone)} {k.Winrate:0.0}%"
+                      + (k.VsGames > 0 ? $" {k.VsDelta:+0.0;-0.0;0.0} (лучше прочих {k.VsEdge:+0.0;-0.0;0.0})" : "")
+                      + $", берут {k.PickRate:0}%"))
+                  + $" → {Rune(choice.Keystone)}");
         trace.Add($"состав: танков {comp.Tanks}, контроля {comp.Cc} (стойкость от {(EnemyComp.Close(me) ? 2 : 3)}), "
                   + $"убийц {comp.Burst}, стиль {comp.Style?.ToString() ?? "смешанный"}");
 
