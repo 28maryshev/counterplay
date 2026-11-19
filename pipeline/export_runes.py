@@ -25,6 +25,14 @@ from pathlib import Path
 # ── Пороги: ниже них данные — шум, и мы их не публикуем ────────────────────
 MIN_GAMES        = 200   # игр на чемпиона+роль, чтобы вообще показывать руны
 MIN_KEYSTONE     = 30    # игр на кейстоун, чтобы он попал в варианты
+# И доля: варианты в программе идут по винрейту, и кейстоун, который на этой
+# роли почти никто не берёт, выходил первым, если ему повезло. У Эш стрелком так
+# стояла Хватка нежити — 117 игр из 268 тысяч (0,04%); всего так было у 103
+# связок из 724 (журнал 2026-11-19).
+MIN_KEYSTONE_SHARE = 2.0 # % игр связки с этим кейстоуном
+# Доли мелких рун — по ним подбор рун в программе берёт только то, что на этом
+# чемпионе играют. Реже этого не пишем: файл не раздувается.
+MIN_SHARE_OUT    = 1.0   # %
 MIN_PAGE         = 40    # игр на конкретную страницу рун (абсолютный минимум)
 # Доля страницы внутри кейстоуна. Абсолютного порога мало: у ходового кейстоуна
 # десятки тысяч игр, и «лучшая» страница на 65 играх (0.09 %) — это экзотика,
@@ -331,6 +339,45 @@ def pick_builds(raw_builds, strata: dict, builds_total: int, items: list[dict],
     return builds
 
 
+def rune_shares(pages) -> tuple[dict, dict]:
+    """Как часто берут каждую мелкую руну при этом кейстоуне, в %.
+
+    Основное дерево задано кейстоуном, поэтому его руны — от всех игр
+    кейстоуна. Вторичное у страниц разное, и его руны — от игр с тем же
+    вторичным деревом: Костяная броня у половины тех, кто взял Решимость, —
+    ходовая, даже если Решимость берёт каждый пятый. Реже MIN_SHARE_OUT не пишем.
+
+    Нужны подбору рун в программе: менять руну под состав можно только на ту,
+    что на этом чемпионе правда играют, — иначе совет видно как машинный.
+
+    Осколков здесь нет намеренно: осколок стойкости — обычный ситуативный выбор
+    для любого чемпиона, и его малая доля (у половины связок меньше 3%) значит
+    «редко играют против такого контроля», а не «на этом чемпионе так не играют»."""
+    total = 0
+    prim = defaultdict(int)
+    sub_total = defaultdict(int)
+    sub = defaultdict(lambda: defaultdict(int))
+    for _, sub_style, perks, _, g, _ in pages:
+        main, secondary = perks.split('|')
+        total += g
+        for p in main.split(',')[1:]:
+            prim[int(p)] += g
+        sub_total[sub_style] += g
+        for p in secondary.split(','):
+            sub[sub_style][int(p)] += g
+
+    def pct(counts: dict, of: int) -> dict:
+        out = {}
+        for k, c in sorted(counts.items(), key=lambda kv: -kv[1]):
+            v = round(100.0 * c / of, 1) if of else 0.0
+            if v >= MIN_SHARE_OUT:
+                out[str(k)] = v
+        return out
+
+    return (pct(prim, total),
+            {str(s): pct(m, sub_total[s]) for s, m in sub.items() if pct(m, sub_total[s])})
+
+
 def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     """JSON одной связки чемпион+роль. None — данных мало, не публикуем."""
     ph = ','.join('?' * len(ps))
@@ -350,18 +397,23 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     if not ks_rows:
         return None
 
+    # «Берут в N%» — от всех игр связки, а не от прошедших порог доли.
     ks_games = sum(g for _, g, _ in ks_rows)
     keystones = []
     for ks, g, w in sorted(ks_rows, key=lambda r: -r[1]):
+        if 100.0 * g / ks_games < MIN_KEYSTONE_SHARE:
+            continue
+        # Все страницы кейстоуна: из всех — доли мелких рун, из ходовых — лучшая.
+        all_pages = q(con, f"""SELECT primary_style, sub_style, perks, shards,
+                                      SUM(games) g, SUM(wins) w
+                               FROM rune_page
+                               WHERE champion_id=? AND role=? AND keystone=? AND patch IN ({ph})
+                               GROUP BY primary_style, sub_style, perks, shards""",
+                      [champ, role, ks, *ps])
+        share, sub_share = rune_shares(all_pages)
         # Лучшая страница внутри этого кейстоуна: по сглаженному винрейту,
         # но только среди достаточно ходовых (иначе всплывёт случайная).
-        pages = q(con, f"""SELECT primary_style, sub_style, perks, shards,
-                                  SUM(games) g, SUM(wins) w
-                           FROM rune_page
-                           WHERE champion_id=? AND role=? AND keystone=? AND patch IN ({ph})
-                           GROUP BY primary_style, sub_style, perks, shards
-                           HAVING g >= ?""",
-                  [champ, role, ks, *ps, MIN_PAGE])
+        pages = [r for r in all_pages if r[4] >= MIN_PAGE]
         # Отсекаем экзотику: страница должна занимать заметную долю игр кейстоуна.
         # Если после фильтра не осталось ничего (редкий кейстоун) — берём как есть.
         popular = [r for r in pages if r[4] >= g * MIN_PAGE_SHARE]
@@ -386,6 +438,8 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
                 'games': pg,
                 'wr': round(wr(pg, pw), 1),
             },
+            'share': share,
+            'subShare': sub_share,
         })
     if not keystones:
         return None
