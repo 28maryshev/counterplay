@@ -467,6 +467,13 @@ internal static class Program
         Check("перетаскивание полосы отдаёт место винрейтам",
               rows[0].ActualHeight < top - 50 && rows[2].ActualHeight > bottom + 50,
               $"пулы {top:0} → {rows[0].ActualHeight:0}, винрейты {bottom:0} → {rows[2].ActualHeight:0}");
+
+        // Доля — в файле сразу, как отпустили полосу, а не при закрытии окна:
+        // программа может кончиться и при открытом (владелец, 19.11).
+        var want = Math.Clamp(rows[0].ActualHeight / (rows[0].ActualHeight + rows[2].ActualHeight), 0.25, 0.85);
+        var disk = Saved("PoolSplit");
+        Check("граница в файле, хотя окно не закрывали", disk is { } s && Math.Abs(s - want) < 0.02,
+              $"{disk?.ToString("0.00") ?? "нет"} (ждали {want:0.00})");
     }
 
     /// <summary>
@@ -532,6 +539,22 @@ internal static class Program
               Math.Abs(AppSettings.Current.PoolWinHeight - (wideH + 40)) < 2,
               $"{AppSettings.Current.PoolWinLeft:0},{AppSettings.Current.PoolWinTop:0} "
               + $"{AppSettings.Current.PoolWinWidth:0}×{AppSettings.Current.PoolWinHeight:0}");
+
+        // ── Без закрытия: программа может кончиться при открытом окне ──────
+        // Владелец (19.11): «если выставили в одном размере, пусть такое и
+        // остаётся». Размер писался только при закрытии окна, а программа
+        // кончилась при открытом (снятый процесс, перезапуск после обновления),
+        // и растянутое пропало. Смотрим ФАЙЛ: память процесса умрёт вместе с ним.
+        var wLive = new PoolSettingsWindow(() => { });
+        ShowHidden(wLive); Pump();
+        wLive.Left = 230; wLive.Top = 150; wLive.Width = wideW + 60; wLive.Height = wideH + 70;
+        Wait(1200);
+        var onDisk = SavedGeometry();
+        Check("размер и место в файле, хотя окно не закрывали",
+              onDisk is { } g && Math.Abs(g.L - 230) < 2 && Math.Abs(g.W - (wideW + 60)) < 2
+                              && Math.Abs(g.H - (wideH + 70)) < 2,
+              onDisk is { } d ? $"{d.L:0},{d.T:0} {d.W:0}×{d.H:0} (ждали 230,150 {wideW + 60:0}×{wideH + 70:0})" : "в файле нет");
+        wLive.Close(); Pump();
 
         // ── Размер меньше нынешнего минимума: поджимается, место не теряется ──
         // Клиент LoL сменил разрешение — вместе с ним растёт масштаб окон, и
@@ -762,6 +785,29 @@ internal static class Program
             foreach (var x in Walk<T>(c)) yield return x;
         }
     }
+
+    /// Подождать, крутя очередь окна: сохранение идёт по таймеру, а таймер
+    /// срабатывает только из очереди.
+    private static void Wait(int ms)
+    {
+        var until = DateTime.UtcNow.AddMilliseconds(ms);
+        while (DateTime.UtcNow < until) Pump();
+    }
+
+    /// Число из ui.json проверки — как оно лежит на диске, а не в памяти.
+    private static double? Saved(string name)
+    {
+        var path = Path.Combine(AppPaths.Root, "ui.json");
+        if (!File.Exists(path)) return null;
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+        return doc.RootElement.TryGetProperty(name, out var v) ? v.GetDouble() : null;
+    }
+
+    /// Место и размер окна пулов, как они лежат в ui.json проверки.
+    private static (double L, double T, double W, double H)? SavedGeometry() =>
+        Saved("PoolWinLeft") is { } l && Saved("PoolWinTop") is { } t
+            && Saved("PoolWinWidth") is { } w && Saved("PoolWinHeight") is { } h
+            ? (l, t, w, h) : null;
 
     private static void Pump()
     {

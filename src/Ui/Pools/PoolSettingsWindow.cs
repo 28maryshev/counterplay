@@ -102,16 +102,6 @@ public sealed partial class PoolSettingsWindow : Window
         Grid.SetRow(bottom, 2);
         layout.Children.Add(bottom);
 
-        // Запоминаем, где человек оставил границу.
-        Closing += (_, _) =>
-        {
-            var top = layout.RowDefinitions[0].ActualHeight;
-            var all = top + layout.RowDefinitions[2].ActualHeight;
-            if (all > 0)
-                AppSettings.Current.PoolSplit = Math.Clamp(top / all, 0.25, 0.85);
-            AppSettings.SaveQuiet();
-        };
-
         // Декоративный фон как на драфте: синий сверху-слева → красный снизу-справа.
         var decorated = new Grid();
         decorated.Children.Add(DecorBackground());

@@ -74,20 +74,50 @@ static class WindowScale
             }
         };
 
-        // Сохраняем при закрытии: ловить каждое движение незачем, а закрытие
-        // случается ровно тогда, когда человек уже поставил окно как хотел.
-        if (remember is not null)
-            w.Closing += (_, _) =>
-            {
-                // У свёрнутого и развёрнутого окна Left/Top врут (у свёрнутого
-                // это −32000). Спрашиваем размер, с которым оно вернётся.
-                var r = w.WindowState == WindowState.Normal
-                    ? new Rect(w.Left, w.Top, w.Width, w.Height)
-                    : w.RestoreBounds;
-                if (double.IsNaN(r.Width) || r.Width <= 0 || r.Height <= 0) return;
-                if (!OnScreen(r.X, r.Y)) return;
-                remember.Write(r.X, r.Y, r.Width, r.Height);
-            };
+        if (remember is not null) Remember(w, remember);
+    }
+
+    /// <summary>
+    /// Писать место и размер, как только человек ОТПУСТИЛ окно, и ещё раз при
+    /// закрытии.
+    ///
+    /// Раньше писали только при закрытии: «закрытие случается, когда окно уже
+    /// поставили как хотели». Но программа кончается и при открытом окне —
+    /// снятый процесс, перезапуск после обновления, остановленный `dotnet run`, —
+    /// и растянутое окно открывалось прежним (владелец, 19.11). Теперь пишем
+    /// через паузу после последнего движения: пока тянут, таймер
+    /// перезапускается, и файл пишется один раз, а не на каждый пиксель.
+    /// </summary>
+    private static void Remember(Window w, WindowPlace remember)
+    {
+        void Save()
+        {
+            // У свёрнутого и развёрнутого окна Left/Top врут (у свёрнутого
+            // это −32000). Спрашиваем размер, с которым оно вернётся.
+            var r = w.WindowState == WindowState.Normal
+                ? new Rect(w.Left, w.Top, w.Width, w.Height)
+                : w.RestoreBounds;
+            if (double.IsNaN(r.Width) || r.Width <= 0 || r.Height <= 0) return;
+            if (!OnScreen(r.X, r.Y)) return;
+            // То же, что уже лежит, — файл не трогаем.
+            var (l, t, ww, hh) = remember.Read();
+            if (Math.Abs(l - r.X) < 0.5 && Math.Abs(t - r.Y) < 0.5 &&
+                Math.Abs(ww - r.Width) < 0.5 && Math.Abs(hh - r.Height) < 0.5) return;
+            remember.Write(r.X, r.Y, r.Width, r.Height);
+        }
+
+        var pause = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        pause.Tick += (_, _) => { pause.Stop(); Save(); };
+        void Moved(object? s, EventArgs e) { pause.Stop(); pause.Start(); }
+
+        // Слушаем только после показа: до него размер ставим мы сами (из
+        // памяти или по умолчанию), и записывать это обратно незачем.
+        w.Loaded += (_, _) =>
+        {
+            w.SizeChanged += Moved;
+            w.LocationChanged += Moved;
+        };
+        w.Closing += (_, _) => { pause.Stop(); Save(); };
     }
 
     /// <summary>
