@@ -412,7 +412,61 @@ internal static class Program
         Check("доля запомнена", Math.Abs(AppSettings.Current.PoolSplit - 0.3) < 0.05,
               $"{AppSettings.Current.PoolSplit:0.00} (ждали 0.30)");
 
+        MiddleBand(w, sp, frame);
         Geometry();
+    }
+
+    /// <summary>
+    /// Средняя полоса — строка с «?» и паролем — тянется за любое пустое место.
+    ///
+    /// Владелец (19.11): «сделай, чтобы центральную часть можно было двигать».
+    /// Полоса была, но тянулась только черта в 9 точек НАД этой строкой, а
+    /// сама строка лежала в нижней части и мышь не брала. Человек хватается
+    /// за середину — и ничего не происходит.
+    ///
+    /// Две вещи: мышь, нажатая на пустом месте строки, попадает в полосу; и
+    /// перетаскивание полосы действительно перекладывает высоту между частями
+    /// (раньше строки выставлялись напрямую, саму полосу никто не тянул).
+    /// </summary>
+    private static void MiddleBand(Window w, GridSplitter sp, Grid frame)
+    {
+        // Строка «? Как это работает … пароль» — ближайшая DockPanel над подписью.
+        var label = Walk<TextBlock>(w).FirstOrDefault(t => t.Text == Loc.T("pool.helpLabel"));
+        DependencyObject? row = label;
+        while (row is not null and not DockPanel) row = VisualTreeHelper.GetParent(row);
+        Check("строка с «?» и паролем найдена", row is DockPanel, row is null ? "нет" : "да");
+        if (row is not DockPanel strip) return;
+
+        // Ведём мышью поперёк строки по её середине и считаем, сколько точек
+        // попадает в полосу: пустое место между «?» и паролем должно браться.
+        var box = strip.TransformToAncestor(frame).TransformBounds(new Rect(strip.RenderSize));
+        var y = box.Top + box.Height / 2;
+        var grab = 0;
+        for (var x = box.Left; x < box.Right; x += 2)
+        {
+            var hit = frame.InputHitTest(new System.Windows.Point(x, y)) as DependencyObject;
+            for (var d = hit; d is not null; d = VisualTreeHelper.GetParent(d))
+                if (d == sp) { grab += 2; break; }
+        }
+        Check("среднюю строку можно тянуть за пустое место", grab >= 80,
+              $"{grab} точек из {box.Width:0}");
+        if (Environment.GetEnvironmentVariable("CP_SNAP") is { Length: > 0 } snap)
+            Snap(w, snap, "middle-band.png", w.Background);
+
+        // Тянем саму полосу на 100 точек вверх — как мышью.
+        var rows = frame.RowDefinitions;
+        var top = rows[0].ActualHeight;
+        var bottom = rows[2].ActualHeight;
+        sp.RaiseEvent(new System.Windows.Controls.Primitives.DragStartedEventArgs(0, 0)
+            { RoutedEvent = System.Windows.Controls.Primitives.Thumb.DragStartedEvent });
+        sp.RaiseEvent(new System.Windows.Controls.Primitives.DragDeltaEventArgs(0, -100)
+            { RoutedEvent = System.Windows.Controls.Primitives.Thumb.DragDeltaEvent });
+        sp.RaiseEvent(new System.Windows.Controls.Primitives.DragCompletedEventArgs(0, -100, false)
+            { RoutedEvent = System.Windows.Controls.Primitives.Thumb.DragCompletedEvent });
+        Pump();
+        Check("перетаскивание полосы отдаёт место винрейтам",
+              rows[0].ActualHeight < top - 50 && rows[2].ActualHeight > bottom + 50,
+              $"пулы {top:0} → {rows[0].ActualHeight:0}, винрейты {bottom:0} → {rows[2].ActualHeight:0}");
     }
 
     /// <summary>

@@ -76,27 +76,9 @@ public sealed partial class PoolSettingsWindow : Window
 
         grid.Children.Add(Area(Loc.T("pool.duo"), _duoArea, duo: true, 2));
 
-        // Низ окна: «?» с инструкцией, черта, а под ней — мой винрейт по
-        // чемпионам. Пулы занимают верх, здесь остаётся пустое место — показываем
-        // в нём, на ком реально идёт игра. Подсказка выше винрейтов: она про то,
-        // ради чего окно открыли, а винрейты — справка на посмотреть.
+        // Низ окна — мой винрейт по чемпионам. Пулы занимают верх, здесь
+        // остаётся пустое место — показываем в нём, на ком реально идёт игра.
         var bottom = new DockPanel { Margin = new Thickness(16, 0, 16, 10) };
-        // «?» слева, пароль синхронизации справа — одной строкой: оба про то,
-        // «как этим пользоваться», а не про сами пулы.
-        var helpRow = new DockPanel();
-        _syncBox = SyncBadge.Row(() => AskSyncPassword(this));
-        DockPanel.SetDock(_syncBox, Dock.Right);
-        helpRow.Children.Add(_syncBox);
-        helpRow.Children.Add(HelpBadge());
-        var help = helpRow;
-        DockPanel.SetDock(help, Dock.Top);
-        bottom.Children.Add(help);
-        var hr = new Border
-        {
-            Height = 1, Background = new SolidColorBrush(Line), Margin = new Thickness(0, 0, 0, 10)
-        };
-        DockPanel.SetDock(hr, Dock.Top);
-        bottom.Children.Add(hr);
         bottom.Children.Add(_wrStrip);
 
         // Две части с подвижной границей: сверху пулы, снизу винрейты. Доли
@@ -116,31 +98,7 @@ public sealed partial class PoolSettingsWindow : Window
 
         Grid.SetRow(grid, 0);
         layout.Children.Add(grid);
-
-        // Сама полоса: широкая настолько, чтобы в неё попадали мышью, но
-        // видимая часть тонкая — толстая черта посреди окна мозолила бы глаз.
-        var splitter = new GridSplitter
-        {
-            Height = 9,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center,
-            Background = System.Windows.Media.Brushes.Transparent,
-            Cursor = System.Windows.Input.Cursors.SizeNS,
-            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
-            ToolTip = Loc.T("pool.splitHint"),
-        };
-        Grid.SetRow(splitter, 1);
-        layout.Children.Add(splitter);
-
-        var splitLine = new Border
-        {
-            Height = 1, Margin = new Thickness(16, 4, 16, 4),
-            Background = new SolidColorBrush(Line),
-            IsHitTestVisible = false,        // тянут полосу, а не черту
-        };
-        Grid.SetRow(splitLine, 1);
-        layout.Children.Add(splitLine);
-
+        AddMiddleBand(layout, 1);
         Grid.SetRow(bottom, 2);
         layout.Children.Add(bottom);
 
