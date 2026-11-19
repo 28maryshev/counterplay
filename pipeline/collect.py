@@ -323,6 +323,24 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (champion_id, role, vs_champion_id, keystone, tier_bucket, patch)
         );
 
+        -- Мелкая руна ПРОТИВ соперника на линии (с 19.11). Подбор рун в
+        -- программе выбирает мелкие руны правилами по гайдам («против наскока —
+        -- Костяная броня»); эта таблица — чтобы проверить их цифрами. Соперник
+        -- на топе, в лесу и миде — оппонент той же роли, на боте — оба вражеских
+        -- бот-лейнера (линия два на два: Леона рядом с Кейтлин). Без разбивки по
+        -- эло: выгрузка рун всё равно суммирует все, а так строк вчетверо меньше.
+        CREATE TABLE IF NOT EXISTS rune_matchup (
+            champion_id    INTEGER,
+            role           TEXT,
+            vs_champion_id INTEGER,
+            vs_role        TEXT,
+            perk           INTEGER,  -- руна основного дерева (без кейстоуна) или вторичного
+            patch          TEXT,
+            games          INTEGER DEFAULT 0,
+            wins           INTEGER DEFAULT 0,
+            PRIMARY KEY (champion_id, role, vs_champion_id, vs_role, perk, patch)
+        );
+
         -- ── Предметы ────────────────────────────────────────────────────────
         -- Винрейт отдельного предмета (плотно) — для «какой предмет собирать».
         CREATE TABLE IF NOT EXISTS item_wr (
@@ -556,6 +574,22 @@ def load_completed_items() -> set[int]:
     return done
 
 
+def minor_perks(perks_str: str) -> list[int]:
+    """«8008,9111,9104,8014|8473,8242» → мелкие руны: основного дерева без
+    кейстоуна и обе вторичного."""
+    main, _, secondary = perks_str.partition('|')
+    out = [int(x) for x in main.split(',')[1:] if x]
+    out += [int(x) for x in secondary.split(',') if x]
+    return out
+
+
+def lane_foes(enemy: dict, role: str) -> list[tuple[str, dict]]:
+    """Кто бьёт игрока на линии: та же роль, а на боте — оба вражеских
+    бот-лейнера (стрелок и саппорт стоят вместе всю линию)."""
+    roles = ('adc', 'support') if role in ('adc', 'support') else (role,)
+    return [(r, enemy[r]) for r in roles if r in enemy]
+
+
 def parse_perks(p: dict):
     """Из participant.perks → (keystone, primary_style, sub_style, perks, shards).
     None, если структура неожиданная (старые/битые матчи)."""
@@ -730,6 +764,13 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
                     upsert(con, 'keystone_matchup',
                            ['champion_id', 'role', 'vs_champion_id', 'keystone', 'tier_bucket', 'patch'],
                            [champ, role, opp['championId'], keystone, tier_bucket, patch], win)
+
+                # Мелкие руны против соперников на линии (см. rune_matchup).
+                for foe_role, foe in lane_foes(teams[side_b], role):
+                    for perk in minor_perks(perks_str):
+                        upsert(con, 'rune_matchup',
+                               ['champion_id', 'role', 'vs_champion_id', 'vs_role', 'perk', 'patch'],
+                               [champ, role, foe['championId'], foe_role, perk, patch], win)
 
             # ── Предметы ────────────────────────────────────────────────────
             items = parse_items(p)

@@ -38,12 +38,17 @@ REMOTE_PY=$(cat <<'PY'
 import sqlite3, sys
 OUT = '/app/data/publtmp/slice.db'
 PATCHES = tuple(sys.argv[1:])
-TABLES = ('base_wr', 'keystone_wr', 'rune_page', 'keystone_matchup',
+TABLES = ('base_wr', 'keystone_wr', 'rune_page', 'keystone_matchup', 'rune_matchup',
           'item_wr', 'item_build', 'spell_wr', 'champion_damage')
 src = sqlite3.connect('file:/app/data/data.db?mode=ro', uri=True)
+# rune_matchup собирается с 19.11 — в базе до выкладки сборщика её нет.
+have = {r[0] for r in src.execute("SELECT name FROM sqlite_master WHERE type='table'")}
 src.execute('ATTACH DATABASE ? AS out', (OUT,))
 ph = ','.join('?' * len(PATCHES))
 for t in TABLES:
+    if t not in have:
+        print('  %-18s нет в базе' % t, flush=True)
+        continue
     src.execute('DROP TABLE IF EXISTS out.%s' % t)
     src.execute('CREATE TABLE out.%s AS SELECT * FROM main.%s WHERE patch IN (%s)'
                 % (t, t, ph), PATCHES)
@@ -54,9 +59,11 @@ for name, cols in (('build', 'item_build(champion_id, role, patch)'),
                    ('ks', 'keystone_wr(champion_id, role, patch)'),
                    ('page', 'rune_page(champion_id, role, keystone, patch)'),
                    ('ksm', 'keystone_matchup(champion_id, role, patch)'),
+                   ('rm', 'rune_matchup(champion_id, role, patch)'),
                    ('item', 'item_wr(champion_id, role, patch)'),
                    ('spell', 'spell_wr(champion_id, role, patch)')):
-    src.execute('CREATE INDEX out.ix_%s ON %s' % (name, cols))
+    if cols.split('(')[0] in have:
+        src.execute('CREATE INDEX out.ix_%s ON %s' % (name, cols))
 src.commit()
 src.close()
 PY
