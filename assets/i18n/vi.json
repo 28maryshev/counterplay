@@ -690,6 +690,8 @@
     "draftPersonalHint": "Tính đến số trận bạn chơi tướng, tỉ lệ thắng của bạn và thành tích gặp đối thủ. Tắt: chỉ theo dữ liệu tướng, lịch sử trận vẫn được lưu tiếp",
     "autostartHint": "Chờ ở khay hệ thống, chỉ hiện cửa sổ khi chọn tướng. Có hiệu lực ngay",
     "open": "Mở",
+    "previewOn": "Bật",
+    "previewOff": "Tắt",
     "placement": "Cửa sổ khi draft",
     "placementHint": "Cửa sổ nằm ở đâu khi vào draft",
     "placeRight": "Bên cạnh client",

@@ -690,6 +690,8 @@
     "draftPersonalHint": "そのチャンピオンのプレイ回数・自分の勝率・対面との戦績を考慮。オフならチャンピオンのデータのみで提案、戦績は記録され続けます",
     "autostartHint": "トレイで待機し、ドラフト中だけウィンドウを表示。すぐに反映",
     "open": "開く",
+    "previewOn": "オン",
+    "previewOff": "オフ",
     "placement": "ドラフト中のウィンドウ",
     "placementHint": "ドラフト開始時に表示される位置",
     "placeRight": "クライアントの横",

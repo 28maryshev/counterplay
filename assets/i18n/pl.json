@@ -690,6 +690,8 @@
     "draftPersonalHint": "Uwzględnia, ile grasz championem, twój winrate na nim i bilans z przeciwnikami. Wyłączone — tylko dane championów, a historia gier dalej się zapisuje",
     "autostartHint": "Czeka w zasobniku i pokazuje okno tylko w drafcie. Działa od razu",
     "open": "Otwórz",
+    "previewOn": "Włączone",
+    "previewOff": "Wyłączone",
     "placement": "Okno w drafcie",
     "placementHint": "Gdzie staje okno, gdy zaczyna się draft",
     "placeRight": "Obok klienta",

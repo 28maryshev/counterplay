@@ -690,6 +690,8 @@
     "draftPersonalHint": "챔피언 플레이 횟수, 내 승률, 상대 전적을 반영. 끄면 챔피언 데이터만으로 추천하고, 기록은 계속 쌓입니다",
     "autostartHint": "트레이에서 대기하다가 밴픽 때만 창을 표시. 바로 적용",
     "open": "열기",
+    "previewOn": "켜짐",
+    "previewOff": "꺼짐",
     "placement": "밴픽 중 창 위치",
     "placementHint": "밴픽이 시작될 때 창이 놓이는 곳",
     "placeRight": "클라이언트 옆",

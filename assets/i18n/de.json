@@ -690,6 +690,8 @@
     "draftPersonalHint": "Berücksichtigt, wie viel du einen Champion spielst, deine Winrate und deine Bilanz gegen Gegner. Aus: nur nach Champion-Daten, deine Historie wird weiter gesammelt",
     "autostartHint": "Wartet im Tray und zeigt das Fenster nur in der Championauswahl. Gilt sofort",
     "open": "Öffnen",
+    "previewOn": "An",
+    "previewOff": "Aus",
     "placement": "Fenster im Draft",
     "placementHint": "Wohin das Fenster springt, wenn der Draft startet",
     "placeRight": "Neben dem Client",

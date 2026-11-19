@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Картинки к настройкам: что меняет каждая — тем же окном программы,
+       невидимым, на подставном профиле и живой базе (только чтение). Без
+       ключа — проверка: у каждой настройки кадры различаются (тумблер что-то
+       делает) и картинки лежат для ru и en. С ключом write — перерисовать
+       assets/previews. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeLcu.cs" />
+  </ItemGroup>
+
+</Project>

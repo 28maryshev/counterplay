@@ -54,6 +54,9 @@
     <Resource Include="assets\flags\*.png" />
     <!-- Иконки ролей: свои, без сети (см. RoleIcons). -->
     <Resource Include="assets\roles\*.png" />
+    <!-- Картинки к настройкам: что меняет каждая (SettingsWindow.Preview);
+         рисует tests/SettingPreviews с ключом write. -->
+    <Resource Include="assets\previews\**\*.jpg" />
   </ItemGroup>
 
   <!-- Строки локализации интерфейса (en/ru/es/pt/de/fr/tr/ko) -->

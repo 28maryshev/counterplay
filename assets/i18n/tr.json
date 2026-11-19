@@ -690,6 +690,8 @@
     "draftPersonalHint": "Bir şampiyonu ne kadar oynadığını, onunla kazanma oranını ve rakiplere karşı skorunu hesaba katar. Kapalıyken yalnızca şampiyon verileri kullanılır, geçmişin kaydedilmeye devam eder",
     "autostartHint": "Sistem tepsisinde bekler, pencereyi yalnızca seçimde gösterir. Hemen geçerli olur",
     "open": "Aç",
+    "previewOn": "Açık",
+    "previewOff": "Kapalı",
     "placement": "Draft sırasında pencere",
     "placementHint": "Draft başlayınca pencerenin gideceği yer",
     "placeRight": "İstemcinin yanında",

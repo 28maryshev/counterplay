@@ -314,6 +314,9 @@ internal static class Smoke
             var s = new SettingsWindow();
             ShowHidden(s);
             await Settle();
+            // Картинки к настройкам встроены в сборку (assets/previews).
+            if (SettingsWindow.LoadPreview("ReadyRank", ["on", "off"]) is not { Count: 2 })
+                throw new InvalidOperationException("нет картинок к настройкам в сборке");
             // Кнопка «Скрытые чемпионы» — окно через окно драфта, поверх настроек.
             var hidden = s.HiddenWindow();
             if (hidden.Owner != s) throw new InvalidOperationException("скрытые чемпионы не поверх настроек");

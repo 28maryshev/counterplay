@@ -690,6 +690,8 @@
     "draftPersonalHint": "Tiene conto di quanto giochi un campione, del tuo winrate e del tuo bilancio contro gli avversari. Disattivato: solo dati dei campioni, lo storico continua a salvarsi",
     "autostartHint": "Attende nell'area di notifica e mostra la finestra solo nel draft. Effetto immediato",
     "open": "Apri",
+    "previewOn": "Attivo",
+    "previewOff": "Disattivo",
     "placement": "La finestra nel draft",
     "placementHint": "Dove si posiziona la finestra quando inizia il draft",
     "placeRight": "Accanto al client",

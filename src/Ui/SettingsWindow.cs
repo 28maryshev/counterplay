@@ -26,7 +26,7 @@ namespace Counterplay;
 /// перерисовка драфта — не бесплатная операция, а щёлкать тумблерами человек
 /// может подряд. Закрыть окно, не нажав «Применить», = отказаться от правок.
 /// </summary>
-sealed class SettingsWindow : Window
+sealed partial class SettingsWindow : Window
 {
     private static readonly Color Bg   = Color.FromRgb(0x0E, 0x14, 0x1D);
     private static readonly Color Gold = Color.FromRgb(0xC8, 0x9B, 0x3C);
@@ -65,6 +65,7 @@ sealed class SettingsWindow : Window
 
         _body = new ContentControl { Content = Build() };
         Content = Shell();
+        Closed += (_, _) => HidePreview();
     }
 
     // Код страны для флага. Язык и страна совпадают не всегда: португальский
@@ -227,22 +228,22 @@ sealed class SettingsWindow : Window
         body.Children.Add(langs);
 
         body.Children.Add(Section(Loc.T("settings.ready")));
-        body.Children.Add(Row(Loc.T("settings.readyRank"),    Loc.T("settings.readyRankHint"),
-            s.ReadyRank,    v => { s.ReadyRank = v;    MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.readyLast5"),   Loc.T("settings.readyLast5Hint"),
-            s.ReadyLast5,   v => { s.ReadyLast5 = v;   MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.readyWinrate"), Loc.T("settings.readyWinrateHint"),
-            s.ReadyWinrate, v => { s.ReadyWinrate = v; MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyRank"),    Loc.T("settings.readyRankHint"),
+            s.ReadyRank,    v => { s.ReadyRank = v;    MarkDirty(); }), "ReadyRank"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyLast5"),   Loc.T("settings.readyLast5Hint"),
+            s.ReadyLast5,   v => { s.ReadyLast5 = v;   MarkDirty(); }), "ReadyLast5"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyWinrate"), Loc.T("settings.readyWinrateHint"),
+            s.ReadyWinrate, v => { s.ReadyWinrate = v; MarkDirty(); }), "ReadyWinrate"));
 
         // Переключатель данных графика — единственная настройка, где выбор не
         // «да/нет», а «что показывать».
-        body.Children.Add(Choice(Loc.T("settings.chart"), Loc.T("settings.chartHint"),
+        body.Children.Add(PreviewedChoice("ChartMode", Loc.T("settings.chart"), Loc.T("settings.chartHint"),
             [("winrate", Loc.T("settings.chartWinrate")),
              ("rating",  Loc.T("settings.chartRating")),
              ("off",     Loc.T("settings.chartOff"))],
             s.ChartMode, v => { s.ChartMode = v; MarkDirty(); }));
 
-        body.Children.Add(Choice(Loc.T("settings.chartDays"), Loc.T("settings.chartDaysHint"),
+        body.Children.Add(PreviewedChoice("ChartDays", Loc.T("settings.chartDays"), Loc.T("settings.chartDaysHint"),
             [("30", Loc.T("settings.days30")), ("90", Loc.T("settings.days90"))],
             s.ChartDays.ToString(), v => { s.ChartDays = int.Parse(v); MarkDirty(); }));
 
@@ -254,56 +255,56 @@ sealed class SettingsWindow : Window
              .. new[] { "solo", "flex", "normal", "aram" }.Select(q => (q, Loc.T("session.queue." + q)))],
             s.DefaultQueue, v => { s.DefaultQueue = v; MarkDirty(); }));
 
-        body.Children.Add(Row(Loc.T("settings.readyCompact"), Loc.T("settings.readyCompactHint"),
-            s.ReadyCompact, v => { s.ReadyCompact = v; MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyCompact"), Loc.T("settings.readyCompactHint"),
+            s.ReadyCompact, v => { s.ReadyCompact = v; MarkDirty(); }), "ReadyCompact"));
 
-        body.Children.Add(Row(Loc.T("settings.readyPool"),   Loc.T("settings.readyPoolHint"),
-            s.ReadyPool,   v => { s.ReadyPool = v;   MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.readyChamps"), Loc.T("settings.readyChampsHint"),
-            s.ReadyChamps, v => { s.ReadyChamps = v; MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.readyPhase"),  Loc.T("settings.readyPhaseHint"),
-            s.ReadyPhase,  v => { s.ReadyPhase = v;  MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.readyBeta"),   Loc.T("settings.readyBetaHint"),
-            s.ReadyBeta,   v => { s.ReadyBeta = v;   MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyPool"),   Loc.T("settings.readyPoolHint"),
+            s.ReadyPool,   v => { s.ReadyPool = v;   MarkDirty(); }), "ReadyPool"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyChamps"), Loc.T("settings.readyChampsHint"),
+            s.ReadyChamps, v => { s.ReadyChamps = v; MarkDirty(); }), "ReadyChamps"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyPhase"),  Loc.T("settings.readyPhaseHint"),
+            s.ReadyPhase,  v => { s.ReadyPhase = v;  MarkDirty(); }), "ReadyPhase"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.readyBeta"),   Loc.T("settings.readyBetaHint"),
+            s.ReadyBeta,   v => { s.ReadyBeta = v;   MarkDirty(); }), "ReadyBeta"));
 
         body.Children.Add(Section(Loc.T("settings.draft")));
-        body.Children.Add(Row(Loc.T("settings.draftEnabled"), Loc.T("settings.draftEnabledHint"),
-            s.DraftEnabled, v => { s.DraftEnabled = v; MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftEnabled"), Loc.T("settings.draftEnabledHint"),
+            s.DraftEnabled, v => { s.DraftEnabled = v; MarkDirty(); }), "DraftEnabled"));
         // Единственный тумблер раздела, который меняет сами оценки, а не вид, —
         // поэтому сразу под подбором, а не среди блоков карточки.
         body.Children.Add(Row(Loc.T("settings.draftPersonal"), Loc.T("settings.draftPersonalHint"),
             s.DraftPersonal, v => { s.DraftPersonal = v; MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftRolePool"), Loc.T("settings.draftRolePoolHint"),
-            s.DraftRolePool, v => { s.DraftRolePool = v; MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftReasons"),  Loc.T("settings.draftReasonsHint"),
-            s.DraftReasons,  v => { s.DraftReasons = v;  MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftMetrics"),  Loc.T("settings.draftMetricsHint"),
-            s.DraftMetrics,  v => { s.DraftMetrics = v;  MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftRolePool"), Loc.T("settings.draftRolePoolHint"),
+            s.DraftRolePool, v => { s.DraftRolePool = v; MarkDirty(); }), "DraftRolePool"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftReasons"),  Loc.T("settings.draftReasonsHint"),
+            s.DraftReasons,  v => { s.DraftReasons = v;  MarkDirty(); }), "DraftReasons"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftMetrics"),  Loc.T("settings.draftMetricsHint"),
+            s.DraftMetrics,  v => { s.DraftMetrics = v;  MarkDirty(); }), "DraftMetrics"));
         body.Children.Add(Row(Loc.T("settings.draftItems"),    Loc.T("settings.draftItemsHint"),
             s.DraftItems,    v => { s.DraftItems = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftHover"),    Loc.T("settings.draftHoverHint"),
             s.DraftHover,    v => { s.DraftHover = v;    MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftCombos"),   Loc.T("settings.draftCombosHint"),
-            s.DraftCombos,   v => { s.DraftCombos = v;   MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftArch"),     Loc.T("settings.draftArchHint"),
-            s.DraftArch,     v => { s.DraftArch = v;     MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftSideIcons"), Loc.T("settings.draftSideIconsHint"),
-            s.DraftSideIcons, v => { s.DraftSideIcons = v; MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftCombos"),   Loc.T("settings.draftCombosHint"),
+            s.DraftCombos,   v => { s.DraftCombos = v;   MarkDirty(); }), "DraftCombos"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftArch"),     Loc.T("settings.draftArchHint"),
+            s.DraftArch,     v => { s.DraftArch = v;     MarkDirty(); }), "DraftArch"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftSideIcons"), Loc.T("settings.draftSideIconsHint"),
+            s.DraftSideIcons, v => { s.DraftSideIcons = v; MarkDirty(); }), "DraftSideIcons"));
         body.Children.Add(Row(Loc.T("settings.draftChampTip"), Loc.T("settings.draftChampTipHint"),
             s.DraftChampTip, v => { s.DraftChampTip = v; MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftDamage"),   Loc.T("settings.draftDamageHint"),
-            s.DraftDamage,   v => { s.DraftDamage = v;   MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftDamage"),   Loc.T("settings.draftDamageHint"),
+            s.DraftDamage,   v => { s.DraftDamage = v;   MarkDirty(); }), "DraftDamage"));
         body.Children.Add(Row(Loc.T("settings.draftRunes"),    Loc.T("settings.draftRunesHint"),
             s.DraftRunes,    v => { s.DraftRunes = v;    MarkDirty(); }));
 
-        body.Children.Add(Choice(Loc.T("settings.draftCount"), Loc.T("settings.draftCountHint"),
+        body.Children.Add(PreviewedChoice("DraftCount", Loc.T("settings.draftCount"), Loc.T("settings.draftCountHint"),
             [("6", "6"), ("8", "8"), ("10", "10")],
             s.DraftCount.ToString(), v => { s.DraftCount = int.Parse(v); MarkDirty(); }));
 
-        body.Children.Add(Row(Loc.T("settings.draftUnowned"), Loc.T("settings.draftUnownedHint"),
-            s.DraftUnowned, v => { s.DraftUnowned = v; MarkDirty(); }));
-        body.Children.Add(Row(Loc.T("settings.draftMirror"),  Loc.T("settings.draftMirrorHint"),
-            s.DraftMirror,  v => { s.DraftMirror = v;  MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftUnowned"), Loc.T("settings.draftUnownedHint"),
+            s.DraftUnowned, v => { s.DraftUnowned = v; MarkDirty(); }), "DraftUnowned"));
+        body.Children.Add(Previewed(Row(Loc.T("settings.draftMirror"),  Loc.T("settings.draftMirrorHint"),
+            s.DraftMirror,  v => { s.DraftMirror = v;  MarkDirty(); }), "DraftMirror"));
         // Скрытые кнопкой 👎: в драфте окно открывает кнопка над тир-листом, а
         // вне драфта вернуть чемпиона было негде. Открывается сразу, мимо
         // «Применить», — это не настройка, а список.
@@ -320,10 +321,10 @@ sealed class SettingsWindow : Window
             s.DraftPlacement, v => { s.DraftPlacement = v; MarkDirty(); }));
 
         body.Children.Add(Section(Loc.T("settings.bans")));
-        body.Children.Add(Row(Loc.T("settings.bansTier"), Loc.T("settings.bansTierHint"),
-            s.BansTierList, v => { s.BansTierList = v; MarkDirty(); }));
+        body.Children.Add(Previewed(Row(Loc.T("settings.bansTier"), Loc.T("settings.bansTierHint"),
+            s.BansTierList, v => { s.BansTierList = v; MarkDirty(); }), "BansTierList"));
         // С чего тир-лист начинает драфт; в самом драфте — кнопка над ним.
-        body.Children.Add(Choice(Loc.T("settings.bansTierMode"), Loc.T("settings.bansTierModeHint"),
+        body.Children.Add(PreviewedChoice("BansTierMode", Loc.T("settings.bansTierMode"), Loc.T("settings.bansTierModeHint"),
             [("picks", Loc.T("tier.modePicks")), ("bans", Loc.T("tier.modeBans"))],
             s.BansTierMode, v => { s.BansTierMode = v; MarkDirty(); }));
 
@@ -333,7 +334,7 @@ sealed class SettingsWindow : Window
             s.Opacity.ToString(System.Globalization.CultureInfo.InvariantCulture),
             v => { s.Opacity = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
                    MarkDirty(); }));
-        body.Children.Add(Choice(Loc.T("settings.scale"), Loc.T("settings.scaleHint"),
+        body.Children.Add(PreviewedChoice("FontScale", Loc.T("settings.scale"), Loc.T("settings.scaleHint"),
             [("0.9", Loc.T("settings.scaleS")), ("1", Loc.T("settings.scaleM")), ("1.15", Loc.T("settings.scaleL"))],
             s.FontScale.ToString(System.Globalization.CultureInfo.InvariantCulture),
             v => { s.FontScale = double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
@@ -402,6 +403,12 @@ sealed class SettingsWindow : Window
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
     }
+
+    /// Выбор из нескольких значений с картинкой на каждый (SettingsWindow.Preview).
+    private UIElement PreviewedChoice(
+        string key, string title, string hint, (string Key, string Label)[] options,
+        string value, Action<string> onSet) =>
+        Previewed(Choice(title, hint, options, value, onSet), key, options);
 
     private static Button ActionButton(string text, string fg, string border) => new()
     {

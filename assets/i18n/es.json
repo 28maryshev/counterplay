@@ -690,6 +690,8 @@
     "draftPersonalHint": "Tiene en cuenta cuánto juegas un campeón, tu winrate con él y tu récord contra rivales. Desactivado: solo datos de campeones, tu historial se sigue guardando",
     "autostartHint": "Espera en la bandeja y muestra la ventana solo en el draft. Se aplica al momento",
     "open": "Abrir",
+    "previewOn": "Activado",
+    "previewOff": "Desactivado",
     "placement": "La ventana en el draft",
     "placementHint": "Dónde se coloca la ventana al empezar el draft",
     "placeRight": "Al lado del cliente",

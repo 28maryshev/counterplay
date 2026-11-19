@@ -687,6 +687,8 @@
     "draftPersonalHint": "Count how much you play a champion, your win rate on it and your record vs opponents. Off: picks by champion data only, your history keeps building",
     "autostartHint": "Waits in the tray and shows the window only in champion select. Takes effect right away",
     "open": "Open",
+    "previewOn": "On",
+    "previewOff": "Off",
     "placement": "Window during draft",
     "placementHint": "Where the window goes when a draft starts",
     "placeRight": "Beside the client",
