@@ -122,8 +122,12 @@ public partial class OverlayWindow
                         Icon       = IconCache.Get(pr.ChampionId),
                         Tags       = Tags(pr),
                         Icons      = Icons(pr),
+                        // Тумблеры карточки — те же, что у общего подбора: до
+                        // 19.11 карточка пула их не слушала, полоски и значок
+                        // стиля оставались при выключенных.
+                        MetricsVisibility = cfg.DraftMetrics ? Visibility.Visible : Visibility.Collapsed,
                         Metrics    = MetricRow.Of(pr, metricMax, highlight: false),
-                        ArchGlyph  = pag, ArchColor = pac, ArchTip = pat,
+                        ArchGlyph  = cfg.DraftArch ? pag : "", ArchColor = pac, ArchTip = pat,
                         SynDashes  = SynDashesFor(pr.ChampionId, allyIds, comboColorByName),
                         DuoIcon    = duoIcon, DuoName = duoName,
                         NotOwned      = _ownedChamps.Count > 0 && !_ownedChamps.Contains(pr.ChampionId),

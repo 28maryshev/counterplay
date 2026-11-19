@@ -588,7 +588,46 @@ internal static class Program
         Check("окно: полоса состава под своей колонкой заполнена", compShown > 0, $"плашек за все сцены {compShown}");
         Check("окно: «не в стиле команды» — по стилю этой команды, а не прошлого обновления", staleStyle.Count == 0,
               staleStyle.Count == 0 ? "да" : string.Join(", ", staleStyle.Take(4)) + (staleStyle.Count > 4 ? $" и ещё {staleStyle.Count - 4}" : ""));
+        CardToggles(w, list, engine, scenes[^1].Draft);
         w.Close();
+    }
+
+    /// <summary>
+    /// Тумблеры «Полоски показателей» и «Стиль состава» действуют на все
+    /// карточки — и на синюю карточку пула. До 19.11 она их не слушала:
+    /// полоски и значок стиля оставались при выключенных.
+    /// </summary>
+    private static void CardToggles(OverlayWindow w, ItemsControl list, RecommendationEngine engine, DraftState draft)
+    {
+        var s = AppSettings.Current;
+        var role = RecommendationEngine.LcuToDbRole(draft.MyPosition);
+        var picks = engine.Recommend(draft, 4).Select(r => r.ChampionId).Take(2).ToList();
+        var a = PoolStore.Current();
+        a.Pools.Add(new ChampPool { Id = "toggles", Name = "toggles", ByRole = new() { [role] = [.. picks] } });
+        (a.ActiveKind, a.ActiveId) = (PoolKind.Pool, "toggles");
+        List<FullRecCard> Render()
+        {
+            w.UpdateRecommendations(engine.Recommend(draft, s.DraftCount), draft, engine);
+            Pump();
+            return list.Items.OfType<FullRecCard>().ToList();
+        }
+        try
+        {
+            var on = Render();
+            Check("тумблеры: в подборе есть карточка пула", on.Any(c => c.FromPool), $"карточек {on.Count}");
+            (s.DraftMetrics, s.DraftArch) = (false, false);
+            var off = Render();
+            var leaks = off.Where(c => c.MetricsVisibility == Visibility.Visible || c.ArchGlyph.Length > 0)
+                           .Select(c => $"{c.Name}{(c.FromPool ? " (пул)" : "")}").ToList();
+            Check("тумблеры: полоски и значок стиля выключены на всех карточках, и на карточке пула",
+                  off.Count > 0 && leaks.Count == 0, leaks.Count == 0 ? "да" : string.Join(", ", leaks));
+        }
+        finally
+        {
+            (s.DraftMetrics, s.DraftArch) = (true, true);
+            a.Pools.RemoveAll(p => p.Id == "toggles");
+            (a.ActiveKind, a.ActiveId) = (PoolKind.Normal, null);
+        }
     }
 
     /// <summary>
