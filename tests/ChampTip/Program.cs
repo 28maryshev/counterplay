@@ -34,7 +34,8 @@ namespace Counterplay.Tests;
 ///  6. блок «моя роль» (просьба владельца 19.11): контрпики с моей линии из
 ///     кросс-ролевых пар — не проигрывают ему и играют против него лучше
 ///     обычного, напарники — те же, что иконки под союзником; блока нет у
-///     соперника по моей линии и вслепую, когда роли у меня нет.
+///     соперника по моей линии и вслепую, когда роли у меня нет, — и на
+///     карточке на его месте ни черты, ни пустого места.
 ///
 /// Подсказку не открываем — это отдельное окно на экране. Шаблон карточки
 /// раскладываем сами, как его разложила бы подсказка. Нет базы — проверять
@@ -213,18 +214,26 @@ internal static class Program
     /// Блок «моя роль» в окне: есть у всех, чья роль не моя, с моей ролью в
     /// шапке и теми же строками, что отдаёт движок; у моего соперника по линии
     /// его нет — общие контрпики уже с моей линии.
-    private static void MineBlock(RecommendationEngine engine, ChampSlotCard card, ChampTipVm vm, string myRole)
+    private static void MineBlock(RecommendationEngine engine, ChampSlotCard card, ChampTipVm vm, string myRole,
+                                  DataTemplate template)
     {
         var name = DataDragon.Name(card.ChampionId);
         var role = card.StatsRole;
+        var gap  = GapUnderGeneral(template, vm);
         if (role == myRole)
         {
             _mineHidden++;
             Check($"{name}: на моей роли — без блока «моя роль»", vm.Mine is null, "");
+            // 19.11 у Кейтлин на моей линии блока не было, а на карточке
+            // стояли черта и пустое место: владелец решил, что данные не
+            // подтянулись. Под общим блоком — только отступ подписи.
+            Check($"{name}: …и на карточке нет ни черты, ни пустого места", gap <= FooterGap + 0.5,
+                  $"под общим блоком {gap:F0}px вместо {FooterGap}");
             return;
         }
         _mineShown++;
         Check($"{name}: блок «моя роль» есть", vm.Mine is not null, "");
+        Check($"{name}: …и виден на карточке", gap > FooterGap + 30, $"под общим блоком {gap:F0}px");
         if (vm.Mine is not { } m) return;
         // Значок — моей роли. Картинки ролей лежат в ресурсах программы, а
         // pack://application здесь ищет их в сборке проверки — сверяем ссылку.
@@ -236,6 +245,23 @@ internal static class Program
               m.Counters.Select(r => r.Name).SequenceEqual(c.Select(x => DataDragon.Name(x.Id)))
               && m.Synergies.Select(r => r.Name).SequenceEqual(p.Select(x => DataDragon.Name(x.Id))),
               $"контры {string.Join(", ", m.Counters.Select(r => r.Name))}; напарники {string.Join(", ", m.Synergies.Select(r => r.Name))}");
+    }
+
+    // Отступ подписи внизу карточки (Margin footer в ChampTipTemplate).
+    private const double FooterGap = 9;
+
+    /// Раскладывает карточку и меряет, сколько места между общим блоком и
+    /// подписью внизу: блок «моя роль» там или ничего, кроме отступа подписи.
+    private static double GapUnderGeneral(DataTemplate template, ChampTipVm vm)
+    {
+        var cp = new ContentPresenter { Content = vm, ContentTemplate = template };
+        cp.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        cp.Arrange(new Rect(cp.DesiredSize));
+        cp.UpdateLayout();
+        var general = Descendants<ContentPresenter>(cp).First(c => ReferenceEquals(c.Content, vm.General));
+        var footer  = Descendants<TextBlock>(cp).First(t => t.Text == vm.Footer);
+        var bottom  = general.TranslatePoint(new Point(0, general.ActualHeight), cp).Y;
+        return footer.TranslatePoint(new Point(0, 0), cp).Y - bottom;
     }
 
     /// Роли мне не выдали (вслепую) — блока «моя роль» нет ни у кого.
@@ -306,7 +332,7 @@ internal static class Program
             Check($"{name}: строки по винрейту, сверху вниз",
                   Sorted(vm.General.Counters) && Sorted(vm.General.Synergies)
                   && (vm.Mine is null || Sorted(vm.Mine.Counters) && Sorted(vm.Mine.Synergies)), "");
-            MineBlock(engine, card, vm, MyRole);
+            MineBlock(engine, card, vm, MyRole, tip.ContentTemplate);
             var (again, tip2) = Open(host);
             Check($"{name}: второе наведение — из кэша", again && ReferenceEquals(tip2.Content, vm), "");
         }

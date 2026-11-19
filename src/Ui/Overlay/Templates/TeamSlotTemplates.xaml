@@ -165,11 +165,17 @@
         </Border>
       </Grid>
 
-      <!-- Контрпики и синергия: общие, ниже — с моей роли (если она другая) -->
+      <!-- Контрпики и синергия: общие, ниже — с моей роли (если она другая).
+           Прячет блок обёртка, а не сам ContentPresenter: тот берёт в
+           DataContext своё Content, и MineVis искался бы у пустого блока —
+           привязка не находила его, блок оставался видимым и рисовал шаблон
+           без данных (черта и пустое место, 19.11). -->
       <ContentPresenter Margin="0,11,0,0" Content="{Binding General}"
                         ContentTemplate="{StaticResource ChampTipListsTemplate}"/>
-      <ContentPresenter Margin="0,12,0,0" Content="{Binding Mine}" Visibility="{Binding MineVis}"
-                        ContentTemplate="{StaticResource ChampTipListsTemplate}"/>
+      <Border Margin="0,12,0,0" Visibility="{Binding MineVis}">
+        <ContentPresenter Content="{Binding Mine}"
+                          ContentTemplate="{StaticResource ChampTipListsTemplate}"/>
+      </Border>
 
       <TextBlock Text="{Binding Footer}" Foreground="#4E6275" Margin="0,9,0,0"
                  FontFamily="{StaticResource UiFont}" FontSize="9.5"/>
