@@ -299,6 +299,18 @@ internal static class Smoke
                 var stats = await RunesClient.GetAsync(201, "support", ct);
                 w.ShowRunes(stats, 201, DataDragon.Name(201), "support", null);
             });
+            await Step("подбор рун", async () =>
+            {
+                // Пики в макете драфта закончены — третья карточка рун уже
+                // страница под состав (RuneAdvisor), если справочник рун есть.
+                await Settle();
+                var ai = ((Grid)w.FindName("RuneGrid")).Children.OfType<ContentPresenter>()
+                    .Select(c => c.Content).OfType<OverlayWindow.RuneOptionVm>()
+                    .FirstOrDefault(v => v.IsAi)
+                    ?? throw new InvalidOperationException("на панели рун нет места подбора");
+                if (RuneIcons.Loaded && ai.Index < 0)
+                    throw new InvalidOperationException("пики закончены, а подбора рун нет");
+            });
             await Step("конец драфта", () => w.DraftEnded());
         }
 

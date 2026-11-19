@@ -316,7 +316,12 @@
     "aiUnder": "pour cette compo",
     "aiCovered": "la build classique répond déjà à cette compo",
     "aiSoon": "Apparaît une fois les cinq ennemis connus",
-    "aiTipHead": "Choisi pour cette compo adverse"
+    "aiTipHead": "Choisi pour cette compo adverse",
+    "aiRunesSoon": "Les runes pour cette compo apparaissent une fois que tout le monde a verrouillé",
+    "aiRunesCovered": "la page populaire répond déjà à cette compo",
+    "shardTenacity": "Fragment de ténacité",
+    "laneAllIn": "{0} en lane joue l'all-in",
+    "lanePoke": "{0} en lane harcèle à distance"
   },
   "pick": {
     "confirm": "Choisir {0}",

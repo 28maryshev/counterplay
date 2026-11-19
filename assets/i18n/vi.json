@@ -419,7 +419,12 @@
     "aiUnder": "theo đội hình này",
     "aiCovered": "build phổ biến đã phù hợp với đội hình này",
     "aiSoon": "Xuất hiện khi biết đủ năm đối thủ",
-    "aiTipHead": "Chọn theo đội hình địch"
+    "aiTipHead": "Chọn theo đội hình địch",
+    "aiRunesSoon": "Bảng ngọc theo đội hình sẽ hiện khi mọi người đã khóa tướng",
+    "aiRunesCovered": "trang ngọc phổ biến đã đáp ứng đội hình này",
+    "shardTenacity": "Mảnh Kháng Hiệu Ứng",
+    "laneAllIn": "{0} trên đường lao vào tất tay",
+    "lanePoke": "{0} trên đường cấu rỉa từ xa"
   },
   "pick": {
     "confirm": "Chọn {0}",

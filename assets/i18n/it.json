@@ -419,7 +419,12 @@
     "aiUnder": "per questa comp",
     "aiCovered": "la build standard risponde già a questa comp",
     "aiSoon": "Compare quando tutti e cinque i nemici sono noti",
-    "aiTipHead": "Scelto per questa comp nemica"
+    "aiTipHead": "Scelto per questa comp nemica",
+    "aiRunesSoon": "Le rune per questa composizione appaiono quando tutti hanno confermato",
+    "aiRunesCovered": "la pagina popolare risponde già a questa composizione",
+    "shardTenacity": "Frammento di tenacia",
+    "laneAllIn": "{0} in corsia va all-in",
+    "lanePoke": "{0} in corsia fa poke dalla distanza"
   },
   "pick": {
     "confirm": "Scegli {0}",

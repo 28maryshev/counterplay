@@ -103,7 +103,12 @@
     "aiUnder": "이 조합 대응",
     "aiCovered": "기본 빌드로 이 조합에 대응 가능",
     "aiSoon": "상대 5명이 모두 정해지면 표시됩니다",
-    "aiTipHead": "상대 조합에 맞춘 선택"
+    "aiTipHead": "상대 조합에 맞춘 선택",
+    "aiRunesSoon": "모두가 픽을 확정하면 이 조합에 맞춘 룬이 나타납니다",
+    "aiRunesCovered": "인기 페이지가 이미 이 조합에 대응합니다",
+    "shardTenacity": "강인함 파편",
+    "laneAllIn": "라인의 {0}은(는) 올인형입니다",
+    "lanePoke": "라인의 {0}은(는) 원거리 견제형입니다"
   },
   "pick": {
     "confirm": "{0} 선택",

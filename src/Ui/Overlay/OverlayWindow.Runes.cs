@@ -9,7 +9,10 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
+using Cursor = System.Windows.Input.Cursor;
+using Cursors = System.Windows.Input.Cursors;
 using Image = System.Windows.Controls.Image;
 using FontFamily = System.Windows.Media.FontFamily;
 using Point = System.Windows.Point;
@@ -18,6 +21,7 @@ using Size = System.Windows.Size;
 namespace Counterplay;
 
 // Окно драфта — панель рун: варианты страниц, применение рун и спеллов в клиент.
+// Третья карточка — подбор рун под состав — в OverlayWindow.RunesAi.cs.
 public partial class OverlayWindow
 {
     // ── Руны и билд ──────────────────────────────────────────────────────────
@@ -26,6 +30,7 @@ public partial class OverlayWindow
 
     private IReadOnlyList<RuneChoice> _runeChoices = [];
 
+    // Выбранная карточка: 0…n-1 — варианты, n — подбор под состав (если он есть).
     private int _runeSelected;
 
     private int _runeChampId;
@@ -42,7 +47,11 @@ public partial class OverlayWindow
     public Func<IReadOnlyList<int>, Task<bool>>? ApplySpellsHandler { get; set; }
 
     /// Руна в подсказке/на кнопке: иконка, название и короткое описание.
-    public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc);
+    public sealed record RuneVm(BitmapImage? Icon, string Name, string Desc)
+    {
+        /// Кольцо поверх иконки: руна, заменённая подбором, или пустое место под неё.
+        public Brush Ring { get; init; } = Brushes.Transparent;
+    }
 
     /// Элемент кнопки варианта рун (привязка в XAML).
     public sealed record RuneOptionVm(
@@ -56,7 +65,22 @@ public partial class OverlayWindow
         string TreeTitle, string SubTreeTitle,
         IReadOnlyList<RuneVm> PrimaryRunes,
         IReadOnlyList<RuneVm> SecondaryRunes,
-        IReadOnlyList<RuneVm> ShardRunes);
+        IReadOnlyList<RuneVm> ShardRunes)
+    {
+        // Подбор под состав: вместо винрейта знак Counterplay AI; пока пики
+        // идут — шкала, пустые кружки и блёклая карточка (кроме знака).
+        public bool IsAi { get; init; }
+        public Visibility WrVis => IsAi ? Visibility.Collapsed : Visibility.Visible;
+        public Visibility AiVis => IsAi ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility FillVis { get; init; } = Visibility.Collapsed;
+        public double FillWidth { get; init; }
+        public double BodyOpacity { get; init; } = 1.0;
+        public Brush KeystoneRing { get; init; } = Brushes.Transparent;
+        public Visibility LabelVis => Label.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility TreeVis => SubTreeTitle.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility TipVis => Tip.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        public Cursor Cursor => Index >= 0 ? Cursors.Hand : Cursors.Arrow;
+    }
 
     private string _runeRole = "";
 
@@ -84,6 +108,7 @@ public partial class OverlayWindow
             _buildSelected = -1;   // новый чемпион — прошлый выбор сборки не в счёт
             _aiGlowFor = 0;        // и подсветку подбора показываем заново
             _aiFillShown = 0;      // шкала подбора растёт с нуля до числа врагов
+            ResetRuneAi();
             RenderRuneOptions(opponentId);
 
             ApplyRunesText.Text = Loc.T("runes.apply");
@@ -100,6 +125,14 @@ public partial class OverlayWindow
             PulseApplyButton();   // сразу подсвечиваем: вариант выбран по умолчанию
         });
 
+    private static readonly Brush RuneOnFill   = new SolidColorBrush(Color.FromArgb(0x28, 0x36, 0xD6, 0xE7));
+
+    private static readonly Brush RuneOffFill  = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
+
+    private static readonly Brush RuneOnEdge   = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7));
+
+    private static readonly Brush RuneOffEdge  = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4F));
+
     private void RenderRuneOptions(int? opponentId)
     {
         var opp = opponentId is { } o ? DataDragon.Name(o) : null;
@@ -107,12 +140,14 @@ public partial class OverlayWindow
             ? Loc.T("runes.titleVs", _runeChampName, opp)
             : Loc.T("runes.title", _runeChampName);
 
+        // Подбор считаем первым: появившись, он может сам стать выбранным.
+        var ai = RuneAiCard(_runeChoices.Count);
+
         var vms = new List<RuneOptionVm>();
         for (int i = 0; i < _runeChoices.Count; i++)
         {
             var c = _runeChoices[i];
             var total = c.Winrate + c.VsDelta;
-            var selected = i == _runeSelected;
 
             // Подсказка: честно показываем размер выборки и вклад матчапа —
             // чтобы было видно, где цифра надёжна, а где это лишь намёк.
@@ -122,83 +157,91 @@ public partial class OverlayWindow
                 tip.AppendLine(Loc.T("runes.tipVs", (c.VsDelta >= 0 ? "+" : "") + c.VsDelta.ToString("0.0"), c.VsGames.ToString("N0")));
             tip.Append(Loc.T("runes.tipPick", c.PickRate.ToString("0")));
 
-            RuneVm Vm(int id) => new(RuneIcons.Icon(id), RuneIcons.NameOf(id), RuneIcons.DescOf(id));
-
-            // Неизвестные руны не показываем: Riot убирает их между сезонами
-            // (например, Eyeball Collection), и в старой статистике они ещё есть —
-            // рисовать «#8138» вместо названия нельзя.
-            List<RuneVm> Vms(IEnumerable<int> ids) =>
-                ids.Where(RuneIcons.Known).Select(Vm).ToList();
-
-            // Основное дерево: 4 руны (первая — кейстоун), вторичное: 2, плюс осколки.
-            var primary   = Vms(c.Page.Perks);
-            var secondary = Vms(c.Page.Secondary);
-            var shards    = Vms(c.Page.Shards);
-
-            // На кнопке — две строки иконок: сверху остаток основного дерева,
-            // снизу вторичное. Так видно структуру страницы, а кнопка остаётся узкой.
-            var primaryMini   = Vms(c.Page.Perks.Skip(1));
-            var secondaryMini = secondary;
-
-            vms.Add(new RuneOptionVm(
-                Index: i,
-                Label: RuneIcons.NameOf(c.Keystone),
-                WinrateText: total.ToString("0.0") + "%",
-                GamesText: FormatGames(c.Games),
-                Tip: tip.ToString(),
-                KeystoneIcon: RuneIcons.Icon(c.Keystone),
-                WinrateBrush: WinrateBrush(total),
-                Background: new SolidColorBrush(selected
-                    ? Color.FromArgb(0x28, 0x36, 0xD6, 0xE7)
-                    : Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
-                BorderBrush: new SolidColorBrush(selected
-                    ? Color.FromRgb(0x36, 0xD6, 0xE7)
-                    : Color.FromRgb(0x2A, 0x3A, 0x4F)),
-                PrimaryMini: primaryMini,
-                SecondaryMini: secondaryMini,
-                TreeTitle: $"{RuneIcons.NameOf(c.Keystone)} · {RuneIcons.StyleName(c.Page.Primary)}",
-                SubTreeTitle: RuneIcons.StyleName(c.Page.Sub),
-                PrimaryRunes: primary,
-                SecondaryRunes: secondary,
-                ShardRunes: shards));
+            vms.Add(RuneCard(c, i, tip.ToString(), NoRunes) with
+            {
+                WinrateText = total.ToString("0.0") + "%",
+                GamesText = FormatGames(c.Games),
+                WinrateBrush = WinrateBrush(total),
+            });
         }
-        // Адаптивная раскладка по числу вариантов:
-        //   1 → [руна][кнопка] в один ряд, по центру;
-        //   2 → две руны в верхнем ряду, кнопка под левой;
-        //   3 → 2 сверху + 1 снизу, кнопка в свободной ячейке (1,1).
+
+        // Раскладка: варианты в верхнем ряду, подбор под ними слева (на месте
+        // бывшего третьего варианта), кнопка — в свободной ячейке.
+        //   2 варианта → [1][2] / [AI][кнопка];
+        //   1 вариант  → [1][кнопка] / [AI].
         foreach (var child in RuneGrid.Children.OfType<ContentPresenter>().ToList())
             RuneGrid.Children.Remove(child);
 
         var template = (DataTemplate)RunesBar.FindResource("RuneOptionTemplate");
-        int n = Math.Min(vms.Count, 3);
-
-        (int row, int col) Cell(int i) => n switch
-        {
-            1 => (0, 0),                 // одна руна слева, кнопка справа (см. ниже)
-            2 => (0, i),                 // обе в верхнем ряду
-            _ => (i / 2, i % 2),         // 2 сверху, 1 снизу
-        };
-
+        int n = Math.Min(vms.Count, 2);
         for (int i = 0; i < n; i++)
         {
             var cp = new ContentPresenter { Content = vms[i], ContentTemplate = template };
-            var (row, col) = Cell(i);
-            Grid.SetRow(cp, row);
-            Grid.SetColumn(cp, col);
+            Grid.SetRow(cp, 0);
+            Grid.SetColumn(cp, i);
             RuneGrid.Children.Add(cp);
         }
 
-        // Кнопка «Применить»: 1 → справа от руны (ряд 0, кол 1);
-        //                     2 → под левой руной (ряд 1, кол 0);
-        //                     3 → свободная ячейка (ряд 1, кол 1).
-        var (btnRow, btnCol) = n switch
+        _runeAiPresenter = null;
+        if (ai is not null)
         {
-            1 => (0, 1),
-            2 => (1, 0),
-            _ => (1, 1),
-        };
+            var cp = new ContentPresenter { Content = ai, ContentTemplate = template };
+            Grid.SetRow(cp, 1);
+            Grid.SetColumn(cp, 0);
+            RuneGrid.Children.Add(cp);
+            _runeAiPresenter = cp;
+        }
+
+        var (btnRow, btnCol) = n >= 2 ? (1, 1) : (0, 1);
         Grid.SetRow(ApplyCell, btnRow);
         Grid.SetColumn(ApplyCell, btnCol);
+
+        AfterRuneAiRender();
+    }
+
+    /// Карточка страницы рун: кейстоун, мелкие руны, полное дерево в подсказке.
+    /// changed — руны, заменённые подбором: они в кольце.
+    private RuneOptionVm RuneCard(RuneChoice c, int index, string tip, IReadOnlySet<int> changed)
+    {
+        var selected = index == _runeSelected;
+
+        RuneVm Vm(int id) => new(RuneIcons.Icon(id), RuneIcons.NameOf(id), RuneIcons.DescOf(id))
+        {
+            Ring = changed.Contains(id) ? AiBrush : Brushes.Transparent,
+        };
+
+        // Неизвестные руны не показываем: Riot убирает их между сезонами
+        // (например, Eyeball Collection), и в старой статистике они ещё есть —
+        // рисовать «#8138» вместо названия нельзя.
+        List<RuneVm> Vms(IEnumerable<int> ids) =>
+            ids.Where(RuneIcons.Known).Select(Vm).ToList();
+
+        // Основное дерево: 4 руны (первая — кейстоун), вторичное: 2, плюс осколки.
+        var primary   = Vms(c.Page.Perks);
+        var secondary = Vms(c.Page.Secondary);
+        var shards    = Vms(c.Page.Shards);
+
+        // На кнопке — две строки иконок: сверху остаток основного дерева,
+        // снизу вторичное. Так видно структуру страницы, а кнопка остаётся узкой.
+        var primaryMini = Vms(c.Page.Perks.Skip(1));
+
+        return new RuneOptionVm(
+            Index: index,
+            Label: RuneIcons.NameOf(c.Keystone),
+            WinrateText: "",
+            GamesText: "",
+            Tip: tip,
+            KeystoneIcon: RuneIcons.Icon(c.Keystone),
+            WinrateBrush: MuteBrush,
+            Background: selected ? RuneOnFill : RuneOffFill,
+            BorderBrush: selected ? RuneOnEdge : RuneOffEdge,
+            PrimaryMini: primaryMini,
+            SecondaryMini: secondary,
+            TreeTitle: $"{RuneIcons.NameOf(c.Keystone)} · {RuneIcons.StyleName(c.Page.Primary)}",
+            SubTreeTitle: RuneIcons.StyleName(c.Page.Sub),
+            PrimaryRunes: primary,
+            SecondaryRunes: secondary,
+            ShardRunes: shards);
     }
 
     private static string FormatGames(int g) =>
@@ -207,13 +250,21 @@ public partial class OverlayWindow
     internal void RuneOption_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not int idx) return;
-        if (idx < 0 || idx >= _runeChoices.Count) return;
+        // Пустое место под будущий подбор выбирать нечего.
+        if (idx < 0 || PageAt(idx) is null) return;
         _runeSelected = idx;
+        _runeTouched = true;     // выбрал сам — подбор, появившись, выбор не перехватит
         RenderRuneOptions(_lastOpponentId);
         PulseApplyButton();      // выбор сменился — подсветка вспыхивает заново
         RunesStatus.Visibility = Visibility.Collapsed;  // прошлый «применено» уже неактуален
         e.Handled = true;
     }
+
+    /// Страница карточки: вариант или подбор под состав. null — такой карточки нет.
+    private RunePage? PageAt(int idx) =>
+        idx >= 0 && idx < _runeChoices.Count ? _runeChoices[idx].Page
+        : idx == _runeChoices.Count ? _runeAdvice?.Choice.Page
+        : null;
 
     private int? _lastOpponentId;
 
@@ -221,7 +272,7 @@ public partial class OverlayWindow
     {
         e.Handled = true;
         if (ApplyRunesHandler is null || _runeChoices.Count == 0) return;
-        var page = _runeChoices[_runeSelected].Page;
+        var page = PageAt(_runeSelected) ?? _runeChoices[0].Page;
 
         RunesStatus.Text = Loc.T("runes.applying");
         RunesStatus.Foreground = MuteBrush;

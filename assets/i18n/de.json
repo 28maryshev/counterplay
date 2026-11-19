@@ -103,7 +103,12 @@
     "aiUnder": "für dieses Team",
     "aiCovered": "der Standardbuild passt bereits zu diesem Team",
     "aiSoon": "Erscheint, sobald alle fünf Gegner feststehen",
-    "aiTipHead": "Für dieses gegnerische Team gewählt"
+    "aiTipHead": "Für dieses gegnerische Team gewählt",
+    "aiRunesSoon": "Runen für diese Aufstellung erscheinen, sobald alle gewählt haben",
+    "aiRunesCovered": "die beliebte Seite passt bereits zu dieser Aufstellung",
+    "shardTenacity": "Zähigkeits-Splitter",
+    "laneAllIn": "{0} auf der Lane geht all-in",
+    "lanePoke": "{0} auf der Lane pokt aus der Distanz"
   },
   "pick": {
     "confirm": "{0} wählen",

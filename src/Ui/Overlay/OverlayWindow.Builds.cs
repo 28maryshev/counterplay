@@ -306,7 +306,12 @@ public partial class OverlayWindow
         if (BuildList.ItemContainerGenerator.ContainerFromIndex(_aiRow) is not ContentPresenter cp) return;
         cp.ApplyTemplate();
         if (cp.ContentTemplate?.FindName("AiFillBar", cp) is not FrameworkElement bar) return;
+        GrowFill(bar, from, to);
+    }
 
+    /// Рост шкалы под знаком Counterplay AI — общий для подбора сборки и рун.
+    private static void GrowFill(FrameworkElement bar, double from, double to)
+    {
         var grow = new DoubleAnimation(AiFillMax * from, AiFillMax * to, TimeSpan.FromMilliseconds(450))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
@@ -321,10 +326,15 @@ public partial class OverlayWindow
     private void GlowAiRow()
     {
         if (BuildList.ItemContainerGenerator.ContainerFromIndex(_aiRow) is not UIElement row) return;
+        FlashAi(row);
+    }
 
-        // Кольцо из шаблона строки. Свет от него куда плотнее, чем от содержимого:
-        // у строки прозрачный фон, и свечение, построенное по иконкам, выходило
-        // жидким при большом радиусе.
+    /// Вспышка вокруг того, что подобрал Counterplay AI, — строки сборки или
+    /// карточки рун. Кольцо «AiGlowRing» берётся из шаблона элемента: свет от
+    /// него куда плотнее, чем от содержимого — у строки прозрачный фон, и
+    /// свечение, построенное по иконкам, выходило жидким при большом радиусе.
+    private static void FlashAi(UIElement row)
+    {
         Border? ring = null;
         if (row is ContentPresenter cp)
         {

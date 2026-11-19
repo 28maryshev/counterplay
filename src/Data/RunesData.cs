@@ -15,7 +15,19 @@ public sealed record RunePage(
 /// <summary>Вариант рун для кнопки в панели.</summary>
 public sealed record RuneChoice(
     int Keystone, int Games, double Winrate, double PickRate,
-    RunePage Page, double VsDelta, int VsGames);
+    RunePage Page, double VsDelta, int VsGames)
+{
+    // Как часто при этом кейстоуне берут каждую руну, % (выгрузка с 19.11).
+    // Подбор рун меняет руну только на ту, что на этом чемпионе играют. null —
+    // файл старый, долей в нём нет.
+
+    /// Руны основного дерева — от всех игр кейстоуна.
+    public IReadOnlyDictionary<int, double>? Share { get; init; }
+
+    /// Руны вторичного дерева — от игр с этим вторичным деревом. Осколков в
+    /// долях нет: их меняют под состав на любом чемпионе.
+    public IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>>? SubShare { get; init; }
+}
 
 /// <summary>
 /// Сборка: 6 слотов. Core — предметы, которые реально играли ВМЕСТЕ (у них и
@@ -389,7 +401,14 @@ public static class RunesClient
                 k.GetProperty("games").GetInt32(),
                 k.GetProperty("wr").GetDouble(),
                 k.GetProperty("pick").GetDouble(),
-                page, 0, 0));
+                page, 0, 0)
+            {
+                Share = k.TryGetProperty("share", out var sh) ? Shares(sh) : null,
+                SubShare = k.TryGetProperty("subShare", out var ss)
+                    ? ss.EnumerateObject().ToDictionary(
+                        x => int.Parse(x.Name), x => Shares(x.Value))
+                    : null,
+            });
         }
 
         var vs = new Dictionary<int, (int, Dictionary<int, double>)>();
@@ -440,6 +459,10 @@ public static class RunesClient
             keystones, vs, builds, items);
     }
 
+    /// {"8017": 33.2, …} → руна → доля.
+    private static IReadOnlyDictionary<int, double> Shares(JsonElement e) =>
+        e.EnumerateObject().ToDictionary(x => int.Parse(x.Name), x => x.Value.GetDouble());
+
     /// <summary>
     /// Итоговые варианты для панели: база + поправка на оппонента.
     ///
@@ -447,7 +470,9 @@ public static class RunesClient
     /// матчапов тонкие (~60 игр на патч), чистый винрейт по ним был бы шумом.
     /// На сервере дельта уже темперирована объёмом выборки.
     /// </summary>
-    public static IReadOnlyList<RuneChoice> Choices(ChampStats s, int? opponentId)
+    /// Вариантов два: третье место панели — подбор рун под состав
+    /// (<see cref="RuneAdvisor"/>).
+    public static IReadOnlyList<RuneChoice> Choices(ChampStats s, int? opponentId, int count = 2)
     {
         var deltas = new Dictionary<int, double>();
         int vsGames = 0;
@@ -466,10 +491,10 @@ public static class RunesClient
             .OrderByDescending(k => k.Winrate + k.VsDelta)
             .ToList();
 
-        if (scored.Count <= 3) return scored;
+        if (scored.Count <= count) return scored;
 
-        // Не только винрейт: самый ХОДОВОЙ кейстоун обязан быть в тройке. Иначе
-        // можно показать три экзотики с высоким винрейтом на малой выборке и не
+        // Не только винрейт: самый ХОДОВОЙ кейстоун обязан быть в паре. Иначе
+        // можно показать экзотику с высоким винрейтом на малой выборке и не
         // показать то, что реально играют 60% людей.
         var picked = new List<RuneChoice> { scored[0] };
         var meta = scored.OrderByDescending(k => k.PickRate).First();
@@ -477,7 +502,7 @@ public static class RunesClient
 
         foreach (var k in scored)
         {
-            if (picked.Count >= 3) break;
+            if (picked.Count >= count) break;
             if (picked.Any(p => p.Keystone == k.Keystone)) continue;
             picked.Add(k);
         }

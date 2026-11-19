@@ -103,7 +103,12 @@
     "aiUnder": "bu kadroya göre",
     "aiCovered": "standart build bu kadroya zaten uygun",
     "aiSoon": "Beş rakip de belli olunca görünür",
-    "aiTipHead": "Bu rakip kadroya göre seçildi"
+    "aiTipHead": "Bu rakip kadroya göre seçildi",
+    "aiRunesSoon": "Bu kadroya göre rünler herkes seçimini kilitleyince görünür",
+    "aiRunesCovered": "popüler sayfa bu kadroya zaten uyuyor",
+    "shardTenacity": "Direnç parçası",
+    "laneAllIn": "{0} koridorda all-in yapıyor",
+    "lanePoke": "{0} koridorda uzaktan dürtüyor"
   },
   "pick": {
     "confirm": "{0} seç",

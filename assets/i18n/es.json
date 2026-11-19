@@ -326,7 +326,12 @@
     "aiUnder": "para esta comp",
     "aiCovered": "la build habitual ya responde a esta comp",
     "aiSoon": "Aparece cuando se conozcan los cinco enemigos",
-    "aiTipHead": "Elegido para esta comp enemiga"
+    "aiTipHead": "Elegido para esta comp enemiga",
+    "aiRunesSoon": "Las runas para esta composición aparecen cuando todos hayan fijado",
+    "aiRunesCovered": "la página popular ya responde a esta composición",
+    "shardTenacity": "Fragmento de tenacidad",
+    "laneAllIn": "{0} en línea va all-in",
+    "lanePoke": "{0} en línea hace poke a distancia"
   },
   "pick": {
     "confirm": "Elegir {0}",

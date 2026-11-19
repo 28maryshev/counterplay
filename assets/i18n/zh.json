@@ -419,7 +419,12 @@
     "aiUnder": "针对该阵容",
     "aiCovered": "常规出装已能应对该阵容",
     "aiSoon": "五名对手确定后显示",
-    "aiTipHead": "针对敌方阵容选择"
+    "aiTipHead": "针对敌方阵容选择",
+    "aiRunesSoon": "所有人锁定英雄后，将显示针对此阵容的符文",
+    "aiRunesCovered": "热门符文页已足以应对此阵容",
+    "shardTenacity": "韧性碎片",
+    "laneAllIn": "对线的{0}擅长强开",
+    "lanePoke": "对线的{0}擅长远程消耗"
   },
   "pick": {
     "confirm": "选择 {0}",

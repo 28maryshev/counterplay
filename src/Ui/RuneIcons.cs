@@ -45,6 +45,12 @@ public static class RuneIcons
 
     private static readonly Dictionary<int, RuneInfo> Runes = new();
     private static readonly Dictionary<int, string> StyleNames = new();
+
+    // Где руна стоит: дерево и ряд (0 — кейстоуны). Подбор рун меняет руну
+    // только на соседку по ряду — иначе страница выйдет такой, какую клиент не
+    // примет. Ряды берём из справочника, а не помним сами: Riot переставляет и
+    // заменяет руны (Аннулирующая сфера стала Аксиомой с тем же номером).
+    private static readonly Dictionary<int, (int Style, int Row)> Slots = new();
     private static readonly Dictionary<int, BitmapImage> Cache = new();
 
     // Картинки кэшируем ПО ПАТЧУ: Riot их перерисовывает, и кэш без номера
@@ -82,16 +88,21 @@ public static class RuneIcons
             {
                 var styleId = style.GetProperty("id").GetInt32();
                 StyleNames[styleId] = style.GetProperty("name").GetString() ?? "";
+                var row = 0;
                 foreach (var slot in style.GetProperty("slots").EnumerateArray())
+                {
                     foreach (var rune in slot.GetProperty("runes").EnumerateArray())
                     {
                         var id = rune.GetProperty("id").GetInt32();
+                        Slots[id] = (styleId, row);
                         Runes[id] = new RuneInfo(
                             id,
                             rune.GetProperty("name").GetString() ?? "",
                             rune.GetProperty("icon").GetString() ?? "",
                             StripHtml(rune.TryGetProperty("shortDesc", out var d) ? d.GetString() ?? "" : ""));
                     }
+                    row++;
+                }
             }
         }
         catch { /* офлайн — иконок не будет, панель обойдётся текстом */ }
@@ -111,6 +122,10 @@ public static class RuneIcons
     public static bool Known(int runeId) => Runes.ContainsKey(runeId);
 
     public static string StyleName(int styleId) => StyleNames.GetValueOrDefault(styleId, "");
+
+    /// Дерево и ряд руны; null — такой руны в справочнике нет (или он не загружен).
+    public static (int Style, int Row)? SlotOf(int runeId) =>
+        Slots.TryGetValue(runeId, out var s) ? s : null;
 
     /// Иконка руны (с диска, иначе качаем и кэшируем).
     public static BitmapImage? Icon(int runeId)

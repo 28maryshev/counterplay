@@ -42,54 +42,9 @@ public static class BuildAdvisor
         IReadOnlyList<Adapted> Builds,
         IReadOnlyList<string> Covered);
 
-    // ── Черты, которых нет в данных Riot ──────────────────────────────────
-    //
-    // Доли урона и классы чемпионов берём из матчей и Data Dragon, а «много
-    // лечится», «много контролит», «раздаёт щиты» там не выражены никак. Списки
-    // ручные и намеренно короткие: сюда попадают только те, чья черта решает
-    // покупку, а не любой, у кого в ките есть хил или станище.
-
-    /// Заметное лечение или вампиризм — против них берут срез лечения.
-    private static readonly HashSet<string> Healers = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Soraka", "Yuumi", "Nami", "Sona", "Seraphine", "Senna", "Milio", "Taric",
-        "Vladimir", "Aatrox", "DrMundo", "Warwick", "Swain", "Sylas", "Nasus",
-        "Fiora", "Sett", "Olaf", "Maokai", "Briar", "Gwen", "Zac", "Ivern",
-        "Mundo", "Volibear", "Trundle", "Yorick", "Illaoi", "Katarina",
-    };
-
-    /// Долгий и жёсткий контроль — против него берут стойкость.
-    private static readonly HashSet<string> HardCc = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Leona", "Nautilus", "Malphite", "Amumu", "Sejuani", "Rell", "Alistar",
-        "Morgana", "Lissandra", "Veigar", "Thresh", "Blitzcrank", "Skarner",
-        "Ornn", "Sion", "JarvanIV", "Vi", "Ashe", "Rakan", "Maokai", "Nunu",
-        "Warwick", "Camille", "Galio", "Neeko", "Zac", "Poppy", "Taric",
-    };
-
-    /// Щиты в умениях. Дополняет тег «shield» движка — там отмечены не все, а
-    /// разрушение щитов имеет смысл считать по обоим спискам сразу.
-    private static readonly HashSet<string> Shielders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Lulu", "Karma", "Janna", "Orianna", "Seraphine", "Ivern", "Milio",
-        "Renata", "Taric", "Shen", "Riven", "Sivir", "Nocturne", "Morgana",
-        "Lux", "Yasuo", "Sett", "Rakan",
-    };
-
     // Defense — пережить их урон, Pressure — пробить их. В сборке участвуют и то
-    // и другое: игрок покупает один набор, а не два.
-    /// Долгий контроль по ОДНОЙ цели: провокация Раммуса, связывание Морганы,
-    /// страх Фиддлстикса, подавление Малзахара. От такого не спасает стойкость —
-    /// она сокращает длительность, но не отменяет; нужен предмет, который снимет
-    /// контроль (Микаэль на поддержке, Ртутные на остальных).
-    private static readonly HashSet<string> LongCc = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Rammus", "Morgana", "FiddleSticks", "Malzahar", "Warwick", "Skarner",
-        "Urgot", "Shen", "Ahri", "Evelynn", "Elise", "Varus", "Jhin", "Ashe",
-        "Sion", "Zoe", "Lissandra", "Veigar", "Cassiopeia", "Swain", "Nami",
-        "Thresh", "Neeko", "Twisted Fate", "TwistedFate", "Amumu",
-    };
-
+    // и другое: игрок покупает один набор, а не два. Чем неудобен состав —
+    // общий разбор EnemyComp (его же читает подбор рун).
     private sealed record Need(string Kind, double Weight, string Reason, bool Defense);
 
     /// <summary>
@@ -105,61 +60,11 @@ public static class BuildAdvisor
         if (!ItemFacts.Loaded || stats.Items.Count == 0 || enemies.Count == 0)
             return new Advice([], []);
 
-        // ── Каким уроном нас будут бить ───────────────────────────────────
-        double phys = 0, magic = 0;
-        foreach (var e in enemies)
-        {
-            var d = damageShare(e);
-            if (d is { } v && v.Phys + v.Magic > 0)
-            {
-                phys += v.Phys;
-                magic += v.Magic;
-            }
-            else
-            {
-                // Данных по чемпиону нет — грубая оценка по Data Dragon.
-                if (DataDragon.IsApChampion(e)) magic += 0.7; else phys += 0.7;
-            }
-        }
-        var dmgSum = phys + magic;
-        if (dmgSum <= 0) return new Advice([], []);
-        phys /= dmgSum;
-        magic /= dmgSum;
-
-        // ── Чем этот состав неудобен ──────────────────────────────────────
-        int heal = 0, cc = 0, tanks = 0, longCc = 0, autos = 0, burst = 0;
-        double shield = 0;
-        foreach (var e in enemies)
-        {
-            var dd = DataDragon.DdId(e);
-            if (dd.Length > 0)
-            {
-                if (Healers.Contains(dd)) heal++;
-                if (HardCc.Contains(dd)) cc++;
-                if (LongCc.Contains(dd)) longCc++;
-            }
-
-            // Кто бьёт автоатаками. Их урон растёт со временем и режется не так,
-            // как разовый удар: против него берут не просто броню, а предметы
-            // против критов и скорости атаки.
-            if (DataDragon.ClassTags(e).Contains("Marksman") || ChampionTags.Has(e, "hypercarry"))
-                autos++;
-
-            // Кто убивает с наскока. Убийцы и те, кто прыгает с бёрстом: против
-            // них помогает не броня (её не хватит), а то, что даёт пережить
-            // первые секунды, — стазис или щит на низком здоровье.
-            if (DataDragon.ClassTags(e).Contains("Assassin")
-                || (ChampionTags.Has(e, "burst") && ChampionTags.Has(e, "dive"))) burst++;
-
-            // Щит бывает не только в умениях. Бойцы вроде Олафа берут Стеракса
-            // или Шилдбоу, и щит там не меньше — а режется он тем же предметом.
-            // Считаем их за половину: покупают такое не все и не всегда, а вот
-            // энчантер со щитом в умениях даёт его гарантированно.
-            if (Shielders.Contains(dd) || ChampionTags.Has(e, "shield")) shield += 1;
-            else if (DataDragon.ClassTags(e).Contains("Fighter")) shield += 0.5;
-
-            if (DataDragon.ClassTags(e).Contains("Tank")) tanks++;
-        }
+        if (EnemyComp.Read(enemies, damageShare) is not { } comp) return new Advice([], []);
+        var (phys, magic) = (comp.Phys, comp.Magic);
+        int heal = comp.Heal, cc = comp.Cc, tanks = comp.Tanks, longCc = comp.LongCc,
+            autos = comp.Autos, burst = comp.Burst;
+        var shield = comp.Shield;
 
         // Мой урон — им решается, какое пробивание вообще имеет смысл.
         var mine = damageShare(stats.ChampionId);
@@ -177,13 +82,9 @@ public static class BuildAdvisor
             defense.Add(new Need("armor", phys, Loc.T("build.vsMixed"), true));
             defense.Add(new Need("mr", magic, Loc.T("build.vsMixed"), true));
         }
-        // В ближнем бою контроль решает: пока тебя держат, ты стоишь вплотную и
-        // получаешь всё. Поэтому бойцу и танку стойкость нужна уже от двух таких
-        // врагов, а тому, кто бьёт издалека, — от трёх.
-        var myClass = DataDragon.ClassTags(stats.ChampionId);
-        var brawler = myClass.Contains("Tank") || myClass.Contains("Fighter");
-        var close = brawler || myClass.Contains("Assassin");
-        if (cc >= (close ? 2 : 3))
+        // Ближнему бою стойкость нужна от двух таких врагов, дальнему — от трёх
+        // (EnemyComp.ManyCc).
+        if (comp.ManyCc(stats.ChampionId))
             defense.Add(new Need("tenacity", 1.0, Loc.T("build.vsCc", cc), true));
         // Хватит и одного такого врага: провокация или подавление выключают из
         // драки целиком, и сокращать их на треть бессмысленно — нужно снимать.
@@ -199,8 +100,7 @@ public static class BuildAdvisor
 
         // Свой отхил — повод выбрать ту защиту, которая его усиливает: для
         // чемпиона, который живёт лечением, это больше, чем лишние цифры.
-        var myDd = DataDragon.DdId(stats.ChampionId);
-        var iHeal = (myDd.Length > 0 && Healers.Contains(myDd))
+        var iHeal = EnemyComp.IsHealer(stats.ChampionId)
                     || ChampionTags.Has(stats.ChampionId, "heal")
                     || ChampionTags.Has(stats.ChampionId, "sustain");
         if (iHeal && magic >= 0.4)
@@ -269,7 +169,7 @@ public static class BuildAdvisor
         // попадают, и на это есть свои ответы: против прыжка — стазис или
         // воскрешение (успеть пережить взрыв), против дальнего размена и подлова
         // — щит от одного умения, против фронта — процентное пробивание.
-        switch (ChampionTraits.DominantStyle(enemies))
+        switch (comp.Style)
         {
             case ChampionTraits.Arch.Dive:
                 defense.Add(new Need("survive", 1.3, Loc.T("build.vsDive"), true));

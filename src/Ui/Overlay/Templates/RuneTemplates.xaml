@@ -9,12 +9,16 @@
   <!-- Кнопка варианта рун на панели рун и сборки. -->
   <!-- Кнопка варианта рун: кейстоун крупно, остальные руны страницы
        мелкими иконками (основное дерево сверху, вторичное снизу). -->
+  <!-- Третья карточка — подбор рун под состав (Counterplay AI): вместо
+       винрейта фирменный знак, пока пики идут — шкала и пустые кружки. -->
   <DataTemplate x:Key="RuneOptionTemplate">
-    <Border Margin="0,0,6,6" Padding="7,6" CornerRadius="7" Cursor="Hand"
+   <Grid Margin="0,0,6,6">
+    <Border Padding="7,6" CornerRadius="7" Cursor="{Binding Cursor}"
             VerticalAlignment="Stretch"
             Background="{Binding Background}"
             BorderBrush="{Binding BorderBrush}" BorderThickness="1.5"
-            MouseLeftButtonDown="RuneOption_Click" Tag="{Binding Index}">
+            MouseLeftButtonDown="RuneOption_Click" Tag="{Binding Index}"
+            ToolTipService.ShowDuration="30000">
       <Border.ToolTip>
         <ToolTip Background="#101823" BorderBrush="#557089" BorderThickness="1" Padding="10,8">
           <StackPanel MaxWidth="320">
@@ -40,6 +44,7 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <TextBlock Text="{Binding SubTreeTitle}" Margin="0,6,0,4"
+                       Visibility="{Binding TreeVis}"
                        FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                        Foreground="#8AA0B2"/>
             <ItemsControl ItemsSource="{Binding SecondaryRunes}">
@@ -73,6 +78,7 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <TextBlock Text="{Binding Tip}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Visibility="{Binding TipVis}"
                        FontFamily="{StaticResource UiFont}" FontSize="10" LineHeight="15"
                        Foreground="#8AA0B2"/>
           </StackPanel>
@@ -80,29 +86,66 @@
       </Border.ToolTip>
 
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <Image Source="{Binding KeystoneIcon}" Width="28" Height="28" VerticalAlignment="Center"
-               RenderOptions.BitmapScalingMode="HighQuality"/>
+        <Grid Width="28" Height="28" VerticalAlignment="Center" Opacity="{Binding BodyOpacity}">
+          <Ellipse Stroke="{Binding KeystoneRing}" StrokeThickness="1"/>
+          <Image Source="{Binding KeystoneIcon}" RenderOptions.BitmapScalingMode="HighQuality"/>
+        </Grid>
         <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
           <TextBlock Text="{Binding Label}" MaxWidth="86" TextTrimming="CharacterEllipsis"
+                     Visibility="{Binding LabelVis}"
                      FontFamily="{StaticResource UiFont}" FontSize="10" FontWeight="Bold"
                      Foreground="#E6EDF3"/>
-          <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
+          <StackPanel Orientation="Horizontal" Margin="0,1,0,0" Visibility="{Binding WrVis}">
             <TextBlock Text="{Binding WinrateText}" VerticalAlignment="Center"
                        FontFamily="{StaticResource DisplayFont}" FontSize="11" FontWeight="Bold"
                        Foreground="{Binding WinrateBrush}"/>
             <TextBlock Text="{Binding GamesText}" Margin="4,0,0,0" VerticalAlignment="Center"
                        FontFamily="{StaticResource UiFont}" FontSize="9" Foreground="#6A8296"/>
           </StackPanel>
+          <!-- Подбор: свой винрейт ему не положен (такую страницу целиком
+               никто не играл), подписан он так же, как подбор сборки. -->
+          <StackPanel Margin="0,2,0,0" Visibility="{Binding AiVis}">
+            <StackPanel Orientation="Horizontal">
+              <Image Source="{StaticResource BrandMark}" Width="11" Height="11"
+                     VerticalAlignment="Center" Margin="0,0,3,0"
+                     RenderOptions.BitmapScalingMode="HighQuality"/>
+              <TextBlock FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                         FontWeight="Bold" VerticalAlignment="Center">
+                <Run Text="Counter" Foreground="#36D6E7"/><Run Text="Play" Foreground="#FF5A4D"/><Run Text=" AI" Foreground="#36D6E7"/>
+              </TextBlock>
+            </StackPanel>
+            <!-- Пока пики идут — сколько игроков уже взяли чемпиона. Ширину
+                 задаёт код (FillWidth, рост — GrowFill). -->
+            <Border Width="72" Height="3" CornerRadius="1.5" Margin="0,4,0,1"
+                    HorizontalAlignment="Left" Background="#2236D6E7"
+                    Visibility="{Binding FillVis}">
+              <Border x:Name="AiFillBar" HorizontalAlignment="Left" CornerRadius="1.5"
+                      Width="{Binding FillWidth}">
+                <Border.Background>
+                  <LinearGradientBrush MappingMode="Absolute" StartPoint="0,0" EndPoint="72,0">
+                    <GradientStop Color="#2B6FD0" Offset="0"/>
+                    <GradientStop Color="#36D6E7" Offset="0.6"/>
+                    <GradientStop Color="#8CE6FF" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+              </Border>
+            </Border>
+          </StackPanel>
         </StackPanel>
-        <StackPanel Margin="7,0,0,0" VerticalAlignment="Center">
+        <!-- Мелкие руны. Заменённые подбором — в кольце: разница с ходовой
+             страницей бывает в одну руну. Кольцо поверх иконки, а не рамкой
+             вокруг: у обычных карточек размер не меняется. -->
+        <StackPanel Margin="7,0,0,0" VerticalAlignment="Center" Opacity="{Binding BodyOpacity}">
           <ItemsControl ItemsSource="{Binding PrimaryMini}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Image Source="{Binding Icon}" Width="15" Height="15" Margin="0,0,2,0"
-                       ToolTip="{Binding Name}" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <Grid Width="15" Height="15" Margin="0,0,2,0" ToolTip="{Binding Name}">
+                  <Image Source="{Binding Icon}" RenderOptions.BitmapScalingMode="HighQuality"/>
+                  <Ellipse Stroke="{Binding Ring}" StrokeThickness="1.3" Margin="-1"/>
+                </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -112,14 +155,23 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Image Source="{Binding Icon}" Width="15" Height="15" Margin="0,0,2,0"
-                       Opacity="0.85" ToolTip="{Binding Name}"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                <Grid Width="15" Height="15" Margin="0,0,2,0" ToolTip="{Binding Name}">
+                  <Image Source="{Binding Icon}" Opacity="0.85"
+                         RenderOptions.BitmapScalingMode="HighQuality"/>
+                  <Ellipse Stroke="{Binding Ring}" StrokeThickness="1.3" Margin="-1"/>
+                </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
       </StackPanel>
     </Border>
+
+    <!-- Кольцо вспышки подбора (FlashAi), как у строки подбора сборки. -->
+    <Border x:Name="AiGlowRing" CornerRadius="8" Margin="-2"
+            Background="Transparent" BorderBrush="#8CE6FF" BorderThickness="2"
+            Opacity="0" IsHitTestVisible="False"
+            Visibility="{Binding AiVis}"/>
+   </Grid>
   </DataTemplate>
 </ResourceDictionary>

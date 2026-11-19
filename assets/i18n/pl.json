@@ -419,7 +419,12 @@
     "aiUnder": "pod ten skład",
     "aiCovered": "standardowy build już odpowiada temu składowi",
     "aiSoon": "Pojawi się, gdy znanych będzie wszystkich pięciu przeciwników",
-    "aiTipHead": "Dobrane pod skład przeciwnika"
+    "aiTipHead": "Dobrane pod skład przeciwnika",
+    "aiRunesSoon": "Runy pod ten skład pojawią się, gdy wszyscy zatwierdzą wybór",
+    "aiRunesCovered": "popularna strona już odpowiada na ten skład",
+    "shardTenacity": "Odłamek nieustępliwości",
+    "laneAllIn": "{0} na linii wchodzi all-in",
+    "lanePoke": "{0} na linii nęka z dystansu"
   },
   "pick": {
     "confirm": "Wybierz {0}",
