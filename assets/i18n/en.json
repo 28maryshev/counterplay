@@ -564,6 +564,8 @@
     "periodAll": "All time",
     "myWinratesShort": "Your win rate",
     "myWinratesPoolShort": "Your win rate · pool “{0}”",
+    "winsShort": "{0}W",
+    "lossesShort": "{0}L",
     "duoWinratesShort": "Duo win rates · who you played with",
     "duoWinratesWithShort": "Duo win rates · with {0}",
     "friendNick": "Partner name",

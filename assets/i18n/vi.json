@@ -564,6 +564,8 @@
     "periodAll": "Toàn thời gian",
     "myWinratesShort": "Tỷ lệ thắng của bạn",
     "myWinratesPoolShort": "Tỷ lệ thắng của bạn · pool “{0}”",
+    "winsShort": "{0}T",
+    "lossesShort": "{0}B",
     "duoWinratesShort": "Tỷ lệ thắng cặp · đã chơi cùng ai",
     "duoWinratesWithShort": "Tỷ lệ thắng cặp · với {0}",
     "friendNick": "Tên người chơi cùng",

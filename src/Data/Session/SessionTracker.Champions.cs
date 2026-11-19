@@ -245,19 +245,32 @@ public static partial class SessionTracker
                                                         int days = RecentDays)
         => Summarize(RecentLaneGames(roleShare, days));
 
+    /// Моя игра в ранкеде или нормалах: чемпион, роль ("" — не нашлась),
+    /// очередь, исход, время.
+    public sealed record RoleGame(int ChampionId, string Role, string Queue, bool Win, long Ts);
+
+    /// <summary>
+    /// Мои игры за <paramref name="days"/> дней (0 и меньше — за всё время),
+    /// каждая со своей ролью — тем же путём, что у <see cref="LaneChamps"/>.
+    /// Для окна пулов: винрейт по линиям и чемпионы, разложенные по линиям, —
+    /// обе части из одних и тех же игр, поэтому числа сверху и снизу сходятся.
+    /// </summary>
+    public static IReadOnlyList<RoleGame> RoleGames(Func<int, string, double>? roleShare, int days)
+        => [.. RecentLaneGames(roleShare, days).Select(g => new RoleGame(g.Champ, g.Role, g.Queue, g.Win, g.Ts))];
+
     // Игры за окно, каждая с моей ролью: из подменной истории песочницы или из журнала.
-    private static List<(long Ts, int Champ, bool Win, int? Lp, string Role)> RecentLaneGames(
+    private static List<(long Ts, int Champ, bool Win, int? Lp, string Role, string Queue)> RecentLaneGames(
         Func<int, string, double>? roleShare, int days)
     {
-        var since = DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds();
-        var games = new List<(long Ts, int Champ, bool Win, int? Lp, string Role)>();
+        var since = days > 0 ? DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeSeconds() : 0;
+        var games = new List<(long Ts, int Champ, bool Win, int? Lp, string Role, string Queue)>();
 
         if (PreviewGames is { } preview)
         {
             // Песочница: в подменной истории у каждой игры уже есть моя роль.
             games.AddRange(preview
                 .Where(g => g.MyChampionId != 0 && g.Ts >= since && LaneQueues.Contains(g.Queue))
-                .Select(g => (g.Ts, g.MyChampionId, g.Win, (int?)null, g.MyRole)));
+                .Select(g => (g.Ts, g.MyChampionId, g.Win, (int?)null, g.MyRole, g.Queue)));
         }
         else
         {
@@ -275,7 +288,7 @@ public static partial class SessionTracker
 
     // Игры → чемпионы: самые игранные первыми, при равенстве — недавние.
     private static IReadOnlyList<LaneChamp> Summarize(
-        IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role)> games) =>
+        IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role, string Queue)> games) =>
         games.GroupBy(g => g.Champ)
             .Select(x =>
             {
@@ -307,7 +320,7 @@ public static partial class SessionTracker
     // учитываются намеренно: у того, кто берёт нишевые пики на разных линиях,
     // они ломали бы ровно эти игры (владелец, 12.10). Только сама игра и сам
     // чемпион.
-    private static IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role)> LaneGames(
+    private static IEnumerable<(long Ts, int Champ, bool Win, int? Lp, string Role, string Queue)> LaneGames(
         Account acc, long since, Func<int, string, double>? roleShare)
     {
         // Состав игр из связок: (очередь, мой чемпион) → (время начала игры,
@@ -362,7 +375,7 @@ public static partial class SessionTracker
         {
             if (x.G.Ts < since) continue;
             var r = x.Role ?? usual.GetValueOrDefault(x.G.ChampionId) ?? PrimaryRole(x.G.ChampionId, roleShare) ?? "";
-            yield return (x.G.Ts, x.G.ChampionId, x.G.Win, QueuesRanked.Contains(x.Queue) ? x.G.Lp : null, r);
+            yield return (x.G.Ts, x.G.ChampionId, x.G.Win, QueuesRanked.Contains(x.Queue) ? x.G.Lp : null, r, x.Queue);
         }
     }
 }

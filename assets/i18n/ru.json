@@ -564,6 +564,8 @@
     "periodAll": "За всё время",
     "myWinratesShort": "Твой винрейт",
     "myWinratesPoolShort": "Твой винрейт · пул «{0}»",
+    "winsShort": "{0}В",
+    "lossesShort": "{0}П",
     "duoWinratesShort": "Винрейт связок · с кем играл вдвоём",
     "duoWinratesWithShort": "Винрейт связок · с {0}",
     "friendNick": "Ник напарника",

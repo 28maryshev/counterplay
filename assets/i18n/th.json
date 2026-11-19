@@ -564,6 +564,8 @@
     "periodAll": "ตลอดเวลา",
     "myWinratesShort": "อัตราชนะของคุณ",
     "myWinratesPoolShort": "อัตราชนะของคุณ · พูล “{0}”",
+    "winsShort": "ชนะ {0}",
+    "lossesShort": "แพ้ {0}",
     "duoWinratesShort": "อัตราชนะคู่ · เคยเล่นกับใคร",
     "duoWinratesWithShort": "อัตราชนะคู่ · กับ {0}",
     "friendNick": "ชื่อเพื่อนดูโอ",

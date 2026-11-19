@@ -564,6 +564,8 @@
     "periodAll": "Od zawsze",
     "myWinratesShort": "Twój winrate",
     "myWinratesPoolShort": "Twój winrate · pula „{0}”",
+    "winsShort": "{0}W",
+    "lossesShort": "{0}P",
     "duoWinratesShort": "Winrate duetów · z kim grałeś",
     "duoWinratesWithShort": "Winrate duetów · z {0}",
     "friendNick": "Nick partnera",

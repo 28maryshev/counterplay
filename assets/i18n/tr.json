@@ -564,6 +564,8 @@
     "periodAll": "Tüm zamanlar",
     "myWinratesShort": "Kazanma oranın",
     "myWinratesPoolShort": "Kazanma oranın · havuz “{0}”",
+    "winsShort": "{0}G",
+    "lossesShort": "{0}M",
     "duoWinratesShort": "İkili kazanma oranları · kiminle oynadın",
     "duoWinratesWithShort": "İkili kazanma oranları · {0} ile",
     "friendNick": "Partner adı",

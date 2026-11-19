@@ -564,6 +564,8 @@
     "periodAll": "전체 기간",
     "myWinratesShort": "내 승률",
     "myWinratesPoolShort": "내 승률 · 풀 “{0}”",
+    "winsShort": "{0}승",
+    "lossesShort": "{0}패",
     "duoWinratesShort": "듀오 승률 · 함께 플레이한 상대",
     "duoWinratesWithShort": "듀오 승률 · {0}와 함께",
     "friendNick": "듀오 상대 이름",

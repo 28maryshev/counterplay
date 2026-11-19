@@ -178,27 +178,29 @@ public sealed partial class PoolSettingsWindow
     // нет — показываем всех, как и раньше.
     private void RefreshSoloWinrates()
     {
-        var days   = SoloDays;
-        var ranked = SessionTracker.ChampStatsMap(days, SessionTracker.QueuesRanked);
-        var normal = SessionTracker.ChampStatsMap(days, SessionTracker.QueuesNormal);
+        // Игры за окно, каждая со своей ролью (как в фазе планирования). Из них
+        // и дуги линий, и слоты чемпионов: числа сверху и снизу сходятся.
+        Func<int, string, double>? share = _engine is null ? null : _engine.RoleShare;
+        var games = SessionTracker.RoleGames(share, SoloDays);
 
         var a = PoolStore.Current();
         var fav = a.Pools.FirstOrDefault(p => p.Id == a.FavPoolId);
         var only = fav is null ? null
             : new HashSet<int>(fav.ByRole.Values.SelectMany(l => l).Where(id => id != 0));
 
+        // Пул отмечен — только его чемпионы, но на ЛЮБОЙ линии: роль игры
+        // угадана по составу и может промахнуться, и игра на чемпионе из пула
+        // не должна пропадать из-за того, что её отнесли не к той линии.
+        //
         // Все, без потолка: под лентой прокрутка. Потолок 30 остался с тех пор,
-        // как здесь стояла полоса постоянной высоты, и срезал вчерашние нормалы:
-        // при равенстве игр они стояли последними.
-        var ids = SessionTracker.PlayedChamps(days)
-            .Where(id => only is null || only.Contains(id))
-            .ToList();
+        // как здесь стояла полоса постоянной высоты, и срезал вчерашние нормалы.
+        var mine = games.Where(g => only is null || only.Contains(g.ChampionId)).ToList();
 
         WrHeader(_wrSolo, fav is null
             ? Loc.T("pool.myWinratesShort")
             : Loc.T("pool.myWinratesPoolShort", fav.Name.Length > 0 ? fav.Name : Loc.T("pool.pool")));
 
-        if (ids.Count == 0)
+        if (mine.Count == 0)
         {
             // Пул отмечен, а игр по ЕГО чемпионам нет — это другое, чем «игр нет
             // вовсе». Прежний текст звал поиграть с запущенной программой, хотя
@@ -209,50 +211,17 @@ public sealed partial class PoolSettingsWindow
             return;
         }
 
-        var row = new WrapPanel();
-        foreach (var id in ids)
-        {
-            // Слот чемпиона: рамка охватывает и иконку, и винрейт под ней, а её
-            // цвет — цвет этого винрейта. Так результат читается по слоту целиком.
-            var r = ranked.GetValueOrDefault(id);
-            var n = normal.GetValueOrDefault(id);
-            var gAll  = r.Games + n.Games;
-            var wrAll = gAll > 0 ? 100.0 * (r.Wins + n.Wins) / gAll : 50.0;
-            var frame = WinrateColor.BrushForSample(wrAll, gAll);
-
-            var inner = new StackPanel { Margin = new Thickness(4, 4, 4, 3) };
-            if (IconCache.Get(id) is { } src)
-                inner.Children.Add(new Border
-                {
-                    Width = 40, Height = 40, CornerRadius = new CornerRadius(4),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Background = new ImageBrush { ImageSource = src, Stretch = Stretch.UniformToFill }
-                });
-            if (PoolEditorWindow.WrChip(r, n) is { } chip)
-            {
-                chip.Margin = new Thickness(0, 3, 0, 0);
-                inner.Children.Add(chip);
-            }
-
-            var slot = new Border
-            {
-                CornerRadius = new CornerRadius(8),
-                BorderThickness = new Thickness(1),
-                BorderBrush = frame,
-                // Подложка того же цвета, но почти прозрачная — слот слегка
-                // «подсвечен» результатом, не перетягивая внимание с портрета.
-                Background = WinrateColor.TintForSample(wrAll, gAll),
-                Margin = new Thickness(0, 0, 8, 8),
-                ToolTip = DataDragon.Name(id),
-                Child = inner
-            };
-            row.Children.Add(slot);
-        }
+        // Сверху пять линий дугами, под ними чемпионы по линиям. Дуги — внутри
+        // прокрутки, а не прибиты над ней: на низкой нижней части окна они
+        // съели бы всё место у чемпионов.
+        var body = new StackPanel();
+        body.Children.Add(RoleGauges(mine));
+        body.Children.Add(ChampsByRole(mine));
         _wrSolo.Children.Add(new ScrollViewer
         {
             // Потолка нет нарочно: высоту отмеряет подвижная полоса, а раньше
             // при жёстких 170 половина отданного места пустовала.
-            Content = row,
+            Content = body,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         });

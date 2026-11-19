@@ -86,6 +86,7 @@ internal static class Program
     private static void Run()
     {
         var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        if (Environment.GetEnvironmentVariable("CP_SNAP") is { Length: > 0 }) SnapRoleIcons();
 
         // Связки как в песочнице — иначе правой половине нечего показывать.
         const string Him = "FR1111111111111111111111111111111111111111111111111111111111111111111111";
@@ -252,6 +253,9 @@ internal static class Program
         NothingCut();
         Pump();
 
+        ByRole();
+        Pump();
+
         MateVisible(d1);
         Pump();
 
@@ -303,12 +307,46 @@ internal static class Program
         }
     }
 
-    private static void Snap(Window w, string dir, string file)
+    /// <summary>
+    /// Только для снимков: иконки ролей лежат ресурсами в сборке программы, а
+    /// «pack://application» ищет их в запущенной — сборке проверки. Подменить
+    /// её нельзя (ResourceAssembly уже задан), поэтому кладём картинки из папки
+    /// assets/roles прямо в кэш RoleIcons. Без этого на снимке нет иконок ролей.
+    /// </summary>
+    private static void SnapRoleIcons()
+    {
+        var cache = typeof(RoleIcons).GetField("_icons",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null)
+            as System.Collections.Concurrent.ConcurrentDictionary<string, ImageSource?>;
+        // bin/Release/net8.0-windows/win-x64 → корень репозитория: шесть уровней вверх.
+        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "assets", "roles");
+        foreach (var pos in new[] { "top", "jungle", "middle", "bottom", "utility" })
+        {
+            var file = Path.GetFullPath(Path.Combine(dir, pos + ".png"));
+            if (cache is null || !File.Exists(file)) continue;
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri(file);
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            cache[pos] = bmp;
+        }
+    }
+
+    private static void Snap(Window w, string dir, string file, System.Windows.Media.Brush? background = null)
     {
         Directory.CreateDirectory(dir);
         var root = (FrameworkElement)w.Content;
         var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
             (int)root.ActualWidth, (int)root.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        if (background is not null)
+        {
+            var bg = new DrawingVisual();
+            using (var dc = bg.RenderOpen())
+                dc.DrawRectangle(background, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+            bmp.Render(bg);
+        }
         bmp.Render(root);
         var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
         enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
@@ -547,6 +585,89 @@ internal static class Program
             var chips = Walk<TextBlock>(w).Count(t => t.Text.Contains("% / "));
             Check("за 30 дней: все 33 чемпиона на месте, вчерашние нормалы не срезаны",
                   chips == 33, $"{chips} подписей");
+            w.Close(); Pump();
+        }
+        finally
+        {
+            SessionTracker.PreviewGames = null;
+            a.FavPoolId = fav;
+        }
+    }
+
+    /// <summary>
+    /// Владелец 19 ноября: над чемпионами — винрейт по пяти линиям дугами, а
+    /// сами чемпионы — по линиям, с иконкой роли в углу; чемпион с двух линий —
+    /// два слота. Здесь Шен на саппорте (2 из 3) и в топе (1 из 2), Ари в
+    /// миде (3 из 4); леса и бота нет вовсе.
+    /// </summary>
+    private static void ByRole()
+    {
+        Console.WriteLine();
+        const int Shen = 98, Ahri = 103;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var games = new List<SessionTracker.PreviewGame>();
+        void Add(string queue, int champ, string role, bool win, int day) =>
+            games.Add(new("", "", queue, champ, 0, role, "", now - day * 86400L, win));
+        Add("solo", Shen, "support", true, 1); Add("solo", Shen, "support", true, 2);
+        Add("solo", Shen, "support", false, 3);
+        Add("normal", Shen, "top", true, 4); Add("normal", Shen, "top", false, 5);
+        Add("solo", Ahri, "mid", true, 1); Add("solo", Ahri, "mid", true, 2);
+        Add("flex", Ahri, "mid", true, 3); Add("solo", Ahri, "mid", false, 6);
+        // За окном в 30 дней: в «за 30 дней» его быть не должно.
+        Add("solo", Ahri, "jungle", true, 60);
+
+        SessionTracker.PreviewGames = games;
+        var a = PoolStore.Current();
+        var fav = a.FavPoolId;
+        a.FavPoolId = null;   // без звезды — все чемпионы
+        try
+        {
+            AppSettings.Current.WinratesAllTime = false;
+            var w = new PoolSettingsWindow(() => { }) { Width = 820, Height = 640 };
+            ShowHidden(w); Pump();
+
+            // Плитки линий — ряд из пяти в UniformGrid; у каждой свои надписи.
+            var tiles = Walk<System.Windows.Controls.Primitives.UniformGrid>(w)
+                .FirstOrDefault(g => g.Children.Count == 5)?.Children.OfType<Border>().ToList() ?? [];
+            Check("над чемпионами пять плиток линий", tiles.Count == 5, $"{tiles.Count}");
+            // Счёт собран из цветных кусков (Run), а у такого TextBlock свойство
+            // Text пустое — читаем сами куски.
+            static string Plain(TextBlock t) => t.Inlines.Count > 0
+                ? string.Concat(t.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text))
+                : t.Text;
+            string Texts(Border b) => string.Join(" ", Walk<TextBlock>(b).Select(Plain));
+            var want = new[] { "50% 1В – 1П", "—", "75% 3В – 1П", "—", "67% 2В – 1П" };
+            var got  = tiles.Select(Texts).ToList();
+            Check("по линиям верный счёт (топ, лес, мид, бот, саппорт)",
+                  got.SequenceEqual(want), string.Join(" | ", got));
+            var arcs = tiles.Select(t => Walk<System.Windows.Shapes.Path>(t).Count()).ToList();
+            Check("у сыгранной линии дуга из побед и поражений, у пустой — одна подложка",
+                  arcs.SequenceEqual([2, 1, 2, 1, 2]), string.Join(",", arcs));
+
+            // Слоты чемпионов: Шен дважды, у каждого своя линия и свой счёт;
+            // порядок — по линиям: топ, мид, саппорт.
+            var slots = Walk<Border>(w)
+                .Where(b => (b.Child as StackPanel)?.Children.OfType<TextBlock>().Any(t => t.Text.Contains("% / ")) == true)
+                .Select(b => (Tip: b.ToolTip as string ?? "",
+                              Chip: ((StackPanel)b.Child).Children.OfType<TextBlock>().First().Text))
+                .ToList();
+            var shown = slots.Select(s => $"{s.Tip} {s.Chip}").ToList();
+            Check("Шен на двух линиях — два слота", slots.Count(s => s.Tip.StartsWith(DataDragon.Name(Shen))) == 2,
+                  string.Join(" | ", shown));
+            Check("слоты по линиям: топ, мид, саппорт — у каждого свой счёт",
+                  slots.Select(s => s.Chip).SequenceEqual(["50% / 2", "75% / 4", "67% / 3"])
+                  && slots[0].Tip.EndsWith(Loc.T("roles.top"))
+                  && slots[1].Tip.EndsWith(Loc.T("roles.mid"))
+                  && slots[2].Tip.EndsWith(Loc.T("roles.support")),
+                  string.Join(" | ", shown));
+
+            var snap = Environment.GetEnvironmentVariable("CP_SNAP");
+            if (snap is { Length: > 0 })
+            {
+                // Фон окна лежит на самом окне, а снимок берёт содержимое — без
+                // подложки тёмная тема выходит светлой.
+                Snap(w, snap, "roles.png", w.Background);
+            }
             w.Close(); Pump();
         }
         finally
