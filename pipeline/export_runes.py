@@ -19,8 +19,14 @@ import argparse
 import json
 import os
 import sqlite3
+import tempfile
+import time
 from collections import defaultdict
 from pathlib import Path
+
+# Связки считаются по выжимке, а не по рабочей базе: та на коллекторе
+# читается с диска вразброс (export_snapshot.py).
+from export_snapshot import snapshot
 
 # ── Пороги: ниже них данные — шум, и мы их не публикуем ────────────────────
 MIN_GAMES        = 200   # игр на чемпиона+роль, чтобы вообще показывать руны
@@ -565,32 +571,44 @@ def main():
     ap.add_argument('--out', default=str(Path(__file__).parent / 'dist' / 'stats'))
     args = ap.parse_args()
 
-    con = sqlite3.connect(f'file:{args.db}?mode=ro', uri=True)
-    ps = patches(con)
+    src = sqlite3.connect(f'file:{args.db}?mode=ro', uri=True)
+    ps = patches(src)
     if not ps:
         raise SystemExit('в базе нет патчей')
     patch = ps[-1]
-    print(f'патчи в выгрузке: {", ".join(ps)}')
+    print(f'патчи в выгрузке: {", ".join(ps)}', flush=True)
+    champs = [r[0] for r in src.execute(
+        'SELECT DISTINCT champion_id FROM base_wr ORDER BY champion_id')]
+    src.close()
 
     out = Path(args.out) / 'v1' / patch
     out.mkdir(parents=True, exist_ok=True)
 
-    champs = [r[0] for r in con.execute(
-        'SELECT DISTINCT champion_id FROM base_wr ORDER BY champion_id')]
-
     manifest_entries = []
     role_games = {}   # champ → {role: games} — для выбора основной роли
     written = 0
-    for champ in champs:
-        for role in ROLES:
-            data = build_champ_role(con, champ, role, ps)
-            if not data:
-                continue
-            (out / f'{champ}-{role}.json').write_text(
-                json.dumps(data, separators=(',', ':')), encoding='utf-8')
-            manifest_entries.append(f'{champ}-{role}')
-            role_games.setdefault(champ, {})[role] = data['games']
-            written += 1
+    # Выжимка — во временной папке, не в --out: тот целиком уезжает на сайт.
+    with tempfile.TemporaryDirectory(prefix='cp-runes-') as tmp:
+        t0 = time.monotonic()
+        con = snapshot(args.db, ps, Path(tmp) / 'snap.db',
+                       log=lambda s: print(s, flush=True))
+        size = (Path(tmp) / 'snap.db').stat().st_size / 1e6
+        print(f'выжимка готова: {time.monotonic() - t0:.0f} с, {size:.0f} МБ', flush=True)
+        t0 = time.monotonic()
+        try:
+            for champ in champs:
+                for role in ROLES:
+                    data = build_champ_role(con, champ, role, ps)
+                    if not data:
+                        continue
+                    (out / f'{champ}-{role}.json').write_text(
+                        json.dumps(data, separators=(',', ':')), encoding='utf-8')
+                    manifest_entries.append(f'{champ}-{role}')
+                    role_games.setdefault(champ, {})[role] = data['games']
+                    written += 1
+        finally:
+            con.close()
+        print(f'связки посчитаны: {time.monotonic() - t0:.0f} с', flush=True)
 
     # Основная роль каждого чемпиона (где больше игр). Нужна там, где клиент не
     # раскрывает позицию: custom games, блайнд — руны всё равно показываем.
