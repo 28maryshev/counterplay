@@ -636,16 +636,21 @@ internal static class Program
                 ? string.Concat(t.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text))
                 : t.Text;
             string Texts(Border b) => string.Join(" ", Walk<TextBlock>(b).Select(Plain));
-            var want = new[] { "50% 1В – 1П", "—", "75% 3В – 1П", "—", "67% 2В – 1П" };
+            // Порядок — по числу игр (владелец, 19.11): мид 4, саппорт 3, топ 2;
+            // пустые лес и бот — в конце, между собой в обычном порядке линий.
+            var want = new[] { "75% 3В – 1П", "67% 2В – 1П", "50% 1В – 1П", "—", "—" };
             var got  = tiles.Select(Texts).ToList();
-            Check("по линиям верный счёт (топ, лес, мид, бот, саппорт)",
-                  got.SequenceEqual(want), string.Join(" | ", got));
+            var tips = tiles.Select(t => (t.ToolTip as string ?? "").Split(" · ")[0]).ToList();
+            var wantTips = new[] { "mid", "support", "top", "jungle", "adc" }.Select(r => Loc.T("roles." + r));
+            Check("плитки по числу игр: мид, саппорт, топ, затем пустые лес и бот — счёт верный",
+                  got.SequenceEqual(want) && tips.SequenceEqual(wantTips),
+                  string.Join(" | ", tiles.Select((t, i) => $"{tips[i]} {got[i]}")));
             var arcs = tiles.Select(t => Walk<System.Windows.Shapes.Path>(t).Count()).ToList();
             Check("у сыгранной линии дуга из побед и поражений, у пустой — одна подложка",
-                  arcs.SequenceEqual([2, 1, 2, 1, 2]), string.Join(",", arcs));
+                  arcs.SequenceEqual([2, 2, 2, 1, 1]), string.Join(",", arcs));
 
             // Слоты чемпионов: Шен дважды, у каждого своя линия и свой счёт;
-            // порядок — по линиям: топ, мид, саппорт.
+            // группы — в том же порядке, что плитки: мид, саппорт, топ.
             var slots = Walk<Border>(w)
                 .Where(b => (b.Child as StackPanel)?.Children.OfType<TextBlock>().Any(t => t.Text.Contains("% / ")) == true)
                 .Select(b => (Tip: b.ToolTip as string ?? "",
@@ -654,11 +659,11 @@ internal static class Program
             var shown = slots.Select(s => $"{s.Tip} {s.Chip}").ToList();
             Check("Шен на двух линиях — два слота", slots.Count(s => s.Tip.StartsWith(DataDragon.Name(Shen))) == 2,
                   string.Join(" | ", shown));
-            Check("слоты по линиям: топ, мид, саппорт — у каждого свой счёт",
-                  slots.Select(s => s.Chip).SequenceEqual(["50% / 2", "75% / 4", "67% / 3"])
-                  && slots[0].Tip.EndsWith(Loc.T("roles.top"))
-                  && slots[1].Tip.EndsWith(Loc.T("roles.mid"))
-                  && slots[2].Tip.EndsWith(Loc.T("roles.support")),
+            Check("слоты по линиям в порядке плиток: мид, саппорт, топ — у каждого свой счёт",
+                  slots.Select(s => s.Chip).SequenceEqual(["75% / 4", "67% / 3", "50% / 2"])
+                  && slots[0].Tip.EndsWith(Loc.T("roles.mid"))
+                  && slots[1].Tip.EndsWith(Loc.T("roles.support"))
+                  && slots[2].Tip.EndsWith(Loc.T("roles.top")),
                   string.Join(" | ", shown));
 
             var snap = Environment.GetEnvironmentVariable("CP_SNAP");
