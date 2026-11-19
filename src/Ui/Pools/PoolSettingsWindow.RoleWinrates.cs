@@ -28,8 +28,17 @@ public sealed partial class PoolSettingsWindow
     private const double ArcR = 22, ArcT = 5;
 
     /// <summary>
+    /// Линии по числу игр: где сыграно больше — та первая (владелец, 19.11:
+    /// основная линия должна читаться сразу, а не искаться в середине ряда).
+    /// При равенстве — обычный порядок линий (сортировка устойчивая), пустые
+    /// поэтому встают в конец. Один порядок у плиток и у групп чемпионов.
+    /// </summary>
+    private static List<string> RoleOrder(IReadOnlyList<SessionTracker.RoleGame> games) =>
+        [.. Roles.OrderByDescending(r => games.Count(g => g.Role == r))];
+
+    /// <summary>
     /// Пять плиток в ряд — по одной на линию, всегда все пять: пустая линия
-    /// тоже ответ («в лесу не играю»), и ряд не прыгает от периода к периоду.
+    /// тоже ответ («в лесу не играю»). Порядок — <see cref="RoleOrder"/>.
     /// Плитки делят ширину поровну.
     /// </summary>
     private static UniformGrid RoleGauges(IReadOnlyList<SessionTracker.RoleGame> games)
@@ -37,7 +46,7 @@ public sealed partial class PoolSettingsWindow
         // Поля плиток по 3 с каждой стороны, а у ряда −3: крайние плитки встают
         // вровень со слотами чемпионов под ними, а ячейки остаются равными.
         var grid = new UniformGrid { Rows = 1, Columns = Roles.Length, Margin = new Thickness(-3, 0, -3, 10) };
-        foreach (var role in Roles)
+        foreach (var role in RoleOrder(games))
         {
             var onRole = games.Where(g => g.Role == role).ToList();
             grid.Children.Add(RoleGauge(role, onRole.Count, onRole.Count(g => g.Win)));
@@ -139,8 +148,9 @@ public sealed partial class PoolSettingsWindow
     }
 
     /// <summary>
-    /// Чемпионы по линиям: группа на линию в порядке линий, каждая с новой
-    /// строки; внутри — больше игр выше, при равенстве — сыгранный позже.
+    /// Чемпионы по линиям: группа на линию в том же порядке, что плитки
+    /// (<see cref="RoleOrder"/>), каждая с новой строки; внутри — больше игр
+    /// выше, при равенстве — сыгранный позже.
     /// Чемпион, которого играли на двух линиях, — два слота, у каждого своя
     /// роль и свой счёт: Шен-саппорт и Шен-топ — разные истории.
     /// Игры, роль которых не нашлась (база ещё не скачана), — последней
@@ -150,7 +160,7 @@ public sealed partial class PoolSettingsWindow
     {
         var panel = new StackPanel();
         string RoleOf(SessionTracker.RoleGame g) => Roles.Contains(g.Role) ? g.Role : "";
-        foreach (var role in Roles.Append(""))
+        foreach (var role in RoleOrder(games).Append(""))
         {
             var champs = games.Where(g => RoleOf(g) == role)
                 .GroupBy(g => g.ChampionId)
