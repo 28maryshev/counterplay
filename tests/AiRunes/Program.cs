@@ -102,6 +102,10 @@ internal static class Program
 
     private const int Zed = 238, Senna = 235;
 
+    // Новые чемпионы, чьи наборы ещё не разобраны по гайдам (ChampionTraits):
+    // идут по меткам. Новый чемпион в Data Dragon — повод внести его в список.
+    private static readonly string[] NewChamps = ["Locke", "Yunara", "Zaahen"];
+
     /// Связка Эш стрелком: Темп (Точность + вторичное sub) и, по желанию,
     /// Натиск; доли рун и деревьев — как в выгрузке с 19.11 (withShares=false —
     /// старый файл без долей).
@@ -132,8 +136,10 @@ internal static class Program
         return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], []);
     }
 
-    private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, ChampStats s, int[] enemies, int? lane = null) =>
-        RuneAdvisor.Adapt(s, Ashe, enemies, lane, id => engine.DamageShare(id), RuneIcons.SlotOf);
+    private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, ChampStats s, int[] enemies, int? lane = null,
+                                             int[]? foes = null) =>
+        RuneAdvisor.Adapt(s, Ashe, enemies, lane, foes ?? (lane is { } l ? [l] : []),
+                          id => engine.DamageShare(id), RuneIcons.SlotOf);
 
     /// Каждая руна страницы — в своём ряду своего дерева, ряды не повторяются.
     private static bool Legal(RunePage p)
@@ -233,6 +239,25 @@ internal static class Program
         var hpPoke = Adapt(engine, Ashe_([8444, Overgrowth], shard3: RuneAdvisor.ShardHealthScaling), Soft, lane: Xerath);
         Check("против поука растущее здоровье остаётся", hpPoke?.Choice.Page.Shards[2] == RuneAdvisor.ShardHealthScaling,
               Show(hpPoke));
+
+        // ── 4в. Бот — линия два на два; лес — линии нет ─────────────────────
+        const int Caitlyn = 51, Leona = 89, Lux = 99;
+        var duo = Adapt(engine, Ashe_([8444, Overgrowth]), Soft, lane: Caitlyn, foes: [Caitlyn, Leona]);
+        Check("бот: Кейтлин издалека, но рядом Леона с наскока — Костяная броня, причина называет Леону",
+              duo?.Swaps.Any(s => s.To == RuneAdvisor.BonePlating && s.Why.Contains(DataDragon.Name(Leona))) == true,
+              Show(duo));
+        var duoPoke = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Caitlyn, foes: [Caitlyn, Lux]);
+        Check("бот: Кейтлин и Люкс — обе издалека — Второе дыхание",
+              duoPoke?.Swaps.Any(s => s.To == RuneAdvisor.SecondWind) == true, Show(duoPoke));
+        var jg = Adapt(engine, Ashe_([8444, Overgrowth]), Soft, lane: Zed, foes: []);
+        Check("лес: соперников на линии нет — Костяной брони по оппоненту нет, разбор так и говорит",
+              jg is not null && jg.Swaps.All(s => !s.Why.Contains(DataDragon.Name(Zed)))
+              && jg.Trace.Any(t => t.Contains("линии нет") || t.Contains("не знаем")), Show(jg));
+        var unknown = DataDragon.GetAllIconUrls().Keys
+            .Where(id => !ChampionTraits.LaneKnown(id) && !NewChamps.Contains(DataDragon.DdId(id)))
+            .Select(DataDragon.Name).ToList();
+        Check("все чемпионы разобраны «как бьёт на линии» (кроме ещё не проверенных новых)",
+              unknown.Count == 0, unknown.Count == 0 ? "" : "не в списках: " + string.Join(", ", unknown));
 
         // ── 5. Кейстоун — по данным против оппонента ────────────────────────
         var ks = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft, lane: Zed);

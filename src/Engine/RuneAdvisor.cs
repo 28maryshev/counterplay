@@ -74,10 +74,15 @@ public static class RuneAdvisor
 
     private sealed record Need(int Rune, double Weight, string Why);
 
-    /// Подобрать страницу. null — судить не по чему (врагов нет, рун нет,
-    /// справочник рун не загружен).
+    /// Подобрать страницу. laneOpponent — прямой оппонент (по нему кейстоун:
+    /// поправки в данных — против него); laneFoes — кто бьёт меня на линии (по
+    /// ним руны защиты): на топе и в миде — он же, на боте — вражеские стрелок
+    /// и саппорт (линия два на два: Леона рядом с Кейтлин — это наскок), в лесу
+    /// — никого (линии нет, руны защиты — по составу). null — судить не по
+    /// чему (врагов нет, рун нет, справочник рун не загружен).
     public static Advice? Adapt(
         ChampStats stats, int me, IReadOnlyList<int> enemies, int? laneOpponent,
+        IReadOnlyList<int> laneFoes,
         Func<int, (double Phys, double Magic, double True)?> damageShare,
         Func<int, (int Style, int Row)?> slotOf)
     {
@@ -96,16 +101,20 @@ public static class RuneAdvisor
                           choice.VsGames.ToString("N0"));
         trace.Add(opp is { } y
             ? $"оппонент по линии: {DataDragon.Name(y)}"
-              + (ChampionTraits.LanePoke(y) ? " — бьёт издалека"
-                 : ChampionTraits.LaneAllIn(y) ? " — бьёт с наскока" : "")
               + (stats.Vs.ContainsKey(y) ? "" : " (поправок кейстоунов против него нет)")
             : "оппонент по линии не известен");
+        var foes = laneFoes.Where(f => f != 0).Distinct().ToList();
+        trace.Add(foes.Count == 0
+            ? (stats.Role == "jungle" ? "лес: линии нет, руны защиты — по составу" : "соперников на линии не знаем")
+            : "на линии: " + string.Join(", ", foes.Select(f => DataDragon.Name(f)
+                + (ChampionTraits.LanePoke(f) ? " (издалека)" : ChampionTraits.LaneAllIn(f) ? " (с наскока)" : " (тихо)")
+                + (ChampionTraits.LaneKnown(f) ? "" : " — нет в списках, по меткам"))));
         trace.Add($"кейстоун: {Rune(choice.Keystone)} — {choice.Winrate:0.0}%"
                   + (choice.VsGames > 0 ? $" {(choice.VsDelta >= 0 ? "+" : "")}{choice.VsDelta:0.0} против оппонента" : ""));
         trace.Add($"состав: танков {comp.Tanks}, контроля {comp.Cc} (стойкость от {(EnemyComp.Close(me) ? 2 : 3)}), "
                   + $"убийц {comp.Burst}, стиль {comp.Style?.ToString() ?? "смешанный"}");
 
-        var needs = Needs(comp, enemies, me, opp);
+        var needs = Needs(comp, enemies, me, foes);
         trace.Add(needs.Count == 0 ? "состав ничего не требует"
             : "нужно: " + string.Join(", ", needs.Select(n => $"{Rune(n.Rune)} {n.Weight:0.#}")));
 
@@ -173,10 +182,10 @@ public static class RuneAdvisor
         // минуты, когда и решается линия (так советуют против агрессивных
         // линий). Растущее на странице остаётся у тех, против кого линия тихая.
         var shards = page.Shards.ToList();
+        var bully = foes.FirstOrDefault(ChampionTraits.LaneAllIn);
         var shardWant = comp.ManyCc(me) ? (ShardTenacity, Loc.T("build.vsCc", comp.Cc))
-            : opp is { } z && ChampionTraits.LaneAllIn(z) && !ChampionTraits.LanePoke(z)
-              && shards.Count > DefenseShard && shards[DefenseShard] == ShardHealthScaling
-                ? (ShardHealth, Loc.T("runes.laneAllIn", DataDragon.Name(z)))
+            : bully != 0 && shards.Count > DefenseShard && shards[DefenseShard] == ShardHealthScaling
+                ? (ShardHealth, Loc.T("runes.laneAllIn", DataDragon.Name(bully)))
                 : ((int, string)?)null;
         if (shardWant is (int shard, string shardWhy) && shards.Count > DefenseShard)
         {
@@ -198,7 +207,7 @@ public static class RuneAdvisor
 
     /// Чего требуют соперники: руна, вес, причина. Одна руна — один раз, с
     /// самым весомым поводом.
-    private static List<Need> Needs(EnemyComp comp, IReadOnlyList<int> enemies, int me, int? opp)
+    private static List<Need> Needs(EnemyComp comp, IReadOnlyList<int> enemies, int me, IReadOnlyList<int> foes)
     {
         var list = new List<Need>();
 
@@ -209,11 +218,17 @@ public static class RuneAdvisor
 
         // Линия: Костяная броня режет серию ударов с наскока, Второе дыхание,
         // Вкус крови и Печенье отхиливают то, что прилетело издалека.
-        var name = opp is { } x ? DataDragon.Name(x) : "";
         // Кто как бьёт — ручные списки ChampionTraits.LanePoke / LaneAllIn (как
         // в гайдах), важнее меток: «взрывные» артиллерийские маги — это поук.
-        if (opp is { } p && ChampionTraits.LanePoke(p))
+        // Соперников двое (бот) — наскок важнее: он и убивает на линии, а поук
+        // второго переживается отхилом после.
+        var allIn = foes.FirstOrDefault(ChampionTraits.LaneAllIn);
+        var poker = foes.FirstOrDefault(ChampionTraits.LanePoke);
+        if (allIn != 0)
+            list.Add(new(BonePlating, 1.5, Loc.T("runes.laneAllIn", DataDragon.Name(allIn))));
+        else if (poker != 0)
         {
+            var name = DataDragon.Name(poker);
             // Три руны — один ответ (отхил после размена), и вес у них один:
             // иначе подбор менял бы Вдохновение с Печеньем на Решимость ради
             // Второго дыхания, хотя Печенье закрывает то же самое.
@@ -222,8 +237,6 @@ public static class RuneAdvisor
             list.Add(new(TasteOfBlood, 1.5, why));
             list.Add(new(Biscuits, 1.5, why));
         }
-        else if (opp is { } a && ChampionTraits.LaneAllIn(a))
-            list.Add(new(BonePlating, 1.5, Loc.T("runes.laneAllIn", name)));
 
         // Состав — слабее линии.
         if (comp.Burst >= 2)

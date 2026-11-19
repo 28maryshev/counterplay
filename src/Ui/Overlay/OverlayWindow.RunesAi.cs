@@ -76,7 +76,24 @@ public partial class OverlayWindow
         if (_lastDraft is not { } d) return "";
         return string.Join(",", d.MyTeam.Concat(d.TheirTeam)
             .Where(p => AllyWaver.Locked(d, p)).Select(p => $"{p.CellId}:{p.ChampionId}"))
-            + $"|{LaneOpponent()}";
+            + $"|{LaneOpponent()}|{string.Join(",", LaneFoes())}";
+    }
+
+    /// Кто бьёт меня на линии — по нему руны защиты. Бот — линия два на два:
+    /// вражеские стрелок и саппорт (роли из окна: клиент в соло/дуо их
+    /// прячет). Лес — никого: линии нет. Роли врагов не разложены — прямой
+    /// оппонент, если он есть.
+    private List<int> LaneFoes()
+    {
+        if (_lastDraft is not { } d) return [];
+        if (d.MyPosition == "jungle") return [];
+        if (d.MyPosition is "bottom" or "utility")
+        {
+            var bot = d.TheirTeam.Where(p => p.Position is "bottom" or "utility")
+                .Select(p => p.EffectiveChampionId).Where(x => x != 0).ToList();
+            if (bot.Count > 0) return bot;
+        }
+        return LaneOpponent() is { } o ? [o] : [];
     }
 
     /// Оппонент по линии для подбора. Клиент называет его, только когда роли
@@ -109,7 +126,7 @@ public partial class OverlayWindow
         var enemies = _lastDraft?.TheirTeam
             .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
         _runeAdvice = done && _engine is not null && RuneIcons.Loaded && _runeStats is { } stats
-            ? RuneAdvisor.Adapt(stats, _runeChampId, enemies, LaneOpponent(),
+            ? RuneAdvisor.Adapt(stats, _runeChampId, enemies, LaneOpponent(), LaneFoes(),
                                 id => _engine.DamageShare(id), RuneIcons.SlotOf)
             : null;
 
