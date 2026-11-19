@@ -472,12 +472,21 @@
                       <Setter Property="Margin" Value="2,0"/>
                       <Setter Property="Cursor" Value="Hand"/>
                     </Style>
+                    <!-- Подпись, которая не влезает в четверть ряда, ужимается, а не
+                         обрезается: «Настройки» по-русски и «Einstellungen» по-немецки
+                         стояли как «Настройкі» (видно на картинках к настройкам). -->
+                    <DataTemplate x:Key="PoolBtnLabel">
+                      <Viewbox StretchDirection="DownOnly">
+                        <TextBlock Text="{Binding}"/>
+                      </Viewbox>
+                    </DataTemplate>
                   </UniformGrid.Resources>
                   <!-- Настройки — золотом, как кнопки на сайте -->
                   <Button x:Name="PoolSettingsBtn" Click="PoolSettings_Click"
-                          Content="{loc:T pool.settings}"
+                          Content="{loc:T pool.settings}" ContentTemplate="{StaticResource PoolBtnLabel}"
                           Foreground="#C89B3C" BorderBrush="#8A6D2F" Background="#18C89B3C"/>
-                  <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"/>
+                  <Button x:Name="PoolNormalBtn" Click="PoolNormal_Click" Content="{loc:T pool.normal}"
+                          ContentTemplate="{StaticResource PoolBtnLabel}"/>
                   <!-- Пулов ещё нет — вместо «Пул» зелёное «Создать пул» (не
                        влезает в ширину — в две строки), зелёная подсветка по
                        периметру, клик открывает настройки пулов (ApplyPoolCta). -->
@@ -489,7 +498,8 @@
                                  TextAlignment="Center" HorizontalAlignment="Center"/>
                     </Grid>
                   </Button>
-                  <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"/>
+                  <Button x:Name="PoolDuoBtn" Click="PoolDuo_Click" Content="{loc:T pool.duo}"
+                          ContentTemplate="{StaticResource PoolBtnLabel}"/>
                 </UniformGrid>
 
                 <!-- Мои чемпионы за 30 дней: одна строка ровно по ширине ряда кнопок
