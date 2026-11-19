@@ -334,6 +334,41 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Снимок подсказки «Как это работает» — она всплывает только под мышью, и
+    /// без снимка её длину и переносы не увидеть. Содержимое подсказки
+    /// меряется и рисуется отдельно, на её же фоне.
+    /// </summary>
+    private static void SnapHelp(Window w, string dir)
+    {
+        var tip = Walk<FrameworkElement>(w)
+            .Select(e => e.ToolTip as System.Windows.Controls.ToolTip)
+            .FirstOrDefault(t => t?.Content is StackPanel s
+                && s.Children.OfType<TextBlock>().Any(x => x.Text == Loc.T("pool.howAdd")));
+        if (tip?.Content is not StackPanel body) { Console.WriteLine("  подсказка «Как это работает» не найдена"); return; }
+        var frame = new Border
+        {
+            Background = tip.Background, BorderBrush = tip.BorderBrush, BorderThickness = tip.BorderThickness,
+            Padding = tip.Padding
+        };
+        tip.Content = null;
+        frame.Child = body;
+        frame.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        frame.Arrange(new Rect(frame.DesiredSize));
+        frame.UpdateLayout();
+        Directory.CreateDirectory(dir);
+        var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            (int)Math.Ceiling(frame.ActualWidth), (int)Math.Ceiling(frame.ActualHeight), 96, 96,
+            System.Windows.Media.PixelFormats.Pbgra32);
+        bmp.Render(frame);
+        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+        using (var fs = File.Create(Path.Combine(dir, "help.png"))) enc.Save(fs);
+        frame.Child = null;
+        tip.Content = body;   // окно закрывается следом, но подсказку вернём как была
+        Console.WriteLine($"  снимок: {Path.Combine(dir, "help.png")} ({frame.ActualWidth:0}×{frame.ActualHeight:0})");
+    }
+
     private static void Snap(Window w, string dir, string file, System.Windows.Media.Brush? background = null)
     {
         Directory.CreateDirectory(dir);
@@ -785,6 +820,7 @@ internal static class Program
                 // Фон окна лежит на самом окне, а снимок берёт содержимое — без
                 // подложки тёмная тема выходит светлой.
                 Snap(w, snap, "roles.png", w.Background);
+                SnapHelp(w, snap);
             }
             w.Close(); Pump();
         }

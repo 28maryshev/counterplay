@@ -83,7 +83,10 @@ public sealed partial class PoolSettingsWindow
     // Иконка «?» внизу: при наведении — пояснение, что такое пулы и зачем.
     private static FrameworkElement HelpBadge()
     {
-        var body = new StackPanel { MaxWidth = 340 };
+        // 380, а не 340: шагов стало девять (19.11 — звезда, подсказка в лобби,
+        // напарник на плитке, код пула, винрейты внизу, синхронизация), и узкая
+        // подсказка вытягивалась выше окна.
+        var body = new StackPanel { MaxWidth = 380 };
         body.Children.Add(new TextBlock
         {
             Text = Loc.T("pool.help"), TextWrapping = TextWrapping.Wrap,

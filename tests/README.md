@@ -1488,8 +1488,9 @@ dotnet run --project tests/PoolWindow/PoolWindow.csproj -c Release
 цвет винрейта линии.
 
 Счёт «1В – 1П» собран из цветных `Run`, а у такого `TextBlock` свойство `Text`
-пустое — проверка читает куски. С `CP_SNAP` — снимок `roles.png` на тёмном фоне
-окна; иконки ролей для снимка кладутся в кэш `RoleIcons` из `assets/roles`:
+пустое — проверка читает куски. С `CP_SNAP` — снимки `roles.png` на тёмном фоне
+окна и `help.png` — подсказка «Как это работает» (всплывает только под мышью,
+поэтому рисуется отдельно); иконки ролей для снимка кладутся в кэш `RoleIcons` из `assets/roles`:
 «pack://application» в проверке ищет их в её сборке, а
 `Application.ResourceAssembly` к тому времени уже задан.
 
