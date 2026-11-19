@@ -100,27 +100,40 @@ internal static class Program
 
     // ── Данные ───────────────────────────────────────────────────────────────
 
-    /// Страница Темпа как у Эш стрелком: Точность + Решимость.
-    private static RuneChoice Tempo(int[] secondary, int sub = 8400,
-                                    Dictionary<int, double>? share = null,
-                                    Dictionary<int, Dictionary<int, double>>? subShare = null,
-                                    bool withShares = true) =>
-        new(LT, 240000, 50.1, 89.7,
-            new RunePage(8000, sub, [LT, 9111, 9104, Coup], secondary, [5005, 5008, 5011], 90000, 50.3),
-            0, 0)
-        {
-            Share = withShares ? share ?? new() { [Coup] = 60, [RuneAdvisor.CutDown] = 33, [9111] = 95, [9104] = 90 } : null,
-            SubShare = withShares
-                ? (subShare ?? new()
-                  {
-                      [8400] = new() { [8444] = 50, [8473] = 40, [Overgrowth] = 30, [RuneAdvisor.Unflinching] = 10 },
-                      [8300] = new() { [8345] = 90, [8347] = 80 },
-                  }).ToDictionary(kv => kv.Key, kv => (IReadOnlyDictionary<int, double>)kv.Value)
-                : null,
-        };
+    private const int Zed = 238, Senna = 235;
 
-    private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, RuneChoice c, int[] enemies, int? lane = null) =>
-        RuneAdvisor.Adapt(c, Ashe, enemies, lane, id => engine.DamageShare(id), RuneIcons.SlotOf);
+    /// Связка Эш стрелком: Темп (Точность + вторичное sub) и, по желанию,
+    /// Натиск; доли рун и деревьев — как в выгрузке с 19.11 (withShares=false —
+    /// старый файл без долей).
+    private static ChampStats Ashe_(int[] secondary, int sub = 8400, int row3 = Coup,
+                                    Dictionary<int, double>? share = null,
+                                    Dictionary<int, double>? subPick = null,
+                                    bool withShares = true, bool withPta = false,
+                                    Dictionary<int, double>? vsZed = null)
+    {
+        IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>> subShare =
+            new Dictionary<int, IReadOnlyDictionary<int, double>>
+            {
+                [8400] = new Dictionary<int, double>
+                         { [8444] = 50, [8473] = 40, [8429] = 20, [Overgrowth] = 30, [RuneAdvisor.Unflinching] = 10 },
+                [8300] = new Dictionary<int, double> { [8345] = 90, [8347] = 80, [8304] = 20 },
+            };
+        RuneChoice Ks(int ks, double wr, double pick, int primary, int[] perks, int s, int[] sec) =>
+            new(ks, 100000, wr, pick, new RunePage(primary, s, perks, sec, [5005, 5008, 5011], 50000, wr), 0, 0)
+            {
+                Share = withShares ? share ?? new() { [Coup] = 60, [RuneAdvisor.CutDown] = 33, [9111] = 95, [9104] = 90 } : null,
+                SubShare = withShares ? subShare : null,
+                SubPick = withShares ? subPick ?? new() { [8400] = 55, [8300] = 45 } : null,
+            };
+        var list = new List<RuneChoice> { Ks(LT, 50.1, 89.7, 8000, [LT, 9111, 9104, row3], sub, secondary) };
+        if (withPta) list.Add(Ks(PTA, 49.5, 8.4, 8000, [PTA, 9111, 9104, Coup], 8300, [8345, 8347]));
+        var vs = new Dictionary<int, (int, Dictionary<int, double>)>();
+        if (vsZed is not null) vs[Zed] = (900, vsZed);
+        return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], []);
+    }
+
+    private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, ChampStats s, int[] enemies, int? lane = null) =>
+        RuneAdvisor.Adapt(s, Ashe, enemies, lane, id => engine.DamageShare(id), RuneIcons.SlotOf);
 
     /// Каждая руна страницы — в своём ряду своего дерева, ряды не повторяются.
     private static bool Legal(RunePage p)
@@ -134,68 +147,92 @@ internal static class Program
 
     private static string Show(RuneAdvisor.Advice? a) =>
         a is null ? "нет подбора"
-        : a.Swaps.Count == 0 ? "замен нет"
-        : string.Join("; ", a.Swaps.Select(s => $"{RuneIcons.NameOf(s.From)}→{(s.Shard ? "осколок " + s.To : RuneIcons.NameOf(s.To))} ({s.Why})"));
+        : (a.Swaps.Count == 0 ? "замен нет"
+           : string.Join("; ", a.Swaps.Select(s => $"{RuneIcons.NameOf(s.From)}→{(s.Shard ? "осколок " + s.To : RuneIcons.NameOf(s.To))}"
+                                                  + (s.Why.Length > 0 ? $" ({s.Why})" : ""))))
+          + $" | {RuneIcons.StyleName(a.Choice.Page.Sub)}: {string.Join(",", a.Choice.Page.Secondary.Select(RuneIcons.NameOf))}";
 
     private static void Advisor(RecommendationEngine engine)
     {
         Console.WriteLine("подбор:");
-        var baseChoice = Tempo([8444, Overgrowth]);
+        Console.WriteLine($"  Зед бьёт с наскока: {ChampionTraits.BurstThreat(Zed)}, Сенна издалека: "
+                          + $"{ChampionTraits.LongRange(Senna) && !ChampionTraits.BurstThreat(Senna)}");
+        var baseStats = Ashe_([8444, Overgrowth]);
 
         // ── 1. Танки и контроль ─────────────────────────────────────────────
-        var a = Adapt(engine, baseChoice, Tanky);
+        var a = Adapt(engine, baseStats, Tanky);
         var to = a?.Swaps.Select(s => s.To).ToHashSet() ?? [];
         Check("танки и контроль: Резня, Неудержимость, осколок стойкости",
-              to.SetEquals([RuneAdvisor.CutDown, RuneAdvisor.Unflinching, RuneAdvisor.ShardTenacity])
-              || (to.IsSupersetOf([RuneAdvisor.CutDown, RuneAdvisor.Unflinching, RuneAdvisor.ShardTenacity])
-                  && to.Count == 4 && to.Contains(RuneAdvisor.BonePlating)),
-              Show(a));
+              to.IsSupersetOf([RuneAdvisor.CutDown, RuneAdvisor.Unflinching, RuneAdvisor.ShardTenacity]), Show(a));
         Check("страница допустима: руны в своих рядах, кейстоун тот же",
-              a is not null && Legal(a.Choice.Page) && a.Choice.Keystone == LT && a.Choice.Page.Perks[0] == LT
+              a is not null && Legal(a.Choice.Page) && a.Choice.Keystone == LT
               && a.Choice.Page.Perks.Contains(RuneAdvisor.CutDown) && !a.Choice.Page.Perks.Contains(Coup)
               && a.Choice.Page.Shards[2] == RuneAdvisor.ShardTenacity,
               a is null ? "" : $"{string.Join(",", a.Choice.Page.Perks)} | {string.Join(",", a.Choice.Page.Secondary)} | {string.Join(",", a.Choice.Page.Shards)}");
-        Check("ходовая страница не тронута", baseChoice.Page.Perks[3] == Coup && baseChoice.Page.Shards[2] == 5011, "");
+        Check("ходовая страница не тронута",
+              baseStats.Keystones[0].Page.Perks[3] == Coup && baseStats.Keystones[0].Page.Shards[2] == 5011, "");
 
         // ── 2. Руну не берут ────────────────────────────────────────────────
-        var rare = Adapt(engine, Tempo([8444, Overgrowth], share: new() { [Coup] = 99, [RuneAdvisor.CutDown] = 1 }), Tanky);
+        var rare = Adapt(engine, Ashe_([8444, Overgrowth], share: new() { [Coup] = 99, [RuneAdvisor.CutDown] = 1 }), Tanky);
         Check("Резню на чемпионе почти не берут (1%) — не ставим",
               rare is not null && rare.Swaps.All(s => s.To != RuneAdvisor.CutDown), Show(rare));
-        var old = Adapt(engine, Tempo([8444, Overgrowth], withShares: false), Tanky);
+        var old = Adapt(engine, Ashe_([8444, Overgrowth], withShares: false), Tanky);
         Check("в старом файле долей нет — правило работает",
               old?.Swaps.Any(s => s.To == RuneAdvisor.CutDown) == true, Show(old));
 
-        // ── 3. Дерева нет на странице ───────────────────────────────────────
-        var insp = Adapt(engine, Tempo([8345, 8347], sub: 8300), Tanky);
-        Check("вторичное — Вдохновение: Неудержимость (Решимость) не ставим",
-              insp is not null && insp.Swaps.All(s => s.To != RuneAdvisor.Unflinching) && Legal(insp.Choice.Page),
-              Show(insp));
+        // ── 3. Вторичное дерево меняется под оппонента ──────────────────────
+        var tree = Adapt(engine, Ashe_([8345, 8347], sub: 8300), Soft, lane: Zed);
+        Check("Вдохновение, а на линии Зед — вторичным становится Решимость с Костяной бронёй",
+              tree is not null && tree.Choice.Page.Sub == 8400 && tree.Choice.Page.Secondary.Contains(RuneAdvisor.BonePlating)
+              && Legal(tree.Choice.Page)
+              && tree.Swaps.Any(s => s.To == RuneAdvisor.BonePlating && s.Why.Contains(DataDragon.Name(Zed))),
+              Show(tree));
+        var rareTree = Adapt(engine, Ashe_([8345, 8347], sub: 8300, subPick: new() { [8300] = 95, [8400] = 5 }), Soft, lane: Zed);
+        Check("Решимость с этим кейстоуном берут в 5% игр — дерево не меняем",
+              rareTree is not null && rareTree.Choice.Page.Sub == 8300 && Legal(rareTree.Choice.Page), Show(rareTree));
+        var oldTree = Adapt(engine, Ashe_([8345, 8347], sub: 8300, withShares: false), Soft, lane: Zed);
+        Check("в старом файле долей деревьев нет — дерево не меняем",
+              oldTree is not null && oldTree.Choice.Page.Sub == 8300, Show(oldTree));
+        var pokeInsp = Adapt(engine, Ashe_([8345, 8347], sub: 8300), Soft, lane: Senna);
+        Check("Вдохновение с Печеньем против поука — уже отвечает, дерево не меняем",
+              pokeInsp is not null && pokeInsp.Choice.Page.Sub == 8300
+              && pokeInsp.Covered.Any(s => s.To == RuneAdvisor.Biscuits), Show(pokeInsp));
 
-        // ── 4. Оппонент по линии ────────────────────────────────────────────
-        const int Zed = 238, Senna = 235;
-        Console.WriteLine($"  Зед бьёт с наскока: {ChampionTraits.BurstThreat(Zed)}, Сенна издалека: "
-                          + $"{ChampionTraits.LongRange(Senna) && !ChampionTraits.BurstThreat(Senna)}");
-        var allin = Adapt(engine, Tempo([8444, Overgrowth]), Soft, lane: Zed);
+        // ── 4. Руны вторичного дерева — по оппоненту ────────────────────────
+        var allin = Adapt(engine, Ashe_([8444, Overgrowth]), Soft, lane: Zed);
         Check("оппонент с наскока — Костяная броня вместо Второго дыхания, причина называет его",
               allin?.Swaps.Any(s => s.From == 8444 && s.To == RuneAdvisor.BonePlating
-                                    && s.Why.Contains(DataDragon.Name(Zed))) == true,
+                                    && s.Why.Contains(DataDragon.Name(Zed))) == true && Legal(allin!.Choice.Page),
               Show(allin));
-        var poke = Adapt(engine, Tempo([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Senna);
+        var poke = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Senna);
         Check("оппонент издалека — Второе дыхание вместо Костяной брони",
               poke?.Swaps.Any(s => s.From == RuneAdvisor.BonePlating && s.To == RuneAdvisor.SecondWind) == true,
               Show(poke));
-        var already = Adapt(engine, Tempo([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Zed);
+        var already = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Zed);
         Check("Костяная броня уже стоит — замены нет, но в «уже отвечает» она есть",
               already is not null && already.Swaps.All(s => s.To != RuneAdvisor.BonePlating)
               && already.Covered.Any(s => s.To == RuneAdvisor.BonePlating),
               Show(already));
 
-        // ── 5. Мягкий состав ────────────────────────────────────────────────
-        var soft = Adapt(engine, baseChoice, Soft);
-        Check("мягкий состав без оппонента — ни Резни, ни Неудержимости, ни осколка",
-              soft is not null && soft.Swaps.All(s => s.To is not (RuneAdvisor.CutDown or RuneAdvisor.Unflinching
-                                                                    or RuneAdvisor.ShardTenacity)),
+        // ── 5. Кейстоун — по данным против оппонента ────────────────────────
+        var ks = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft, lane: Zed);
+        Check("против Зеда Натиск выигрывает больше Темпа — кейстоун Натиск, с причиной",
+              ks is not null && ks.Choice.Keystone == PTA && ks.KeystoneWhy?.Contains(DataDragon.Name(Zed)) == true,
+              $"{(ks is null ? "—" : RuneIcons.NameOf(ks.Choice.Keystone))}: {ks?.KeystoneWhy}");
+        var noLane = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft);
+        Check("без оппонента — Темп (лучший винрейт)", noLane?.Choice.Keystone == LT && noLane.KeystoneWhy is null,
+              noLane is null ? "" : RuneIcons.NameOf(noLane.Choice.Keystone));
+
+        // ── 6. Мягкий состав ────────────────────────────────────────────────
+        var soft = Adapt(engine, Ashe_([8444, Overgrowth], row3: RuneAdvisor.CutDown), Soft);
+        Check("толстых нет — Удар милосердия вместо Резни; ни Неудержимости, ни осколка",
+              soft is not null && soft.Swaps.Any(s => s.From == RuneAdvisor.CutDown && s.To == Coup)
+              && soft.Swaps.All(s => s.To is not (RuneAdvisor.Unflinching or RuneAdvisor.ShardTenacity)),
               Show(soft));
+        Check("разбор для песочницы есть: оппонент, состав, что нужно",
+              tree?.Trace.Any(t => t.Contains(DataDragon.Name(Zed))) == true && tree.Trace.Any(t => t.StartsWith("состав"))
+              && tree.Trace.Any(t => t.StartsWith("вторичное")),
+              string.Join(" / ", tree?.Trace ?? []));
     }
 
     // ── Окно ─────────────────────────────────────────────────────────────────
@@ -206,7 +243,7 @@ internal static class Program
         "{\"id\":8008,\"games\":240429,\"wr\":50.1,\"pick\":89.7,\"page\":{\"primary\":8000,\"sub\":8400," +
         "\"perks\":[8008,9111,9104,8014],\"secondary\":[8444,8451],\"shards\":[5005,5008,5011],\"games\":90000,\"wr\":50.3}," +
         "\"share\":{\"8014\":60.0,\"8017\":33.0,\"9111\":95.0,\"9104\":90.0}," +
-        "\"subShare\":{\"8400\":{\"8444\":50.0,\"8473\":40.0,\"8451\":30.0,\"8242\":10.0}}}," +
+        "\"subShare\":{\"8400\":{\"8444\":50.0,\"8473\":40.0,\"8451\":30.0,\"8242\":10.0}},\"subPick\":{\"8400\":60.0,\"8300\":40.0}}," +
         "{\"id\":8005,\"games\":22533,\"wr\":47.4,\"pick\":8.4,\"page\":{\"primary\":8000,\"sub\":8300," +
         "\"perks\":[8005,9111,9104,8014],\"secondary\":[8345,8347],\"shards\":[5005,5008,5011],\"games\":9000,\"wr\":47.6}}" +
         "],\"vs\":{},\"items\":[],\"spells\":[],\"builds\":[]}");
@@ -222,6 +259,8 @@ internal static class Program
         var w = new OverlayWindow();
         ShowHidden(w);
         w.SetEngine(engine);
+        var trace = "";
+        w.RuneAiTrace = t => trace = t;
         Pump();
 
         var stats = Stats(Ashe);
@@ -269,6 +308,12 @@ internal static class Program
         Draft(Ashe, Tanky, 4);
         Settle();
         ai = Cards(w).FirstOrDefault(c => c.Vm.IsAi);
+        // Роли врагов скрыты (как в соло/дуо) — оппонента подбору даёт окно:
+        // того, кого само поставило на мою роль.
+        var lane = (Get(w, "_lastDraft") as DraftState)?.DirectOpponent?.EffectiveChampionId ?? 0;
+        Check("клиент оппонента не назвал — подбор берёт того, кого окно поставило на мою линию",
+              lane != 0 && trace.Contains("оппонент по линии: " + DataDragon.Name(lane)),
+              $"окно: {(lane == 0 ? "никого" : DataDragon.Name(lane))}; разбор: {trace.Split('\n')[0]}");
         var sel = (int)Get(w, "_runeSelected")!;
         var rings = ai.Vm?.PrimaryMini.Concat(ai.Vm.SecondaryMini)
             .Count(r => r.Ring is SolidColorBrush b && b.Color == System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7)) ?? 0;

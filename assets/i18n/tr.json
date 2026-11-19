@@ -108,7 +108,9 @@
     "aiRunesCovered": "popüler sayfa bu kadroya zaten uyuyor",
     "shardTenacity": "Direnç parçası",
     "laneAllIn": "{0} koridorda all-in yapıyor",
-    "lanePoke": "{0} koridorda uzaktan dürtüyor"
+    "lanePoke": "{0} koridorda uzaktan dürtüyor",
+    "aiVsLane": "koridorda {0} karşısında: {1} puan ({2} maç)",
+    "vsSquishy": "dayanıklı hedefleri yok"
   },
   "pick": {
     "confirm": "{0} seç",

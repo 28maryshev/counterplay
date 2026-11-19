@@ -321,7 +321,9 @@
     "aiRunesCovered": "la page populaire répond déjà à cette compo",
     "shardTenacity": "Fragment de ténacité",
     "laneAllIn": "{0} en lane joue l'all-in",
-    "lanePoke": "{0} en lane harcèle à distance"
+    "lanePoke": "{0} en lane harcèle à distance",
+    "aiVsLane": "contre {0} en lane : {1} pts ({2} parties)",
+    "vsSquishy": "ils n'ont aucune cible résistante"
   },
   "pick": {
     "confirm": "Choisir {0}",

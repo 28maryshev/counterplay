@@ -108,7 +108,9 @@
     "aiRunesCovered": "a página popular já responde a esta composição",
     "shardTenacity": "Fragmento de tenacidade",
     "laneAllIn": "{0} na rota vai all-in",
-    "lanePoke": "{0} na rota faz poke à distância"
+    "lanePoke": "{0} na rota faz poke à distância",
+    "aiVsLane": "contra {0} na rota: {1} pts ({2} partidas)",
+    "vsSquishy": "eles não têm alvos resistentes"
   },
   "pick": {
     "confirm": "Escolher {0}",

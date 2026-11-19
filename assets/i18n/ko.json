@@ -108,7 +108,9 @@
     "aiRunesCovered": "인기 페이지가 이미 이 조합에 대응합니다",
     "shardTenacity": "강인함 파편",
     "laneAllIn": "라인의 {0}은(는) 올인형입니다",
-    "lanePoke": "라인의 {0}은(는) 원거리 견제형입니다"
+    "lanePoke": "라인의 {0}은(는) 원거리 견제형입니다",
+    "aiVsLane": "라인의 {0} 상대: {1}%p ({2}게임)",
+    "vsSquishy": "탱키한 대상이 없습니다"
   },
   "pick": {
     "confirm": "{0} 선택",

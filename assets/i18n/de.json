@@ -108,7 +108,9 @@
     "aiRunesCovered": "die beliebte Seite passt bereits zu dieser Aufstellung",
     "shardTenacity": "Zähigkeits-Splitter",
     "laneAllIn": "{0} auf der Lane geht all-in",
-    "lanePoke": "{0} auf der Lane pokt aus der Distanz"
+    "lanePoke": "{0} auf der Lane pokt aus der Distanz",
+    "aiVsLane": "gegen {0} auf der Lane: {1} Pkt. ({2} Spiele)",
+    "vsSquishy": "sie haben keine robusten Ziele"
   },
   "pick": {
     "confirm": "{0} wählen",

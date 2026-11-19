@@ -22,6 +22,9 @@ namespace Counterplay.Tests;
 /// 2. «Выбрать» (обработчик лока песочницы) — чемпион взят, мой ход сделан
 ///    (как у клиента: действия пика больше нет), руны и сборка на экране.
 /// 3. Враги выбирают — шкала подбора растёт; пятый — во второй строке предметы.
+///    Подбор рун (Counterplay AI) ждёт союзников: в панели песочницы — «ждём
+///    пиков»; союзники выбрали — на карточке страница, в панели — разбор
+///    (владелец, 19.11: «добавь всё это в песочницу, я буду тестить»).
 /// 4. Сменил чемпиона руками — снова наведение, руны ушли.
 /// 5. Обработчик лока, который ставит песочница, подтверждает пик (а не наводит).
 ///
@@ -33,6 +36,7 @@ internal static class Program
     private static int _fails;
     private const int Shen = 98, Braum = 201;
     private static readonly int[] Enemies = [54, 64, 103, 222, 412];
+    private static readonly int[] Allies = [122, 121, 7, 51];        // Дариус, Ка'Зикс, ЛеБлан, Кейтлин
 
     [STAThread]
     private static int Main()
@@ -168,6 +172,21 @@ internal static class Program
                   $"строка {row?.Index}, предметов {row?.Slots.Count(x => x.HasTip)}");
         }
 
+        // 3б. Подбор рун: ждёт союзников, потом — страница и разбор в панели.
+        var text = Get<TextBlock>(panel, "_runeAiText")!;
+        Wait(0.5);
+        Check("враги все, союзников нет — подбор рун ждёт, в панели «ждём пиков»",
+              RuneAi(overlay) is { Index: -1 } && text.Text.StartsWith("ждём пиков"),
+              $"карточка {RuneAi(overlay)?.Index}, панель: {text.Text}");
+        var ally = Get<ComboBox[]>(panel, "_ally")!;
+        var me = Array.IndexOf(rows, "utility");
+        for (int i = 0, k = 0; i < 5; i++)
+            if (i != me) ally[i].SelectedItem = DataDragon.Name(Allies[k++]);
+        var ready = WaitFor(() => RuneAi(overlay) is { Index: >= 0 }, 5);
+        Check("союзники выбрали — на карточке подбора страница, в панели разбор",
+              ready && text.Text.Contains("оппонент по линии") && text.Text.Contains("страница:"),
+              $"карточка {RuneAi(overlay)?.Index}, панель: {text.Text.Replace("\n", " / ")}");
+
         // 4. Сменил руками.
         Call(panel, "SetMy", Braum);
         var gone = WaitFor(() => !Vis(overlay, "RunesBar"), 3);
@@ -274,6 +293,11 @@ internal static class Program
         w.Opacity = 0;
         w.Show();
     }
+
+    /// Карточка подбора рун — третья в сетке панели рун.
+    private static OverlayWindow.RuneOptionVm? RuneAi(Window w) =>
+        ((Grid)w.FindName("RuneGrid")).Children.OfType<ContentPresenter>()
+            .Select(c => c.Content).OfType<OverlayWindow.RuneOptionVm>().FirstOrDefault(v => v.IsAi);
 
     private static void Check(string what, bool ok, string detail)
     {

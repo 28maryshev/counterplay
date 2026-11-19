@@ -224,7 +224,7 @@ sealed partial class TestPanel : Window
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — тестовый драфт";
-        Width  = 620; Height = 572;
+        Width  = 620; Height = 700;   // внизу — разбор подбора рун
         Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x14, 0x1D));
         // В левый верхний угол рабочей области, с отступом от краёв (просьба
         // владельца; раньше — по центру экрана).
@@ -547,6 +547,11 @@ sealed partial class TestPanel : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(liveRow, 10); Grid.SetColumn(liveRow, 0); Grid.SetColumnSpan(liveRow, 3);
         root.Children.Add(liveRow);
+
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var runeAi = RuneAiRow();
+        Grid.SetRow(runeAi, 11); Grid.SetColumn(runeAi, 0); Grid.SetColumnSpan(runeAi, 3);
+        root.Children.Add(runeAi);
 
 
         Content = root;

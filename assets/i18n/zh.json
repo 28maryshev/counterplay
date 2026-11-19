@@ -424,7 +424,9 @@
     "aiRunesCovered": "热门符文页已足以应对此阵容",
     "shardTenacity": "韧性碎片",
     "laneAllIn": "对线的{0}擅长强开",
-    "lanePoke": "对线的{0}擅长远程消耗"
+    "lanePoke": "对线的{0}擅长远程消耗",
+    "aiVsLane": "对线{0}：{1}个百分点（{2}场）",
+    "vsSquishy": "对方没有坦度高的目标"
   },
   "pick": {
     "confirm": "选择 {0}",

@@ -424,7 +424,9 @@
     "aiRunesCovered": "trang ngọc phổ biến đã đáp ứng đội hình này",
     "shardTenacity": "Mảnh Kháng Hiệu Ứng",
     "laneAllIn": "{0} trên đường lao vào tất tay",
-    "lanePoke": "{0} trên đường cấu rỉa từ xa"
+    "lanePoke": "{0} trên đường cấu rỉa từ xa",
+    "aiVsLane": "gặp {0} trên đường: {1} điểm ({2} trận)",
+    "vsSquishy": "đối thủ không có mục tiêu trâu bò"
   },
   "pick": {
     "confirm": "Chọn {0}",

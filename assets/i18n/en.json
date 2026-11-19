@@ -28,7 +28,9 @@
     "aiRunesCovered": "the popular page already answers this comp",
     "shardTenacity": "Tenacity shard",
     "laneAllIn": "{0} in lane goes all-in",
-    "lanePoke": "{0} in lane pokes from range"
+    "lanePoke": "{0} in lane pokes from range",
+    "aiVsLane": "vs {0} in lane: {1} pts ({2} games)",
+    "vsSquishy": "they have no tanky targets"
   },
   "tips": [
     "A lane counter against your direct opponent matters more than a champion's overall win rate.",

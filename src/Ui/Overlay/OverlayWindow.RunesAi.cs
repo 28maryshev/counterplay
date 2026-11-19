@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 
 namespace Counterplay;
@@ -68,12 +69,25 @@ public partial class OverlayWindow
         return (mine + Math.Min(theirs, 5), team + 5, theirs >= 5 && mine >= team);
     }
 
+    // Оппонент по линии меняется и без нового пика: игрок переставил роль врага
+    // в его карточке — поэтому он тоже в подписи.
     private string RuneDraftSig()
     {
         if (_lastDraft is not { } d) return "";
         return string.Join(",", d.MyTeam.Concat(d.TheirTeam)
-            .Where(p => AllyWaver.Locked(d, p)).Select(p => $"{p.CellId}:{p.ChampionId}"));
+            .Where(p => AllyWaver.Locked(d, p)).Select(p => $"{p.CellId}:{p.ChampionId}"))
+            + $"|{LaneOpponent()}";
     }
+
+    /// Оппонент по линии для подбора. Клиент называет его, только когда роли
+    /// врагов открыты; в соло/дуо (и в песочнице) их прячет, и тогда — тот, кого
+    /// окно само поставило на мою роль (по доле игр или по ручной метке в
+    /// карточке врага). Без этого правила «по линии» в ранкеде молчали бы.
+    private int? LaneOpponent() =>
+        _lastDraft?.DirectOpponent?.EffectiveChampionId is { } id and not 0 ? id : _lastOpponentId;
+
+    /// Разбор подбора — для песочницы: что подбор увидел и почему выбрал так.
+    public Action<string>? RuneAiTrace { get; set; }
 
     /// Пик союзника или врага — пересчитать подбор, не дожидаясь клика по панели.
     private void RefreshRunesForDraft()
@@ -94,13 +108,18 @@ public partial class OverlayWindow
 
         var enemies = _lastDraft?.TheirTeam
             .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
-        _runeAdvice = done && _engine is not null && RuneIcons.Loaded
-            ? RuneAdvisor.Adapt(_runeChoices[0], _runeChampId, enemies, _lastOpponentId,
+        _runeAdvice = done && _engine is not null && RuneIcons.Loaded && _runeStats is { } stats
+            ? RuneAdvisor.Adapt(stats, _runeChampId, enemies, LaneOpponent(),
                                 id => _engine.DamageShare(id), RuneIcons.SlotOf)
             : null;
 
         if (_runeAdvice is { } adv)
         {
+            // Кейстоун подбор берёт против оппонента по линии — он может
+            // отличаться от первого варианта, и тогда в кольце и он.
+            var newKeystone = adv.Choice.Keystone != _runeChoices[0].Keystone;
+            var news = adv.Swaps.Count > 0 || newKeystone;
+
             if (_runeAiGlowFor != _runeChampId)
             {
                 _runeAiGlowFor = _runeChampId;
@@ -108,7 +127,7 @@ public partial class OverlayWindow
                 // Подбор пришёл, а игрок карточку не выбирал — подбор и есть
                 // лучший ответ: выбираем его и зовём к кнопке. Если менять
                 // нечего, это та же страница, что и первая, — выбор не трогаем.
-                if (!_runeTouched && adv.Swaps.Count > 0)
+                if (!_runeTouched && news)
                 {
                     _runeSelected = index;
                     RunesStatus.Visibility = Visibility.Collapsed;
@@ -117,16 +136,25 @@ public partial class OverlayWindow
             }
 
             var changed = adv.Swaps.Where(s => !s.Shard).Select(s => s.To).ToHashSet();
-            var lines = adv.Swaps.Count > 0 ? adv.Swaps : adv.Covered;
-            var head = adv.Swaps.Count > 0 ? Loc.T("runes.aiTipHead") : Capitalize(Loc.T("runes.aiRunesCovered"));
-            var tip = string.Join("\n", lines.Select(SwapLine).Prepend(head));
+            var lines = new List<string>();
+            if (adv.KeystoneWhy is { } kw) lines.Add($"• {RuneIcons.NameOf(adv.Choice.Keystone)} — {kw}");
+            lines.AddRange((adv.Swaps.Count > 0 ? adv.Swaps : adv.Covered)
+                           .Where(s => s.Why.Length > 0).Select(SwapLine));
+            var head = news ? Loc.T("runes.aiTipHead") : Capitalize(Loc.T("runes.aiRunesCovered"));
+            var tip = string.Join("\n", lines.Prepend(head));
             var card = RuneCard(adv.Choice, index, tip, changed);
+            RuneAiTrace?.Invoke(Explain(adv));
             return card with
             {
                 IsAi = true,
                 BorderBrush = index == _runeSelected ? card.BorderBrush : RuneAiEdge,
+                KeystoneRing = newKeystone ? AiBrush : Brushes.Transparent,
             };
         }
+
+        RuneAiTrace?.Invoke(done
+            ? "драфт закончен, но судить не по чему: " + (RuneIcons.Loaded ? "врагов не разобрать" : "справочник рун не загружен")
+            : $"ждём пиков: выбрали {locked} из {total}");
 
         // Подбора нет (пики идут) — выбирать нечего.
         if (_runeSelected >= index) _runeSelected = 0;
@@ -161,6 +189,20 @@ public partial class OverlayWindow
             BodyOpacity = 0.38,
             KeystoneRing = SkelEdge,
         };
+    }
+
+    /// Разбор для песочницы: что увидел, что поставил.
+    private static string Explain(RuneAdvisor.Advice a)
+    {
+        var p = a.Choice.Page;
+        var page = $"{RuneIcons.StyleName(p.Primary)}: {string.Join(", ", p.Perks.Select(RuneIcons.NameOf))} · "
+                 + $"{RuneIcons.StyleName(p.Sub)}: {string.Join(", ", p.Secondary.Select(RuneIcons.NameOf))} · "
+                 + $"осколки {string.Join(",", p.Shards)}";
+        var swaps = a.Swaps.Count == 0 ? "замен нет"
+            : "замены: " + string.Join("; ", a.Swaps.Select(s =>
+                (s.Shard ? $"осколок {s.From}→{s.To}" : $"{RuneIcons.NameOf(s.From)}→{RuneIcons.NameOf(s.To)}")
+                + (s.Why.Length > 0 ? $" ({s.Why})" : "")));
+        return string.Join("\n", a.Trace.Append(swaps).Append("страница: " + page));
     }
 
     /// «• Резня — толстые цели (3)».

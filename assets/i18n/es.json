@@ -331,7 +331,9 @@
     "aiRunesCovered": "la página popular ya responde a esta composición",
     "shardTenacity": "Fragmento de tenacidad",
     "laneAllIn": "{0} en línea va all-in",
-    "lanePoke": "{0} en línea hace poke a distancia"
+    "lanePoke": "{0} en línea hace poke a distancia",
+    "aiVsLane": "contra {0} en línea: {1} pts ({2} partidas)",
+    "vsSquishy": "no tienen objetivos resistentes"
   },
   "pick": {
     "confirm": "Elegir {0}",

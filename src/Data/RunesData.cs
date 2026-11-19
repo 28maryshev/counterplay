@@ -27,6 +27,10 @@ public sealed record RuneChoice(
     /// Руны вторичного дерева — от игр с этим вторичным деревом. Осколков в
     /// долях нет: их меняют под состав на любом чемпионе.
     public IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>>? SubShare { get; init; }
+
+    /// Сами вторичные деревья — от игр кейстоуна (с 19.11): подбор меняет
+    /// дерево только на то, что с этим кейстоуном играют.
+    public IReadOnlyDictionary<int, double>? SubPick { get; init; }
 }
 
 /// <summary>
@@ -408,6 +412,7 @@ public static class RunesClient
                     ? ss.EnumerateObject().ToDictionary(
                         x => int.Parse(x.Name), x => Shares(x.Value))
                     : null,
+                SubPick = k.TryGetProperty("subPick", out var sp) ? Shares(sp) : null,
             });
         }
 
@@ -470,6 +475,9 @@ public static class RunesClient
     /// матчапов тонкие (~60 игр на патч), чистый винрейт по ним был бы шумом.
     /// На сервере дельта уже темперирована объёмом выборки.
     /// </summary>
+    /// Реже этого кейстоун на роли вариантом не показываем, % игр связки.
+    public const double MinKeystonePick = 2.0;
+
     /// Вариантов два: третье место панели — подбор рун под состав
     /// (<see cref="RuneAdvisor"/>).
     public static IReadOnlyList<RuneChoice> Choices(ChampStats s, int? opponentId, int count = 2)
@@ -482,7 +490,12 @@ public static class RunesClient
             deltas = v.Deltas;
         }
 
-        var scored = s.Keystones
+        // Кейстоун, который на роли почти не берут, вариантом не бывает. Его
+        // отсекает и выгрузка (MIN_KEYSTONE_SHARE), но файлы до 19.11 и кэш
+        // Cloudflare ещё держат такие: у Эш стрелком первой стояла Хватка
+        // нежити на 0,04% игр. Если ходовых нет вовсе — берём что есть.
+        var common = s.Keystones.Where(k => k.PickRate >= MinKeystonePick).ToList();
+        var scored = (common.Count > 0 ? common : s.Keystones)
             .Select(k => k with
             {
                 VsDelta = deltas.GetValueOrDefault(k.Keystone),

@@ -339,7 +339,7 @@ def pick_builds(raw_builds, strata: dict, builds_total: int, items: list[dict],
     return builds
 
 
-def rune_shares(pages) -> tuple[dict, dict]:
+def rune_shares(pages) -> tuple[dict, dict, dict]:
     """Как часто берут каждую мелкую руну при этом кейстоуне, в %.
 
     Основное дерево задано кейстоуном, поэтому его руны — от всех игр
@@ -374,8 +374,11 @@ def rune_shares(pages) -> tuple[dict, dict]:
                 out[str(k)] = v
         return out
 
+    # Сами вторичные деревья — от игр кейстоуна: подбор меняет дерево только на
+    # то, которое с этим кейстоуном играют (Решимость ради Костяной брони).
     return (pct(prim, total),
-            {str(s): pct(m, sub_total[s]) for s, m in sub.items() if pct(m, sub_total[s])})
+            {str(s): pct(m, sub_total[s]) for s, m in sub.items() if pct(m, sub_total[s])},
+            pct(sub_total, total))
 
 
 def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
@@ -410,7 +413,7 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
                                WHERE champion_id=? AND role=? AND keystone=? AND patch IN ({ph})
                                GROUP BY primary_style, sub_style, perks, shards""",
                       [champ, role, ks, *ps])
-        share, sub_share = rune_shares(all_pages)
+        share, sub_share, sub_pick = rune_shares(all_pages)
         # Лучшая страница внутри этого кейстоуна: по сглаженному винрейту,
         # но только среди достаточно ходовых (иначе всплывёт случайная).
         pages = [r for r in all_pages if r[4] >= MIN_PAGE]
@@ -440,6 +443,7 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
             },
             'share': share,
             'subShare': sub_share,
+            'subPick': sub_pick,
         })
     if not keystones:
         return None
