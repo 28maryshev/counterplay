@@ -110,7 +110,8 @@
     "laneAllIn": "{0} koridorda all-in yapıyor",
     "lanePoke": "{0} koridorda uzaktan dürtüyor",
     "aiVsLane": "koridorda {0} karşısında: {1} puan ({2} maç)",
-    "vsSquishy": "dayanıklı hedefleri yok"
+    "vsSquishy": "dayanıklı hedefleri yok",
+    "shardHealth": "Can parçası"
   },
   "pick": {
     "confirm": "{0} seç",

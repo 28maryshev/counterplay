@@ -426,7 +426,8 @@
     "laneAllIn": "{0} in corsia va all-in",
     "lanePoke": "{0} in corsia fa poke dalla distanza",
     "aiVsLane": "contro {0} in corsia: {1} punti ({2} partite)",
-    "vsSquishy": "non hanno bersagli resistenti"
+    "vsSquishy": "non hanno bersagli resistenti",
+    "shardHealth": "Frammento di salute"
   },
   "pick": {
     "confirm": "Scegli {0}",

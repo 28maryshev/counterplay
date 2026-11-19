@@ -333,7 +333,8 @@
     "laneAllIn": "{0} en línea va all-in",
     "lanePoke": "{0} en línea hace poke a distancia",
     "aiVsLane": "contra {0} en línea: {1} pts ({2} partidas)",
-    "vsSquishy": "no tienen objetivos resistentes"
+    "vsSquishy": "no tienen objetivos resistentes",
+    "shardHealth": "Fragmento de vida"
   },
   "pick": {
     "confirm": "Elegir {0}",

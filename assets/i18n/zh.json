@@ -426,7 +426,8 @@
     "laneAllIn": "对线的{0}擅长强开",
     "lanePoke": "对线的{0}擅长远程消耗",
     "aiVsLane": "对线{0}：{1}个百分点（{2}场）",
-    "vsSquishy": "对方没有坦度高的目标"
+    "vsSquishy": "对方没有坦度高的目标",
+    "shardHealth": "生命值碎片"
   },
   "pick": {
     "confirm": "选择 {0}",

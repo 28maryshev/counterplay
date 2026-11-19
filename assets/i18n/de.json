@@ -110,7 +110,8 @@
     "laneAllIn": "{0} auf der Lane geht all-in",
     "lanePoke": "{0} auf der Lane pokt aus der Distanz",
     "aiVsLane": "gegen {0} auf der Lane: {1} Pkt. ({2} Spiele)",
-    "vsSquishy": "sie haben keine robusten Ziele"
+    "vsSquishy": "sie haben keine robusten Ziele",
+    "shardHealth": "Lebens-Splitter"
   },
   "pick": {
     "confirm": "{0} wählen",

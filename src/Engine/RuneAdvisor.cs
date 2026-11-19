@@ -21,8 +21,10 @@ namespace Counterplay;
 ///   • танки — Резня; толстых нет совсем — Удар милосердия;
 ///   • оппонент по линии бьёт с наскока, у них убийцы или дайв — Костяная
 ///     броня; бьёт издалека или состав на подлове — Второе дыхание, а у
-///     Доминирования и Вдохновения — Вкус крови и Печенье;
-///   • много контроля — Неудержимость и осколок стойкости.
+///     Доминирования и Вдохновения — Вкус крови и Печенье. Кто как бьёт —
+///     ручные списки ChampionTraits.LanePoke / LaneAllIn, собранные по гайдам;
+///   • много контроля — Неудержимость и осколок стойкости; иначе против
+///     оппонента с наскока — осколок плоского здоровья вместо растущего.
 /// Оппонент по линии весомее состава: эти руны работают в лейне.
 ///
 /// Два ограничения, без которых совет видно как машинный:
@@ -65,8 +67,9 @@ public static class RuneAdvisor
     public const int BonePlating = 8473, SecondWind = 8444, Unflinching = 8242;
     public const int TasteOfBlood = 8139, Biscuits = 8345;
 
-    /// Осколок «стойкость и сопротивление замедлению» — третья ячейка.
-    public const int ShardTenacity = 5013;
+    /// Осколки третьей ячейки: «стойкость и сопротивление замедлению»,
+    /// плоское здоровье, здоровье с ростом по уровню.
+    public const int ShardTenacity = 5013, ShardHealth = 5011, ShardHealthScaling = 5001;
     private const int DefenseShard = 2;
 
     private sealed record Need(int Rune, double Weight, string Why);
@@ -93,8 +96,8 @@ public static class RuneAdvisor
                           choice.VsGames.ToString("N0"));
         trace.Add(opp is { } y
             ? $"оппонент по линии: {DataDragon.Name(y)}"
-              + (ChampionTraits.BurstThreat(y) ? " — бьёт с наскока"
-                 : ChampionTraits.LongRange(y) ? " — бьёт издалека" : "")
+              + (ChampionTraits.LanePoke(y) ? " — бьёт издалека"
+                 : ChampionTraits.LaneAllIn(y) ? " — бьёт с наскока" : "")
               + (stats.Vs.ContainsKey(y) ? "" : " (поправок кейстоунов против него нет)")
             : "оппонент по линии не известен");
         trace.Add($"кейстоун: {Rune(choice.Keystone)} — {choice.Winrate:0.0}%"
@@ -165,16 +168,24 @@ public static class RuneAdvisor
         }
 
         // ── Осколок защиты ────────────────────────────────────────────────
+        // Много контроля — стойкость. Иначе, если оппонент по линии заходит с
+        // наскока, — плоское здоровье вместо растущего: оно есть с первой
+        // минуты, когда и решается линия (так советуют против агрессивных
+        // линий). Растущее на странице остаётся у тех, против кого линия тихая.
         var shards = page.Shards.ToList();
-        if (comp.ManyCc(me) && shards.Count > DefenseShard)
+        var shardWant = comp.ManyCc(me) ? (ShardTenacity, Loc.T("build.vsCc", comp.Cc))
+            : opp is { } z && ChampionTraits.LaneAllIn(z) && !ChampionTraits.LanePoke(z)
+              && shards.Count > DefenseShard && shards[DefenseShard] == ShardHealthScaling
+                ? (ShardHealth, Loc.T("runes.laneAllIn", DataDragon.Name(z)))
+                : ((int, string)?)null;
+        if (shardWant is (int shard, string shardWhy) && shards.Count > DefenseShard)
         {
-            var why = Loc.T("build.vsCc", comp.Cc);
             var was = shards[DefenseShard];
-            if (was == ShardTenacity) covered.Add(new Swap(was, ShardTenacity, why, true));
+            if (was == shard) covered.Add(new Swap(was, shard, shardWhy, true));
             else
             {
-                shards[DefenseShard] = ShardTenacity;
-                swaps.Add(new Swap(was, ShardTenacity, why, true));
+                shards[DefenseShard] = shard;
+                swaps.Add(new Swap(was, shard, shardWhy, true));
             }
         }
 
@@ -199,9 +210,9 @@ public static class RuneAdvisor
         // Линия: Костяная броня режет серию ударов с наскока, Второе дыхание,
         // Вкус крови и Печенье отхиливают то, что прилетело издалека.
         var name = opp is { } x ? DataDragon.Name(x) : "";
-        if (opp is { } a && ChampionTraits.BurstThreat(a))
-            list.Add(new(BonePlating, 1.5, Loc.T("runes.laneAllIn", name)));
-        else if (opp is { } p && ChampionTraits.LongRange(p))
+        // Кто как бьёт — ручные списки ChampionTraits.LanePoke / LaneAllIn (как
+        // в гайдах), важнее меток: «взрывные» артиллерийские маги — это поук.
+        if (opp is { } p && ChampionTraits.LanePoke(p))
         {
             // Три руны — один ответ (отхил после размена), и вес у них один:
             // иначе подбор менял бы Вдохновение с Печеньем на Решимость ради
@@ -211,6 +222,8 @@ public static class RuneAdvisor
             list.Add(new(TasteOfBlood, 1.5, why));
             list.Add(new(Biscuits, 1.5, why));
         }
+        else if (opp is { } a && ChampionTraits.LaneAllIn(a))
+            list.Add(new(BonePlating, 1.5, Loc.T("runes.laneAllIn", name)));
 
         // Состав — слабее линии.
         if (comp.Burst >= 2)

@@ -110,7 +110,8 @@
     "laneAllIn": "{0} na rota vai all-in",
     "lanePoke": "{0} na rota faz poke à distância",
     "aiVsLane": "contra {0} na rota: {1} pts ({2} partidas)",
-    "vsSquishy": "eles não têm alvos resistentes"
+    "vsSquishy": "eles não têm alvos resistentes",
+    "shardHealth": "Fragmento de vida"
   },
   "pick": {
     "confirm": "Escolher {0}",

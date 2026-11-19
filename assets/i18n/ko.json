@@ -110,7 +110,8 @@
     "laneAllIn": "라인의 {0}은(는) 올인형입니다",
     "lanePoke": "라인의 {0}은(는) 원거리 견제형입니다",
     "aiVsLane": "라인의 {0} 상대: {1}%p ({2}게임)",
-    "vsSquishy": "탱키한 대상이 없습니다"
+    "vsSquishy": "탱키한 대상이 없습니다",
+    "shardHealth": "체력 파편"
   },
   "pick": {
     "confirm": "{0} 선택",

@@ -207,7 +207,9 @@ public partial class OverlayWindow
 
     /// «• Резня — толстые цели (3)».
     private static string SwapLine(RuneAdvisor.Swap s) =>
-        "• " + (s.Shard ? Loc.T("runes.shardTenacity") : RuneIcons.NameOf(s.To)) + " — " + s.Why;
+        "• " + (!s.Shard ? RuneIcons.NameOf(s.To)
+                : Loc.T(s.To == RuneAdvisor.ShardHealth ? "runes.shardHealth" : "runes.shardTenacity"))
+        + " — " + s.Why;
 
     /// Карточка встала в сетку: анимации ждут, пока у неё появится шаблон.
     private void AfterRuneAiRender()

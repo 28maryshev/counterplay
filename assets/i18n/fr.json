@@ -323,7 +323,8 @@
     "laneAllIn": "{0} en lane joue l'all-in",
     "lanePoke": "{0} en lane harcèle à distance",
     "aiVsLane": "contre {0} en lane : {1} pts ({2} parties)",
-    "vsSquishy": "ils n'ont aucune cible résistante"
+    "vsSquishy": "ils n'ont aucune cible résistante",
+    "shardHealth": "Fragment de PV"
   },
   "pick": {
     "confirm": "Choisir {0}",

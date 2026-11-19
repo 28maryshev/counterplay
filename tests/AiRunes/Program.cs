@@ -109,7 +109,7 @@ internal static class Program
                                     Dictionary<int, double>? share = null,
                                     Dictionary<int, double>? subPick = null,
                                     bool withShares = true, bool withPta = false,
-                                    Dictionary<int, double>? vsZed = null)
+                                    Dictionary<int, double>? vsZed = null, int shard3 = 5011)
     {
         IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>> subShare =
             new Dictionary<int, IReadOnlyDictionary<int, double>>
@@ -119,7 +119,7 @@ internal static class Program
                 [8300] = new Dictionary<int, double> { [8345] = 90, [8347] = 80, [8304] = 20 },
             };
         RuneChoice Ks(int ks, double wr, double pick, int primary, int[] perks, int s, int[] sec) =>
-            new(ks, 100000, wr, pick, new RunePage(primary, s, perks, sec, [5005, 5008, 5011], 50000, wr), 0, 0)
+            new(ks, 100000, wr, pick, new RunePage(primary, s, perks, sec, [5005, 5008, shard3], 50000, wr), 0, 0)
             {
                 Share = withShares ? share ?? new() { [Coup] = 60, [RuneAdvisor.CutDown] = 33, [9111] = 95, [9104] = 90 } : null,
                 SubShare = withShares ? subShare : null,
@@ -213,6 +213,26 @@ internal static class Program
               already is not null && already.Swaps.All(s => s.To != RuneAdvisor.BonePlating)
               && already.Covered.Any(s => s.To == RuneAdvisor.BonePlating),
               Show(already));
+
+        // ── 4б. Кто как бьёт на линии — ручные списки важнее меток ──────────
+        const int Xerath = 101, Darius = 122, Kennen = 85;
+        var xer = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Xerath);
+        Check("Ксерат («взрывной» по меткам, на деле поук) — Второе дыхание, а не Костяная броня",
+              xer?.Swaps.Any(s => s.To == RuneAdvisor.SecondWind) == true
+              && xer.Choice.Page.Secondary.Contains(RuneAdvisor.SecondWind), Show(xer));
+        var dar = Adapt(engine, Ashe_([8444, Overgrowth]), Soft, lane: Darius);
+        Check("Дариус (без метки «взрывной») — Костяная броня",
+              dar?.Swaps.Any(s => s.To == RuneAdvisor.BonePlating) == true, Show(dar));
+        var ken = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Kennen);
+        Check("Кеннен (без метки поука) — Второе дыхание",
+              ken?.Swaps.Any(s => s.To == RuneAdvisor.SecondWind && s.Why.Contains(DataDragon.Name(Kennen))) == true,
+              Show(ken));
+        var hp = Adapt(engine, Ashe_([8444, Overgrowth], shard3: RuneAdvisor.ShardHealthScaling), Soft, lane: Darius);
+        Check("против наскока без контроля — осколок плоского здоровья вместо растущего",
+              hp?.Choice.Page.Shards[2] == RuneAdvisor.ShardHealth, Show(hp));
+        var hpPoke = Adapt(engine, Ashe_([8444, Overgrowth], shard3: RuneAdvisor.ShardHealthScaling), Soft, lane: Xerath);
+        Check("против поука растущее здоровье остаётся", hpPoke?.Choice.Page.Shards[2] == RuneAdvisor.ShardHealthScaling,
+              Show(hpPoke));
 
         // ── 5. Кейстоун — по данным против оппонента ────────────────────────
         var ks = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft, lane: Zed);
