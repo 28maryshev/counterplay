@@ -314,6 +314,12 @@ internal static class Smoke
             var s = new SettingsWindow();
             ShowHidden(s);
             await Settle();
+            // Кнопка «Скрытые чемпионы» — окно через окно драфта, поверх настроек.
+            var hidden = s.HiddenWindow();
+            if (hidden.Owner != s) throw new InvalidOperationException("скрытые чемпионы не поверх настроек");
+            ShowHidden(hidden);
+            await Settle();
+            hidden.Close();
             s.Close();
         });
         await Step("закрытие", () => w.Close());

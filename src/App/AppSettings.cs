@@ -69,7 +69,9 @@ public sealed class AppSettings
     /// Окно графика в днях: 30 — текущая форма, 90 — тренд за сезон.
     public int ChartDays { get; set; } = 90;
 
-    /// Очередь, которая открывается по умолчанию: "last" — последняя выбранная.
+    /// Очередь, которая открывается по умолчанию: "solo", "flex", "normal",
+    /// "aram" или "last" — последняя выбранная в профиле, а пока не выбирали —
+    /// где больше игр (SessionTracker, SelectedQueue).
     public string DefaultQueue { get; set; } = "last";
 
     /// Компактная карточка ранга: мельче эмблема, без полосы прогресса.
@@ -226,7 +228,7 @@ public sealed class AppSettings
         DraftCount = Math.Clamp(DraftCount, 3, 12);
         if (ChartDays is not (30 or 90)) ChartDays = 90;
         if (ChartMode is not ("winrate" or "rating" or "off")) ChartMode = "rating";
-        if (string.IsNullOrWhiteSpace(DefaultQueue)) DefaultQueue = "last";
+        if (DefaultQueue is not ("last" or "solo" or "flex" or "normal" or "aram")) DefaultQueue = "last";
         if (ClientSize is not ("auto" or "1024" or "1280" or "1600" or "1920")) ClientSize = "auto";
         if (DraftPlacement is not ("right" or "cover" or "allies" or "center" or "remember"))
             DraftPlacement = "remember";

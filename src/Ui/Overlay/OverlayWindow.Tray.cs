@@ -114,6 +114,9 @@ public partial class OverlayWindow
                 _autostartItem.Checked = on; // фактическое состояние (реестр мог не поддаться)
             };
             menu.Items.Add(_autostartItem);
+            // Автозапуск переключают и в окне настроек — галочка берёт
+            // настоящее состояние при каждом открытии меню.
+            menu.Opening += (_, _) => _autostartItem.Checked = Autostart.IsEnabled;
         }
 
         // Настройки — из трея тоже: окно может быть свёрнуто, а поменять что-то

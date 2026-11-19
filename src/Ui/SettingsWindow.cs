@@ -246,8 +246,12 @@ sealed class SettingsWindow : Window
             [("30", Loc.T("settings.days30")), ("90", Loc.T("settings.days90"))],
             s.ChartDays.ToString(), v => { s.ChartDays = int.Parse(v); MarkDirty(); }));
 
+        // Все четыре очереди профиля и их подписи оттуда же: до 19.11 здесь
+        // были только соло и флекс, английскими словами, а профиль умел и
+        // нормалы с ARAM (OverlayWindow.Session — те же ключи).
         body.Children.Add(Choice(Loc.T("settings.queue"), Loc.T("settings.queueHint"),
-            [("last", Loc.T("settings.queueLast")), ("solo", "Solo/Duo"), ("flex", "Flex")],
+            [("last", Loc.T("settings.queueLast")),
+             .. new[] { "solo", "flex", "normal", "aram" }.Select(q => (q, Loc.T("session.queue." + q)))],
             s.DefaultQueue, v => { s.DefaultQueue = v; MarkDirty(); }));
 
         body.Children.Add(Row(Loc.T("settings.readyCompact"), Loc.T("settings.readyCompactHint"),
@@ -300,6 +304,11 @@ sealed class SettingsWindow : Window
             s.DraftUnowned, v => { s.DraftUnowned = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftMirror"),  Loc.T("settings.draftMirrorHint"),
             s.DraftMirror,  v => { s.DraftMirror = v;  MarkDirty(); }));
+        // Скрытые кнопкой 👎: в драфте окно открывает кнопка над тир-листом, а
+        // вне драфта вернуть чемпиона было негде. Открывается сразу, мимо
+        // «Применить», — это не настройка, а список.
+        body.Children.Add(Row(Loc.T("dislike.windowTitle"), Loc.T("dislike.btnTip"),
+            SmallButton(Loc.T("settings.open"), OpenHidden)));
 
         body.Children.Add(Section(Loc.T("settings.placement")));
         body.Children.Add(ChoiceList(Loc.T("settings.placementHint"),
@@ -338,6 +347,19 @@ sealed class SettingsWindow : Window
             s.AlwaysOnTop,    v => { s.AlwaysOnTop = v;    MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.inGame"),  Loc.T("settings.inGameHint"),
             s.KeepDuringGame, v => { s.KeepDuringGame = v; MarkDirty(); }));
+
+        // Автозапуск жил только в меню трея — в настройках его не находили. Не
+        // поле AppSettings, а ключ реестра (Autostart) и settings.json, поэтому
+        // мимо «Применить» и мимо «По умолчанию», как язык. Песочница реестр не
+        // трогает: её настройки живут только в памяти.
+        if (Autostart.Supported && !Sandbox.Active)
+            body.Children.Add(Row(Loc.T("tray.autostart"), Loc.T("settings.autostartHint"),
+                Autostart.IsEnabled, v =>
+                {
+                    var on = Autostart.Set(v);
+                    Settings.Set("autostart", on);
+                    if (on != v) _body.Content = Build();   // реестр не поддался — показать как есть
+                }));
 
         var reset = ActionButton(Loc.T("settings.reset"), "#8AA0B2", "#35485A");
         reset.Click += (_, _) => { _draft = AppSettings.Defaults(); MarkDirty(); _body.Content = Build(); };
@@ -402,8 +424,43 @@ sealed class SettingsWindow : Window
         Margin = new Thickness(0, 18, 0, 6)
     };
 
+    /// Окно скрытых чемпионов. Через окно драфта, если оно есть: вернули
+    /// чемпиона — оно пересчитает советы. Поверх настроек: они Topmost, и
+    /// окно, принадлежащее драфту, ушло бы под них.
+    private void OpenHidden()
+    {
+        var w = HiddenWindow();
+        if (w.IsVisible) w.Activate(); else w.Show();
+    }
+
+    /// Окно скрытых, готовое к показу, но не показанное: дымовая проверка
+    /// показывает его сама, невидимым (Smoke, шаг «окно настроек»).
+    internal DislikesWindow HiddenWindow()
+    {
+        var overlay = Owner as OverlayWindow
+                      ?? Application.Current?.Windows.OfType<OverlayWindow>().FirstOrDefault();
+        var w = overlay?.OpenDislikes() ?? new DislikesWindow("", _ => { });
+        w.Owner = this;
+        return w;
+    }
+
+    /// Небольшая кнопка для строки настройки — на месте тумблера.
+    private static Button SmallButton(string text, Action onClick)
+    {
+        var b = ActionButton(text, "#36D6E7", "#36D6E7");
+        b.Margin = new Thickness(0);
+        b.Padding = new Thickness(12, 4, 12, 4);
+        b.VerticalAlignment = VerticalAlignment.Center;
+        b.Click += (_, _) => onClick();
+        return b;
+    }
+
     /// Строка настройки: название и пояснение слева, тумблер справа.
-    private static UIElement Row(string title, string hint, bool value, Action<bool> onSet)
+    private static UIElement Row(string title, string hint, bool value, Action<bool> onSet) =>
+        Row(title, hint, Toggle(value, onSet));
+
+    /// Строка настройки с чем угодно справа (тумблер, кнопка).
+    private static UIElement Row(string title, string hint, UIElement right)
     {
         var grid = new Grid { Margin = new Thickness(0, 7, 0, 7) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -426,9 +483,8 @@ sealed class SettingsWindow : Window
             });
         grid.Children.Add(texts);
 
-        var toggle = Toggle(value, onSet);
-        Grid.SetColumn(toggle, 1);
-        grid.Children.Add(toggle);
+        Grid.SetColumn(right, 1);
+        grid.Children.Add(right);
         return grid;
     }
 
@@ -545,7 +601,10 @@ sealed class SettingsWindow : Window
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0)
             });
 
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 7, 0, 0) };
+        // С переносом: у очереди и размера под клиент по пять вариантов, и на
+        // длинных языках они не влезали в ширину окна — последний обрезался.
+        // Нижний отступ кнопок съедается отрицательным полем ряда.
+        var row = new WrapPanel { Margin = new Thickness(0, 7, 0, -6) };
         var buttons = new List<Border>();
         var state = value;
 
@@ -570,7 +629,7 @@ sealed class SettingsWindow : Window
             var b = new Border
             {
                 CornerRadius = new CornerRadius(5), BorderThickness = new Thickness(1),
-                Padding = new Thickness(12, 5, 12, 5), Margin = new Thickness(0, 0, 6, 0),
+                Padding = new Thickness(12, 5, 12, 5), Margin = new Thickness(0, 0, 6, 6),
                 Cursor = Cursors.Hand,
                 Child = new TextBlock
                 {
