@@ -40,6 +40,41 @@ internal sealed class FakeLcu : IDisposable
     /// тело как у клиента; номера нет — 404.
     public Dictionary<long, string> Details { get; } = [];
 
+    /// <summary>
+    /// Подробная игра как у клиента: <paramref name="puuid"/> — саппорт на
+    /// <paramref name="myChamp"/> в синей команде, враг на его линии —
+    /// <paramref name="foe"/>; бот-линии помечены, как их метит клиент
+    /// (остальным ролям верить нельзя, их раскладывает доля роли). Для
+    /// <see cref="Details"/>. Зовут PersonalFoes и PersonalOff.
+    /// </summary>
+    public static string LaneGame(string puuid, int myChamp, int foe, bool win, DateTimeOffset at)
+    {
+        var parts = new JsonArray();
+        var ids = new JsonArray();
+        (int Champ, string Lane, string Role)[] blue = [(myChamp, "BOTTOM", "SUPPORT"), (222, "BOTTOM", "CARRY"), (86, "TOP", "SOLO"), (64, "JUNGLE", "NONE"), (103, "MIDDLE", "SOLO")];
+        (int Champ, string Lane, string Role)[] red = [(foe, "BOTTOM", "SUPPORT"), (51, "BOTTOM", "CARRY"), (122, "TOP", "SOLO"), (254, "JUNGLE", "NONE"), (134, "MIDDLE", "SOLO")];
+        for (int i = 0; i < 10; i++)
+        {
+            var (champ, lane, role) = i < 5 ? blue[i] : red[i - 5];
+            parts.Add(new JsonObject
+            {
+                ["participantId"] = i + 1, ["championId"] = champ, ["teamId"] = i < 5 ? 100 : 200,
+                ["stats"] = new JsonObject { ["win"] = (i < 5) == win },
+                ["timeline"] = new JsonObject { ["lane"] = lane, ["role"] = role },
+            });
+            ids.Add(new JsonObject
+            {
+                ["participantId"] = i + 1,
+                ["player"] = new JsonObject { ["puuid"] = i == 0 ? puuid : $"TEST-lane-other-{i}" },
+            });
+        }
+        return new JsonObject
+        {
+            ["queueId"] = 420, ["gameCreation"] = at.ToUnixTimeMilliseconds(), ["gameDuration"] = 1800,
+            ["participants"] = parts, ["participantIdentities"] = ids,
+        }.ToJsonString();
+    }
+
     /// Сколько раз спрашивали подробную игру.
     public int DetailAsks => _detailAsks;
     private int _detailAsks;

@@ -63,7 +63,7 @@ internal static class Program
         var now = DateTimeOffset.UtcNow;
         var lcu = new FakeLcu(Me, "я", games.Select((g, i) => (420, Sona, g.Win, now.AddHours(-2 * (i + 1)))));
         for (int i = 0; i < games.Count; i++)
-            lcu.Details[7_000_000_000L - i] = Game(games[i].Foe, games[i].Win, now.AddHours(-2 * (i + 1)));
+            lcu.Details[7_000_000_000L - i] = FakeLcu.LaneGame(Me, Sona, games[i].Foe, games[i].Win, now.AddHours(-2 * (i + 1)));
         return lcu;
     }
 
@@ -214,37 +214,6 @@ internal static class Program
     }
 
     // ── подручное ──────────────────────────────────────────────────────────
-
-    /// Подробная игра как у клиента: я — Сона-саппорт в синей команде, враг
-    /// на моей линии — <paramref name="foe"/>, бот-линии помечены, как их
-    /// метит клиент (остальным ролям верить нельзя, их раскладывает доля роли).
-    private static string Game(int foe, bool win, DateTimeOffset at)
-    {
-        var parts = new JsonArray();
-        var ids = new JsonArray();
-        (int Champ, string Lane, string Role)[] blue = [(Sona, "BOTTOM", "SUPPORT"), (222, "BOTTOM", "CARRY"), (86, "TOP", "SOLO"), (64, "JUNGLE", "NONE"), (103, "MIDDLE", "SOLO")];
-        (int Champ, string Lane, string Role)[] red = [(foe, "BOTTOM", "SUPPORT"), (51, "BOTTOM", "CARRY"), (122, "TOP", "SOLO"), (254, "JUNGLE", "NONE"), (134, "MIDDLE", "SOLO")];
-        for (int i = 0; i < 10; i++)
-        {
-            var (champ, lane, role) = i < 5 ? blue[i] : red[i - 5];
-            parts.Add(new JsonObject
-            {
-                ["participantId"] = i + 1, ["championId"] = champ, ["teamId"] = i < 5 ? 100 : 200,
-                ["stats"] = new JsonObject { ["win"] = (i < 5) == win },
-                ["timeline"] = new JsonObject { ["lane"] = lane, ["role"] = role },
-            });
-            ids.Add(new JsonObject
-            {
-                ["participantId"] = i + 1,
-                ["player"] = new JsonObject { ["puuid"] = i == 0 ? Me : $"TEST-foes-other-{i}" },
-            });
-        }
-        return new JsonObject
-        {
-            ["queueId"] = 420, ["gameCreation"] = at.ToUnixTimeMilliseconds(), ["gameDuration"] = 1800,
-            ["participants"] = parts, ["participantIdentities"] = ids,
-        }.ToJsonString();
-    }
 
     private static JsonObject Acc() =>
         JsonNode.Parse(File.ReadAllText(Path.Combine(AppPaths.Root, "session.json")))!["Accounts"]![Me]!.AsObject();

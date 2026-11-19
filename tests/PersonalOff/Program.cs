@@ -14,6 +14,11 @@ namespace Counterplay.Tests;
 /// соперника не двигает баны; в ARAM наигранности нет. Включили обратно —
 /// всё вернулось без перезапуска (настройку движок читает на каждом расчёте).
 ///
+/// История при этом копится как всегда (владелец 19.11: «пусть всё равно
+/// сохраняет, чтобы можно было вернуть и продолжить»): журнал пишет игры и
+/// соперников на линии и с выключенным мастерством, а включили — записанное
+/// за это время сразу идёт в оценку. Журнал — подставной клиент и своя папка.
+///
 /// Живая база игрока — только чтение; журнал, очки мастерства и счёт против
 /// соперников подменены; настройки — в своей папке (AppPaths.RootOverride).
 /// Нет базы — проверять нечем, проверка это пишет и выходит с успехом.
@@ -24,7 +29,7 @@ internal static class Program
     private const int Sona = 37, Leona = 89, Braum = 201, Nami = 267;
 
     [STAThread]
-    private static int Main()
+    private static async Task<int> Main()
     {
         Console.OutputEncoding = Encoding.UTF8;
         var root = Path.Combine(Path.GetTempPath(), "counterplay-test-root", "PersonalOff");
@@ -35,17 +40,22 @@ internal static class Program
         Loc.SetLanguage("ru");
         try
         {
+            Check("по умолчанию личное мастерство включено", AppSettings.Current.DraftPersonal, "");
+            await Journal();
+
             var playerDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
             DataDb.DirOverride = playerDir;   // база матчей — настоящая, только чтение
             var db = RecommendationEngine.FindDb();
-            if (db is null) { Console.WriteLine("базы нет — движок проверять нечем"); return 0; }
-            Assets(playerDir);
-            using var engine = RecommendationEngine.Create(db, "emerald");
-
-            Check("по умолчанию личное мастерство включено", AppSettings.Current.DraftPersonal, "");
-            Picks(engine);
-            Bans(engine);
-            Aram(engine);
+            if (db is null) Console.WriteLine("\nбазы нет — движок проверять нечем");
+            else
+            {
+                Assets(playerDir);
+                using var engine = RecommendationEngine.Create(db, "emerald");
+                Resume(engine);
+                Picks(engine);
+                Bans(engine);
+                Aram(engine);
+            }
         }
         finally
         {
@@ -61,6 +71,55 @@ internal static class Program
     }
 
     private static readonly long Now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+    // ── Журнал пишется и без мастерства ───────────────────────────────────
+
+    private const string Puuid = "TEST-personal-off-0000000000000000000000000000000000000000000000000000";
+
+    /// Шесть свежих игр на Соне (5 побед), соперник на линии — Леона.
+    /// Мастерство выключено всё время, пока клиент их отдаёт.
+    private static async Task Journal()
+    {
+        Console.WriteLine("журнал при выключенном мастерстве:");
+        AppSettings.Current.DraftPersonal = false;
+        SessionTracker.DropCache();
+        var at = DateTimeOffset.UtcNow;
+        var wins = new[] { true, true, false, true, true, true };
+        using var lcu = new FakeLcu(Puuid, "я", wins.Select((w, i) => (420, Sona, w, at.AddHours(-2 * (i + 1)))));
+        for (int i = 0; i < wins.Length; i++)
+            lcu.Details[7_000_000_000L - i] = FakeLcu.LaneGame(Puuid, Sona, Leona, wins[i], at.AddHours(-2 * (i + 1)));
+        using var http = new LcuHttpClient(lcu.Credentials);
+        await SessionTracker.RefreshAsync(http, CancellationToken.None);
+
+        var (g, w) = MyMonth().Recent(Sona);
+        Check("игры записаны: на Соне 6, из них 5 побед", g == 6 && w == 5, $"{g}–{w}");
+        var foes = SessionTracker.FoeGames();
+        Check("соперники на линии записаны: 6 игр против Леоны",
+              foes.Count(f => f.MyChamp == Sona && f.Foe == Leona && f.Role == "support") == 6, $"{foes.Count}");
+        AppSettings.Current.DraftPersonal = true;
+    }
+
+    /// Включили — записанное, пока было выключено, сразу в оценке (журнал
+    /// тот же, без подмены).
+    private static void Resume(RecommendationEngine engine)
+    {
+        Console.WriteLine("\nвключили обратно — история за это время в счёте:");
+        SessionTracker.HistoryOverride = null;
+        SessionTracker.FoeGamesOverride = null;
+        engine.Mastery = new Dictionary<int, long>();
+        AppSettings.Current.DraftPersonal = false;
+        var off = engine.PersonalDelta(Sona);
+        AppSettings.Current.DraftPersonal = true;
+        var on = engine.PersonalDelta(Sona);
+        Check("выключено — личного винрейта нет, включено — есть по тем же 6 играм", off == 0 && on > 0,
+              $"{off:F2} → {on:F2}");
+        var vs = engine.PersonalVsFoes("support").GetValueOrDefault(Leona);
+        Check("и счёт против Леоны 5–1 на месте", vs is { Games: 6, Wins: 5 }, vs is null ? "нет" : $"{vs.Wins}–{vs.Games - vs.Wins}");
+    }
+
+    private static SessionTracker.PlayHistory MyMonth() =>
+        SessionTracker.History(RecommendationEngine.FreshDays,
+            [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
 
     /// Мой месяц: Сона 20 игр (15 побед), Браум 15 (7), Нами 6 (5) — свежие,
     /// игры каждый день. Пусто — игрок без истории.
