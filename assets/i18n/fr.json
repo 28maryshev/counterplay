@@ -683,6 +683,8 @@
     "language": "Langue",
     "draftEnabled": "Suggestions de pick",
     "draftEnabledHint": "Désactive pour ne garder que le profil : la fenêtre reste cachée au draft",
+    "draftPersonal": "Maîtrise personnelle",
+    "draftPersonalHint": "Prend en compte combien tu joues un champion, ton winrate dessus et ton bilan face aux adversaires. Désactive pour ne recommander que d'après les données des champions",
     "placement": "La fenêtre au draft",
     "placementHint": "Où se place la fenêtre quand le draft commence",
     "placeRight": "À côté du client",

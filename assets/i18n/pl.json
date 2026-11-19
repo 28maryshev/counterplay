@@ -683,6 +683,8 @@
     "language": "Język",
     "draftEnabled": "Podpowiedzi do picków",
     "draftEnabledHint": "Wyłącz, jeśli chcesz tylko panel profilu — w drafcie okno się nie pojawi",
+    "draftPersonal": "Osobiste doświadczenie",
+    "draftPersonalHint": "Uwzględnia, ile grasz championem, twój winrate na nim i bilans z przeciwnikami. Wyłącz, by polecać tylko według danych championów",
     "placement": "Okno w drafcie",
     "placementHint": "Gdzie staje okno, gdy zaczyna się draft",
     "placeRight": "Obok klienta",

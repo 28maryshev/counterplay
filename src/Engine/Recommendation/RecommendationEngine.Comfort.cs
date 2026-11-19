@@ -65,6 +65,19 @@ public sealed partial class RecommendationEngine
     /// вспоминается быстрее незнакомого.
     private const double STALE_FLOOR = 0.25;
 
+    /// <summary>
+    /// Личное мастерство включено в настройках (<see cref="AppSettings.DraftPersonal"/>).
+    ///
+    /// Выключено — подбор голый, по одним данным чемпионов: ноль наигранности
+    /// и личного винрейта (мои и напарника, флор пула тоже), нет строки «твои
+    /// игры против соперника» и личного счёта в банах. Что баны защищают мой
+    /// пул и не советуют бан моих чемпионов — остаётся: это про то, кого я
+    /// возьму, а не прибавка к оценке. Читаем настройку здесь, а не полем
+    /// движка: движки пересоздаются при обновлении базы (EngineSwap), и поле
+    /// пришлось бы переносить в каждый новый.
+    /// </summary>
+    private static bool PersonalOn => AppSettings.Current.DraftPersonal;
+
     /// Сейчас считаем пик НАПАРНИКА, а не свой: личные факторы выключены.
     /// Поле, а не параметр, — чтобы не тащить его через весь скоринг; вызовы
     /// последовательные (оверлей однопоточный), и флаг снимается в finally.
@@ -123,6 +136,8 @@ public sealed partial class RecommendationEngine
     /// </summary>
     private double ComfortDelta(int champId)
     {
+        if (!PersonalOn) return 0.0;
+
         // Считаем за НАПАРНИКА: своей истории тут быть не может, она про мои
         // чемпионы. Берём ЕГО числа, если он ими поделился, — иначе ноль, как
         // было до обмена наигранностью.
@@ -286,6 +301,8 @@ public sealed partial class RecommendationEngine
     /// однажды разъехаться на ровном месте.
     public double PersonalDelta(int champId)
     {
+        if (!PersonalOn) return 0.0;
+
         // См. ComfortDelta: за напарника идут ЕГО победы, не мои.
         if (_forMate)
             return MateComfortByChamp is { } mc && mc.TryGetValue(champId, out var m)

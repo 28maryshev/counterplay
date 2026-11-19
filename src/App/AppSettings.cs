@@ -112,6 +112,15 @@ public sealed class AppSettings
     /// остаётся информационной панелью: ранг, форма, чемпионы за месяц.
     public bool DraftEnabled    { get; set; } = true;
 
+    /// <summary>
+    /// Личное мастерство в оценке: наигранность на чемпионе (игры за месяц,
+    /// очки мастерства, флор пула), свой винрейт на нём и свой счёт против
+    /// соперника (строка карточки и баны). Выключено — подбор голый, по одним
+    /// данным чемпионов: сила в патче, матчапы, синергия, состав. Читает сам
+    /// движок (<see cref="RecommendationEngine"/>, часть Comfort).
+    /// </summary>
+    public bool DraftPersonal   { get; set; } = true;
+
     public bool DraftRolePool   { get; set; } = true;  // все чемпионы роли до пика
     public bool DraftReasons    { get; set; } = true;  // текстовые доводы в карточках
     public bool DraftMetrics    { get; set; } = true;  // полоски показателей

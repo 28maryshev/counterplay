@@ -32,10 +32,7 @@ public partial class OverlayWindow
         // Обоснования рекомендаций — ГОТОВЫЕ строки, собранные движком через Loc.T
         // на прежнем языке. Перерисовка их не переводит — перегенерируем движком из
         // сохранённого драфта, иначе центральная колонка остаётся на старом языке.
-        if (_engine is not null && _lastDraft is not null && _lastRecs is not null)
-            _lastRecs = _lastDraft.IsAram
-                ? _engine.RecommendAram(_lastDraft, AppSettings.Current.DraftCount)
-                : _engine.Recommend(_lastDraft, AppSettings.Current.DraftCount);
+        RecountAdvice();
         RenderCurrentState();         // мгновенно перерисовываем интерфейс
 
         // Тексты, выставляемые из кода: строка «Готов · фаза» и панель трекера
@@ -166,7 +163,41 @@ public partial class OverlayWindow
         MyTeamPanel.Margin    = s.DraftMirror ? new Thickness(10, 0, 0, 0) : new Thickness(0, 0, 10, 0);
         EnemyTeamPanel.Margin = s.DraftMirror ? new Thickness(0, 0, 10, 0) : new Thickness(10, 0, 0, 0);
 
+        // Личное мастерство меняет сами оценки, а не вид: перерисовка показала
+        // бы старые советы до следующего события клиента — пересчитываем.
+        if (s.DraftPersonal != _personalApplied)
+        {
+            _personalApplied = s.DraftPersonal;
+            RecountAdvice();
+        }
+
         // Карточки и слоты перестраиваются с новыми правилами.
         if (_lastDraft is not null) RenderCurrentState();
+    }
+
+    /// С каким личным мастерством посчитаны показанные советы (см. ApplySettings).
+    private bool _personalApplied = AppSettings.Current.DraftPersonal;
+
+    /// <summary>
+    /// Пересчитать показанные советы тем же движком по сохранённому драфту:
+    /// пики (и ARAM) — по драфту с ручными ролями врагов, баны — как их считает
+    /// Program, по драфту из клиента и наведениям своих. Банов не считали
+    /// (объявление, свой бан сделан) — их и не трогаем. Без перерисовки: её
+    /// делает вызывающий. Нужен, когда меняется то, из чего собраны готовые
+    /// советы: язык доводов или личное мастерство в оценке.
+    /// </summary>
+    private void RecountAdvice()
+    {
+        if (_engine is null) return;
+        try
+        {
+            if (_lastDraft is not null && _lastRecs is not null)
+                _lastRecs = _lastDraft.IsAram
+                    ? _engine.RecommendAram(_lastDraft, AppSettings.Current.DraftCount)
+                    : _engine.Recommend(_lastDraft, AppSettings.Current.DraftCount);
+            if (_lastBans is { Count: > 0 } && _lastRawDraft is not null)
+                _lastBans = _engine.RecommendBans(_lastRawDraft, _lastHoverHistory);
+        }
+        catch (Exception ex) { Log.Write($"пересчёт советов не удался — {ex.Message}"); }
     }
 }

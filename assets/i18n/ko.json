@@ -683,6 +683,8 @@
     "language": "언어",
     "draftEnabled": "픽 추천",
     "draftEnabledHint": "끄면 프로필 패널만, 밴픽에선 창이 안 뜸",
+    "draftPersonal": "개인 숙련도",
+    "draftPersonalHint": "챔피언 플레이 횟수, 내 승률, 상대 전적을 반영. 끄면 챔피언 데이터만으로 추천",
     "placement": "밴픽 중 창 위치",
     "placementHint": "밴픽이 시작될 때 창이 놓이는 곳",
     "placeRight": "클라이언트 옆",

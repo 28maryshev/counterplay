@@ -311,8 +311,9 @@ public sealed partial class RecommendationEngine
         // Мои игры против кандидата на моей линии — сверх того, что статистика
         // ждёт для моих чемпионов (см. PersonalVsFoes). Кому я проигрываю, тот
         // поднимается; кого обыгрываю — опускается, и бан на него не тратится.
-        // Только если защищаем свой пул или пик: без них «моей линии» нет.
-        if (victims.Any(v => v.Mine))
+        // Только если защищаем свой пул или пик: без них «моей линии» нет. И
+        // только с личным мастерством (PersonalOn): выключено — баны голые.
+        if (PersonalOn && victims.Any(v => v.Mine))
             foreach (var (x, p) in PersonalVsFoes(myRole))
                 if (p.Games >= PERSONAL_MIN_GAMES && On(x, myRole) is { } c)
                 {

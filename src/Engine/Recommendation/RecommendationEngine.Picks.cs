@@ -140,7 +140,8 @@ public sealed partial class RecommendationEngine
         var wDuo  = duoBlind  ? W_BLIND : W_BOTLANE;
 
         // Мои игры против соперника на линии по моим чемпионам — строка карточки.
-        var vsOpp = directOppId != 0 ? PersonalByChamp(directOppId, myRole) : null;
+        // Личное мастерство выключено (PersonalOn) — строки нет.
+        var vsOpp = directOppId != 0 && PersonalOn ? PersonalByChamp(directOppId, myRole) : null;
 
         // ── Драфт-фичи (архетип) ────────────────────────────────────────────
         var allEnemyIds = state.TheirTeam

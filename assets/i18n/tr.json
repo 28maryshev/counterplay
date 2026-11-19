@@ -683,6 +683,8 @@
     "language": "Dil",
     "draftEnabled": "Şampiyon önerileri",
     "draftEnabledHint": "Kapatırsan yalnızca profil paneli kalır: seçimde pencere açılmaz",
+    "draftPersonal": "Kişisel ustalık",
+    "draftPersonalHint": "Bir şampiyonu ne kadar oynadığını, onunla kazanma oranını ve rakiplere karşı skorunu hesaba katar. Kapatırsan öneriler yalnızca şampiyon verilerine dayanır",
     "placement": "Draft sırasında pencere",
     "placementHint": "Draft başlayınca pencerenin gideceği yer",
     "placeRight": "İstemcinin yanında",

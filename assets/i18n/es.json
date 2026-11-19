@@ -683,6 +683,8 @@
     "language": "Idioma",
     "draftEnabled": "Sugerencias de pick",
     "draftEnabledHint": "Desactívalo para dejar solo el panel de perfil: la ventana no saldrá en el draft",
+    "draftPersonal": "Maestría personal",
+    "draftPersonalHint": "Tiene en cuenta cuánto juegas un campeón, tu winrate con él y tu récord contra rivales. Desactívalo para recomendar solo por datos de campeones",
     "placement": "La ventana en el draft",
     "placementHint": "Dónde se coloca la ventana al empezar el draft",
     "placeRight": "Al lado del cliente",

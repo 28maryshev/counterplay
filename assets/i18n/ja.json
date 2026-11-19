@@ -683,6 +683,8 @@
     "language": "言語",
     "draftEnabled": "ピック提案",
     "draftEnabledHint": "オフならプロフィールパネルのみ、ドラフトでは非表示",
+    "draftPersonal": "個人の熟練度",
+    "draftPersonalHint": "そのチャンピオンのプレイ回数・自分の勝率・対面との戦績を考慮。オフならチャンピオンのデータのみで提案",
     "placement": "ドラフト中のウィンドウ",
     "placementHint": "ドラフト開始時に表示される位置",
     "placeRight": "クライアントの横",

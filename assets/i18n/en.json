@@ -680,6 +680,8 @@
     "language": "Language",
     "draftEnabled": "Pick suggestions",
     "draftEnabledHint": "Turn off to keep only the profile panel: the window stays hidden during champion select",
+    "draftPersonal": "Personal mastery",
+    "draftPersonalHint": "Count how much you play a champion, your win rate on it and your record vs opponents. Turn off to rank picks by champion data only",
     "placement": "Window during draft",
     "placementHint": "Where the window goes when a draft starts",
     "placeRight": "Beside the client",

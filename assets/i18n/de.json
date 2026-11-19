@@ -683,6 +683,8 @@
     "language": "Sprache",
     "draftEnabled": "Pick-Vorschläge",
     "draftEnabledHint": "Aus: nur der Profilbereich bleibt, in der Championauswahl erscheint nichts",
+    "draftPersonal": "Persönliche Erfahrung",
+    "draftPersonalHint": "Berücksichtigt, wie viel du einen Champion spielst, deine Winrate und deine Bilanz gegen Gegner. Aus: Empfehlungen nur nach Champion-Daten",
     "placement": "Fenster im Draft",
     "placementHint": "Wohin das Fenster springt, wenn der Draft startet",
     "placeRight": "Neben dem Client",

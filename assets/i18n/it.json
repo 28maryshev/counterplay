@@ -683,6 +683,8 @@
     "language": "Lingua",
     "draftEnabled": "Consigli sui pick",
     "draftEnabledHint": "Disattiva per lasciare solo il pannello profilo: nel draft la finestra non compare",
+    "draftPersonal": "Maestria personale",
+    "draftPersonalHint": "Tiene conto di quanto giochi un campione, del tuo winrate e del tuo bilancio contro gli avversari. Disattiva per consigli basati solo sui dati dei campioni",
     "placement": "La finestra nel draft",
     "placementHint": "Dove si posiziona la finestra quando inizia il draft",
     "placeRight": "Accanto al client",

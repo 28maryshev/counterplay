@@ -683,6 +683,8 @@
     "language": "Ngôn ngữ",
     "draftEnabled": "Gợi ý chọn tướng",
     "draftEnabledHint": "Tắt để chỉ giữ bảng hồ sơ: cửa sổ sẽ không hiện khi chọn tướng",
+    "draftPersonal": "Độ thông thạo cá nhân",
+    "draftPersonalHint": "Tính đến số trận bạn chơi tướng, tỉ lệ thắng của bạn và thành tích gặp đối thủ. Tắt để gợi ý chỉ theo dữ liệu tướng",
     "placement": "Cửa sổ khi draft",
     "placementHint": "Cửa sổ nằm ở đâu khi vào draft",
     "placeRight": "Bên cạnh client",

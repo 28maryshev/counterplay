@@ -265,6 +265,10 @@ sealed class SettingsWindow : Window
         body.Children.Add(Section(Loc.T("settings.draft")));
         body.Children.Add(Row(Loc.T("settings.draftEnabled"), Loc.T("settings.draftEnabledHint"),
             s.DraftEnabled, v => { s.DraftEnabled = v; MarkDirty(); }));
+        // Единственный тумблер раздела, который меняет сами оценки, а не вид, —
+        // поэтому сразу под подбором, а не среди блоков карточки.
+        body.Children.Add(Row(Loc.T("settings.draftPersonal"), Loc.T("settings.draftPersonalHint"),
+            s.DraftPersonal, v => { s.DraftPersonal = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftRolePool"), Loc.T("settings.draftRolePoolHint"),
             s.DraftRolePool, v => { s.DraftRolePool = v; MarkDirty(); }));
         body.Children.Add(Row(Loc.T("settings.draftReasons"),  Loc.T("settings.draftReasonsHint"),
