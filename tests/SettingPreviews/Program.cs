@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -9,6 +10,7 @@ using Counterplay;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Size = System.Windows.Size;
+using Pen = System.Windows.Media.Pen;
 
 namespace Counterplay.Tests;
 
@@ -45,9 +47,15 @@ internal static class Program
     /// графике винрейта: у рейтинга LP есть лишь у свежих игр). Alone — снять
     /// элемент целиком, а не видимую часть окна (длина списка уходит под
     /// прокрутку).
+    /// Focus — что обвести (владелец: «выдели область, где изменение, чтобы
+    /// сразу было понятно, куда смотреть»): имя элемента окна, «bind:Путь» —
+    /// часть шаблона карточки по привязке (у них нет имён), «card:NotOwned» —
+    /// карточка чемпиона не с аккаунта. Где элемента в кадре нет — черта на
+    /// месте, где он был: всё ниже него съезжает вверх.
     private sealed record Spec(string Key, string Scene, string Crop, string[] Values,
                                double Pad = 0, double MaxHeight = 0,
-                               (string Key, string Value)[]? Base = null, bool Alone = false);
+                               (string Key, string Value)[]? Base = null, bool Alone = false,
+                               string[]? Focus = null);
 
     private static readonly string[] OnOff = ["on", "off"];
 
@@ -58,35 +66,35 @@ internal static class Program
     private static readonly Spec[] Specs =
     [
         // Профиль — весь сайдбар: видно, что пропало и как сдвинулось остальное.
-        new("ReadyRank",    "profile", "RootGrid", OnOff),
-        new("ReadyLast5",   "profile", "RootGrid", OnOff),
-        new("ReadyWinrate", "profile", "RootGrid", OnOff),
-        new("ChartMode",    "profile", "RootGrid", ["winrate", "rating", "off"]),
-        new("ChartDays",    "profile", "RootGrid", ["30", "90"], Base: [("ChartMode", "winrate")]),
-        new("ReadyCompact", "profile", "RootGrid", OnOff),
-        new("ReadyPool",    "profile", "RootGrid", OnOff),
-        new("ReadyChamps",  "profile", "RootGrid", OnOff),
-        new("ReadyPhase",   "profile", "RootGrid", OnOff),
-        new("ReadyBeta",    "profile", "RootGrid", OnOff),
-        new("DraftEnabled", "profile", "RootGrid", OnOff),
+        new("ReadyRank",    "profile", "RootGrid", OnOff, Focus: ["RankCard"]),
+        new("ReadyLast5",   "profile", "RootGrid", OnOff, Focus: ["Last5Panel"]),
+        new("ReadyWinrate", "profile", "RootGrid", OnOff, Focus: ["WinrateRow"]),
+        new("ChartMode",    "profile", "RootGrid", ["winrate", "rating", "off"], Focus: ["WinrateRow"]),
+        new("ChartDays",    "profile", "RootGrid", ["30", "90"], Base: [("ChartMode", "winrate")], Focus: ["WrChart"]),
+        new("ReadyCompact", "profile", "RootGrid", OnOff, Focus: ["RankCard"]),
+        new("ReadyPool",    "profile", "RootGrid", OnOff, Focus: ["PoolButtonsRow"]),
+        new("ReadyChamps",  "profile", "RootGrid", OnOff, Focus: ["MyChampsBox"]),
+        new("ReadyPhase",   "profile", "RootGrid", OnOff, Focus: ["ReadyStatusText"]),
+        new("ReadyBeta",    "profile", "RootGrid", OnOff, Focus: ["BetaCard"]),
+        new("DraftEnabled", "profile", "RootGrid", OnOff, Focus: ["PoolButtonsRow", "DraftOffNotice"]),
         new("FontScale",    "profile", "RootGrid", ["0.9", "1", "1.15"]),
         // Карточки пика — верх списка.
-        new("DraftReasons", "draft", "FullRecList", OnOff, MaxHeight: 330),
-        new("DraftMetrics", "draft", "FullRecList", OnOff, MaxHeight: 330),
-        new("DraftUnowned", "draft", "FullRecList", OnOff, MaxHeight: 330),
+        new("DraftReasons", "draft", "FullRecList", OnOff, MaxHeight: 330, Focus: ["bind:Tags", "bind:Icons"]),
+        new("DraftMetrics", "draft", "FullRecList", OnOff, MaxHeight: 330, Focus: ["bind:Metrics"]),
+        new("DraftUnowned", "draft", "FullRecList", OnOff, MaxHeight: 330, Focus: ["card:NotOwned"]),
         // Полоса под карточками.
-        new("DraftRolePool", "draft", "RolePoolBar", OnOff, Pad: 60),
+        new("DraftRolePool", "draft", "RolePoolBar", OnOff, Pad: 60, Focus: ["RolePoolBar"]),
         // Своя колонка: связки, значки стиля, иконки у игроков, полоса урона.
-        new("DraftCombos",    "draft", "MyTeamPanel", OnOff),
-        new("DraftArch",      "draft", "MyTeamPanel", OnOff),
-        new("DraftSideIcons", "draft", "MyTeamPanel", OnOff),
-        new("DraftDamage",    "draft", "MyTeamPanel", OnOff),
+        new("DraftCombos",    "draft", "MyTeamPanel", OnOff, Focus: ["kids:MyTeamLines", "MyTeamCombos"]),
+        new("DraftArch",      "draft", "MyTeamPanel", OnOff, Focus: ["bind:ArchGlyph"]),
+        new("DraftSideIcons", "draft", "MyTeamPanel", OnOff, Focus: ["bind:SideIcons"]),
+        new("DraftDamage",    "draft", "MyTeamPanel", OnOff, Focus: ["MyDmgPanel"]),
         // Всё окно драфта: длина списка и стороны команд.
         new("DraftCount",  "draft", "FullRecList", ["6", "8", "10"], Alone: true),
-        new("DraftMirror", "draft", "FullView", OnOff),
+        new("DraftMirror", "draft", "FullView", OnOff, Focus: ["MyTeamPanel"]),
         // Баны — тир-лист под советами.
-        new("BansTierList", "bans", "TierListBar", OnOff, Pad: 60),
-        new("BansTierMode", "bans", "TierListBar", ["picks", "bans"], Pad: 8),
+        new("BansTierList", "bans", "TierListBar", OnOff, Pad: 60, Focus: ["TierListBar"]),
+        new("BansTierMode", "bans", "TierListBar", ["picks", "bans"], Pad: 8, Focus: ["TierModePicks", "TierModeBans"]),
     ];
 
     /// Предел картинки: окно настроек показывает её в рамке до 480 × 640.
@@ -306,6 +314,7 @@ internal static class Program
     private static void Frames(OverlayWindow w, Spec spec, Action render, string lang, bool write, string outDir)
     {
         var shots = new List<(BitmapSource Full, Rect? At)>();
+        var focus = new List<List<Rect>>();
         var raw = new HashSet<string>();
         foreach (var value in spec.Values)
         {
@@ -315,6 +324,7 @@ internal static class Program
             Apply(w);
             render();
             shots.Add(Shoot(w, spec.Crop, spec.Alone));
+            focus.Add(spec.Focus is { } f && !spec.Alone ? FocusRects(w, f) : []);
             raw.UnionWith(RawKeys(w));
         }
         Check($"{spec.Key}: подписи — текст, а не ключи строк", raw.Count == 0, string.Join(", ", raw.Take(5)));
@@ -332,13 +342,29 @@ internal static class Program
         var fulls = shots.Select(s => Draw(s.Full, 1.0, wMax, hMax)).ToList();
         r.Intersect(new Rect(0, 0, wMax, hMax));
         var k = Math.Min(1.0, Math.Min(MaxWidth / r.Width, MaxBoxHeight / r.Height));
-        var frames = fulls.Select(f => Draw(new CroppedBitmap(f,
-            new Int32Rect((int)r.X, (int)r.Y, (int)r.Width, (int)r.Height)), k, r.Width * k, r.Height * k)).ToList();
+        var cut = new Int32Rect((int)r.X, (int)r.Y, (int)r.Width, (int)r.Height);
+        var plain = fulls.Select(f => Draw(new CroppedBitmap(f, cut), k, r.Width * k, r.Height * k)).ToList();
 
-        var same = Enumerable.Range(1, frames.Count - 1).Where(i => Diff(frames[0], frames[i]) < 0.002).ToList();
+        // Различие — по кадрам БЕЗ рамки: рамка в одном и черта в другом
+        // сделали бы кадры разными и у тумблера, который ничего не делает.
+        var same = Enumerable.Range(1, plain.Count - 1).Where(i => Diff(plain[0], plain[i]) < 0.002).ToList();
         Check($"{spec.Key}: кадры различаются", same.Count == 0,
-              same.Count == 0 ? $"{frames.Count} кадра {frames[0].PixelWidth}×{frames[0].PixelHeight}"
+              same.Count == 0 ? $"{plain.Count} кадра {plain[0].PixelWidth}×{plain[0].PixelHeight}"
                               : "одинаковы: " + string.Join(", ", same.Select(i => $"{spec.Values[0]} = {spec.Values[i]}")));
+
+        // Что обвести: в кадре, где элемент есть, — рамка; где его нет —
+        // черта на месте, где он стоял в первом кадре с ним.
+        var frames = plain;
+        if (spec.Focus is not null && !spec.Alone)
+        {
+            var area = new Rect(r.X, r.Y, r.Width, r.Height);
+            var inside = focus.Select(l => l.Where(f => f.IntersectsWith(area)).ToList()).ToList();
+            var refRects = inside.FirstOrDefault(l => l.Count > 0) ?? [];
+            Check($"{spec.Key}: есть что обвести ({string.Join(", ", spec.Focus)})", refRects.Count > 0,
+                  refRects.Count == 0 ? "ни в одном кадре" : "");
+            frames = [.. fulls.Select((f, i) => Draw(new CroppedBitmap(
+                Mark(f, inside[i], inside[i].Count == 0 ? refRects : [], k), cut), k, r.Width * k, r.Height * k))];
+        }
 
         var dir = Path.Combine(outDir, lang);
         for (var i = 0; i < frames.Count; i++)
@@ -399,6 +425,119 @@ internal static class Program
             var d = stack.Pop();
             if (d is UIElement { IsVisible: false }) continue;
             if (d is TextBlock { Text: { Length: > 0 } t } && KeyLike.IsMatch(t)) yield return t;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) stack.Push(VisualTreeHelper.GetChild(d, i));
+        }
+    }
+
+    /// Бирюза тумблера: рамка того же цвета, что включённый переключатель.
+    private static readonly Color Accent = Color.FromRgb(0x36, 0xD6, 0xE7);
+
+    /// <summary>
+    /// Рамка вокруг того, что меняет настройка, и черта там, где оно было.
+    /// Толщины — в точках готовой картинки: кадр потом уменьшается в k раз.
+    /// </summary>
+    private static BitmapSource Mark(BitmapSource full, List<Rect> boxes, List<Rect> gaps, double k)
+    {
+        double px = 1 / k;
+        var glow = new Pen(new SolidColorBrush(Color.FromArgb(0x55, Accent.R, Accent.G, Accent.B)), 7 * px);
+        var line = new Pen(new SolidColorBrush(Accent), 2.2 * px);
+        var dash = new Pen(new SolidColorBrush(Accent), 2.2 * px) { DashStyle = new DashStyle(new double[] { 3, 2 }, 0) };
+        var v = new DrawingVisual();
+        using (var dc = v.RenderOpen())
+        {
+            dc.DrawImage(full, new Rect(0, 0, full.PixelWidth, full.PixelHeight));
+            foreach (var b in boxes)
+            {
+                var o = Rect.Inflate(b, 4 * px, 4 * px);
+                dc.DrawRoundedRectangle(null, glow, o, 6 * px, 6 * px);
+                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0x10, Accent.R, Accent.G, Accent.B)),
+                                        line, o, 6 * px, 6 * px);
+            }
+            foreach (var g in gaps)
+            {
+                var a = new System.Windows.Point(g.Left, g.Top);
+                var z = new System.Windows.Point(g.Right, g.Top);
+                dc.DrawLine(glow, a, z);
+                dc.DrawLine(dash, a, z);
+                dc.DrawEllipse(new SolidColorBrush(Accent), null, a, 3.5 * px, 3.5 * px);
+                dc.DrawEllipse(new SolidColorBrush(Accent), null, z, 3.5 * px, 3.5 * px);
+            }
+        }
+        var bmp = new RenderTargetBitmap(full.PixelWidth, full.PixelHeight, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(v);
+        bmp.Freeze();
+        return bmp;
+    }
+
+    /// <summary>
+    /// Места видимых элементов по селекторам Spec.Focus — в точках окна.
+    /// «bind:Путь» — элемент, у которого ItemsSource или Text привязан к Путь
+    /// (части шаблонов карточек и слотов имён не имеют); «card:NotOwned» —
+    /// карточка подбора, чей чемпион не с аккаунта; иначе — имя элемента.
+    /// </summary>
+    private static List<Rect> FocusRects(Window w, string[] selectors)
+    {
+        var root = (FrameworkElement)w.Content;
+        var visible = Visible(root).ToList();
+        var found = new List<FrameworkElement>();
+        foreach (var sel in selectors)
+        {
+            if (sel.StartsWith("bind:"))
+            {
+                var path = sel[5..];
+                found.AddRange(visible.Where(e =>
+                    BindingOperations.GetBinding(e, ItemsControl.ItemsSourceProperty)?.Path?.Path == path
+                    || (e is TextBlock { Text.Length: > 0 } && BindingOperations.GetBinding(e, TextBlock.TextProperty)?.Path?.Path == path)));
+            }
+            else if (sel.StartsWith("kids:"))
+            {
+                // Холст линий связок растянут на всю колонку — обводим сами линии.
+                if (w.FindName(sel[5..]) is System.Windows.Controls.Panel host && visible.Contains(host))
+                    found.AddRange(host.Children.OfType<FrameworkElement>().Where(c => c.IsVisible));
+            }
+            else if (sel == "card:NotOwned")
+                found.AddRange(visible.OfType<ContentPresenter>().Where(c => c.Content is FullRecCard { NotOwned: true }));
+            else if (w.FindName(sel) is FrameworkElement named && visible.Contains(named))
+                found.Add(named);
+        }
+        var rects = found.Where(e => e.ActualWidth > 0 || e.ActualHeight > 0)
+            .Select(e => e is System.Windows.Shapes.Shape sh
+                ? sh.TransformToAncestor(root).TransformBounds(sh.RenderedGeometry.Bounds)   // линия: её отрезок, не холст
+                : e.TransformToAncestor(root).TransformBounds(new Rect(e.RenderSize)))
+            .Where(r => !r.IsEmpty).ToList();
+        return Merge(rects);
+    }
+
+    /// Рамки, что касаются друг друга (плашки и значки одной карточки,
+    /// линии одной связки), — одной рамкой: иначе они налезают друг на друга.
+    private static List<Rect> Merge(List<Rect> rects)
+    {
+        var list = new List<Rect>(rects);
+        for (var merged = true; merged;)
+        {
+            merged = false;
+            for (var i = 0; i < list.Count && !merged; i++)
+                for (var j = i + 1; j < list.Count && !merged; j++)
+                    if (Rect.Inflate(list[i], 8, 8).IntersectsWith(list[j]))
+                    {
+                        list[i] = Rect.Union(list[i], list[j]);
+                        list.RemoveAt(j);
+                        merged = true;
+                    }
+        }
+        return list;
+    }
+
+    /// Видимые элементы дерева: скрытая ветка пропускается целиком.
+    private static IEnumerable<FrameworkElement> Visible(DependencyObject top)
+    {
+        var stack = new Stack<DependencyObject>();
+        stack.Push(top);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is UIElement { IsVisible: false }) continue;
+            if (d is FrameworkElement fe) yield return fe;
             for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) stack.Push(VisualTreeHelper.GetChild(d, i));
         }
     }
