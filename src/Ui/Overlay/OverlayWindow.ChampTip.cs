@@ -6,15 +6,17 @@ using ToolTip = System.Windows.Controls.ToolTip;
 namespace Counterplay;
 
 // Окно драфта — карточка чемпиона при наведении на слот состава: винрейт и
-// бан-рейт в патче, место в тир-листе, контрпики и синергия с винрейтами.
+// бан-рейт в патче, место в тир-листе, контрпики и синергия с винрейтами —
+// общие и с моей роли.
 public partial class OverlayWindow
 {
     // Строк в списках карточки: контрпиков и напарников по пять.
     private const int ChampTipRows = 5;
 
-    // Карточки считаются по наведению (до семи запросов к базе), а наводят весь
-    // драфт на тех же десятерых — кэш. Новый движок или язык — с чистого листа.
-    private readonly Dictionary<(int Champ, string Role, bool Ally), ChampTipVm> _champTips = new();
+    // Карточки считаются по наведению (до девяти запросов к базе), а наводят
+    // весь драфт на тех же десятерых — кэш. Моя роль в ключе: от неё блок
+    // «моя роль». Новый движок или язык — с чистого листа.
+    private readonly Dictionary<(int Champ, string Role, bool Ally, string Mine), ChampTipVm> _champTips = new();
     private RecommendationEngine? _champTipsEngine;
     private string _champTipsLang = "";
 
@@ -57,11 +59,16 @@ public partial class OverlayWindow
         var role = TipRoles.Contains(card.StatsRole) ? card.StatsRole : engine.PrimaryRole(card.ChampionId);
         if (!TipRoles.Contains(role)) return null;
 
-        var key = (card.ChampionId, role, card.IsAlly);
+        // Моя роль — выданная в драфте. Нет её (вслепую) или она та же, что у
+        // него, — блока «моя роль» нет: общие контрпики уже с моей линии.
+        var mine = RecommendationEngine.LcuToDbRole(_lastDraft?.MyPosition ?? "");
+        if (!TipRoles.Contains(mine) || mine == role) mine = "";
+
+        var key = (card.ChampionId, role, card.IsAlly, mine);
         if (_champTips.TryGetValue(key, out var cached)) return cached;
         try
         {
-            return _champTips[key] = BuildChampTip(engine, card.ChampionId, role, card.IsAlly);
+            return _champTips[key] = BuildChampTip(engine, card.ChampionId, role, card.IsAlly, mine);
         }
         catch (Exception ex)
         {
@@ -70,7 +77,8 @@ public partial class OverlayWindow
         }
     }
 
-    private static ChampTipVm BuildChampTip(RecommendationEngine engine, int champId, string role, bool ally)
+    private static ChampTipVm BuildChampTip(RecommendationEngine engine, int champId, string role,
+                                            bool ally, string mine)
     {
         var patch = engine.PatchWr(champId, role);
         var delta = patch?.Delta;
@@ -96,16 +104,30 @@ public partial class OverlayWindow
             GradeColor = GradeColor(spot?.Grade ?? ""),
             PlaceText  = spot is { } s ? Loc.T("champTip.place", s.Place, s.Of) : Loc.T("champTip.noTier"),
             // Контрпики — кто бьёт его на его линии; напарники — лучшие на
-            // прочих ролях, с их значком роли. Отбирает движок по Уилсону (малые
-            // выборки не всплывают), а показываем по винрейту: столбец чисел
-            // вразнобой читался бы как ошибка.
-            Counters   = [.. engine.CountersWithWr(champId, role, ChampTipRows)
-                                   .OrderByDescending(h => h.Wr).Select(h => TipRow(h, withRole: false))],
-            Synergies  = [.. engine.PartnersWithWr(champId, role, ChampTipRows)
-                                   .OrderByDescending(h => h.Wr).Select(h => TipRow(h, withRole: true))],
+            // прочих ролях, с их значком роли.
+            General    = new ChampTipLists
+            {
+                Counters  = TipRows(engine.CountersWithWr(champId, role, ChampTipRows), withRole: false),
+                Synergies = TipRows(engine.PartnersWithWr(champId, role, ChampTipRows), withRole: true),
+            },
+            // С моей линии: кто из моей роли бьёт его (пары разных ролей в одной
+            // игре) и кто из моей роли с ним лучше всех играет. Роль у всех
+            // строк одна — значок только в шапке.
+            Mine       = mine.Length == 0 ? null : new ChampTipLists
+            {
+                Header     = Loc.T("champTip.myRole", RoleNameDb(mine)),
+                HeaderIcon = RoleIcons.Get(RecommendationEngine.DbToLcuRole(mine)),
+                Counters   = TipRows(engine.CountersWithWr(champId, role, ChampTipRows, fromRole: mine), withRole: false),
+                Synergies  = TipRows(engine.PartnersWithWr(champId, role, ChampTipRows, onRole: mine), withRole: false),
+            },
             Footer     = Loc.T("champTip.footer", engine.Patch, Loc.T(engine.TierBucketLocKey)),
         };
     }
+
+    // Отбирает движок по Уилсону (малые выборки не всплывают), а показываем по
+    // винрейту: столбец чисел вразнобой читался бы как ошибка.
+    private static List<ChampTipRow> TipRows(IEnumerable<RecommendationEngine.HintPick> picks, bool withRole) =>
+        [.. picks.OrderByDescending(h => h.Wr).Select(h => TipRow(h, withRole))];
 
     private static ChampTipRow TipRow(RecommendationEngine.HintPick h, bool withRole) => new()
     {

@@ -6,7 +6,8 @@ namespace Counterplay;
 /// <summary>
 /// Карточка чемпиона при наведении на слот состава: шапка, три плитки (винрейт
 /// в патче со сдвигом к прошлому, бан-рейт, место в тир-листе), контрпики и
-/// синергия с винрейтами. Собирает OverlayWindow.ChampTip.cs.
+/// синергия с винрейтами — общие и с моей роли (ChampTipLists). Собирает
+/// OverlayWindow.ChampTip.cs.
 /// </summary>
 public sealed class ChampTipVm
 {
@@ -33,10 +34,12 @@ public sealed class ChampTipVm
     public Visibility GradeVis   => Grade.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string     PlaceText  { get; init; } = "";
 
-    public List<ChampTipRow> Counters  { get; init; } = [];
-    public List<ChampTipRow> Synergies { get; init; } = [];
-    public Visibility CountersEmptyVis => Counters.Count  == 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SynergyEmptyVis  => Synergies.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    // Общие списки: соперники по его линии и напарники со всех ролей.
+    public ChampTipLists  General { get; init; } = new();
+    // Те же списки с моей линии; нет — роль у меня не выдана или та же, что у
+    // него (тогда общие контрпики уже с моей линии, а напарником он мне не будет).
+    public ChampTipLists? Mine    { get; init; }
+    public Visibility     MineVis => Mine is not null ? Visibility.Visible : Visibility.Collapsed;
 
     public string Footer { get; init; } = "";
 
@@ -44,9 +47,4 @@ public sealed class ChampTipVm
     public string WrLabel     => Loc.T("champTip.wr");
     public string BanLabel    => Loc.T("champTip.ban");
     public string TierLabel   => Loc.T("champTip.tier");
-    public string CountersTitle => Loc.T("champTip.counters");
-    public string CountersCol   => Loc.T("champTip.countersCol");
-    public string SynergyTitle  => Loc.T("champTip.synergy");
-    public string SynergyCol    => Loc.T("champTip.synergyCol");
-    public string NoDataText    => Loc.T("champTip.noData");
 }

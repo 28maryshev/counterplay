@@ -54,31 +54,44 @@ public sealed partial class RecommendationEngine
     /// Те же контры, что под портретом врага (с добором), но с винрейтом
     /// контры против него — для карточки чемпиона при наведении на слот.
     /// </summary>
-    public IReadOnlyList<HintPick> CountersWithWr(int champId, string role, int top = 5) =>
-        CounterRows(champId, role, top, null, null, fill: true)
-            .Select(r => new HintPick(r.Id, role, r.Wr)).ToList();
+    /// <param name="fromRole">
+    /// С какой роли контрить. Не задана или та же, что у него, — соперники по
+    /// линии; другая — чемпионы этой роли против него из той же игры (таблица
+    /// кросс-ролевых пар): кто из лесников бьёт этого топа.
+    /// </param>
+    public IReadOnlyList<HintPick> CountersWithWr(int champId, string role, int top = 5,
+                                                  string? fromRole = null) =>
+        CounterRows(champId, role, top, null, null, fill: true, fromRole)
+            .Select(r => new HintPick(r.Id, fromRole ?? role, r.Wr)).ToList();
 
     private List<HintRow> CounterRows(int enemyId, string? enemyRole, int top,
-                                      int? minGames, double? minEdge, bool fill)
+                                      int? minGames, double? minEdge, bool fill,
+                                      string? counterRole = null)
     {
         if (enemyId == 0) return [];
         try
         {
             var byRole = !string.IsNullOrEmpty(enemyRole);
+            // Контра с другой линии: в matchup только пары одной роли, пары
+            // разных ролей лежат в botlane_matchup (имя таблицы обманчиво).
+            var cross = byRole && !string.IsNullOrEmpty(counterRole) && counterRole != enemyRole;
+            var myRole = cross ? counterRole! : enemyRole;
             var cmd = _db.CreateCommand();
             // По всем дивизионам сразу: данные по парам разрежены, фильтр по бакету
             // добил бы выборку. Ранжируем/фильтруем по Уилсону уже в C#.
             cmd.CommandText = $@"
                 SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
-                FROM   matchup
+                FROM   {(cross ? "botlane_matchup" : "matchup")}
                 WHERE  vs_champion_id = @v AND patch IN (@p1, @p2, @p3)
                        {(byRole ? "AND role = @r AND champion_id IN (" + RolePlayersSql + ")" : "")}
+                       {(cross ? "AND vs_role = @vr" : "")}
                 GROUP  BY champion_id";
             cmd.Parameters.AddWithValue("@v",   enemyId);
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
-            if (byRole) { cmd.Parameters.AddWithValue("@r", enemyRole); AddRolePlayerParams(cmd); }
+            if (byRole) { cmd.Parameters.AddWithValue("@r", myRole); AddRolePlayerParams(cmd); }
+            if (cross)  cmd.Parameters.AddWithValue("@vr", enemyRole);
 
             var rows = ReadHintRows(cmd);
             double gMin = minGames ?? HINT_MIN_GAMES, eMin = minEdge ?? HINT_MIN_EDGE;
@@ -107,7 +120,7 @@ public sealed partial class RecommendationEngine
             // трёх: лучше пусто, чем контра, которая сама себе противоречит.
             // Считаем лениво — до первых top, а не по всем кандидатам роли.
             if (byRole)
-                picks = picks.Where(r => VersusDelta(r.Id, enemyRole!, enemyId, enemyRole!) > 0);
+                picks = picks.Where(r => VersusDelta(r.Id, myRole!, enemyId, enemyRole!) > 0);
             return picks.Take(top).ToList();
         }
         catch { return []; }
@@ -142,11 +155,17 @@ public sealed partial class RecommendationEngine
     /// портретом союзника (кандидаты — кто роль правда играет, ранг по Уилсону),
     /// только ролей четыре, и общий топ сводится из лучших каждой.
     /// </summary>
-    public IReadOnlyList<HintPick> PartnersWithWr(int champId, string role, int top = 5)
+    /// <param name="onRole">
+    /// Только напарники этой роли (моей): та же выборка, что иконки под
+    /// портретом союзника, но с винрейтом и на пять строк. Его собственная роль
+    /// — пусто: двоих на одной линии не бывает.
+    /// </param>
+    public IReadOnlyList<HintPick> PartnersWithWr(int champId, string role, int top = 5,
+                                                  string? onRole = null)
     {
         if (champId == 0 || string.IsNullOrEmpty(role)) return [];
         return [.. new[] { "top", "jungle", "mid", "adc", "support" }
-            .Where(r => r != role)
+            .Where(r => r != role && (onRole is null || r == onRole))
             .SelectMany(r => ByAllyRole(champId, r, top, role).Select(x => (Row: x, Role: r)))
             .OrderByDescending(x => WilsonLower(x.Row.Wins, x.Row.Games))
             .Take(top)

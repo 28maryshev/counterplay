@@ -852,6 +852,7 @@
     "synergy": "SYNERGY",
     "synergyCol": "WR together",
     "noData": "not enough data",
+    "myRole": "MY ROLE · {0}",
     "footer": "Patch {0} · {1}"
   },
   "pickTag": {

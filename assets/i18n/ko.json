@@ -852,6 +852,7 @@
     "synergy": "시너지",
     "synergyCol": "함께 승률",
     "noData": "데이터 부족",
+    "myRole": "내 포지션 · {0}",
     "footer": "패치 {0} · {1}"
   },
   "pickTag": {

@@ -852,6 +852,7 @@
     "synergy": "シナジー",
     "synergyCol": "一緒の勝率",
     "noData": "データ不足",
+    "myRole": "自分のロール · {0}",
     "footer": "パッチ {0} · {1}"
   },
   "pickTag": {

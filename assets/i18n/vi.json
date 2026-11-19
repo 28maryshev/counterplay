@@ -852,6 +852,7 @@
     "synergy": "PHỐI HỢP",
     "synergyCol": "thắng khi cùng đội",
     "noData": "chưa đủ dữ liệu",
+    "myRole": "VAI TRÒ CỦA TÔI · {0}",
     "footer": "Phiên bản {0} · {1}"
   },
   "pickTag": {

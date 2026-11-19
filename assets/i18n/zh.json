@@ -852,6 +852,7 @@
     "synergy": "契合",
     "synergyCol": "同队胜率",
     "noData": "数据不足",
+    "myRole": "我的位置 · {0}",
     "footer": "版本 {0} · {1}"
   },
   "pickTag": {

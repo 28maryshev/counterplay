@@ -32,6 +32,56 @@
     </Grid>
   </DataTemplate>
 
+  <!-- Блок карточки чемпиона (ChampTipLists): контрпики (винрейт против него)
+       и синергия (винрейт вместе) рядом. Шапка — только у блока «моя роль»:
+       значок роли, подпись цветом своей команды и черта до края. -->
+  <DataTemplate x:Key="ChampTipListsTemplate">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,7" Visibility="{Binding HeaderVis}">
+        <Image DockPanel.Dock="Left" Source="{Binding HeaderIcon}" Width="12" Height="12"
+               Margin="0,0,5,0" VerticalAlignment="Center"/>
+        <TextBlock DockPanel.Dock="Left" Text="{Binding Header}" Foreground="#C89B3C"
+                   FontFamily="{StaticResource UiFont}" FontSize="9.5" FontWeight="Bold"
+                   VerticalAlignment="Center"/>
+        <Rectangle Height="1" Fill="#33C89B3C" Margin="8,0,0,0" VerticalAlignment="Center"/>
+      </DockPanel>
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="15"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0">
+          <DockPanel Margin="0,0,0,3">
+            <TextBlock DockPanel.Dock="Right" Text="{Binding CountersCol}" Foreground="#4E6275"
+                       FontFamily="{StaticResource UiFont}" FontSize="9" VerticalAlignment="Bottom"/>
+            <TextBlock Text="{Binding CountersTitle}" Foreground="#4A6880"
+                       FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"/>
+          </DockPanel>
+          <ItemsControl ItemsSource="{Binding Counters}"
+                        ItemTemplate="{StaticResource ChampTipRowTemplate}"/>
+          <TextBlock Text="{Binding NoDataText}" Visibility="{Binding CountersEmptyVis}"
+                     Foreground="#6E8598" FontFamily="{StaticResource UiFont}" FontSize="11"
+                     Margin="0,3,0,0"/>
+        </StackPanel>
+        <Rectangle Grid.Column="1" Width="1" Fill="#1FFFFFFF" HorizontalAlignment="Center"/>
+        <StackPanel Grid.Column="2">
+          <DockPanel Margin="0,0,0,3">
+            <TextBlock DockPanel.Dock="Right" Text="{Binding SynergyCol}" Foreground="#4E6275"
+                       FontFamily="{StaticResource UiFont}" FontSize="9" VerticalAlignment="Bottom"/>
+            <TextBlock Text="{Binding SynergyTitle}" Foreground="#4A6880"
+                       FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"/>
+          </DockPanel>
+          <ItemsControl ItemsSource="{Binding Synergies}"
+                        ItemTemplate="{StaticResource ChampTipRowTemplate}"/>
+          <TextBlock Text="{Binding NoDataText}" Visibility="{Binding SynergyEmptyVis}"
+                     Foreground="#6E8598" FontFamily="{StaticResource UiFont}" FontSize="11"
+                     Margin="0,3,0,0"/>
+        </StackPanel>
+      </Grid>
+    </StackPanel>
+  </DataTemplate>
+
   <!-- Карточка чемпиона при наведении на слот состава (ChampTipVm). Рамку и
        фон даёт общий стиль подсказки из Theme.xaml. Содержимое кладёт окно в
        TeamSlot_TipOpening — там же отменяет подсказку, если показать нечего. -->
@@ -115,41 +165,11 @@
         </Border>
       </Grid>
 
-      <!-- Контрпики (винрейт против него) и синергия (винрейт вместе) — рядом -->
-      <Grid Margin="0,11,0,0">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="15"/>
-          <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0">
-          <DockPanel Margin="0,0,0,3">
-            <TextBlock DockPanel.Dock="Right" Text="{Binding CountersCol}" Foreground="#4E6275"
-                       FontFamily="{StaticResource UiFont}" FontSize="9" VerticalAlignment="Bottom"/>
-            <TextBlock Text="{Binding CountersTitle}" Foreground="#4A6880"
-                       FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"/>
-          </DockPanel>
-          <ItemsControl ItemsSource="{Binding Counters}"
-                        ItemTemplate="{StaticResource ChampTipRowTemplate}"/>
-          <TextBlock Text="{Binding NoDataText}" Visibility="{Binding CountersEmptyVis}"
-                     Foreground="#6E8598" FontFamily="{StaticResource UiFont}" FontSize="11"
-                     Margin="0,3,0,0"/>
-        </StackPanel>
-        <Rectangle Grid.Column="1" Width="1" Fill="#1FFFFFFF" HorizontalAlignment="Center"/>
-        <StackPanel Grid.Column="2">
-          <DockPanel Margin="0,0,0,3">
-            <TextBlock DockPanel.Dock="Right" Text="{Binding SynergyCol}" Foreground="#4E6275"
-                       FontFamily="{StaticResource UiFont}" FontSize="9" VerticalAlignment="Bottom"/>
-            <TextBlock Text="{Binding SynergyTitle}" Foreground="#4A6880"
-                       FontFamily="{StaticResource UiFont}" FontSize="9" FontWeight="Bold"/>
-          </DockPanel>
-          <ItemsControl ItemsSource="{Binding Synergies}"
-                        ItemTemplate="{StaticResource ChampTipRowTemplate}"/>
-          <TextBlock Text="{Binding NoDataText}" Visibility="{Binding SynergyEmptyVis}"
-                     Foreground="#6E8598" FontFamily="{StaticResource UiFont}" FontSize="11"
-                     Margin="0,3,0,0"/>
-        </StackPanel>
-      </Grid>
+      <!-- Контрпики и синергия: общие, ниже — с моей роли (если она другая) -->
+      <ContentPresenter Margin="0,11,0,0" Content="{Binding General}"
+                        ContentTemplate="{StaticResource ChampTipListsTemplate}"/>
+      <ContentPresenter Margin="0,12,0,0" Content="{Binding Mine}" Visibility="{Binding MineVis}"
+                        ContentTemplate="{StaticResource ChampTipListsTemplate}"/>
 
       <TextBlock Text="{Binding Footer}" Foreground="#4E6275" Margin="0,9,0,0"
                  FontFamily="{StaticResource UiFont}" FontSize="9.5"/>

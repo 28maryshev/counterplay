@@ -30,7 +30,11 @@ namespace Counterplay.Tests;
 ///  4. в окне: подсказка есть у каждого слота с чемпионом и нет у пустого,
 ///     союзникам встаёт справа, врагам слева (к центру окна), выключатель в
 ///     настройках работает, повторное наведение берёт карточку из кэша;
-///  5. на всех 15 языках подписи переведены и не вылезают за свои плитки.
+///  5. на всех 15 языках подписи переведены и не вылезают за свои плитки;
+///  6. блок «моя роль» (просьба владельца 19.11): контрпики с моей линии из
+///     кросс-ролевых пар — не проигрывают ему и играют против него лучше
+///     обычного, напарники — те же, что иконки под союзником; блока нет у
+///     соперника по моей линии и вслепую, когда роли у меня нет.
 ///
 /// Подсказку не открываем — это отдельное окно на экране. Шаблон карточки
 /// раскладываем сами, как его разложила бы подсказка. Нет базы — проверять
@@ -39,6 +43,10 @@ namespace Counterplay.Tests;
 internal static class Program
 {
     private static int _fails;
+
+    // Моя роль в сцене — саппорт (Scene: MyPosition "utility").
+    private const string MyRole = "support";
+    private static int _mineShown, _mineHidden;
 
     [STAThread]
     private static int Main()
@@ -134,6 +142,115 @@ internal static class Program
         Check("у тир-листа почти всегда полные списки (90%)",
               counts.Count(x => x.C == 5 && x.P == 5) >= 0.9 * counts.Count,
               $"{counts.Count(x => x.C == 5 && x.P == 5)} из {counts.Count}");
+
+        MineNumbers(engine, tier);
+    }
+
+    // ── 6. Блок «моя роль»: те же списки, только с моей линии ───────────────
+    private static readonly string[] Roles = ["top", "jungle", "mid", "adc", "support"];
+
+    /// Владелец: «добавить ниже 2 столбца контрпиков и синергий от моей роли —
+    /// сейчас показывает общую статистику, а нужно ещё от той, на которой меня
+    /// закинуло в драфт». Контрпики с другой линии — из кросс-ролевых пар
+    /// (botlane_matchup), с теми же правилами, что на линии: не проигрывают ему
+    /// и играют против него лучше, чем обычно. Напарники — ровно иконки под
+    /// портретом союзника, только с винрейтом и на пять строк.
+    private static void MineNumbers(RecommendationEngine engine, IReadOnlyList<RecommendationEngine.TierEntry> tier)
+    {
+        var wrongRole = new List<string>();
+        var losing    = new List<string>();
+        var worse     = new List<string>();
+        var dups      = new List<string>();
+        var aliens    = new List<string>();
+        var sameLine  = new List<string>();
+        var differs   = 0;
+        var counts    = new List<(int C, int P)>();
+        foreach (var t in tier)
+        {
+            var name = $"{DataDragon.Name(t.ChampionId)} ({t.Role})";
+            // Моя роль та же, что у него, — это его соперники по линии.
+            var lane = engine.CountersWithWr(t.ChampionId, t.Role, 5);
+            if (!engine.CountersWithWr(t.ChampionId, t.Role, 5, fromRole: t.Role).SequenceEqual(lane))
+                sameLine.Add(name);
+            foreach (var mine in Roles.Where(r => r != t.Role))
+            {
+                var c = engine.CountersWithWr(t.ChampionId, t.Role, 5, fromRole: mine);
+                var p = engine.PartnersWithWr(t.ChampionId, t.Role, 5, onRole: mine);
+                wrongRole.AddRange(c.Concat(p).Where(x => x.Role != mine)
+                                    .Select(x => $"{DataDragon.Name(x.Id)} ({x.Role}) у {name} с {mine}"));
+                losing.AddRange(c.Where(x => x.Wr < 0.49 || x.Wr >= 1)
+                                 .Select(x => $"{DataDragon.Name(x.Id)} ({mine}) против {name}: {100 * x.Wr:F1}%"));
+                worse.AddRange(c.Where(x => engine.VersusDelta(x.Id, mine, t.ChampionId, t.Role) <= 0)
+                                .Select(x => $"{DataDragon.Name(x.Id)} ({mine}) против {name}"));
+                if (c.GroupBy(x => x.Id).Any(x => x.Count() > 1) || p.GroupBy(x => x.Id).Any(x => x.Count() > 1))
+                    dups.Add($"{name} с {mine}");
+                var icons = engine.TopSynergies(t.ChampionId, mine, 5, t.Role);
+                aliens.AddRange(p.Where(x => !icons.Contains(x.Id))
+                                 .Select(x => $"{DataDragon.Name(x.Id)} ({mine}) у {name}"));
+                // Кросс-ролевые пары — не те же числа, что на линии: хоть у
+                // кого-то из одних и тех же чемпионов винрейт другой.
+                if (c.Any(x => lane.Any(l => l.Id == x.Id && Math.Abs(l.Wr - x.Wr) > 1e-9))
+                    || c.Any(x => lane.All(l => l.Id != x.Id))) differs++;
+                counts.Add((c.Count, p.Count));
+            }
+        }
+        Console.WriteLine();
+        Console.WriteLine("── моя роль ──");
+        Check("та же роль, что у него, — его соперники по линии", sameLine.Count == 0, Few(sameLine));
+        Check("строки — с моей роли", wrongRole.Count == 0, Few(wrongRole));
+        Check("контрпики с моей роли не проигрывают ему", losing.Count == 0, Few(losing));
+        Check("…и играют против него лучше, чем обычно", worse.Count == 0, Few(worse));
+        Check("без повторов", dups.Count == 0, Few(dups));
+        Check("напарники — та же выборка, что иконки под союзником", aliens.Count == 0, Few(aliens));
+        Check("контрпики с другой линии — свои числа, а не линия", differs >= 0.9 * counts.Count,
+              $"{differs} из {counts.Count}");
+        var full = counts.Count(x => x.C == 5 && x.P == 5);
+        Console.WriteLine($"  контрпиков по пять у {counts.Count(x => x.C == 5)} из {counts.Count}, " +
+                          $"напарников по пять у {counts.Count(x => x.P == 5)}, пустых контр {counts.Count(x => x.C == 0)}");
+        Check("почти всегда полные списки (90%)", full >= 0.9 * counts.Count, $"{full} из {counts.Count}");
+    }
+
+    /// Блок «моя роль» в окне: есть у всех, чья роль не моя, с моей ролью в
+    /// шапке и теми же строками, что отдаёт движок; у моего соперника по линии
+    /// его нет — общие контрпики уже с моей линии.
+    private static void MineBlock(RecommendationEngine engine, ChampSlotCard card, ChampTipVm vm, string myRole)
+    {
+        var name = DataDragon.Name(card.ChampionId);
+        var role = card.StatsRole;
+        if (role == myRole)
+        {
+            _mineHidden++;
+            Check($"{name}: на моей роли — без блока «моя роль»", vm.Mine is null, "");
+            return;
+        }
+        _mineShown++;
+        Check($"{name}: блок «моя роль» есть", vm.Mine is not null, "");
+        if (vm.Mine is not { } m) return;
+        // Значок — моей роли. Картинки ролей лежат в ресурсах программы, а
+        // pack://application здесь ищет их в сборке проверки — сверяем ссылку.
+        Check($"{name}: в шапке моя роль", m.Header == Loc.T("champTip.myRole", Loc.T($"roles.{myRole}"))
+              && ReferenceEquals(m.HeaderIcon, RoleIcons.Get(RecommendationEngine.DbToLcuRole(myRole))), m.Header);
+        var c = engine.CountersWithWr(card.ChampionId, role, 5, fromRole: myRole).OrderByDescending(x => x.Wr);
+        var p = engine.PartnersWithWr(card.ChampionId, role, 5, onRole: myRole).OrderByDescending(x => x.Wr);
+        Check($"{name}: строки — от движка с моей роли",
+              m.Counters.Select(r => r.Name).SequenceEqual(c.Select(x => DataDragon.Name(x.Id)))
+              && m.Synergies.Select(r => r.Name).SequenceEqual(p.Select(x => DataDragon.Name(x.Id))),
+              $"контры {string.Join(", ", m.Counters.Select(r => r.Name))}; напарники {string.Join(", ", m.Synergies.Select(r => r.Name))}");
+    }
+
+    /// Роли мне не выдали (вслепую) — блока «моя роль» нет ни у кого.
+    private static void NoMineInBlind(OverlayWindow w, RecommendationEngine engine, DraftState draft)
+    {
+        var s = AppSettings.Current;
+        var blind = draft with { MyPosition = "" };
+        w.UpdateRecommendations(engine.Recommend(blind, s.DraftCount), blind, engine);
+        Pump();
+        var withMine = Hosts(w, "MyTeamList").Concat(Hosts(w, "EnemyTeamList"))
+            .Select(h => Open(h).Tip.Content as ChampTipVm)
+            .Count(vm => vm?.Mine is not null);
+        Check("вслепую (роли у меня нет) — блока «моя роль» нет", withMine == 0, $"есть у {withMine}");
+        w.UpdateRecommendations(engine.Recommend(draft, s.DraftCount), draft, engine);
+        Pump();
     }
 
     // ── 4–5. В окне ─────────────────────────────────────────────────────────
@@ -174,7 +291,8 @@ internal static class Program
             }
             var vm = tip.Content as ChampTipVm;
             Console.WriteLine($"  {name,-12} {card.StatsRole,-8} {vm?.WrText,6} {vm?.DeltaText,5}  бан {vm?.BanText,5}  " +
-                              $"{vm?.Grade,2} {vm?.PlaceText,-12} контр {vm?.Counters.Count}, напарников {vm?.Synergies.Count}");
+                              $"{vm?.Grade,2} {vm?.PlaceText,-12} контр {vm?.General.Counters.Count}, напарников {vm?.General.Synergies.Count}" +
+                              (vm?.Mine is { } mm ? $"; с моей роли {mm.Counters.Count}/{mm.Synergies.Count}" : ""));
             Check($"{name}: карточка есть", shown && vm is not null, "");
             if (vm is null) continue;
             Check($"{name}: встаёт к центру ({(ally ? "справа" : "слева")})",
@@ -186,7 +304,9 @@ internal static class Program
             Check($"{name}: винрейт как в патче", vm.WrText == (patch is { } p ? $"{p.Wr:F1}%" : "—"), vm.WrText);
             Check($"{name}: бан-рейт", vm.BanText == $"{engine.BanRate(card.ChampionId):F1}%", vm.BanText);
             Check($"{name}: строки по винрейту, сверху вниз",
-                  Sorted(vm.Counters) && Sorted(vm.Synergies), "");
+                  Sorted(vm.General.Counters) && Sorted(vm.General.Synergies)
+                  && (vm.Mine is null || Sorted(vm.Mine.Counters) && Sorted(vm.Mine.Synergies)), "");
+            MineBlock(engine, card, vm, MyRole);
             var (again, tip2) = Open(host);
             Check($"{name}: второе наведение — из кэша", again && ReferenceEquals(tip2.Content, vm), "");
         }
@@ -201,7 +321,11 @@ internal static class Program
         Check("выключено в настройках — подсказки нет", !Open(allies[0]).Shown, "");
         s.DraftChampTip = true;
 
+        Check("блок «моя роль» проверен хотя бы у одного и не показан своей линии",
+              _mineShown > 0 && _mineHidden > 0, $"показан {_mineShown}, скрыт {_mineHidden}");
+
         SurvivesDraftEvents(w, engine, draft);
+        NoMineInBlind(w, engine, draft);
 
         // Языки: карточку собираем заново (кэш сбрасывается со сменой языка) и
         // раскладываем шаблон, как его разложила бы подсказка.
