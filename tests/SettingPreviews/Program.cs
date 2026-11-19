@@ -148,6 +148,10 @@ internal static class Program
             else Console.WriteLine("базы нет — драфт и баны не нарисовать");
 
             Console.WriteLine($"\n── {lang}");
+            // Init грузит английский — запасной словарь для всех языков. Без
+            // него у английского вместо подписей стояли ключи («session.wl»,
+            // «pool.sectionTitle»), а у русского — у любой непереведённой строки.
+            Loc.Init();
             Loc.SetLanguage(lang);
             if (!DataDragon.LoadFromCache(Loc.DDragonLocale))
                 DataDragon.LoadAsync(Loc.DDragonLocale, CancellationToken.None).GetAwaiter().GetResult();
@@ -172,24 +176,55 @@ internal static class Program
     private static void Profile(string lang, bool write, string outDir)
     {
         Console.WriteLine("профиль:");
+        // Живой саппорт, а не набор цифр: пять чемпионов, винрейты 50–75%
+        // (без 0% и 100% у горстки игр), игры раз в день-два, флекс изредка.
+        const int Sona = 37, Nami = 267, Braum = 201, Lulu = 117, Thresh = 412;
+        (int Champ, bool Win)[] recent =
+        [
+            (Sona, true), (Nami, true), (Sona, false), (Braum, true), (Lulu, true), (Sona, true),
+            (Thresh, false), (Nami, true), (Sona, true), (Braum, false), (Lulu, true), (Sona, false),
+            (Nami, false), (Sona, true), (Braum, true), (Lulu, false), (Sona, true), (Thresh, true),
+            (Nami, true), (Braum, false), (Sona, true), (Lulu, true),
+        ];
         var now = DateTimeOffset.UtcNow;
         var games = new List<(int, int, bool, DateTimeOffset)>();
-        int[] champs = [37, 37, 201, 37, 412, 201, 37, 117, 37, 201, 16, 37];
-        for (var k = 0; k < 24; k++)
-            games.Add((420, champs[k % champs.Length], k % 3 != 1, now.AddHours(-3 * k - 1)));
-        for (var k = 0; k < 6; k++)
-            games.Add((440, champs[(k + 3) % champs.Length], k % 2 == 0, now.AddDays(-2).AddHours(-3 * k)));
-        // Месяц-два назад — серия поражений: линия за 90 дней не та, что за 30.
+        for (var k = 0; k < recent.Length; k++)
+            games.Add((420, recent[k].Champ, recent[k].Win, now.AddHours(-19 * k - 2)));
+        (int Champ, bool Win)[] flex = [(Sona, true), (Braum, false), (Sona, true), (Nami, false), (Lulu, true)];
+        for (var k = 0; k < flex.Length; k++)
+            games.Add((440, flex[k].Champ, flex[k].Win, now.AddDays(-3 - 1.5 * k)));
+        // Месяц-два назад — полоса похуже: линия за 90 дней не та, что за 30.
+        int[] older = [Sona, Braum, Nami, Sona, Lulu, Braum, Sona, Thresh];
         for (var k = 0; k < 16; k++)
-            games.Add((420, champs[k % champs.Length], k % 4 == 0, now.AddDays(-35 - 3 * k)));
+            games.Add((420, older[k % older.Length], k % 3 == 0, now.AddDays(-35 - 3 * k)));
         var ranks = new Dictionary<string, FakeLcu.Rank>
         {
             ["RANKED_SOLO_5x5"] = new("GOLD", "II", 62, 48, 41),
             ["RANKED_FLEX_SR"]  = new("SILVER", "I", 30, 12, 10),
         };
+        // Ник как у живого игрока, без отсылки к кому-то настоящему.
         using var lcu = new FakeLcu("TEST-previews-0000000000000000000000000000000000000000000000000000000000",
-                                    lang == "ru" ? "Игрок" : "Player", games, ranks);
+                                    "MoonlitSona", games, ranks);
         using var http = new LcuHttpClient(lcu.Credentials);
+        SessionTracker.DropCache();
+        Task.Run(() => SessionTracker.RefreshAsync(http, CancellationToken.None)).GetAwaiter().GetResult();
+        // LP за игру программа пишет только живьём — видя, как ранг сменился
+        // между обновлениями. Подставному игроку дописываем их в журнал сами:
+        // без них график рейтинга — одна точка, а у последних игр нет очков.
+        var file = Path.Combine(AppPaths.Root, "session.json");
+        var doc = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(file))!;
+        foreach (var queue in new[] { "solo", "flex" })
+        {
+            var list = doc["Accounts"]?.AsObject().First().Value?["Queues"]?[queue]?["Games"]?.AsArray();
+            var i = 0;
+            foreach (var g in list ?? [])
+            {
+                var win = g!["Win"]?.GetValue<bool>() == true;
+                g["Lp"] = win ? 17 + i % 6 : -(15 + i % 5);
+                i++;
+            }
+        }
+        File.WriteAllText(file, doc.ToJsonString());
         SessionTracker.DropCache();
         var d = Task.Run(() => SessionTracker.RefreshAsync(http, CancellationToken.None)).GetAwaiter().GetResult();
 
@@ -271,6 +306,7 @@ internal static class Program
     private static void Frames(OverlayWindow w, Spec spec, Action render, string lang, bool write, string outDir)
     {
         var shots = new List<(BitmapSource Full, Rect? At)>();
+        var raw = new HashSet<string>();
         foreach (var value in spec.Values)
         {
             Defaults();
@@ -279,7 +315,9 @@ internal static class Program
             Apply(w);
             render();
             shots.Add(Shoot(w, spec.Crop, spec.Alone));
+            raw.UnionWith(RawKeys(w));
         }
+        Check($"{spec.Key}: подписи — текст, а не ключи строк", raw.Count == 0, string.Join(", ", raw.Take(5)));
         Defaults();
         Apply(w);
 
@@ -343,6 +381,26 @@ internal static class Program
             p.SetValue(s, p.GetValue(AppSettings.Defaults()));
         s.DraftWidth = 1432; s.DraftHeight = 900; s.DraftPlacement = "remember";
         s.DraftLeft = -32000; s.DraftTop = -32000;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex KeyLike =
+        new(@"^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$");
+
+    /// <summary>
+    /// Видимые подписи, похожие на ключ строки («session.wl»): так Loc.T
+    /// отвечает, когда строки нет ни в языке, ни в запасном английском. Так
+    /// 19.11 ушли английские картинки — генератор не звал Loc.Init.
+    /// </summary>
+    private static IEnumerable<string> RawKeys(Window w)
+    {
+        var stack = new Stack<DependencyObject>([w]);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is UIElement { IsVisible: false }) continue;
+            if (d is TextBlock { Text: { Length: > 0 } t } && KeyLike.IsMatch(t)) yield return t;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) stack.Push(VisualTreeHelper.GetChild(d, i));
+        }
     }
 
     /// Окно целиком и место элемента в нём (null — элемент не виден).
