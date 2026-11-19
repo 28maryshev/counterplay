@@ -690,6 +690,9 @@ internal static class Program
         Add("normal", Shen, "top", true, 4); Add("normal", Shen, "top", false, 5);
         Add("solo", Ahri, "mid", true, 1); Add("solo", Ahri, "mid", true, 2);
         Add("flex", Ahri, "mid", true, 3); Add("solo", Ahri, "mid", false, 6);
+        // Ещё две в миде: 5 из 6 (83%) — выборка уже не «мало игр», и цвет
+        // винрейта у плитки и группы виден, а не глушится серым.
+        Add("solo", Ahri, "mid", true, 7); Add("normal", Ahri, "mid", true, 8);
         // За окном в 30 дней: в «за 30 дней» его быть не должно.
         Add("solo", Ahri, "jungle", true, 60);
 
@@ -713,9 +716,9 @@ internal static class Program
                 ? string.Concat(t.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text))
                 : t.Text;
             string Texts(Border b) => string.Join(" ", Walk<TextBlock>(b).Select(Plain));
-            // Порядок — по числу игр (владелец, 19.11): мид 4, саппорт 3, топ 2;
+            // Порядок — по числу игр (владелец, 19.11): мид 6, саппорт 3, топ 2;
             // пустые лес и бот — в конце, между собой в обычном порядке линий.
-            var want = new[] { "75% 3В – 1П", "67% 2В – 1П", "50% 1В – 1П", "—", "—" };
+            var want = new[] { "83% 5В – 1П", "67% 2В – 1П", "50% 1В – 1П", "—", "—" };
             var got  = tiles.Select(Texts).ToList();
             var tips = tiles.Select(t => (t.ToolTip as string ?? "").Split(" · ")[0]).ToList();
             var wantTips = new[] { "mid", "support", "top", "jungle", "adc" }.Select(r => Loc.T("roles." + r));
@@ -725,6 +728,17 @@ internal static class Program
             var arcs = tiles.Select(t => Walk<System.Windows.Shapes.Path>(t).Count()).ToList();
             Check("у сыгранной линии дуга из побед и поражений, у пустой — одна подложка",
                   arcs.SequenceEqual([2, 2, 2, 1, 1]), string.Join(",", arcs));
+
+            // Рамка и подложка плитки — цвет винрейта линии, как у слотов
+            // чемпионов: мид 83% на 6 играх — по шкале, саппорт и топ на 3 и 2
+            // играх — серые (мало игр).
+            var tileWr = new (double Wr, int Games)[] { (500.0 / 6, 6), (200.0 / 3, 3), (50, 2) };
+            var tileOk = tileWr.Select((x, i) =>
+                SameColor(tiles[i].BorderBrush, WinrateColor.BrushForSample(x.Wr, x.Games))
+                && SameColor(tiles[i].Background, WinrateColor.TintForSample(x.Wr, x.Games))).ToList();
+            Check("рамка и подложка плитки — цвет винрейта линии, как у слотов",
+                  tileOk.All(ok => ok) && !SameColor(tiles[0].BorderBrush, tiles[1].BorderBrush),
+                  string.Join(", ", tiles.Take(3).Select((t, i) => $"{tips[i]} {Hex(t.BorderBrush)}")));
 
             // Слоты чемпионов: Шен дважды, у каждого своя линия и свой счёт;
             // группы — в том же порядке, что плитки: мид, саппорт, топ.
@@ -737,11 +751,33 @@ internal static class Program
             Check("Шен на двух линиях — два слота", slots.Count(s => s.Tip.StartsWith(DataDragon.Name(Shen))) == 2,
                   string.Join(" | ", shown));
             Check("слоты по линиям в порядке плиток: мид, саппорт, топ — у каждого свой счёт",
-                  slots.Select(s => s.Chip).SequenceEqual(["75% / 4", "67% / 3", "50% / 2"])
+                  slots.Select(s => s.Chip).SequenceEqual(["83% / 6", "67% / 3", "50% / 2"])
                   && slots[0].Tip.EndsWith(Loc.T("roles.mid"))
                   && slots[1].Tip.EndsWith(Loc.T("roles.support"))
                   && slots[2].Tip.EndsWith(Loc.T("roles.top")),
                   string.Join(" | ", shown));
+
+            // Группы линий: полоса на линию в том же порядке, между ними тонкие
+            // линии; жирная черта справа и еле заметная заливка — цвет винрейта
+            // линии (тот же, что у рамки её плитки).
+            var groups = Walk<Border>(w).Where(b => b.Tag is string t && t.StartsWith("role-group-")).ToList();
+            var seps   = Walk<Border>(w).Count(b => (b.Tag as string) == "role-sep");
+            Check("группы по линиям: мид, саппорт, топ, между ними две тонкие линии",
+                  groups.Select(g => (string)g.Tag).SequenceEqual(["role-group-mid", "role-group-support", "role-group-top"])
+                  && seps == 2,
+                  $"{string.Join(", ", groups.Select(g => g.Tag))}; линий {seps}");
+            var groupOk = groups.Select((g, i) =>
+            {
+                var strip = Walk<Border>(g).FirstOrDefault(b => (b.Tag as string) == "role-strip");
+                var want  = WinrateColor.ColorForSample(tileWr[i].Wr, tileWr[i].Games);
+                return strip?.Background is SolidColorBrush s && s.Color == want
+                    && g.Background is SolidColorBrush f && f.Color.A < 0x20
+                    && f.Color.R == want.R && f.Color.G == want.G && f.Color.B == want.B;
+            }).ToList();
+            Check("черта и заливка группы — цвет винрейта линии, заливка почти прозрачная",
+                  groupOk.Count == 3 && groupOk.All(ok => ok),
+                  string.Join(", ", groups.Select(g =>
+                      $"{g.Tag}: черта {Hex(Walk<Border>(g).FirstOrDefault(b => (b.Tag as string) == "role-strip")?.Background ?? System.Windows.Media.Brushes.Transparent)}, заливка {(g.Background as SolidColorBrush)?.Color}")));
 
             var snap = Environment.GetEnvironmentVariable("CP_SNAP");
             if (snap is { Length: > 0 })

@@ -27,6 +27,10 @@ public sealed partial class PoolSettingsWindow
     // Радиус дуги по средней линии и её толщина.
     private const double ArcR = 22, ArcT = 5;
 
+    // Насколько видна заливка группы линии: почти никак — она отделяет группу
+    // и намекает на её результат, а не красит слоты.
+    private const byte RoleFillAlpha = 0x10;
+
     /// <summary>
     /// Линии по числу игр: где сыграно больше — та первая (владелец, 19.11:
     /// основная линия должна читаться сразу, а не искаться в середине ряда).
@@ -113,9 +117,14 @@ public sealed partial class PoolSettingsWindow
         var name = Loc.T("roles." + role);
         return new Border
         {
+            // Рамка и подложка — цвет винрейта линии, как у слотов чемпионов под
+            // ней (владелец, 19.11): линия выделяется своим результатом так же,
+            // как чемпион. У пустой линии — нейтральные.
             CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4C)),
-            Background = new SolidColorBrush(Color.FromArgb(0x40, 0x16, 0x22, 0x30)),
+            BorderBrush = games > 0 ? WinrateColor.BrushForSample(wr, games)
+                                    : new SolidColorBrush(Color.FromRgb(0x2A, 0x3A, 0x4C)),
+            Background = games > 0 ? WinrateColor.TintForSample(wr, games)
+                                   : new SolidColorBrush(Color.FromArgb(0x40, 0x16, 0x22, 0x30)),
             Padding = new Thickness(4, 6, 4, 6), Margin = new Thickness(3, 0, 3, 0),
             ToolTip = games > 0
                 ? $"{name} · {wr:0}% · {games} {Loc.T("pool.games")}"
@@ -155,6 +164,14 @@ public sealed partial class PoolSettingsWindow
     /// роль и свой счёт: Шен-саппорт и Шен-топ — разные истории.
     /// Игры, роль которых не нашлась (база ещё не скачана), — последней
     /// группой, без иконки роли.
+    ///
+    /// Группа — полоса во всю ширину: справа жирная вертикальная черта, под
+    /// слотами еле заметная заливка, между группами тонкая горизонтальная
+    /// линия. Цвет черты и заливки — винрейт этой линии по общей шкале
+    /// (<see cref="WinrateColor.ColorForSample"/>, на 1–4 играх серый), то же
+    /// число, что в плитке линии сверху (владелец, 19.11: сначала просил цвет на
+    /// роль, тут же — «относительно винрейта»). Метки нужны проверке:
+    /// `role-group-<роль>`, `role-strip`, `role-sep`.
     /// </summary>
     private static StackPanel ChampsByRole(IReadOnlyList<SessionTracker.RoleGame> games)
     {
@@ -169,9 +186,42 @@ public sealed partial class PoolSettingsWindow
                 .ToList();
             if (champs.Count == 0) continue;
 
-            var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
-            foreach (var x in champs) row.Children.Add(ChampRoleSlot(x.Key, role, [.. x]));
-            panel.Children.Add(row);
+            var slots = new WrapPanel();
+            foreach (var x in champs) slots.Children.Add(ChampRoleSlot(x.Key, role, [.. x]));
+
+            var onRole = champs.Sum(x => x.Count());
+            var wins   = champs.Sum(x => x.Count(g => g.Win));
+            var color  = WinrateColor.ColorForSample(100.0 * wins / onRole, onRole);
+            var body = new Grid();
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            body.Children.Add(slots);
+            // Черта во всю высоту группы. Снизу отступ как у слотов (их поле
+            // 8), чтобы она стояла ровно по ряду портретов, а не по полю под ним.
+            var strip = new Border
+            {
+                Width = 4, CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(color),
+                Margin = new Thickness(6, 0, 0, 8),
+                Tag = "role-strip"
+            };
+            Grid.SetColumn(strip, 1);
+            body.Children.Add(strip);
+
+            if (panel.Children.Count > 0)
+                panel.Children.Add(new Border
+                {
+                    Height = 1, Background = new SolidColorBrush(Line), Tag = "role-sep"
+                });
+            panel.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(RoleFillAlpha, color.R, color.G, color.B)),
+                // Сверху 8 — столько же, сколько поле слота снизу: ряд стоит в
+                // полосе посередине.
+                Padding = new Thickness(6, 8, 6, 0),
+                Tag = "role-group-" + role,
+                Child = body
+            });
         }
         return panel;
     }
