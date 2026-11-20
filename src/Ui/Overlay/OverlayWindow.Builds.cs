@@ -34,6 +34,12 @@ public partial class OverlayWindow
         public Visibility CostVis => Cost > 0 ? Visibility.Visible : Visibility.Collapsed;
         /// У пустых рамок подсказки нет: показывать в ней нечего.
         public bool HasTip => Tip.Length > 0;
+        /// Почему предмет в этой сборке (OverlayWindow.BuildWhy.cs). Цвет
+        /// заголовка — цвет строки: бирюзовый у подбора, золотой у ходовой.
+        public string WhyText { get; init; } = "";
+        public Brush? WhyBrush { get; init; }
+        public string WhyHead => Loc.T("build.whyHead");
+        public Visibility WhyVis => WhyText.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// Строка сборки: винрейт/игры слева, 6 слотов, кнопка экспорта. Выбранная — золотом.
@@ -101,6 +107,9 @@ public partial class OverlayWindow
 
     private List<bool> _buildIsAi = [];
 
+    // Почему стоит каждый предмет строки подбора; у ходовых сборок — null.
+    private List<IReadOnlyDictionary<int, BuildAdvisor.ItemWhy>?> _buildWhy = [];
+
     // Для какого чемпиона уже показали вспышку подбора. Строка перерисовывается
     // на каждый ховер и выбор, а вспышка — событие «сборка появилась», и мигать
     // на каждую перерисовку она не должна.
@@ -144,6 +153,7 @@ public partial class OverlayWindow
         _buildReasons = [.. stats.Builds.Select(_ => "")];
         _buildChanged = [.. stats.Builds.Select(_ => new HashSet<int>())];
         _buildIsAi = [.. stats.Builds.Select(_ => false)];
+        _buildWhy = [.. stats.Builds.Select(_ => (IReadOnlyDictionary<int, BuildAdvisor.ItemWhy>?)null)];
 
         // Показываем ОДНУ сборку под состав, а не набор вариантов: игрок покупает
         // один набор предметов, и выбор из двух «умных» сборок перекладывает на
@@ -154,6 +164,7 @@ public partial class OverlayWindow
             _buildReasons.Add(string.Join("\n", a.Reasons.Select(r => "• " + r)));
             _buildChanged.Add([.. a.Changed]);
             _buildIsAi.Add(true);
+            _buildWhy.Add(a.Why);
         }
 
         // Состав известен целиком, а менять нечего — подбор всё равно приходит:
@@ -170,6 +181,7 @@ public partial class OverlayWindow
             _buildReasons.Add(string.Join("\n", advice.Covered.Select(c => "• " + c)));
             _buildChanged.Add([]);
             _buildIsAi.Add(true);
+            _buildWhy.Add(advice.BaseWhy);
         }
 
         var rows = new List<BuildRowVm>();
@@ -201,6 +213,10 @@ public partial class OverlayWindow
                 {
                     DescParts = ItemIcons.DescPartsOf(id),
                     Cost = ItemIcons.CostOf(id),
+                    WhyText = isAi
+                        ? AiItemWhy(id, _buildWhy[i]?.GetValueOrDefault(id), isCore, stats)
+                        : BuildItemWhy(id, isCore, b, stats),
+                    WhyBrush = isAi ? AiBrush : CoreStroke,
                 });
             }
             // Добиваем до 6 слотов пустыми рамками — сетка ровная.

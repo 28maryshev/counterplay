@@ -33,14 +33,47 @@ public static class BuildAdvisor
     public sealed record Adapted(
         IReadOnlyList<int> Items,
         IReadOnlyList<int> Changed,        // что добавлено против стандартной сборки
-        IReadOnlyList<string> Reasons);
+        IReadOnlyList<string> Reasons)
+    {
+        /// Почему стоит каждый предмет набора — для подсказки над иконкой.
+        /// Общие причины строки отвечают «зачем подбор», а игрок, наведя на
+        /// предмет, спрашивает про этот предмет: ради чего он, вместо чего и
+        /// почему именно он, а не соседний такой же.
+        public IReadOnlyDictionary<int, ItemWhy> Why { get; init; } = new Dictionary<int, ItemWhy>();
+    }
 
     /// Ответ целиком: варианты под состав и то, что стандартная сборка закрывает
     /// сама. Второе нужно показать: «менять нечего» без объяснения выглядит как
     /// отказ, а не как вывод.
     public sealed record Advice(
         IReadOnlyList<Adapted> Builds,
-        IReadOnlyList<string> Covered);
+        IReadOnlyList<string> Covered)
+    {
+        /// Что из состава закрывает каждый предмет ходовой сборки. Нужно, когда
+        /// менять нечего: строка подбора — та же ходовая, и у её предметов
+        /// подсказка говорит, на что из состава они уже отвечают.
+        public IReadOnlyDictionary<int, ItemWhy> BaseWhy { get; init; } = new Dictionary<int, ItemWhy>();
+    }
+
+    /// <summary>
+    /// Почему предмет стоит в сборке под состав.
+    /// </summary>
+    /// <param name="Answers">На что в составе он отвечает: сначала то, ради
+    /// чего поставлен, затем что закрывает попутно. Пусто — ни на что.</param>
+    /// <param name="Added">Поставлен подбором; иначе взят из ходовой сборки.</param>
+    public sealed record ItemWhy(IReadOnlyList<string> Answers, bool Added)
+    {
+        /// Какой предмет ходовой сборки он сменил; 0 — ничей.
+        public int Replaced { get; init; }
+        /// Чем сменённый был плох («броня, а они бьют магией»); пусто — тот
+        /// просто занимал некорневой слот.
+        public string ReplacedWhy { get; init; } = "";
+        /// Взят лучшим из прочих предметов чемпиона, а не из отвечающих на
+        /// задачу: так закрывают слот бесполезной защиты или лишней обуви.
+        public bool BestOfAll { get; init; }
+        /// Следующий по выигрышу из тех же кандидатов; 0 — других не было.
+        public int RunnerUp { get; init; }
+    }
 
     // Defense — пережить их урон, Pressure — пробить их. В сборке участвуют и то
     // и другое: игрок покупает один набор, а не два. Чем неудобен состав —
@@ -214,22 +247,47 @@ public static class BuildAdvisor
         // сборки выглядят как ошибка, а не как выбор.
         if (b is not null && (a is null || !b.Items.SequenceEqual(a.Items))) res.Add(b);
 
-        return new Advice(res, covered);
+        var baseWhy = baseBuild.Items.Take(6).Distinct()
+            .ToDictionary(i => i, i => new ItemWhy(AnswersOf(i, all), false));
+        return new Advice(res, covered) { BaseWhy = baseWhy };
     }
 
     private static string Pct(double share) => $"{share * 100:F0}";
 
-    /// Предмет, который в этом матче почти ничего не даёт: броня против команды,
-    /// бьющей магией, и наоборот. Именно такие слоты и надо освобождать — иначе
-    /// ответ приписывается в конец, а мёртвая защита остаётся в сборке.
-    private static bool Wasted(int itemId, double phys, double magic)
+    /// На что из задач состава отвечает предмет — подписи задач без повторов
+    /// (у смешанного урона подпись одна на броню и магзащиту).
+    private static List<string> AnswersOf(int itemId, IEnumerable<Need> needs) =>
+        needs.Where(n => Answers(itemId, n.Kind)).Select(n => n.Reason).Distinct().ToList();
+
+    /// Чем предмет бесполезен в этом матче: броня против команды, бьющей
+    /// магией (Armor), магзащита против физического урона (Mr); null — не
+    /// бесполезен. Именно такие слоты и надо освобождать — иначе ответ
+    /// приписывается в конец, а мёртвая защита остаётся в сборке.
+    ///
+    /// Одна проверка и на замену, и на её подпись: до 20.11 подпись выбиралась
+    /// своим порогом (60% магии вместо 55%), и при магии 57% броню меняли с
+    /// причиной «против физ. урона (43%)».
+    private enum Waste { Armor, Mr }
+
+    private static Waste? WasteOf(int itemId, double phys, double magic)
     {
         var f = ItemFacts.Of(itemId);
-        if (f is null || f.Boots) return false;   // ботинки нужны всегда
-        if (magic >= 0.55 && f.Armor >= 30 && f.MagicResist < 20) return true;
-        if (phys  >= 0.55 && f.MagicResist >= 30 && f.Armor < 20) return true;
-        return false;
+        if (f is null || f.Boots) return null;   // ботинки нужны всегда
+        if (magic >= 0.55 && f.Armor >= 30 && f.MagicResist < 20) return Waste.Armor;
+        if (phys  >= 0.55 && f.MagicResist >= 30 && f.Armor < 20) return Waste.Mr;
+        return null;
     }
+
+    private static bool Wasted(int itemId, double phys, double magic) =>
+        WasteOf(itemId, phys, magic) is not null;
+
+    /// Подписи бесполезного предмета: задача для строки («против маг. урона»)
+    /// и чем плох сам предмет («броня, а они бьют магией») — для подсказки
+    /// того, кто встал на его место.
+    private static (string Need, string Item) WasteWhy(Waste w, double phys, double magic) =>
+        w == Waste.Armor
+            ? (Loc.T("build.vsMagic", Pct(magic)), Loc.T("build.wastedArmor", Pct(magic)))
+            : (Loc.T("build.vsPhys", Pct(phys)), Loc.T("build.wastedMr", Pct(phys)));
 
     /// Собирает вариант: база, в которой слоты заменены на ответы составу.
     private static Adapted? Compose(ChampStats stats, BuildData baseBuild,
@@ -243,6 +301,14 @@ public static class BuildAdvisor
         var core = baseBuild.Core.Count > 0 ? baseBuild.Core.ToHashSet() : items.Take(2).ToHashSet();
         var added = new List<int>();
         var reasons = new List<string>();
+        // Почему встал каждый новый предмет; остальным причину допишем в конце —
+        // что из состава они закрывают.
+        var why = new Dictionary<int, ItemWhy>();
+
+        // Кого предмет сменил. Если на этом месте уже стоял наш же новый
+        // предмет (обувь под другую задачу), сменённым считается то, что было
+        // в ходовой сборке: игрок сравнивает с ней, а не с промежуточным шагом.
+        int Original(int id) => why.TryGetValue(id, out var w) && w.Replaced != 0 ? w.Replaced : id;
 
         // Порядок важен: он и отличает «сначала выжить» от «сначала пробить».
         foreach (var need in needs)
@@ -272,7 +338,7 @@ public static class BuildAdvisor
             var myTags = DataDragon.ClassTags(stats.ChampionId);
             var iAmBeefy = myTags.Contains("Tank") || myTags.Contains("Fighter");
 
-            var pick = stats.Items
+            var fits = stats.Items
                 .Where(i => !items.Contains(i.Id) && (avoid is null || !avoid.Contains(i.Id)))
                 .Where(i => Answers(i.Id, need.Kind))
                 .Where(i => i.Games >= minGames)
@@ -288,8 +354,14 @@ public static class BuildAdvisor
                 // примерно на треть.
                 .OrderByDescending(i => 50 + (i.Winrate - 50) * i.Games / (i.Games + 100.0))
                 .ThenByDescending(i => i.Games)
-                .FirstOrDefault();
-            if (pick is null) continue;
+                .ToList();
+            if (fits.Count == 0) continue;
+            var pick = fits[0];
+            // Запасной вариант — того же вида: ботинки встают на место обуви, а
+            // не в слот предмета, и «запасной к Ледяному сердцу — сапоги»
+            // читается как ошибка.
+            var pickBoots = ItemFacts.Of(pick.Id) is { Boots: true };
+            var runnerUp = fits.Skip(1).FirstOrDefault(i => (ItemFacts.Of(i.Id) is { Boots: true }) == pickBoots);
 
             // Ботинки в сборке одни: если ответ — обувь, она занимает место
             // прежней пары, а не добавляется второй. Иначе в сборке оказывалось
@@ -315,10 +387,17 @@ public static class BuildAdvisor
             }
             if (slot < 0) break;
 
+            var old = items[slot];
+            var waste = WasteOf(old, phys, magic);
+            why[pick.Id] = new ItemWhy([need.Reason], true)
+            {
+                Replaced = Original(old),
+                ReplacedWhy = waste is { } w ? WasteWhy(w, phys, magic).Item : "",
+                RunnerUp = runnerUp?.Id ?? 0,
+            };
             items[slot] = pick.Id;
             added.Add(pick.Id);
             if (!reasons.Contains(need.Reason)) reasons.Add(need.Reason);
-
 
             // Порядок покупки важен не меньше самого предмета. Срез лечения,
             // купленный шестым, не спасает от лечения в первых же драках — его
@@ -353,7 +432,7 @@ public static class BuildAdvisor
         // ничего не даёт, дороже любой перестановки.
         for (var i = 0; i < items.Count; i++)
         {
-            if (added.Contains(items[i]) || !Wasted(items[i], phys, magic)) continue;
+            if (added.Contains(items[i]) || WasteOf(items[i], phys, magic) is not { } waste) continue;
 
             var better = stats.Items
                 .Where(x => !items.Contains(x.Id) && !Wasted(x.Id, phys, magic)
@@ -364,13 +443,20 @@ public static class BuildAdvisor
                             || DataDragon.ClassTags(stats.ChampionId).Contains("Fighter")
                             || ItemFacts.Of(x.Id) is not { PureTank: true })
                 .OrderByDescending(x => 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0))
-                .FirstOrDefault();
-            if (better is null) continue;
+                .Take(2).ToList();
+            if (better.Count == 0) continue;
 
-            items[i] = better.Id;
-            added.Add(better.Id);
-            var why = magic >= 0.6 ? Loc.T("build.vsMagic", Pct(magic)) : Loc.T("build.vsPhys", Pct(phys));
-            if (!reasons.Contains(why)) reasons.Add(why);
+            var (need, itemWhy) = WasteWhy(waste, phys, magic);
+            why[better[0].Id] = new ItemWhy([], true)
+            {
+                Replaced = items[i],
+                ReplacedWhy = itemWhy,
+                BestOfAll = true,
+                RunnerUp = better.Count > 1 ? better[1].Id : 0,
+            };
+            items[i] = better[0].Id;
+            added.Add(better[0].Id);
+            if (!reasons.Contains(need)) reasons.Add(need);
         }
 
         // Последняя проверка: ботинки в сборке одни. Вторая пара может прийти из
@@ -386,10 +472,29 @@ public static class BuildAdvisor
                 .OrderByDescending(x => 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0))
                 .FirstOrDefault();
             if (repl is null) break;
+            why[repl.Id] = new ItemWhy([], true)
+            {
+                Replaced = Original(boots[extra]),
+                ReplacedWhy = Loc.T("build.oneBoots"),
+                BestOfAll = true,
+            };
             items[idx] = repl.Id;
         }
 
-        return added.Count == 0 ? null : new Adapted(items, added, reasons);
+        if (added.Count == 0) return null;
+
+        // Причина у каждого предмета набора. Новому — то, ради чего он встал, и
+        // что он закрывает попутно (броня с срезом лечения отвечает на обе
+        // задачи); взятому из ходовой — что из состава он уже закрывает.
+        var whyAll = new Dictionary<int, ItemWhy>();
+        foreach (var id in items.Distinct())
+        {
+            var also = AnswersOf(id, needs);
+            whyAll[id] = why.TryGetValue(id, out var w)
+                ? w with { Answers = w.Answers.Concat(also).Distinct().ToList() }
+                : new ItemWhy(also, false);
+        }
+        return new Adapted(items, added, reasons) { Why = whyAll };
     }
 
     /// Закрывает ли предмет эту потребность.

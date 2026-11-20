@@ -5,6 +5,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Counterplay;
+using Application = System.Windows.Application;
+using Size = System.Windows.Size;
+using ToolTip = System.Windows.Controls.ToolTip;
 
 namespace Counterplay.Tests;
 
@@ -63,7 +66,15 @@ internal static class Program
 
             Assets(playerDir);
             var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            Window(engine, Environment.GetEnvironmentVariable("CP_SNAP"));
+            // Для снимков — тема программы: без неё подсказка выходит системной
+            // жёлто-белой плашкой, и по снимку не понять, как её увидит игрок.
+            var snap = Environment.GetEnvironmentVariable("CP_SNAP");
+            if (snap is { Length: > 0 })
+                app.Resources.MergedDictionaries.Add(new ResourceDictionary
+                {
+                    Source = new Uri("/Counterplay;component/src/Ui/Theme.xaml", UriKind.Relative),
+                });
+            Window(engine, snap);
             app.Shutdown();
         }
         finally
@@ -182,7 +193,17 @@ internal static class Program
               full?.TipHead == Loc.T("runes.aiTipHead")
               || full?.TipHead.Equals(Loc.T("runes.aiCovered"), StringComparison.OrdinalIgnoreCase) == true,
               full?.TipHead ?? "");
-        if (snap is { Length: > 0 }) Snap(w, snap, "ai-2-five-enemies.png");
+        // Владелец, 20.11: «в итемах при наведении должен объяснять, почему
+        // выбрал именно эти итемы» — у каждого предмета подбора своя причина.
+        Check("у каждого предмета строки подбора в подсказке — почему он здесь",
+              full?.Slots.All(x => x.WhyText.Length > 0) == true,
+              string.Join(" | ", full?.Slots.Select(x => x.WhyText.Replace("\n", " / ")) ?? []));
+        if (snap is { Length: > 0 })
+        {
+            Snap(w, snap, "ai-2-five-enemies.png");
+            for (var k = 0; k < 6; k++) SnapTip(w, snap, $"ai-3-tip-{k + 1}.png", Rows(w).Count - 1, k);
+            SnapTip(w, snap, "ai-4-tip-popular.png", 0, 0);
+        }
 
         // ── 4. Новый чемпион ────────────────────────────────────────────────
         Draft(Braum, 1);
@@ -308,6 +329,39 @@ internal static class Program
         using var fs = File.Create(Path.Combine(dir, file));
         enc.Save(fs);
         Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
+    }
+
+    /// Подсказка предмета — снимком. Саму всплывашку не открываем (это окно
+    /// поверх экрана): рисуем её ToolTip отдельно, с данными слота.
+    private static void SnapTip(Window w, string dir, string file, int row, int slot)
+    {
+        var list = (ItemsControl)w.FindName("BuildList");
+        if (list.ItemContainerGenerator.ContainerFromIndex(row) is not DependencyObject cp) return;
+        var slots = new List<Border>();
+        void Walk(DependencyObject d)
+        {
+            if (d is Border { ToolTip: ToolTip, DataContext: OverlayWindow.SlotVm } b) slots.Add(b);
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
+        }
+        Walk(cp);
+        if (slot >= slots.Count) return;
+
+        var tip = (ToolTip)slots[slot].ToolTip;
+        tip.DataContext = slots[slot].DataContext;
+        if (Application.Current.TryFindResource(typeof(ToolTip)) is Style st) tip.Style = st;
+        tip.ApplyTemplate();
+        tip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        tip.Arrange(new Rect(tip.DesiredSize));
+        tip.UpdateLayout();
+        var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            (int)Math.Ceiling(tip.ActualWidth), (int)Math.Ceiling(tip.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(tip);
+        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+        Directory.CreateDirectory(dir);
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок подсказки: {Path.Combine(dir, file)}");
     }
 
     /// Окно показываем так, чтобы человек его не увидел (см. AramWindow).

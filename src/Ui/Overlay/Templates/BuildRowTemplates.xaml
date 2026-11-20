@@ -186,6 +186,21 @@
                                      FontWeight="Bold" Foreground="#F0C24B"/>
                         </StackPanel>
                       </Grid>
+                      <!-- Почему предмет в этой сборке — сразу под
+                           названием: ради этого подсказку и открывают,
+                           а что предмет делает, игрок чаще знает и так.
+                           Заголовок цветом строки: бирюзовый у подбора,
+                           золотой у ходовой. -->
+                      <Border Height="1" Background="#33557089" Margin="0,7,0,0"
+                              Visibility="{Binding WhyVis}"/>
+                      <TextBlock Text="{Binding WhyHead}" Margin="0,6,0,0"
+                                 Visibility="{Binding WhyVis}"
+                                 FontFamily="{StaticResource UiFont}" FontSize="10"
+                                 FontWeight="Bold" Foreground="{Binding WhyBrush}"/>
+                      <TextBlock Text="{Binding WhyText}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                 Visibility="{Binding WhyVis}"
+                                 FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                 LineHeight="15" Foreground="#D7DEE6"/>
                       <!-- Разделитель: характеристики отделены от
                            названия так же, как в клиенте. -->
                       <Border Height="1" Background="#33557089" Margin="0,7,0,0"
