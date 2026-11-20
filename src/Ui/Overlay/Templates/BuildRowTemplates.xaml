@@ -6,6 +6,47 @@
     <ResourceDictionary Source="/Counterplay;component/src/Ui/Overlay/OverlayResources.xaml"/>
   </ResourceDictionary.MergedDictionaries>
 
+  <!-- Подсказка строки сборки: заголовок, у подбора — предметы (иконка,
+       название и почему именно он), иначе общие причины. Одна на подсказку
+       всей строки и на знак «?»: до 20.11 это были две копии разметки.
+       Выше строки сборки: StaticResource вперёд не смотрит. -->
+  <DataTemplate x:Key="BuildRowTip">
+    <StackPanel MaxWidth="300">
+      <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
+                 FontFamily="{StaticResource UiFont}" FontSize="11"
+                 FontWeight="Bold" Foreground="#F0D48A"/>
+      <ItemsControl ItemsSource="{Binding WhyItems}" Visibility="{Binding WhyItemsVis}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Border Width="22" Height="22" CornerRadius="4" VerticalAlignment="Top"
+                      BorderBrush="{Binding NameBrush}" BorderThickness="1" ClipToBounds="True">
+                <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+              </Border>
+              <StackPanel Grid.Column="1" Margin="7,0,0,0">
+                <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
+                           FontFamily="{StaticResource UiFont}" FontSize="11"
+                           FontWeight="Bold" Foreground="{Binding NameBrush}"/>
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,1,0,0"
+                           FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                           LineHeight="15" Foreground="#D7DEE6"/>
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
+                 Visibility="{Binding ReasonVis}" Margin="0,5,0,0"
+                 FontFamily="{StaticResource UiFont}" FontSize="11"
+                 LineHeight="16" Foreground="#D7DEE6"/>
+    </StackPanel>
+  </DataTemplate>
+
   <!-- Строка сборки предметов на панели рун и сборки (BuildList). -->
   <DataTemplate x:Key="BuildRowTemplate">
    <Grid>
@@ -24,15 +65,7 @@
          выглядела чужой рядом с нашей. -->
     <Border.ToolTip>
       <ToolTip>
-        <StackPanel MaxWidth="270">
-          <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
-                     FontFamily="{StaticResource UiFont}" FontSize="11"
-                     FontWeight="Bold" Foreground="#F0D48A"/>
-          <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
-                     Visibility="{Binding ReasonVis}" Margin="0,5,0,0"
-                     FontFamily="{StaticResource UiFont}" FontSize="11"
-                     LineHeight="16" Foreground="#D7DEE6"/>
-        </StackPanel>
+        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource BuildRowTip}"/>
       </ToolTip>
     </Border.ToolTip>
     <!-- Правое выравнивание группы; при нехватке ширины сжимается
@@ -114,15 +147,7 @@
                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
               <Border.ToolTip>
                 <ToolTip>
-                  <StackPanel MaxWidth="270">
-                    <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
-                               FontFamily="{StaticResource UiFont}" FontSize="11"
-                               FontWeight="Bold" Foreground="#F0D48A"
-                               Margin="0,0,0,5"/>
-                    <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
-                               FontFamily="{StaticResource UiFont}" FontSize="11"
-                               LineHeight="16" Foreground="#D7DEE6"/>
-                  </StackPanel>
+                  <ContentControl Content="{Binding}" ContentTemplate="{StaticResource BuildRowTip}"/>
                 </ToolTip>
               </Border.ToolTip>
             </Border>

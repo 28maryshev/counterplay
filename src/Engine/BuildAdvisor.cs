@@ -71,6 +71,11 @@ public static class BuildAdvisor
         /// Взят лучшим из прочих предметов чемпиона, а не из отвечающих на
         /// задачу: так закрывают слот бесполезной защиты или лишней обуви.
         public bool BestOfAll { get; init; }
+        /// Чего среди предметов чемпиона нет вовсе («магзащиту на этом чемпионе
+        /// не собирают») — поэтому и взят лучший из остальных; пусто — было.
+        /// Без этой пометки подсказка приписывала такому предмету чужую задачу:
+        /// Мандат императора стоял под «против маг. урона».
+        public string NoFit { get; init; } = "";
         /// Следующий по выигрышу из тех же кандидатов; 0 — других не было.
         public int RunnerUp { get; init; }
     }
@@ -338,9 +343,18 @@ public static class BuildAdvisor
             var myTags = DataDragon.ClassTags(stats.ChampionId);
             var iAmBeefy = myTags.Contains("Tank") || myTags.Contains("Fighter");
 
+            // Обувь, которую подбор уже поставил под задачу поважнее, другая
+            // задача не перебивает: иначе Ртутные под контроль сменялись
+            // Бронированными сапогами под броню, ответ на контроль молча
+            // пропадал, а в причинах оставался — а если в ходовой и были эти
+            // сапоги, выходило «Бронированные сапоги вместо Бронированных
+            // сапог». Такой задаче — предмет, не обувь.
+            var bootsTaken = items.Any(i => added.Contains(i) && ItemFacts.Of(i) is { Boots: true });
+
             var fits = stats.Items
                 .Where(i => !items.Contains(i.Id) && (avoid is null || !avoid.Contains(i.Id)))
                 .Where(i => Answers(i.Id, need.Kind))
+                .Where(i => !bootsTaken || ItemFacts.Of(i.Id) is not { Boots: true })
                 .Where(i => i.Games >= minGames)
                 .Where(i => iAmBeefy || ItemFacts.Of(i.Id) is not { PureTank: true })
                 // И не проигрывающий: отклонение от 50% приглушаем объёмом, иначе
@@ -428,35 +442,54 @@ public static class BuildAdvisor
 
         // Бывает, что нужное в сборке уже есть (магзащита куплена), а бесполезное
         // всё равно занимает слот — как броня против команды, бьющей магией.
-        // Меняем её на лучший подходящий предмет этого чемпиона: слот, который
-        // ничего не даёт, дороже любой перестановки.
+        // Слот, который ничего не даёт, дороже любой перестановки.
+        //
+        // На его место — прежде всего защита от того урона, которым бьют
+        // (магзащита вместо брони): игрок ждёт именно её, а при 70% магии и
+        // вторая магзащита не лишняя. Такой у чемпиона нет — лучший из
+        // остальных его предметов, и подсказка так и говорит (NoFit). До 20.11
+        // здесь брался лучший вообще, а подпись строки была «против маг.
+        // урона»: у Соны на место брони вставал Мандат императора, и владелец
+        // спросил, при чём тут он.
+        var topAll = stats.Items.Max(x => x.Games);
+        var beefy = DataDragon.ClassTags(stats.ChampionId) is var tags
+                    && (tags.Contains("Tank") || tags.Contains("Fighter"));
         for (var i = 0; i < items.Count; i++)
         {
             if (added.Contains(items[i]) || WasteOf(items[i], phys, magic) is not { } waste) continue;
 
-            var better = stats.Items
+            var pool = stats.Items
                 .Where(x => !items.Contains(x.Id) && !Wasted(x.Id, phys, magic)
                             && (avoid is null || !avoid.Contains(x.Id)))
                 .Where(x => ItemFacts.Of(x.Id) is { Boots: false })
-                .Where(x => x.Games >= Math.Max(40, stats.Items.Max(i => i.Games) * 0.02))
-                .Where(x => DataDragon.ClassTags(stats.ChampionId).Contains("Tank")
-                            || DataDragon.ClassTags(stats.ChampionId).Contains("Fighter")
-                            || ItemFacts.Of(x.Id) is not { PureTank: true })
+                .Where(x => x.Games >= Math.Max(40, topAll * 0.02))
+                .Where(x => beefy || ItemFacts.Of(x.Id) is not { PureTank: true })
                 .OrderByDescending(x => 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0))
-                .Take(2).ToList();
-            if (better.Count == 0) continue;
+                .ToList();
+            if (pool.Count == 0) continue;
+
+            // Защита — с тем же отсевом, что у ответов на задачи: не проигрывающая.
+            var defense = waste == Waste.Armor ? "mr" : "armor";
+            var fit = pool
+                .Where(x => Answers(x.Id, defense)
+                            && 50 + (x.Winrate - 50) * x.Games / (x.Games + 100.0) >= 49.5)
+                .ToList();
+            var noFit = fit.Count == 0;
+            var from = noFit ? pool : fit;
 
             var (need, itemWhy) = WasteWhy(waste, phys, magic);
-            why[better[0].Id] = new ItemWhy([], true)
+            why[from[0].Id] = new ItemWhy(noFit ? [] : [need], true)
             {
                 Replaced = items[i],
                 ReplacedWhy = itemWhy,
-                BestOfAll = true,
-                RunnerUp = better.Count > 1 ? better[1].Id : 0,
+                BestOfAll = noFit,
+                NoFit = noFit ? Loc.T(waste == Waste.Armor ? "build.noFitMr" : "build.noFitArmor") : "",
+                RunnerUp = from.Count > 1 ? from[1].Id : 0,
             };
-            items[i] = better[0].Id;
-            added.Add(better[0].Id);
-            if (!reasons.Contains(need)) reasons.Add(need);
+            items[i] = from[0].Id;
+            added.Add(from[0].Id);
+            // Задачу в причины строки — только если предмет на неё отвечает.
+            if (!noFit && !reasons.Contains(need)) reasons.Add(need);
         }
 
         // Последняя проверка: ботинки в сборке одни. Вторая пара может прийти из

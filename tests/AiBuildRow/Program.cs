@@ -198,9 +198,17 @@ internal static class Program
         Check("у каждого предмета строки подбора в подсказке — почему он здесь",
               full?.Slots.All(x => x.WhyText.Length > 0) == true,
               string.Join(" | ", full?.Slots.Select(x => x.WhyText.Replace("\n", " / ")) ?? []));
+        // Владелец, 20.11, о подсказке строки: «название предмета и почему
+        // именно он» — список предметов вместо общих задач состава.
+        var listed = full?.WhyItems ?? [];
+        Check("в подсказке строки подбора — предметы: название и почему именно он, общих задач нет",
+              listed.Count > 0 && listed.All(x => x.Name.Length > 0 && x.Text.Length > 0)
+              && full!.ReasonVis == Visibility.Collapsed,
+              string.Join(" | ", listed.Select(x => $"{x.Name}: {x.Text.Replace("\n", " / ")}")));
         if (snap is { Length: > 0 })
         {
             Snap(w, snap, "ai-2-five-enemies.png");
+            SnapTip(w, snap, "ai-3-tip-row.png", Rows(w).Count - 1, -1);
             for (var k = 0; k < 6; k++) SnapTip(w, snap, $"ai-3-tip-{k + 1}.png", Rows(w).Count - 1, k);
             SnapTip(w, snap, "ai-4-tip-popular.png", 0, 0);
         }
@@ -331,8 +339,9 @@ internal static class Program
         Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
     }
 
-    /// Подсказка предмета — снимком. Саму всплывашку не открываем (это окно
-    /// поверх экрана): рисуем её ToolTip отдельно, с данными слота.
+    /// Подсказка предмета (slot 0…5) или всей строки (slot −1) — снимком. Саму
+    /// всплывашку не открываем (это окно поверх экрана): рисуем её ToolTip
+    /// отдельно, с данными слота или строки.
     private static void SnapTip(Window w, string dir, string file, int row, int slot)
     {
         var list = (ItemsControl)w.FindName("BuildList");
@@ -340,10 +349,13 @@ internal static class Program
         var slots = new List<Border>();
         void Walk(DependencyObject d)
         {
-            if (d is Border { ToolTip: ToolTip, DataContext: OverlayWindow.SlotVm } b) slots.Add(b);
+            if (slot >= 0 ? d is Border { ToolTip: ToolTip, DataContext: OverlayWindow.SlotVm }
+                          : d is Border { ToolTip: ToolTip, DataContext: OverlayWindow.BuildRowVm })
+                slots.Add((Border)d);
             for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
         }
         Walk(cp);
+        slot = Math.Max(slot, 0);
         if (slot >= slots.Count) return;
 
         var tip = (ToolTip)slots[slot].ToolTip;

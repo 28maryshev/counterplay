@@ -53,7 +53,13 @@ public partial class OverlayWindow
         // вопроса, а слева горящий знак и шкала — сколько врагов уже выбрали.
         // RowOpacity гасит только рамки и кнопку, знак не тускнеет.
         Visibility HintVis, double RowOpacity, Visibility FillVis, double FillWidth,
-        Brush ExportBg, Brush ExportStroke, Brush ExportFg);
+        Brush ExportBg, Brush ExportStroke, Brush ExportFg)
+    {
+        /// Подсказка строки подбора: предметы — название и почему именно он
+        /// (OverlayWindow.BuildWhy.cs). Есть список — общих причин нет.
+        public IReadOnlyList<WhyItemVm> WhyItems { get; init; } = [];
+        public Visibility WhyItemsVis => WhyItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     /// Длина шкалы под знаком подбора; совпадает с шириной знака в шаблоне.
     private const double AiFillMax = 72;
@@ -223,6 +229,12 @@ public partial class OverlayWindow
             while (slots.Count < 6)
                 slots.Add(new SlotVm(null, "", AltStroke, new Thickness(1), 1.0));
 
+            // У подбора подсказка строки — список предметов с причинами, а не
+            // общие задачи состава: рядом с набором задача читалась как ответ
+            // каждого предмета, и Мандат выходил «против маг. урона».
+            var whyItems = isAi ? RowWhy(b.Items, _buildWhy[i], core, stats) : [];
+            if (whyItems.Count > 0) reason = "";
+
             var selected = i == _buildSelected;
             rows.Add(new BuildRowVm(
                 Index: i,
@@ -247,7 +259,10 @@ public partial class OverlayWindow
                 RowOpacity: 1.0,
                 FillVis: Visibility.Collapsed,
                 FillWidth: 0,
-                ExportBg: ExportFill, ExportStroke: ExportEdge, ExportFg: ExportText));
+                ExportBg: ExportFill, ExportStroke: ExportEdge, ExportFg: ExportText)
+            {
+                WhyItems = whyItems,
+            });
         }
 
         // Подбора пока нет — вторую строку занимает его след: шесть блёклых
