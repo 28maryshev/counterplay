@@ -109,6 +109,9 @@
     "shardTenacity": "Fragmento de tenacidade",
     "laneAllIn": "{0} na rota vai all-in",
     "lanePoke": "{0} na rota faz poke à distância",
+    "laneAllInTwo": "{0} e {1} vão all-in na rota",
+    "lanePokeTwo": "{0} e {1} dão poke à distância na rota",
+    "both": "{0} e {1}",
     "aiKsEdge": "contra {0}, melhor que outras runas principais: {1} pts",
     "aiKsWr": "vence mais vezes que {0}: {1}% contra {2}%",
     "vsSquishy": "eles não têm alvos resistentes",
@@ -751,7 +754,21 @@
     "vsBurst": "assassinos no time deles ({0})",
     "selfHeal": "amplia sua cura",
     "allyMage": "um mago forte na equipa",
-    "allyCarry": "um carry de ataques básicos"
+    "allyCarry": "um carry de ataques básicos",
+    "whyHead": "Por que este item",
+    "whyInstead": "Substitui: {0}",
+    "whyInsteadBecause": "Substitui: {0} — {1}",
+    "whyBest": "O que mais vence entre os que servem: {0}% em {1} partidas",
+    "whyBestAll": "O que mais vence entre os outros itens do campeão: {0}% em {1} partidas",
+    "whyNext": "Alternativa: {0}",
+    "whyCovers": "Da build padrão — já responde a esta comp:",
+    "whyCore": "Núcleo da build padrão — mantido",
+    "whyKept": "Da build padrão: esta comp não pede troca",
+    "whyBuildCore": "Núcleo da build: {0}% de vitórias em {1} partidas com este conjunto",
+    "whyBuildItem": "Compra comum: {0}% de vitórias em {1} partidas",
+    "wastedArmor": "armadura, mas eles causam dano mágico ({0}%)",
+    "wastedMr": "resistência mágica, mas eles causam dano físico ({0}%)",
+    "oneBoots": "um segundo par de botas não acumula"
   },
   "notice": {
     "head": {

@@ -94,12 +94,19 @@ public static class RuneAdvisor
         if (stats.Keystones.Count == 0) return null;
         if (EnemyComp.Read(enemies, damageShare) is not { } comp) return null;
         var opp = laneOpponent is { } o && o != 0 ? o : (int?)null;
+        var foes = laneFoes.Where(f => f != 0).Distinct().ToList();
         var trace = new List<string>();
 
-        // ── Кейстоун: по данным против оппонента ──────────────────────────
-        // Все кейстоуны по порядку (база + поправка против оппонента): первый —
-        // подбор, самый ходовой — то, с чем его сравнивать в причине.
-        var all = RunesClient.Choices(stats, opp, int.MaxValue);
+        // ── Кейстоун: по данным против соперников на линии ────────────────
+        // На боте их двое (владелец, 20.11: «руны на боте должны учитывать
+        // пики двух врагов»): к поправке против оппонента той же роли
+        // прибавляется поправка против второго бот-лейнера (VsDuo).
+        int? duo = stats.Role is "adc" or "support"
+            && foes.FirstOrDefault(f => f != opp) is var d and not 0 ? d : null;
+        var duoKnown = duo is { } dk && stats.VsDuo.ContainsKey(dk);
+        // Все кейстоуны по порядку (база + поправки): первый — подбор, самый
+        // ходовой — то, с чем его сравнивать в причине.
+        var all = RunesClient.Choices(stats, opp, int.MaxValue, duo);
         var choice = all[0];
         if (slotOf(choice.Keystone) is null) return null;
         var meta = all.MaxBy(k => k.PickRate)!;
@@ -110,7 +117,9 @@ public static class RuneAdvisor
         // все. Лучше прочих против оппонента — так и пишем; иначе он взят за
         // винрейт — пишем, чем лучше ходового; он и есть ходовой — молчим.
         if (opp is { } x && choice.VsEdge >= MinKeystoneEdge)
-            ksWhy = Loc.T("runes.aiKsEdge", DataDragon.Name(x), "+" + choice.VsEdge.ToString("0.0"));
+            ksWhy = Loc.T("runes.aiKsEdge",
+                          duoKnown ? Both(x, duo!.Value) : DataDragon.Name(x),
+                          "+" + choice.VsEdge.ToString("0.0"));
         else if (choice.Keystone != meta.Keystone)
             ksWhy = Loc.T("runes.aiKsWr", Rune(meta.Keystone),
                           (choice.Winrate + choice.VsDelta).ToString("0.0"),
@@ -118,8 +127,9 @@ public static class RuneAdvisor
         trace.Add(opp is { } y
             ? $"оппонент по линии: {DataDragon.Name(y)}"
               + (stats.Vs.ContainsKey(y) ? "" : " (поправок кейстоунов против него нет)")
+              + (duo is { } dd ? $"; второй бот-лейнер: {DataDragon.Name(dd)}"
+                                 + (duoKnown ? "" : " (поправок против него нет)") : "")
             : "оппонент по линии не известен");
-        var foes = laneFoes.Where(f => f != 0).Distinct().ToList();
         trace.Add(foes.Count == 0
             ? (stats.Role == "jungle" ? "лес: линии нет, руны защиты — по составу" : "соперников на линии не знаем")
             : "на линии: " + string.Join(", ", foes.Select(f => DataDragon.Name(f)
@@ -201,10 +211,10 @@ public static class RuneAdvisor
         // минуты, когда и решается линия (так советуют против агрессивных
         // линий). Растущее на странице остаётся у тех, против кого линия тихая.
         var shards = page.Shards.ToList();
-        var bully = foes.FirstOrDefault(ChampionTraits.LaneAllIn);
+        var bullies = foes.Where(ChampionTraits.LaneAllIn).ToList();
         var shardWant = comp.ManyCc(me) ? (ShardTenacity, Loc.T("build.vsCc", comp.Cc))
-            : bully != 0 && shards.Count > DefenseShard && shards[DefenseShard] == ShardHealthScaling
-                ? (ShardHealth, Loc.T("runes.laneAllIn", DataDragon.Name(bully)))
+            : bullies.Count > 0 && shards.Count > DefenseShard && shards[DefenseShard] == ShardHealthScaling
+                ? (ShardHealth, LaneWhy(bullies, "runes.laneAllIn", "runes.laneAllInTwo"))
                 : ((int, string)?)null;
         if (shardWant is (int shard, string shardWhy) && shards.Count > DefenseShard)
         {
@@ -240,18 +250,18 @@ public static class RuneAdvisor
         // Кто как бьёт — ручные списки ChampionTraits.LanePoke / LaneAllIn (как
         // в гайдах), важнее меток: «взрывные» артиллерийские маги — это поук.
         // Соперников двое (бот) — наскок важнее: он и убивает на линии, а поук
-        // второго переживается отхилом после.
-        var allIn = foes.FirstOrDefault(ChampionTraits.LaneAllIn);
-        var poker = foes.FirstOrDefault(ChampionTraits.LanePoke);
-        if (allIn != 0)
-            list.Add(new(BonePlating, 1.5, Loc.T("runes.laneAllIn", DataDragon.Name(allIn))));
-        else if (poker != 0)
+        // второго переживается отхилом после. Бьют так оба — причина называет
+        // обоих.
+        var allIn = foes.Where(ChampionTraits.LaneAllIn).ToList();
+        var pokers = foes.Where(ChampionTraits.LanePoke).ToList();
+        if (allIn.Count > 0)
+            list.Add(new(BonePlating, 1.5, LaneWhy(allIn, "runes.laneAllIn", "runes.laneAllInTwo")));
+        else if (pokers.Count > 0)
         {
-            var name = DataDragon.Name(poker);
             // Три руны — один ответ (отхил после размена), и вес у них один:
             // иначе подбор менял бы Вдохновение с Печеньем на Решимость ради
             // Второго дыхания, хотя Печенье закрывает то же самое.
-            var why = Loc.T("runes.lanePoke", name);
+            var why = LaneWhy(pokers, "runes.lanePoke", "runes.lanePokeTwo");
             list.Add(new(SecondWind, 1.5, why));
             list.Add(new(TasteOfBlood, 1.5, why));
             list.Add(new(Biscuits, 1.5, why));
@@ -337,5 +347,14 @@ public static class RuneAdvisor
 
     // Названия — только для разбора в песочнице.
     private static string Rune(int id) => RuneIcons.NameOf(id);
+
+    /// «Зиггс и Вел'Коз» — двое соперников на боте.
+    private static string Both(int a, int b) => Loc.T("runes.both", DataDragon.Name(a), DataDragon.Name(b));
+
+    /// Причина по линии: один соперник — «Зиггс на линии бьёт издалека», двое
+    /// так бьют — «Зиггс и Вел'Коз на линии бьют издалека».
+    private static string LaneWhy(List<int> who, string one, string two) =>
+        who.Count >= 2 ? Loc.T(two, DataDragon.Name(who[0]), DataDragon.Name(who[1]))
+                       : Loc.T(one, DataDragon.Name(who[0]));
     private static string Tree(int style) => RuneIcons.StyleName(style);
 }

@@ -29,6 +29,9 @@
     "shardTenacity": "Tenacity shard",
     "laneAllIn": "{0} in lane goes all-in",
     "lanePoke": "{0} in lane pokes from range",
+    "laneAllInTwo": "{0} and {1} in lane go all-in",
+    "lanePokeTwo": "{0} and {1} in lane poke from range",
+    "both": "{0} and {1}",
     "aiKsEdge": "beats other keystones vs {0}: {1} pts",
     "aiKsWr": "wins more often than {0}: {1}% vs {2}%",
     "vsSquishy": "they have no tanky targets",
@@ -751,7 +754,21 @@
     "vsBurst": "assassins on their team ({0})",
     "selfHeal": "boosts your healing",
     "allyMage": "a strong mage on your team",
-    "allyCarry": "an auto-attack carry on your team"
+    "allyCarry": "an auto-attack carry on your team",
+    "whyHead": "Why this item",
+    "whyInstead": "Replaces: {0}",
+    "whyInsteadBecause": "Replaces: {0} — {1}",
+    "whyBest": "Wins most often of the items that fit: {0}% over {1} games",
+    "whyBestAll": "Wins most often of the champion's other items: {0}% over {1} games",
+    "whyNext": "Alternative: {0}",
+    "whyCovers": "From the popular build — already answers this comp:",
+    "whyCore": "Core of the popular build — kept as is",
+    "whyKept": "From the popular build: nothing in this comp calls for a swap",
+    "whyBuildCore": "Build core: {0}% wins over {1} games with this set",
+    "whyBuildItem": "Common follow-up: {0}% wins over {1} games",
+    "wastedArmor": "armor, but they deal magic damage ({0}%)",
+    "wastedMr": "magic resist, but they deal physical damage ({0}%)",
+    "oneBoots": "a second pair of boots doesn't stack"
   },
   "notice": {
     "head": {

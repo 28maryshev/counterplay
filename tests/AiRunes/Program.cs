@@ -114,7 +114,7 @@ internal static class Program
                                     Dictionary<int, double>? subPick = null,
                                     bool withShares = true, bool withPta = false,
                                     Dictionary<int, double>? vsZed = null, int shard3 = 5011,
-                                    double ptaWr = 49.5)
+                                    double ptaWr = 49.5, Dictionary<int, double>? duoVsLux = null)
     {
         IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>> subShare =
             new Dictionary<int, IReadOnlyDictionary<int, double>>
@@ -134,7 +134,9 @@ internal static class Program
         if (withPta) list.Add(Ks(PTA, ptaWr, 8.4, 8000, [PTA, 9111, 9104, Coup], 8300, [8345, 8347]));
         var vs = new Dictionary<int, (int, Dictionary<int, double>)>();
         if (vsZed is not null) vs[Zed] = (900, vsZed);
-        return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], []);
+        var vsDuo = new Dictionary<int, (int, Dictionary<int, double>)>();
+        if (duoVsLux is not null) vsDuo[99] = (700, duoVsLux);
+        return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], []) { VsDuo = vsDuo };
     }
 
     private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, ChampStats s, int[] enemies, int? lane = null,
@@ -248,8 +250,27 @@ internal static class Program
               duo?.Swaps.Any(s => s.To == RuneAdvisor.BonePlating && s.Why.Contains(DataDragon.Name(Leona))) == true,
               Show(duo));
         var duoPoke = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth]), Soft, lane: Caitlyn, foes: [Caitlyn, Lux]);
-        Check("бот: Кейтлин и Люкс — обе издалека — Второе дыхание",
-              duoPoke?.Swaps.Any(s => s.To == RuneAdvisor.SecondWind) == true, Show(duoPoke));
+        // Владелец (20.11): «руны на боте у АДК и саппорта должны учитывать
+        // пики двух врагов» — причина называет обоих, если так бьют оба.
+        Check("бот: Кейтлин и Люкс — обе издалека — Второе дыхание, причина называет обеих",
+              duoPoke?.Swaps.Any(s => s.To == RuneAdvisor.SecondWind
+                                      && s.Why.Contains(DataDragon.Name(Caitlyn)) && s.Why.Contains(DataDragon.Name(Lux))) == true,
+              Show(duoPoke));
+        const int Draven = 119;
+        var duoAllIn = Adapt(engine, Ashe_([8444, Overgrowth]), Soft, lane: Draven, foes: [Draven, Leona]);
+        Check("бот: Дрейвен и Леона — оба с наскока — Костяная броня, причина называет обоих",
+              duoAllIn?.Swaps.Any(s => s.To == RuneAdvisor.BonePlating
+                                       && s.Why.Contains(DataDragon.Name(Draven)) && s.Why.Contains(DataDragon.Name(Leona))) == true,
+              Show(duoAllIn));
+        // Кейстоун — и против второго бот-лейнера: против Кейтлин поправок нет,
+        // против Люкс у Натиска +2,0, у Темпа −0,5. Варианты (против
+        // оппонента) — Темп; подбор — Натиск, причина называет обеих.
+        var duoKs = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, duoVsLux: new() { [PTA] = 2.0, [LT] = -0.5 }),
+                          Soft, lane: Caitlyn, foes: [Caitlyn, Lux]);
+        Check("бот: кейстоун и против второго бот-лейнера — против Люкс Натиск лучше, причина называет обеих",
+              duoKs?.Choice.Keystone == PTA && duoKs.KeystoneWhy?.Contains(DataDragon.Name(Lux)) == true
+              && duoKs.KeystoneWhy.Contains(DataDragon.Name(Caitlyn)),
+              $"{(duoKs is null ? "—" : RuneIcons.NameOf(duoKs.Choice.Keystone))}: {duoKs?.KeystoneWhy}");
         var jg = Adapt(engine, Ashe_([8444, Overgrowth]), Soft, lane: Zed, foes: []);
         Check("лес: соперников на линии нет — Костяной брони по оппоненту нет, разбор так и говорит",
               jg is not null && jg.Swaps.All(s => !s.Why.Contains(DataDragon.Name(Zed)))

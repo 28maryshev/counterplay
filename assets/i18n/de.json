@@ -109,6 +109,9 @@
     "shardTenacity": "Zähigkeits-Splitter",
     "laneAllIn": "{0} auf der Lane geht all-in",
     "lanePoke": "{0} auf der Lane pokt aus der Distanz",
+    "laneAllInTwo": "{0} und {1} gehen auf der Lane all-in",
+    "lanePokeTwo": "{0} und {1} poken auf der Lane aus der Distanz",
+    "both": "{0} und {1}",
     "aiKsEdge": "gegen {0} besser als andere Schlüsselrunen: {1} Pkt.",
     "aiKsWr": "gewinnt öfter als {0}: {1} % gegen {2} %",
     "vsSquishy": "sie haben keine robusten Ziele",
@@ -751,7 +754,21 @@
     "vsBurst": "Assassinen im Team ({0})",
     "selfHeal": "verstärkt deine Heilung",
     "allyMage": "starker Magier im Team",
-    "allyCarry": "Auto-Attack-Carry im Team"
+    "allyCarry": "Auto-Attack-Carry im Team",
+    "whyHead": "Warum dieses Item",
+    "whyInstead": "Ersetzt: {0}",
+    "whyInsteadBecause": "Ersetzt: {0} — {1}",
+    "whyBest": "Gewinnt von den passenden Items am häufigsten: {0}% über {1} Spiele",
+    "whyBestAll": "Gewinnt von den übrigen Items des Champions am häufigsten: {0}% über {1} Spiele",
+    "whyNext": "Alternative: {0}",
+    "whyCovers": "Aus dem Standardbuild — passt bereits zu diesem Team:",
+    "whyCore": "Kern des Standardbuilds — bleibt unverändert",
+    "whyKept": "Aus dem Standardbuild: dieses Team gibt keinen Grund zum Tausch",
+    "whyBuildCore": "Build-Kern: {0}% Siege über {1} Spiele mit diesem Set",
+    "whyBuildItem": "Häufiger Zukauf: {0}% Siege über {1} Spiele",
+    "wastedArmor": "Rüstung, aber sie machen magischen Schaden ({0}%)",
+    "wastedMr": "Magieresistenz, aber sie machen physischen Schaden ({0}%)",
+    "oneBoots": "ein zweites Paar Stiefel wirkt nicht zusätzlich"
   },
   "notice": {
     "head": {

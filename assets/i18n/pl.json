@@ -425,6 +425,9 @@
     "shardTenacity": "Odłamek nieustępliwości",
     "laneAllIn": "{0} na linii wchodzi all-in",
     "lanePoke": "{0} na linii nęka z dystansu",
+    "laneAllInTwo": "{0} i {1} na linii wchodzą all-in",
+    "lanePokeTwo": "{0} i {1} na linii pokują z dystansu",
+    "both": "{0} i {1}",
     "aiKsEdge": "przeciw {0} lepsza od innych run kluczowych: {1} pkt",
     "aiKsWr": "wygrywa częściej niż {0}: {1}% wobec {2}%",
     "vsSquishy": "nie mają wytrzymałych celów",
@@ -751,7 +754,21 @@
     "vsBurst": "zabójcy w ich drużynie ({0})",
     "selfHeal": "wzmacnia twoje leczenie",
     "allyMage": "silny mag w drużynie",
-    "allyCarry": "carry na autoatakach"
+    "allyCarry": "carry na autoatakach",
+    "whyHead": "Dlaczego ten przedmiot",
+    "whyInstead": "Zamiast: {0}",
+    "whyInsteadBecause": "Zamiast: {0} — {1}",
+    "whyBest": "Spośród pasujących wygrywa najczęściej: {0}% w {1} grach",
+    "whyBestAll": "Spośród pozostałych przedmiotów bohatera wygrywa najczęściej: {0}% w {1} grach",
+    "whyNext": "Alternatywa: {0}",
+    "whyCovers": "Ze standardowego buildu — już odpowiada temu składowi:",
+    "whyCore": "Rdzeń standardowego buildu — bez zmian",
+    "whyKept": "Ze standardowego buildu: ten skład nie wymaga zmiany",
+    "whyBuildCore": "Rdzeń buildu: {0}% wygranych w {1} grach z tym zestawem",
+    "whyBuildItem": "Częsty zakup: {0}% wygranych w {1} grach",
+    "wastedArmor": "pancerz, a oni zadają obrażenia magiczne ({0}%)",
+    "wastedMr": "odporność na magię, a oni zadają obrażenia fizyczne ({0}%)",
+    "oneBoots": "druga para butów się nie sumuje"
   },
   "notice": {
     "head": {

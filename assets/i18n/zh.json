@@ -425,6 +425,9 @@
     "shardTenacity": "韧性碎片",
     "laneAllIn": "对线的{0}擅长强开",
     "lanePoke": "对线的{0}擅长远程消耗",
+    "laneAllInTwo": "对线的{0}和{1}擅长强开",
+    "lanePokeTwo": "对线的{0}和{1}擅长远程消耗",
+    "both": "{0}和{1}",
     "aiKsEdge": "对线{0}时优于其他基石符文：{1}个百分点",
     "aiKsWr": "胜率高于{0}：{1}% 对 {2}%",
     "vsSquishy": "对方没有坦度高的目标",
@@ -751,7 +754,21 @@
     "vsBurst": "对面有刺客 ({0})",
     "selfHeal": "强化自身治疗",
     "allyMage": "队伍有强力法师",
-    "allyCarry": "队伍有普攻核心"
+    "allyCarry": "队伍有普攻核心",
+    "whyHead": "为什么是这件装备",
+    "whyInstead": "替换：{0}",
+    "whyInsteadBecause": "替换：{0} — {1}",
+    "whyBest": "在合适的装备中胜率最高：{0}%，共 {1} 场",
+    "whyBestAll": "在该英雄其他装备中胜率最高：{0}%，共 {1} 场",
+    "whyNext": "备选：{0}",
+    "whyCovers": "来自常规出装 — 已能应对该阵容：",
+    "whyCore": "常规出装的核心 — 保持不变",
+    "whyKept": "来自常规出装：该阵容无需更换",
+    "whyBuildCore": "出装核心：此套装备胜率 {0}%，共 {1} 场",
+    "whyBuildItem": "常见后续装备：胜率 {0}%，共 {1} 场",
+    "wastedArmor": "护甲，但对方打魔法伤害 ({0}%)",
+    "wastedMr": "魔抗，但对方打物理伤害 ({0}%)",
+    "oneBoots": "第二双鞋子效果不叠加"
   },
   "notice": {
     "head": {

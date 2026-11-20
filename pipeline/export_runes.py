@@ -387,6 +387,31 @@ def rune_shares(pages) -> tuple[dict, dict, dict]:
             pct(sub_total, total))
 
 
+def keystone_deltas(rows, base_wr_by_ks: dict) -> dict:
+    """Поправки кейстоунов против каждого соперника из строк (соперник,
+    кейстоун, игры, победы): насколько кейстоун против него лучше или хуже
+    обычного, ужатые по объёму. Соперник с малой выборкой — не пишем."""
+    by_opp = defaultdict(list)
+    for opp, ks, g, w in rows:
+        by_opp[opp].append((ks, g, w))
+
+    vs = {}
+    for opp, rows in by_opp.items():
+        opp_games = sum(g for _, g, _ in rows)
+        if opp_games < MIN_VS_GAMES:
+            continue
+        deltas = []
+        for ks, g, w in rows:
+            if ks not in base_wr_by_ks or g < 5:
+                continue
+            temper = g / (g + K)                      # мало игр → доверия мало
+            delta = (wr(g, w) - base_wr_by_ks[ks]) * temper
+            deltas.append({'id': ks, 'games': g, 'delta': round(delta, 1)})
+        if deltas:
+            vs[str(opp)] = {'games': opp_games, 'keystones': deltas}
+    return vs
+
+
 def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     """JSON одной связки чемпион+роль. None — данных мало, не публикуем."""
     ph = ','.join('?' * len(ps))
@@ -464,25 +489,22 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
                         GROUP BY vs_champion_id, keystone""",
                [champ, role, *ps])
     base_wr_by_ks = {k['id']: wr(k['games'], round(k['games'] * k['wr'] / 100)) for k in keystones}
+    vs = keystone_deltas(vs_raw, base_wr_by_ks)
 
-    by_opp = defaultdict(list)
-    for opp, ks, g, w in vs_raw:
-        by_opp[opp].append((ks, g, w))
-
-    vs = {}
-    for opp, rows in by_opp.items():
-        opp_games = sum(g for _, g, _ in rows)
-        if opp_games < MIN_VS_GAMES:
-            continue
-        deltas = []
-        for ks, g, w in rows:
-            if ks not in base_wr_by_ks or g < 5:
-                continue
-            temper = g / (g + K)                      # мало игр → доверия мало
-            delta = (wr(g, w) - base_wr_by_ks[ks]) * temper
-            deltas.append({'id': ks, 'games': g, 'delta': round(delta, 1)})
-        if deltas:
-            vs[str(opp)] = {'games': opp_games, 'keystones': deltas}
+    # ── Поправка на второго бот-лейнера ───────────────────────────────────
+    # Линия на боте два на два, а keystone_matchup — только против оппонента
+    # той же роли. Против второго (у стрелка — саппорт, у саппорта — стрелок)
+    # кейстоун пишется в rune_matchup (с 20.11). Владелец: «руны на боте
+    # должны учитывать пики двух врагов».
+    duo_role = {'adc': 'support', 'support': 'adc'}.get(role)
+    vs_duo = {}
+    if duo_role:
+        vs_duo = keystone_deltas(q(con, f"""
+            SELECT vs_champion_id, perk, SUM(games) g, SUM(wins) w FROM rune_matchup
+            WHERE champion_id=? AND role=? AND vs_role=? AND patch IN ({ph})
+              AND perk IN (SELECT keystone FROM keystone_wr WHERE champion_id=? AND role=?)
+            GROUP BY vs_champion_id, perk""", [champ, role, duo_role, *ps, champ, role]),
+            base_wr_by_ks)
 
     # ── Предметы и сборки ─────────────────────────────────────────────────
     # Всё считается из одних и тех же строк: и «обычный» винрейт для каждой
@@ -559,6 +581,9 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
         'wr': round(wr(games, wins), 1),
         'keystones': keystones,
         'vs': vs,
+        # Только у стрелка и саппорта и только когда есть что сказать: в
+        # остальных файлах поля нет вовсе.
+        **({'vsDuo': vs_duo} if vs_duo else {}),
         'items': items,
         'builds': builds,
         'spells': spells,

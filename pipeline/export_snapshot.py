@@ -30,7 +30,13 @@ SNAPSHOT = {
     'keystone_matchup': ('champion_id', 'role', 'vs_champion_id', 'keystone'),
     'item_build':       ('champion_id', 'role', 'items'),
     'spell_wr':         ('champion_id', 'role', 'spells'),
+    # Кейстоун против второго бот-лейнера (vsDuo). После keystone_wr: по ней
+    # фильтр ниже.
+    'rune_matchup':     ('champion_id', 'role', 'vs_champion_id', 'vs_role', 'perk'),
 }
+# Что ещё отсечь при переливе. Из rune_matchup выгрузке нужны только
+# кейстоуны, а мелких рун там впятеро больше.
+SNAPSHOT_FILTER = {'rune_matchup': 'perk IN (SELECT keystone FROM main.keystone_wr)'}
 # По скольким колонкам ключа индекс выжимки (иначе по двум: чемпион и роль).
 # Страницы рун читаются по кейстоуну.
 SNAPSHOT_INDEX = {'rune_page': 3}
@@ -42,8 +48,9 @@ def snapshot_sql(table: str, ps: list[str]) -> str:
     строки вразброс. Полный проход по таблице читает файл подряд."""
     cols = ', '.join(SNAPSHOT[table])
     ph = ','.join('?' * len(ps))
+    extra = f' AND {SNAPSHOT_FILTER[table]}' if table in SNAPSHOT_FILTER else ''
     return (f'INSERT INTO main.{table} SELECT {cols}, patch, SUM(games), SUM(wins) '
-            f'FROM src.{table} NOT INDEXED WHERE patch IN ({ph}) '
+            f'FROM src.{table} NOT INDEXED WHERE patch IN ({ph}){extra} '
             f'GROUP BY {cols}, patch ORDER BY {cols}, patch')
 
 
@@ -56,11 +63,14 @@ def snapshot(db: str, ps: list[str], path: Path, log=print) -> sqlite3.Connectio
     con.execute('PRAGMA synchronous=OFF')
     con.execute('PRAGMA cache_size=-65536')
     con.execute('ATTACH DATABASE ? AS src', (f'file:{db}?mode=ro',))
+    have = {r[0] for r in con.execute("SELECT name FROM src.sqlite_master WHERE type='table'")}
     for table, key in SNAPSHOT.items():
         t0 = time.monotonic()
         cols = ', '.join(key)
         con.execute(f'CREATE TABLE main.{table} ({cols}, patch, games, wins)')
-        con.execute(snapshot_sql(table, ps), ps)
+        # rune_matchup собирается с 19.11: в базе старше её нет — пустая.
+        if table in have:
+            con.execute(snapshot_sql(table, ps), ps)
         idx = ', '.join(key[:SNAPSHOT_INDEX.get(table, 2)])
         con.execute(f'CREATE INDEX main.ix_{table} ON {table} ({idx})')
         con.commit()

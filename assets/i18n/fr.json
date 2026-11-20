@@ -322,6 +322,9 @@
     "shardTenacity": "Fragment de ténacité",
     "laneAllIn": "{0} en lane joue l'all-in",
     "lanePoke": "{0} en lane harcèle à distance",
+    "laneAllInTwo": "{0} et {1} vont all-in en lane",
+    "lanePokeTwo": "{0} et {1} pokent à distance en lane",
+    "both": "{0} et {1}",
     "aiKsEdge": "contre {0}, meilleure que les autres runes clés : {1} pts",
     "aiKsWr": "gagne plus souvent que {0} : {1} % contre {2} %",
     "vsSquishy": "ils n'ont aucune cible résistante",
@@ -751,7 +754,21 @@
     "vsBurst": "assassins dans leur équipe ({0})",
     "selfHeal": "amplifie tes soins",
     "allyMage": "un mage puissant dans ton équipe",
-    "allyCarry": "un carry aux auto-attaques"
+    "allyCarry": "un carry aux auto-attaques",
+    "whyHead": "Pourquoi cet objet",
+    "whyInstead": "Remplace : {0}",
+    "whyInsteadBecause": "Remplace : {0} — {1}",
+    "whyBest": "Gagne le plus souvent parmi les objets adaptés : {0}% sur {1} parties",
+    "whyBestAll": "Gagne le plus souvent parmi les autres objets du champion : {0}% sur {1} parties",
+    "whyNext": "Alternative : {0}",
+    "whyCovers": "De la build classique — répond déjà à cette compo :",
+    "whyCore": "Base de la build classique — conservée telle quelle",
+    "whyKept": "De la build classique : rien dans cette compo n'impose de le changer",
+    "whyBuildCore": "Base de la build : {0}% de victoires sur {1} parties avec cet ensemble",
+    "whyBuildItem": "Achat courant : {0}% de victoires sur {1} parties",
+    "wastedArmor": "armure, mais ils font des dégâts magiques ({0}%)",
+    "wastedMr": "résistance magique, mais ils font des dégâts physiques ({0}%)",
+    "oneBoots": "une deuxième paire de bottes ne se cumule pas"
   },
   "notice": {
     "head": {

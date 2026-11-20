@@ -323,9 +323,11 @@ def init_db(path: str) -> sqlite3.Connection:
             PRIMARY KEY (champion_id, role, vs_champion_id, keystone, tier_bucket, patch)
         );
 
-        -- Мелкая руна ПРОТИВ соперника на линии (с 19.11). Подбор рун в
-        -- программе выбирает мелкие руны правилами по гайдам («против наскока —
-        -- Костяная броня»); эта таблица — чтобы проверить их цифрами. Соперник
+        -- Руна ПРОТИВ соперника на линии (с 19.11; кейстоун — с 20.11). Подбор
+        -- рун в программе выбирает мелкие руны правилами по гайдам («против
+        -- наскока — Костяная броня»); эта таблица — чтобы проверить их цифрами.
+        -- Кейстоун против второго бот-лейнера отсюда же берёт выгрузка рун
+        -- (vsDuo): keystone_matchup — только против оппонента той же роли. Соперник
         -- на топе, в лесу и миде — оппонент той же роли, на боте — оба вражеских
         -- бот-лейнера (линия два на два: Леона рядом с Кейтлин). Без разбивки по
         -- эло: выгрузка рун всё равно суммирует все, а так строк вчетверо меньше.
@@ -334,7 +336,7 @@ def init_db(path: str) -> sqlite3.Connection:
             role           TEXT,
             vs_champion_id INTEGER,
             vs_role        TEXT,
-            perk           INTEGER,  -- руна основного дерева (без кейстоуна) или вторичного
+            perk           INTEGER,  -- кейстоун, руна основного дерева или вторичного
             patch          TEXT,
             games          INTEGER DEFAULT 0,
             wins           INTEGER DEFAULT 0,
@@ -765,9 +767,10 @@ def process_match(con: sqlite3.Connection, match: dict, tier_bucket: str, tier: 
                            ['champion_id', 'role', 'vs_champion_id', 'keystone', 'tier_bucket', 'patch'],
                            [champ, role, opp['championId'], keystone, tier_bucket, patch], win)
 
-                # Мелкие руны против соперников на линии (см. rune_matchup).
+                # Руны против соперников на линии (см. rune_matchup). Кейстоун
+                # тоже: на боте против второго бот-лейнера его больше нигде нет.
                 for foe_role, foe in lane_foes(teams[side_b], role):
-                    for perk in minor_perks(perks_str):
+                    for perk in [keystone, *minor_perks(perks_str)]:
                         upsert(con, 'rune_matchup',
                                ['champion_id', 'role', 'vs_champion_id', 'vs_role', 'perk', 'patch'],
                                [champ, role, foe['championId'], foe_role, perk, patch], win)

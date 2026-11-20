@@ -109,6 +109,9 @@
     "shardTenacity": "Direnç parçası",
     "laneAllIn": "{0} koridorda all-in yapıyor",
     "lanePoke": "{0} koridorda uzaktan dürtüyor",
+    "laneAllInTwo": "koridordaki {0} ve {1} all-in yapar",
+    "lanePokeTwo": "koridordaki {0} ve {1} uzaktan dürter",
+    "both": "{0} ve {1}",
     "aiKsEdge": "{0} karşısında diğer ana rünlerden iyi: {1} puan",
     "aiKsWr": "{0} rününden daha sık kazanır: %{1} / %{2}",
     "vsSquishy": "dayanıklı hedefleri yok",
@@ -751,7 +754,21 @@
     "vsBurst": "takımlarında suikastçı ({0})",
     "selfHeal": "iyileşmeni güçlendirir",
     "allyMage": "takımda güçlü bir büyücü",
-    "allyCarry": "otomatik saldırı carry’si"
+    "allyCarry": "otomatik saldırı carry’si",
+    "whyHead": "Neden bu eşya",
+    "whyInstead": "Yerine: {0}",
+    "whyInsteadBecause": "Yerine: {0} — {1}",
+    "whyBest": "Uygun olanlar arasında en sık kazanan: %{0}, {1} maçta",
+    "whyBestAll": "Şampiyonun diğer eşyaları arasında en sık kazanan: %{0}, {1} maçta",
+    "whyNext": "Alternatif: {0}",
+    "whyCovers": "Standart build'den — bu kadroya zaten uygun:",
+    "whyCore": "Standart build'in çekirdeği — olduğu gibi kalır",
+    "whyKept": "Standart build'den: bu kadro değiştirmeyi gerektirmiyor",
+    "whyBuildCore": "Build çekirdeği: bu setle %{0} galibiyet, {1} maçta",
+    "whyBuildItem": "Yaygın ek alım: %{0} galibiyet, {1} maçta",
+    "wastedArmor": "zırh, ama büyü hasarı vuruyorlar ({0}%)",
+    "wastedMr": "büyü direnci, ama fiziksel hasar vuruyorlar ({0}%)",
+    "oneBoots": "ikinci bir çift ayakkabının etkisi birikmez"
   },
   "notice": {
     "head": {

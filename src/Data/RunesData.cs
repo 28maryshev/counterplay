@@ -57,7 +57,16 @@ public sealed record ChampStats(
     IReadOnlyList<RuneChoice> Keystones,
     IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> Vs,
     IReadOnlyList<BuildData> Builds,    // ходовая и, если есть, вторая; предметы в порядке покупки
-    IReadOnlyList<ItemStat> Items);     // ходовые предметы чемпиона — материал для подбора под врагов
+    IReadOnlyList<ItemStat> Items)      // ходовые предметы чемпиона — материал для подбора под врагов
+{
+    /// Поправки кейстоунов против ВТОРОГО бот-лейнера врага (выгрузка с
+    /// 20.11): у стрелка — против вражеского саппорта, у саппорта — против
+    /// стрелка. Vs — против прямого оппонента (той же роли). Линия на боте два
+    /// на два, и владелец (20.11): «руны на боте должны учитывать пики двух
+    /// врагов». Пусто — не бот или данных ещё нет.
+    public IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> VsDuo { get; init; } =
+        new Dictionary<int, (int, Dictionary<int, double>)>();
+}
 
 /// <summary>
 /// Клиент статистики рун/билдов. Данные лежат на сервере готовыми JSON
@@ -423,15 +432,22 @@ public static class RunesClient
             });
         }
 
-        var vs = new Dictionary<int, (int, Dictionary<int, double>)>();
-        if (r.TryGetProperty("vs", out var vsEl))
-            foreach (var pair in vsEl.EnumerateObject())
-            {
-                var deltas = new Dictionary<int, double>();
-                foreach (var d in pair.Value.GetProperty("keystones").EnumerateArray())
-                    deltas[d.GetProperty("id").GetInt32()] = d.GetProperty("delta").GetDouble();
-                vs[int.Parse(pair.Name)] = (pair.Value.GetProperty("games").GetInt32(), deltas);
-            }
+        // Поправки кейстоунов против соперников: vs — против прямого
+        // оппонента, vsDuo — против второго бот-лейнера (с 20.11).
+        Dictionary<int, (int, Dictionary<int, double>)> Deltas(string name)
+        {
+            var map = new Dictionary<int, (int, Dictionary<int, double>)>();
+            if (r.TryGetProperty(name, out var el))
+                foreach (var pair in el.EnumerateObject())
+                {
+                    var deltas = new Dictionary<int, double>();
+                    foreach (var d in pair.Value.GetProperty("keystones").EnumerateArray())
+                        deltas[d.GetProperty("id").GetInt32()] = d.GetProperty("delta").GetDouble();
+                    map[int.Parse(pair.Name)] = (pair.Value.GetProperty("games").GetInt32(), deltas);
+                }
+            return map;
+        }
+        var vs = Deltas("vs");
 
         var spellsEl = r.GetProperty("spells");
         var spells = spellsEl.GetArrayLength() > 0
@@ -468,7 +484,7 @@ public static class RunesClient
             r.GetProperty("role").GetString()!,
             r.GetProperty("patches")[0].GetString()!,
             r.GetProperty("games").GetInt32(),
-            keystones, vs, builds, items);
+            keystones, vs, builds, items) { VsDuo = Deltas("vsDuo") };
     }
 
     /// {"8017": 33.2, …} → руна → доля.
@@ -487,36 +503,42 @@ public static class RunesClient
 
     /// Вариантов два: третье место панели — подбор рун под состав
     /// (<see cref="RuneAdvisor"/>).
-    public static IReadOnlyList<RuneChoice> Choices(ChampStats s, int? opponentId, int count = 2)
+    /// duoId — второй бот-лейнер врага (у стрелка — саппорт, у саппорта —
+    /// стрелок): его поправка прибавляется к поправке против оппонента. Окно
+    /// вариантов его не передаёт — там заголовок «против оппонента»; передаёт
+    /// подбор рун.
+    public static IReadOnlyList<RuneChoice> Choices(ChampStats s, int? opponentId, int count = 2,
+                                                    int? duoId = null)
     {
-        var deltas = new Dictionary<int, double>();
-        int vsGames = 0;
-        if (opponentId is { } opp && s.Vs.TryGetValue(opp, out var v))
-        {
-            vsGames = v.Games;
-            deltas = v.Deltas;
-        }
+        var (direct, vsGames) = Against(s.Vs, opponentId);
+        var (duo, duoGames) = Against(s.VsDuo, duoId);
 
-        // Поправка против оппонента — в основном сама линия, одна на все
+        // Поправка против соперника — в основном сама линия, одна на все
         // кейстоуны. Кейстоуну без своей поправки (игр с ним против этого
-        // оппонента мало) — средняя по прочим, а не ноль: иначе на тяжёлой
+        // соперника мало) — средняя по прочим, а не ноль: иначе на тяжёлой
         // линии он выходил бы на пару пунктов лучше только из-за пустоты.
-        var lane = deltas.Count > 0 ? deltas.Values.Average() : 0;
-        double Edge(int ks) =>
-            deltas.Count > 1 && deltas.TryGetValue(ks, out var d)
-                ? d - deltas.Where(x => x.Key != ks).Average(x => x.Value)
-                : 0;
+        // Соперников на боте двое — поправки складываются.
+        static double Fill(Dictionary<int, double> d, int ks) =>
+            d.TryGetValue(ks, out var x) ? x : d.Count > 0 ? d.Values.Average() : 0;
+        double Delta(int ks) => Fill(direct, ks) + Fill(duo, ks);
+        bool Own(int ks) => direct.ContainsKey(ks) || duo.ContainsKey(ks);
 
         // Кейстоун, который на роли почти не берут, вариантом не бывает. Его
         // отсекает и выгрузка (MIN_KEYSTONE_SHARE), но файлы до 19.11 и кэш
         // Cloudflare ещё держат такие: у Эш стрелком первой стояла Хватка
         // нежити на 0,04% игр. Если ходовых нет вовсе — берём что есть.
         var common = s.Keystones.Where(k => k.PickRate >= MinKeystonePick).ToList();
-        var scored = (common.Count > 0 ? common : s.Keystones)
+        var pool = common.Count > 0 ? common : s.Keystones;
+        // Чем кейстоун лучше прочих против этих соперников.
+        double Edge(int ks) =>
+            Own(ks) && pool.Count > 1
+                ? Delta(ks) - pool.Where(k => k.Keystone != ks).Average(k => Delta(k.Keystone))
+                : 0;
+        var scored = pool
             .Select(k => k with
             {
-                VsDelta = deltas.TryGetValue(k.Keystone, out var d) ? d : lane,
-                VsGames = vsGames,
+                VsDelta = Delta(k.Keystone),
+                VsGames = vsGames + duoGames,
                 VsEdge = Edge(k.Keystone),
             })
             .OrderByDescending(k => k.Winrate + k.VsDelta)
@@ -540,4 +562,9 @@ public static class RunesClient
 
         return picked.OrderByDescending(k => k.Winrate + k.VsDelta).ToList();
     }
+
+    /// Поправки кейстоунов против одного соперника и число игр против него.
+    private static (Dictionary<int, double> Deltas, int Games) Against(
+        IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> map, int? id) =>
+        id is { } x && map.TryGetValue(x, out var v) ? (v.Deltas, v.Games) : ([], 0);
 }

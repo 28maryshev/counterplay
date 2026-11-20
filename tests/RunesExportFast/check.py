@@ -16,7 +16,11 @@ RunesExportFast — выгрузка рун считает связки по в�
   3. рабочая таблица читается одним проходом, без индекса (с индексом SQLite
      снова идёт по строкам вразброс — ради этого всё и делалось);
   4. полный прогон кладёт в --out только файлы для сайта: выжимки там нет
-     (папка целиком уезжает на сайт), временная папка убрана.
+     (папка целиком уезжает на сайт), временная папка убрана;
+  5. у стрелка и саппорта — поправки кейстоунов против второго бот-лейнера
+     (vsDuo, из rune_matchup; владелец 20.11: «руны на боте должны учитывать
+     пики двух врагов»): только против врага другой бот-роли, только
+     кейстоуны; у прочих ролей поля нет.
 Рабочих баз не трогает.
 
     python tests/RunesExportFast/check.py        # 0 — всё хорошо, 1 — нет
@@ -80,6 +84,17 @@ for patch in PATCHES:
             for s in SPELLS:
                 gg = rnd.randint(10, 300)
                 rows.append(('spell_wr', (champ, role, s, tier, patch, gg, rnd.randint(0, gg))))
+# Руны против соперников на линии (без эло): у бот-лейнеров — против обоих.
+# Против второго бот-лейнера — 1, 11, 55; против своей роли — 77 (в vsDuo его
+# быть не должно); мелкая руна 9111 — тоже не кейстоун.
+DUO = {'adc': 'support', 'support': 'adc'}
+for patch in PATCHES:
+    for champ, role in CHAMPS:
+        foes = [(77, role)] + ([(v, DUO[role]) for v in (1, 11, 55)] if role in DUO else [])
+        for vs, vrole in foes:
+            for perk in KS + [9111]:
+                gg = rnd.randint(5, 80)
+                rows.append(('rune_matchup', (champ, role, vs, vrole, perk, patch, gg, rnd.randint(0, gg))))
 # Вразнобой — как в рабочей базе, где строки лежат в порядке вставки.
 rnd.shuffle(rows)
 
@@ -102,16 +117,19 @@ for champ, role in CHAMPS:
     same += a is not None and a == b
 check(total == len(CHAMPS) and same == total,
       f'совпало {same} из {total} (связок с данными {total} из {len(CHAMPS)})')
+files_by = {(c, r): export_runes.build_champ_role(snap, c, r, ps) or {} for c, r in CHAMPS}
 
 print('2. в выжимке — только патчи выгрузки, эло сложены')
 for table, key in export_snapshot.SNAPSHOT.items():
     cols = ', '.join(key)
+    # Из rune_matchup выжимка берёт только кейстоуны.
+    only = ' AND perk IN (SELECT keystone FROM keystone_wr)' if table == 'rune_matchup' else ''
     got = snap.execute(f'SELECT COUNT(*), COUNT(DISTINCT patch) FROM {table}').fetchone()
     want = ro.execute(f'SELECT COUNT(*) FROM (SELECT DISTINCT {cols}, patch FROM {table} '
-                      f'WHERE patch IN ({",".join("?" * len(ps))}))', ps).fetchone()[0]
+                      f'WHERE patch IN ({",".join("?" * len(ps))}){only})', ps).fetchone()[0]
     sums = snap.execute(f'SELECT SUM(games), SUM(wins) FROM {table}').fetchone()
     raw = ro.execute(f'SELECT SUM(games), SUM(wins) FROM {table} '
-                     f'WHERE patch IN ({",".join("?" * len(ps))})', ps).fetchone()
+                     f'WHERE patch IN ({",".join("?" * len(ps))}){only}', ps).fetchone()
     check(got == (want, len(ps)) and sums == raw,
           f'{table}: строк {got[0]} (ждали {want}), патчей {got[1]} из {ps}, игры {sums} = {raw}')
 
@@ -122,9 +140,12 @@ plan_con = sqlite3.connect(str(TMP / 'plan.db'), uri=True)
 plan_con.execute('ATTACH DATABASE ? AS src', (f'file:{TMP / "data.db"}?mode=ro',))
 for table, key in export_snapshot.SNAPSHOT.items():
     plan_con.execute(f'CREATE TABLE main.{table} ({", ".join(key)}, patch, games, wins)')
-    plan = ' | '.join(r[-1] for r in plan_con.execute(
-        'EXPLAIN QUERY PLAN ' + export_snapshot.snapshot_sql(table, ps), ps))
-    check('INDEX' not in plan.upper() and 'SCAN' in plan.upper(), f'{table}: {plan}')
+    lines = [r[-1] for r in plan_con.execute(
+        'EXPLAIN QUERY PLAN ' + export_snapshot.snapshot_sql(table, ps), ps)]
+    # Строки про рабочую таблицу; подзапрос к самой выжимке — не в счёт.
+    src = [x for x in lines if f'src.{table}' in x]
+    check(bool(src) and all('INDEX' not in x.upper() and 'SCAN' in x.upper() for x in src),
+          f'{table}: {" | ".join(lines)}')
 plan_con.close()
 
 print('4. полный прогон: в --out только файлы для сайта')
@@ -141,6 +162,16 @@ left = set(Path(tempfile.gettempdir()).glob('cp-runes-*')) - before
 check(not stray and len(files) == len(CHAMPS) + 1,
       f'файлов {len(files)} (ждали {len(CHAMPS)} связок и манифест), лишние: {stray or "нет"}')
 check(not left, f'временная папка выжимки убрана: {[p.name for p in left] or "да"}')
+
+print('5. на боте — поправки кейстоунов против второго бот-лейнера')
+for (c, r), d in files_by.items():
+    duo = d.get('vsDuo')
+    if r in DUO:
+        ids = {k['id'] for v in (duo or {}).values() for k in v['keystones']}
+        check(bool(duo) and set(duo) <= {'1', '11', '55'} and ids <= set(KS),
+              f'{c}-{r}: против {sorted(duo or {})} (ждали из 1, 11, 55; 77 — своя роль), кейстоуны {sorted(ids)}')
+    else:
+        check(duo is None, f'{c}-{r}: поля vsDuo нет — {"да" if duo is None else duo}')
 
 shutil.rmtree(TMP, ignore_errors=True)
 print()
