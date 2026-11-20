@@ -21,6 +21,8 @@ namespace Counterplay.Tests;
 ///    урона» — он встал на место брони как лучший из остальных, магзащиту
 ///    чемпион не собирает. Теперь так и сказано (NoFit), а на место брони
 ///    сначала ищется магзащита.
+/// 6. Подсказка на всех 15 языках собирается без сырых ключей и пустых {0};
+///    причины через разделитель языка; турецкая заглавная «İ».
 /// 5. Две задачи, отвечаемые обувью (контроль и броня): вторая не перебивает
 ///    первую. И при любом составе: каждую причину строки закрывает предмет,
 ///    никто не стоит «вместо себя», поставленное не пропадает.
@@ -50,6 +52,7 @@ internal static class Program
         AppPaths.RootOverride = root;
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
+        Loc.Init();               // английский — запасной словарь, без него «en» отдаёт ключи
         Loc.SetLanguage("ru");
 
         try
@@ -60,6 +63,7 @@ internal static class Program
             MagicComp();
             NoResistSupport();
             CcComp();
+            Languages();
         }
         finally
         {
@@ -87,21 +91,7 @@ internal static class Program
               $"{thorn?.Name}: броня {thorn?.Armor}, магзащита {thorn?.MagicResist}; "
               + $"{mercs?.Name}: магзащита {mercs?.MagicResist}");
 
-        var build = new BuildData(
-            Items: [Stridebreaker, Mercs, Cleaver, Sterak, Thornmail, DeadMans],
-            Core: [Stridebreaker, Mercs, Cleaver], Games: 6300, Winrate: 52.4, Spells: [4, 14]);
-        var items = new List<ItemStat>
-        {
-            new(Stridebreaker, 6000, 52.0), new(Mercs, 4000, 51.5), new(Cleaver, 3500, 52.5),
-            new(Sterak, 3000, 53.0), new(Thornmail, 1500, 51.0), new(DeadMans, 1400, 50.8),
-            new(Visage, 1200, 53.4), new(ForceOfNature, 900, 52.8), new(Maw, 700, 52.1),
-            new(EdgeOfNight, 500, 51.2), new(Randuin, 600, 50.5), new(Steelcaps, 2500, 51.0),
-        };
-        var stats = new ChampStats(Garen, "top", "16.22", 9000, [],
-                                   new Dictionary<int, (int, Dictionary<int, double>)>(), [build], items);
-
-        (double, double, double)? Share(int id) => id == Garen ? (1.0, 0.0, 0.0) : (0.43, 0.57, 0.0);
-        var advice = BuildAdvisor.Adapt(stats, build, Mages, [Garen], Share);
+        var (stats, build, advice) = GarenVsMages();
         var a = advice.Builds.FirstOrDefault();
         Check("подбор есть", a is not null, $"вариантов {advice.Builds.Count}");
         if (a is null) return;
@@ -151,6 +141,68 @@ internal static class Program
               && advice.BaseWhy[Mercs].Answers.Contains(Loc.T("build.vsMagic", "57"))
               && advice.BaseWhy.Values.All(w => !w.Added),
               string.Join(" | ", advice.BaseWhy.Select(kv => $"{Name(kv.Key)}: {string.Join("; ", kv.Value.Answers)}")));
+    }
+
+    /// Гарен с выдуманной ходовой (Шипованная броня и Латы мертвеца в ней) против
+    /// пяти магов, магия 57%. Подбор считается заново — на текущем языке.
+    private static (ChampStats Stats, BuildData Build, BuildAdvisor.Advice Advice) GarenVsMages()
+    {
+        var build = new BuildData(
+            Items: [Stridebreaker, Mercs, Cleaver, Sterak, Thornmail, DeadMans],
+            Core: [Stridebreaker, Mercs, Cleaver], Games: 6300, Winrate: 52.4, Spells: [4, 14]);
+        var items = new List<ItemStat>
+        {
+            new(Stridebreaker, 6000, 52.0), new(Mercs, 4000, 51.5), new(Cleaver, 3500, 52.5),
+            new(Sterak, 3000, 53.0), new(Thornmail, 1500, 51.0), new(DeadMans, 1400, 50.8),
+            new(Visage, 1200, 53.4), new(ForceOfNature, 900, 52.8), new(Maw, 700, 52.1),
+            new(EdgeOfNight, 500, 51.2), new(Randuin, 600, 50.5), new(Steelcaps, 2500, 51.0),
+        };
+        var stats = new ChampStats(Garen, "top", "16.22", 9000, [],
+                                   new Dictionary<int, (int, Dictionary<int, double>)>(), [build], items);
+        (double, double, double)? Share(int id) => id == Garen ? (1.0, 0.0, 0.0) : (0.43, 0.57, 0.0);
+        return (stats, build, BuildAdvisor.Adapt(stats, build, Mages, [Garen], Share));
+    }
+
+    /// Подсказка на всех 15 языках: собирается без «сырых» ключей и пустых
+    /// {0}, причины склеиваются разделителем языка (в ja/zh — «、», не «, »),
+    /// заглавная буква — по языку программы (турецкое «i» → «İ», а не «I»).
+    private static void Languages()
+    {
+        Console.WriteLine();
+        Console.WriteLine("подсказка на всех языках:");
+        var full = typeof(OverlayWindow).GetMethod("AiItemWhy", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var lines = typeof(OverlayWindow).GetMethod("WhyLines", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var cap = typeof(OverlayWindow).GetMethod("Capitalize", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var broken = new List<string>();
+        var sepOk = true;
+        try
+        {
+            foreach (var lang in Loc.Languages.Select(l => l.Code))
+            {
+                Loc.SetLanguage(lang);
+                var (stats, _, advice) = GarenVsMages();
+                if (advice.Builds.FirstOrDefault() is not { } a) { broken.Add($"{lang}: подбора нет"); continue; }
+                foreach (var id in a.Items)
+                {
+                    var w = a.Why[id];
+                    var text = (string)full.Invoke(null, [id, w, false, stats])!
+                             + "\n" + string.Join("\n", (List<string>)lines.Invoke(null, [id, w, false, stats, true])!);
+                    if (text.Contains("build.") || text.Contains("runes.") || text.Contains('{') || text.Trim().Length == 0)
+                        broken.Add($"{lang} {Name(id)}: {text.Replace("\n", " / ")}");
+                }
+                // У Пасти две причины — в коротком тексте они через разделитель языка.
+                var maw = string.Join("\n", (List<string>)lines.Invoke(null, [Maw, a.Why[Maw], false, stats, true])!);
+                if (!maw.Contains(Loc.ListSep.Trim())) sepOk = false;
+                if (lang is "ja" or "zh") Console.WriteLine($"  {lang}: {maw.Split('\n')[0]}");
+            }
+            Check("на всех 15 языках подсказка собирается: ни сырых ключей, ни пустых {0}",
+                  broken.Count == 0, string.Join(" | ", broken.Take(5)));
+            Check("две причины склеены разделителем своего языка («、» в ja/zh)", sepOk, "");
+            Loc.SetLanguage("tr");
+            var tr = (string)cap.Invoke(null, ["iyileşme"])!;
+            Check("турецкая заглавная: «iyileşme» → «İyileşme» на любой Windows", tr == "İyileşme", tr);
+        }
+        finally { Loc.SetLanguage("ru"); }
     }
 
     /// Скриншот владельца 20.11: у саппорта подбор поставил Мандат императора, а

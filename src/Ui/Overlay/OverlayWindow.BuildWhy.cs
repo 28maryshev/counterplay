@@ -41,7 +41,7 @@ public partial class OverlayWindow
             if (why.Answers.Count == 0)
                 lines.Add(Loc.T(isCore ? "build.whyCore" : "build.whyKept"));
             else if (compact)
-                lines.Add(Loc.T("build.whyHas", string.Join(", ", why.Answers)));
+                lines.Add(Loc.T("build.whyHas", string.Join(Loc.ListSep, why.Answers)));
             else
             {
                 lines.Add(Loc.T("build.whyCovers"));
@@ -51,7 +51,7 @@ public partial class OverlayWindow
         }
 
         if (compact && why.Answers.Count > 0)
-            lines.Add(Capitalize(string.Join(", ", why.Answers)));
+            lines.Add(Capitalize(string.Join(Loc.ListSep, why.Answers)));
         else if (!compact)
             lines.AddRange(why.Answers.Select(a => "• " + a));
         if (why.Replaced != 0)

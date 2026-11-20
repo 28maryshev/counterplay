@@ -326,8 +326,16 @@ public partial class OverlayWindow
         }
     }
 
-    private static string Capitalize(string s) =>
-        s.Length > 0 ? char.ToUpper(s[0]) + s[1..] : s;
+    /// Заглавная буква — по языку программы, а не Windows: на английской
+    /// Windows турецкое «i» становилось «I» вместо «İ».
+    private static string Capitalize(string s)
+    {
+        if (s.Length == 0) return s;
+        System.Globalization.CultureInfo culture;
+        try { culture = System.Globalization.CultureInfo.GetCultureInfo(Loc.Current); }
+        catch (System.Globalization.CultureNotFoundException) { culture = System.Globalization.CultureInfo.InvariantCulture; }
+        return char.ToUpper(s[0], culture) + s[1..];
+    }
 
     /// Шкала под знаком подбора дорастает до новой доли — враг выбрал ещё
     /// одного. Растёт заметно, но коротко: игрок в этот момент смотрит на
