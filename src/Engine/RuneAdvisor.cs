@@ -37,7 +37,7 @@ namespace Counterplay;
 ///     ровно та жалоба, с которой подбор начался. Осколок — не руна чемпиона:
 ///     стойкость под контроль берут все.
 /// </summary>
-public static class RuneAdvisor
+public static partial class RuneAdvisor
 {
     /// Замена в странице: что было, что стало и почему. Why пустой — руна
     /// встала вместе со сменой дерева, своей причины у неё нет.
@@ -50,7 +50,13 @@ public static class RuneAdvisor
     /// Trace — разбор для песочницы.
     public sealed record Advice(
         RuneChoice Choice, IReadOnlyList<Swap> Swaps, IReadOnlyList<Swap> Covered,
-        string? KeystoneWhy, IReadOnlyList<string> Trace);
+        string? KeystoneWhy, IReadOnlyList<string> Trace)
+    {
+        /// Что правило по линии требовало, а цифры против таких соперников не
+        /// подтвердили: руна страницы осталась (To — она, From — непоставленная)
+        /// или руну не ставим (From = To) — с причиной (RuneAdvisor.Data.cs).
+        public IReadOnlyList<Swap> Kept { get; init; } = [];
+    }
 
     /// Кейстоун лучше прочих против оппонента хотя бы на столько, п.п., —
     /// тогда это и причина. Меньше — шум: поправки уже ужаты по объёму.
@@ -77,7 +83,8 @@ public static class RuneAdvisor
     public const int ShardTenacity = 5013, ShardHealth = 5011, ShardHealthScaling = 5001;
     private const int DefenseShard = 2;
 
-    private sealed record Need(int Rune, double Weight, string Why);
+    /// Lane — правило по линии (против наскока / поука): его сверяют с цифрами.
+    private sealed record Need(int Rune, double Weight, string Why, LaneKind Lane = LaneKind.None);
 
     /// Подобрать страницу. laneOpponent — прямой оппонент (по нему кейстоун:
     /// поправки в данных — против него); laneFoes — кто бьёт меня на линии (по
@@ -144,6 +151,10 @@ public static class RuneAdvisor
                   + $"убийц {comp.Burst}, стиль {comp.Style?.ToString() ?? "смешанный"}");
 
         var needs = Needs(comp, enemies, me, foes);
+        // Правила по линии — сверить с цифрами: вдруг руна страницы против
+        // таких соперников на этом чемпионе выигрывает чаще (RuneAdvisor.Data.cs).
+        var kept = new List<Swap>();
+        needs = CheckByData(needs, stats, choice.Page, slotOf, trace, kept);
         trace.Add(needs.Count == 0 ? "состав ничего не требует"
             : "нужно: " + string.Join(", ", needs.Select(n => $"{Rune(n.Rune)} {n.Weight:0.#}")));
 
@@ -231,7 +242,7 @@ public static class RuneAdvisor
         {
             Page = page with { Sub = sub, Perks = perks, Secondary = second, Shards = shards },
         };
-        return new Advice(result, swaps, covered, ksWhy, trace);
+        return new Advice(result, swaps, covered, ksWhy, trace) { Kept = kept };
     }
 
     /// Чего требуют соперники: руна, вес, причина. Одна руна — один раз, с
@@ -255,16 +266,16 @@ public static class RuneAdvisor
         var allIn = foes.Where(ChampionTraits.LaneAllIn).ToList();
         var pokers = foes.Where(ChampionTraits.LanePoke).ToList();
         if (allIn.Count > 0)
-            list.Add(new(BonePlating, 1.5, LaneWhy(allIn, "runes.laneAllIn", "runes.laneAllInTwo")));
+            list.Add(new(BonePlating, 1.5, LaneWhy(allIn, "runes.laneAllIn", "runes.laneAllInTwo"), LaneKind.AllIn));
         else if (pokers.Count > 0)
         {
             // Три руны — один ответ (отхил после размена), и вес у них один:
             // иначе подбор менял бы Вдохновение с Печеньем на Решимость ради
             // Второго дыхания, хотя Печенье закрывает то же самое.
             var why = LaneWhy(pokers, "runes.lanePoke", "runes.lanePokeTwo");
-            list.Add(new(SecondWind, 1.5, why));
-            list.Add(new(TasteOfBlood, 1.5, why));
-            list.Add(new(Biscuits, 1.5, why));
+            list.Add(new(SecondWind, 1.5, why, LaneKind.Poke));
+            list.Add(new(TasteOfBlood, 1.5, why, LaneKind.Poke));
+            list.Add(new(Biscuits, 1.5, why, LaneKind.Poke));
         }
 
         // Состав — слабее линии.

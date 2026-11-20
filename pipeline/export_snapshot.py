@@ -30,13 +30,13 @@ SNAPSHOT = {
     'keystone_matchup': ('champion_id', 'role', 'vs_champion_id', 'keystone'),
     'item_build':       ('champion_id', 'role', 'items'),
     'spell_wr':         ('champion_id', 'role', 'spells'),
-    # Кейстоун против второго бот-лейнера (vsDuo). После keystone_wr: по ней
-    # фильтр ниже.
+    # Руны против соперников по линии: кейстоун против второго бот-лейнера
+    # (vsDuo) и мелкие руны (perkVs).
     'rune_matchup':     ('champion_id', 'role', 'vs_champion_id', 'vs_role', 'perk'),
 }
-# Что ещё отсечь при переливе. Из rune_matchup выгрузке нужны только
-# кейстоуны, а мелких рун там впятеро больше.
-SNAPSHOT_FILTER = {'rune_matchup': 'perk IN (SELECT keystone FROM main.keystone_wr)'}
+# Что ещё отсечь при переливе. В лесу правил по линии нет — его строки
+# rune_matchup выгрузке не нужны (пятая часть таблицы).
+SNAPSHOT_FILTER = {'rune_matchup': "role != 'jungle'"}
 # По скольким колонкам ключа индекс выжимки (иначе по двум: чемпион и роль).
 # Страницы рун читаются по кейстоуну.
 SNAPSHOT_INDEX = {'rune_page': 3}

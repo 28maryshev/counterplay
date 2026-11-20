@@ -428,6 +428,10 @@
     "laneAllInTwo": "{0} và {1} trên đường lao vào all-in",
     "lanePokeTwo": "{0} và {1} trên đường cấu máu từ xa",
     "both": "{0} và {1}",
+    "dataVs": "gặp đối thủ kiểu này {0} điểm so với “{1}” ({2} trận)",
+    "dataVsRest": "gặp đối thủ kiểu này {0} điểm so với trận không dùng ({1} trận)",
+    "dataKept": "{0}, nhưng gặp đối thủ kiểu này ngọc này thắng nhiều hơn “{1}”: {2} điểm ({3} trận)",
+    "dataSkip": "{0}, nhưng gặp đối thủ kiểu này thắng ít hơn khi không dùng: {1} điểm ({2} trận) — không chọn",
     "aiKsEdge": "gặp {0} tốt hơn các ngọc chính khác: {1} điểm",
     "aiKsWr": "thắng nhiều hơn {0}: {1}% so với {2}%",
     "vsSquishy": "đối thủ không có mục tiêu trâu bò",
@@ -768,7 +772,10 @@
     "whyBuildItem": "Món mua thêm phổ biến: thắng {0}% qua {1} trận",
     "wastedArmor": "giáp, nhưng họ gây sát thương phép ({0}%)",
     "wastedMr": "kháng phép, nhưng họ gây sát thương vật lý ({0}%)",
-    "oneBoots": "đôi giày thứ hai không cộng dồn"
+    "oneBoots": "đôi giày thứ hai không cộng dồn",
+    "noFitMr": "tướng này không lên kháng phép",
+    "noFitArmor": "tướng này không lên giáp",
+    "whyHas": "Đã có trong build: {0}"
   },
   "notice": {
     "head": {

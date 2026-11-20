@@ -325,6 +325,10 @@
     "laneAllInTwo": "{0} et {1} vont all-in en lane",
     "lanePokeTwo": "{0} et {1} pokent à distance en lane",
     "both": "{0} et {1}",
+    "dataVs": "contre ce type d’adversaire {0} pts par rapport à « {1} » ({2} parties)",
+    "dataVsRest": "contre ce type d’adversaire {0} pts par rapport aux parties sans elle ({1} parties)",
+    "dataKept": "{0}, mais contre ce type d’adversaire cette rune gagne plus que « {1} » : {2} pts ({3} parties)",
+    "dataSkip": "{0}, mais contre ce type d’adversaire elle gagne moins que sans : {1} pts ({2} parties) — non retenue",
     "aiKsEdge": "contre {0}, meilleure que les autres runes clés : {1} pts",
     "aiKsWr": "gagne plus souvent que {0} : {1} % contre {2} %",
     "vsSquishy": "ils n'ont aucune cible résistante",
@@ -768,7 +772,10 @@
     "whyBuildItem": "Achat courant : {0}% de victoires sur {1} parties",
     "wastedArmor": "armure, mais ils font des dégâts magiques ({0}%)",
     "wastedMr": "résistance magique, mais ils font des dégâts physiques ({0}%)",
-    "oneBoots": "une deuxième paire de bottes ne se cumule pas"
+    "oneBoots": "une deuxième paire de bottes ne se cumule pas",
+    "noFitMr": "ce champion ne construit pas de résistance magique",
+    "noFitArmor": "ce champion ne construit pas d'armure",
+    "whyHas": "Déjà dans la build : {0}"
   },
   "notice": {
     "head": {

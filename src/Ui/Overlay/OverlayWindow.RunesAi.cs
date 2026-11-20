@@ -157,6 +157,9 @@ public partial class OverlayWindow
             if (adv.KeystoneWhy is { } kw) lines.Add($"• {RuneIcons.NameOf(adv.Choice.Keystone)} — {kw}");
             lines.AddRange((adv.Swaps.Count > 0 ? adv.Swaps : adv.Covered)
                            .Where(s => s.Why.Length > 0).Select(SwapLine));
+            // Что правило просило, а цифры против таких соперников не
+            // подтвердили, — тоже видно: иначе «почему не Костяная броня?».
+            lines.AddRange(adv.Kept.Select(SwapLine));
             var head = news ? Loc.T("runes.aiTipHead") : Capitalize(Loc.T("runes.aiRunesCovered"));
             var tip = string.Join("\n", lines.Prepend(head));
             var card = RuneCard(adv.Choice, index, tip, changed);
@@ -219,7 +222,9 @@ public partial class OverlayWindow
             : "замены: " + string.Join("; ", a.Swaps.Select(s =>
                 (s.Shard ? $"осколок {s.From}→{s.To}" : $"{RuneIcons.NameOf(s.From)}→{RuneIcons.NameOf(s.To)}")
                 + (s.Why.Length > 0 ? $" ({s.Why})" : "")));
-        return string.Join("\n", a.Trace.Append(swaps).Append("страница: " + page));
+        var kept = a.Kept.Count == 0 ? ""
+            : "\nоставили по цифрам: " + string.Join("; ", a.Kept.Select(s => $"{RuneIcons.NameOf(s.To)} ({s.Why})"));
+        return string.Join("\n", a.Trace.Append(swaps + kept).Append("страница: " + page));
     }
 
     /// «• Резня — толстые цели (3)».

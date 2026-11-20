@@ -428,6 +428,10 @@
     "laneAllInTwo": "{0} e {1} vanno all-in in corsia",
     "lanePokeTwo": "{0} e {1} colpiscono dalla distanza in corsia",
     "both": "{0} e {1}",
+    "dataVs": "contro avversari simili {0} punti rispetto a «{1}» ({2} partite)",
+    "dataVsRest": "contro avversari simili {0} punti rispetto alle partite senza ({1} partite)",
+    "dataKept": "{0}, ma contro avversari simili questa runa vince più di «{1}»: {2} punti ({3} partite)",
+    "dataSkip": "{0}, ma contro avversari simili vince meno che senza: {1} punti ({2} partite) — non scelta",
     "aiKsEdge": "contro {0} meglio delle altre rune chiave: {1} punti",
     "aiKsWr": "vince più spesso di {0}: {1}% contro {2}%",
     "vsSquishy": "non hanno bersagli resistenti",
@@ -768,7 +772,10 @@
     "whyBuildItem": "Acquisto comune: {0}% di vittorie su {1} partite",
     "wastedArmor": "armatura, ma fanno danno magico ({0}%)",
     "wastedMr": "resistenza magica, ma fanno danno fisico ({0}%)",
-    "oneBoots": "un secondo paio di stivali non si somma"
+    "oneBoots": "un secondo paio di stivali non si somma",
+    "noFitMr": "questo campione non costruisce resistenza magica",
+    "noFitArmor": "questo campione non costruisce armatura",
+    "whyHas": "Già nella build: {0}"
   },
   "notice": {
     "head": {

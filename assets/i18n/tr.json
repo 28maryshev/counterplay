@@ -112,6 +112,10 @@
     "laneAllInTwo": "koridordaki {0} ve {1} all-in yapar",
     "lanePokeTwo": "koridordaki {0} ve {1} uzaktan dürter",
     "both": "{0} ve {1}",
+    "dataVs": "bu tür rakiplere karşı “{1}” rününe göre {0} puan ({2} maç)",
+    "dataVsRest": "bu tür rakiplere karşı onsuz maçlara göre {0} puan ({1} maç)",
+    "dataKept": "{0}, ama bu tür rakiplere karşı bu rün “{1}” rününden daha çok kazanıyor: {2} puan ({3} maç)",
+    "dataSkip": "{0}, ama bu tür rakiplere karşı onsuz daha çok kazanılıyor: {1} puan ({2} maç) — eklenmedi",
     "aiKsEdge": "{0} karşısında diğer ana rünlerden iyi: {1} puan",
     "aiKsWr": "{0} rününden daha sık kazanır: %{1} / %{2}",
     "vsSquishy": "dayanıklı hedefleri yok",
@@ -768,7 +772,10 @@
     "whyBuildItem": "Yaygın ek alım: %{0} galibiyet, {1} maçta",
     "wastedArmor": "zırh, ama büyü hasarı vuruyorlar ({0}%)",
     "wastedMr": "büyü direnci, ama fiziksel hasar vuruyorlar ({0}%)",
-    "oneBoots": "ikinci bir çift ayakkabının etkisi birikmez"
+    "oneBoots": "ikinci bir çift ayakkabının etkisi birikmez",
+    "noFitMr": "bu şampiyon büyü direnci almıyor",
+    "noFitArmor": "bu şampiyon zırh almıyor",
+    "whyHas": "Build'de zaten var: {0}"
   },
   "notice": {
     "head": {

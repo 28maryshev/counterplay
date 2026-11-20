@@ -66,7 +66,16 @@ public sealed record ChampStats(
     /// врагов». Пусто — не бот или данных ещё нет.
     public IReadOnlyDictionary<int, (int Games, Dictionary<int, double> Deltas)> VsDuo { get; init; } =
         new Dictionary<int, (int, Dictionary<int, double>)>();
+
+    /// Как чемпион выигрывает с каждой мелкой руной против каждого соперника
+    /// по линии (выгрузка с 20.11, сбор — с 19.11): по ним подбор рун сверяет
+    /// правила «против наскока — Костяная броня» с цифрами. Пусто — данных нет.
+    public IReadOnlyDictionary<int, PerkVsFoe> PerkVs { get; init; } = new Dictionary<int, PerkVsFoe>();
 }
+
+/// Игры против одного соперника по линии: всего и с каждой ходовой мелкой
+/// руной (реже 3% игр чемпиона — не выгружаются).
+public sealed record PerkVsFoe(int Games, int Wins, IReadOnlyDictionary<int, (int Games, int Wins)> Perks);
 
 /// <summary>
 /// Клиент статистики рун/билдов. Данные лежат на сервере готовыми JSON
@@ -484,7 +493,22 @@ public static class RunesClient
             r.GetProperty("role").GetString()!,
             r.GetProperty("patches")[0].GetString()!,
             r.GetProperty("games").GetInt32(),
-            keystones, vs, builds, items) { VsDuo = Deltas("vsDuo") };
+            keystones, vs, builds, items) { VsDuo = Deltas("vsDuo"), PerkVs = PerkVs(r) };
+    }
+
+    /// "perkVs": {"<соперник>": {"g": игры, "w": победы, "p": {"<руна>": [игры, победы]}}}.
+    private static Dictionary<int, PerkVsFoe> PerkVs(JsonElement r)
+    {
+        var map = new Dictionary<int, PerkVsFoe>();
+        if (!r.TryGetProperty("perkVs", out var el)) return map;
+        foreach (var foe in el.EnumerateObject())
+        {
+            var perks = foe.Value.GetProperty("p").EnumerateObject().ToDictionary(
+                x => int.Parse(x.Name), x => (x.Value[0].GetInt32(), x.Value[1].GetInt32()));
+            map[int.Parse(foe.Name)] = new PerkVsFoe(
+                foe.Value.GetProperty("g").GetInt32(), foe.Value.GetProperty("w").GetInt32(), perks);
+        }
+        return map;
     }
 
     /// {"8017": 33.2, …} → руна → доля.

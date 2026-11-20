@@ -428,6 +428,10 @@
     "laneAllInTwo": "{0} i {1} na linii wchodzą all-in",
     "lanePokeTwo": "{0} i {1} na linii pokują z dystansu",
     "both": "{0} i {1}",
+    "dataVs": "przeciw takim rywalom {0} pkt względem „{1}” ({2} gier)",
+    "dataVsRest": "przeciw takim rywalom {0} pkt względem gier bez niej ({1} gier)",
+    "dataKept": "{0}, ale przeciw takim rywalom ta runa wygrywa częściej niż „{1}”: {2} pkt ({3} gier)",
+    "dataSkip": "{0}, ale przeciw takim rywalom wygrywa rzadziej niż bez niej: {1} pkt ({2} gier) — pomijamy",
     "aiKsEdge": "przeciw {0} lepsza od innych run kluczowych: {1} pkt",
     "aiKsWr": "wygrywa częściej niż {0}: {1}% wobec {2}%",
     "vsSquishy": "nie mają wytrzymałych celów",
@@ -768,7 +772,10 @@
     "whyBuildItem": "Częsty zakup: {0}% wygranych w {1} grach",
     "wastedArmor": "pancerz, a oni zadają obrażenia magiczne ({0}%)",
     "wastedMr": "odporność na magię, a oni zadają obrażenia fizyczne ({0}%)",
-    "oneBoots": "druga para butów się nie sumuje"
+    "oneBoots": "druga para butów się nie sumuje",
+    "noFitMr": "ten bohater nie kupuje odporności na magię",
+    "noFitArmor": "ten bohater nie kupuje pancerza",
+    "whyHas": "Już w buildzie: {0}"
   },
   "notice": {
     "head": {

@@ -20,7 +20,12 @@ RunesExportFast — выгрузка рун считает связки по в�
   5. у стрелка и саппорта — поправки кейстоунов против второго бот-лейнера
      (vsDuo, из rune_matchup; владелец 20.11: «руны на боте должны учитывать
      пики двух врагов»): только против врага другой бот-роли, только
-     кейстоуны; у прочих ролей поля нет.
+     кейстоуны; у прочих ролей поля нет;
+  6. perkVs — мелкие руны против каждого соперника по линии (по ним подбор
+     рун сверяет правила «против наскока — Костяная броня» с цифрами,
+     владелец 20.11): без кейстоунов, без редких рун (< 3%), без соперников
+     с малой выборкой (< 40 игр), игры соперника — сумма по рунам / 5; у
+     леса поля нет.
 Рабочих баз не трогает.
 
     python tests/RunesExportFast/check.py        # 0 — всё хорошо, 1 — нет
@@ -86,14 +91,18 @@ for patch in PATCHES:
                 rows.append(('spell_wr', (champ, role, s, tier, patch, gg, rnd.randint(0, gg))))
 # Руны против соперников на линии (без эло): у бот-лейнеров — против обоих.
 # Против второго бот-лейнера — 1, 11, 55; против своей роли — 77 (в vsDuo его
-# быть не должно); мелкая руна 9111 — тоже не кейстоун.
+# быть не должно). Мелкие руны: пять ходовых и редкая 8299 (в perkVs её быть
+# не должно); соперник 999 — с горсткой игр (тоже не должно).
 DUO = {'adc': 'support', 'support': 'adc'}
+MINOR = [9111, 9104, 8014, 8473, 8444]
+RARE = 8299
 for patch in PATCHES:
     for champ, role in CHAMPS:
-        foes = [(77, role)] + ([(v, DUO[role]) for v in (1, 11, 55)] if role in DUO else [])
+        foes = [(77, role), (999, role)] + ([(v, DUO[role]) for v in (1, 11, 55)] if role in DUO else [])
         for vs, vrole in foes:
-            for perk in KS + [9111]:
-                gg = rnd.randint(5, 80)
+            for perk in KS + MINOR + [RARE]:
+                # Редкая — по игре на соперника за патч (~2%), у 999 — по две на руну.
+                gg = (1 if perk == RARE else rnd.randint(20, 80)) if vs != 999 else (0 if perk == RARE else 2)
                 rows.append(('rune_matchup', (champ, role, vs, vrole, perk, patch, gg, rnd.randint(0, gg))))
 # Вразнобой — как в рабочей базе, где строки лежат в порядке вставки.
 rnd.shuffle(rows)
@@ -122,8 +131,8 @@ files_by = {(c, r): export_runes.build_champ_role(snap, c, r, ps) or {} for c, r
 print('2. в выжимке — только патчи выгрузки, эло сложены')
 for table, key in export_snapshot.SNAPSHOT.items():
     cols = ', '.join(key)
-    # Из rune_matchup выжимка берёт только кейстоуны.
-    only = ' AND perk IN (SELECT keystone FROM keystone_wr)' if table == 'rune_matchup' else ''
+    # Из rune_matchup выжимка не берёт лес: правил по линии у него нет.
+    only = " AND role != 'jungle'" if table == 'rune_matchup' else ''
     got = snap.execute(f'SELECT COUNT(*), COUNT(DISTINCT patch) FROM {table}').fetchone()
     want = ro.execute(f'SELECT COUNT(*) FROM (SELECT DISTINCT {cols}, patch FROM {table} '
                       f'WHERE patch IN ({",".join("?" * len(ps))}){only})', ps).fetchone()[0]
@@ -172,6 +181,23 @@ for (c, r), d in files_by.items():
               f'{c}-{r}: против {sorted(duo or {})} (ждали из 1, 11, 55; 77 — своя роль), кейстоуны {sorted(ids)}')
     else:
         check(duo is None, f'{c}-{r}: поля vsDuo нет — {"да" if duo is None else duo}')
+
+print('6. мелкие руны против соперников по линии (perkVs)')
+raw_db = sqlite3.connect(f'file:{TMP / "data.db"}?mode=ro', uri=True)
+for (c, r), d in files_by.items():
+    pv = d.get('perkVs')
+    if r == 'jungle':
+        check(pv is None, f'{c}-{r}: у леса поля нет — {"да" if pv is None else sorted(pv)}')
+        continue
+    perks = {int(k) for v in (pv or {}).values() for k in v['p']}
+    # Игры против соперника 77 — сумма мелких рун (без кейстоунов) / 5.
+    g77 = raw_db.execute(f"""SELECT SUM(games) FROM rune_matchup WHERE champion_id=? AND role=? AND vs_champion_id=77
+                             AND perk NOT IN ({",".join(map(str, KS))}) AND patch IN ({",".join("?" * len(ps))})""",
+                         [c, r, *ps]).fetchone()[0]
+    check(bool(pv) and perks == set(MINOR) and '999' not in pv and pv.get('77', {}).get('g') == round(g77 / 5),
+          f'{c}-{r}: руны {sorted(perks)} (ждали {MINOR}, без кейстоунов и редкой {RARE}), '
+          f'соперники {sorted(pv or {})} (без 999), у 77 игр {(pv or {}).get("77", {}).get("g")} (ждали {round(g77 / 5)})')
+raw_db.close()
 
 shutil.rmtree(TMP, ignore_errors=True)
 print()

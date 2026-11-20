@@ -32,6 +32,10 @@
     "laneAllInTwo": "{0} and {1} in lane go all-in",
     "lanePokeTwo": "{0} and {1} in lane poke from range",
     "both": "{0} and {1}",
+    "dataVs": "vs such opponents {0} pts over “{1}” ({2} games)",
+    "dataVsRest": "vs such opponents {0} pts over games without it ({1} games)",
+    "dataKept": "{0}, but vs such opponents this rune wins more than “{1}”: {2} pts ({3} games)",
+    "dataSkip": "{0}, but vs such opponents it wins less than going without: {1} pts ({2} games) — skipped",
     "aiKsEdge": "beats other keystones vs {0}: {1} pts",
     "aiKsWr": "wins more often than {0}: {1}% vs {2}%",
     "vsSquishy": "they have no tanky targets",
@@ -768,7 +772,10 @@
     "whyBuildItem": "Common follow-up: {0}% wins over {1} games",
     "wastedArmor": "armor, but they deal magic damage ({0}%)",
     "wastedMr": "magic resist, but they deal physical damage ({0}%)",
-    "oneBoots": "a second pair of boots doesn't stack"
+    "oneBoots": "a second pair of boots doesn't stack",
+    "noFitMr": "this champion doesn't build magic resist",
+    "noFitArmor": "this champion doesn't build armor",
+    "whyHas": "Already in the build: {0}"
   },
   "notice": {
     "head": {

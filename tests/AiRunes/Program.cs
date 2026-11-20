@@ -114,7 +114,8 @@ internal static class Program
                                     Dictionary<int, double>? subPick = null,
                                     bool withShares = true, bool withPta = false,
                                     Dictionary<int, double>? vsZed = null, int shard3 = 5011,
-                                    double ptaWr = 49.5, Dictionary<int, double>? duoVsLux = null)
+                                    double ptaWr = 49.5, Dictionary<int, double>? duoVsLux = null,
+                                    Dictionary<int, PerkVsFoe>? perkVs = null)
     {
         IReadOnlyDictionary<int, IReadOnlyDictionary<int, double>> subShare =
             new Dictionary<int, IReadOnlyDictionary<int, double>>
@@ -136,7 +137,11 @@ internal static class Program
         if (vsZed is not null) vs[Zed] = (900, vsZed);
         var vsDuo = new Dictionary<int, (int, Dictionary<int, double>)>();
         if (duoVsLux is not null) vsDuo[99] = (700, duoVsLux);
-        return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], []) { VsDuo = vsDuo };
+        return new ChampStats(Ashe, "adc", "16.22", 268180, list, vs, [], [])
+        {
+            VsDuo = vsDuo,
+            PerkVs = perkVs ?? new Dictionary<int, PerkVsFoe>(),
+        };
     }
 
     private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, ChampStats s, int[] enemies, int? lane = null,
@@ -312,6 +317,55 @@ internal static class Program
         Check("у Натиска нет поправки против Зеда — он не выигрывает за счёт пустоты: Темп",
               thin?.Choice.Keystone == LT,
               $"{(thin is null ? "—" : RuneIcons.NameOf(thin.Choice.Keystone))}: {thin?.KeystoneWhy}");
+
+        // ── 5б. Правило по линии сверяется с цифрами ────────────────────────
+        // Владелец (20.11): «а что если те руны сильнее были бы в конкретном
+        // случае, даже учитывая, что там кто-то бьёт с наскока, — сопоставить
+        // и определить, стоит ли поменять». Страница: Решимость со Вторым
+        // дыханием; против Дрейвена (наскок) правило ставит Костяную броню в
+        // тот же ряд. Цифры — игры Эш против соперников того же склада.
+        const int DravenId = 119, XerathId = 101;
+        static PerkVsFoe Foe(int g, int w, params (int Perk, int G, int W)[] perks) =>
+            new(g, w, perks.ToDictionary(x => x.Perk, x => (x.G, x.W)));
+        var bp = RuneAdvisor.BonePlating;
+        var against = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
+        {
+            [DravenId] = Foe(10000, 5000, (8444, 6000, 3300), (bp, 4000, 2000)),
+        }), Soft, lane: DravenId);
+        Check("цифры против: со Вторым дыханием против наскока выигрывают на 5 п.п. чаще (10 000 игр) — оставили, причина видна",
+              against is not null && against.Swaps.All(s => s.To != bp)
+              && against.Kept.Any(k => k.From == bp && k.To == 8444 && k.Why.Contains(RuneIcons.NameOf(bp))),
+              $"{Show(against)} | оставили: {string.Join("; ", against?.Kept.Select(k => k.Why) ?? [])}");
+        var forIt = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
+        {
+            [DravenId] = Foe(10000, 5200, (8444, 6000, 3000), (bp, 4000, 2200)),
+        }), Soft, lane: DravenId);
+        Check("цифры за: с Костяной броней на 5 п.п. чаще — ставим, в причине цифры и с чем сравнивали",
+              forIt?.Swaps.Any(s => s.To == bp && s.Why.Contains("+5,0") && s.Why.Contains(RuneIcons.NameOf(8444))) == true
+              && forIt.Kept.Count == 0, Show(forIt));
+        var fewGames = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
+        {
+            [DravenId] = Foe(200, 100, (8444, 100, 55), (bp, 100, 45)),
+        }), Soft, lane: DravenId);
+        Check("игр мало (100 и 100, −10 п.п.) — это шум: ставим по правилу, цифр в причине нет",
+              fewGames?.Swaps.Any(s => s.To == bp && !s.Why.Contains("п.п.")) == true, Show(fewGames));
+        var otherKind = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
+        {
+            [XerathId] = Foe(10000, 5000, (8444, 6000, 3300), (bp, 4000, 2000)),
+        }), Soft, lane: DravenId);
+        Check("цифры только против поука (Ксерат) за наскок (Дрейвен) не решают — по правилу",
+              otherKind?.Swaps.Any(s => s.To == bp) == true, Show(otherKind));
+        // Состав без поука (у Soft он есть, и Второе дыхание по составу
+        // само тянет Решимость — это правило по составу, сверять его не с чем).
+        int[] Brawl = [DravenId, 238, 55, 122, 91];   // Дрейвен, Зед, Катарина, Дариус, Талон
+        var treeSwitch = Adapt(engine, Ashe_([8345, 8347], sub: 8300, perkVs: new()
+        {
+            [DravenId] = Foe(20000, 10400, (bp, 3000, 1350), (8345, 12000, 6300), (8347, 15000, 7800)),
+        }), Brawl, lane: DravenId);
+        Check("дерево сменилось бы ради Костяной брони, а с ней против наскока выигрывают реже, чем без неё, — дерево остаётся",
+              treeSwitch is not null && treeSwitch.Choice.Page.Sub == 8300 && !treeSwitch.Choice.Page.Secondary.Contains(bp)
+              && treeSwitch.Kept.Any(k => k.From == bp && k.To == bp),
+              $"{Show(treeSwitch)} | оставили: {string.Join("; ", treeSwitch?.Kept.Select(k => k.Why) ?? [])}");
 
         // ── 6. Мягкий состав ────────────────────────────────────────────────
         var soft = Adapt(engine, Ashe_([8444, Overgrowth], row3: RuneAdvisor.CutDown), Soft);

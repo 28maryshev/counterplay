@@ -45,6 +45,9 @@ MIN_PAGE         = 40    # игр на конкретную страницу р�
 # попавшая наверх по случайности. Требуем, чтобы страницу реально играли.
 MIN_PAGE_SHARE   = 0.04  # 4 % игр кейстоуна
 MIN_VS_GAMES     = 40    # игр в матчапе, чтобы показывать поправку на оппонента
+# Мелкие руны против соперников по линии (perkVs): реже этого руну не пишем —
+# подбор рун в программе такие и не ставит (RuneAdvisor.MinShare).
+MIN_PERK_VS_SHARE = 3.0  # % игр связки
 MIN_BUILD        = 25    # игр на итоговый билд
 MIN_ITEM         = 40    # игр на отдельный предмет
 K                = 50.0  # сглаживание Лапласа (как в движке пиков)
@@ -412,6 +415,49 @@ def keystone_deltas(rows, base_wr_by_ks: dict) -> dict:
     return vs
 
 
+def perk_vs(con, champ: int, role: str, ps: list[str]) -> dict:
+    """Как связка выигрывает с каждой мелкой руной против каждого соперника по
+    линии: {соперник: {g, w, p: {руна: [игры, победы]}}}.
+
+    Владелец (20.11): правила «против наскока — Костяная броня» перевешивают
+    руны с лучшим винрейтом — а вдруг те в этом случае сильнее? По этим цифрам
+    подбор рун сверяет правило: игры против соперников того же склада с
+    предлагаемой руной и с той, что стоит на странице. Склад (наскок / поук)
+    знает программа (ChampionTraits), поэтому здесь — по каждому сопернику, а
+    складывает она.
+
+    Леса нет: правил по линии у него нет. Кейстоуны (в rune_matchup с 20.11)
+    не берём — у них свои поправки. g, w — игры против соперника: мелких рун в
+    странице ровно пять, так что это сумма по рунам, делённая на пять."""
+    if role == 'jungle':
+        return {}
+    ph = ','.join('?' * len(ps))
+    rows = q(con, f"""SELECT vs_champion_id, perk, SUM(games), SUM(wins) FROM rune_matchup
+                      WHERE champion_id=? AND role=? AND patch IN ({ph})
+                        AND perk NOT IN (SELECT keystone FROM keystone_wr
+                                         WHERE champion_id=? AND role=?)
+                      GROUP BY vs_champion_id, perk""", [champ, role, *ps, champ, role])
+    by_foe = defaultdict(dict)
+    perk_games = defaultdict(int)
+    for foe, perk, g, w in rows:
+        by_foe[foe][perk] = (g, w)
+        perk_games[perk] += g
+    total = sum(perk_games.values()) / 5
+    keep = {p for p, g in perk_games.items() if total and 100.0 * g / total >= MIN_PERK_VS_SHARE}
+    out = {}
+    for foe in sorted(by_foe):
+        perks = by_foe[foe]
+        g = round(sum(x[0] for x in perks.values()) / 5)
+        if g < MIN_VS_GAMES:
+            continue
+        out[str(foe)] = {
+            'g': g,
+            'w': round(sum(x[1] for x in perks.values()) / 5),
+            'p': {str(p): [pg, pw] for p, (pg, pw) in sorted(perks.items()) if p in keep},
+        }
+    return out
+
+
 def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
     """JSON одной связки чемпион+роль. None — данных мало, не публикуем."""
     ph = ','.join('?' * len(ps))
@@ -564,6 +610,8 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
             break
     builds = pick_builds(raw_builds, strata, builds_total, items, it_g, champ_wr)
 
+    pv = perk_vs(con, champ, role, ps)
+
     spells = [
         {'spells': [int(x) for x in s.split(',')], 'games': g, 'wr': round(wr(g, w), 1)}
         for s, g, w in q(con, f"""SELECT spells, SUM(games) g, SUM(wins) w FROM spell_wr
@@ -584,6 +632,7 @@ def build_champ_role(con, champ: int, role: str, ps: list[str]) -> dict | None:
         # Только у стрелка и саппорта и только когда есть что сказать: в
         # остальных файлах поля нет вовсе.
         **({'vsDuo': vs_duo} if vs_duo else {}),
+        **({'perkVs': pv} if pv else {}),
         'items': items,
         'builds': builds,
         'spells': spells,
