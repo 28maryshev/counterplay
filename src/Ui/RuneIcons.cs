@@ -9,7 +9,7 @@ namespace Counterplay;
 /// Иконки и названия рун (Data Dragon runesReforged.json). Кэш на диске —
 /// иконки не меняются, качать их каждый запуск незачем.
 /// </summary>
-public static class RuneIcons
+public static partial class RuneIcons
 {
     private sealed record RuneInfo(int Id, string Name, string IconPath, string Desc);
 
@@ -68,9 +68,14 @@ public static class RuneIcons
     /// балансом, и держать прошлый текст — врать игроку.
     public static async Task LoadAsync(string locale, CancellationToken ct)
     {
-        if (_loadedLocale == locale && _loadedVersion == DataDragon.Version && Runes.Count > 0)
+        // Язык интерфейса — тоже в ключе: у украинского локаль Riot та же, что у
+        // английского (en_US), а поверх неё ложится свой перевод
+        // (RuneIcons.Translation.cs). Без языка в ключе переключение en → uk
+        // перевод бы не наложило.
+        var key = $"{locale}/{Loc.Current}";
+        if (_loadedLocale == key && _loadedVersion == DataDragon.Version && Runes.Count > 0)
             return;
-        _loadedLocale = locale;
+        _loadedLocale = key;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
@@ -104,6 +109,7 @@ public static class RuneIcons
                     row++;
                 }
             }
+            ApplyTranslation(Loc.Current);
         }
         catch { /* офлайн — иконок не будет, панель обойдётся текстом */ }
     }

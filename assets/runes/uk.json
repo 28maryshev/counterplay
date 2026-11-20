@@ -1,0 +1,323 @@
+{
+ "version": "16.23.1",
+ "note": "Перевод справочника рун на украинский (у Riot его нет). src — английское описание, с которого переводили: Riot поменял описание — программа покажет свежий английский (RuneIcons.Translation.cs).",
+ "trees": {
+  "8100": "Домінування",
+  "8300": "Натхнення",
+  "8000": "Точність",
+  "8400": "Рішучість",
+  "8200": "Чаклунство"
+ },
+ "runes": {
+  "8112": {
+   "name": "Удар струмом",
+   "desc": "Влучивши в чемпіона 3 окремими атаками або вміннями протягом 3 с, ви завдаєте додаткової адаптивної шкоди.",
+   "src": "Hitting a champion with 3 separate attacks or abilities in 3s deals bonus adaptive damage."
+  },
+  "8128": {
+   "name": "Темні жнива",
+   "desc": "Коли ви завдаєте шкоди чемпіону з низьким рівнем здоров'я, він отримує адаптивну шкоду, а ви пожинаєте душу жертви.",
+   "src": "Damaging a low health champion inflicts adaptive damage and harvests a soul from the victim."
+  },
+  "9923": {
+   "name": "Град клинків",
+   "desc": "Ви отримуєте значний приріст швидкості атаки та додаткову чисту шкоду на перші 3 атаки проти ворожих чемпіонів.",
+   "src": "Gain a large amount of Attack Speed and bonus true damage for the first 3 attacks made against enemy champions."
+  },
+  "8126": {
+   "name": "Підлий удар",
+   "desc": "Ви завдаєте додаткової чистої шкоди ворожим чемпіонам, чиї рух або дії обмежено.",
+   "src": "Deal bonus true damage to enemy champions with impaired movement or actions."
+  },
+  "8139": {
+   "name": "Смак крові",
+   "desc": "Ви відновлюєте здоров'я, коли завдаєте шкоди ворожому чемпіону.",
+   "src": "Heal when you damage an enemy champion."
+  },
+  "8143": {
+   "name": "Раптовий удар",
+   "desc": "Після ривка, стрибка, миттєвого переміщення, телепортації або виходу з невидимості ваші базові атаки й уміння, що завдають шкоди, додатково завдають ворожим чемпіонам чистої шкоди.",
+   "src": "Damaging basic attacks and abilities deal bonus true damage to enemy champions after using a dash, leap, blink, teleport, or when leaving stealth."
+  },
+  "8137": {
+   "name": "Шосте чуття",
+   "desc": "Раз на тривалу перезарядку ви автоматично відчуваєте поблизу невідстежений і невиявлений тотем та відстежуєте його для команди. Рівень 11: ви також робите тотем видимим на 10 с.",
+   "src": "On a long Cooldown, automatically sense a nearby untracked and unseen ward, tracking it for the team. Level 11: Also reveal the ward for 10s."
+  },
+  "8140": {
+   "name": "Моторошні сувеніри",
+   "desc": "Ви збираєте 1 сувенір за кожну участь у вбивстві чемпіона, загалом до 18. Кожен зібраний сувенір дає 6 прискорення аксесуара.",
+   "src": "Collect 1 memento on champion takedowns, up to 18 total. Gain 6 Trinket Haste for each collected."
+  },
+  "8141": {
+   "name": "Глибинний тотем",
+   "desc": "Ваші тотеми у ворожому лісі стають глибинними й отримують додаткове здоров'я та тривалість дії. Рівень 9: тотеми на річці також стають глибинними.",
+   "src": "Your wards in the enemy jungle are Deep, gaining Health and Duration. Level 9: Wards in the river are also Deep."
+  },
+  "8135": {
+   "name": "Мисливець за скарбами",
+   "desc": "Кожна унікальна участь у вбивстві дає додаткове золото, коли її здобуто вперше.",
+   "src": "Unique takedowns grant additional gold the first time they are collected."
+  },
+  "8105": {
+   "name": "Невблаганний мисливець",
+   "desc": "Кожна унікальна участь у вбивстві назавжди збільшує швидкість руху поза боєм.",
+   "src": "Unique takedowns grant permanent out of combat MS."
+  },
+  "8106": {
+   "name": "Ультимативний мисливець",
+   "desc": "Кожна унікальна участь у вбивстві назавжди скорочує перезарядку вашого ультимативного вміння.",
+   "src": "Unique takedowns grant permanent cooldown reduction on your Ultimate."
+  },
+  "8351": {
+   "name": "Крижане посилення",
+   "desc": "Знерухомлення ворожого чемпіона створює 3 крижані промені, які сповільнюють ворогів поблизу та зменшують шкоду, яку вони завдають вашим союзникам.",
+   "src": "Immobilizing an enemy champion will cause 3 glacial rays that slow nearby enemies and reduce their damage to your allies."
+  },
+  "8360": {
+   "name": "Розпечатана книга заклинань",
+   "desc": "Поза боєм ви можете замінювати заклинання призивача. Заміна на унікальні заклинання призивача збільшує частоту, з якою ви можете робити наступні заміни.",
+   "src": "Swap Summoner Spells while out of combat. Swapping to unique Summoner Spells will increase the rate at which you can make future swaps."
+  },
+  "8369": {
+   "name": "Перший удар",
+   "desc": "Коли ви починаєте бій із чемпіонами, ви протягом 3 секунд завдаєте на 7% більше шкоди й отримуєте золото залежно від завданої шкоди.",
+   "src": "When you initiate champion combat, deal 7% extra damage for 3 seconds and gain gold based on damage dealt."
+  },
+  "8306": {
+   "name": "Хекстековий флеш-пристрій",
+   "desc": "Поки Flash на перезарядці, його замінює Hexflash. Hexflash: після підготовки миттєво переносить вас у нове місце.",
+   "src": "While Flash is on cooldown it is replaced by Hexflash. Hexflash: Channel, then blink to a new location."
+  },
+  "8304": {
+   "name": "Магічне взуття",
+   "desc": "На 12-й хвилині ви отримуєте безкоштовні чоботи, але до того не можете купити чоботи. Кожна ваша участь у вбивстві пришвидшує появу чобіт на 45 с.",
+   "src": "You get free boots at 12 min but you cannot buy boots before then. Each takedown you get makes your boots come 45s sooner."
+  },
+  "8321": {
+   "name": "Кешбек",
+   "desc": "Купуючи легендарні предмети, ви повертаєте частину золота.",
+   "src": "Get some gold back when you purchase Legendary Items."
+  },
+  "8313": {
+   "name": "Потрійний тонік",
+   "desc": "Досягнувши 3-го рівня, ви отримуєте Elixir of Avarice. Досягнувши 6-го рівня, ви отримуєте Elixir of Force. Досягнувши 9-го рівня, ви отримуєте Elixir of Skill.",
+   "src": "Upon reaching level 3, gain an Elixir of Avarice. Upon reaching level 6, gain an Elixir of Force. Upon reaching level 9, gain an Elixir of Skill."
+  },
+  "8352": {
+   "name": "Тонік викривлення часу",
+   "desc": "Зілля дають частину відновлення одразу.",
+   "src": "Potions grant some restoration immediately."
+  },
+  "8345": {
+   "name": "Доставка печива",
+   "desc": "Кожні 2 хв до 6-ї хвилини ви отримуєте безкоштовне печиво. Якщо з'їсти або продати печиво, ваше максимальне здоров'я назавжди зростає, і ви відновлюєте здоров'я.",
+   "src": "Gain a free Biscuit every 2 min, until 6 min. Consuming or selling a Biscuit permanently increases your max health and restores health."
+  },
+  "8347": {
+   "name": "Космічне прозріння",
+   "desc": "+18 прискорення заклинань призивача +10 прискорення предметів",
+   "src": "+18 Summoner Spell Haste +10 Item Haste"
+  },
+  "8410": {
+   "name": "Швидкість наближення",
+   "desc": "Додаткова швидкість руху в напрямку ворожих чемпіонів поблизу з обмеженим рухом; ефект сильніший, якщо їхній рух обмежили саме ви.",
+   "src": "Bonus MS towards nearby enemy champions that are movement impaired, increased for enemy champions that you impair."
+  },
+  "8316": {
+   "name": "Майстер на всі руки",
+   "desc": "За кожен окремий показник, отриманий від предметів, ви отримуєте один заряд Майстра. Кожен заряд дає 1 прискорення умінь. Досягнувши 5 і 10 зарядів, ви отримуєте додаткову адаптивну силу.",
+   "src": "For each different stat gained from items, gain one Jack stack. Each stack grants you 1 Ability Haste. Gain bonus Adaptive Force at 5 and 10 stacks."
+  },
+  "8005": {
+   "name": "Натиск",
+   "desc": "Влучивши у ворожого чемпіона 3 рази поспіль, ви завдаєте додаткової шкоди та посилюєте свою шкоду, доки не вийдете з бою з чемпіонами.",
+   "src": "Hitting an enemy champion 3 consecutive times deals bonus damage and amplifies your damage until you leave combat with champions."
+  },
+  "8008": {
+   "name": "Смертельний темп",
+   "desc": "Атакуючи ворожого чемпіона, ви отримуєте швидкість атаки, що накопичується до 6 зарядів. З максимальною кількістю зарядів ваші атаки завдають додаткової адаптивної шкоди.",
+   "src": "Attacking an enemy champion grants you Attack Speed, up to 6 stacks. At max stacks, deal bonus adaptive damage On-Attack."
+  },
+  "8021": {
+   "name": "Спритне маневрування",
+   "desc": "Атаки та рух накопичують заряди енергії. Коли їх стає 100, ваша наступна атака відновлює вам здоров'я та збільшує швидкість руху.",
+   "src": "Attacking and moving builds Energy stacks. At 100 stacks, your next attack heals you and grants increased MS."
+  },
+  "8010": {
+   "name": "Завойовник",
+   "desc": "Атакуючи ворожих чемпіонів, ви отримуєте заряди адаптивної сили. Набравши 12 зарядів, ви відновлюєте собі здоров'я на частину шкоди, яку завдаєте чемпіонам.",
+   "src": "Gain stacks of adaptive force when attacking enemy champions. After reaching 12 stacks, heal for a portion of damage you deal to champions."
+  },
+  "9101": {
+   "name": "Поглинання життя",
+   "desc": "Убивство цілі відновлює вам здоров'я.",
+   "src": "Killing a target heals you."
+  },
+  "9111": {
+   "name": "Тріумф",
+   "desc": "Участь у вбивстві відновлює 5% вашого втраченого здоров'я та дає додатково 20 золота.",
+   "src": "Takedowns restore 5% of your missing health and grant an additional 20 gold."
+  },
+  "8009": {
+   "name": "Присутність духу",
+   "desc": "Ви відновлюєте трохи мани або енергії, коли завдаєте шкоди ворожому чемпіону. Участь у вбивстві відновлює ману або енергію.",
+   "src": "Restore a small amount of mana or energy when damaging an enemy champion. Takedowns restore mana or energy."
+  },
+  "9104": {
+   "name": "Легенда: жвавість",
+   "desc": "Участь у вбивстві ворогів назавжди збільшує швидкість атаки.",
+   "src": "Takedowns on enemies grant permanent Attack Speed."
+  },
+  "9105": {
+   "name": "Легенда: прискорення",
+   "desc": "Участь у вбивстві ворогів назавжди збільшує прискорення базових умінь.",
+   "src": "Takedowns on enemies grant permanent Basic Ability Haste."
+  },
+  "9103": {
+   "name": "Легенда: родовід",
+   "desc": "Участь у вбивстві ворогів назавжди збільшує вампіризм до певної межі. Коли межу досягнуто, збільшується ваше максимальне здоров'я. Слабша за інші руни Легенди на початку гри, але сильніша в пізній грі.",
+   "src": "Takedowns on enemies grant permanent Life Steal, up to a cap. Once the cap is reached, increase your max health. Weaker earlier but stronger later game than other Legend Runes."
+  },
+  "8014": {
+   "name": "Удар милосердя",
+   "desc": "Ви завдаєте більше шкоди ворожим чемпіонам з низьким рівнем здоров'я.",
+   "src": "Deal more damage to low health enemy champions."
+  },
+  "8017": {
+   "name": "Під корінь",
+   "desc": "Ви завдаєте більше шкоди ворожим чемпіонам з високим рівнем здоров'я.",
+   "src": "Deal more damage to high health enemy champions."
+  },
+  "8299": {
+   "name": "Останній рубіж",
+   "desc": "Ви завдаєте більше шкоди чемпіонам, коли у вас мало здоров'я.",
+   "src": "Deal more damage to champions while you are low on health."
+  },
+  "8437": {
+   "name": "Стиск невмирущого",
+   "desc": "Кожні 4 с ваша наступна атака на чемпіона завдає додаткової магічної шкоди, лікує вас і назавжди збільшує ваше здоров'я.",
+   "src": "Every 4s your next attack on a champion deals bonus magic damage, heals you, and permanently increases your health."
+  },
+  "8439": {
+   "name": "Повторний поштовх",
+   "desc": "Знерухомивши ворожого чемпіона, ви посилюєте свій захист, а згодом вивільняєте навколо себе вибух магічної шкоди.",
+   "src": "After immobilizing an enemy champion gain defenses and later deal a burst of magic damage around you."
+  },
+  "8465": {
+   "name": "Охоронець",
+   "desc": "Ви охороняєте союзників, на яких застосовуєте заклинання, і тих, хто стоїть зовсім поруч. Якщо ви або союзник під охороною отримуєте шкоду (залежно від рівня), ви обоє отримуєте щит.",
+   "src": "Guard allies you cast spells on and those that are very nearby. If you or a guarded ally would take damage based on level, you're both granted a shield."
+  },
+  "8446": {
+   "name": "Знесення",
+   "desc": "Ваша третя атака проти веж завдає додаткової шкоди.",
+   "src": "Your third attack against turrets deals bonus damage."
+  },
+  "8463": {
+   "name": "Джерело життя",
+   "desc": "Обмеження руху ворожого чемпіона лікує союзних чемпіонів поблизу.",
+   "src": "Impairing the movement of an enemy champion heals nearby allied champions."
+  },
+  "8401": {
+   "name": "Удар щитом",
+   "desc": "Щоразу, коли ви отримуєте щит, ваша наступна базова атака проти чемпіона завдає додаткової адаптивної шкоди.",
+   "src": "Whenever you gain a shield, your next basic attack against a champion deals bonus adaptive damage."
+  },
+  "8429": {
+   "name": "Загартування",
+   "desc": "Після 12-ї хвилини ви отримуєте +8 броні та +8 опору магії, а ваші броня й опір магії збільшуються на 3%.",
+   "src": "After 12 min gain +8 Armor and +8 Magic Resist and increase your Armor and Magic Resist by 3%."
+  },
+  "8444": {
+   "name": "Друге дихання",
+   "desc": "Отримавши шкоду від ворожого чемпіона, ви поступово відновлюєте частину втраченого здоров'я.",
+   "src": "After taking damage from an enemy champion heal back some missing health over time."
+  },
+  "8473": {
+   "name": "Кістяна обшивка",
+   "desc": "Після того як ворожий чемпіон завдасть вам шкоди, його наступні 3 заклинання або атаки завдають вам на 30-60 (залежно від рівня) менше шкоди. Тривалість: 1.5 с Перезарядка: 55 с",
+   "src": "After taking damage from an enemy champion, the next 3 spells or attacks you receive from them deal 30-60 (based on level) less damage. Duration: 1.5s Cooldown: 55s"
+  },
+  "8451": {
+   "name": "Розростання",
+   "desc": "Ви назавжди збільшуєте максимальне здоров'я, коли поруч із вами гинуть міньйони або монстри.",
+   "src": "Gain permanent max health when minions or monsters die near you."
+  },
+  "8453": {
+   "name": "Оживлення",
+   "desc": "Ви отримуєте 5% сили лікування та щитів. Лікування та щити, які ви накладаєте або отримуєте, на 10% сильніші для цілей, у яких менше 40% здоров'я.",
+   "src": "Gain 5% Heal and Shield Power. Heals and shields you cast or receive are 10% stronger on targets below 40% health."
+  },
+  "8242": {
+   "name": "Непохитність",
+   "desc": "Ви отримуєте броню та опір магії, коли на вас накладають ефекти контролю.",
+   "src": "Gain Armor and Magic Resist when receiving crowd control."
+  },
+  "8214": {
+   "name": "Виклик Ейрі",
+   "desc": "Ваші атаки й уміння відправляють Ейрі до цілі: вона завдає шкоди ворогам або дає щит союзникам.",
+   "src": "Your attacks and abilities send Aery to a target, damaging enemies or shielding allies."
+  },
+  "8229": {
+   "name": "Магічна комета",
+   "desc": "Коли ви завдаєте шкоди чемпіону вмінням, у місце, де він перебуває, летить комета, що завдає шкоди.",
+   "src": "Damaging a champion with an ability hurls a damaging comet at their location."
+  },
+  "8230": {
+   "name": "Порив штормового рейдера",
+   "desc": "Завдавши чемпіону шкоди в розмірі 25% його максимального здоров'я, ви отримуєте сплеск швидкості руху та стійкість до сповільнення.",
+   "src": "Dealing 25% of a champion's maximum health grants a burst of MS and Slow Resist."
+  },
+  "8992": {
+   "name": "Дотик смертовогню",
+   "desc": "Завдаючи шкоди чемпіону вмінням, ви підпалюєте його, і він поступово отримує шкоду.",
+   "src": "Damaging a champion with an ability burns them over time."
+  },
+  "8224": {
+   "name": "Арканіст аксіом",
+   "desc": "Ваше ультимативне вміння завдає більше шкоди, а лікування та щити від нього сильніші. Участь у вбивстві ворожого чемпіона скорочує поточну перезарядку вашого ультимативного вміння.",
+   "src": "Your Ultimate has increased damage, healing, and shielding. Scoring a takedown on an enemy champion reduces your Ultimate's current cooldown."
+  },
+  "8226": {
+   "name": "Браслет потоку мани",
+   "desc": "Влучання вмінням у ворожого чемпіона назавжди збільшує ваш максимальний запас мани на 25 (до 250 мани). Отримавши 250 додаткової мани, ви відновлюєте 1% втраченої мани кожні 5 секунд.",
+   "src": "Hitting an enemy champion with an ability permanently increases your maximum mana by 25, up to 250 mana. After reaching 250 bonus mana, restore 1% of your missing mana every 5 seconds."
+  },
+  "8275": {
+   "name": "Хмарний плащ",
+   "desc": "Після використання заклинання призивача ви ненадовго отримуєте збільшення швидкості руху, яке дає змогу проходити крізь юнітів.",
+   "src": "After casting a Summoner Spell, gain a short Move Speed increase that allows you to pass through units."
+  },
+  "8210": {
+   "name": "Трансценденція",
+   "desc": "Ви отримуєте бонуси, досягаючи таких рівнів: Рівень 5: +5 прискорення умінь Рівень 8: +5 прискорення умінь Рівень 11: участь у вбивстві чемпіона скорочує решту перезарядки базових умінь на 20%.",
+   "src": "Gain bonuses upon reaching the following levels: Level 5: +5 Ability Haste Level 8: +5 Ability Haste Level 11: On Champion takedown, reduce the remaining cooldown of basic abilities by 20%."
+  },
+  "8234": {
+   "name": "Стрімкість",
+   "desc": "Усі бонуси до швидкості руху діють на вас на 7% ефективніше, а також ви отримуєте 1% швидкості руху.",
+   "src": "All Move Speed bonuses are 7% more effective on you and gain 1% Move Speed."
+  },
+  "8233": {
+   "name": "Абсолютна зосередженість",
+   "desc": "Поки у вас понад 70% здоров'я, ви отримуєте бонус до адаптивної шкоди.",
+   "src": "While above 70% health, gain extra adaptive damage."
+  },
+  "8237": {
+   "name": "Опік",
+   "desc": "Кожні 10 с ваше перше влучання вмінням, що завдає шкоди, підпалює чемпіонів.",
+   "src": "Your first damaging ability hit every 10s burns champions."
+  },
+  "8232": {
+   "name": "Ходіння по воді",
+   "desc": "На річці ви отримуєте швидкість руху та силу умінь або силу атаки (адаптивно).",
+   "src": "Gain MS and AP or AD, adaptive in the river."
+  },
+  "8236": {
+   "name": "Буря, що насувається",
+   "desc": "Упродовж гри ви отримуєте дедалі більше сили атаки або сили умінь (адаптивно).",
+   "src": "Gain increasing amounts of AD or AP, adaptive over the course of the game."
+  }
+ }
+}

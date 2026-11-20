@@ -62,6 +62,8 @@
   <!-- Строки локализации интерфейса (en/ru/es/pt/de/fr/tr/ko) -->
   <ItemGroup>
     <EmbeddedResource Include="assets\i18n\*.json" />
+    <!-- Перевод справочника рун на языки, которых у Riot нет (RuneIcons.Translation.cs). -->
+    <EmbeddedResource Include="assets\runes\*.json" />
   </ItemGroup>
 
   <!-- Секрет телеметрии: передаётся при сборке (-p:TelemetrySecret=…), в коде и в
