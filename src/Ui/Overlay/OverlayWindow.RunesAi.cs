@@ -153,22 +153,15 @@ public partial class OverlayWindow
             }
 
             var changed = adv.Swaps.Where(s => !s.Shard).Select(s => s.To).ToHashSet();
-            var lines = new List<string>();
-            if (adv.KeystoneWhy is { } kw) lines.Add($"• {RuneIcons.NameOf(adv.Choice.Keystone)} — {kw}");
-            lines.AddRange((adv.Swaps.Count > 0 ? adv.Swaps : adv.Covered)
-                           .Where(s => s.Why.Length > 0).Select(SwapLine));
-            // Что правило просило, а цифры против таких соперников не
-            // подтвердили, — тоже видно: иначе «почему не Костяная броня?».
-            lines.AddRange(adv.Kept.Select(SwapLine));
-            var head = news ? Loc.T("runes.aiTipHead") : Capitalize(Loc.T("runes.aiRunesCovered"));
-            var tip = string.Join("\n", lines.Prepend(head));
-            var card = RuneCard(adv.Choice, index, tip, changed);
+            var card = RuneCard(adv.Choice, index, "", changed);
             RuneAiTrace?.Invoke(Explain(adv));
             return card with
             {
                 IsAi = true,
                 BorderBrush = index == _runeSelected ? card.BorderBrush : RuneAiEdge,
                 KeystoneRing = newKeystone ? AiBrush : Brushes.Transparent,
+                WhyHead = news ? Loc.T("runes.aiTipHead") : Capitalize(Loc.T("runes.aiRunesCovered")),
+                WhyItems = RuneWhy(adv, newKeystone ? _runeChoices[0].Keystone : 0),
             };
         }
 
@@ -221,17 +214,51 @@ public partial class OverlayWindow
         var swaps = a.Swaps.Count == 0 ? "замен нет"
             : "замены: " + string.Join("; ", a.Swaps.Select(s =>
                 (s.Shard ? $"осколок {s.From}→{s.To}" : $"{RuneIcons.NameOf(s.From)}→{RuneIcons.NameOf(s.To)}")
-                + (s.Why.Length > 0 ? $" ({s.Why})" : "")));
+                + (s.Why.Length > 0 ? $" ({s.Why}{(s.Data.Length > 0 ? "; " + s.Data : "")})" : "")));
         var kept = a.Kept.Count == 0 ? ""
-            : "\nоставили по цифрам: " + string.Join("; ", a.Kept.Select(s => $"{RuneIcons.NameOf(s.To)} ({s.Why})"));
+            : "\nоставили по цифрам: " + string.Join("; ", a.Kept.Select(s => $"{RuneIcons.NameOf(s.To)} ({s.Why}; {s.Data})"));
         return string.Join("\n", a.Trace.Append(swaps + kept).Append("страница: " + page));
     }
 
-    /// «• Резня — толстые цели (3)».
-    private static string SwapLine(RuneAdvisor.Swap s) =>
-        "• " + (!s.Shard ? RuneIcons.NameOf(s.To)
-                : Loc.T(s.To == RuneAdvisor.ShardHealth ? "runes.shardHealth" : "runes.shardTenacity"))
-        + " — " + s.Why;
+    /// <summary>
+    /// Почему эти руны — для подсказки карточки, как у строки подбора сборки
+    /// (владелец, 20.11: «оформи так же красиво описания, почему были взяты те
+    /// или иные руны»). Руна иконкой и названием, под ней — почему, вместо
+    /// чего и цифры. Порядок: кейстоун, поставленные подбором (бирюзовые), что
+    /// на странице уже отвечает составу, что правило просило, а цифры не
+    /// подтвердили (приглушённые). replacedKeystone — кейстоун первого
+    /// варианта, если подбор взял другой (0 — тот же).
+    /// </summary>
+    private static List<WhyItemVm> RuneWhy(RuneAdvisor.Advice a, int replacedKeystone)
+    {
+        var list = new List<WhyItemVm>();
+        if (a.KeystoneWhy is { } kw)
+            list.Add(WhyRune(a.Choice.Keystone, AiBrush, Capitalize(kw), Instead(replacedKeystone)));
+        foreach (var s in a.Swaps.Where(s => s.Why.Length > 0))
+            list.Add(s.Shard
+                ? WhyShard(s.To, AiBrush, Capitalize(s.Why))
+                : WhyRune(s.To, AiBrush, Capitalize(s.Why), Instead(s.From), s.Data));
+        foreach (var s in a.Covered.Where(s => s.Why.Length > 0))
+            list.Add(s.Shard
+                ? WhyShard(s.To, KeptName, Loc.T("runes.whyHas", s.Why))
+                : WhyRune(s.To, KeptName, Loc.T("runes.whyHas", s.Why)));
+        // Что правило просило, а цифры против таких соперников не подтвердили:
+        // иначе «почему не Костяная броня?».
+        foreach (var s in a.Kept)
+            list.Add(WhyRune(s.To, KeptName, Capitalize(s.Why), s.Data));
+        return list;
+
+        static string Instead(int rune) =>
+            rune != 0 && RuneIcons.Known(rune) ? Loc.T("build.whyInstead", RuneIcons.NameOf(rune)) : "";
+    }
+
+    private static WhyItemVm WhyRune(int rune, Brush brush, params string[] lines) =>
+        new(RuneIcons.Icon(rune), RuneIcons.NameOf(rune), brush, string.Join("\n", lines.Where(l => l.Length > 0)));
+
+    /// Осколок: названий в справочнике Riot нет — свои строки.
+    private static WhyItemVm WhyShard(int shard, Brush brush, string text) =>
+        new(RuneIcons.Icon(shard),
+            Loc.T(shard == RuneAdvisor.ShardHealth ? "runes.shardHealth" : "runes.shardTenacity"), brush, text);
 
     /// Карточка встала в сетку: анимации ждут, пока у неё появится шаблон.
     private void AfterRuneAiRender()

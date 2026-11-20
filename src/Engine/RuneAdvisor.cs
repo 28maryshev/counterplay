@@ -41,7 +41,13 @@ public static partial class RuneAdvisor
 {
     /// Замена в странице: что было, что стало и почему. Why пустой — руна
     /// встала вместе со сменой дерева, своей причины у неё нет.
-    public sealed record Swap(int From, int To, string Why, bool Shard = false);
+    public sealed record Swap(int From, int To, string Why, bool Shard = false)
+    {
+        /// Цифры к причине отдельной строкой (RuneAdvisor.Data.cs): «против
+        /// таких с ней +1,8 п.п. к «Второе дыхание»», «оставили: …». Пусто —
+        /// причина только по правилу.
+        public string Data { get; init; } = "";
+    }
 
     /// Страница под соперников. Swaps пуст — менять нечего; Covered — чего
     /// состав требует и что на странице уже стоит: «менять нечего» без
@@ -154,7 +160,8 @@ public static partial class RuneAdvisor
         // Правила по линии — сверить с цифрами: вдруг руна страницы против
         // таких соперников на этом чемпионе выигрывает чаще (RuneAdvisor.Data.cs).
         var kept = new List<Swap>();
-        needs = CheckByData(needs, stats, choice.Page, slotOf, trace, kept);
+        var evidence = new Dictionary<int, string>();
+        needs = CheckByData(needs, stats, choice.Page, slotOf, trace, kept, evidence);
         trace.Add(needs.Count == 0 ? "состав ничего не требует"
             : "нужно: " + string.Join(", ", needs.Select(n => $"{Rune(n.Rune)} {n.Weight:0.#}")));
 
@@ -237,6 +244,9 @@ public static partial class RuneAdvisor
                 swaps.Add(new Swap(was, shard, shardWhy, true));
             }
         }
+
+        // Цифры, подтвердившие правило, — к своей замене.
+        swaps = [.. swaps.Select(s => !s.Shard && evidence.TryGetValue(s.To, out var d) ? s with { Data = d } : s)];
 
         var result = swaps.Count == 0 ? choice : choice with
         {

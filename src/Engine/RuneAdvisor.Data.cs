@@ -72,11 +72,13 @@ public static partial class RuneAdvisor
     }
 
     /// Нужное соперникам по линии — сверить с цифрами. Подтверждено или
-    /// данных мало — остаётся (с цифрами в причине, если их много и они «за»);
-    /// цифры против — убирается, а в kept — что осталось на странице и почему.
+    /// данных мало — остаётся (цифры «за», если их много, — в evidence: руна →
+    /// строка для подсказки); цифры против — убирается, а в kept — что
+    /// осталось на странице и почему (Why — правило, Data — цифры).
     private static List<Need> CheckByData(List<Need> needs, ChampStats stats, RunePage page,
                                           Func<int, (int Style, int Row)?> slotOf,
-                                          List<string> trace, List<Swap> kept)
+                                          List<string> trace, List<Swap> kept,
+                                          Dictionary<int, string> evidence)
     {
         if (stats.PerkVs.Count == 0)
         {
@@ -108,23 +110,24 @@ public static partial class RuneAdvisor
                       + (e.Mixed > 0 ? "ставим" : "не ставим"));
             if (e.Mixed > 0)
             {
-                // Цифры «за» и их много — пишем в причину: так видно, что это
-                // не только гайд.
-                result.Add(e.Raw > 0 && e.Games >= MinCite
-                    ? n with
-                    {
-                        Why = n.Why + "; " + (e.Against != 0
-                            ? Loc.T("runes.dataVs", Pts(e.Raw), Rune(e.Against), e.Total.ToString("N0"))
-                            : Loc.T("runes.dataVsRest", Pts(e.Raw), e.Total.ToString("N0"))),
-                    }
-                    : n);
+                // Цифры «за» и их много — строкой под причиной: так видно, что
+                // это не только гайд.
+                if (e.Raw > 0 && e.Games >= MinCite)
+                    evidence[n.Rune] = e.Against != 0
+                        ? Loc.T("runes.dataVs", Pts(e.Raw), Rune(e.Against), e.Total.ToString("N0"))
+                        : Loc.T("runes.dataVsRest", Pts(e.Raw), e.Total.ToString("N0"));
+                result.Add(n);
                 continue;
             }
             kept.Add(e.Against != 0
-                ? new Swap(n.Rune, e.Against,
-                           Loc.T("runes.dataKept", n.Why, Rune(n.Rune), Pts(-e.Raw), e.Total.ToString("N0")))
-                : new Swap(n.Rune, n.Rune,
-                           Loc.T("runes.dataSkip", n.Why, Pts(e.Raw), e.Total.ToString("N0"))));
+                ? new Swap(n.Rune, e.Against, n.Why)
+                {
+                    Data = Loc.T("runes.dataKept", Rune(n.Rune), Pts(-e.Raw), e.Total.ToString("N0")),
+                }
+                : new Swap(n.Rune, n.Rune, n.Why)
+                {
+                    Data = Loc.T("runes.dataSkip", Pts(e.Raw), e.Total.ToString("N0")),
+                });
         }
         return result;
     }

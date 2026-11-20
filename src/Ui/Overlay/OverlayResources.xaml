@@ -40,6 +40,43 @@
   <!-- Цифры позиции — тоже Ubuntu Sans. -->
   <FontFamily x:Key="NumberFont">/assets/fonts/#Ubuntu Sans, Segoe UI</FontFamily>
 
+  <!-- «Почему он» в подсказке подбора (OverlayWindow.WhyItemVm): иконка в
+       рамке цвета названия, название, под ним причины. Одна на предметы
+       (строка подбора сборки) и руны (карточка подбора рун): владелец, 20.11 —
+       «оформи так же красиво описания, почему были взяты те или иные руны». -->
+  <DataTemplate x:Key="WhyItemTemplate">
+    <Grid Margin="0,8,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <!-- Иконки нет (у осколков рун её нет в справочнике Riot) — без пустой
+           рамки: текст встаёт к краю. -->
+      <Border Width="22" Height="22" CornerRadius="4" VerticalAlignment="Top" Margin="0,0,7,0"
+              BorderBrush="{Binding NameBrush}" BorderThickness="1" ClipToBounds="True">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                <Setter Property="Visibility" Value="Collapsed"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
+        <Image Source="{Binding Icon}" Stretch="UniformToFill"
+               RenderOptions.BitmapScalingMode="HighQuality"/>
+      </Border>
+      <StackPanel Grid.Column="1">
+        <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
+                   FontFamily="{StaticResource UiFont}" FontSize="11"
+                   FontWeight="Bold" Foreground="{Binding NameBrush}"/>
+        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,1,0,0"
+                   FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                   LineHeight="15" Foreground="#D7DEE6"/>
+      </StackPanel>
+    </Grid>
+  </DataTemplate>
+
   <!-- Выпадающий список ролей врага — в цветах кнопки-чипа (тёмный фон,
        рамка #557089, золотая подсветка выбранного/наведённого пункта). -->
   <Style x:Key="RoleMenuStyle" TargetType="ContextMenu">

@@ -81,6 +81,16 @@
                        Visibility="{Binding TipVis}"
                        FontFamily="{StaticResource UiFont}" FontSize="10" LineHeight="15"
                        Foreground="#8AA0B2"/>
+            <!-- Подбор рун: почему эти руны — как у строки подбора сборки
+                 (заголовок и руны с иконкой, причиной, «вместо чего», цифрами). -->
+            <StackPanel Visibility="{Binding WhyVis}" Margin="0,10,0,0">
+              <Border Height="1" Background="#2A3B4D" Margin="0,0,0,8"/>
+              <TextBlock Text="{Binding WhyHead}" TextWrapping="Wrap"
+                         FontFamily="{StaticResource UiFont}" FontSize="11"
+                         FontWeight="Bold" Foreground="#F0D48A"/>
+              <ItemsControl ItemsSource="{Binding WhyItems}"
+                            ItemTemplate="{StaticResource WhyItemTemplate}"/>
+            </StackPanel>
           </StackPanel>
         </ToolTip>
       </Border.ToolTip>

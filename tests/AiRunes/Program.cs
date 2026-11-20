@@ -334,21 +334,21 @@ internal static class Program
         }), Soft, lane: DravenId);
         Check("цифры против: со Вторым дыханием против наскока выигрывают на 5 п.п. чаще (10 000 игр) — оставили, причина видна",
               against is not null && against.Swaps.All(s => s.To != bp)
-              && against.Kept.Any(k => k.From == bp && k.To == 8444 && k.Why.Contains(RuneIcons.NameOf(bp))),
-              $"{Show(against)} | оставили: {string.Join("; ", against?.Kept.Select(k => k.Why) ?? [])}");
+              && against.Kept.Any(k => k.From == bp && k.To == 8444 && k.Data.Contains(RuneIcons.NameOf(bp))),
+              $"{Show(against)} | оставили: {string.Join("; ", against?.Kept.Select(k => k.Why + " · " + k.Data) ?? [])}");
         var forIt = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
         {
             [DravenId] = Foe(10000, 5200, (8444, 6000, 3000), (bp, 4000, 2200)),
         }), Soft, lane: DravenId);
         Check("цифры за: с Костяной броней на 5 п.п. чаще — ставим, в причине цифры и с чем сравнивали",
-              forIt?.Swaps.Any(s => s.To == bp && s.Why.Contains("+5,0") && s.Why.Contains(RuneIcons.NameOf(8444))) == true
+              forIt?.Swaps.Any(s => s.To == bp && s.Data.Contains("+5,0") && s.Data.Contains(RuneIcons.NameOf(8444))) == true
               && forIt.Kept.Count == 0, Show(forIt));
         var fewGames = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
         {
             [DravenId] = Foe(200, 100, (8444, 100, 55), (bp, 100, 45)),
         }), Soft, lane: DravenId);
         Check("игр мало (100 и 100, −10 п.п.) — это шум: ставим по правилу, цифр в причине нет",
-              fewGames?.Swaps.Any(s => s.To == bp && !s.Why.Contains("п.п.")) == true, Show(fewGames));
+              fewGames?.Swaps.Any(s => s.To == bp && s.Data.Length == 0) == true, Show(fewGames));
         var otherKind = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
         {
             [XerathId] = Foe(10000, 5000, (8444, 6000, 3300), (bp, 4000, 2000)),
@@ -365,7 +365,7 @@ internal static class Program
         Check("дерево сменилось бы ради Костяной брони, а с ней против наскока выигрывают реже, чем без неё, — дерево остаётся",
               treeSwitch is not null && treeSwitch.Choice.Page.Sub == 8300 && !treeSwitch.Choice.Page.Secondary.Contains(bp)
               && treeSwitch.Kept.Any(k => k.From == bp && k.To == bp),
-              $"{Show(treeSwitch)} | оставили: {string.Join("; ", treeSwitch?.Kept.Select(k => k.Why) ?? [])}");
+              $"{Show(treeSwitch)} | оставили: {string.Join("; ", treeSwitch?.Kept.Select(k => k.Why + " · " + k.Data) ?? [])}");
 
         // ── 6. Мягкий состав ────────────────────────────────────────────────
         var soft = Adapt(engine, Ashe_([8444, Overgrowth], row3: RuneAdvisor.CutDown), Soft);
@@ -465,13 +465,25 @@ internal static class Program
               ai.Vm is { Index: 2, FillVis: Visibility.Collapsed, BodyOpacity: 1.0 } && ai.Vm.KeystoneIcon is not null
               && rings >= 2,
               $"карточка {ai.Vm?.Index}, в кольце {rings}");
-        Check("подсказка: заголовок и причины", ai.Vm?.Tip.StartsWith(Loc.T("runes.aiTipHead")) == true
-              && ai.Vm.Tip.Contains(RuneIcons.NameOf(RuneAdvisor.CutDown)), ai.Vm?.Tip.Replace("\n", " / ") ?? "");
+        // Владелец (20.11, скриншоты подсказок рун и сборки): «оформи так же
+        // красиво описания, почему были взяты те или иные руны» — как у
+        // предметов: руна иконкой и названием, под ней почему и вместо чего.
+        var cut = ai.Vm?.WhyItems.FirstOrDefault(x => x.Name == RuneIcons.NameOf(RuneAdvisor.CutDown));
+        var instead = Loc.T("build.whyInstead", "").Trim().TrimEnd(':');
+        Check("подсказка как у сборки: заголовок, Резня с иконкой, причиной и «вместо чего», без простого текста",
+              ai.Vm?.WhyHead == Loc.T("runes.aiTipHead") && ai.Vm.Tip.Length == 0
+              && cut is { Icon: not null } && cut.Text.Contains(instead)
+              && cut.NameBrush is SolidColorBrush cb && cb.Color == System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7),
+              $"{ai.Vm?.WhyHead} | " + string.Join(" / ", ai.Vm?.WhyItems.Select(x => $"{x.Name}: {x.Text.Replace("\n", " · ")}") ?? []));
         var page = Call(w, "PageAt", sel) as RunePage;
         Check("подбор выбран сам, «Применить» отдаёт его страницу",
               sel == 2 && page is not null && page.Perks.Contains(RuneAdvisor.CutDown) && page.Shards[2] == RuneAdvisor.ShardTenacity,
               $"выбрано {sel}, страница {(page is null ? "—" : string.Join(",", page.Perks) + " | " + string.Join(",", page.Shards))}");
-        if (snap is { Length: > 0 }) Snap(w, snap, "runes-ai-2-ready.png");
+        if (snap is { Length: > 0 })
+        {
+            Snap(w, snap, "runes-ai-2-ready.png");
+            SnapRuneTip(w, snap, "runes-ai-3-tip.png");
+        }
 
         // ── 9. Выбрал сам до конца пиков ────────────────────────────────────
         Draft(Jinx, Tanky, 3);
@@ -590,6 +602,37 @@ internal static class Program
     private static void Settle()
     {
         for (var i = 0; i < 12; i++) Pump();
+    }
+
+    /// Подсказка карточки подбора — снимком. Саму всплывашку не открываем (это
+    /// окно поверх экрана): рисуем её ToolTip отдельно, с данными карточки
+    /// (как SnapTip в tests/AiBuildRow).
+    private static void SnapRuneTip(Window w, string dir, string file)
+    {
+        Border? card = null;
+        void Walk(DependencyObject d)
+        {
+            if (d is Border { ToolTip: System.Windows.Controls.ToolTip, DataContext: OverlayWindow.RuneOptionVm { IsAi: true } } b) card ??= b;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
+        }
+        Walk((DependencyObject)w.FindName("RuneGrid"));
+        if (card is null) return;
+        var tip = (System.Windows.Controls.ToolTip)card.ToolTip;
+        tip.DataContext = card.DataContext;
+        if (System.Windows.Application.Current.TryFindResource(typeof(System.Windows.Controls.ToolTip)) is Style st) tip.Style = st;
+        tip.ApplyTemplate();
+        tip.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        tip.Arrange(new Rect(tip.DesiredSize));
+        tip.UpdateLayout();
+        var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            (int)Math.Ceiling(tip.ActualWidth), (int)Math.Ceiling(tip.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(tip);
+        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+        Directory.CreateDirectory(dir);
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок подсказки: {Path.Combine(dir, file)}");
     }
 
     private static void Snap(Window w, string dir, string file)

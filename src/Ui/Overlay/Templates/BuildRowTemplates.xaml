@@ -15,31 +15,8 @@
       <TextBlock Text="{Binding TipHead}" TextWrapping="Wrap"
                  FontFamily="{StaticResource UiFont}" FontSize="11"
                  FontWeight="Bold" Foreground="#F0D48A"/>
-      <ItemsControl ItemsSource="{Binding WhyItems}" Visibility="{Binding WhyItemsVis}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Grid Margin="0,8,0,0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-              </Grid.ColumnDefinitions>
-              <Border Width="22" Height="22" CornerRadius="4" VerticalAlignment="Top"
-                      BorderBrush="{Binding NameBrush}" BorderThickness="1" ClipToBounds="True">
-                <Image Source="{Binding Icon}" Stretch="UniformToFill"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
-              </Border>
-              <StackPanel Grid.Column="1" Margin="7,0,0,0">
-                <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
-                           FontFamily="{StaticResource UiFont}" FontSize="11"
-                           FontWeight="Bold" Foreground="{Binding NameBrush}"/>
-                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,1,0,0"
-                           FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                           LineHeight="15" Foreground="#D7DEE6"/>
-              </StackPanel>
-            </Grid>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+      <ItemsControl ItemsSource="{Binding WhyItems}" Visibility="{Binding WhyItemsVis}"
+                    ItemTemplate="{StaticResource WhyItemTemplate}"/>
       <TextBlock Text="{Binding Reason}" TextWrapping="Wrap"
                  Visibility="{Binding ReasonVis}" Margin="0,5,0,0"
                  FontFamily="{StaticResource UiFont}" FontSize="11"

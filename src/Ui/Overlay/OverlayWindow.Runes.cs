@@ -79,6 +79,11 @@ public partial class OverlayWindow
         public Visibility LabelVis => Label.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         public Visibility TreeVis => SubTreeTitle.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         public Visibility TipVis => Tip.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Подбор: почему эти руны — заголовок и руны с причинами, как у строки
+        // подбора сборки (OverlayWindow.RunesAi.cs, RuneWhy).
+        public string WhyHead { get; init; } = "";
+        public IReadOnlyList<WhyItemVm> WhyItems { get; init; } = [];
+        public Visibility WhyVis => WhyItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         public Cursor Cursor => Index >= 0 ? Cursors.Hand : Cursors.Arrow;
     }
 
