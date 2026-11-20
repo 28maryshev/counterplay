@@ -449,10 +449,12 @@ public static class RunesClient
             if (r.TryGetProperty(name, out var el))
                 foreach (var pair in el.EnumerateObject())
                 {
-                    var deltas = new Dictionary<int, double>();
-                    foreach (var d in pair.Value.GetProperty("keystones").EnumerateArray())
-                        deltas[d.GetProperty("id").GetInt32()] = d.GetProperty("delta").GetDouble();
-                    map[int.Parse(pair.Name)] = (pair.Value.GetProperty("games").GetInt32(), deltas);
+                    var ks = pair.Value.GetProperty("keystones").EnumerateArray()
+                        .Select(d => (d.GetProperty("id").GetInt32(),
+                                      d.TryGetProperty("games", out var g) ? g.GetInt32() : 0,
+                                      d.GetProperty("delta").GetDouble()))
+                        .ToList();
+                    map[int.Parse(pair.Name)] = (pair.Value.GetProperty("games").GetInt32(), ToLane(ks));
                 }
             return map;
         }
@@ -509,6 +511,32 @@ public static class RunesClient
                 foe.Value.GetProperty("g").GetInt32(), foe.Value.GetProperty("w").GetInt32(), perks);
         }
         return map;
+    }
+
+    /// Ужатие объёмом в выгрузке: delta = сырая × игры / (игры + K).
+    private const double VsTemper = 50;   // export_runes.K
+
+    /// <summary>
+    /// Поправки кейстоунов против одного соперника — ужатые к линии, а не к
+    /// нулю. Выгрузка ужимает каждую объёмом своих игр к нулю. Но поправка — в
+    /// основном сама линия: Кай'Се против Треша тяжело с любым кейстоуном
+    /// (Темп −4,8 на 358 играх), и кейстоун с горсткой игр (Натиск: +0,5 на 13)
+    /// выходил «на пять пунктов лучше» только оттого, что про него почти ничего
+    /// не известно (владелец, 20.11: «хочу, чтобы в релизе руны отрабатывали как
+    /// надо» — нашлось на настоящих файлах). Здесь сырые поправки
+    /// восстанавливаются; общая для линии — средняя по играм, ужатая всеми
+    /// играми против соперника; отличие кейстоуна от неё — ужатое его играми.
+    /// Без игр у кейстоуна (файлы до выгрузки игр) — как есть.
+    /// </summary>
+    public static Dictionary<int, double> ToLane(IReadOnlyList<(int Id, int Games, double Delta)> ks)
+    {
+        if (ks.Count == 0 || ks.Any(k => k.Games <= 0))
+            return ks.ToDictionary(k => k.Id, k => k.Delta);
+        var raw = ks.Select(k => (k.Id, k.Games, Raw: k.Delta * (k.Games + VsTemper) / k.Games)).ToList();
+        double total = raw.Sum(k => k.Games);
+        var lane = raw.Sum(k => k.Raw * k.Games) / total;
+        var laneShrunk = lane * total / (total + VsTemper);
+        return raw.ToDictionary(k => k.Id, k => laneShrunk + (k.Raw - lane) * k.Games / (k.Games + VsTemper));
     }
 
     /// {"8017": 33.2, …} → руна → доля.

@@ -105,8 +105,8 @@ public static partial class RuneAdvisor
                 continue;
             }
             var vs = e.Against != 0 ? Rune(e.Against) : "игр без неё";
-            trace.Add($"{Rune(n.Rune)} против {kind}: {e.Raw:+0.0;-0.0;0.0} п.п. к {vs} "
-                      + $"({e.Total:N0} игр, вес {e.Games:N0}) → с правилом {e.Mixed:+0.0;-0.0;0.0} → "
+            trace.Add($"{Rune(n.Rune)} против {kind}: побед {e.Raw:+0.0;-0.0;0.0}% к {vs} "
+                      + $"({e.Total:N0} игр, вес {e.Games:N0}) → с правилом {e.Mixed:+0.0;-0.0;0.0}% → "
                       + (e.Mixed > 0 ? "ставим" : "не ставим"));
             if (e.Mixed > 0)
             {

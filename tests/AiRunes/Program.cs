@@ -79,6 +79,7 @@ internal static class Program
             if (!RuneIcons.Loaded) { Check("справочник рун загружен", false, "нет ни кэша, ни сети"); return Done(); }
 
             Advisor(engine);
+            RealFiles(engine);
             var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             Window(engine, Environment.GetEnvironmentVariable("CP_SNAP"));
             app.Shutdown();
@@ -105,6 +106,89 @@ internal static class Program
     // Новые чемпионы, чьи наборы ещё не разобраны по гайдам (ChampionTraits):
     // идут по меткам. Новый чемпион в Data Dragon — повод внести его в список.
     private static readonly string[] NewChamps = ["Locke", "Yunara", "Zaahen"];
+
+    /// <summary>
+    /// 7. Настоящие файлы выгрузки. Владелец (20.11): «хочу, чтобы в релизе руны
+    /// отрабатывали как надо». Подбор до сих пор проверялся на собранных руками
+    /// данных, выгрузка — на своей временной базе; файлы в tests/AiRunes/files
+    /// выгрузка сделала 20.11 из живой базы коллектора (с vsDuo и perkVs после
+    /// девяти часов сбора): Кай'Са стрелком, Лулу в поддержке, Атрокс на топе.
+    /// Программа их читает, подбор по ним работает: кейстоун — и против
+    /// второго бот-лейнера, правило по линии — сверкой с настоящими цифрами.
+    /// И файл без новых полей (таким он на сайте до первой выкладки) —
+    /// читается, подбор — по правилам.
+    /// </summary>
+    private static void RealFiles(RecommendationEngine engine)
+    {
+        var dir = Path.Combine(RepoRoot(), "tests", "AiRunes", "files");
+        ChampStats Load(string name) => RunesClient.Parse(File.ReadAllText(Path.Combine(dir, name + ".json")));
+        RuneAdvisor.Advice? Run(ChampStats s, int lane, int[] foes, int[] enemies) =>
+            RuneAdvisor.Adapt(s, s.ChampionId, enemies, lane, foes, id => engine.DamageShare(id), RuneIcons.SlotOf);
+        string Line(RuneAdvisor.Advice? a, string part) => a?.Trace.FirstOrDefault(t => t.Contains(part)) ?? "—";
+
+        const int Kaisa = 145, Lulu = 117, Aatrox = 266, Jhin = 202, Thresh = 412, Jayce = 126;
+        int[] team = [Jhin, Thresh, 238, 64, 122];          // + Зед, Ли Син, Дариус
+
+        // Стрелок: против Джина (той же роли) и Треша (второй бот-лейнер).
+        var kaisa = Load("145-adc");
+        Check("настоящий файл стрелка читается: поправки против второго бот-лейнера и руны против соперников есть",
+              kaisa.ChampionId == Kaisa && kaisa.VsDuo.ContainsKey(Thresh) && kaisa.PerkVs.Count > 20,
+              $"vs {kaisa.Vs.Count}, vsDuo {kaisa.VsDuo.Count}, perkVs {kaisa.PerkVs.Count}");
+        var with = RunesClient.Choices(kaisa, Jhin, int.MaxValue, Thresh).ToDictionary(k => k.Keystone, k => k.VsDelta);
+        var without = RunesClient.Choices(kaisa, Jhin, int.MaxValue).ToDictionary(k => k.Keystone, k => k.VsDelta);
+        var kAdv = Run(kaisa, Jhin, [Jhin, Thresh], team);
+        Check("стрелок: кейстоун считается и против Треша (поправки меняются), подбор есть, страница допустима",
+              with.Any(kv => Math.Abs(kv.Value - without.GetValueOrDefault(kv.Key)) > 0.001)
+              && kAdv is not null && Legal(kAdv.Choice.Page)
+              && Line(kAdv, "второй бот-лейнер:").Contains(DataDragon.Name(Thresh)) && !Line(kAdv, "второй бот-лейнер:").Contains("нет)"),
+              $"{Line(kAdv, "оппонент по линии")} | {Line(kAdv, "кейстоуны:")}");
+        // Против Треша у Темпа −4,8 на 358 играх (это в основном сама линия), у
+        // Натиска +0,5 на 13. Выгрузка ужимает поправку к нулю, и Натиск (7%
+        // игр, 47% побед) выходил «лучше на пять пунктов» только потому, что
+        // про него почти ничего не известно. Поправку с малой выборкой надо
+        // ужимать к линии, а не к нулю: тогда — Темп.
+        Check("горстка игр против Треша не делает Натиск лучшим: подбор — Смертельный темп",
+              kAdv?.Choice.Keystone == 8008,
+              $"{(kAdv is null ? "—" : RuneIcons.NameOf(kAdv.Choice.Keystone))} | {Line(kAdv, "кейстоуны:")}");
+
+        // Саппорт: против Треша (той же роли) и Кай'Сы (второй бот-лейнер).
+        var lulu = Load("117-support");
+        var lAdv = Run(lulu, Thresh, [Thresh, Kaisa], [Kaisa, Thresh, 238, 64, 122]);
+        Check("саппорт: настоящий файл читается, кейстоун и против Кай'Сы, страница допустима",
+              lulu.VsDuo.ContainsKey(Kaisa) && lAdv is not null && Legal(lAdv.Choice.Page)
+              && !Line(lAdv, "второй бот-лейнер:").Contains("нет)"),
+              $"{Line(lAdv, "оппонент по линии")} | {Line(lAdv, "кейстоуны:")}");
+
+        // Топ: на странице Атрокса — Костяная пластина; против Джейса (поук)
+        // правило просит Второе дыхание в тот же ряд — и сверяет его с
+        // Костяной пластиной по настоящим играм Атрокса против поука.
+        var aatrox = Load("266-top");
+        var cmp = RuneAdvisor.Compare(aatrox, RuneAdvisor.SecondWind, RuneAdvisor.BonePlating, RuneAdvisor.LaneKind.Poke);
+        var aAdv = Run(aatrox, Jayce, [Jayce], [Jayce, Thresh, 238, 64, Jhin]);
+        Check("топ: правило «против поука» сверено с настоящими играми Атрокса (Второе дыхание против Костяной пластины)",
+              cmp is { Total: > 0, Against: RuneAdvisor.BonePlating } && aAdv is not null && Legal(aAdv.Choice.Page)
+              && Line(aAdv, "против поука:").Contains("вес"),
+              $"{(cmp is null ? "сравнить не по чему" : $"разница {cmp.Raw:+0.0;-0.0}, игр {cmp.Total}, итог {cmp.Mixed:+0.0;-0.0}")} | {Line(aAdv, "против поука:")}");
+
+        // Файл без новых полей — таким он на сайте до первой выкладки.
+        var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "145-adc.json")))!.AsObject();
+        node.Remove("vsDuo");
+        node.Remove("perkVs");
+        var old = RunesClient.Parse(node.ToJsonString());
+        var oAdv = Run(old, Jhin, [Jhin, Thresh], team);
+        Check("файл без новых полей читается, подбор по правилам",
+              old.VsDuo.Count == 0 && old.PerkVs.Count == 0 && oAdv is not null && Legal(oAdv.Choice.Page)
+              && oAdv.Trace.Any(t => t.Contains("в файле нет")),
+              Line(oAdv, "в файле нет"));
+    }
+
+    /// Корень репозитория — где лежит Counterplay.csproj (проверка запускается из bin).
+    private static string RepoRoot()
+    {
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d is not null && !File.Exists(Path.Combine(d.FullName, "Counterplay.csproj"))) d = d.Parent;
+        return d?.FullName ?? throw new DirectoryNotFoundException("не нашёл Counterplay.csproj выше " + AppContext.BaseDirectory);
+    }
 
     /// Связка Эш стрелком: Темп (Точность + вторичное sub) и, по желанию,
     /// Натиск; доли рун и деревьев — как в выгрузке с 19.11 (withShares=false —
