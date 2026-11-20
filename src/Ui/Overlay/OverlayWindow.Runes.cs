@@ -158,8 +158,11 @@ public partial class OverlayWindow
             // чтобы было видно, где цифра надёжна, а где это лишь намёк.
             var tip = new StringBuilder();
             tip.AppendLine(Loc.T("runes.tipBase", c.Winrate.ToString("0.0"), c.Games.ToString("N0")));
+            // Словами, а не «−2,3 п.п.» (владелец, 20.11: «на человеческом
+            // языке, чтоб всем было понятно»).
             if (c.VsGames > 0 && Math.Abs(c.VsDelta) >= 0.1)
-                tip.AppendLine(Loc.T("runes.tipVs", (c.VsDelta >= 0 ? "+" : "") + c.VsDelta.ToString("0.0"), c.VsGames.ToString("N0")));
+                tip.AppendLine(Loc.T(c.VsDelta >= 0 ? "runes.tipVsUp" : "runes.tipVsDown",
+                                     Math.Abs(c.VsDelta).ToString("0.0"), c.VsGames.ToString("N0")));
             tip.Append(Loc.T("runes.tipPick", c.PickRate.ToString("0")));
 
             vms.Add(RuneCard(c, i, tip.ToString(), NoRunes) with

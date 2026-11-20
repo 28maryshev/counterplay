@@ -114,24 +114,26 @@ public static partial class RuneAdvisor
                 // это не только гайд.
                 if (e.Raw > 0 && e.Games >= MinCite)
                     evidence[n.Rune] = e.Against != 0
-                        ? Loc.T("runes.dataVs", Pts(e.Raw), Rune(e.Against), e.Total.ToString("N0"))
-                        : Loc.T("runes.dataVsRest", Pts(e.Raw), e.Total.ToString("N0"));
+                        ? Loc.T("runes.dataVs", Pct(e.Raw), Rune(e.Against), e.Total.ToString("N0"))
+                        : Loc.T("runes.dataVsRest", Pct(e.Raw), e.Total.ToString("N0"));
                 result.Add(n);
                 continue;
             }
             kept.Add(e.Against != 0
                 ? new Swap(n.Rune, e.Against, n.Why)
                 {
-                    Data = Loc.T("runes.dataKept", Rune(n.Rune), Pts(-e.Raw), e.Total.ToString("N0")),
+                    Data = Loc.T("runes.dataKept", Rune(n.Rune), Pct(e.Raw), e.Total.ToString("N0")),
                 }
                 : new Swap(n.Rune, n.Rune, n.Why)
                 {
-                    Data = Loc.T("runes.dataSkip", Pts(e.Raw), e.Total.ToString("N0")),
+                    Data = Loc.T("runes.dataSkip", Pct(e.Raw), e.Total.ToString("N0")),
                 });
         }
         return result;
     }
 
-    /// «+1,8» / «−1,1».
-    private static string Pts(double v) => v.ToString("+0.0;−0.0;0.0");
+    /// «1,8» — насколько чаще или реже: направление говорят слова строки
+    /// («выигрывают на 1,8% чаще»). Владелец (20.11): «что означают эти п.п.?
+    /// на человеческом языке, чтоб всем было понятно».
+    private static string Pct(double v) => Math.Abs(v).ToString("0.0");
 }

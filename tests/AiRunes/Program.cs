@@ -288,8 +288,11 @@ internal static class Program
 
         // ── 5. Кейстоун — по данным против оппонента ────────────────────────
         var ks = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft, lane: Zed);
-        Check("против Зеда Натиск выигрывает больше Темпа — кейстоун Натиск, с причиной",
-              ks is not null && ks.Choice.Keystone == PTA && ks.KeystoneWhy?.Contains(DataDragon.Name(Zed)) == true,
+        // Владелец (20.11, скриншот «+1,1 п.п.»): «что означают эти п.п.? на
+        // человеческом языке, чтоб всем было понятно» — проценты и словами.
+        Check("против Зеда Натиск выигрывает больше Темпа — кейстоун Натиск, с причиной словами: «на 2,0% чаще», без «п.п.»",
+              ks is not null && ks.Choice.Keystone == PTA && ks.KeystoneWhy?.Contains(DataDragon.Name(Zed)) == true
+              && ks.KeystoneWhy.Contains("2,0%") && !ks.KeystoneWhy.Contains("п.п.") && !ks.KeystoneWhy.Contains('+'),
               $"{(ks is null ? "—" : RuneIcons.NameOf(ks.Choice.Keystone))}: {ks?.KeystoneWhy}");
         var noLane = Adapt(engine, Ashe_([8444, Overgrowth], withPta: true, vsZed: new() { [PTA] = 1.5, [LT] = -0.5 }), Soft);
         Check("без оппонента — Темп (лучший винрейт)", noLane?.Choice.Keystone == LT && noLane.KeystoneWhy is null,
@@ -341,7 +344,8 @@ internal static class Program
             [DravenId] = Foe(10000, 5200, (8444, 6000, 3000), (bp, 4000, 2200)),
         }), Soft, lane: DravenId);
         Check("цифры за: с Костяной броней на 5 п.п. чаще — ставим, в причине цифры и с чем сравнивали",
-              forIt?.Swaps.Any(s => s.To == bp && s.Data.Contains("+5,0") && s.Data.Contains(RuneIcons.NameOf(8444))) == true
+              forIt?.Swaps.Any(s => s.To == bp && s.Data.Contains("5,0%") && !s.Data.Contains("п.п.")
+                                    && s.Data.Contains(RuneIcons.NameOf(8444))) == true
               && forIt.Kept.Count == 0, Show(forIt));
         var fewGames = Adapt(engine, Ashe_([8444, Overgrowth], perkVs: new()
         {

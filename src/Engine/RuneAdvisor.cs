@@ -132,7 +132,7 @@ public static partial class RuneAdvisor
         if (opp is { } x && choice.VsEdge >= MinKeystoneEdge)
             ksWhy = Loc.T("runes.aiKsEdge",
                           duoKnown ? Both(x, duo!.Value) : DataDragon.Name(x),
-                          "+" + choice.VsEdge.ToString("0.0"));
+                          choice.VsEdge.ToString("0.0"));
         else if (choice.Keystone != meta.Keystone)
             ksWhy = Loc.T("runes.aiKsWr", Rune(meta.Keystone),
                           (choice.Winrate + choice.VsDelta).ToString("0.0"),
