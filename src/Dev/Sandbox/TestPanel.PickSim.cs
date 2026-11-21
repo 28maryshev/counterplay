@@ -85,16 +85,21 @@ sealed partial class TestPanel
     }
 
     // Раздаёт ботам текущей группы персональные моменты пика (3..10 с). Мой слот
-    // с заранее выбранным пиком получает такой же момент — пик берётся сам; без
-    // плана — конец хода (MaxTurnSeconds): наведённого к тому времени клиент
-    // берёт сам, пустой слот ждёт ручного пика.
+    // с заранее выбранным пиком получает такой же момент — пик появляется
+    // наведением, как будто я навёл; мой ход кончается через MyTurnSeconds:
+    // наведённого к тому времени клиент берёт сам, пустой слот ждёт ручного
+    // пика.
     private void StartTurn()
     {
         _pickAt.Clear();
+        _myTurnEnd = null;
         int meCell = MeCell();
         foreach (var cell in _simGroups[_simTurn])
-            _pickAt[cell] = DateTime.UtcNow.AddSeconds(
-                cell == meCell && !_planned.ContainsKey(cell) ? MaxTurnSeconds : _rng.Next(3, MaxTurnSeconds + 1));
+        {
+            if (cell != meCell || _planned.ContainsKey(cell))
+                _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
+            if (cell == meCell) _myTurnEnd = DateTime.UtcNow.AddSeconds(MyTurnSeconds);
+        }
     }
 
     // Показывает заранее выбранный пик клетки в момент её хода в драфте.
@@ -120,25 +125,22 @@ sealed partial class TestPanel
         var now    = DateTime.UtcNow;
 
         // Боты пикают каждый в свой момент — даже в парном ходе по отдельности.
+        // Мой заранее выбранный пик в свой момент появляется наведением, как
+        // будто я навёл (владелец, 21.11: брать его сразу — не надо).
         foreach (var cell in group)
         {
-            if (!_pickAt.TryGetValue(cell, out var t) || now < t) continue;
-            if (cell == meCell)
-            {
-                // Мой момент: заранее выбранный пик или конец хода. Это пик, а
-                // не наведение, — как у клиента, который по таймеру берёт
-                // наведённого. До 21.11 песочница ставила его наведением, и
-                // руны (они ждут взятого) не приходили, пока не нажмёшь
-                // «Выбрать». Пустой слот без плана — ждём ручного пика.
-                if (_myLocked) continue;
-                var mine = CellChamp(cell) != 0 ? CellChamp(cell) : _planned.GetValueOrDefault(cell);
-                if (mine != 0) LockMy(mine);
-                continue;
-            }
-            if (CellChamp(cell) != 0) continue;
+            if (CellChamp(cell) != 0 || !_pickAt.TryGetValue(cell, out var t) || now < t) continue;
             if (_planned.TryGetValue(cell, out var champ)) RevealPlanned(cell, champ);
-            else AutoPick(cell);
+            else if (cell != meCell) AutoPick(cell);
         }
+
+        // Конец моего хода: наведённого клиент берёт сам. Это пик, а не
+        // наведение — до 21.11 песочница оставляла его наведением, и руны (они
+        // ждут взятого) не приходили, пока не нажмёшь «Выбрать». Пустой слот
+        // ждёт ручного пика.
+        if (group.Contains(meCell) && !_myLocked && _myTurnEnd is { } end && now >= end
+            && CellChamp(meCell) is var mine and not 0)
+            LockMy(mine);
 
         // Ход завершён, когда запикалась вся группа, а мой пик — взят: наведение
         // ход не заканчивает (до 21.11 заканчивало, и драфт шёл дальше с

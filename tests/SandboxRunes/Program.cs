@@ -246,23 +246,36 @@ internal static class Program
             foreach (var cell in pickAt.Keys.Where(which).ToList()) pickAt[cell] = DateTime.UtcNow.AddSeconds(-1);
         }
 
-        // 6а. Пик выбран заранее — авто-драфт показывает его на моём ходу.
+        // Конец моего хода — отдельный момент (_myTurnEnd): к нему клиент берёт
+        // наведённого сам.
+        void EndMyTurn() => panel.GetType().GetField("_myTurnEnd", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(panel, (DateTime?)DateTime.UtcNow.AddSeconds(-1));
+
+        // 6а. Пик выбран заранее — авто-драфт показывает его на моём ходу
+        // наведением, как будто я навёл (владелец, 21.11: брать сразу — не
+        // надо); конец хода — взят.
         Restart();
         ally[me].SelectedItem = DataDragon.Name(Shen);
         Pump();
-        ToMyTurn();
+        var turn = ToMyTurn();
         Expire(_ => true);
         Tick();
-        var shown = WaitFor(() => Vis(overlay, "RunesBar"), 5);
         var d = last();
-        Check("авто-драфт показал мой заранее выбранный пик на моём ходу — чемпион взят, руны на экране",
-              shown && d?.Me is { ChampionId: Shen, PickIntentId: 0 } && d.MyPickActionId == -1,
-              $"взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, действие {d?.MyPickActionId}, руны {Vis(overlay, "RunesBar")}");
+        Check("авто-драфт показал мой заранее выбранный пик на моём ходу наведением — ход ещё мой, рун нет",
+              Turn() == turn && d?.Me is { ChampionId: 0, PickIntentId: Shen } && !Vis(overlay, "RunesBar"),
+              $"ход {Turn()} (ждали {turn}), взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
+        EndMyTurn();
+        Tick();
+        var shown = WaitFor(() => Vis(overlay, "RunesBar"), 5);
+        d = last();
+        Check("время хода вышло — запланированный пик взят, руны на экране",
+              shown && Turn() > turn && d?.Me is { ChampionId: Shen, PickIntentId: 0 } && d.MyPickActionId == -1,
+              $"ход {Turn()}, взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, действие {d?.MyPickActionId}, руны {Vis(overlay, "RunesBar")}");
 
         // 6б. Плана нет: навёл (клик по карточке) — ход ещё мой, рун нет; время
         // хода вышло — наведённый берётся сам, как у клиента.
         Restart();
-        var turn = ToMyTurn();
+        turn = ToMyTurn();
         Expire(c => c != me);
         Tick();                                     // боты моей группы взяли
         Call(panel, "SetMy", Braum);
@@ -272,7 +285,7 @@ internal static class Program
         Check("навёл на своём ходу — ход ещё мой, чемпион наведён, рун нет",
               Turn() == turn && d?.Me is { ChampionId: 0, PickIntentId: Braum } && !Vis(overlay, "RunesBar"),
               $"ход {Turn()} (ждали {turn}), взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
-        Expire(c => c == me);
+        EndMyTurn();
         Tick();
         shown = WaitFor(() => Vis(overlay, "RunesBar"), 5);
         d = last();
