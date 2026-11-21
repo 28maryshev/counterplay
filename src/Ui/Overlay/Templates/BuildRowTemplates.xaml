@@ -90,7 +90,7 @@
                рост — GrowAiFill), полная — ширина знака над ней.
                Градиент в абсолютных координатах: короткая шкала — это
                начало полной, а не сжатая в неё целиком. -->
-          <Border Width="72" Height="3" CornerRadius="1.5" Margin="0,4,0,1"
+          <Border Width="72" Height="3" CornerRadius="1.5" Margin="0,2,0,3"
                   HorizontalAlignment="Right" Background="#2236D6E7" SnapsToDevicePixels="True"
                   Visibility="{Binding FillVis}">
             <Border x:Name="AiFillBar" HorizontalAlignment="Left" CornerRadius="1.5"

@@ -195,13 +195,25 @@ internal static class Program
                         var (shift, _) = Under(box, label);
                         Check($"«{label}» — по центру полосы",
                               Math.Abs(shift) <= 1.0, $"центр букв от центра полосы {shift:+0.##;-0.##;0}");
-                        // Зазор — в пикселях экрана, как его видит игрок: разметка
+                        // Зазоры — в пикселях экрана, как их видит игрок: разметка
                         // не округляется, и где полоса и буквы лягут на сетку,
                         // зависит от размера окна. Сдвигаем блок на долю пикселя.
+                        //
+                        // Владелец (21.11, по скриншоту 1.3.98): «касаются;
+                        // расстояние под Counterplay AI больше, чем над словами».
+                        // Под знаком у него было столько же чистых строк, сколько
+                        // здесь, а слово — на строку выше: на экране с ClearType
+                        // буквы в режиме Display встают на пиксель выше, чем в
+                        // RenderTargetBitmap (он рисует без ClearType). Поэтому
+                        // над словом здесь нужно 3 строки — у игрока 2. Знак
+                        // рисуется без привязки к пикселям (он общий в окне, его
+                        // не трогаем), и под ним от доли пикселя выходит 1–3 —
+                        // поровну с точностью до пикселя.
                         var gaps = ScreenGaps(w, box, label);
-                        Check($"«{label}» — между полосой и буквами 1 px экрана при любом сдвиге окна",
-                              gaps.Count == 4 && gaps.All(g => g == 1),
-                              $"пустых строк при сдвиге 0 / ¼ / ½ / ¾: {string.Join(" / ", gaps)}");
+                        Check($"«{label}»: над словом у игрока 2 px, под знаком столько же с точностью до пикселя",
+                              gaps.Count == 4 && gaps.All(g => g.Below == 3 && Math.Abs(g.Above - (g.Below - 1)) <= 1),
+                              "чистых строк под знаком / над словом (здесь) при сдвиге 0 / ¼ / ½ / ¾: "
+                              + string.Join("  ", gaps.Select(g => $"{g.Above}/{g.Below}")));
                     }
                 }
                 Placement();
@@ -404,13 +416,14 @@ internal static class Program
         return (center - (bar.Left + bar.Width / 2), at.Y + ink.Y - bar.Bottom);
     }
 
-    /// Сколько пустых строк экрана между полосой шкалы и буквами подписи —
-    /// окно рисуется в 96 точек на дюйм, сдвинутым на 0, ¼, ½ и ¾ пикселя.
-    /// Полоса — строки, где залитая часть заметно отличается от фона;
-    /// буквы — первая строка под ней, где хоть одна точка отличается.
-    private static List<int> ScreenGaps(Window w, ContentPresenter? box, string text)
+    /// Сколько чистых строк экрана над полосой шкалы (до знака Counterplay AI)
+    /// и под ней (до букв подписи) — окно рисуется в 96 точек на дюйм, блок
+    /// сдвинут на 0, ¼, ½ и ¾ пикселя. Полоса — строки, где залитая часть
+    /// заметно отличается от фона; знак и буквы — строки, где хоть одна точка
+    /// отличается. Фон — самый частый цвет вокруг полосы.
+    private static List<(int Above, int Below)> ScreenGaps(Window w, ContentPresenter? box, string text)
     {
-        var gaps = new List<int>();
+        var gaps = new List<(int Above, int Below)>();
         if (box is null || FindCaption(box, text) is not { } tb) return gaps;
         box.ApplyTemplate();
         if (box.ContentTemplate?.FindName("AiFillBar", box) is not FrameworkElement fill) return gaps;
@@ -446,8 +459,14 @@ internal static class Program
                 int x0 = (int)Math.Ceiling(bar.Left) + 1, x1 = (int)Math.Floor(bar.Right) - 1;
                 int c0 = (int)Math.Floor(cap.Left), c1 = (int)Math.Ceiling(cap.Right);
                 var top = (int)Math.Floor(bar.Top);
-                var bi = ((top - 3) * W + x0) * 4;                 // фон — в просвете между знаком и полосой
-                var bg = (px[bi + 2], px[bi + 1], px[bi]);
+                var bg = Enumerable.Range(Math.Max(0, top - 14), 30).Where(y => y < H)
+                    .SelectMany(y => Enumerable.Range(x0, Math.Max(1, x1 - x0)).Select(x => (y, x)))
+                    .Select(p => { var i = (p.y * W + p.x) * 4; return ((int)px[i + 2], (int)px[i + 1], (int)px[i]); })
+                    .GroupBy(c => c).OrderByDescending(g => g.Count()).First().Key;
+                // Над полосой: чистые строки вверх до первой с краской (знак).
+                var above = 0;
+                for (var y = top - 1; y > 0 && Enumerable.Range(x0, Math.Max(1, x1 - x0)).All(x => Dist(x, y, bg) <= 40); y--)
+                    above++;
                 // Полоса — строки подряд с первой; буквы — первая строка с
                 // краской после неё. Буквы, густо легшие в столбцы полосы, за
                 // её продолжение не считаются.
@@ -462,7 +481,7 @@ internal static class Program
                     if (lastBar >= 0) barDone = true;
                     if (barDone && inkMax > 40) { firstInk = y; break; }
                 }
-                gaps.Add(lastBar < 0 || firstInk < 0 ? -1 : firstInk - lastBar - 1);
+                gaps.Add((above, lastBar < 0 || firstInk < 0 ? -1 : firstInk - lastBar - 1));
             }
         }
         finally
