@@ -91,7 +91,7 @@
                Градиент в абсолютных координатах: короткая шкала — это
                начало полной, а не сжатая в неё целиком. -->
           <Border Width="72" Height="3" CornerRadius="1.5" Margin="0,4,0,1"
-                  HorizontalAlignment="Right" Background="#2236D6E7"
+                  HorizontalAlignment="Right" Background="#2236D6E7" SnapsToDevicePixels="True"
                   Visibility="{Binding FillVis}">
             <Border x:Name="AiFillBar" HorizontalAlignment="Left" CornerRadius="1.5"
                     Width="{Binding FillWidth}">
@@ -105,12 +105,12 @@
             </Border>
           </Border>
           <!-- Под шкалой — что она ждёт (владелец, 21.11: «под строкой
-               состояния сделай подписи Items и Runes»): рядом такая же
-               шкала у подбора рун. Название, как и знак, не переводится.
-               Строка низкая: пустая строка не должна быть выше строки
-               с предметами. -->
-          <TextBlock Text="Items" Visibility="{Binding FillVis}" HorizontalAlignment="Right"
-                     Style="{StaticResource AiFillCaption}"/>
+               состояния сделай подписи Items и Runes»; затем — по центру
+               полосы, в 1 px от неё, на всех языках): рядом такая же
+               шкала у подбора рун. Строка низкая: пустая строка не
+               должна быть выше строки с предметами. -->
+          <TextBlock Text="{loc:T runes.aiItemsLabel}" Visibility="{Binding FillVis}"
+                     HorizontalAlignment="Right" Style="{StaticResource AiFillCaption}"/>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
                       Margin="0,1,0,0" Visibility="{Binding HintVis}">
             <TextBlock Text="{Binding GamesText}" TextAlignment="Right"

@@ -66,7 +66,9 @@ internal static class Program
         PoolStore.Reload();
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
-        Loc.SetLanguage("ru");
+        // CP_LANG=th — подписи и зазор на другом языке (шрифт для тайского и
+        // японского подставляется другой).
+        Loc.SetLanguage(Environment.GetEnvironmentVariable("CP_LANG") is { Length: > 0 } lang ? lang : "ru");
 
         try
         {
@@ -178,10 +180,43 @@ internal static class Program
                 var dim = bar is null ? 0 : Lit(bar);
                 Check("знак и шкала не тускнеют вместе с пустыми рамками",
                       dim >= 0.99 && row?.RowOpacity < 0.5, $"яркость знака {dim:0.##}, рамок {row?.RowOpacity}");
-                // Владелец, 21.11: «под строкой состояния сделай подписи Items и Runes».
-                Check("под шкалами подписи: Items у строки подбора предметов, Runes у карточки подбора рун",
-                      Caption(RowBox(w), "Items") && Caption(RuneBox(w), "Runes"),
-                      $"Items {Caption(RowBox(w), "Items")}, Runes {Caption(RuneBox(w), "Runes")}");
+                // Владелец, 21.11: «под строкой состояния сделай подписи Items и
+                // Runes», затем «по центру полосы, отступ 1 пиксель, переводы на
+                // все языки».
+                Check($"под шкалами подписи на языке программы: «{ItemsLabel}» у строки подбора предметов, «{RunesLabel}» у карточки подбора рун",
+                      Caption(RowBox(w), ItemsLabel) && Caption(RuneBox(w), RunesLabel),
+                      $"{ItemsLabel} {Caption(RowBox(w), ItemsLabel)}, {RunesLabel} {Caption(RuneBox(w), RunesLabel)}");
+                void Placement()
+                {
+                    foreach (var (box, label) in new[] { (RowBox(w), ItemsLabel), (RuneBox(w), RunesLabel) })
+                    {
+                        // Буквы стоят на целых пикселях (Display), ширина каждой
+                        // округлена — слово уходит от центра до пикселя.
+                        var (shift, _) = Under(box, label);
+                        Check($"«{label}» — по центру полосы",
+                              Math.Abs(shift) <= 1.0, $"центр букв от центра полосы {shift:+0.##;-0.##;0}");
+                        // Зазор — в пикселях экрана, как его видит игрок: разметка
+                        // не округляется, и где полоса и буквы лягут на сетку,
+                        // зависит от размера окна. Сдвигаем блок на долю пикселя.
+                        var gaps = ScreenGaps(w, box, label);
+                        Check($"«{label}» — между полосой и буквами 1 px экрана при любом сдвиге окна",
+                              gaps.Count == 4 && gaps.All(g => g == 1),
+                              $"пустых строк при сдвиге 0 / ¼ / ½ / ¾: {string.Join(" / ", gaps)}");
+                    }
+                }
+                Placement();
+
+                // Язык меняется без перезапуска: подпись и её отступ
+                // (runes.aiLabelMargin) — вместе с ним. Китайский — с добавкой.
+                var was = Loc.Current;
+                var other = was is "ko" or "zh" or "th" ? "ru" : "zh";
+                Loc.SetLanguage(other);
+                Pump();
+                Check($"сменили язык на {other} без перезапуска — подписи «{ItemsLabel}» и «{RunesLabel}»",
+                      Caption(RowBox(w), ItemsLabel) && Caption(RuneBox(w), RunesLabel), "");
+                Placement();
+                Loc.SetLanguage(was);
+                Pump();
                 waitRow = RowBox(w)?.DesiredSize.Height ?? 0;
                 waitRune = RuneBox(w)?.DesiredSize.Height ?? 0;
                 if (snap is { Length: > 0 }) Snap(w, snap, "ai-1-two-enemies.png");
@@ -224,14 +259,14 @@ internal static class Program
         // на нём появилось: панель не дёргается, когда приходит подбор.
         var readyRow = RowBox(w)?.DesiredSize.Height ?? 0;
         Check("строка подбора предметов: пустая с подписью той же высоты, что с предметами; подписи больше нет",
-              waitRow > 0 && Math.Abs(waitRow - readyRow) < 0.5 && !Caption(RowBox(w), "Items"),
-              $"пустая {waitRow:0.#}, с предметами {readyRow:0.#}, подпись {Caption(RowBox(w), "Items")}");
+              waitRow > 0 && Math.Abs(waitRow - readyRow) < 0.5 && !Caption(RowBox(w), ItemsLabel),
+              $"пустая {waitRow:0.#}, с предметами {readyRow:0.#}, подпись {Caption(RowBox(w), ItemsLabel)}");
         if (RuneBox(w)?.Content is OverlayWindow.RuneOptionVm { Index: >= 0 })
         {
             var readyRune = RuneBox(w)!.DesiredSize.Height;
             Check("карточка подбора рун: пустая с подписью той же высоты, что со страницей; подписи больше нет",
-                  waitRune > 0 && Math.Abs(waitRune - readyRune) < 0.5 && !Caption(RuneBox(w), "Runes"),
-                  $"пустая {waitRune:0.#}, со страницей {readyRune:0.#}, подпись {Caption(RuneBox(w), "Runes")}");
+                  waitRune > 0 && Math.Abs(waitRune - readyRune) < 0.5 && !Caption(RuneBox(w), RunesLabel),
+                  $"пустая {waitRune:0.#}, со страницей {readyRune:0.#}, подпись {Caption(RuneBox(w), RunesLabel)}");
         }
         else Console.WriteLine("  подбор рун у макета не пришёл — высоту карточки сравнить не с чем");
 
@@ -337,14 +372,134 @@ internal static class Program
         ((Grid)w.FindName("RuneGrid")).Children.OfType<ContentPresenter>()
             .FirstOrDefault(c => c.Content is OverlayWindow.RuneOptionVm { IsAi: true });
 
+    private static string ItemsLabel => Loc.T("runes.aiItemsLabel");
+    private static string RunesLabel => Loc.T("runes.aiRunesLabel");
+
     /// Видна ли внутри подпись с таким текстом.
-    private static bool Caption(DependencyObject? root, string text)
+    private static bool Caption(DependencyObject? root, string text) => FindCaption(root, text) is not null;
+
+    private static TextBlock? FindCaption(DependencyObject? root, string text)
     {
-        if (root is null) return false;
-        if (root is TextBlock { IsVisible: true } t && t.Text == text) return true;
+        if (root is null) return null;
+        if (root is TextBlock { IsVisible: true } t && t.Text == text) return t;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-            if (Caption(VisualTreeHelper.GetChild(root, i), text)) return true;
-        return false;
+            if (FindCaption(VisualTreeHelper.GetChild(root, i), text) is { } found) return found;
+        return null;
+    }
+
+    /// Подпись под полосой шкалы: насколько центр букв ушёл от центра полосы
+    /// и сколько от низа полосы до верха букв — по краске, а не по рамкам
+    /// элементов: у строки текста свой запас сверху.
+    private static (double Shift, double Gap) Under(ContentPresenter? box, string text)
+    {
+        if (box is null || FindCaption(box, text) is not { } tb) return (double.NaN, double.NaN);
+        box.ApplyTemplate();
+        if (box.ContentTemplate?.FindName("AiFillBar", box) is not FrameworkElement fill
+            || VisualTreeHelper.GetParent(fill) is not FrameworkElement track) return (double.NaN, double.NaN);
+        var bar = track.TransformToAncestor(box).TransformBounds(new Rect(track.RenderSize));
+        var at = tb.TransformToAncestor(box).Transform(new System.Windows.Point(0, 0));
+        var ink = Ink(tb);
+        if (ink.IsEmpty) return (double.NaN, double.NaN);
+        var center = at.X + ink.X + ink.Width / 2;
+        return (center - (bar.Left + bar.Width / 2), at.Y + ink.Y - bar.Bottom);
+    }
+
+    /// Сколько пустых строк экрана между полосой шкалы и буквами подписи —
+    /// окно рисуется в 96 точек на дюйм, сдвинутым на 0, ¼, ½ и ¾ пикселя.
+    /// Полоса — строки, где залитая часть заметно отличается от фона;
+    /// буквы — первая строка под ней, где хоть одна точка отличается.
+    private static List<int> ScreenGaps(Window w, ContentPresenter? box, string text)
+    {
+        var gaps = new List<int>();
+        if (box is null || FindCaption(box, text) is not { } tb) return gaps;
+        box.ApplyTemplate();
+        if (box.ContentTemplate?.FindName("AiFillBar", box) is not FrameworkElement fill) return gaps;
+        // Сдвиг — отступом блока «знак, шкала, подпись»: у игрока с другим
+        // размером окна он ложится на другую долю пикселя. Блок по центру
+        // строки, поэтому отступ 2·d сдвигает его на d. Высота окна для этого
+        // не годится — округляется до целых; RenderTransform корня
+        // RenderTargetBitmap не применяет, а окно в проверке прозрачное —
+        // рисуем содержимое.
+        var root = (FrameworkElement)w.Content;
+        var panel = (FrameworkElement)VisualTreeHelper.GetParent(tb);
+        var keep = panel.Margin;
+        var dbg = Environment.GetEnvironmentVariable("CP_GAPDBG") == "1";
+        try
+        {
+            foreach (var dy in new[] { 0.0, 0.25, 0.5, 0.75 })
+            {
+                panel.Margin = new Thickness(keep.Left, keep.Top + 2 * dy, keep.Right, keep.Bottom);
+                w.UpdateLayout();
+                var bar = fill.TransformToAncestor(root).TransformBounds(new Rect(fill.RenderSize));
+                var cap = tb.TransformToAncestor(root).TransformBounds(new Rect(tb.RenderSize));
+                if (dbg) Console.WriteLine($"    {text} сдвиг {dy}: полоса {bar.Top:0.###}…{bar.Bottom:0.###}, подпись с {cap.Top:0.###}");
+                int W = (int)Math.Ceiling(root.ActualWidth), H = (int)Math.Ceiling(root.ActualHeight);
+                var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(W, H, 96, 96, PixelFormats.Pbgra32);
+                bmp.Render(root);
+                var px = new byte[W * H * 4];
+                bmp.CopyPixels(px, W * 4, 0);
+                int Dist(int x, int y, (int R, int G, int B) bg)
+                {
+                    var i = (y * W + x) * 4;
+                    return Math.Abs(px[i + 2] - bg.R) + Math.Abs(px[i + 1] - bg.G) + Math.Abs(px[i] - bg.B);
+                }
+                int x0 = (int)Math.Ceiling(bar.Left) + 1, x1 = (int)Math.Floor(bar.Right) - 1;
+                int c0 = (int)Math.Floor(cap.Left), c1 = (int)Math.Ceiling(cap.Right);
+                var top = (int)Math.Floor(bar.Top);
+                var bi = ((top - 3) * W + x0) * 4;                 // фон — в просвете между знаком и полосой
+                var bg = (px[bi + 2], px[bi + 1], px[bi]);
+                // Полоса — строки подряд с первой; буквы — первая строка с
+                // краской после неё. Буквы, густо легшие в столбцы полосы, за
+                // её продолжение не считаются.
+                int lastBar = -1, firstInk = -1;
+                var barDone = false;
+                for (var y = top - 1; y < (int)Math.Ceiling(cap.Bottom) + 2 && y < H; y++)
+                {
+                    var barAvg = Enumerable.Range(x0, Math.Max(1, x1 - x0)).Average(x => Dist(x, y, bg));
+                    var inkMax = Enumerable.Range(c0, c1 - c0).Max(x => Dist(x, y, bg));
+                    if (dbg) Console.WriteLine($"    {text} сдвиг {dy} строка {y}: полоса {barAvg:0}, буквы {inkMax}");
+                    if (!barDone && barAvg > 40) { lastBar = y; continue; }
+                    if (lastBar >= 0) barDone = true;
+                    if (barDone && inkMax > 40) { firstInk = y; break; }
+                }
+                gaps.Add(lastBar < 0 || firstInk < 0 ? -1 : firstInk - lastBar - 1);
+            }
+        }
+        finally
+        {
+            panel.Margin = keep;
+            w.UpdateLayout();
+        }
+        return gaps;
+    }
+
+    /// Где на подписи краска (от её угла). Рисуем копию — тот же текст и
+    /// стиль того же размера, но корнем своего дерева: у вложенного элемента
+    /// RenderTargetBitmap сдвигает картинку на его место в родителе, а
+    /// VisualBrush в нём рисует пусто. Вчетверо крупнее — точность до четверти
+    /// пикселя.
+    private static Rect Ink(TextBlock e)
+    {
+        const int k = 4;
+        int w = (int)Math.Ceiling(e.ActualWidth * k), h = (int)Math.Ceiling(e.ActualHeight * k);
+        var copy = new TextBlock { Text = e.Text, Style = e.Style, Margin = new Thickness(0) };
+        copy.Measure(new Size(e.ActualWidth, e.ActualHeight));
+        copy.Arrange(new Rect(0, 0, e.ActualWidth, e.ActualHeight));
+        copy.UpdateLayout();
+        var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96 * k, 96 * k, PixelFormats.Pbgra32);
+        bmp.Render(copy);
+        var px = new byte[w * h * 4];
+        bmp.CopyPixels(px, w * 4, 0);
+        int top = -1, left = w, right = -1;
+        for (var y = 0; y < h; y++)
+            for (var x = 0; x < w; x++)
+                if (px[(y * w + x) * 4 + 3] > 64)
+                {
+                    if (top < 0) top = y;
+                    left = Math.Min(left, x);
+                    right = Math.Max(right, x);
+                }
+        return top < 0 ? Rect.Empty : new Rect((double)left / k, (double)top / k, (double)(right + 1 - left) / k, 1);
     }
 
     /// Итоговая непрозрачность элемента — произведение по всем родителям до окна.

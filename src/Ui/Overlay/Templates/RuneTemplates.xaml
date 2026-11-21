@@ -127,7 +127,7 @@
             <!-- Пока пики идут — сколько игроков уже взяли чемпиона. Ширину
                  задаёт код (FillWidth, рост — GrowFill). -->
             <Border Width="72" Height="3" CornerRadius="1.5" Margin="0,4,0,1"
-                    HorizontalAlignment="Left" Background="#2236D6E7"
+                    HorizontalAlignment="Left" Background="#2236D6E7" SnapsToDevicePixels="True"
                     Visibility="{Binding FillVis}">
               <Border x:Name="AiFillBar" HorizontalAlignment="Left" CornerRadius="1.5"
                       Width="{Binding FillWidth}">
@@ -142,8 +142,8 @@
             </Border>
             <!-- Под шкалой — что она ждёт; пара подписи у строки подбора
                  предметов (BuildRowTemplates.xaml). -->
-            <TextBlock Text="Runes" Visibility="{Binding FillVis}" HorizontalAlignment="Left"
-                       Style="{StaticResource AiFillCaption}"/>
+            <TextBlock Text="{loc:T runes.aiRunesLabel}" Visibility="{Binding FillVis}"
+                       HorizontalAlignment="Left" Style="{StaticResource AiFillCaption}"/>
           </StackPanel>
         </StackPanel>
         <!-- Мелкие руны. Заменённые подбором — в кольце: разница с ходовой

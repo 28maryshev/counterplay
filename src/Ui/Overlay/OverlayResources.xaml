@@ -205,20 +205,35 @@
     </Style.Triggers>
   </Style>
 
-  <!-- Подпись под шкалой Counterplay AI — что она ждёт: «Items» у строки
-       подбора сборки, «Runes» у карточки подбора рун. Одна на обе, чтобы
-       подписи не разошлись. Высота строки задана: пустое место подбора не
-       выше того, что на нём появится. -->
+  <!-- Подпись под шкалой Counterplay AI — что она ждёт: «Предметы» у строки
+       подбора сборки, «Руны» у карточки подбора рун (runes.aiItemsLabel,
+       runes.aiRunesLabel). Одна на обе, чтобы подписи не разошлись. По
+       центру полосы: ширина — как у неё (72, AiFillMax), длинная подпись
+       раздвигается в обе стороны. Высота строки задана: пустое место подбора
+       не выше того, что на нём появится. -->
   <Style x:Key="AiFillCaption" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
     <Setter Property="FontSize" Value="8.5"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="#6A8296"/>
+    <Setter Property="MinWidth" Value="72"/>
+    <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-    <Setter Property="LineHeight" Value="9"/>
-    <!-- Вплотную к шкале: у строки сборки знак, шкала и подпись вместе
-         должны уложиться в высоту строки с предметами. -->
-    <Setter Property="Margin" Value="0,-1,0,0"/>
+    <!-- Строка ниже шрифта: у строки сборки знак, шкала и подпись вместе
+         должны уложиться в высоту строки с предметами. Зазор до полосы —
+         1 px экрана (владелец, 21.11): отступ полосы снизу (1), буквы
+         встают на целый пиксель (Display), полоса — тоже
+         (SnapsToDevicePixels); без этого зазор плавал от 0 до 2 px от
+         размера окна. Корейские и китайские знаки и тайская «ไ» выше
+         латинских заглавных и касались полосы — у них отступ
+         runes.aiLabelMargin = «0,1,0,-1» (на 1 ниже, высота та же), у
+         остальных «0»; японским хватает общего. В словаре языка, а не в
+         коде: язык меняется без перезапуска, и отступ — вместе с ним.
+         BaselineOffset для этого не годится: при LineHeight он ничего не
+         сдвигает. -->
+    <Setter Property="LineHeight" Value="8"/>
+    <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+    <Setter Property="Margin" Value="{loc:T runes.aiLabelMargin}"/>
   </Style>
 
   <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
