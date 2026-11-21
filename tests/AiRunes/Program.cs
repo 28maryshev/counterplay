@@ -80,6 +80,13 @@ internal static class Program
 
             Advisor(engine);
             RealFiles(engine);
+            // Отдельный режим: подбор по всем файлам выгрузки (Sweep.cs).
+            if (Environment.GetEnvironmentVariable("CP_SWEEP") is { Length: > 0 } sweepDir)
+            {
+                Sweep.Run(engine, sweepDir,
+                          Environment.GetEnvironmentVariable("CP_SWEEP_OUT") ?? Path.Combine(sweepDir, "sweep.txt"));
+                return Done();
+            }
             var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             Window(engine, Environment.GetEnvironmentVariable("CP_SNAP"));
             app.Shutdown();
