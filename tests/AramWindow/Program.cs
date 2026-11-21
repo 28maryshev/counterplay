@@ -49,6 +49,7 @@ internal static class Program
         {
             EmptyCenter();
             Remembered();
+            OversizeRemembered();
             NarrowRemembered();
             EmptyDraftEnd();
         }
@@ -134,10 +135,13 @@ internal static class Program
     {
         Console.WriteLine();
         var s = AppSettings.Current;
-        // Размер нарочно не круглый и не совпадающий с умолчаниями.
+        // Размер нарочно не круглый и не совпадающий с умолчаниями. Больше
+        // экрана окно не станет (см. MaxWindow) — ждём запомненное, подрезанное
+        // по потолку Windows: на ноутбуке 1280×800 это 1300×820.
         s.DraftPlacement = "remember";
         s.DraftLeft = 220; s.DraftTop = 140;
         s.DraftWidth = 1452; s.DraftHeight = 901;
+        var (w1, h1) = Fit(1452, 901);
 
         var w = Open();
 
@@ -145,8 +149,8 @@ internal static class Program
         w.UpdateRecommendations([Rec()], Aram(bench: [64, 103, 1]), null);
         Pump();
         Check("первый драфт: раскладка встала",
-              Math.Abs(w.Width - 1452) < 2 && Math.Abs(w.Height - 901) < 2,
-              $"{w.Width:0}×{w.Height:0}");
+              Math.Abs(w.Width - w1) < 2 && Math.Abs(w.Height - h1) < 2,
+              $"{w.Width:0}×{w.Height:0} (ждали {w1:0}×{h1:0})");
         w.UpdateRecommendations(null, null);       // драфт кончился
         Pump();
 
@@ -154,15 +158,49 @@ internal static class Program
         // этом остался прежним: его ведёт только изменение размера окна, а про
         // раскладку он не знает. Вот на этом расхождении всё и ломалось —
         // возврат режима подставлял старое, НЕ трогая положение.
-        s.DraftWidth = 1500; s.DraftHeight = 950;
+        //
+        // Новый размер меньше старого и влезает в ноутбук 1280×800 (и 1366×768):
+        // будь он больше, на маленьком экране оба упёрлись бы в потолок, и
+        // проверка перестала бы отличать новую раскладку от прошлой.
+        s.DraftWidth = 1262; s.DraftHeight = 733;
+        var (w2, h2) = Fit(1262, 733);
 
         w.UpdateRecommendations([], Aram(bench: []), null);   // подбирать не из чего
         Pump();
         w.UpdateRecommendations([Rec()], Aram(bench: [64, 103, 1]), null);
         Pump();
         Check("второй драфт: размер из раскладки, а не из прошлого",
-              Math.Abs(w.Width - 1500) < 2 && Math.Abs(w.Height - 950) < 2,
-              $"{w.Width:0}×{w.Height:0} (ждали 1500×950)");
+              Math.Abs(w.Width - w2) < 2 && Math.Abs(w.Height - h2) < 2 &&
+              (Math.Abs(w1 - w2) >= 2 || Math.Abs(h1 - h2) >= 2),
+              $"{w.Width:0}×{w.Height:0} (ждали {w2:0}×{h2:0}, прошлый {w1:0}×{h1:0})");
+
+        w.Close();
+        Pump();
+    }
+
+    /// <summary>
+    /// Запомненная раскладка больше экрана — монитор сменили или снизили
+    /// разрешение. Окно встаёт по потолку Windows, а не по умолчанию, и шапка
+    /// на экране. Здесь же воспроизводится ноутбук 1280×800 на любом мониторе:
+    /// там 1452×901 выходило 1300×820, и проверка падала (21.11).
+    /// </summary>
+    private static void OversizeRemembered()
+    {
+        Console.WriteLine();
+        var s = AppSettings.Current;
+        var (capW, capH) = MaxWindow();
+        s.DraftPlacement = "remember";
+        s.DraftLeft = 220; s.DraftTop = 140;
+        s.DraftWidth = capW + 300; s.DraftHeight = capH + 300;
+
+        var w = Open();
+        w.UpdateRecommendations([Rec()], Aram(bench: [64, 103, 1]), null);
+        Pump();
+        Check("раскладка больше экрана: окно по потолку Windows",
+              Math.Abs(w.Width - capW) < 2 && Math.Abs(w.Height - capH) < 2,
+              $"{w.Width:0}×{w.Height:0} (запомнено {s.DraftWidth:0}×{s.DraftHeight:0}, потолок {capW:0}×{capH:0})");
+        Check("раскладка больше экрана: шапка на экране",
+              Math.Abs(w.Left - 220) < 2 && Math.Abs(w.Top - 140) < 2, $"({w.Left:0};{w.Top:0})");
 
         w.Close();
         Pump();
@@ -317,6 +355,31 @@ internal static class Program
         // и проверки геометрии меряют именно её. Тем, у кого раскладки нет,
         // хватает вынесенного старта.
     }
+
+    /// <summary>
+    /// Самое большое окно, которое разрешает Windows, в единицах WPF.
+    ///
+    /// Окно с рамкой не бывает больше SM_CXMAXTRACK × SM_CYMAXTRACK — это все
+    /// мониторы плюс 20 пикселей (2560×1440 → 2580×1460, 1280×800 → 1300×820).
+    /// WPF берёт этот потолок в своё ограничение размера и подрезает Width и
+    /// Height сам — программа тут ни при чём.
+    /// </summary>
+    private static (double W, double H) MaxWindow()
+    {
+        var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(new System.Windows.Controls.Border());
+        return (GetSystemMetrics(59 /*SM_CXMAXTRACK*/) / dpi.DpiScaleX,
+                GetSystemMetrics(60 /*SM_CYMAXTRACK*/) / dpi.DpiScaleY);
+    }
+
+    /// Запомненный размер, каким его разрешит Windows на этом экране.
+    private static (double W, double H) Fit(double w, double h)
+    {
+        var (capW, capH) = MaxWindow();
+        return (Math.Min(w, capW), Math.Min(h, capH));
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int index);
 
     private static void Check(string what, bool ok, string detail)
     {
