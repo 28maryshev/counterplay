@@ -103,7 +103,7 @@
     "aiBuild": "YZ",
     "aiUnder": "bu kadroya göre",
     "aiCovered": "standart build bu kadroya zaten uygun",
-    "aiSoon": "Bu kadroya göre build, beş rakip de belli olunca görünür",
+    "aiSoon": "Bu kadroya göre build, herkes seçimini kilitleyince görünür",
     "aiTipHead": "Bu rakip kadroya göre seçildi",
     "aiRunesSoon": "Bu kadroya göre rünler herkes seçimini kilitleyince görünür",
     "aiRunesCovered": "popüler sayfa bu kadroya zaten uyuyor",

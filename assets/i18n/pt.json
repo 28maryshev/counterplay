@@ -103,7 +103,7 @@
     "aiBuild": "IA",
     "aiUnder": "para esta comp",
     "aiCovered": "a build padrão já responde a esta comp",
-    "aiSoon": "A build aparece quando os cinco inimigos forem conhecidos",
+    "aiSoon": "A build para esta composição aparece quando todos confirmarem",
     "aiTipHead": "Escolhido para esta comp inimiga",
     "aiRunesSoon": "As runas para esta composição aparecem quando todos confirmarem",
     "aiRunesCovered": "a página popular já responde a esta composição",

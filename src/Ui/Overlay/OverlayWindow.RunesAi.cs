@@ -57,27 +57,11 @@ public partial class OverlayWindow
         _runeDraftSig = RuneDraftSig();
     }
 
-    /// Окончательные пики: чемпион есть и ход кончился — то же правило, что у
-    /// слежки за метаниями союзников (в свой ход наведённый уже стоит в
-    /// championId). Драфт закончен, когда взяли все свои и пятеро врагов.
-    private (int Locked, int Total, bool Done) DraftProgress()
-    {
-        if (_lastDraft is not { } d) return (0, 10, false);
-        var mine = d.MyTeam.Count(p => AllyWaver.Locked(d, p));
-        var theirs = d.TheirTeam.Count(p => AllyWaver.Locked(d, p));
-        var team = Math.Max(d.MyTeam.Count, 1);
-        return (mine + Math.Min(theirs, 5), team + 5, theirs >= 5 && mine >= team);
-    }
-
-    // Оппонент по линии меняется и без нового пика: игрок переставил роль врага
-    // в его карточке — поэтому он тоже в подписи.
-    private string RuneDraftSig()
-    {
-        if (_lastDraft is not { } d) return "";
-        return string.Join(",", d.MyTeam.Concat(d.TheirTeam)
-            .Where(p => AllyWaver.Locked(d, p)).Select(p => $"{p.CellId}:{p.ChampionId}"))
-            + $"|{LaneOpponent()}|{string.Join(",", LaneFoes())}";
-    }
+    // Окончательные пики (LockedPicksSig) и оппонент по линии: он меняется и
+    // без нового пика — игрок переставил роль врага в его карточке.
+    private string RuneDraftSig() =>
+        _lastDraft is null ? ""
+        : $"{LockedPicksSig()}|{LaneOpponent()}|{string.Join(",", LaneFoes())}";
 
     /// Кто бьёт меня на линии — по нему руны защиты. Бот — линия два на два:
     /// вражеские стрелок и саппорт (роли из окна: клиент в соло/дуо их

@@ -419,7 +419,7 @@
     "aiBuild": "IA",
     "aiUnder": "per questa comp",
     "aiCovered": "la build standard risponde già a questa comp",
-    "aiSoon": "La build compare quando tutti e cinque i nemici sono noti",
+    "aiSoon": "La build per questa composizione compare quando tutti hanno confermato",
     "aiTipHead": "Scelto per questa comp nemica",
     "aiRunesSoon": "Le rune per questa composizione appaiono quando tutti hanno confermato",
     "aiRunesCovered": "la pagina popolare risponde già a questa composizione",

@@ -419,7 +419,7 @@
     "aiBuild": "AI",
     "aiUnder": "pod ten skład",
     "aiCovered": "standardowy build już odpowiada na ten skład",
-    "aiSoon": "Build pojawi się, gdy znanych będzie wszystkich pięciu przeciwników",
+    "aiSoon": "Build pod ten skład pojawi się, gdy wszyscy zatwierdzą wybór",
     "aiTipHead": "Dobrane pod skład przeciwnika",
     "aiRunesSoon": "Runy pod ten skład pojawią się, gdy wszyscy zatwierdzą wybór",
     "aiRunesCovered": "popularna strona już odpowiada na ten skład",

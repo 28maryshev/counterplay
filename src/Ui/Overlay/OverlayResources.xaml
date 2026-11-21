@@ -205,6 +205,22 @@
     </Style.Triggers>
   </Style>
 
+  <!-- Подпись под шкалой Counterplay AI — что она ждёт: «Items» у строки
+       подбора сборки, «Runes» у карточки подбора рун. Одна на обе, чтобы
+       подписи не разошлись. Высота строки задана: пустое место подбора не
+       выше того, что на нём появится. -->
+  <Style x:Key="AiFillCaption" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+    <Setter Property="FontSize" Value="8.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="#6A8296"/>
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+    <Setter Property="LineHeight" Value="9"/>
+    <!-- Вплотную к шкале: у строки сборки знак, шкала и подпись вместе
+         должны уложиться в высоту строки с предметами. -->
+    <Setter Property="Margin" Value="0,-1,0,0"/>
+  </Style>
+
   <!-- Логотип-марка (как на сайте): тёмная плитка + РОВНОЕ ПРЕРЫВИСТОЕ кольцо.
        Чистые разрывы сверху/снизу делаем обрезкой половинок (как clip на сайте),
        а не смыканием дуг. Левая половина синяя, правая красная. -->

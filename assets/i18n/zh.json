@@ -419,7 +419,7 @@
     "aiBuild": "AI",
     "aiUnder": "针对该阵容",
     "aiCovered": "常规出装已能应对该阵容",
-    "aiSoon": "敌方五人锁定英雄后显示",
+    "aiSoon": "所有人锁定英雄后，将显示针对此阵容的出装",
     "aiTipHead": "根据敌方阵容挑选",
     "aiRunesSoon": "所有人锁定英雄后，将显示针对此阵容的符文",
     "aiRunesCovered": "热门符文页已足以应对此阵容",

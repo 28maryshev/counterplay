@@ -21,10 +21,11 @@ namespace Counterplay.Tests;
 /// 1. Навёл (как клик по карточке) — чемпион наведён, рун нет, «Выбрать» есть.
 /// 2. «Выбрать» (обработчик лока песочницы) — чемпион взят, мой ход сделан
 ///    (как у клиента: действия пика больше нет), руны и сборка на экране.
-/// 3. Враги выбирают — шкала подбора растёт; пятый — во второй строке предметы.
-///    Подбор рун (Counterplay AI) ждёт союзников: в панели песочницы — «ждём
-///    пиков»; союзники выбрали — на карточке страница, в панели — разбор
-///    (владелец, 19.11: «добавь всё это в песочницу, я буду тестить»).
+/// 3. Враги выбирают — шкала подбора растёт. Подбор (Counterplay AI) ждёт и
+///    союзников — и предметы (с 21.11), и руны: в панели песочницы — «ждём
+///    пиков»; союзники выбрали — в строке подбора предметы, на карточке рун
+///    страница, в панели — разбор (владелец, 19.11: «добавь всё это в
+///    песочницу, я буду тестить»).
 /// 4. Сменил чемпиона руками — снова наведение, руны ушли.
 /// 5. Обработчик лока, который ставит песочница, подтверждает пик (а не наводит).
 ///
@@ -159,31 +160,29 @@ internal static class Program
             enemy[n - 1].SelectedItem = DataDragon.Name(Enemies[n - 1]);
             Wait(0.7);
             var row = AiRow(overlay);
-            if (n < 5)
-            {
-                if (n == 2)
-                    Check("враги выбирают — шкала подбора растёт (2 из 5), пик остаётся взятым",
-                          row is { Index: -1, FillVis: Visibility.Visible } && Last()?.Me?.ChampionId == Shen,
-                          $"строка {row?.Index}, шкала {row?.FillVis}, взят {Last()?.Me?.ChampionId}");
-                continue;
-            }
-            Check("пятый враг — в строке подбора (последней) предметы",
-                  row is { Index: >= 1, FillVis: Visibility.Collapsed } && row.Slots.Count(x => x.HasTip) == 6,
-                  $"строка {row?.Index}, предметов {row?.Slots.Count(x => x.HasTip)}");
+            if (n == 2)
+                Check("враги выбирают — шкала подбора растёт, пик остаётся взятым",
+                      row is { Index: -1, FillVis: Visibility.Visible } && Last()?.Me?.ChampionId == Shen,
+                      $"строка {row?.Index}, шкала {row?.FillVis}, взят {Last()?.Me?.ChampionId}");
         }
 
-        // 3б. Подбор рун: ждёт союзников, потом — страница и разбор в панели.
+        // 3б. Подбор ждёт союзников, потом — предметы, страница рун и разбор в панели.
         var text = Get<TextBlock>(panel, "_runeAiText")!;
         Wait(0.5);
-        Check("враги все, союзников нет — подбор рун ждёт, в панели «ждём пиков»",
-              RuneAi(overlay) is { Index: -1 } && text.Text.StartsWith("ждём пиков"),
-              $"карточка {RuneAi(overlay)?.Index}, панель: {text.Text}");
+        Check("враги все, союзников нет — подбор предметов и рун ждёт, в панели «ждём пиков»",
+              AiRow(overlay) is { Index: -1, FillVis: Visibility.Visible }
+              && RuneAi(overlay) is { Index: -1 } && text.Text.StartsWith("ждём пиков"),
+              $"строка предметов {AiRow(overlay)?.Index}, карточка рун {RuneAi(overlay)?.Index}, панель: {text.Text}");
         var ally = Get<ComboBox[]>(panel, "_ally")!;
         var me = Array.IndexOf(rows, "utility");
         for (int i = 0, k = 0; i < 5; i++)
             if (i != me) ally[i].SelectedItem = DataDragon.Name(Allies[k++]);
         var ready = WaitFor(() => RuneAi(overlay) is { Index: >= 0 }, 5);
-        Check("союзники выбрали — на карточке подбора страница, в панели разбор",
+        var items = AiRow(overlay);
+        Check("союзники выбрали — в строке подбора (последней) предметы",
+              items is { Index: >= 1, FillVis: Visibility.Collapsed } && items.Slots.Count(x => x.HasTip) == 6,
+              $"строка {items?.Index}, предметов {items?.Slots.Count(x => x.HasTip)}");
+        Check("союзники выбрали — на карточке подбора рун страница, в панели разбор",
               ready && text.Text.Contains("оппонент по линии") && text.Text.Contains("страница:"),
               $"карточка {RuneAi(overlay)?.Index}, панель: {text.Text.Replace("\n", " / ")}");
 

@@ -135,16 +135,20 @@ public partial class OverlayWindow
             return;
         }
 
-        // Подбор под врагов считаем, только когда известны ВСЕ пятеро: пятый пик
-        // способен перевернуть решение — один лечащийся терпим, двое требуют
-        // среза лечения.
+        // Подбор под состав считаем, только когда драфт закончен — как и руны
+        // (DraftProgress): все пятеро врагов и все свои взяли окончательно.
+        // Пятый враг способен перевернуть решение — один лечащийся терпим,
+        // двое требуют среза лечения, — а свои решают предметы поддержки и
+        // пробивание. До 21.11 ждали только врагов, и на красной стороне подбор
+        // приходил, пока наш пятый ещё выбирал: по его наведению или без него.
+        var (locked, total, done) = DraftProgress();
         var enemies = _lastDraft?.TheirTeam
             .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
         // Своя команда — для предметов поддержки: кого усиливать, зависит от того,
         // кто рядом.
         var allies = _lastDraft?.MyTeam
             .Select(p => p.EffectiveChampionId).Where(x => x != 0).Distinct().ToList() ?? [];
-        var advice = enemies.Count >= 5 && _engine is not null
+        var advice = done && _engine is not null
             ? BuildAdvisor.Adapt(stats, stats.Builds[0], enemies, allies, id => _engine.DamageShare(id))
             : new BuildAdvisor.Advice([], []);
         var adapted = advice.Builds;
@@ -179,7 +183,7 @@ public partial class OverlayWindow
         // пустая строка читалась бы как отказ или поломка. Только если подбор
         // правда считался: без справочника предметов или ходовых предметов
         // чемпиона он пуст, потому что судить не по чему, — тогда строка ждёт.
-        var covered = enemies.Count >= 5 && _engine is not null && adapted.Count == 0
+        var covered = done && _engine is not null && adapted.Count == 0
                       && ItemFacts.Loaded && stats.Items.Count > 0;
         if (covered)
         {
@@ -267,10 +271,11 @@ public partial class OverlayWindow
 
         // Подбора пока нет — вторую строку занимает его след: шесть блёклых
         // рамок, а слева наш знак, который горит всегда, и шкала — сколько
-        // врагов из пяти уже выбрали. Шкала дошла до конца — на месте рамок
-        // появляются предметы. Панель не меняет высоту, и заранее видно, где
-        // будет подбор и сколько его ждать.
-        var fill = Math.Min(enemies.Count, 5) / 5.0;
+        // игроков из десяти уже выбрали окончательно (та же, что у подбора
+        // рун). Шкала дошла до конца — на месте рамок появляются предметы.
+        // Панель не меняет высоту, и заранее видно, где будет подбор и сколько
+        // его ждать.
+        var fill = Math.Min(1.0, (double)locked / total);
         var aiReady = _buildIsAi.Contains(true);
         if (!aiReady)
         {

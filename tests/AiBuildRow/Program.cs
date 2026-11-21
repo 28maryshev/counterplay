@@ -12,22 +12,30 @@ using ToolTip = System.Windows.Controls.ToolTip;
 namespace Counterplay.Tests;
 
 /// <summary>
-/// Строка подбора сборки под врагов (владелец, 01.11): знак Counterplay AI
-/// горит всегда, под ним шкала — сколько врагов из пяти уже выбрали, после
-/// пятого на месте пустых рамок появляются предметы. Раньше до пятого врага
-/// строка была блёклой целиком и без знака, а если менять было нечего, так и
-/// оставалась пустой при известном составе.
+/// Строка подбора сборки под состав (владелец, 01.11): знак Counterplay AI
+/// горит всегда, под ним шкала — сколько игроков из десяти уже выбрали
+/// окончательно, после последнего пика на месте пустых рамок появляются
+/// предметы. Раньше до пятого врага строка была блёклой целиком и без знака, а
+/// если менять было нечего, так и оставалась пустой при известном составе.
+///
+/// С 21.11 предметы ждут, как и руны, всех: подбор смотрит и на своих
+/// (предметы поддержки, перекос урона команды), а на красной стороне после
+/// пятого врага ещё выбирает наш пятый — подбор приходил по его наведению или
+/// без него и на его пик не пересчитывался.
 ///
 /// 0. Строки по порядку: ходовая сборка, вторая — если она есть в данных
 ///    (владелец, 02.11: «два варианта, как руны, третьим Counterplay AI»),
 ///    подбор — последней. Предметы — в порядке из данных (порядок покупки), а
 ///    не «сначала ядро».
-/// 1. Мой чемпион выбран, врагов 0…4: строка подбора — пустая, знак виден и не
-///    тускнеет вместе с рамками, шкала дорастает до n/5.
-/// 2. Перерисовка без нового врага (ховер, выбор строки) шкалу не сбрасывает и
+/// 1. Красная сторона: я и трое своих выбрали, последний ещё нет, врагов 0…4 —
+///    строка подбора пустая, знак виден и не тускнеет вместе с рамками, шкала
+///    дорастает до (4+n)/10.
+/// 2. Перерисовка без нового пика (ховер, выбор строки) шкалу не сбрасывает и
 ///    заново не растит.
-/// 3. Пятый враг — в строке подбора предметы: подбор или та же ходовая
-///    сборка с подписью «уже отвечает составу».
+/// 3. Пятый враг, а наш последний в свой ход навёлся — подбор ждёт, шкала 9/10.
+///    Взял другого — без касания панели в строке предметы, посчитанные по
+///    взятому, а не по наведённому: подбор или та же ходовая сборка с
+///    подписью «уже отвечает составу».
 /// 4. Новый чемпион без второй сборки — строк две, шкала снова с нуля.
 ///
 /// Руны — макет (RunesClient.UseMock), база матчей — настоящая, только чтение;
@@ -39,6 +47,9 @@ internal static class Program
 
     private const int Shen = 98, Braum = 201;
     private static readonly int[] Enemies = [54, 64, 103, 222, 412];   // Мальфит, Ли Син, Ари, Джинкс, Треш
+    private static readonly int[] Allies = [86, 254, 99];               // Гарен, Вай, Люкс — взяли
+    private static readonly string[] AllyRoles = ["top", "jungle", "middle"];
+    private const int Syndra = 134, Caitlyn = 51;                       // последний пик: навёл, взял
 
     [STAThread]
     private static int Main()
@@ -88,7 +99,7 @@ internal static class Program
     private static int Done()
     {
         Console.WriteLine();
-        Console.WriteLine(_fails == 0 ? "ИТОГ: знак подбора горит, шкала растёт с врагами, после пятого — предметы"
+        Console.WriteLine(_fails == 0 ? "ИТОГ: знак подбора горит, шкала растёт с пиками, после последнего — предметы"
                                       : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
     }
@@ -123,9 +134,9 @@ internal static class Program
               parsed.Builds.Count == 2 && parsed.Builds[0].Items[0] == 3068 && parsed.Builds[1].Items[0] == 3143,
               string.Join(" | ", parsed.Builds.Select(b => string.Join(",", b.Items))));
 
-        void Draft(int me, int enemies)
+        void Draft(int me, int enemies, int last = 0, bool picking = false)
         {
-            var d = State(me, Enemies.Take(enemies).ToArray());
+            var d = State(me, Enemies.Take(enemies).ToArray(), last, picking);
             w.UpdateRecommendations(engine.Recommend(d, 6), d, engine);
             Pump();
         }
@@ -150,14 +161,15 @@ internal static class Program
               $"{string.Join(", ", names)} (ждали {string.Join(", ", want)})");
 
         // ── 1. Враги по одному ──────────────────────────────────────────────
+        double waitRow = 0, waitRune = 0;
         for (var n = 0; n <= 4; n++)
         {
             if (n > 0) Draft(Shen, n);
             Settle();
             var row = AiRow(w);
             var bar = Bar(w);
-            var width = 72.0 * n / 5;
-            Check($"врагов {n}: строка подбора пустая, знак виден, шкала {n}/5",
+            var width = 72.0 * (4 + n) / 10;
+            Check($"своих 4, врагов {n}: строка подбора пустая, знак виден, шкала {4 + n}/10",
                   row is { Index: -1, AiVis: Visibility.Visible, FillVis: Visibility.Visible }
                   && bar is not null && Math.Abs(bar.Width - width) < 0.5,
                   $"строка {row?.Index}, знак {row?.AiVis}, шкала {bar?.Width:0.#} из 72 (ждали {width:0.#})");
@@ -166,6 +178,12 @@ internal static class Program
                 var dim = bar is null ? 0 : Lit(bar);
                 Check("знак и шкала не тускнеют вместе с пустыми рамками",
                       dim >= 0.99 && row?.RowOpacity < 0.5, $"яркость знака {dim:0.##}, рамок {row?.RowOpacity}");
+                // Владелец, 21.11: «под строкой состояния сделай подписи Items и Runes».
+                Check("под шкалами подписи: Items у строки подбора предметов, Runes у карточки подбора рун",
+                      Caption(RowBox(w), "Items") && Caption(RuneBox(w), "Runes"),
+                      $"Items {Caption(RowBox(w), "Items")}, Runes {Caption(RuneBox(w), "Runes")}");
+                waitRow = RowBox(w)?.DesiredSize.Height ?? 0;
+                waitRune = RuneBox(w)?.DesiredSize.Height ?? 0;
                 if (snap is { Length: > 0 }) Snap(w, snap, "ai-1-two-enemies.png");
             }
         }
@@ -175,14 +193,55 @@ internal static class Program
         Pump();
         var again = Bar(w);
         Check("перерисовка (ховер) — шкала на месте и не растёт заново",
-              again is not null && Math.Abs(again.Width - 72.0 * 4 / 5) < 0.5
+              again is not null && Math.Abs(again.Width - 72.0 * 8 / 10) < 0.5
               && !again.HasAnimatedProperties,
               $"шкала {again?.Width:0.#}, анимация {again?.HasAnimatedProperties}");
 
-        // ── 3. Пятый враг ───────────────────────────────────────────────────
-        Draft(Shen, 5);
+        // ── 3. Пятый враг, наш последний ещё выбирает ───────────────────────
+        // Красная сторона: B5 взял, R5 — наш — в свой ход навёлся на Синдру.
+        // Наведённый в свой ход стоит в championId, и лока это не значит
+        // (AllyWaver.Locked).
+        Draft(Shen, 5, Syndra, picking: true);
+        Settle();
+        var wait = AiRow(w);
+        var waitBar = Bar(w);
+        Check("пятеро врагов, наш последний навёлся в свой ход — подбор ждёт, шкала 9/10",
+              wait is { Index: -1, FillVis: Visibility.Visible }
+              && waitBar is not null && Math.Abs(waitBar.Width - 72.0 * 9 / 10) < 0.5,
+              $"строка {wait?.Index}, шкала {waitBar?.Width:0.#} из 72 (ждали {72.0 * 9 / 10:0.#})");
+
+        // Взял другого. Панель никто не трогал — пересчитать должен сам пик.
+        Draft(Shen, 5, Caitlyn);
         Settle();
         var full = AiRow(w);
+        List<int> Expect(int last)
+        {
+            var a = BuildAdvisor.Adapt(stats, stats.Builds[0], Enemies, [Shen, .. Allies, last],
+                                       id => engine.DamageShare(id)).Builds;
+            return [.. (a.Count > 0 ? a[0].Items : stats.Builds[0].Items).Take(6)];
+        }
+        // Подпись — только при шкале, и пустое место с ней не выше того, что
+        // на нём появилось: панель не дёргается, когда приходит подбор.
+        var readyRow = RowBox(w)?.DesiredSize.Height ?? 0;
+        Check("строка подбора предметов: пустая с подписью той же высоты, что с предметами; подписи больше нет",
+              waitRow > 0 && Math.Abs(waitRow - readyRow) < 0.5 && !Caption(RowBox(w), "Items"),
+              $"пустая {waitRow:0.#}, с предметами {readyRow:0.#}, подпись {Caption(RowBox(w), "Items")}");
+        if (RuneBox(w)?.Content is OverlayWindow.RuneOptionVm { Index: >= 0 })
+        {
+            var readyRune = RuneBox(w)!.DesiredSize.Height;
+            Check("карточка подбора рун: пустая с подписью той же высоты, что со страницей; подписи больше нет",
+                  waitRune > 0 && Math.Abs(waitRune - readyRune) < 0.5 && !Caption(RuneBox(w), "Runes"),
+                  $"пустая {waitRune:0.#}, со страницей {readyRune:0.#}, подпись {Caption(RuneBox(w), "Runes")}");
+        }
+        else Console.WriteLine("  подбор рун у макета не пришёл — высоту карточки сравнить не с чем");
+
+        var got = full?.Slots.Select(x => x.Tip.Split(" · ")[0]).ToList() ?? [];
+        var byLocked = Expect(Caitlyn).Select(ItemIcons.NameOf).ToList();
+        Check("наш последний взял другого — без касания панели в строке подбора предметы, посчитанные по взятому",
+              full is { Index: >= 0 } && got.SequenceEqual(byLocked),
+              $"строка {full?.Index}: {string.Join(", ", got)} (ждали {string.Join(", ", byLocked)})");
+        Console.WriteLine($"  по наведённой Синдре подбор был бы {(Expect(Syndra).SequenceEqual(Expect(Caitlyn)) ? "тем же" : "другим")}");
+
         var adapted = full?.Slots.Any(x => x.Stroke is SolidColorBrush b && b.Color == System.Windows.Media.Color.FromRgb(0x36, 0xD6, 0xE7)) == true;
         Check("пятый враг — в строке подбора предметы, шкалы больше нет; она третья",
               full is { Index: 2, AiVis: Visibility.Visible, FillVis: Visibility.Collapsed, RowOpacity: 1.0 }
@@ -219,31 +278,36 @@ internal static class Program
         w.ShowRunes(braum, Braum, DataDragon.Name(Braum), "support", null);
         Pump();
         // Строка нарисована с той долей, от которой шкала растёт: у нового
-        // чемпиона — ноль, а не 4/5 от прошлого.
+        // чемпиона — ноль, а не 10/10 от прошлого.
         var from = AiRow(w)?.FillWidth;
         Check("у Браума второй сборки нет — строк две, подбор второй",
               braum.Builds.Count == 1 && Rows(w).Count == 2 && AiRow(w) is { Index: -1 },
               $"сборок {braum.Builds.Count}, строк {Rows(w).Count}");
         Settle();
         var end = Bar(w);
-        Check("новый чемпион — шкала растёт с нуля до числа врагов",
-              from == 0 && end is not null && Math.Abs(end.Width - 72.0 / 5) < 0.5,
-              $"с {from:0.#} до {end?.Width:0.#} (ждали с 0 до {72.0 / 5:0.#})");
+        Check("новый чемпион — шкала растёт с нуля до доли сделанных пиков",
+              from == 0 && end is not null && Math.Abs(end.Width - 72.0 * 5 / 10) < 0.5,
+              $"с {from:0.#} до {end?.Width:0.#} (ждали с 0 до {72.0 * 5 / 10:0.#})");
         w.Close();
         Pump();
     }
 
-    /// Роль раздана, я на поддержке и уже выбрал; враги взяли первых n.
-    private static DraftState State(int me, int[] enemies)
+    /// Красная сторона, роли розданы: я на поддержке и уже выбрал, трое своих
+    /// тоже; последний пик драфта — наш стрелок (ячейка 4): last — его чемпион
+    /// (0 — ещё не наводил), picking — ход его, чемпион только наведён. Враги
+    /// взяли первых n.
+    private static DraftState State(int me, int[] enemies, int last, bool picking)
     {
         var self = new DraftPlayer(0, me, 0, "utility", true);
         var team = new List<DraftPlayer> { self };
+        team.AddRange(Allies.Select((id, i) => new DraftPlayer(1 + i, id, 0, AllyRoles[i], false)));
+        team.Add(new DraftPlayer(4, last, 0, "bottom", false));
         var their = enemies.Select((id, i) => new DraftPlayer(5 + i, id, 0, "", false)).ToList();
         return new DraftState(
             MyTeam: team, TheirTeam: their, MyTeamBans: [], TheirTeamBans: [],
             Me: self, MyPosition: "support", DirectOpponent: null, ExposedToCounter: false,
             InBanPhase: false, Bench: [], IsAram: false,
-            MyPickActionId: 7, MyPickInProgress: false, ActiveCells: [],
+            MyPickActionId: 7, MyPickInProgress: false, ActiveCells: picking ? [4] : [],
             FirstPickCell: -1, MyBanActionId: -1, MyBanInProgress: false);
     }
 
@@ -261,6 +325,26 @@ internal static class Program
         if (list.ItemContainerGenerator.ContainerFromIndex(Rows(w).Count - 1) is not ContentPresenter cp) return null;
         cp.ApplyTemplate();
         return cp.ContentTemplate?.FindName("AiFillBar", cp) as FrameworkElement;
+    }
+
+    /// Контейнер строки подбора сборки (последней).
+    private static ContentPresenter? RowBox(Window w) =>
+        ((ItemsControl)w.FindName("BuildList")).ItemContainerGenerator
+            .ContainerFromIndex(Rows(w).Count - 1) as ContentPresenter;
+
+    /// Карточка подбора рун — в сетке панели рун.
+    private static ContentPresenter? RuneBox(Window w) =>
+        ((Grid)w.FindName("RuneGrid")).Children.OfType<ContentPresenter>()
+            .FirstOrDefault(c => c.Content is OverlayWindow.RuneOptionVm { IsAi: true });
+
+    /// Видна ли внутри подпись с таким текстом.
+    private static bool Caption(DependencyObject? root, string text)
+    {
+        if (root is null) return false;
+        if (root is TextBlock { IsVisible: true } t && t.Text == text) return true;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (Caption(VisualTreeHelper.GetChild(root, i), text)) return true;
+        return false;
     }
 
     /// Итоговая непрозрачность элемента — произведение по всем родителям до окна.

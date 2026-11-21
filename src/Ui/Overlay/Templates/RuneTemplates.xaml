@@ -140,6 +140,10 @@
                 </Border.Background>
               </Border>
             </Border>
+            <!-- Под шкалой — что она ждёт; пара подписи у строки подбора
+                 предметов (BuildRowTemplates.xaml). -->
+            <TextBlock Text="Runes" Visibility="{Binding FillVis}" HorizontalAlignment="Left"
+                       Style="{StaticResource AiFillCaption}"/>
           </StackPanel>
         </StackPanel>
         <!-- Мелкие руны. Заменённые подбором — в кольце: разница с ходовой

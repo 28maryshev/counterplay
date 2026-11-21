@@ -158,26 +158,49 @@ public partial class OverlayWindow
 
     // ── Рендер ────────────────────────────────────────────────────────────
 
-    // Состав врагов, под который уже посчитан подбор предметов. Нужен, чтобы
-    // пересчитывать его при пике врага, а не на каждое событие драфта.
-    private string _buildsEnemySig = "";
+    /// Окончательные пики: чемпион есть и ход кончился — то же правило, что у
+    /// слежки за метаниями союзников (в свой ход наведённый уже стоит в
+    /// championId). Драфт закончен, когда взяли все свои и пятеро врагов.
+    /// Общее для подбора предметов и рун: оба ждут конца драфта и показывают
+    /// одну шкалу «сколько игроков из десяти выбрали».
+    private (int Locked, int Total, bool Done) DraftProgress()
+    {
+        if (_lastDraft is not { } d) return (0, 10, false);
+        var mine = d.MyTeam.Count(p => AllyWaver.Locked(d, p));
+        var theirs = d.TheirTeam.Count(p => AllyWaver.Locked(d, p));
+        var team = Math.Max(d.MyTeam.Count, 1);
+        return (mine + Math.Min(theirs, 5), team + 5, theirs >= 5 && mine >= team);
+    }
 
-    /// Пересчитать сборки, если состав врагов изменился.
+    /// Окончательные пики обеих команд одной строкой: меняется на каждый лок
+    /// (и на обмен чемпионами), но не на наведение.
+    private string LockedPicksSig()
+    {
+        if (_lastDraft is not { } d) return "";
+        return string.Join(",", d.MyTeam.Concat(d.TheirTeam)
+            .Where(p => AllyWaver.Locked(d, p)).Select(p => $"{p.CellId}:{p.ChampionId}"));
+    }
+
+    // Пики, под которые уже посчитана строка подбора предметов. Нужны, чтобы
+    // пересчитывать её на чужой пик, а не на каждое событие драфта.
+    private string _buildsDraftSig = "";
+
+    /// Пересчитать сборки, если кто-то из десяти окончательно выбрал.
     ///
     /// Подбор считается при отрисовке панели сборок, а её перерисовывает ховер
     /// или выбор строки — но не чужой пик. Из-за этого подбор, готовый уже на
     /// пятом враге, появлялся только когда игрок трогал панель: у одного это
-    /// случилось за восемь секунд до начала матча.
-    private void RefreshBuildsForEnemies()
+    /// случилось за восемь секунд до начала матча. Свои — тоже: до 21.11 здесь
+    /// смотрели только на врагов, и на красной стороне пик нашего пятого
+    /// подбор не пересчитывал.
+    private void RefreshBuildsForDraft()
     {
         if (_runeStats is null || RunesBar.Visibility != Visibility.Visible) return;
 
-        var ids = (_lastDraft?.TheirTeam ?? [])
-            .Select(p => p.EffectiveChampionId).Where(x => x != 0).OrderBy(x => x);
-        var sig = string.Join(",", ids);
-        if (sig == _buildsEnemySig) return;
+        var sig = LockedPicksSig();
+        if (sig == _buildsDraftSig) return;
 
-        _buildsEnemySig = sig;
+        _buildsDraftSig = sig;
         RenderBuilds(_runeStats);
     }
 
@@ -203,9 +226,9 @@ public partial class OverlayWindow
         UpdatePickBar();
         UpdateBanBar();
 
-        // Враг взял чемпиона — пересчитываем подбор сразу, не дожидаясь, пока
+        // Кто-то взял чемпиона — пересчитываем подбор сразу, не дожидаясь, пока
         // игрок наведёт мышь на панель.
-        RefreshBuildsForEnemies();
+        RefreshBuildsForDraft();
         RefreshRunesForDraft();
 
         // Фаза банов: показываем рекомендуемые баны (в том же разделе, что и пики).
