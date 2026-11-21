@@ -85,17 +85,16 @@ sealed partial class TestPanel
     }
 
     // Раздаёт ботам текущей группы персональные моменты пика (3..10 с). Мой слот
-    // получает момент, только если есть заранее выбранный пик (тогда он появится
-    // сам на моём ходу); иначе слот ждёт ручного пика.
+    // с заранее выбранным пиком получает такой же момент — пик берётся сам; без
+    // плана — конец хода (MaxTurnSeconds): наведённого к тому времени клиент
+    // берёт сам, пустой слот ждёт ручного пика.
     private void StartTurn()
     {
         _pickAt.Clear();
         int meCell = MeCell();
         foreach (var cell in _simGroups[_simTurn])
-            // Момент пика даём боту ИЛИ клетке с заранее выбранным пиком. Мой
-            // пустой слот без плана — ждёт ручного пика (момента не получает).
-            if (cell != meCell || _planned.ContainsKey(cell))
-                _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
+            _pickAt[cell] = DateTime.UtcNow.AddSeconds(
+                cell == meCell && !_planned.ContainsKey(cell) ? MaxTurnSeconds : _rng.Next(3, MaxTurnSeconds + 1));
     }
 
     // Показывает заранее выбранный пик клетки в момент её хода в драфте.
@@ -121,25 +120,35 @@ sealed partial class TestPanel
         var now    = DateTime.UtcNow;
 
         // Боты пикают каждый в свой момент — даже в парном ходе по отдельности.
-        // Мой слот в свой момент показывает заранее выбранный пик (если он есть).
         foreach (var cell in group)
-            if (CellChamp(cell) == 0 && _pickAt.TryGetValue(cell, out var t) && now >= t)
-            {
-                if (_planned.TryGetValue(cell, out var champ)) RevealPlanned(cell, champ);
-                else if (cell != meCell) AutoPick(cell);
-                // мой слот без плана — не трогаем, ждём ручного пика
-            }
-
-        // Ход завершён, когда запикалась вся группа. Мой слот БЕЗ плана — ждёт
-        // ручного пика (боты уже отстрелялись, драфт ждёт меня).
-        bool myManual = group.Contains(meCell) && CellChamp(meCell) == 0
-                        && !_planned.ContainsKey(meCell);
-        if (myManual && group.All(c => c == meCell || CellChamp(c) != 0))
         {
-            _simBtn.Content = "⏸ Ваш пик…";
+            if (!_pickAt.TryGetValue(cell, out var t) || now < t) continue;
+            if (cell == meCell)
+            {
+                // Мой момент: заранее выбранный пик или конец хода. Это пик, а
+                // не наведение, — как у клиента, который по таймеру берёт
+                // наведённого. До 21.11 песочница ставила его наведением, и
+                // руны (они ждут взятого) не приходили, пока не нажмёшь
+                // «Выбрать». Пустой слот без плана — ждём ручного пика.
+                if (_myLocked) continue;
+                var mine = CellChamp(cell) != 0 ? CellChamp(cell) : _planned.GetValueOrDefault(cell);
+                if (mine != 0) LockMy(mine);
+                continue;
+            }
+            if (CellChamp(cell) != 0) continue;
+            if (_planned.TryGetValue(cell, out var champ)) RevealPlanned(cell, champ);
+            else AutoPick(cell);
+        }
+
+        // Ход завершён, когда запикалась вся группа, а мой пик — взят: наведение
+        // ход не заканчивает (до 21.11 заканчивало, и драфт шёл дальше с
+        // наведённым, без рун). Боты отстрелялись, а я нет — драфт ждёт меня.
+        if (group.Any(c => c != meCell && CellChamp(c) == 0)) return;   // кто-то ещё «думает»
+        if (group.Contains(meCell) && !(_myLocked && CellChamp(meCell) != 0))
+        {
+            if (!_planned.ContainsKey(meCell)) _simBtn.Content = "⏸ Ваш пик…";
             return;
         }
-        if (group.Any(c => CellChamp(c) == 0)) return;   // кто-то ещё «думает»
 
         _simTurn++;
         _simBtn.Content = "■ Стоп";
@@ -163,6 +172,9 @@ sealed partial class TestPanel
         {
             _ready = true;
         }
+        // Драфт закончен — мой чемпион взят, а не наведён: иначе руны и сборка
+        // (они ждут взятого) не приходили до «Выбрать».
+        _myLocked = CellChamp(MeCell()) != 0;
         Recompute();        // одна перерисовка на весь состав
     }
 

@@ -194,11 +194,101 @@ internal static class Program
               gone && d?.Me is { ChampionId: 0, PickIntentId: Braum } && d.MyPickActionId >= 0,
               $"взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
 
+        // 6. Пик за меня берёт песочница (владелец, 21.11: «похоже, программа
+        // сама по таймеру выбирает мне чемпиона, а руны появляются, когда
+        // чемпиона выбираю я»).
+        ProgramPicks(panel, overlay, rows, Last);
+
         Call(panel, "ResetDraft");
         panel.Hide();
         overlay.Close();
         Pump();
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
+    }
+
+    /// Авто-драфт и «мгновенный драфт» ставят чемпиона в мой слот сами — это пик,
+    /// и руны должны прийти, как после «Выбрать». Таймер авто-драфта
+    /// останавливаем и ходы ведём сами: время хода — записью в _pickAt.
+    private static void ProgramPicks(Window panel, OverlayWindow overlay, string[] rows, Func<DraftState?> last)
+    {
+        var me = Array.IndexOf(rows, "utility");
+        var ally = Get<ComboBox[]>(panel, "_ally")!;
+        var pickAt = Get<Dictionary<int, DateTime>>(panel, "_pickAt")!;
+        var groupsMyFirst = (int[][])panel.GetType()
+            .GetField("GroupsMyFirst", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+
+        void Restart()
+        {
+            Call(panel, "ResetDraft");
+            Click(Get<Button>(panel, "_stageDraft")!);
+            Pump();
+        }
+
+        // Запустить авто-драфт и перейти к ходу моей группы (боты прошлых ходов
+        // не нужны: подбору хватает и пустых слотов).
+        int ToMyTurn()
+        {
+            Call(panel, "ToggleSim");
+            Get<System.Windows.Threading.DispatcherTimer>(panel, "_simTimer")!.Stop();
+            panel.GetType().GetField("_simGroups", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(panel, groupsMyFirst);
+            var turn = Array.FindIndex(groupsMyFirst, g => g.Contains(me));
+            panel.GetType().GetField("_simTurn", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(panel, turn);
+            Call(panel, "StartTurn");
+            return turn;
+        }
+        int Turn() => (int)panel.GetType()
+            .GetField("_simTurn", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!;
+        void Tick() { Call(panel, "SimTick", null!, EventArgs.Empty); Pump(); }
+        void Expire(Func<int, bool> which)
+        {
+            foreach (var cell in pickAt.Keys.Where(which).ToList()) pickAt[cell] = DateTime.UtcNow.AddSeconds(-1);
+        }
+
+        // 6а. Пик выбран заранее — авто-драфт показывает его на моём ходу.
+        Restart();
+        ally[me].SelectedItem = DataDragon.Name(Shen);
+        Pump();
+        ToMyTurn();
+        Expire(_ => true);
+        Tick();
+        var shown = WaitFor(() => Vis(overlay, "RunesBar"), 5);
+        var d = last();
+        Check("авто-драфт показал мой заранее выбранный пик на моём ходу — чемпион взят, руны на экране",
+              shown && d?.Me is { ChampionId: Shen, PickIntentId: 0 } && d.MyPickActionId == -1,
+              $"взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, действие {d?.MyPickActionId}, руны {Vis(overlay, "RunesBar")}");
+
+        // 6б. Плана нет: навёл (клик по карточке) — ход ещё мой, рун нет; время
+        // хода вышло — наведённый берётся сам, как у клиента.
+        Restart();
+        var turn = ToMyTurn();
+        Expire(c => c != me);
+        Tick();                                     // боты моей группы взяли
+        Call(panel, "SetMy", Braum);
+        Pump();
+        Tick();
+        d = last();
+        Check("навёл на своём ходу — ход ещё мой, чемпион наведён, рун нет",
+              Turn() == turn && d?.Me is { ChampionId: 0, PickIntentId: Braum } && !Vis(overlay, "RunesBar"),
+              $"ход {Turn()} (ждали {turn}), взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
+        Expire(c => c == me);
+        Tick();
+        shown = WaitFor(() => Vis(overlay, "RunesBar"), 5);
+        d = last();
+        Check("время хода вышло — наведённый взят сам, ход дальше, руны на экране",
+              shown && Turn() > turn && d?.Me is { ChampionId: Braum, PickIntentId: 0 } && d.MyPickActionId == -1,
+              $"ход {Turn()}, взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
+
+        // 6в. «Мгновенный драфт» заполняет и мой слот — драфт закончен, пик взят.
+        Restart();
+        Call(panel, "InstantDraft");
+        Pump();
+        shown = WaitFor(() => Vis(overlay, "RunesBar"), 5);
+        d = last();
+        Check("«мгновенный драфт» — мой чемпион взят, руны на экране",
+              shown && d?.Me is { ChampionId: > 0, PickIntentId: 0 } && d.MyPickActionId == -1,
+              $"взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
     }
 
     /// Строка подбора — всегда последняя: после ходовой сборки и второй, если есть.

@@ -113,7 +113,7 @@ sealed partial class TestPanel : Window
     // ходе пики разнесены, и видно, как подбор реагирует на каждый по отдельности.
     private const int MaxTurnSeconds = 10;
 
-    private readonly Dictionary<int, DateTime> _pickAt = new();   // cell → момент пика бота
+    private readonly Dictionary<int, DateTime> _pickAt = new();   // cell → момент пика бота (у меня — пика по плану или конца хода)
 
     private readonly HashSet<int> _autoPicked = new();  // клетки, занятые авто-драфтом
 
