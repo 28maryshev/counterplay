@@ -170,6 +170,20 @@ internal static class Program
               && Line(aAdv, "против поука:").Contains("вес"),
               $"{(cmp is null ? "сравнить не по чему" : $"разница {cmp.Raw:+0.0;-0.0}, игр {cmp.Total}, итог {cmp.Mixed:+0.0;-0.0}")} | {Line(aAdv, "против поука:")}");
 
+        // Владелец (21.11): «вчера на Соне я видел Комету в кейстоунах». Файл
+        // Соны с сайта на 21.11: Пушинка — 89% игр и 51,9% побед, Комета — 7% и
+        // 48,6%. Против Амуму у Пушинки −5,3 на 298 играх (линия тяжёлая), у
+        // Кометы +2,3 на 28: разброс на 28 играх — ±9 пунктов, настоящая разница
+        // кейстоунов — пункт-два. Ужатие отличия к линии весом 50 игр (как
+        // ужимает выгрузка) ставило Комету первой; весом ~600 — Пушинку.
+        const int Sona = 37, Amumu = 32, Sivir = 15;
+        var sona = Load("37-support");
+        var first = RunesClient.Choices(sona, Amumu, 2, Sivir)[0];
+        var sAdv = Run(sona, Amumu, [Amumu, Sivir], [Amumu, Sivir, 238, 64, 122]);
+        Check("Сона против Амуму и Сивир: 28 игр Кометы не перевешивают — первой Пушинка, подбор тоже",
+              first.Keystone == 8214 && sAdv?.Choice.Keystone == 8214,
+              $"первая {RuneIcons.NameOf(first.Keystone)}, подбор {(sAdv is null ? "—" : RuneIcons.NameOf(sAdv.Choice.Keystone))} | {Line(sAdv, "кейстоуны:")}");
+
         // Файл без новых полей — таким он на сайте до первой выкладки.
         var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "145-adc.json")))!.AsObject();
         node.Remove("vsDuo");
