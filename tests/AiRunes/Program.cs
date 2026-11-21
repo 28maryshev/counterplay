@@ -495,8 +495,9 @@ internal static class Program
         int[] twoTanks = [Malphite, Sejuani, 81, 222, 103];
         var twoLast = Adapt(engine, Ashe_([8444, Overgrowth], row3: LastStand), twoTanks);
         var twoCoup = Adapt(engine, Ashe_([8444, Overgrowth], row3: Coup), twoTanks);
-        Check("два танка из пяти: Последний рубеж остаётся, Удар милосердия → Реванш",
-              twoLast is not null && twoLast.Swaps.All(s => s.To != RuneAdvisor.CutDown)
+        // Владелец: «2 танка мне кажется достаточно, чтоб брать ту руну».
+        Check("два танка: Реванш — и вместо Последнего рубежа, и вместо Удара милосердия",
+              twoLast?.Swaps.Any(s => s.From == LastStand && s.To == RuneAdvisor.CutDown) == true
               && twoCoup?.Swaps.Any(s => s.From == Coup && s.To == RuneAdvisor.CutDown) == true,
               $"{Show(twoLast)} / {Show(twoCoup)}");
         var zed3 = Adapt(engine, Ashe_([8444, Overgrowth], row3: Coup), threeTanks, me: Zed);

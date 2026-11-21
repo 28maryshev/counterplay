@@ -267,21 +267,17 @@ public static partial class RuneAdvisor
         // соперника по линии (руны защиты ниже — по линии). Владелец (21.11):
         // «а если будет 3 танка, а на боте сквиши?» — стрелку Реванш будет.
         // Уточнения того же дня («примени свои предложения»):
-        //  • убийцы и взрывные маги (BurstThreat) бьют хлипких в тылу — Реванш
+        //  • Резня — от двух танков (владелец: «2 танка мне кажется достаточно,
+        //    чтоб брать ту руну»), вместо любой руны своего ряда;
+        //  • убийцы и взрывные маги (BurstThreat) бьют хлипких в тылу — Резня
         //    им, только когда хлипких почти не осталось (от 4 танков);
-        //  • два танка из пяти — ещё не «толстый состав»: Реванш тогда только
-        //    вместо Удара милосердия, не вместо Последнего рубежа, и с весом
-        //    ниже TreeSwitchGain — дерево ради него не меняется;
-        //  • танков нет — Удар милосердия только вместо Реванша: Последний
+        //  • танков нет — Удар милосердия только вместо Резни: Последний
         //    рубеж не руна «против толстых», и гайды менять его не требуют
         //    (прогон по всем файлам 21.11: «Последний рубеж → Удар милосердия»
         //    был второй по частоте заменой).
-        var burst = ChampionTraits.BurstThreat(me);
-        var tanksFor = burst ? 4 : 3;
+        var tanksFor = ChampionTraits.BurstThreat(me) ? 4 : 2;
         if (comp.Tanks >= tanksFor)
             list.Add(new(CutDown, 1.0 + 0.2 * (comp.Tanks - tanksFor), Loc.T("build.vsTank", comp.Tanks)));
-        else if (comp.Tanks == 2 && !burst && onPage.Contains(CoupDeGrace))
-            list.Add(new(CutDown, 0.25, Loc.T("build.vsTank", comp.Tanks)));
         else if (enemies.Count > 0 && !enemies.Any(ChampionTraits.IsTanky) && onPage.Contains(CutDown))
             list.Add(new(CoupDeGrace, 0.5, Loc.T("runes.vsSquishy")));
 
