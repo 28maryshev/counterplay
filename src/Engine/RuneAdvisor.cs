@@ -156,7 +156,7 @@ public static partial class RuneAdvisor
         trace.Add($"состав: танков {comp.Tanks}, контроля {comp.Cc} (стойкость от {(EnemyComp.Close(me) ? 2 : 3)}), "
                   + $"убийц {comp.Burst}, стиль {comp.Style?.ToString() ?? "смешанный"}");
 
-        var needs = Needs(comp, enemies, me, foes);
+        var needs = Needs(comp, enemies, me, foes, choice.Page);
         // Правила по линии — сверить с цифрами: вдруг руна страницы против
         // таких соперников на этом чемпионе выигрывает чаще (RuneAdvisor.Data.cs).
         var kept = new List<Swap>();
@@ -257,13 +257,32 @@ public static partial class RuneAdvisor
 
     /// Чего требуют соперники: руна, вес, причина. Одна руна — один раз, с
     /// самым весомым поводом.
-    private static List<Need> Needs(EnemyComp comp, IReadOnlyList<int> enemies, int me, IReadOnlyList<int> foes)
+    private static List<Need> Needs(EnemyComp comp, IReadOnlyList<int> enemies, int me, IReadOnlyList<int> foes,
+                                    RunePage page)
     {
         var list = new List<Need>();
+        var onPage = page.Perks.Concat(page.Secondary).ToHashSet();
 
-        if (comp.Tanks >= 2)
-            list.Add(new(CutDown, 1.0 + 0.2 * (comp.Tanks - 2), Loc.T("build.vsTank", comp.Tanks)));
-        else if (enemies.Count > 0 && !enemies.Any(ChampionTraits.IsTanky))
+        // Руны урона — по всему составу: в драках бьёшь всех, а не только
+        // соперника по линии (руны защиты ниже — по линии). Владелец (21.11):
+        // «а если будет 3 танка, а на боте сквиши?» — стрелку Реванш будет.
+        // Уточнения того же дня («примени свои предложения»):
+        //  • убийцы и взрывные маги (BurstThreat) бьют хлипких в тылу — Реванш
+        //    им, только когда хлипких почти не осталось (от 4 танков);
+        //  • два танка из пяти — ещё не «толстый состав»: Реванш тогда только
+        //    вместо Удара милосердия, не вместо Последнего рубежа, и с весом
+        //    ниже TreeSwitchGain — дерево ради него не меняется;
+        //  • танков нет — Удар милосердия только вместо Реванша: Последний
+        //    рубеж не руна «против толстых», и гайды менять его не требуют
+        //    (прогон по всем файлам 21.11: «Последний рубеж → Удар милосердия»
+        //    был второй по частоте заменой).
+        var burst = ChampionTraits.BurstThreat(me);
+        var tanksFor = burst ? 4 : 3;
+        if (comp.Tanks >= tanksFor)
+            list.Add(new(CutDown, 1.0 + 0.2 * (comp.Tanks - tanksFor), Loc.T("build.vsTank", comp.Tanks)));
+        else if (comp.Tanks == 2 && !burst && onPage.Contains(CoupDeGrace))
+            list.Add(new(CutDown, 0.25, Loc.T("build.vsTank", comp.Tanks)));
+        else if (enemies.Count > 0 && !enemies.Any(ChampionTraits.IsTanky) && onPage.Contains(CutDown))
             list.Add(new(CoupDeGrace, 0.5, Loc.T("runes.vsSquishy")));
 
         // Линия: Костяная броня режет серию ударов с наскока, Второе дыхание,

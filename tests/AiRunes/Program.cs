@@ -250,8 +250,8 @@ internal static class Program
     }
 
     private static RuneAdvisor.Advice? Adapt(RecommendationEngine engine, ChampStats s, int[] enemies, int? lane = null,
-                                             int[]? foes = null) =>
-        RuneAdvisor.Adapt(s, Ashe, enemies, lane, foes ?? (lane is { } l ? [l] : []),
+                                             int[]? foes = null, int me = Ashe) =>
+        RuneAdvisor.Adapt(s, me, enemies, lane, foes ?? (lane is { } l ? [l] : []),
                           id => engine.DamageShare(id), RuneIcons.SlotOf);
 
     /// Каждая руна страницы — в своём ряду своего дерева, ряды не повторяются.
@@ -475,6 +475,36 @@ internal static class Program
               treeSwitch is not null && treeSwitch.Choice.Page.Sub == 8300 && !treeSwitch.Choice.Page.Secondary.Contains(bp)
               && treeSwitch.Kept.Any(k => k.From == bp && k.To == bp),
               $"{Show(treeSwitch)} | оставили: {string.Join("; ", treeSwitch?.Kept.Select(k => k.Why + " · " + k.Data) ?? [])}");
+
+        // ── 5в. Руны урона — по составу, с поправкой на то, кого бьёшь ─────
+        // Владелец (21.11): «может в какой-то мере учитывать и состав? А если
+        // будет 3 танка, а на боте сквиши?» Руны урона (Резня, Удар милосердия)
+        // смотрят на весь состав — в драках бьёшь всех; руны защиты — на линию.
+        // Уточнения того же дня («примени свои предложения»).
+        const int Malphite = 54, Sejuani = 113, Amumu = 32, CaitlynB = 51, LuxB = 99, LastStand = 8299;
+        int[] threeTanks = [Malphite, Sejuani, Amumu, CaitlynB, LuxB];
+        var adc3 = Adapt(engine, Ashe_([RuneAdvisor.BonePlating, Overgrowth], row3: LastStand), threeTanks,
+                         lane: CaitlynB, foes: [CaitlynB, LuxB]);
+        Check("три танка, на боте Кейтлин и Люкс: стрелку и Реванш (бьёт в драках всех), и Второе дыхание против поука на линии",
+              adc3?.Swaps.Any(s => s.To == RuneAdvisor.CutDown) == true && adc3.Swaps.Any(s => s.To == RuneAdvisor.SecondWind),
+              Show(adc3));
+        var noTanksLast = Adapt(engine, Ashe_([8444, Overgrowth], row3: LastStand), Soft);
+        Check("танков нет, на странице Последний рубеж — остаётся: Удар милосердия меняет только Реванш",
+              noTanksLast is not null && noTanksLast.Swaps.All(s => s.To != Coup)
+              && noTanksLast.Choice.Page.Perks.Contains(LastStand), Show(noTanksLast));
+        int[] twoTanks = [Malphite, Sejuani, 81, 222, 103];
+        var twoLast = Adapt(engine, Ashe_([8444, Overgrowth], row3: LastStand), twoTanks);
+        var twoCoup = Adapt(engine, Ashe_([8444, Overgrowth], row3: Coup), twoTanks);
+        Check("два танка из пяти: Последний рубеж остаётся, Удар милосердия → Реванш",
+              twoLast is not null && twoLast.Swaps.All(s => s.To != RuneAdvisor.CutDown)
+              && twoCoup?.Swaps.Any(s => s.From == Coup && s.To == RuneAdvisor.CutDown) == true,
+              $"{Show(twoLast)} / {Show(twoCoup)}");
+        var zed3 = Adapt(engine, Ashe_([8444, Overgrowth], row3: Coup), threeTanks, me: Zed);
+        var zed5 = Adapt(engine, Ashe_([8444, Overgrowth], row3: Coup), Tanky, me: Zed);
+        Check("Зед (убийца — бьёт хлипких в тылу): при трёх танках без Реванша, при пяти — Реванш",
+              zed3 is not null && zed3.Swaps.All(s => s.To != RuneAdvisor.CutDown)
+              && zed5?.Swaps.Any(s => s.To == RuneAdvisor.CutDown) == true,
+              $"{Show(zed3)} / {Show(zed5)}");
 
         // ── 6. Мягкий состав ────────────────────────────────────────────────
         var soft = Adapt(engine, Ashe_([8444, Overgrowth], row3: RuneAdvisor.CutDown), Soft);
