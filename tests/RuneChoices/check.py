@@ -28,6 +28,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding='utf-8')   # вывод в файл на Windows — cp1251, падает на × и →
+
 ROOT = Path(__file__).resolve().parents[2]
 TMP = Path(tempfile.mkdtemp(prefix='cp-runechoices-'))
 sys.path.insert(0, str(ROOT / 'pipeline'))

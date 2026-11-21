@@ -34,6 +34,10 @@ import threading
 import time
 from pathlib import Path
 
+# Уведомления сборщика печатаются с эмодзи (📦, ⚠️). Вывод в файл или трубу на
+# Windows — в cp1251, и print падал на них, будто сломалась публикация.
+sys.stdout.reconfigure(encoding='utf-8')
+
 ROOT = Path(__file__).resolve().parents[2]
 TMP = Path(tempfile.mkdtemp(prefix='cp-collectorwal-'))
 os.environ.update(DB_PATH=str(TMP / 'none.db'), CONTROL_DIR=str(TMP / 'control'),
