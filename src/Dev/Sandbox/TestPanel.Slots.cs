@@ -20,7 +20,14 @@ sealed partial class TestPanel
     // больше не сотрёт). Программные установки авто-драфта идут с _autoSetting.
     private void OnChampChanged(int cell)
     {
-        if (!_autoSetting) _autoPicked.Remove(cell);
+        if (!_autoSetting)
+        {
+            _autoPicked.Remove(cell);
+            // Посреди авто-драфта, до хода клетки, — это наведение: возьмёт
+            // в свой ход (владелец, 22.11). Мой слот считает _myLocked.
+            if (cell != MeCell() && CellChamp(cell) != 0 && TurnAhead(cell)) _hoverCells.Add(cell);
+        }
+        if (CellChamp(cell) == 0) _hoverCells.Remove(cell);
         // Мой слот сменили руками или наведением — пик снова не подтверждён.
         if (cell == MeCell() && !_locking) _myLocked = false;
         Recompute();

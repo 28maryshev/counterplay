@@ -23,9 +23,9 @@ sealed partial class TestPanel
         if (_banSim) { StopBanSim(); Recompute(); return; }
         if (_simTurn >= 0) { StopSim(); return; }
 
-        // Старт: чистим клетки прошлого авто-драфта. Мой заранее выбранный пик
-        // ЗАПОМИНАЕМ и ПРЯЧЕМ — он появится сам на моём ходу (для видео «человек
-        // взял этот пик»), а не светится с начала. Прочие ручные пики сохраняем.
+        // Старт: чистим клетки прошлого авто-драфта. Ручные пики запоминаем —
+        // с началом пиков они вернутся в слоты наведением и будут взяты в ход
+        // своей клетки.
         _ready = false;
         ClearBans();   // драфт с нуля — без банов прошлой фазы
         CapturePlanned();
@@ -34,7 +34,8 @@ sealed partial class TestPanel
     }
 
     /// Захватываем РУЧНЫЕ пики (заполнены пользователем, не ботом) как «план»:
-    /// прячем их и покажем каждый на ходу своей клетки. Бот-пики прошлого
+    /// прячем их (в банах союзники наводят по своему расписанию), с началом
+    /// пиков каждый вернётся наведением (`StartPickSim`). Бот-пики прошлого
     /// раунда — чистим (пересоберутся заново).
     private void CapturePlanned()
     {
@@ -59,6 +60,22 @@ sealed partial class TestPanel
         // Монетка: кто пикает первым — мы или враги (50/50, синяя сторона).
         _simGroups = _rng.Next(2) == 0 ? GroupsMyFirst : GroupsEnemyFirst;
 
+        // Заранее выбранные пики — в слоты наведением: каждый наводит своего с
+        // начала пиков и берёт его в свой ход (владелец, 22.11). Сюда же —
+        // выбранные руками за фазу банов. Мой слот — наведение по _myLocked.
+        int meCell = MeCell();
+        _hoverCells.Clear();
+        _ready = false;   // одна перерисовка в конце, а не на каждый слот
+        try
+        {
+            foreach (var (cell, champ) in _planned)
+                if (CellChamp(cell) == 0) RevealPlanned(cell, champ);
+            for (int cell = 0; cell < 10; cell++)
+                if (cell != meCell && CellChamp(cell) != 0) _hoverCells.Add(cell);
+        }
+        finally { _ready = true; }
+        _myLocked = false;   // пики только начались — никто ничего не взял
+
         _simTurn = 0;
         StartTurn();
         _simBtn.Content = "■ Стоп";
@@ -71,24 +88,22 @@ sealed partial class TestPanel
         Recompute();
     }
 
+    // Остановили — драфт застыл как есть: наведённые становятся взятыми, как
+    // всё в песочнице без авто-драфта.
     private void StopSim()
     {
         _simTimer?.Stop();
+        _hoverCells.Clear();
         if (_simTurn < 0) return;
         _simTurn = -1;
-        // Остановили до чьего-то хода — вернём непоказанные заранее выбранные пики
-        // в их слоты, чтобы они не потерялись (на след. запуске снова спрячутся).
-        foreach (var (cell, champ) in _planned)
-            if (CellChamp(cell) == 0) RevealPlanned(cell, champ);
         _simBtn.Content = "▶ Авто-драфт";
         Recompute();
     }
 
-    // Раздаёт ботам текущей группы персональные моменты пика (3..10 с). Мой слот
-    // с заранее выбранным пиком получает такой же момент — пик появляется
-    // наведением, как будто я навёл; мой ход кончается через MyTurnSeconds:
-    // наведённого к тому времени клиент берёт сам, пустой слот ждёт ручного
-    // пика.
+    // Раздаёт клеткам текущей группы персональные моменты пика (3..10 с): кто
+    // наводил — берёт наведённого, пустой слот заполняет бот. Мой ход кончается
+    // через MyTurnSeconds: наведённого к тому времени клиент берёт сам, пустой
+    // слот ждёт ручного пика.
     private void StartTurn()
     {
         _pickAt.Clear();
@@ -96,13 +111,16 @@ sealed partial class TestPanel
         int meCell = MeCell();
         foreach (var cell in _simGroups[_simTurn])
         {
-            if (cell != meCell || _planned.ContainsKey(cell))
-                _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
             if (cell == meCell) _myTurnEnd = DateTime.UtcNow.AddSeconds(MyTurnSeconds);
+            else _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
         }
     }
 
-    // Показывает заранее выбранный пик клетки в момент её хода в драфте.
+    // Ход клетки ещё впереди: авто-драфт идёт, а её группа после текущей.
+    private bool TurnAhead(int cell) =>
+        _simTurn >= 0 && Array.FindIndex(_simGroups, g => g.Contains(cell)) > _simTurn;
+
+    // Ставит заранее выбранный пик в слот клетки (с началом пиков — наведением).
     private void RevealPlanned(int cell, int champ)
     {
         var name = DataDragon.Name(champ);
@@ -124,15 +142,16 @@ sealed partial class TestPanel
         int meCell = MeCell();
         var now    = DateTime.UtcNow;
 
-        // Боты пикают каждый в свой момент — даже в парном ходе по отдельности.
-        // Мой заранее выбранный пик в свой момент появляется наведением, как
-        // будто я навёл (владелец, 21.11: брать его сразу — не надо).
+        // Каждый пикает в свой момент — даже в парном ходе по отдельности:
+        // наводил — берёт наведённого (владелец, 22.11), пусто — берёт бот.
+        bool took = false;
         foreach (var cell in group)
         {
-            if (CellChamp(cell) != 0 || !_pickAt.TryGetValue(cell, out var t) || now < t) continue;
-            if (_planned.TryGetValue(cell, out var champ)) RevealPlanned(cell, champ);
-            else if (cell != meCell) AutoPick(cell);
+            if (cell == meCell || !_pickAt.TryGetValue(cell, out var t) || now < t) continue;
+            if (CellChamp(cell) == 0) AutoPick(cell);
+            else took |= _hoverCells.Remove(cell);
         }
+        if (took) Recompute();   // слот не менялся — SelectionChanged не придёт
 
         // Конец моего хода: наведённого клиент берёт сам. Это пик, а не
         // наведение — до 21.11 песочница оставляла его наведением, и руны (они
@@ -145,10 +164,12 @@ sealed partial class TestPanel
         // Ход завершён, когда запикалась вся группа, а мой пик — взят: наведение
         // ход не заканчивает (до 21.11 заканчивало, и драфт шёл дальше с
         // наведённым, без рун). Боты отстрелялись, а я нет — драфт ждёт меня.
-        if (group.Any(c => c != meCell && CellChamp(c) == 0)) return;   // кто-то ещё «думает»
+        if (group.Any(c => c != meCell && (CellChamp(c) == 0 || _hoverCells.Contains(c))))
+            return;   // кто-то ещё «думает»
         if (group.Contains(meCell) && !(_myLocked && CellChamp(meCell) != 0))
         {
-            if (!_planned.ContainsKey(meCell)) _simBtn.Content = "⏸ Ваш пик…";
+            // Наведённого возьмёт конец хода, пустой слот ждёт меня.
+            if (CellChamp(meCell) == 0) _simBtn.Content = "⏸ Ваш пик…";
             return;
         }
 

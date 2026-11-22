@@ -224,19 +224,30 @@ internal static class Program
             Pump();
         }
 
-        // Запустить авто-драфт и перейти к ходу моей группы (боты прошлых ходов
-        // не нужны: подбору хватает и пустых слотов).
-        int ToMyTurn()
+        // Запустить авто-драфт с порядком «мы первые»; таймер стоит, ходы
+        // переключает проверка.
+        void Start()
         {
             Call(panel, "ToggleSim");
             Get<System.Windows.Threading.DispatcherTimer>(panel, "_simTimer")!.Stop();
             panel.GetType().GetField("_simGroups", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(panel, groupsMyFirst);
-            var turn = Array.FindIndex(groupsMyFirst, g => g.Contains(me));
+        }
+        void ToTurn(int turn)
+        {
             panel.GetType().GetField("_simTurn", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(panel, turn);
             Call(panel, "StartTurn");
-            return turn;
+        }
+        var myTurn = Array.FindIndex(groupsMyFirst, g => g.Contains(me));
+
+        // Перейти к ходу моей группы (боты прошлых ходов не нужны: подбору
+        // хватает и пустых слотов).
+        int ToMyTurn()
+        {
+            Start();
+            ToTurn(myTurn);
+            return myTurn;
         }
         int Turn() => (int)panel.GetType()
             .GetField("_simTurn", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!;
@@ -251,16 +262,24 @@ internal static class Program
         void EndMyTurn() => panel.GetType().GetField("_myTurnEnd", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(panel, (DateTime?)DateTime.UtcNow.AddSeconds(-1));
 
-        // 6а. Пик выбран заранее — авто-драфт показывает его на моём ходу
-        // наведением, как будто я навёл (владелец, 21.11: брать сразу — не
+        // 6а. Пик выбран заранее — он в моём слоте наведением с начала драфта,
+        // как будто я навёл (владелец, 22.11: «показывается как hover, пока не
+        // придёт его очередь»), на моём ходу тоже (21.11: брать сразу — не
         // надо); конец хода — взят.
         Restart();
         ally[me].SelectedItem = DataDragon.Name(Shen);
         Pump();
-        var turn = ToMyTurn();
+        Start();
+        Pump();
+        var d = last();
+        Check("мой заранее выбранный пик — наведением с начала драфта, ещё до моего хода",
+              d?.Me is { ChampionId: 0, PickIntentId: Shen },
+              $"взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}");
+        var turn = myTurn;
+        ToTurn(turn);
         Expire(_ => true);
         Tick();
-        var d = last();
+        d = last();
         Check("авто-драфт показал мой заранее выбранный пик на моём ходу наведением — ход ещё мой, рун нет",
               Turn() == turn && d?.Me is { ChampionId: 0, PickIntentId: Shen } && !Vis(overlay, "RunesBar"),
               $"ход {Turn()} (ждали {turn}), взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
@@ -302,6 +321,52 @@ internal static class Program
         Check("«мгновенный драфт» — мой чемпион взят, руны на экране",
               shown && d?.Me is { ChampionId: > 0, PickIntentId: 0 } && d.MyPickActionId == -1,
               $"взят {d?.Me?.ChampionId}, наведён {d?.Me?.PickIntentId}, руны {Vis(overlay, "RunesBar")}");
+
+        // 6г. Пики союзника и врага выбраны заранее: союзник наводит своего с
+        // начала драфта и берёт его в свой ход (владелец, 22.11). Враг тоже
+        // наводит, но его наведений клиент не показывает — до своего хода он
+        // пуст. Выбранный посреди драфта, до хода клетки, — тоже наведение.
+        Restart();
+        var enemy = Get<ComboBox[]>(panel, "_enemy")!;
+        int mate  = groupsMyFirst[2].First(c => c != me);   // союзник второго хода
+        int later = groupsMyFirst[4].First(c => c != me);   // союзник моего хода
+        int foe   = groupsMyFirst[3][0];                    // враг третьего хода
+        const int Darius = 122, Caitlyn = 51, Malphite = 54;
+        ally[mate].SelectedItem = DataDragon.Name(Darius);
+        enemy[foe - 5].SelectedItem = DataDragon.Name(Malphite);
+        Pump();
+        Start();
+        ToTurn(0);
+        ally[later].SelectedItem = DataDragon.Name(Caitlyn);   // посреди драфта
+        Pump();
+        string Slot(DraftPlayer? p) => $"взят {p?.ChampionId}, наведён {p?.PickIntentId}";
+        d = last();
+        Check("до своего хода союзник наводит заранее выбранного, враг в окне пуст, выбранный посреди драфта — наведён",
+              d?.MyTeam[mate] is { ChampionId: 0, PickIntentId: Darius }
+              && d.MyTeam[later] is { ChampionId: 0, PickIntentId: Caitlyn }
+              && d.TheirTeam[foe - 5] is { ChampionId: 0, PickIntentId: 0 },
+              $"союзник: {Slot(d?.MyTeam[mate])}; посреди драфта: {Slot(d?.MyTeam[later])}; враг: {Slot(d?.TheirTeam[foe - 5])}");
+        ToTurn(2);
+        Expire(_ => true);
+        Tick();
+        d = last();
+        Check("ход союзника — он взял наведённого, следующий ход",
+              Turn() == 3 && d?.MyTeam[mate] is { ChampionId: Darius, PickIntentId: 0 }
+              && d.MyTeam[later] is { ChampionId: 0, PickIntentId: Caitlyn }
+              && d.TheirTeam[foe - 5].ChampionId == 0,
+              $"ход {Turn()}; союзник: {Slot(d?.MyTeam[mate])}; следующий: {Slot(d?.MyTeam[later])}; враг: {Slot(d?.TheirTeam[foe - 5])}");
+        Expire(_ => true);
+        Tick();
+        d = last();
+        Check("ход врага — его заранее выбранный появился взятым",
+              Turn() == 4 && d?.TheirTeam[foe - 5] is { ChampionId: Malphite, PickIntentId: 0 },
+              $"ход {Turn()}; враг: {Slot(d?.TheirTeam[foe - 5])}");
+        Expire(c => c != me);
+        Tick();
+        d = last();
+        Check("ход союзника, выбранного посреди драфта, — взял наведённого",
+              d?.MyTeam[later] is { ChampionId: Caitlyn, PickIntentId: 0 },
+              $"ход {Turn()}; союзник: {Slot(d?.MyTeam[later])}");
     }
 
     /// Строка подбора — всегда последняя: после ходовой сборки и второй, если есть.
