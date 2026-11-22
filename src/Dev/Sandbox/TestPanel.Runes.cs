@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
@@ -21,19 +21,16 @@ sealed partial class TestPanel
         LineHeight = 15,
     };
 
-    /// Строка разбора под остальными: заголовок и текст, который присылает окно.
-    private UIElement RuneAiRow()
+    /// Тело карточки «Подбор рун» внизу панели: текст, который присылает окно.
+    /// Длинный разбор прокручивается, а не растягивает панель за экран.
+    private UIElement RuneAiBody()
     {
-        var box = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-        box.Children.Add(new TextBlock
+        var box = new ScrollViewer
         {
-            Text = "ПОДБОР РУН (COUNTERPLAY AI)",
-            Foreground = new SolidColorBrush(Color.FromRgb(0x36, 0xD6, 0xE7)),
-            FontWeight = FontWeights.Bold,
-            FontSize = 11,
-            Margin = new Thickness(0, 0, 0, 4),
-        });
-        box.Children.Add(_runeAiText);
+            Content = _runeAiText,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
 
         // Окно зовёт из своего потока отрисовки — он же поток панели.
         _overlay.RuneAiTrace = text => Dispatcher.InvokeAsync(() => _runeAiText.Text = text);

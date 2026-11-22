@@ -13,7 +13,7 @@ using RadioButton = System.Windows.Controls.RadioButton;
 
 namespace Counterplay;
 
-// Панель песочницы — профиль и этапы: свои данные или подставные, «Сброс», кнопки этапов.
+// Панель песочницы — профиль и этапы: свои данные или подставные, сценарий профиля, кнопки этапов, «Поиск игры».
 sealed partial class TestPanel
 {
     // Владение чемпионами в песочнице: всё куплено, либо половина «отсутствует»
@@ -185,7 +185,7 @@ sealed partial class TestPanel
     {
         StopSearch();
         // «Баны» — это живая фаза банов, а не статичный кадр.
-        if (s == TestStage.Bans) { StartBanSim(); return; }
+        if (s == TestStage.Bans) { _lastRun = SandboxRun.Bans; StartBanSim(); return; }
         if (_banSim) StopBanSim();
         _stage = s;
         UpdateStageButtons();
@@ -194,35 +194,6 @@ sealed partial class TestPanel
         // поэтому возвращаем принудительно, иначе окно драфта не появится.
         _overlay.RestoreFromTray(force: true);
         Recompute();
-    }
-
-    /// <summary>
-    /// «Сброс»: драфт кончился, как дродж в клиенте. Симуляции стоп, слоты
-    /// пусты, окно уходит с драфта на экран ожидания тем же путём, что в бою
-    /// (конец драфта: запомнить положение, сбросить метки ролей и выбранного).
-    /// Этап — «Ready»: пока настраиваешь слоты, роль и друга, драфт в окно не
-    /// идёт (раньше каждая правка тут же открывала его снова). Запуск —
-    /// «Драфт», «Баны» или «Авто-драфт»; роль, друг и профиль остаются.
-    /// </summary>
-    private void ResetDraft()
-    {
-        StopSearch();
-        StopSim();
-        StopBanSim();
-        ClearBans();
-        _ready = false;
-        foreach (var cb in _ally.Concat(_enemy)) cb.SelectedIndex = 0;
-        _autoPicked.Clear();
-        _planned.Clear();
-        _myLocked = false;
-        _ready = true;
-        _overlay.UpdateRecommendations(null, null);
-        _overlay.DraftEnded();
-        _overlay.HideRunes();
-        _stage = TestStage.Ready;
-        UpdateStageButtons();
-        Recompute();
-        Log.Write("песочница: сброс — драфт закрыт, этап Ready");
     }
 
     /// <summary>
@@ -244,6 +215,8 @@ sealed partial class TestPanel
         var again = _searchEndAt is not null;
         StopSim();
         StopBanSim();
+        _lastRun = SandboxRun.Search;
+        _setup = ManualPicks();
         // Окно на драфте — уводим его на экран ожидания тем же путём, что
         // «Сброс», только слоты не трогаем.
         if (_stage != TestStage.Ready)
@@ -281,6 +254,7 @@ sealed partial class TestPanel
             return;
         }
         _searchBtn.Content = $"■ Поиск · {Math.Ceiling(left.TotalSeconds):0} с";
+        UpdateStatus();
     }
 
     private void StopSearch()
@@ -290,30 +264,57 @@ sealed partial class TestPanel
         _searchBtn.Content = SearchIdle;
     }
 
+    /// Подсвечено то, что идёт сейчас: поиск, баны, авто-драфт, драфт
+    /// вручную или лобби. Цвета — TestPanel.Layout.cs.
     private void UpdateStageButtons()
     {
-        void Set(Button b, bool on)
-        {
-            b.Background  = on ? new SolidColorBrush(Color.FromRgb(0x22, 0x36, 0x55)) : System.Windows.Media.Brushes.Transparent;
-            b.BorderBrush = new SolidColorBrush(on ? Color.FromRgb(0x5A, 0x8A, 0xC8) : Color.FromRgb(0x40, 0x50, 0x60));
-            b.BorderThickness = new Thickness(1);
-            b.Foreground  = on ? System.Windows.Media.Brushes.White : new SolidColorBrush(Color.FromRgb(0x9F, 0xB3, 0xC8));
-        }
-        Set(_stageDraft, _stage == TestStage.Draft);
-        Set(_stageBans,  _stage == TestStage.Bans);
-        Set(_stageReady, _stage == TestStage.Ready);
+        bool sim = _simTurn >= 0;
+        Mark(_searchBtn,  _searchEndAt is not null, BtnKind.Launch);
+        Mark(_stageBans,  _banSim, BtnKind.Launch);
+        Mark(_simBtn,     sim, BtnKind.Launch);
+        Mark(_stageDraft, _stage == TestStage.Draft && !sim, BtnKind.Plain);
+        Mark(_stageReady, _stage == TestStage.Ready && _searchEndAt is null, BtnKind.Plain);
     }
 
-    private static TextBlock Header(string text, int col, string color)
+    /// Сценарий профиля: список профилей и две галочки. Места им даёт
+    /// карточка «Окно программы» (TestPanel.Layout.cs).
+    private void InitScenario()
     {
-        var tb = new TextBlock
-        {
-            Text = text, FontWeight = FontWeights.Bold, FontSize = 12,
-            Foreground = (Brush)new BrushConverter().ConvertFromString(color)!,
-            Margin = new Thickness(0, 0, 0, 4)
-        };
-        Grid.SetRow(tb, 0); Grid.SetColumn(tb, col);
-        return tb;
+        // Проверка плашки «нет чемпиона»: половина ростера считается некупленной.
+        _missingChamps.Content = "Нет части чемпионов";
+        _missingChamps.ToolTip = "Отметить часть чемпионов как отсутствующих на аккаунте — видно предупреждение в подборе и в пуле";
+        _missingChamps.Checked   += (_, _) => ApplyOwnership();
+        _missingChamps.Unchecked += (_, _) => ApplyOwnership();
+
+        // Проверка первого запуска: журнал пуст, но все элементы ready-экрана
+        // на месте (пустые последние игры, пустой график, пустая полоса чемпионов).
+        _emptyProfile.Content = "Профиль без игр";
+        _emptyProfile.ToolTip = "Показать ready-экран так, как его видит человек сразу после установки — до первой сыгранной игры";
+        _emptyProfile.Checked   += (_, _) => ApplyProfileScenario();
+        _emptyProfile.Unchecked += (_, _) => ApplyProfileScenario();
+
+        // Сколько игр «уже сыграно» — от свежей установки до полной истории.
+        _profile.Items.Add("Профиль: полный");
+        _profile.Items.Add("Профиль: 1 игра");
+        _profile.Items.Add("Профиль: 5 игр");
+        _profile.Items.Add("Профиль: рывок серебро→платина");
+        _profile.Items.Add("Профиль: мой аккаунт");   // MyAccountProfile
+        _profile.Items.Add("Профиль: без ранга");     // UnrankedProfile
+        _profile.Items.Add("Профиль: 3 игры");        // ThreeGamesProfile — порог ленты чемпионов
+        _profile.Items.Add("Профиль: ARAM, 2 нормала"); // AramProfile — ленты чемпионов нет
+        _profile.Items.Add("Профиль: алмаз II, 55%");   // DiamondProfile — для снимков на сайт
+        _profile.Items.Add("Профиль: без пулов");       // NoPoolsProfile — зелёная кнопка «Пул», тег «+ Пул»
+        _profile.Items.Add("Профиль: без пулов, на своих чаще"); // NoPoolsGainProfile — тег «+N% WR»
+        // Аккаунты из журнала на этом компьютере — их экраны как есть (только
+        // чтение): так видно настоящий аккаунт без ранговых, с нормалами и ARAM.
+        _storedAccounts = SessionTracker.StoredAccounts();
+        foreach (var (_, nick) in _storedAccounts)
+            _profile.Items.Add($"Профиль: из журнала — {nick}");
+        _profile.SelectedIndex = 0;
+        _profile.ToolTip = "Что видно на ready-экране при разном количестве сыгранных игр: график появляется с пятой.\n"
+                         + "«Мой аккаунт» — песочница на твоих данных: копия твоих пулов, твои игры, винрейты и связки. "
+                         + "Твои настоящие пулы при этом не меняются.";
+        _profile.SelectionChanged += (_, _) => ApplyProfileScenario();
     }
 
     private ComboBox MakeCombo(int cell)

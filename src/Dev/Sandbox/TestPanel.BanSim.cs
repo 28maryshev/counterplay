@@ -82,12 +82,16 @@ sealed partial class TestPanel
     }
 
     /// Остановить фазу банов. Сделанные баны не нужны: драфт не дошёл до пиков.
+    /// Спрятанный на баны план — обратно в слоты: до 22.11 он пропадал, и
+    /// следующий запуск шёл без выбранных руками чемпионов.
     private void StopBanSim()
     {
         _banTimer?.Stop();
         if (!_banSim) return;
         _banSim = false;
         ClearBans();
+        foreach (var (cell, champ) in _planned)
+            if (CellChamp(cell) == 0) RevealPlanned(cell, champ);
         _simBtn.Content = "▶ Авто-драфт";
     }
 
@@ -166,8 +170,10 @@ sealed partial class TestPanel
         _banSim = false;
         _ourBans   = [.. _bans.Where(b => b.Cell < 5  && b.Champ > 0).Select(b => b.Champ)];
         _theirBans = [.. _bans.Where(b => b.Cell >= 5 && b.Champ > 0).Select(b => b.Champ)];
+        // Наведения ботов — их выбор, а не мой: клетка помечена ботовой, и
+        // следующий запуск соберёт её заново, а не примет за выбранную руками.
         foreach (var (cell, champ) in _intent)
-            if (!_planned.ContainsKey(cell)) _planned[cell] = champ;
+            if (!_planned.ContainsKey(cell)) { _planned[cell] = champ; _autoPicked.Add(cell); }
         foreach (var cell in _planned.Where(p => IsBanned(p.Value)).Select(p => p.Key).ToList())
             _planned.Remove(cell);   // его пик забанили — возьмёт кого-то другого
         // Мой показанный пик забанили — клиент снимает показ, выбирать заново.

@@ -26,6 +26,7 @@ sealed partial class TestPanel
         // Старт: чистим клетки прошлого авто-драфта. Ручные пики запоминаем —
         // с началом пиков они вернутся в слоты наведением и будут взяты в ход
         // своей клетки.
+        _lastRun = SandboxRun.Auto;
         _ready = false;
         ClearBans();   // драфт с нуля — без банов прошлой фазы
         CapturePlanned();
@@ -36,13 +37,13 @@ sealed partial class TestPanel
     /// Захватываем РУЧНЫЕ пики (заполнены пользователем, не ботом) как «план»:
     /// прячем их (в банах союзники наводят по своему расписанию), с началом
     /// пиков каждый вернётся наведением (`StartPickSim`). Бот-пики прошлого
-    /// раунда — чистим (пересоберутся заново).
+    /// раунда — чистим (пересоберутся заново). План — это и состав до
+    /// драфта, который вернёт «Заново».
     private void CapturePlanned()
     {
         _planned.Clear();
-        for (int c = 0; c < 10; c++)
-            if (CellChamp(c) > 0 && !_autoPicked.Contains(c))
-                _planned[c] = CellChamp(c);
+        foreach (var (cell, champ) in ManualPicks()) _planned[cell] = champ;
+        _setup = new(_planned);
         foreach (var cell in _autoPicked.ToList())
             (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedIndex = 0;
         _autoPicked.Clear();
@@ -182,10 +183,20 @@ sealed partial class TestPanel
 
     /// Заполняет обе команды разом. Что человек выбрал руками — не трогаем: чаще
     /// всего половина состава уже набрана под конкретную сцену, и терять её ради
-    /// «полного» драфта незачем.
+    /// «полного» драфта незачем. Окно — на драфт: из лобби кнопка раньше
+    /// заполняла слоты, а окно оставалось на экране ожидания.
     private void InstantDraft()
     {
-        StopSim();          // тикающий авто-драфт тут только мешает
+        StopSearch();       // идущие поиск, баны и авто-драфт тут только мешают
+        StopSim();
+        StopBanSim();
+        _lastRun = SandboxRun.Instant;
+        _setup = ManualPicks();
+        if (_stage != TestStage.Draft)
+        {
+            _stage = TestStage.Draft;
+            _overlay.RestoreFromTray(force: true);
+        }
         _ready = false;     // без перерисовки на каждый из десяти слотов
         try
         {
