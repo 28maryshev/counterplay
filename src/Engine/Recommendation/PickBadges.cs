@@ -47,4 +47,7 @@ public sealed record PickFacts(
     IReadOnlyList<(string Kind, string Text)> Structural,
     // Наведённые, но не взятые напарники по паре линий (Shown.cs) — по ним тег
     // «Хорош с показанным».
-    IReadOnlyList<int>? ShownPartners = null);
+    IReadOnlyList<int>? ShownPartners = null,
+    // Оценка по слагаемым, каждое уже со своим весом; сумма — Score
+    // (RecommendationEngine.ScoreAll). Для разборов «что и сколько дало».
+    IReadOnlyList<(string Key, double Points)>? Parts = null);

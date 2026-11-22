@@ -465,6 +465,10 @@ internal static class Program
               bt is not null && bt.Text.StartsWith(Loc.T("pickTag.shown", DataDragon.Name(Yunara), "")[..10]),
               bt is not null ? $"«{bt.Text}», подсказка: {bt.Tip.Replace("\n", " | ")}"
                              : string.Join(", ", braum.Badges?.Tags.Select(t => t.Text) ?? []));
+        // Раскладка оценки по слагаемым (PickFacts.Parts) — для разборов «что и
+        // сколько дало»: её сумма и есть оценка.
+        var partsGap = hover.Max(r => Math.Abs((r.Facts?.Parts?.Sum(p => p.Points) ?? double.NaN) - r.Score));
+        Check("раскладка оценки по слагаемым сходится со счётом", partsGap < 1e-9, $"расхождение {partsGap:E1}");
         var firstLine = bt?.Tip.Split('\n')[0] ?? "";
         Check("в подсказке тега нет веса оценки", bt is not null && !Regex.IsMatch(firstLine, @"[%\d]"),
               $"«{firstLine}»");

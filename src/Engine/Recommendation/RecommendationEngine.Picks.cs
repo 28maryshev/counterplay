@@ -270,11 +270,27 @@ public sealed partial class RecommendationEngine
 
                 var needBonus = ally.Need;   // закрывает дыры состава
 
-                var score   = W_BASE * baseDelta + wLane * directDelta + W_OTHER * otherDelta
-                            + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
-                            - W_VULN * vulnPen + W_EXPLOIT * exploit + W_STRUCT * structBonus
-                            + wDuo * botlaneDelta + crossScore + W_DMGBAL * dmgDelta
-                            + W_PERSONAL * personalDelta + W_NEED * needBonus;
+                // Оценка — сумма слагаемых, каждое уже со своим весом. Раскладка
+                // уходит в PickFacts.Parts: по ней видно, что и сколько дало
+                // месту в списке, и со счётом она не расходится — это он и есть.
+                (string Key, double Points)[] parts =
+                [
+                    ("base",     W_BASE * baseDelta),         // сила в патче
+                    ("lane",     wLane * directDelta),        // соперник на линии (вслепую — ожидание)
+                    ("duo",      wDuo * botlaneDelta),        // их второй на боте (вслепую — ожидание)
+                    ("cross",    crossScore),                 // прочие враги, пары разных ролей
+                    ("other",    W_OTHER * otherDelta),       // прочие враги, запасная таблица
+                    ("synergy",  wSynergy * synDelta),        // союзники (наведённые — с весом)
+                    ("comfort",  W_POOL * comfortDelta),      // наигранность и пул
+                    ("personal", W_PERSONAL * personalDelta), // мой винрейт на нём
+                    ("style",    draftBonus),                 // стиль против стиля врага
+                    ("struct",   W_STRUCT * structBonus),     // связки с лесником и стрелком
+                    ("need",     W_NEED * needBonus),         // закрывает дыры состава
+                    ("dmg",      W_DMGBAL * dmgDelta),        // баланс урона
+                    ("vuln",     -W_VULN * vulnPen),          // общая слабость команды
+                    ("exploit",  W_EXPLOIT * exploit),        // наказывает вынужденный предмет врага
+                ];
+                var score = parts.Sum(p => p.Points);
                 var reasonList = BuildReasons(champId, directDelta, directOppId, synDelta, synByAlly,
                                               otherDelta, otherByEnemy, baseDelta,
                                               PickGrade(champId, myRole), comfortDelta)
@@ -308,7 +324,7 @@ public sealed partial class RecommendationEngine
                     shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
                     teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, allEnemyIds, gaps, needBonus,
                     grade, baseDelta, comfortDelta, personalDelta,
-                    enemyStyle, dmg, vuln, exploitBy, structReasons, allies.ShownPartners);
+                    enemyStyle, dmg, vuln, exploitBy, structReasons, allies.ShownPartners, parts);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
                                           Blind: laneBlind, Facts: facts);
             })
