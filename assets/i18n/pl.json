@@ -303,7 +303,7 @@
     "lineNeutral": "Wyrównany matchup przeciw {0}",
     "favMatchups": "Korzystne matchupy przeciw {0}",
     "fitsTeam": "Dobrze pasuje do twojej obecnej kompozycji.",
-    "shownPair": "Sojusznik pokazuje {0}, ale jeszcze nie zatwierdził: para liczy się w ocenie w {1}%",
+    "shownPair": "Sojusznik na razie tylko pokazuje {0}: jeśli zmieni, zmieni się też rada",
     "baseTop": "Jeden z najsilniejszych bohaterów na tej roli w tym patchu: winrate {0}%.",
     "baseGood": "Mocny wybór w tym patchu: winrate {0}%, wyższy niż u większości na tej roli.",
     "baseLow": "Słaby w tym patchu: winrate {0}%. Warto go brać tylko wtedy, gdy dobrze znasz tego bohatera.",

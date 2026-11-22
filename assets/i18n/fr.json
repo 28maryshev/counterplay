@@ -429,7 +429,7 @@
     "lineNeutral": "Matchup équilibré contre {0}",
     "favMatchups": "Matchups favorables contre {0}",
     "fitsTeam": "S'accorde bien avec ta compo actuelle.",
-    "shownPair": "Ton allié montre {0} sans l'avoir verrouillé : la paire compte pour {1}% dans le score",
+    "shownPair": "Ton allié ne fait que montrer {0} pour l'instant : s'il change, le conseil changera",
     "baseTop": "L'un des champions les plus forts du rôle ce patch : {0}% de winrate.",
     "baseGood": "Un pick fort ce patch : {0}% de winrate, plus que la plupart des champions du rôle.",
     "baseLow": "Faible ce patch : {0}% de winrate. À jouer seulement si tu maîtrises bien le champion.",

@@ -429,7 +429,7 @@
     "lineNeutral": "Enfrentamiento parejo contra {0}",
     "favMatchups": "Enfrentamientos favorables contra {0}",
     "fitsTeam": "Encaja bien con tu composición actual.",
-    "shownPair": "Tu aliado muestra a {0}, pero aún no lo ha fijado: la pareja cuenta un {1}% en la puntuación",
+    "shownPair": "Tu aliado solo muestra a {0} por ahora: si cambia, la recomendación cambiará",
     "baseTop": "Uno de los campeones más fuertes de este rol en este parche: winrate del {0}%.",
     "baseGood": "Un pick fuerte este parche: winrate del {0}%, por encima de la mayoría en este rol.",
     "baseLow": "Débil este parche: winrate del {0}%. Solo merece la pena si conoces bien al campeón.",

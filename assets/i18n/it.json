@@ -303,7 +303,7 @@
     "lineNeutral": "Matchup pari contro {0}",
     "favMatchups": "Matchup favorevoli contro {0}",
     "fitsTeam": "Si adatta bene alla tua composizione attuale.",
-    "shownPair": "Il tuo alleato mostra {0} ma non l'ha ancora bloccato: la coppia conta per il {1}% nel punteggio",
+    "shownPair": "Il tuo alleato per ora mostra solo {0}: se cambia, cambierà anche il consiglio",
     "baseTop": "Tra i campioni più forti del ruolo in questa patch: winrate {0}%.",
     "baseGood": "Una scelta forte in questa patch: winrate {0}%, più alto della maggior parte dei campioni del ruolo.",
     "baseLow": "Debole in questa patch: winrate {0}%. Conviene solo se conosci bene il campione.",

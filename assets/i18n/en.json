@@ -350,7 +350,7 @@
     "lineNeutral": "Even matchup against {0}",
     "favMatchups": "Favorable matchups against {0}",
     "fitsTeam": "Fits well with your current team composition.",
-    "shownPair": "Your ally is showing {0} but hasn't locked in: this pair counts for {1}% in the score",
+    "shownPair": "Your ally is only showing {0} so far: if they switch, the advice will change",
     "baseTop": "One of the strongest champions in this role this patch: {0}% win rate.",
     "baseGood": "A strong pick this patch: {0}% win rate, higher than most in this role.",
     "baseLow": "Weak this patch: {0}% win rate. Worth it only if you know the champion well.",

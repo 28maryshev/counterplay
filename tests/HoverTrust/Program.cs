@@ -186,13 +186,19 @@ internal static class Program
         if (dir is null) { Check("папка строк найдена", false, AppContext.BaseDirectory); return; }
         var docs = Directory.GetFiles(Path.Combine(dir, "assets", "i18n"), "*.json")
             .ToDictionary(Path.GetFileNameWithoutExtension, f => JsonDocument.Parse(File.ReadAllText(f)).RootElement);
-        foreach (var key in new[] { "pickTag.shown", "reason.shownPair" })
+        foreach (var (key, slots) in new[] { ("pickTag.shown", "{0},{1}"), ("reason.shownPair", "{0}") })
         {
-            var bad = docs.Where(kv => Get(kv.Value, key) is not { } v || Slots(v) != "{0},{1}")
+            var bad = docs.Where(kv => Get(kv.Value, key) is not { } v || Slots(v) != slots)
                           .Select(kv => kv.Key).ToList();
-            Check($"{key}: на всех языках, с двумя местами", docs.Count == 15 && bad.Count == 0,
+            Check($"{key}: на всех языках, места {slots}", docs.Count == 15 && bad.Count == 0,
                   bad.Count == 0 ? $"{docs.Count} языков" : string.Join(", ", bad));
         }
+        // Веса оценки игроку не называем (владелец, 22.11): в подсказке тега
+        // ни процента, ни цифры.
+        var leak = docs.Where(kv => Get(kv.Value, "reason.shownPair") is { } v
+                                    && Regex.IsMatch(Regex.Replace(v, @"\{\d\}", ""), @"[%\d]"))
+                       .Select(kv => kv.Key).ToList();
+        Check("reason.shownPair: без цифр и процентов", leak.Count == 0, string.Join(", ", leak));
 
         static string? Get(JsonElement root, string key)
         {
@@ -375,6 +381,9 @@ internal static class Program
               bt is not null && bt.Text.StartsWith(Loc.T("pickTag.shown", DataDragon.Name(Yunara), "")[..10]),
               bt is not null ? $"«{bt.Text}», подсказка: {bt.Tip.Replace("\n", " | ")}"
                              : string.Join(", ", braum.Badges?.Tags.Select(t => t.Text) ?? []));
+        var firstLine = bt?.Tip.Split('\n')[0] ?? "";
+        Check("в подсказке тега нет веса оценки", bt is not null && !Regex.IsMatch(firstLine, @"[%\d]"),
+              $"«{firstLine}»");
         Check("в восьмёрке помечена часть, а не все", tagged.Count > 0 && tagged.Count < hover.Count,
               $"{tagged.Count} из {hover.Count}: " + string.Join(", ", tagged.Select(r => DataDragon.Name(r.ChampionId))));
 

@@ -112,8 +112,9 @@ public sealed partial class RecommendationEngine
         // Напарник по паре линий показал чемпиона, но не взял, и с ним этот
         // кандидат заметно лучше — тег с его чемпионом вместо общего тега
         // синергии (владелец, 22.11.2026): видно, кто в списке под показанного,
-        // а кто сам по себе, вслепую. Цифра — пара с ним, в оценке она с весом
-        // HOVER_TRUST_PAIR, об этом подсказка.
+        // а кто сам по себе, вслепую. Цифра — пара с ним. В подсказке — что он
+        // пока только показан; веса оценки (HOVER_TRUST_PAIR) игроку не
+        // называем — решение владельца 22.11.
         var shown = f.ShownPartners is { Count: > 0 } sp
             ? f.ByAlly.Where(a => sp.Contains(a.Id) && a.Delta >= TAG_SHOWN_MIN).OrderByDescending(a => a.Delta)
                       .FirstOrDefault()
@@ -121,7 +122,7 @@ public sealed partial class RecommendationEngine
         if (shown.Id != 0)
         {
             var name = DataDragon.Name(shown.Id);
-            var tip = new List<string> { Loc.T("reason.shownPair", name, $"{100 * HOVER_TRUST_PAIR:F0}") };
+            var tip = new List<string> { Loc.T("reason.shownPair", name) };
             tip.AddRange(pairs.Select(PairLine));
             tags.Add(new PickTag("synergy", 1, Loc.T("pickTag.shown", name, Num(shown.Delta)),
                                  string.Join("\n", tip), shown.Delta));

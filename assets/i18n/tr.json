@@ -429,7 +429,7 @@
     "lineNeutral": "{0}'e karşı eşit matchup",
     "favMatchups": "{0}'e karşı avantajlı matchupler",
     "fitsTeam": "Mevcut takım kompozisyonuna iyi uyuyor.",
-    "shownPair": "Takım arkadaşın {0} gösteriyor ama henüz kilitlemedi: bu ikili puana %{1} oranında yansır",
+    "shownPair": "Takım arkadaşın şimdilik yalnızca {0} gösteriyor: değiştirirse öneri de değişir",
     "baseTop": "Bu yamada bu roldeki en güçlü şampiyonlardan biri: kazanma oranı %{0}.",
     "baseGood": "Bu yamada güçlü bir seçim: kazanma oranı %{0}, bu roldeki çoğu şampiyondan yüksek.",
     "baseLow": "Bu yamada zayıf: kazanma oranı %{0}. Ancak şampiyonu iyi biliyorsan almaya değer.",
