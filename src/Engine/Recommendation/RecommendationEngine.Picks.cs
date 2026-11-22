@@ -68,10 +68,6 @@ public sealed partial class RecommendationEngine
         if (directOppId == 0)
             directOppId = InferDirectOpponent(state, myRole);
 
-        var allyData = state.MyTeam
-            .Where(p => p.EffectiveChampionId != 0 && !p.IsLocalPlayer)
-            .Select(p => (Id: p.EffectiveChampionId, Role: LcuToDbRole(p.Position))).ToList();
-
         // Напарник по активному дуо-пулу — ЧЕЛОВЕК из моей пати (см. Party).
         // По чемпиону его больше не ищем: у друга с широким пулом случайный
         // союзник, взявший оттуда чемпиона, сходил за напарника.
@@ -151,15 +147,12 @@ public sealed partial class RecommendationEngine
             ? ChampionTraits.Dominant(allEnemyIds) : null;
         var enemyStyle = ShownEnemyStyle(allEnemyIds);   // строже — только для иконок
 
-        // Item value (п.1): союзники (без меня) и враги для профиля уязвимостей.
-        var vulnAllyIds = allyData.Select(a => a.Id).ToList();
-
-        // Дыры состава (Needs.cs): один раз на драфт — союзники и враги те же.
-        var gaps = TeamGaps(vulnAllyIds, allEnemyIds, myRole);
-
-        // Структурная синергия (п.4): id союзных джанглера и АДК.
-        var jungleAllyId = allyData.FirstOrDefault(a => a.Role == "jungle").Id;
-        var adcAllyId    = allyData.FirstOrDefault(a => a.Role == "adc").Id;
+        // Союзники (без меня): все показанные и смесь наборов с наведёнными и
+        // без них — наведённый ещё не выбор (Shown.cs). Дыры состава в каждом
+        // наборе — один раз на драфт.
+        var allies = AllySets(state, myRole, allEnemyIds, mateId);
+        var vulnAllyIds = allies.Shown.Ids;
+        var gaps = allies.Shown.Gaps;
 
         return candidates
             .Where(id => !taken.Contains(id))
@@ -222,9 +215,11 @@ public sealed partial class RecommendationEngine
                 // одно число в п.п.: раньше на карточку не попадало ни то, ни другое.
                 var teamDelta  = PureVs(oxg + omg, oxw + omw);
 
-                // Синергия с союзниками — общий расчёт (AllySynergy): им же советы
-                // банов взвешивают мой пул.
-                var (synDelta, synByAlly) = AllySynergy(champId, myRole, rawBase, allyData, mateId, mateConf);
+                // Всё от союзников: синергия, уязвимости, баланс урона, связки,
+                // дыры. Наведённые — с весом HOVER_TRUST (Shown.cs). Советы банов
+                // взвешивают мой пул этим же подбором.
+                var ally = AllyTermsFor(champId, myRole, rawBase, allies, allEnemyIds, mateId, mateConf);
+                var (synDelta, synByAlly) = (ally.Synergy, ally.ByAlly);
 
                 var comfortDelta = ComfortDelta(champId); // наигранность игрока
 
@@ -235,13 +230,12 @@ public sealed partial class RecommendationEngine
                 // Item value (п.1) + баланс типа урона (AD/AP): влияют на СКОР (штраф за
                 // стак уязвимости/типа урона, бонус за наказание врага), но в тексте
                 // причин НЕ выводятся — уязвимости показываем строкой итем-иконок внизу.
-                var vuln              = ItemValue.VulnPenalty(champId, vulnAllyIds);
+                var (vuln, dmg)       = (ally.Vuln, ally.Dmg);
                 var exploitBy         = ItemValue.ExploitBonus(champId, allEnemyIds);
-                var dmg               = ItemValue.DamageBalance(champId, vulnAllyIds, allEnemyIds);
-                var (vulnPen, exploit, dmgDelta) = (vuln.Penalty, exploitBy.Bonus, dmg.Delta);
+                var (vulnPen, exploit, dmgDelta) = (ally.VulnPen, exploitBy.Bonus, ally.DmgDelta);
 
                 // Структурная синергия джангл↔саппорт (п.4).
-                var (structBonus, structReasons) = StructuralBonus(champId, myRole, jungleAllyId, adcAllyId, vulnAllyIds);
+                var (structBonus, structReasons) = (ally.Struct, ally.StructReasons);
                 draftReasons.AddRange(structReasons.Select(s => s.Text));
 
                 // Бот 2v2: матчап против вражеского дуо-партнёра (кросс-роль).
@@ -274,7 +268,7 @@ public sealed partial class RecommendationEngine
                 comfortDelta  *= guard;
                 personalDelta *= guard;
 
-                var needBonus = NeedBonus(champId, gaps, vulnAllyIds.Count);   // закрывает дыры состава
+                var needBonus = ally.Need;   // закрывает дыры состава
 
                 var score   = W_BASE * baseDelta + wLane * directDelta + W_OTHER * otherDelta
                             + wSynergy * synDelta + W_POOL * comfortDelta + draftBonus
@@ -314,7 +308,7 @@ public sealed partial class RecommendationEngine
                     shownDirect, directDelta, directOppId, botlaneDelta, enemyDuoId, duoBlind, laneBlind, laneRisk,
                     teamDelta, otherByEnemy, synDelta, synByAlly, vulnAllyIds, allEnemyIds, gaps, needBonus,
                     grade, baseDelta, comfortDelta, personalDelta,
-                    enemyStyle, dmg, vuln, exploitBy, structReasons);
+                    enemyStyle, dmg, vuln, exploitBy, structReasons, allies.ShownPartners);
                 return new Recommendation(champId, score, baseDelta, shownDirect, teamDelta, synDelta, comfortDelta, styleScore, reasons,
                                           Blind: laneBlind, Facts: facts);
             })
@@ -419,21 +413,37 @@ public sealed partial class RecommendationEngine
         int champId, string myRole, double rawBase,
         IReadOnlyList<(int Id, string Role)> allies, int mateId, double mateConf)
     {
-        var raw = allies
-            .Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id, a.Role); return (a.Id, a.Role, G: g, W: w); })
-            .ToList();
-        var byAlly = raw.Select(x => (x.Id, x.Role,
-            Delta: x.G > 0 ? (Delta(x.G, x.W, K_PAIR) - rawBase) * (x.G / (x.G + MATCHUP_CONF)) : 0.0)).ToList();
+        var raw = SynergyRaw(champId, myRole, allies);
+        return (SynergyPool(raw, rawBase, mateId, mateConf),
+                [.. raw.Select(x => (x.Id, x.Role, Delta: PairSynergyDelta(x.G, x.W, rawBase)))]);
+    }
+
+    /// Совместные игры и победы кандидата с каждым союзником — запросом в базу
+    /// на каждую пару. Отдельно от сложения: подбор складывает одни и те же
+    /// строки и по всем показанным союзникам, и по одним взявшим (Shown.cs).
+    private List<(int Id, string Role, double G, double W)> SynergyRaw(
+        int champId, string myRole, IReadOnlyList<(int Id, string Role)> allies) =>
+        [.. allies.Select(a => { var (g, w) = RawSynergy(champId, myRole, a.Id, a.Role); return (a.Id, a.Role, G: g, W: w); })];
+
+    /// Синергия с набором союзников: их игры складываются и сглаживаются
+    /// вместе, плюс надбавка за напарника, если он в наборе (см. AllySynergy).
+    private static double SynergyPool(IReadOnlyList<(int Id, string Role, double G, double W)> raw,
+                                      double rawBase, int mateId, double mateConf)
+    {
         var games = raw.Sum(x => x.G);
         var delta = raw.Count > 0 && games > 0
             ? (Delta(games, raw.Sum(x => x.W), K_PAIR) - rawBase) * (games / (games + CONF_GAMES)) : 0.0;
         if (mateId != 0)
         {
-            var mate = byAlly.FirstOrDefault(x => x.Id == mateId);
-            if (mate.Id != 0) delta += (DUO_MATE_MULT - 1.0) * mate.Delta * mateConf;
+            var mate = raw.FirstOrDefault(x => x.Id == mateId);
+            if (mate.Id != 0) delta += (DUO_MATE_MULT - 1.0) * PairSynergyDelta(mate.G, mate.W, rawBase) * mateConf;
         }
-        return (delta, byAlly);
+        return delta;
     }
+
+    /// Чистая дельта одной пары, сглаженная по её объёму.
+    private static double PairSynergyDelta(double g, double w, double rawBase) =>
+        g > 0 ? (Delta(g, w, K_PAIR) - rawBase) * (g / (g + MATCHUP_CONF)) : 0.0;
 
     /// <summary>
     /// Синергия моего чемпиона с показанными союзниками, когда линий не выдают

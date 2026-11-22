@@ -9,6 +9,7 @@ public sealed partial class RecommendationEngine
     private const double TAG_TEAM_MIN    = 0.5;   // |против команды|
     private const double TAG_SYN_GOOD    = 0.3;   // синергия «за» (как и цифра у связки)
     private const double TAG_SYN_BAD     = 0.5;   // синергия «против»
+    private const double TAG_SHOWN_MIN   = 1.0;   // пара с показанным напарником — «Хорош с показанным»
     private const double ENEMY_NAMED     = 0.3;   // враг попадает в подсказку «против команды»
     private const double ALLY_BAD        = 1.0;   // союзник, с которым заметно хуже
     private const double ICON_PERSONAL   = 1.5;   // личный винрейт — как у строки «твой винрейт»
@@ -108,7 +109,24 @@ public sealed partial class RecommendationEngine
 
         var worst = f.ByAlly.Where(a => a.Delta <= -ALLY_BAD).OrderBy(a => a.Delta).ToList();
         var inTag = "";
-        if (f.Synergy >= TAG_SYN_GOOD)
+        // Напарник по паре линий показал чемпиона, но не взял, и с ним этот
+        // кандидат заметно лучше — тег с его чемпионом вместо общего тега
+        // синергии (владелец, 22.11.2026): видно, кто в списке под показанного,
+        // а кто сам по себе, вслепую. Цифра — пара с ним, в оценке она с весом
+        // HOVER_TRUST_PAIR, об этом подсказка.
+        var shown = f.ShownPartners is { Count: > 0 } sp
+            ? f.ByAlly.Where(a => sp.Contains(a.Id) && a.Delta >= TAG_SHOWN_MIN).OrderByDescending(a => a.Delta)
+                      .FirstOrDefault()
+            : default;
+        if (shown.Id != 0)
+        {
+            var name = DataDragon.Name(shown.Id);
+            var tip = new List<string> { Loc.T("reason.shownPair", name, $"{100 * HOVER_TRUST_PAIR:F0}") };
+            tip.AddRange(pairs.Select(PairLine));
+            tags.Add(new PickTag("synergy", 1, Loc.T("pickTag.shown", name, Num(shown.Delta)),
+                                 string.Join("\n", tip), shown.Delta));
+        }
+        else if (f.Synergy >= TAG_SYN_GOOD)
         {
             var top = pairs.FirstOrDefault();
             inTag = top.Kind ?? "";

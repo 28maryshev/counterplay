@@ -44,4 +44,7 @@ public sealed record PickFacts(
     (double Delta, bool Stack, bool Ad) Dmg,
     (double Penalty, ItemValue.Cat? Cat, int Count) Vuln,
     (double Bonus, ItemValue.Cat? Forced) Exploit,
-    IReadOnlyList<(string Kind, string Text)> Structural);
+    IReadOnlyList<(string Kind, string Text)> Structural,
+    // Наведённые, но не взятые напарники по паре линий (Shown.cs) — по ним тег
+    // «Хорош с показанным».
+    IReadOnlyList<int>? ShownPartners = null);

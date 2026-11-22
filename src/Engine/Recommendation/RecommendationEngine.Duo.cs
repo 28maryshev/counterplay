@@ -76,13 +76,17 @@ public sealed partial class RecommendationEngine
                 MyTeam = team, Me = seat, MyPosition = lcu, DirectOpponent = null,
             };
 
+            // Мой слот — выбор, даже если я только навёл: свой пик я знаю, и
+            // подсказка «что брать напарнику» нужна под него целиком, а не с
+            // весом наведённого (HOVER_TRUST, Shown.cs).
             _forMate = true;
+            _sureCell = state.Me?.CellId ?? -1;
             try
             {
                 foreach (var r in Recommend(swapped, ids.Count, ids))
                     res[r.ChampionId] = r.Score;
             }
-            finally { _forMate = false; }
+            finally { _forMate = false; _sureCell = -1; }
         }
         return res;
     }
