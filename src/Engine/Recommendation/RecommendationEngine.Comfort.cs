@@ -7,8 +7,31 @@ namespace Counterplay;
 public sealed partial class RecommendationEngine
 {
     // Очки мастерства игрока (championId → points) из LCU. Пусто = без учёта пула.
-    public IReadOnlyDictionary<int, long> Mastery { get; set; } =
-        new Dictionary<int, long>();
+    // На голой базе (Bare) — пусто, что бы ни поставили.
+    public IReadOnlyDictionary<int, long> Mastery
+    {
+        get => Bare ? NoMastery : _mastery;
+        set => _mastery = value;
+    }
+
+    private IReadOnlyDictionary<int, long> _mastery = new Dictionary<int, long>();
+
+    private static readonly IReadOnlyDictionary<int, long> NoMastery = new Dictionary<int, long>();
+
+    /// <summary>
+    /// Подбор на голой базе: движок не видит ничего личного — ни журнала игр
+    /// (наигранность, личный винрейт, мейны в банах, счёт против соперников,
+    /// игры с напарником), ни очков мастерства. Как у человека, который ни
+    /// разу не играл. Пулы этим не выключаются: их выключает тот, кто ставит
+    /// флаг (обычный режим пула), — иначе окно показывало бы пул, которого
+    /// подбор не видит.
+    ///
+    /// Ставит только песочница — там это по умолчанию (владелец 22.11:
+    /// «нулевое мастерство и никаких пулов, как будто подсчёт на голой базе»);
+    /// выход в боевой режим снимает. Статическое по той же причине, что
+    /// <see cref="PersonalOn"/>: движки пересоздаются при обновлении базы.
+    /// </summary>
+    public static bool Bare { get; set; }
 
     // Чемпионы активного пула игрока (по текущей роли) — для «комфорта» пула.
     // Ставится в начале Recommend; пусто = пул не активен.
@@ -74,9 +97,10 @@ public sealed partial class RecommendationEngine
     /// пул и не советуют бан моих чемпионов — остаётся: это про то, кого я
     /// возьму, а не прибавка к оценке. Читаем настройку здесь, а не полем
     /// движка: движки пересоздаются при обновлении базы (EngineSwap), и поле
-    /// пришлось бы переносить в каждый новый.
+    /// пришлось бы переносить в каждый новый. На голой базе (<see cref="Bare"/>)
+    /// выключено, что бы ни стояло в настройках.
     /// </summary>
-    private static bool PersonalOn => AppSettings.Current.DraftPersonal;
+    private static bool PersonalOn => AppSettings.Current.DraftPersonal && !Bare;
 
     /// Сейчас считаем пик НАПАРНИКА, а не свой: личные факторы выключены.
     /// Поле, а не параметр, — чтобы не тащить его через весь скоринг; вызовы
@@ -155,10 +179,15 @@ public sealed partial class RecommendationEngine
 
     /// Мой журнал за окно свежести: игры, победы, давность. ОДИН источник на
     /// наигранность, личный винрейт и защитные баны — окно у всех трёх месяц,
-    /// а сам вызов кэширован, так что файл читается один раз на драфт.
+    /// а сам вызов кэширован, так что файл читается один раз на драфт. На
+    /// голой базе (<see cref="Bare"/>) журнал пуст.
     private static SessionTracker.PlayHistory MyHistory() =>
-        SessionTracker.History(FreshDays,
-            [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+        Bare ? NoHistory
+             : SessionTracker.History(FreshDays,
+                 [.. SessionTracker.QueuesRanked, .. SessionTracker.QueuesNormal]);
+
+    private static readonly SessionTracker.PlayHistory NoHistory =
+        new(new Dictionary<int, (int, int)>(), new Dictionary<int, long[]>(), 0, 0);
 
     // Мейн за месяц: не меньше MAIN_MIN_GAMES игр и не меньше MAIN_MIN_SHARE
     // всех моих игр за то же окно. Доля — чтобы мейн был и у того, кто играет

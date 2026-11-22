@@ -395,7 +395,7 @@ sealed partial class TestPanel
         {
             Orientation = System.Windows.Controls.Orientation.Horizontal, Margin = new Thickness(0, 7, 0, 0)
         };
-        foreach (var c in new[] { _emptyProfile, _missingChamps })
+        foreach (var c in new[] { _personal, _emptyProfile, _missingChamps })
         {
             c.Foreground = TextFg;
             c.VerticalAlignment = VerticalAlignment.Center;

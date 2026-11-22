@@ -13,6 +13,7 @@ public sealed partial class RecommendationEngine
     /// </summary>
     private static double MateConfidence()
     {
+        if (Bare) return 0.0;   // голая база: вместе не играли
         var games = SessionTracker.MateStats(PoolStore.ActiveDuo()?.FriendPuuid, FreshDays).Games;
         return games / (games + MATE_CONF);
     }

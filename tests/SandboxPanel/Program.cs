@@ -103,6 +103,10 @@ internal static class Program
         Pump();
 
         Console.WriteLine();
+        Console.WriteLine("мастерство и пулы:");
+        Personal(panel, engine);
+
+        Console.WriteLine();
         Console.WriteLine("«Заново»:");
         Restart(panel, overlay);
 
@@ -110,6 +114,66 @@ internal static class Program
         Console.WriteLine("окно драфта:");
         CloseOverlay(panel, overlay);   // последним: закрывает и панель, и программу
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
+        Check("выход из песочницы — подбор снова видит своё (голая база снята)",
+              !RecommendationEngine.Bare, $"голая база {RecommendationEngine.Bare}");
+    }
+
+    // ── Мастерство и пулы: по умолчанию голая база ──────────────────────────
+
+    /// Владелец (22.11): «в песочнице по умолчанию нулевое мастерство и никаких
+    /// пулов, как будто подсчёт на голой базе; надо — включить в настройках
+    /// песочницы». Тестовая история и пулы на месте, но подбор их не видит,
+    /// пока не включат «Мастерство и пулы»; друг на голой базе свой дуо-пул не
+    /// включает, а с галочкой — включает именно его.
+    private static void Personal(Window panel, RecommendationEngine engine)
+    {
+        var box  = Get<CheckBox>(panel, "_personal")!;
+        var mate = Get<ComboBox>(panel, "_mateCombo")!;
+        var info = Get<TextBlock>(panel, "_mateInfo")!;
+        string[] lanes = ["utility", "top", "jungle", "middle", "bottom"];
+        var me = new DraftPlayer(0, 0, 0, "utility", true);
+        var state = new DraftState(
+            MyTeam: [me, .. Enumerable.Range(1, 4).Select(i => new DraftPlayer(i, 0, 0, lanes[i], false))],
+            TheirTeam: [.. Enumerable.Range(5, 5).Select(i => new DraftPlayer(i, 0, 0, "", false))],
+            MyTeamBans: [], TheirTeamBans: [], Me: me, MyPosition: "utility", DirectOpponent: null,
+            ExposedToCounter: true, InBanPhase: false, Bench: [], IsAram: false,
+            MyPickActionId: 1, MyPickInProgress: false, ActiveCells: [],
+            FirstPickCell: -1, MyBanActionId: -1, MyBanInProgress: false, MyBanDone: true);
+        int Comfy() => engine.Recommend(state, topN: 400).Count(r => r.ComfortDelta != 0);
+        PoolKind Kind() => PoolStore.Current().ActiveKind;
+        string Now() => $"голая база {RecommendationEngine.Bare}, пул {Kind()}, очков мастерства " +
+                        $"{engine.Mastery.Count}, с наигранностью {Comfy()}, мейнов {RecommendationEngine.MyMains().Count}";
+
+        Check("по умолчанию — голая база: галочка снята, пул в обычном режиме, ни мастерства, ни наигранности, ни мейнов",
+              box.IsChecked != true && RecommendationEngine.Bare && Kind() == PoolKind.Normal
+              && engine.Mastery.Count == 0 && Comfy() == 0 && RecommendationEngine.MyMains().Count == 0, Now());
+
+        box.IsChecked = true;
+        Pump();
+        Check("«Мастерство и пулы» — тестовая история в подборе и дуо-пул «Друг» снова включён",
+              !RecommendationEngine.Bare && Kind() == PoolKind.Duo && engine.Mastery.Count > 0
+              && Comfy() > 0 && RecommendationEngine.MyMains().Count > 0, Now());
+
+        box.IsChecked = false;
+        Pump();
+        Check("галочку сняли — снова голая база", RecommendationEngine.Bare && Kind() == PoolKind.Normal
+              && engine.Mastery.Count == 0 && Comfy() == 0, Now());
+
+        var duo = PoolStore.Current().DuoPools.FirstOrDefault();
+        if (duo is null) { Check("тестовый дуо-пул есть", false, "дуо-пулов нет"); return; }
+        mate.SelectedIndex = 1;
+        Pump();
+        Check("друг на голой базе — в пати, но его дуо-пул выключен, и строка о друге это говорит",
+              Kind() == PoolKind.Normal && info.Text.Contains("голая база"), $"пул {Kind()}, «{info.Text}»");
+        box.IsChecked = true;
+        Pump();
+        var a = PoolStore.Current();
+        Check("галочка при выбранном друге включает его дуо-пул",
+              a.ActiveKind == PoolKind.Duo && a.ActiveId == duo.Id && info.Text.StartsWith("пул включён"),
+              $"пул {a.ActiveKind} {a.ActiveId} (ждали {duo.Id}), «{info.Text}»");
+        box.IsChecked = false;
+        mate.SelectedIndex = 0;
+        Pump();
     }
 
     // ── Окно драфта закрывают — песочница живёт ─────────────────────────────

@@ -122,6 +122,9 @@ sealed partial class TestPanel
             if (_dataAccount is null) TestMode.UseTestHistory(_engine, true);
             _mainsWin = false;
         }
+        // Другой профиль — другие пулы со своим включённым: на голой базе его
+        // снова в обычный режим.
+        TestMode.PausePools();
         _overlay.RefreshPoolMode();
         // Снимок для сайта — без тестовых кнопок («Сохранить для драфта»,
         // «Логи»); подпись «TEST» снимает ReadyText. Пересобираем экран сами:
@@ -178,6 +181,22 @@ sealed partial class TestPanel
                 _overlay.SetChampsPreview(null);   // своя настоящая статистика
                 break;
         }
+    }
+
+    /// <summary>
+    /// «Мастерство и пулы» (владелец 22.11). Выключено — голая база: движок не
+    /// видит истории и очков мастерства, пул в обычном режиме. Включено — как в
+    /// бою, на истории и пулах выбранного профиля; выбранный друг включает свой
+    /// дуо-пул.
+    /// </summary>
+    private void ApplyPersonal()
+    {
+        var on = _personal.IsChecked == true;
+        TestMode.UsePersonal(on);
+        UseMatePool();
+        _overlay.RefreshPoolMode();
+        Log.Write($"песочница: {(on ? "мастерство и пулы включены" : "голая база")}");
+        Recompute();
     }
 
     /// «Показать окно»: окно драфта спрятали крестиком или «—» (в песочнице
@@ -303,6 +322,15 @@ sealed partial class TestPanel
         _emptyProfile.Checked   += (_, _) => ApplyProfileScenario();
         _emptyProfile.Unchecked += (_, _) => ApplyProfileScenario();
 
+        // Подбор на голой базе (по умолчанию) или с личным — TestMode.UsePersonal.
+        _personal.Content = "Мастерство и пулы";
+        _personal.ToolTip = "Выключено (по умолчанию) — подбор на голой базе, как у человека без истории: "
+                          + "ни наигранности и очков мастерства, ни своего винрейта и мейнов в банах, ни пулов.\n"
+                          + "Включено — как в бою: история и пулы выбранного профиля. "
+                          + "Экраны профиля, окно пулов и связки видны в обоих случаях";
+        _personal.Checked   += (_, _) => ApplyPersonal();
+        _personal.Unchecked += (_, _) => ApplyPersonal();
+
         // Сколько игр «уже сыграно» — от свежей установки до полной истории.
         _profile.Items.Add("Профиль: полный");
         _profile.Items.Add("Профиль: 1 игра");
@@ -323,7 +351,8 @@ sealed partial class TestPanel
         _profile.SelectedIndex = 0;
         _profile.ToolTip = "Что видно на ready-экране при разном количестве сыгранных игр: график появляется с пятой.\n"
                          + "«Мой аккаунт» — песочница на твоих данных: копия твоих пулов, твои игры, винрейты и связки. "
-                         + "Твои настоящие пулы при этом не меняются.";
+                         + "Твои настоящие пулы при этом не меняются. В подбор история и пулы идут "
+                         + "только с галочкой «Мастерство и пулы».";
         _profile.SelectionChanged += (_, _) => ApplyProfileScenario();
     }
 

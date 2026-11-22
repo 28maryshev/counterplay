@@ -1223,6 +1223,10 @@ internal static partial class Program
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null,
             [overlay, engine, allIds, false, false, false], null)!;
         overlay.BanLockHandler = id => { Call(panel, "LockMyBan", id); return Task.FromResult(200); };
+        // Мейны — из журнала, а песочница по умолчанию считает на голой базе
+        // (журнала подбор не видит): включаем «Мастерство и пулы».
+        ((System.Windows.Controls.CheckBox)panelType
+            .GetField("_personal", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!).IsChecked = true;
         Pump();
 
         DraftState? Last() => Get<DraftState>(overlay, "_lastDraft");

@@ -45,6 +45,8 @@ sealed partial class TestPanel : Window
 
     private readonly CheckBox _emptyProfile  = new();   // «ещё ни одной игры»
 
+    private readonly CheckBox _personal      = new();   // «Мастерство и пулы»; нет — голая база
+
     private readonly ComboBox _profile       = new();   // сколько игр сыграно
 
     private readonly Dictionary<string, int> _idByName;   // имя чемпиона → id
@@ -249,6 +251,9 @@ sealed partial class TestPanel : Window
 
         Content = BuildLayout();   // TestPanel.Layout.cs
         FillMates();
+        // Подбор — на голой базе, пока не включат «Мастерство и пулы».
+        TestMode.UsePersonal(false);
+        _overlay.RefreshPoolMode();
 
         _ready = true;
         UpdateStageButtons();

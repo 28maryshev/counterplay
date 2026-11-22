@@ -136,9 +136,10 @@ sealed partial class TestPanel
             return;
         }
 
-        // Пул, настроенный на этого друга, — в дело, как кнопкой «Дуо».
-        PoolStore.SetActive(PoolKind.Duo, duo.Id);
-        _overlay.RefreshPoolMode();
+        // Пул, настроенный на этого друга, — в дело, как кнопкой «Дуо». На
+        // голой базе пулов нет: друг в пати и пикает из своей половины, но
+        // подбор его пул не видит, пока не включат «Мастерство и пулы».
+        UseMatePool();
 
         var nick = DuoNaming.PartnerNick(duo, SessionTracker.TopPairs(duo.FriendPuuid, 1));
         Party.SandboxMate(MatePuuid(duo), nick);
@@ -148,14 +149,27 @@ sealed partial class TestPanel
         _mateRoleCombo.SelectedIndex = Array.IndexOf(LcuRoles, _mateRole);
         _fillingMates = false;
         _mateRoleCombo.IsEnabled = true;
+        Recompute();
+    }
 
+    /// Дуо-пул выбранного друга — в дело, если мастерство и пулы включены, и
+    /// строка о друге под это.
+    private void UseMatePool()
+    {
+        if (_mate is not { } duo) return;
+        if (TestMode.PersonalOn)
+        {
+            PoolStore.SetActive(PoolKind.Duo, duo.Id);
+            _overlay.RefreshPoolMode();
+        }
         var together = duo.FriendPuuid.Length > 0
             ? SessionTracker.MateStats(duo.FriendPuuid).Games : 0;
-        _mateNote = duo.FriendPuuid.Length > 0
-            ? $"пул включён · вместе {together} игр"
-            : "пул включён · напарник в пуле не записан, считаю его условным";
+        _mateNote = !TestMode.PersonalOn
+            ? "пул выключен — голая база; включи «Мастерство и пулы»"
+            : duo.FriendPuuid.Length > 0
+                ? $"пул включён · вместе {together} игр"
+                : "пул включён · напарник в пуле не записан, считаю его условным";
         _mateInfo.Text = _mateNote;
-        Recompute();
     }
 
     /// puuid друга для его слота. У пула, собранного руками и ни разу не

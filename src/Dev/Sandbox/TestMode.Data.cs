@@ -97,6 +97,68 @@ static partial class TestMode
         else PoolStore.SetAccount("test-account", "TEST");
     }
 
+    // ── Голая база: без мастерства и пулов ───────────────────────────────────
+    //
+    // Владелец 22.11: «в песочнице по умолчанию нулевое мастерство и никаких
+    // пулов — как будто подсчёт на голой базе; если надо — включить в
+    // настройках песочницы». Выключено — движок не видит ничего личного
+    // (RecommendationEngine.Bare), а пул стоит в обычном режиме: настоящим
+    // переключением, а не скрытой подменой, — окно программы показывает «без
+    // пула» ровно тогда, когда подбор считает без пула. История и пулы
+    // профиля никуда не деваются: экраны профиля, окно пулов и связки видны
+    // как были, их просто не берёт подбор.
+
+    /// Мастерство и пулы в подборе песочницы. По умолчанию — нет.
+    internal static bool PersonalOn => !RecommendationEngine.Bare;
+
+    /// Пул, который был включён, когда голая база перевела пулы в обычный
+    /// режим, — его и вернуть.
+    private static (PoolKind Kind, string Id)? _pausedPool;
+
+    /// Мастерство и пулы — в подбор (true) или прочь, голая база (false).
+    internal static void UsePersonal(bool on)
+    {
+        RecommendationEngine.Bare = !on;
+        if (on) ResumePools(); else PausePools();
+    }
+
+    /// <summary>
+    /// На голой базе — пул в обычный режим. Звать и после всего, что меняет
+    /// пулы: смена профиля приносит другие пулы со своим включённым, а друг на
+    /// панели включает свой дуо-пул. Не на голой базе — ничего.
+    /// </summary>
+    internal static void PausePools()
+    {
+        if (!RecommendationEngine.Bare) return;
+        var a = PoolStore.Current();
+        if (a.ActiveKind == PoolKind.Normal || a.ActiveId is null) return;
+        _pausedPool = (a.ActiveKind, a.ActiveId);
+        PoolStore.SetActive(PoolKind.Normal, null);
+    }
+
+    /// <summary>
+    /// Пулы снова в деле: тот, что выключила голая база, если он ещё есть;
+    /// иначе избранный (дуо — первым: тестовые пулы стартуют с дуо «Друг»),
+    /// иначе первый. Переключение режима запоминается в пулах песочницы, и
+    /// после перезапуска выключенным оказывается обычный режим — потому и
+    /// избранный, а не «каким был».
+    /// </summary>
+    private static void ResumePools()
+    {
+        var a = PoolStore.Current();
+        var paused = _pausedPool;
+        _pausedPool = null;
+        if (a.ActiveKind != PoolKind.Normal) return;
+        bool HasDuo(string? id)  => id is not null && a.DuoPools.Any(d => d.Id == id);
+        bool HasPool(string? id) => id is not null && a.Pools.Any(p => p.Id == id);
+        if (paused is { Kind: PoolKind.Duo } pd && HasDuo(pd.Id))         PoolStore.SetActive(PoolKind.Duo, pd.Id);
+        else if (paused is { Kind: PoolKind.Pool } pp && HasPool(pp.Id))  PoolStore.SetActive(PoolKind.Pool, pp.Id);
+        else if (HasDuo(a.FavDuoId))                                      PoolStore.SetActive(PoolKind.Duo, a.FavDuoId);
+        else if (HasPool(a.FavPoolId))                                    PoolStore.SetActive(PoolKind.Pool, a.FavPoolId);
+        else if (a.DuoPools.Count > 0)                                    PoolStore.SetActive(PoolKind.Duo, a.DuoPools[0].Id);
+        else if (a.Pools.Count > 0)                                       PoolStore.SetActive(PoolKind.Pool, a.Pools[0].Id);
+    }
+
     /// <summary>
     /// Тестовая история, где на пяти самых игранных выигрываешь чаще (5 из 8
     /// игр, ~62%), — чтобы на зелёной кнопке «Пул» была видна цифра «+N% WR».

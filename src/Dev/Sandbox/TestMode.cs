@@ -497,6 +497,8 @@ static partial class TestMode
     internal static void LeaveSandboxData()
     {
         Sandbox.Active = false;
+        RecommendationEngine.Bare = false;        // в бою подбор видит своё
+        _pausedPool = null;
         PoolStore.DirOverride = null;
         PoolStore.Reload();
         Dislikes.DirOverride = null;
