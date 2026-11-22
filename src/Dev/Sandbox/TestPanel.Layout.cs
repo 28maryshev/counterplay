@@ -349,6 +349,8 @@ sealed partial class TestPanel
 
     // ── Окно программы: экран и сценарий профиля ────────────────────────────
 
+    private readonly Button _showBtn = new();   // «Показать окно» — вернуть спрятанное окно драфта
+
     private UIElement WindowCard()
     {
         StyleButton(_stageReady, "Лобби · Ready / пул",
@@ -358,6 +360,10 @@ sealed partial class TestPanel
             "Окно драфта по слотам панели, без ходов и таймеров: меняешь слот — окно пересчитывает",
             BtnKind.Plain);
         _stageDraft.Click += (_, _) => SetStage(TestStage.Draft);
+        StyleButton(_showBtn, "Показать окно",
+            "Вернуть окно драфта, если его закрыли крестиком, свернули или спрятали Esc. Программа в " +
+            "песочнице закрывается только вместе с этой панелью", BtnKind.Plain);
+        _showBtn.Click += (_, _) => ShowOverlay();
         InitScenario();
 
         var grid = new Grid();
@@ -375,6 +381,7 @@ sealed partial class TestPanel
         var stages = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
         stages.Children.Add(_stageReady);
         stages.Children.Add(_stageDraft);
+        stages.Children.Add(_showBtn);
         Put(stages, 0, 1);
 
         var scenario = Caption("Сценарий");

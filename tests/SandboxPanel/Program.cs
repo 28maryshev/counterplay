@@ -106,11 +106,78 @@ internal static class Program
         Console.WriteLine("«Заново»:");
         Restart(panel, overlay);
 
-        panelType.GetProperty("SwitchingToLive")!.SetValue(panel, true);   // закрытие — не выход
-        panel.Close();
-        overlay.Close();
-        Pump();
+        Console.WriteLine();
+        Console.WriteLine("окно драфта:");
+        CloseOverlay(panel, overlay);   // последним: закрывает и панель, и программу
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
+    }
+
+    // ── Окно драфта закрывают — песочница живёт ─────────────────────────────
+
+    /// Владелец (22.11): «когда я закрываю окно драфта в песочнице, она не
+    /// должна закрываться полностью и сбивать данные — только когда закрою
+    /// панель песочницы». Крестик окна и Alt+F4 прячут окно; «Показать окно» и
+    /// запуск драфта возвращают; закрытие панели — выход из программы.
+    private static void CloseOverlay(Window panel, OverlayWindow overlay)
+    {
+        overlay.SandboxMode = true;   // так его ставит TestMode при запуске песочницы
+        bool closed = false, asked = false;
+        overlay.Closed += (_, _) => closed = true;
+        // Вопрос «выйти из программы?» — модальный: сразу закрываем и
+        // запоминаем, что спросили, иначе проверка встала бы на нём.
+        EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent,
+            new RoutedEventHandler((s, _) =>
+            {
+                if (s is Window { } w && w.GetType().Name == "ConfirmWindow") { asked = true; w.Close(); }
+            }));
+        void TrayOff()   // значок в трее — не показываем человеку (как GameTray)
+        {
+            if (overlay.GetType().GetField("_tray", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(overlay) is System.Windows.Forms.NotifyIcon icon) icon.Visible = false;
+        }
+        int Cell(int c) => (int)panel.GetType().GetMethod("CellChamp", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(panel, [c])!;
+        // Выход: у приложения без Run очередь не останавливается, зато Current — null.
+        var app = System.Windows.Application.Current.Dispatcher;
+        bool Down() => System.Windows.Application.Current is null || app.HasShutdownStarted;
+
+        Call(panel, "ResetDraft");
+        Get<ComboBox[]>(panel, "_ally")![1].SelectedItem = DataDragon.Name(Darius);
+        Pump();
+
+        var cross = Descendants(overlay).OfType<Button>().First(b => b.Content as string == "✕");
+        Click(cross);
+        Pump();
+        TrayOff();
+        Check("крестик окна драфта — окно спрятано, программа живёт, о выходе не спрашивает, слоты целы",
+              !closed && !overlay.IsVisible && !asked && !Down() && Cell(1) == Darius,
+              $"закрыто {closed}, на экране {overlay.IsVisible}, спросили о выходе {asked}, " +
+              $"программа закрывается {Down()}, слот {DataDragon.Name(Cell(1))}");
+
+        Click(Get<Button>(panel, "_showBtn")!);
+        Pump();
+        Check("«Показать окно» — окно вернулось", overlay.IsVisible, $"на экране {overlay.IsVisible}");
+
+        overlay.Close();   // Alt+F4
+        Pump();
+        TrayOff();
+        Check("Alt+F4 по окну драфта — то же: окно спрятано, программа живёт",
+              !closed && !overlay.IsVisible && !Down(), $"закрыто {closed}, на экране {overlay.IsVisible}");
+        if (closed) return;   // закрытое окно уже не вернуть — дальше проверять нечего
+
+        Click(Get<Button>(panel, "_simBtn")!);   // запуск драфта возвращает окно сам
+        Get<System.Windows.Threading.DispatcherTimer>(panel, "_simTimer")?.Stop();
+        Pump();
+        Check("запуск драфта из панели возвращает спрятанное окно", overlay.IsVisible, $"на экране {overlay.IsVisible}");
+        Call(panel, "ResetDraft");
+        Pump();
+
+        // Закрыли панель — выход из программы, и окно драфта закрывается, хотя
+        // песочница свои закрытия отменяет: при выходе WPF отмену не слушает.
+        panel.Close();
+        try { Pump(); } catch (Exception) { /* очередь уже остановлена — так и надо */ }
+        Check("закрыли панель песочницы — программа закрылась вместе с окном драфта",
+              closed && Down(), $"окно закрыто {closed}, программа закрывается {Down()}");
     }
 
     // Рамка и заголовок обычного окна Windows при 96 dpi.

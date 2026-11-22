@@ -180,6 +180,16 @@ sealed partial class TestPanel
         }
     }
 
+    /// «Показать окно»: окно драфта спрятали крестиком или «—» (в песочнице
+    /// крестик программу не закрывает — она живёт, пока открыта панель) или
+    /// Esc, который прячет мимо трея. Драфт и слоты при этом не трогаются.
+    private void ShowOverlay()
+    {
+        // Окно и так поверх остальных (Topmost) — фокус у человека не отбираем.
+        _overlay.RestoreFromTray(force: true);
+        _overlay.Dispatcher.InvokeAsync(() => { if (!_overlay.IsVisible) _overlay.Show(); });
+    }
+
     // ── Тестовые этапы: Драфт · Баны · Ready/пул ─────────────────────────────
     private void SetStage(TestStage s)
     {

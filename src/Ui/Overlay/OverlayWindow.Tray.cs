@@ -147,6 +147,7 @@ public partial class OverlayWindow
     /// автоматически (только по клику в трее). Вызывается из фонового потока тоже.
     public void HideToTray(bool userInitiated = false) => Dispatcher.InvokeAsync(() =>
     {
+        if (_closed) return;   // окно закрыто — прятать нечего (OverlayWindow.xaml.cs)
         // Уходим в трей в конце драфта (за 5 секунд до игры) — самое время
         // запомнить, где человек оставил окно.
         if (_lastDraft is not null) RememberDraftPlacement();

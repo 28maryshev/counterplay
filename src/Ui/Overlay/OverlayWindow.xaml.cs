@@ -194,8 +194,36 @@ public partial class OverlayWindow : Window
     /// прятал окно в трей, и человек, желавший выйти, оставлял её работать.
     private void OnQuit(object sender, RoutedEventArgs e)
     {
+        // Песочница живёт, пока открыта её панель: крестик окна драфта прячет
+        // окно, а не закрывает программу — с ней пропадало всё, что настроено
+        // в панели (владелец, 22.11). Вернуть — запуском или «Показать окно»
+        // в панели, или из трея.
+        if (SandboxMode) { HideToTray(userInitiated: true); return; }
         if (ConfirmWindow.Ask(Loc.T("quit.question"), Loc.T("quit.yes"), Loc.T("quit.no"), this))
             System.Windows.Application.Current.Shutdown();
+    }
+
+    /// Alt+F4 в песочнице — то же, что крестик: окно прячется. Выход из
+    /// программы (закрыли панель песочницы, «Выход» в трее) окно всё равно
+    /// закрывает: при Application.Shutdown отмену закрытия WPF не слушает.
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (SandboxMode)
+        {
+            e.Cancel = true;
+            HideToTray(userInitiated: true);
+        }
+        base.OnClosing(e);
+    }
+
+    // Окно закрыто насовсем: отложенный уход в трей (из отменённого при выходе
+    // закрытия) больше не заводит значок — его уже некому убрать.
+    private bool _closed;
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _closed = true;
+        base.OnClosed(e);
     }
 
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
