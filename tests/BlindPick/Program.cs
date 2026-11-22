@@ -413,6 +413,38 @@ internal static class Program
         }
 
         FieldChecks(engine);
+        SafeVerdict(engine);
+    }
+
+    // ── «Надёжен вслепую» — по шансу контры ─────────────────────────────────
+    // Владелец 22.11: в песочнице (саппорт, первый пик, баны Лулу, Киана,
+    // Сенна, Треш, Мальфит | Мастер Йи, Моргана, Хвэй, Ясуо, Ирелия) у Сораки
+    // не было тега «Надёжен вслепую». Шанс контры у неё 9% при типичном 28%, а
+    // тега нет: вывод требовал ещё и ожидаемого не меньше +0,15 пп, а у неё
+    // +0,14. Порог не был объяснён нигде; задумано (журнал 04.11) — вывод по
+    // шансу, со знаком очков не спорит: «надёжен» — только при плюсе.
+    private static void SafeVerdict(RecommendationEngine engine)
+    {
+        const int Soraka = 16;
+        int[] bans = [117, 246, 235, Thresh, 54, 11, 25, 910, Yasuo, 39];
+        var st = Draft("utility", bans: [.. bans]);
+        var taken = bans.ToHashSet();
+        var sor = engine.Blind(Soraka, "support", "support", taken);
+        Check("саппорт с банами песочницы: Сорака — «надёжна вслепую»", sor.Verdict == 1,
+              $"ожидание {sor.Value:+0.00;-0.00} пп, шанс контры {100 * sor.Chance:F0}% при типичном {100 * sor.Typical:F0}%");
+        // Правило целиком, по всем саппортам этого драфта: шанс на 10 пунктов
+        // ниже типичного и ожидание в плюсе — «надёжен», и только тогда.
+        var cards = engine.Recommend(st, 200);
+        var wrong = cards.Where(r =>
+        {
+            var b = engine.Blind(r.ChampionId, "support", "support", taken);
+            var safe = b.Value > 0 && b.Chance <= b.Typical - 0.10;
+            var tag = r.Badges?.Tags.Any(t => t.Kind == "blind" && t.Sign > 0) == true;
+            return safe != tag;
+        }).Select(r => DataDragon.Name(r.ChampionId)).ToList();
+        Check("«надёжен вслепую» — ровно у тех, у кого шанс контры на 10 ниже типичного и ожидание в плюсе",
+              cards.Count > 0 && wrong.Count == 0,
+              wrong.Count == 0 ? $"карточек {cards.Count}" : string.Join(", ", wrong));
     }
 
     // ── Поле соперника по уже взятым врагам ─────────────────────────────────
