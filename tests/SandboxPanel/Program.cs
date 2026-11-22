@@ -111,6 +111,10 @@ internal static class Program
         Restart(panel, overlay);
 
         Console.WriteLine();
+        Console.WriteLine("драфт руками — союзник после меня наводит:");
+        ManualOrder(panel, overlay);
+
+        Console.WriteLine();
         Console.WriteLine("окно драфта:");
         CloseOverlay(panel, overlay);   // последним: закрывает и панель, и программу
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
@@ -348,7 +352,7 @@ internal static class Program
 
     // ── «Заново» ─────────────────────────────────────────────────────────────
 
-    private const int Darius = 122, Malphite = 54, Caitlyn = 51, Braum = 201, Garen = 86;
+    private const int Darius = 122, Malphite = 54, Caitlyn = 51, Braum = 201, Garen = 86, Ahri = 103;
 
     /// «Заново» — как «Сброс», но выбранные до драфта чемпионы остаются, и тот
     /// же запуск идёт снова; монетка «кто первый» — заново.
@@ -458,6 +462,87 @@ internal static class Program
               $"до драфта {Setup()}, слоты {Slots()}");
 
         Call(panel, "ResetDraft");
+        Pump();
+    }
+
+    // ── Драфт руками: порядок ходов ─────────────────────────────────────────
+
+    /// <summary>
+    /// Владелец (22.11): «на стрелке и саппорте работает, а лес + мид, топ +
+    /// лес, когда я показываю чемпиона и беру первым в этих связках, тегов
+    /// „С показанным“ нет». Стрелок с саппортом шёл авто-драфтом, а связки —
+    /// руками, и без авто-драфта песочница ставила каждого союзника взятым:
+    /// подбор считал его целиком, и вместо «С показанным» стояла общая синергия.
+    /// В клиенте союзник, чей ход не прошёл, только наводит. Без авто-драфта
+    /// строки панели сверху вниз — порядок пиков: ниже меня — наводит, выше —
+    /// взят. Саппорт последним видит стрелка взятым, как и раньше.
+    /// </summary>
+    private static void ManualOrder(Window panel, OverlayWindow overlay)
+    {
+        var ally = Get<ComboBox[]>(panel, "_ally")!;
+        var meRadio = Get<RadioButton[]>(panel, "_meRadio")!;
+        var stageDraft = Enum.Parse(panel.GetType().GetNestedType("TestStage", BindingFlags.NonPublic)!, "Draft");
+        string Who(DraftState d) => string.Join(" | ", d.MyTeam.Where(p => p.EffectiveChampionId != 0).Select(p =>
+            $"{p.CellId}:{DataDragon.Name(p.EffectiveChampionId)} {(p.ChampionId != 0 ? "взят" : "наведён")}"));
+        DraftState Scene(int meCell, params (int Cell, int Champ)[] allies)
+        {
+            Call(panel, "ResetDraft");
+            meRadio[meCell].IsChecked = true;
+            Call(panel, "SetStage", stageDraft);
+            foreach (var (cell, champ) in allies) ally[cell].SelectedItem = DataDragon.Name(champ);
+            Pump();
+            return Get<DraftState>(overlay, "_lastDraft")!;
+        }
+        static bool Hovered(DraftState d, int cell, int champ) =>
+            d.MyTeam[cell] is { ChampionId: 0 } p && p.PickIntentId == champ;
+        static bool Locked(DraftState d, int cell, int champ) =>
+            d.MyTeam[cell] is { PickIntentId: 0 } p && p.ChampionId == champ;
+
+        // Я лес: топ выше — взят; мид и саппорт ниже — наводят. Подбор видит
+        // мида показанным: тег «С показанным: Ари».
+        var d = Scene(1, (0, Garen), (2, Ahri), (4, Braum));
+        Check("руками, я лес: топ выше меня взят, мид и саппорт ниже наводят",
+              Locked(d, 0, Garen) && Hovered(d, 2, Ahri) && Hovered(d, 4, Braum), Who(d));
+        var recs = Get<IReadOnlyList<Recommendation>>(overlay, "_lastRecs") ?? [];
+        var tagged = recs.Count(r => r.Badges?.Tags.Any(t => t.Kind == "synergy"
+                                                            && t.Text.Contains(DataDragon.Name(Ahri))) == true);
+        Check("руками, я лес, мид навёл Ари — в списке есть «С показанным: Ари»",
+              tagged > 0, $"с тегом {tagged} из {recs.Count}");
+
+        // Я топ — первый пик: лесник ниже наводит.
+        d = Scene(0, (1, Ahri));
+        Check("руками, я топ: лесник ниже меня наводит", Hovered(d, 1, Ahri), Who(d));
+
+        // Я стрелок: саппорт ниже наводит, мид выше взят.
+        d = Scene(3, (2, Garen), (4, Braum));
+        Check("руками, я стрелок: мид выше взят, саппорт ниже наводит",
+              Locked(d, 2, Garen) && Hovered(d, 4, Braum), Who(d));
+
+        // Я саппорт — последняя строка: все взяты, как до 22.11.
+        d = Scene(4, (2, Garen), (3, Caitlyn));
+        Check("руками, я саппорт последним: мид и стрелок взяты",
+              Locked(d, 2, Garen) && Locked(d, 3, Caitlyn), Who(d));
+
+        // Мой пик подтверждён — драфт застыл как есть, союзники взяты.
+        d = Scene(1, (2, Ahri));
+        ally[1].SelectedItem = DataDragon.Name(Braum);
+        Pump();
+        Call(panel, "LockMy", Braum);
+        Pump();
+        d = Get<DraftState>(overlay, "_lastDraft")!;
+        Check("руками, мой пик подтверждён — союзники взяты", Locked(d, 2, Ahri), Who(d));
+
+        // «Моментально» — драфт закончен, наведённых нет.
+        Call(panel, "ResetDraft");
+        meRadio[0].IsChecked = true;
+        Call(panel, "InstantDraft");
+        Pump();
+        d = Get<DraftState>(overlay, "_lastDraft")!;
+        Check("«Моментально»: драфт закончен — все взяты",
+              d.MyTeam.All(p => p.ChampionId != 0 && p.PickIntentId == 0), Who(d));
+
+        Call(panel, "ResetDraft");
+        meRadio[2].IsChecked = true;
         Pump();
     }
 

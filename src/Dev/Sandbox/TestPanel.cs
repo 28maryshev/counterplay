@@ -367,8 +367,9 @@ sealed partial class TestPanel : Window
             }
             // Мой чемпион — наведение (PickIntent), пока пик не подтверждён в
             // окне; после «Выбрать» — взятый, и тогда приходят руны и сборка.
-            // Союзник наводит, пока не придёт его ход в авто-драфте.
-            var hovered = isMe ? !_myLocked : _hoverCells.Contains(i);
+            // Союзник наводит, пока не придёт его ход: в авто-драфте — по его
+            // ходам, руками — если его строка ниже моей (ManualHover).
+            var hovered = isMe ? !_myLocked : _hoverCells.Contains(i) || ManualHover(i, meIdx);
             my.Add(new DraftPlayer(i, hovered ? 0 : champ, hovered ? champ : 0, _rowRoles[i], isMe,
                                    Puuid: puuid));
         }
