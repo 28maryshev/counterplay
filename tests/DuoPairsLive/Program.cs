@@ -136,11 +136,19 @@ internal static class Program
               pairs.All(p => p.Wins <= p.Games && p.Games > 0), "да");
 
         // Ключ собирается и разбирается обратно: puuid содержит '-' и '_', и
-        // разбор по разделителю не должен на них спотыкаться.
+        // разбор по разделителю не должен на них спотыкаться. Строки связок
+        // дробятся по очереди и ролям, а PairStats спрашивает про пару целиком —
+        // сравниваем с суммой всех строк этой пары. Первая версия брала одну
+        // строку и упала 22.11 (3-1 против 2-1), а код был цел: у пары была
+        // вторая строка 1-0.
         var one = pairs[0];
+        var same = pairs.Where(p => p.AllyPuuid.Equals(one.AllyPuuid, StringComparison.OrdinalIgnoreCase)
+                                    && p.MyChampionId == one.MyChampionId
+                                    && p.AllyChampionId == one.AllyChampionId).ToList();
+        int sg = same.Sum(p => p.Games), sw = same.Sum(p => p.Wins);
         var (g, w) = SessionTracker.PairStats(one.AllyPuuid, one.MyChampionId, one.AllyChampionId);
-        Check("поиск по связке находит её же", g == one.Games && w == one.Wins,
-              $"{w}-{g - w} против {one.Wins}-{one.Games - one.Wins}");
+        Check("поиск по связке находит её же (сумма по очередям и ролям)", g == sg && w == sw,
+              $"{w}-{g - w} против {sw}-{sg - sw} ({same.Count} строк)");
 
         var top = pairs.GroupBy(p => p.AllyPuuid)
                        .OrderByDescending(x => x.Sum(p => p.Games)).First();
