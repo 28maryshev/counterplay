@@ -924,7 +924,7 @@
     "teamTip": "对阵除对线对手以外其他敌方英雄的对位表现",
     "synergy": "协同 {0}%",
     "synergyWord": "协同",
-    "shown": "与已展示的{0}契合 {1}%",
+    "shown": "与已展示的{0}协同 {1}%",
     "needFront": "前排",
     "needDisengage": "反开团",
     "needEngage": "开团",

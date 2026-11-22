@@ -325,7 +325,10 @@
 
   <!-- Тег с цифрой (TagVm): плашка цветом знака, значок и текст, свечение у
        сильнейшего. Общий для тегов карточки пика и для зелёного тега «+N% WR»
-       в заголовке раздела пулов (ApplyPoolCta): один вид — один шаблон. -->
+       в заголовке раздела пулов (ApplyPoolCta): один вид — один шаблон.
+       Текст длиннее места в колонке карточки (230 минус чип — 190) переносится
+       на вторую строку, а не обрезается краем колонки: в теге «С показанным:
+       Нуну и Виллумп» имя чемпиона любой длины (tests/HoverTrust). -->
   <DataTemplate x:Key="TagTemplate">
     <Border CornerRadius="10" BorderThickness="1" Padding="6,2,9,2" Margin="0,0,5,5"
             Background="{Binding Bg}" BorderBrush="{Binding Border}" Effect="{Binding Glow}"
@@ -342,6 +345,7 @@
         </Viewbox>
         <TextBlock Text="{Binding Text}" Foreground="{Binding Fg}" Margin="5,0,0,0"
                    FontFamily="{StaticResource UiFont}" FontSize="12" FontWeight="SemiBold"
+                   TextWrapping="Wrap" MaxWidth="190"
                    VerticalAlignment="Center"/>
       </StackPanel>
     </Border>

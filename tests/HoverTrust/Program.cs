@@ -68,10 +68,12 @@ internal static class Program
         PoolStore.Reload();
         Console.OutputEncoding = Encoding.UTF8;
         Log.FileDisabled = true;
+        Loc.Init();   // английская база строк — запасная для всех языков
         Loc.SetLanguage("ru");
         DataDragon.LoadFromCache("ru_RU");
 
         Strings();
+        TagWidth();
         var db = RecommendationEngine.FindDb();
         if (db is null) { Check("база матчей есть", false, "подбор не проверить"); return Done(); }
         using var engine = RecommendationEngine.Create(db, "emerald");
@@ -88,6 +90,88 @@ internal static class Program
         Measure(engine);
         Visible(engine, full: Environment.GetEnvironmentVariable("CP_VISIBLE_FULL") == "1");
         return Done();
+    }
+
+    // ── 1а. Тег влезает в карточку ──────────────────────────────────────────
+
+    /// Место под текст тега: колонка имени в карточке пика — 230
+    /// (PickCardTemplates.xaml), чип (TagTemplate) — отступы 6 и 9, рамка 1+1,
+    /// значок 13 и зазор 5, справа 5 до соседа. Столько же — MaxWidth текста в
+    /// TagTemplate: длиннее переносится на вторую строку.
+    private const double TagTextRoom = 230 - (6 + 9) - 2 - (13 + 5) - 5;
+
+    /// <summary>
+    /// Тег «С показанным: …» на каждом языке со всеми именами чемпионов этого
+    /// языка (справочник Data Dragon с диска игрока, только чтение; нет
+    /// справочника языка — английские имена) и цифрой «+3,9». Меряем тем же
+    /// шрифтом, что в окне: Ubuntu Sans SemiBold 12. До 22.11 тег «Хорош с
+    /// показанным: Юнара +3,9%» был шире места (205 из 190) и обрезался краем
+    /// колонки. Теперь: с девятью именами из десяти — одна строка, с самыми
+    /// длинными («Нуну и Виллумп») — не больше двух, и шаблон правда переносит.
+    /// </summary>
+    private static void TagWidth()
+    {
+        Console.WriteLine("── тег влезает в карточку ──");
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !Directory.Exists(Path.Combine(dir, "assets", "fonts")))
+            dir = Path.GetDirectoryName(dir.TrimEnd(Path.DirectorySeparatorChar));
+        if (dir is null) { Check("папка шрифтов найдена", false, AppContext.BaseDirectory); return; }
+        var family = new System.Windows.Media.FontFamily(
+            new Uri(Path.Combine(dir, "assets", "fonts") + Path.DirectorySeparatorChar), "./#Ubuntu Sans");
+        var face = new System.Windows.Media.Typeface(family, System.Windows.FontStyles.Normal,
+            System.Windows.FontWeights.SemiBold, System.Windows.FontStretches.Normal);
+        double W(string s) => new System.Windows.Media.FormattedText(s, System.Globalization.CultureInfo.InvariantCulture,
+            System.Windows.FlowDirection.LeftToRight, face, 12, System.Windows.Media.Brushes.White, 1.0)
+            .WidthIncludingTrailingWhitespace;
+
+        var dd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay", "ddragon");
+        var locales = new Dictionary<string, string>
+        {
+            ["ru"] = "ru_RU", ["en"] = "en_US", ["de"] = "de_DE", ["es"] = "es_ES", ["fr"] = "fr_FR",
+            ["it"] = "it_IT", ["pl"] = "pl_PL", ["pt"] = "pt_BR", ["tr"] = "tr_TR", ["uk"] = "uk_UA",
+            ["ja"] = "ja_JP", ["ko"] = "ko_KR", ["zh"] = "zh_CN", ["th"] = "th_TH", ["vi"] = "vi_VN",
+        };
+        List<(string Key, string Name)>? Names(string loc)
+        {
+            var f = Path.Combine(dd, $"champion-{loc}.json");
+            if (!File.Exists(f)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllText(f));
+            return [.. doc.RootElement.GetProperty("data").EnumerateObject()
+                         .Select(c => (c.Value.GetProperty("key").GetString() ?? "", c.Value.GetProperty("name").GetString() ?? ""))];
+        }
+        var en = Names("en_US");
+        if (en is null) { Check("справочник имён на диске", false, dd); return; }
+        var bad = new List<string>();
+        var twoLines = new List<string>();
+        foreach (var (lang, loc) in locales)
+        {
+            var names = Names(loc);
+            var src = names is null ? "имена en" : "свои имена";
+            names ??= en;
+            Loc.SetLanguage(lang);
+            string Text(string name) => Loc.T("pickTag.shown", name, "+3,9");
+            var widest = names.MaxBy(n => W(Text(n.Name)));
+            var yunara = names.FirstOrDefault(n => n.Key == Yunara.ToString()).Name ?? "Yunara";
+            var w = W(Text(widest.Name));
+            var oneLine = names.Count(n => W(Text(n.Name)) <= TagTextRoom) / (double)names.Count;
+            Console.WriteLine($"   {lang} ({src}): «{Text(yunara)}» {W(Text(yunara)):F0}, " +
+                              $"в одну строку {100 * oneLine:F0}% имён, шире всех «{Text(widest.Name)}» {w:F0} из {TagTextRoom:F0}");
+            if (oneLine < 0.9 || W(Text(yunara)) > TagTextRoom) bad.Add($"{lang} {100 * oneLine:F0}%");
+            // Две строки: перенос по словам теряет хвост строки — запас в 20 пикселей.
+            if (w > 2 * TagTextRoom - 20) twoLines.Add($"{lang} {w:F0}");
+        }
+        Loc.SetLanguage("ru");
+        Check("тег в одну строку с девятью именами из десяти и с Юнарой, на всех языках", bad.Count == 0,
+              bad.Count == 0 ? $"место {TagTextRoom:F0}" : string.Join(", ", bad));
+        Check("с самым длинным именем — не больше двух строк", twoLines.Count == 0, string.Join(", ", twoLines));
+
+        // Шаблон тега переносит текст на ту же ширину, а не режет его краем колонки.
+        var xaml = File.ReadAllText(Path.Combine(dir, "src", "Ui", "Overlay", "OverlayResources.xaml"));
+        var m = Regex.Match(xaml, @"x:Key=""TagTemplate"".*?</DataTemplate>", RegexOptions.Singleline);
+        var text = m.Success ? Regex.Match(m.Value, @"<TextBlock Text=""\{Binding Text\}""[^>]*>", RegexOptions.Singleline).Value : "";
+        Check("в TagTemplate текст переносится на ширине места",
+              text.Contains(@"TextWrapping=""Wrap""") && text.Contains($@"MaxWidth=""{TagTextRoom:F0}"""),
+              text.Length == 0 ? "TextBlock тега не найден" : Regex.Replace(text, @"\s+", " "));
     }
 
     // ── 10. Соперник на линии виден ─────────────────────────────────────────
