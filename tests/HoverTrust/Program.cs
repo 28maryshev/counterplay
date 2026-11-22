@@ -86,7 +86,92 @@ internal static class Program
         MateHint(engine);
         Tag(engine);
         Measure(engine);
+        Visible(engine, full: Environment.GetEnvironmentVariable("CP_VISIBLE_FULL") == "1");
         return Done();
+    }
+
+    // ── 10. Соперник на линии виден ─────────────────────────────────────────
+
+    /// <summary>
+    /// Владелец (22.11): вслепую — синергия с показанным частью, а когда
+    /// соперник на линии уже виден, «веса сильно пойдут в сторону
+    /// контрпика». Так и выходит без отдельного веса: знание соперника
+    /// разбрасывает оценки в 2–5 раз сильнее наведённого напарника, и
+    /// большинство первых шести — под соперника. Проверка держит это с
+    /// запасом (разброс от соперника не меньше полутора от напарника, под
+    /// соперника в шестёрке больше, чем под напарника) и печатает, что было
+    /// бы на весах пары ниже 0,6. По три напарника и три соперника на пару
+    /// линий; CP_VISIBLE_FULL=1 — по пять, как в замере 22.11.
+    /// </summary>
+    private static void Visible(RecommendationEngine engine, bool full)
+    {
+        Console.WriteLine("── соперник на линии виден, напарник по паре навёл ──");
+        var cases = new (string Me, string Pos, string PPos, int[] Partners, int[] Foes)[]
+        {
+            ("саппорт", "utility", "bottom",  [Yunara, Jinx, Samira, Ezreal, Kaisa], [412, 117, 111, 89, 267]),
+            ("стрелок", "bottom",  "utility", [117, 111, 412, 267, 89],              [222, 51, 81, 145, 202]),
+            ("мид",     "middle",  "jungle",  [64, 59, 234, 60, 121],                [103, 157, 134, 238, 61]),
+            ("лес",     "jungle",  "middle",  [157, 61, 103, 517, 163],              [64, 104, 121, 234, 56]),
+            ("лес",     "jungle",  "top",     [122, 54, 24, 164, 516],               [64, 104, 121, 234, 56]),
+            ("топ",     "top",     "jungle",  [64, 59, 234, 60, 121],                [122, 86, 24, 17, 516]),
+        };
+        var ts = new[] { 0.6, 0.4, 0.3, 0.2 };
+        var take = full ? 5 : 3;
+        foreach (var c in cases)
+        {
+            double sdAlly = 0, sdFoe = 0, n = 0, tagged = 0;
+            var fromPartner = new double[ts.Length]; var fromFoe = new double[ts.Length];
+            foreach (var p in c.Partners.Take(take))
+            foreach (var f in c.Foes.Take(take))
+            {
+                if (p == f) continue;
+                var foe = new DraftPlayer(10, f, 0, c.Pos, false);
+                var me = new DraftPlayer(0, 0, 0, c.Pos, true);
+                DraftState D(bool partner, bool withFoe)
+                {
+                    var team = partner ? new List<DraftPlayer> { me, Ally(1, p, c.PPos, false) } : [me];
+                    var s = Draft(c.Pos) with { MyTeam = team, Me = me };
+                    var bans = new List<int>();
+                    if (!partner) bans.Add(p);
+                    if (!withFoe) bans.Add(f);
+                    s = s with { MyTeamBans = bans };
+                    return withFoe ? s with { TheirTeam = [foe], DirectOpponent = foe } : s;
+                }
+                var a  = Scores(engine, D(true, true));    // напарник навёл, соперник виден
+                var b  = Scores(engine, D(false, true));   // без напарника, соперник виден
+                var cc = Scores(engine, D(true, false));   // напарник навёл, соперника нет (вслепую)
+                var d  = Scores(engine, D(false, false));  // никого
+                var ids = a.Keys.Intersect(b.Keys).Intersect(cc.Keys).Intersect(d.Keys).ToList();
+                sdAlly += Sd([.. ids.Select(id => a[id].Score - b[id].Score)]);
+                sdFoe  += Sd([.. ids.Select(id => a[id].Score - cc[id].Score)]);
+                tagged += engine.Recommend(D(true, true), 6).Count(r => ShownTag(r, p) is not null);
+                n++;
+                for (int i = 0; i < ts.Length; i++)
+                {
+                    var k = ts[i] / TrustPair;   // вклад наведённого линеен по весу
+                    double At(int id) => b[id].Score + k * (a[id].Score - b[id].Score);
+                    double Ct(int id) => d[id].Score + k * (cc[id].Score - d[id].Score);
+                    var top = ids.OrderByDescending(At).Take(6).ToList();
+                    var noPartner = ids.OrderByDescending(id => b[id].Score).Take(6).ToHashSet();
+                    var noFoe = ids.OrderByDescending(Ct).Take(6).ToHashSet();
+                    fromPartner[i] += top.Count(id => !noPartner.Contains(id));
+                    fromFoe[i]     += top.Count(id => !noFoe.Contains(id));
+                }
+            }
+            Check($"{c.Me} (напарник {c.PPos}): соперник двигает оценки сильнее наведённого напарника",
+                  sdFoe >= 1.5 * sdAlly, $"разброс {sdFoe / n:F2} против {sdAlly / n:F2}");
+            Check($"{c.Me} (напарник {c.PPos}): в шестёрке под соперника больше, чем под напарника",
+                  fromFoe[0] > fromPartner[0],
+                  $"{fromFoe[0] / n:F1} против {fromPartner[0] / n:F1}, с тегом «с показанным» {tagged / n:F1}");
+            Console.WriteLine("       на других весах пары: " + string.Join("  ", ts.Skip(1).Select((t, i) =>
+                $"{t:F1} — под напарника {fromPartner[i + 1] / n:F1}, под соперника {fromFoe[i + 1] / n:F1}")));
+        }
+    }
+
+    private static double Sd(List<double> x)
+    {
+        var m = x.Average();
+        return Math.Sqrt(x.Average(v => (v - m) * (v - m)));
     }
 
     // ── 1. Строки ───────────────────────────────────────────────────────────
