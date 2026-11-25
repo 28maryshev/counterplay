@@ -32,9 +32,14 @@ partial class Program
             try { await Task.Delay(TimeSpan.FromSeconds(20), ct); }
             catch (OperationCanceledException) { return; }
             var w = ClientWindowProbe.Probe();
+            // Сервер и версию игры спрашиваем у клиента здесь же, а не берём из
+            // сессии: к этой минуте клиент уже вошёл в аккаунт и знает платформу.
+            ClientServerInfo server;
+            using (var http = new LcuHttpClient(creds, TimeSpan.FromSeconds(5)))
+                server = await ClientServerInfo.ReadAsync(http, ct);
             Log.Write($"отчёт о подключении: путь {creds.Via}, окно клиента " +
-                      (w.Matched ? "узнаётся" : $"не узнаётся ({w.Other ?? "окон нет"})"));
-            await Telemetry.ReportClientAsync(true, creds.Via, w.Matched, w.Other);
+                      (w.Matched ? "узнаётся" : $"не узнаётся ({w.Other ?? "окон нет"})") + $", {server}");
+            await Telemetry.ReportClientAsync(true, creds.Via, w.Matched, w.Other, server);
         }, ct);
     }
 

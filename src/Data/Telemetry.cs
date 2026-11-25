@@ -71,19 +71,31 @@ public static class Telemetry
     /// <param name="via">"lockfile" или "cmdline"; null — учётных данных не нашлось вовсе.</param>
     /// <param name="window">Узнаётся ли окно клиента по правилу окна драфта.</param>
     /// <param name="other">Класс и заголовок окна клиента, если оно не узнаётся.</param>
-    public static async Task ReportClientAsync(bool ok, string? via, bool? window, string? other)
+    /// <param name="server">Сервер и версия игры клиента; при неудаче их не узнать — null.</param>
+    public static async Task ReportClientAsync(
+        bool ok, string? via, bool? window, string? other, ClientServerInfo? server = null)
     {
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
             if (Secret.Length > 0)
                 http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
-            var json = JsonSerializer.Serialize(new { installId = DeviceId(), ok, via, window, other });
+            var json = ClientReportJson(DeviceId(), ok, via, window, other, server);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             await http.PostAsync(Url + "/client", content);
         }
         catch { /* как и пинг: не дошло — не беда */ }
     }
+
+    /// Тело отчёта о подключении. Имена полей читает сайт
+    /// (`app/api/telemetry/client/route.ts`) — менять только вместе.
+    public static string ClientReportJson(
+        string installId, bool ok, string? via, bool? window, string? other, ClientServerInfo? server) =>
+        JsonSerializer.Serialize(new
+        {
+            installId, ok, via, window, other,
+            region = server?.Region, platform = server?.Platform, game = server?.Game
+        });
 
     /// Когда программа появилась на этом компьютере. Берём дату создания своей
     /// папки в %APPDATA% — она заводится при первом запуске и переживает
