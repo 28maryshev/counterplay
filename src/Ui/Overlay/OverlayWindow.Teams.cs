@@ -265,7 +265,8 @@ public partial class OverlayWindow
         var enemyArch = ChampionTraits.DominantStyle(enemyIds);
 
         UpdateSlots(MyTeamList,    BuildSlots(draft.MyTeam,    ally: true,  _engine, myRole,
-                                              null, draft.ActiveCells, draft.FirstPickCell, _allyStyle));
+                                              null, draft.ActiveCells, draft.FirstPickCell, _allyStyle,
+                                              _pickClock));
         UpdateSlots(EnemyTeamList, BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
                                               _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell,
                                               enemyArch));
@@ -446,7 +447,7 @@ public partial class OverlayWindow
         RecommendationEngine? engine, string myRole,
         IReadOnlyDictionary<int, string>? roleOverrides = null,
         IReadOnlyList<int>? activeCells = null, int firstPickCell = -1,
-        ChampionTraits.Arch? teamStyle = null)
+        ChampionTraits.Arch? teamStyle = null, PickClock? myClock = null)
     {
         return Enumerable.Range(0, 5).Select(i =>
         {
@@ -543,6 +544,7 @@ public partial class OverlayWindow
                 PickMirror      = ally ? 1.0 : -1.0,
                 IsFirstPick = p.CellId == firstPickCell,
                 FirstPickLabel = Loc.T("slot.firstPick"),
+                Clock       = isMe && myClock != null ? myClock : PickClock.None,
             };
         }).ToList();
     }

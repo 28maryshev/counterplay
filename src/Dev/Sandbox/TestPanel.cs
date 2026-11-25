@@ -429,6 +429,10 @@ sealed partial class TestPanel : Window
             MyBanDone: _myBanDone,    // как у клиента: сделанный бан остаётся сделанным и на пиках
             InPlanning: planning);
 
+        // Отсчёт моего хода — как у клиента: только в мой ход авто-драфта (у
+        // драфта руками срока нет) и пока пик не взят.
+        _overlay.SetPickTimer(draft.MyPickInProgress ? _myTurnEnd : null, MyTurnSeconds * 1000);
+
         if (banPhase)
         {
             _overlay.UpdateBans(_myBanDone || planning ? [] : _engine.RecommendBans(draft, _hoverHistory),

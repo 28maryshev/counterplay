@@ -42,6 +42,7 @@ public partial class OverlayWindow
         Dispatcher.InvokeAsync(() =>
         {
             PickHint.Visibility = Visibility.Collapsed;
+            StopPickTimer();       // и отсчёт моего хода с рамкой центра
             _tierModeNow = null;   // следующий драфт — снова с вида из настроек
             _banAdviceShown = [];  // советы банов — свои у каждого драфта
             // Выбранный кликом — тоже: иначе новый драфт начинался бы с золотой
@@ -97,6 +98,7 @@ public partial class OverlayWindow
                 // на середине. Положение запоминаем здесь: окно ещё стоит там,
                 // где его оставили, а до вида сайдбара дело дойдёт следующим шагом.
                 RememberDraftPlacement();
+                StopPickTimer();               // додж в мой ход — отсчёт не переживает драфт
                 _enemyRoleOverrides.Clear();   // конец драфта — сброс меток
                 _draftSuppressed = false;      // …и запрет на авто-показ снят
                 _placementApplied = false;     // следующий драфт снова расставит окно

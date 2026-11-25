@@ -76,6 +76,10 @@ public sealed class ChampSlotCard
     public string       FirstPickLabel  { get; init; } = "";
     public Visibility   FirstPickVisibility =>
         IsFirstPick ? Visibility.Visible : Visibility.Collapsed;
+    // Отсчёт моего хода пикать — общий на окно (OverlayWindow.PickTimer.cs); у
+    // чужих слотов — PickClock.None. В сравнении строк участвует ссылкой: та же
+    // — строка та же, сколько бы секунд ни прошло.
+    public PickClock    Clock           { get; init; } = PickClock.None;
 
     // Все открытые свойства — то, что видит разметка. Отражением, а не списком
     // руками: новое свойство само попадает в сравнение и не застынет на экране.

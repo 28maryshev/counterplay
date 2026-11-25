@@ -507,11 +507,17 @@ partial class Program
                                 RecommendationEngine.LcuToDbRole(draft.MyPosition));
 
                         // За 5 секунд до конца финализации — в трей; идёт драфт —
-                        // окну можно на экран (DraftTray).
+                        // окну можно на экран (DraftTray). Мой ход пикать —
+                        // отсчёт в моём слоте, за 5 секунд до конца рамка центра.
+                        // До отпечатка: остаток таймера в нём не участвует.
                         // Повтор по будильнику — старый снимок с устаревшим
-                        // остатком таймера: трей по нему не трогаем.
-                        var (timerPhase, timeLeftMs) = ChampSelectTimer(ev.Data);
-                        if (!replay) draftTray.OnTimer(timerPhase, timeLeftMs);
+                        // остатком таймера: ни трей, ни отсчёт по нему не трогаем.
+                        if (!replay)
+                        {
+                            var timer = DraftTimer.Parse(ev.Data);
+                            draftTray.OnTimer(timer.Phase, timer.LeftMs);
+                            overlay.SetPickTimer(timer.MyPickDeadline(draft, DateTime.UtcNow), timer.TotalMs);
+                        }
 
                         var hash = DraftHash(draft);
                         if (hash == lastHash) break;
@@ -585,24 +591,6 @@ partial class Program
         draftTray.Ended();
         RunesDraftEnded();
         _refreshSession = null;     // движок закроет closeEngine — и при обрыве тоже
-    }
-
-    // Достаёт фазу таймера чемп-селекта и остаток времени (мс).
-    static (string phase, double leftMs) ChampSelectTimer(JsonElement data)
-    {
-        if (data.ValueKind == JsonValueKind.Object &&
-            data.TryGetProperty("timer", out var t) && t.ValueKind == JsonValueKind.Object)
-        {
-            var ph = t.TryGetProperty("phase", out var p) && p.ValueKind == JsonValueKind.String
-                ? p.GetString() ?? "" : "";
-            double left = 0;
-            if (t.TryGetProperty("adjustedTimeLeftInPhase", out var l) && l.ValueKind == JsonValueKind.Number)
-                left = l.GetDouble();
-            else if (t.TryGetProperty("timeLeftInPhase", out var l2) && l2.ValueKind == JsonValueKind.Number)
-                left = l2.GetDouble();
-            return (ph, left);
-        }
-        return ("", 0);
     }
 
     // Очередь текущего лобби из события геймфлоу: gameData.queue.id → наш ключ

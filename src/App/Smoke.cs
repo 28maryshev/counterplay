@@ -272,6 +272,20 @@ internal static class Smoke
                 var d = Draft(ban: false);
                 w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
             });
+            await Step("таймер пика", async () =>
+            {
+                // Последние секунды хода: отсчёт в моём слоте и рамка центра;
+                // пик сделан — пропадают оба.
+                w.SetPickTimer(DateTime.UtcNow.AddSeconds(4), 30000);
+                await Settle();
+                var frame = (FrameworkElement)w.FindName("PickAlarmFrame");
+                if (frame.Visibility != Visibility.Visible)
+                    throw new InvalidOperationException("4 секунды до конца хода, а рамки центра нет");
+                w.SetPickTimer(null, 0);
+                await Settle();
+                if (frame.Visibility == Visibility.Visible)
+                    throw new InvalidOperationException("пик сделан, а рамка центра мигает");
+            });
             await Step("драфт без роли", async () =>
             {
                 // Вслепую подбора нет — в центре мой пул под союзников.

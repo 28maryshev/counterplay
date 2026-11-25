@@ -356,7 +356,19 @@
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
       </Grid>
-      <StackPanel Grid.Column="1" Margin="34,4,0,3">
+      <StackPanel Grid.Column="1">
+        <!-- Идёт отсчёт моего хода — справа кольцо таймера, текст до него не
+             доходит (длинное имя обрежется многоточием). -->
+        <StackPanel.Style>
+          <Style TargetType="StackPanel">
+            <Setter Property="Margin" Value="34,4,0,3"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Clock.Visibility}" Value="Visible">
+                <Setter Property="Margin" Value="34,4,56,3"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </StackPanel.Style>
         <!-- Роль (+ бейдж «1st pick»): у врага роль — кнопка-чип -->
         <StackPanel Orientation="Horizontal">
         <Border HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -420,6 +432,39 @@
           </ItemsControl>
         </StackPanel>
       </StackPanel>
+      <!-- Таймер моего пика (PickClock, OverlayWindow.PickTimer.cs): секунды
+           и дуга оставшейся доли хода, по центру высоты портрета. Последние
+           5 секунд — красным, в ту же секунду центр окна мигает рамкой. Пик
+           сделан — пропадает. Секунды меняются в общем PickClock, а не в
+           модели слота: строка не пересоздаётся, волна «сейчас пикает» не
+           проигрывается заново. -->
+      <Grid Grid.Column="1" Width="46" Height="46" Margin="0,15,4,0"
+            HorizontalAlignment="Right" VerticalAlignment="Top"
+            IsHitTestVisible="False" Visibility="{Binding Clock.Visibility}">
+        <Grid.Style>
+          <Style TargetType="Grid">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Clock.Urgent}" Value="True">
+                <Setter Property="Effect">
+                  <Setter.Value>
+                    <DropShadowEffect Color="#FF3B30" BlurRadius="14" ShadowDepth="0" Opacity="0.9"/>
+                  </Setter.Value>
+                </Setter>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Grid.Style>
+        <Ellipse Fill="#D90B1621" Stroke="#26FFFFFF" StrokeThickness="3.5"/>
+        <Path Data="{Binding Clock.Arc}" StrokeThickness="3.5" Stretch="None"
+              StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+          <Path.Stroke><SolidColorBrush Color="{Binding Clock.Color}"/></Path.Stroke>
+        </Path>
+        <TextBlock Text="{Binding Clock.Seconds}"
+                   FontFamily="{StaticResource NumberFont}" FontSize="18" FontWeight="Bold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,1">
+          <TextBlock.Foreground><SolidColorBrush Color="{Binding Clock.Color}"/></TextBlock.Foreground>
+        </TextBlock>
+      </Grid>
     </Grid>
     </Border>
   </DataTemplate>
