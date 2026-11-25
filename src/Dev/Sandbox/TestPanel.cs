@@ -328,6 +328,7 @@ sealed partial class TestPanel : Window
         // Идёт «поиск игры» — фаза поиска, как её присылает клиент.
         if (_stage == TestStage.Ready)
         {
+            PushPickTimer(false);   // лобби — хода нет; следующий драфт — со своего
             if (_searchEndAt is not null) _overlay.ShowReadyPhase("Matchmaking");
             else _overlay.ShowReady(ReadyText);
             return;
@@ -429,9 +430,8 @@ sealed partial class TestPanel : Window
             MyBanDone: _myBanDone,    // как у клиента: сделанный бан остаётся сделанным и на пиках
             InPlanning: planning);
 
-        // Отсчёт моего хода — как у клиента: только в мой ход авто-драфта (у
-        // драфта руками срока нет) и пока пик не взят.
-        _overlay.SetPickTimer(draft.MyPickInProgress ? _myTurnEnd : null, MyTurnSeconds * 1000);
+        // Отсчёт моего хода — как у клиента: только в мой ход и пока пик не взят.
+        PushPickTimer(draft.MyPickInProgress);
 
         if (banPhase)
         {

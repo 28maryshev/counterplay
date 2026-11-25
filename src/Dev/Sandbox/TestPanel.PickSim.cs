@@ -287,4 +287,58 @@ sealed partial class TestPanel
         var mine = Array.FindIndex(_simGroups, g => g.Contains(meIdx));
         return _simGroups.Skip(mine + 1).Any(g => g.Any(Empty));
     }
+
+    // ── Срок моего хода ──────────────────────────────────────────────────────
+
+    // Ход пика в драфте руками — как в ранкеде.
+    internal static double ManualTurnSeconds = 30;
+    private DateTime? _manualTurnEnd;          // конец моего хода в драфте руками; null — ход не идёт
+    private DispatcherTimer? _manualTurnTimer; // начинает ход заново, когда время вышло
+
+    /// <summary>
+    /// Срок моего хода — окну (отсчёт в моём слоте, рамка последних 5 секунд),
+    /// как его дал бы клиент: только пока мой ход и пик не взят. Авто-драфт —
+    /// ход по очереди (<c>_myTurnEnd</c>, 15 с). Драфт руками — 30 секунд, как
+    /// пик в ранкеде; вышло — ход начинается заново: в драфте руками песочница
+    /// сама ничего не берёт (сцену собирают дольше 30 секунд), а отсчёт виден,
+    /// пока ход мой. До 25.11 срок был только у авто-драфта, и владелец цифр
+    /// не увидел: песочница открывается сразу драфтом руками.
+    /// </summary>
+    private void PushPickTimer(bool myPickNow)
+    {
+        if (!myPickNow || _simTurn >= 0) StopManualTurn();
+        if (!myPickNow) _overlay.SetPickTimer(null, 0);
+        else if (_simTurn >= 0) _overlay.SetPickTimer(_myTurnEnd, MyTurnSeconds * 1000);
+        else
+        {
+            if (_manualTurnEnd is null) StartManualTurn();
+            _overlay.SetPickTimer(_manualTurnEnd, ManualTurnSeconds * 1000);
+        }
+    }
+
+    private void StartManualTurn()
+    {
+        _manualTurnEnd = DateTime.UtcNow.AddSeconds(ManualTurnSeconds);
+        if (_manualTurnTimer is null)
+        {
+            _manualTurnTimer = new DispatcherTimer();
+            _manualTurnTimer.Tick += (_, _) =>
+            {
+                // Пока ждали, драфт руками мог кончиться: лобби, баны,
+                // авто-драфт, мой пик взят.
+                if (_stage != TestStage.Draft || _simTurn >= 0 || _myLocked) { StopManualTurn(); return; }
+                StartManualTurn();
+                _overlay.SetPickTimer(_manualTurnEnd, ManualTurnSeconds * 1000);
+            };
+        }
+        _manualTurnTimer.Stop();
+        _manualTurnTimer.Interval = TimeSpan.FromSeconds(ManualTurnSeconds);
+        _manualTurnTimer.Start();
+    }
+
+    private void StopManualTurn()
+    {
+        _manualTurnTimer?.Stop();
+        _manualTurnEnd = null;
+    }
 }

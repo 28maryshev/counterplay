@@ -115,6 +115,10 @@ internal static class Program
         ManualOrder(panel, overlay);
 
         Console.WriteLine();
+        Console.WriteLine("отсчёт моего хода:");
+        PickTimer(panel, overlay);
+
+        Console.WriteLine();
         Console.WriteLine("окно драфта:");
         CloseOverlay(panel, overlay);   // последним: закрывает и панель, и программу
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
@@ -466,6 +470,69 @@ internal static class Program
     }
 
     // ── Драфт руками: порядок ходов ─────────────────────────────────────────
+
+    /// <summary>
+    /// Владелец (25.11): «в песочнице не вижу цифр пика». Песочница открывается
+    /// драфтом руками — мой ход уже идёт, — а срок хода окну отдавал только
+    /// авто-драфт, и только в мой ход по очереди. Теперь драфт руками — ход
+    /// 30 секунд, как пик в ранкеде, по концу начинается заново; авто-драфт —
+    /// свои 15 секунд. Пик взят — отсчёта нет.
+    /// </summary>
+    private static void PickTimer(Window panel, OverlayWindow overlay)
+    {
+        var meRadio = Get<RadioButton[]>(panel, "_meRadio")!;
+        var stageDraft = Enum.Parse(panel.GetType().GetNestedType("TestStage", BindingFlags.NonPublic)!, "Draft");
+        var clock = Get<PickClock>(overlay, "_pickClock")!;
+        var turnField = panel.GetType().GetField("ManualTurnSeconds", BindingFlags.Static | BindingFlags.NonPublic)!;
+        string Shown() => clock.Visibility == Visibility.Visible ? $"«{clock.Seconds}»" : "отсчёта нет";
+        void Wait(int ms)
+        {
+            var until = DateTime.UtcNow.AddMilliseconds(ms);
+            while (DateTime.UtcNow < until) Pump();
+        }
+
+        Call(panel, "ResetDraft");
+        meRadio[2].IsChecked = true;
+        Call(panel, "SetStage", stageDraft);
+        Pump();
+        Check("драфт руками, мой ход: в слоте отсчёт 30 секунд",
+              clock.Visibility == Visibility.Visible && clock.Seconds is "30" or "29", Shown());
+
+        Call(panel, "LockMy", Braum);
+        Pump();
+        Check("драфт руками, пик взят — отсчёта нет", clock.Visibility != Visibility.Visible, Shown());
+
+        // Время вышло — ход начинается заново (ход на проверку — 1,5 с).
+        var was = turnField.GetValue(null)!;
+        turnField.SetValue(null, 1.5);
+        try
+        {
+            Call(panel, "ResetDraft");
+            meRadio[2].IsChecked = true;
+            Call(panel, "SetStage", stageDraft);
+            Pump();
+            Wait(2100);
+            Check("драфт руками, время вышло — ход начался заново",
+                  clock.Visibility == Visibility.Visible && clock.Seconds is "1" or "2", Shown());
+        }
+        finally { turnField.SetValue(null, was); }
+
+        // Авто-драфт, мой ход первым: 15 секунд.
+        Call(panel, "ResetDraft");
+        meRadio[2].IsChecked = true;
+        Call(panel, "ToggleSim");
+        Get<System.Windows.Threading.DispatcherTimer>(panel, "_simTimer")?.Stop();   // боты ждут
+        panel.GetType().GetField("_simGroups", BindingFlags.Instance | BindingFlags.NonPublic)!
+             .SetValue(panel, new[] { new[] { 2 }, new[] { 5, 6 }, new[] { 0, 1 }, new[] { 7, 8 }, new[] { 3, 4 }, new[] { 9 } });
+        Call(panel, "StartTurn");
+        Call(panel, "Recompute");
+        Pump();
+        Check("авто-драфт, мой ход: отсчёт 15 секунд",
+              clock.Visibility == Visibility.Visible && clock.Seconds is "15" or "14", Shown());
+        Call(panel, "StopSim");
+        Call(panel, "ResetDraft");
+        Pump();
+    }
 
     /// <summary>
     /// Владелец (22.11): «на стрелке и саппорте работает, а лес + мид, топ +
