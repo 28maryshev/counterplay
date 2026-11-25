@@ -35,21 +35,25 @@ public sealed class PhrasesWindow : Window
         _save = PoolUi.GoldBtn(Loc.T("phrases.save"));
         _save.IsEnabled = false;
         _save.HorizontalAlignment = HorizontalAlignment.Right;
-        _save.Margin = new Thickness(0, 14, 0, 0);
+        _save.Margin = new Thickness(0, 8, 18, 14);
         _save.Padding = new Thickness(18, 6, 18, 6);
         _save.Click += (_, _) => Save();
-        body.Children.Add(_save);
 
-        // Раскрытые списки своих вариантов растят окно; выше экрана — прокрутка.
+        // Свои фразы растят окно; выше экрана — прокрутка, а «Сохранить» —
+        // всегда внизу, не под прокруткой.
         MaxHeight = SystemParameters.WorkArea.Height * 0.92;
-        var decorated = new Grid();
-        decorated.Children.Add(PoolSettingsWindow.DecorBackground());
-        decorated.Children.Add(new System.Windows.Controls.ScrollViewer
+        var layout = new System.Windows.Controls.DockPanel();
+        System.Windows.Controls.DockPanel.SetDock(_save, System.Windows.Controls.Dock.Bottom);
+        layout.Children.Add(_save);
+        layout.Children.Add(new System.Windows.Controls.ScrollViewer
         {
             Content = body,
             VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
         });
+        var decorated = new Grid();
+        decorated.Children.Add(PoolSettingsWindow.DecorBackground());
+        decorated.Children.Add(layout);
         Content = PoolUi.Chrome(this, Title, decorated);
     }
 

@@ -342,17 +342,18 @@ internal static class Smoke
                 var edit = w.OpenPhrases();
                 ShowHidden(edit);
                 await Settle();
-                if (edit.Fields().Count != ChatPhrases.Buttons(AppSettings.Current).Count)
-                    throw new InvalidOperationException($"в окне фраз {edit.Fields().Count} полей");
-                // Окно вариантов («✎ Редактировать»): галочка «Свои варианты» —
-                // поля под каждую роль. Правка копии окна фраз, без «Сохранить».
+                // Галочка «Свои фразы» открывает правку кнопок — копию стандартных.
+                PhraseEditor.Pick(edit, "own");
+                await Settle();
+                if (edit.Fields().Count != ChatPhrases.Defaults().Length)
+                    throw new InvalidOperationException($"в окне фраз {edit.Fields().Count} полей своих фраз");
+                // Окно вариантов («✎ Редактировать»): поле под каждую роль.
+                // Правка копии окна фраз, без «Сохранить».
                 var choices = edit.ChoicesFor(0);
                 ShowHidden(choices);
                 await Settle();
-                choices.Pick("own");
-                await Settle();
                 if (choices.Fields().Count != ChatPhrases.Roles.Length)
-                    throw new InvalidOperationException($"в окне вариантов {choices.Fields().Count} полей своих вариантов");
+                    throw new InvalidOperationException($"в окне вариантов {choices.Fields().Count} полей");
                 choices.Close();
                 edit.Close();
                 w.ChatHandler = null;

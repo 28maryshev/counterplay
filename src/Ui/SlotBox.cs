@@ -109,11 +109,13 @@ public sealed class SlotBox : Border
     }
 
     /// Блок: золотая плашка с названием вида («что нужно», «роль»).
-    private InlineUIContainer Chip()
+    private InlineUIContainer Chip() => Chip(_chip, _tip);
+
+    private static InlineUIContainer Chip(string chip, string tip)
     {
         var label = new TextBlock
         {
-            Text = _chip, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 11.5, FontWeight = FontWeights.SemiBold,
+            Text = chip, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 11.5, FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0xD7, 0x7A)),
         };
         var plate = new Border
@@ -122,11 +124,26 @@ public sealed class SlotBox : Border
             Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(1, 0, 1, 0),
             Background = new SolidColorBrush(Color.FromArgb(0x33, 0xC8, 0x9B, 0x3C)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C)),
-            ToolTip = _tip,
+            ToolTip = tip,
         };
         // Элементы внутри редактируемого поля выключены — подсказка всё равно нужна.
         ToolTipService.SetShowOnDisabled(plate, true);
         return new InlineUIContainer(plate) { BaselineAlignment = BaselineAlignment.Center, Tag = SlotTag };
+    }
+
+    /// <summary>
+    /// Фраза только для чтения — тем же видом, что в поле: текст и блок на месте
+    /// «…». Для списка стандартных фраз в окне фраз.
+    /// </summary>
+    public static TextBlock Display(string text, string chip, string tip)
+    {
+        var t = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var at = text.IndexOf(ChatPhrases.Slot, StringComparison.Ordinal);
+        if (at < 0) { t.Inlines.Add(new Run(text)); return t; }
+        if (at > 0) t.Inlines.Add(new Run(text[..at]));
+        t.Inlines.Add(Chip(chip, tip));
+        t.Inlines.Add(new Run(text[(at + ChatPhrases.Slot.Length)..]));
+        return t;
     }
 
     /// Строка из поля: текст как есть, блок — «…» (только первый), набранный «…» — «...».
