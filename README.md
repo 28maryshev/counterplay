@@ -3,8 +3,8 @@
 Counterplay is a Windows application for League of Legends that helps you choose
 a champion during champion select. It reads the draft from the game client as it
 happens and shows which picks work best against the enemy team and alongside your
-own, together with the build, runes, summoner spells and skill order for the pick
-you settle on.
+own, together with the build, runes and summoner spells for the pick you settle
+on.
 
 Website: [counterplays.com](https://counterplays.com)
 
@@ -22,8 +22,8 @@ Website: [counterplays.com](https://counterplays.com)
   team, then how well the pick fits your own team
 - Gives a short reason for every recommendation, so the advice can be judged
   rather than taken on faith
-- Shows the build, runes, summoner spells and skill order for the champion you
-  are about to lock in, and can send the rune page to the client in one click
+- Shows the build, runes and summoner spells for the champion you are about to
+  lock in, and can send the rune page to the client in one click
 - Tracks your rank over a session and shows what the next game is worth
 - Adapts to your champion pool, so the advice stays inside what you actually play
 - Speaks fifteen languages
