@@ -104,7 +104,8 @@ sealed partial class TestPanel
     // Раздаёт клеткам текущей группы персональные моменты пика (3..10 с): кто
     // наводил — берёт наведённого, пустой слот заполняет бот. Мой ход кончается
     // через MyTurnSeconds: наведённого к тому времени клиент берёт сам, пустой
-    // слот ждёт ручного пика.
+    // слот ждёт ручного пика. Срок хода для отсчёта в окне — мой ход или
+    // последний момент бота с запасом на такт SimTick (0,5 с).
     private void StartTurn()
     {
         _pickAt.Clear();
@@ -115,7 +116,15 @@ sealed partial class TestPanel
             if (cell == meCell) _myTurnEnd = DateTime.UtcNow.AddSeconds(MyTurnSeconds);
             else _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
         }
+        _turnSeconds = _myTurnEnd is null ? MaxTurnSeconds + 1 : MyTurnSeconds;
+        _turnEnd = DateTime.UtcNow.AddSeconds(_turnSeconds);
     }
+
+    // Клетка своё в этом ходе уже сделала — как у клиента, где завершённое
+    // действие пропадает из «чей ход» (ActiveCells): бот взял (не наводит),
+    // мой пик подтверждён.
+    private bool TurnDone(int cell, int meCell) =>
+        cell == meCell ? _myLocked : CellChamp(cell) != 0 && !_hoverCells.Contains(cell);
 
     // Ход клетки ещё впереди: авто-драфт идёт, а её группа после текущей.
     private bool TurnAhead(int cell) =>
@@ -288,7 +297,11 @@ sealed partial class TestPanel
         return _simGroups.Skip(mine + 1).Any(g => g.Any(Empty));
     }
 
-    // ── Срок моего хода ──────────────────────────────────────────────────────
+    // ── Срок хода пика ───────────────────────────────────────────────────────
+
+    // Ход авто-драфта: срок для отсчёта в окне (StartTurn).
+    private DateTime? _turnEnd;
+    private int _turnSeconds;
 
     // Ход пика в драфте руками — как в ранкеде.
     internal static double ManualTurnSeconds = 30;
@@ -296,24 +309,27 @@ sealed partial class TestPanel
     private DispatcherTimer? _manualTurnTimer; // начинает ход заново, когда время вышло
 
     /// <summary>
-    /// Срок моего хода — окну (отсчёт в моём слоте, рамка последних 5 секунд),
-    /// как его дал бы клиент: только пока мой ход и пик не взят. Авто-драфт —
-    /// ход по очереди (<c>_myTurnEnd</c>, 15 с). Драфт руками — 30 секунд, как
-    /// пик в ранкеде; вышло — ход начинается заново: в драфте руками песочница
-    /// сама ничего не берёт (сцену собирают дольше 30 секунд), а отсчёт виден,
-    /// пока ход мой. До 25.11 срок был только у авто-драфта, и владелец цифр
-    /// не увидел: песочница открывается сразу драфтом руками.
+    /// Срок нынешнего хода — окну, как его дал бы клиент: отсчёт в слотах
+    /// всех, чей ход (<c>ActiveCells</c>), и рамка последних 5 секунд, если
+    /// ход мой. Авто-драфт — ход по очереди (<c>_turnEnd</c>: мой — 15 с,
+    /// ботов — 11), у союзников и врагов тоже (владелец, 25.11: «таймер должен
+    /// быть у всех»). Драфт руками — только мой ход, 30 секунд, как пик в
+    /// ранкеде; вышло — ход начинается заново: в драфте руками песочница сама
+    /// ничего не берёт (сцену собирают дольше 30 секунд), а отсчёт виден, пока
+    /// ход мой. null — драфта нет (лобби).
     /// </summary>
-    private void PushPickTimer(bool myPickNow)
+    private void PushPickTimer(DraftState? draft)
     {
-        if (!myPickNow || _simTurn >= 0) StopManualTurn();
-        if (!myPickNow) _overlay.SetPickTimer(null, 0);
-        else if (_simTurn >= 0) _overlay.SetPickTimer(_myTurnEnd, MyTurnSeconds * 1000);
-        else
+        var mine = draft?.MyPickInProgress == true;
+        if (!mine || _simTurn >= 0) StopManualTurn();
+        if (draft is null || draft.ActiveCells.Count == 0) _overlay.SetPickTimer(null, 0, false);
+        else if (_simTurn >= 0) _overlay.SetPickTimer(_turnEnd, _turnSeconds * 1000, mine);
+        else if (mine)
         {
             if (_manualTurnEnd is null) StartManualTurn();
-            _overlay.SetPickTimer(_manualTurnEnd, ManualTurnSeconds * 1000);
+            _overlay.SetPickTimer(_manualTurnEnd, ManualTurnSeconds * 1000, true);
         }
+        else _overlay.SetPickTimer(null, 0, false);
     }
 
     private void StartManualTurn()
@@ -328,7 +344,7 @@ sealed partial class TestPanel
                 // авто-драфт, мой пик взят.
                 if (_stage != TestStage.Draft || _simTurn >= 0 || _myLocked) { StopManualTurn(); return; }
                 StartManualTurn();
-                _overlay.SetPickTimer(_manualTurnEnd, ManualTurnSeconds * 1000);
+                _overlay.SetPickTimer(_manualTurnEnd, ManualTurnSeconds * 1000, true);
             };
         }
         _manualTurnTimer.Stop();

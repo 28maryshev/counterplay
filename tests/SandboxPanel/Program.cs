@@ -529,6 +529,25 @@ internal static class Program
         Pump();
         Check("авто-драфт, мой ход: отсчёт 15 секунд",
               clock.Visibility == Visibility.Visible && clock.Seconds is "15" or "14", Shown());
+
+        // Ход ботов-врагов (владелец, 25.11: «таймер должен быть у всех»): отсчёт
+        // у обоих, 11 секунд; взял один — у него отсчёта больше нет.
+        panel.GetType().GetField("_simGroups", BindingFlags.Instance | BindingFlags.NonPublic)!
+             .SetValue(panel, new[] { new[] { 5, 6 }, new[] { 2 }, new[] { 0, 1 }, new[] { 7, 8 }, new[] { 3, 4 }, new[] { 9 } });
+        Call(panel, "StartTurn");
+        Call(panel, "Recompute");
+        Pump();
+        var enemies = (ItemsControl)overlay.FindName("EnemyTeamList");
+        var mine = (ItemsControl)overlay.FindName("MyTeamList");
+        PickClock SlotClock(ItemsControl l, int i) => ((ChampSlotCard)l.Items[i]).Clock;
+        Check("авто-драфт, ход врагов: отсчёт у обоих, 11 секунд, у меня нет",
+              ReferenceEquals(SlotClock(enemies, 0), clock) && ReferenceEquals(SlotClock(enemies, 1), clock)
+              && clock.Seconds is "11" or "10" && ReferenceEquals(SlotClock(mine, 2), PickClock.None), Shown());
+        Call(panel, "AutoPick", 5);
+        Pump();
+        Check("авто-драфт: враг взял — у него отсчёта нет, у второго остался",
+              ReferenceEquals(SlotClock(enemies, 0), PickClock.None) && ReferenceEquals(SlotClock(enemies, 1), clock)
+              && clock.Visibility == Visibility.Visible, Shown());
         Call(panel, "StopSim");
         Call(panel, "ResetDraft");
         Pump();

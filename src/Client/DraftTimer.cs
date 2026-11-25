@@ -30,12 +30,14 @@ public readonly record struct DraftTimer(string Phase, double LeftMs, double Tot
     }
 
     /// <summary>
-    /// Когда кончится мой ход пикать (UTC). null — отсчёта нет: ход не мой или
-    /// пик уже сделан, ARAM (чемпионов раздают, ходов нет), драфт без срока
-    /// (тренировка).
+    /// Когда кончится нынешний ход пика (UTC) — чей бы он ни был: отсчёт
+    /// стоит у каждого, чей ход сейчас (<c>ActiveCells</c>), таймер у них
+    /// общий. Мой ли ход — <c>MyPickInProgress</c>. null — отсчёта нет: пиков
+    /// сейчас никто не делает (баны, объявление, финализация), ARAM
+    /// (чемпионов раздают, ходов нет), драфт без срока (тренировка).
     /// </summary>
-    public DateTime? MyPickDeadline(DraftState draft, DateTime nowUtc) =>
-        draft is { IsAram: false, MyPickInProgress: true } && !Infinite && LeftMs > 0
+    public DateTime? PickTurnDeadline(DraftState draft, DateTime nowUtc) =>
+        !draft.IsAram && (draft.MyPickInProgress || draft.ActiveCells.Count > 0) && !Infinite && LeftMs > 0
             ? nowUtc.AddMilliseconds(LeftMs) : null;
 
     private static double? Num(JsonElement o, string name) =>

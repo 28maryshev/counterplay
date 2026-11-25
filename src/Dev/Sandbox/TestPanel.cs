@@ -328,7 +328,7 @@ sealed partial class TestPanel : Window
         // Идёт «поиск игры» — фаза поиска, как её присылает клиент.
         if (_stage == TestStage.Ready)
         {
-            PushPickTimer(false);   // лобби — хода нет; следующий драфт — со своего
+            PushPickTimer(null);   // лобби — хода нет; следующий драфт — со своего
             if (_searchEndAt is not null) _overlay.ShowReadyPhase("Matchmaking");
             else _overlay.ShowReady(ReadyText);
             return;
@@ -394,13 +394,15 @@ sealed partial class TestPanel : Window
         bool myPick = _stage != TestStage.Bans && !_myLocked;
 
         // Чей ход: при авто-драфте — текущая группа _simGroups (в парных ходах
-        // подсвечиваются сразу двое), иначе мой слот.
+        // подсвечиваются сразу двое) без тех, кто своё уже взял, — как у
+        // клиента, где завершённое действие из «чей ход» пропадает (по нему
+        // стоит отсчёт хода в слоте); иначе мой слот.
         List<int> active;
         int firstPick;
         bool myTurn;
         if (_simTurn >= 0 && _simTurn < _simGroups.Length)
         {
-            active    = _simGroups[_simTurn].ToList();
+            active    = _simGroups[_simTurn].Where(c => !TurnDone(c, meIdx)).ToList();
             firstPick = _simGroups[0][0];
             myTurn    = _simGroups[_simTurn].Contains(meIdx);
         }
@@ -431,7 +433,7 @@ sealed partial class TestPanel : Window
             InPlanning: planning);
 
         // Отсчёт моего хода — как у клиента: только в мой ход и пока пик не взят.
-        PushPickTimer(draft.MyPickInProgress);
+        PushPickTimer(draft);
 
         if (banPhase)
         {

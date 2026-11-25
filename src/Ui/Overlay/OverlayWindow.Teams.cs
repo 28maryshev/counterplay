@@ -269,7 +269,7 @@ public partial class OverlayWindow
                                               _pickClock));
         UpdateSlots(EnemyTeamList, BuildSlots(draft.TheirTeam, ally: false, _engine, myRole,
                                               _enemyRoleOverrides, draft.ActiveCells, draft.FirstPickCell,
-                                              enemyArch));
+                                              enemyArch, _pickClock));
 
         var myStyle    = ChampionTraits.StyleLabel(allyIds);
         var enemyStyle = ChampionTraits.StyleLabel(enemyIds);
@@ -447,7 +447,7 @@ public partial class OverlayWindow
         RecommendationEngine? engine, string myRole,
         IReadOnlyDictionary<int, string>? roleOverrides = null,
         IReadOnlyList<int>? activeCells = null, int firstPickCell = -1,
-        ChampionTraits.Arch? teamStyle = null, PickClock? myClock = null)
+        ChampionTraits.Arch? teamStyle = null, PickClock? turnClock = null)
     {
         return Enumerable.Range(0, 5).Select(i =>
         {
@@ -544,7 +544,11 @@ public partial class OverlayWindow
                 PickMirror      = ally ? 1.0 : -1.0,
                 IsFirstPick = p.CellId == firstPickCell,
                 FirstPickLabel = Loc.T("slot.firstPick"),
-                Clock       = isMe && myClock != null ? myClock : PickClock.None,
+                // Отсчёт хода — у каждого, чей ход сейчас. По ActiveCells, а не
+                // по isPicking: в свой ход клиент держит наведённого уже в
+                // championId, и «взят» по нему ещё не значит, что ход кончился.
+                Clock       = turnClock != null && activeCells?.Contains(p.CellId) == true
+                    ? turnClock : PickClock.None,
             };
         }).ToList();
     }

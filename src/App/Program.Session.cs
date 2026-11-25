@@ -507,16 +507,17 @@ partial class Program
                                 RecommendationEngine.LcuToDbRole(draft.MyPosition));
 
                         // За 5 секунд до конца финализации — в трей; идёт драфт —
-                        // окну можно на экран (DraftTray). Мой ход пикать —
-                        // отсчёт в моём слоте, за 5 секунд до конца рамка центра.
-                        // До отпечатка: остаток таймера в нём не участвует.
-                        // Повтор по будильнику — старый снимок с устаревшим
-                        // остатком таймера: ни трей, ни отсчёт по нему не трогаем.
+                        // окну можно на экран (DraftTray). Идёт ход пика —
+                        // отсчёт в слотах тех, чей ход; мой — ещё и рамка центра
+                        // за 5 секунд до конца. До отпечатка: остаток таймера в
+                        // нём не участвует. Повтор по будильнику — старый снимок
+                        // с устаревшим остатком: ни трей, ни отсчёт по нему не трогаем.
                         if (!replay)
                         {
                             var timer = DraftTimer.Parse(ev.Data);
                             draftTray.OnTimer(timer.Phase, timer.LeftMs);
-                            overlay.SetPickTimer(timer.MyPickDeadline(draft, DateTime.UtcNow), timer.TotalMs);
+                            overlay.SetPickTimer(timer.PickTurnDeadline(draft, DateTime.UtcNow), timer.TotalMs,
+                                                 mine: draft.MyPickInProgress);
                         }
 
                         var hash = DraftHash(draft);

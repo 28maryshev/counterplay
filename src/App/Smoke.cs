@@ -276,12 +276,12 @@ internal static class Smoke
             {
                 // Последние секунды хода: отсчёт в моём слоте и рамка центра;
                 // пик сделан — пропадают оба.
-                w.SetPickTimer(DateTime.UtcNow.AddSeconds(4), 30000);
+                w.SetPickTimer(DateTime.UtcNow.AddSeconds(4), 30000, mine: true);
                 await Settle();
                 var frame = (FrameworkElement)w.FindName("PickAlarmFrame");
                 if (frame.Visibility != Visibility.Visible)
                     throw new InvalidOperationException("4 секунды до конца хода, а рамки центра нет");
-                w.SetPickTimer(null, 0);
+                w.SetPickTimer(null, 0, mine: false);
                 await Settle();
                 if (frame.Visibility == Visibility.Visible)
                     throw new InvalidOperationException("пик сделан, а рамка центра мигает");
