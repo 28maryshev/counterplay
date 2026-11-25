@@ -40,9 +40,16 @@ public sealed class PhrasesWindow : Window
         _save.Click += (_, _) => Save();
         body.Children.Add(_save);
 
+        // Раскрытые списки своих вариантов растят окно; выше экрана — прокрутка.
+        MaxHeight = SystemParameters.WorkArea.Height * 0.92;
         var decorated = new Grid();
         decorated.Children.Add(PoolSettingsWindow.DecorBackground());
-        decorated.Children.Add(body);
+        decorated.Children.Add(new System.Windows.Controls.ScrollViewer
+        {
+            Content = body,
+            VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled,
+        });
         Content = PoolUi.Chrome(this, Title, decorated);
     }
 
@@ -59,11 +66,16 @@ public sealed class PhrasesWindow : Window
         Close();
     }
 
-    /// Для проверок: поля фраз окна по порядку.
+    /// Для проверок: поля текста кнопок по порядку (у поля — номер кнопки).
     public IReadOnlyList<System.Windows.Controls.TextBox> Fields() =>
-        Find<System.Windows.Controls.TextBox>(this).ToList();
+        Find<System.Windows.Controls.TextBox>(this).Where(t => t.Tag is int).ToList();
 
-    private static IEnumerable<T> Find<T>(DependencyObject d) where T : DependencyObject
+    /// Для проверок: поля раскрытых своих вариантов («choice:N»).
+    public IReadOnlyList<System.Windows.Controls.TextBox> ChoiceFields() =>
+        Find<System.Windows.Controls.TextBox>(this).Where(t => t.Tag is string tag && tag.StartsWith("choice:")).ToList();
+
+    /// Для проверок: элементы окна по логическому дереву.
+    public static IEnumerable<T> Find<T>(DependencyObject d) where T : DependencyObject
     {
         foreach (var child in LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>())
         {

@@ -99,12 +99,14 @@ public partial class OverlayWindow
         var b = bar[i];
         var lang = ChatPhrases.Lang(s);
         var itemStyle = (Style)FindResource("RoleMenuItemStyle");
-        var keys = ChatPhrases.Choices(b.Kind);
-        foreach (var key in keys)
+        // Варианты кнопки: стандартные на языке фраз или свои. Иконка — у
+        // ролей, которые остались стандартной ролью (переименованный «топчик»
+        // — тоже топ); свой вариант без ключа — без иконки.
+        foreach (var (choice, name) in ChatPhrases.Options(s, b))
         {
-            var name = ChatPhrases.ChoiceName(lang, b.Kind, key);
+            var key = choice.Key;
             var header = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
-            if (b.Kind == ChatPhrases.Role
+            if (b.Kind == ChatPhrases.Role && key.Length > 0
                 && RoleIcons.Get(ChatPhrases.RolePositions[Array.IndexOf(ChatPhrases.Roles, key)]) is { } icon)
                 header.Children.Add(new System.Windows.Controls.Image
                 {
@@ -115,7 +117,7 @@ public partial class OverlayWindow
             {
                 Text = name, VerticalAlignment = System.Windows.VerticalAlignment.Center,
             });
-            var item = new System.Windows.Controls.MenuItem { Header = header, Style = itemStyle, Tag = key };
+            var item = new System.Windows.Controls.MenuItem { Header = header, Style = itemStyle, Tag = key.Length > 0 ? key : name };
             var text = ChatPhrases.Compose(lang, ChatPhrases.Text(s, b), name);
             item.ToolTip = text;
             item.Click += (_, _) => SendPhrase(i, text);

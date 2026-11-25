@@ -13,9 +13,26 @@ public sealed record ChatButton
     public string Kind { get; init; } = ChatPhrases.Plain;
     public string Std  { get; init; } = "";
     public string Text { get; init; } = "";
+    /// Свои варианты выбора (ChatPhrases.SetOwnChoices); null — стандартные вида.
+    public ChoiceItem[]? Choices { get; init; }
 
     // Для журнала настроек (AppSettings.Apply пишет, что поменялось).
-    public override string ToString() => $"{Kind}/{(Std.Length > 0 ? Std : "своя")}/{Text}";
+    public override string ToString() =>
+        $"{Kind}/{(Std.Length > 0 ? Std : "своя")}/{Text}" + (Choices is null ? "" : "/{" + string.Join(", ", Choices.Select(c => c.ToString())) + "}");
+}
+
+/// <summary>
+/// Вариант в списке кнопки с выбором. Key — стандартный вариант (роль «mid»,
+/// нужда «front»; название — ключ phrases.roles.* / phrases.needs.* на языке
+/// фраз, у роли — ещё и иконка), пусто — вариант завёл человек. Text — своё
+/// название («топчик»); пусто у стандартного — его название на языке фраз.
+/// </summary>
+public sealed record ChoiceItem
+{
+    public string Key  { get; init; } = "";
+    public string Text { get; init; } = "";
+
+    public override string ToString() => Key.Length == 0 ? Text : Text.Length > 0 ? $"{Key}={Text}" : Key;
 }
 
 /// <summary>
@@ -68,9 +85,10 @@ public static class ChatPhrases
     /// Кнопки по порядку редактора: свои, а без них — стандартный набор.
     public static IReadOnlyList<ChatButton> Buttons(AppSettings s) => s.ChatButtons ?? Defaults();
 
-    /// Кнопки на полосе: с выбором первыми, внутри — как в редакторе; пустые — нет.
+    /// Кнопки на полосе: с выбором первыми, внутри — как в редакторе; пустые и
+    /// с выбором, у которых не осталось ни одного варианта, — нет.
     public static IReadOnlyList<ChatButton> Bar(AppSettings s) =>
-        Buttons(s).Where(b => Text(s, b).Length > 0)
+        Buttons(s).Where(b => Text(s, b).Length > 0 && (!IsChoice(b) || Options(s, b).Count > 0))
                   .OrderBy(b => IsChoice(b) ? 0 : 1)   // OrderBy устойчив: порядок внутри сохраняется
                   .ToList();
 
@@ -86,13 +104,104 @@ public static class ChatPhrases
     /// Подпись на полосе: у кнопки с выбором — знак списка.
     public static string Label(AppSettings s, ChatButton b) => IsChoice(b) ? Text(s, b) + " ▾" : Text(s, b);
 
-    /// Варианты выбора вида kind (ключи).
-    public static IReadOnlyList<string> Choices(string kind) =>
+    /// Стандартные варианты вида kind (ключи).
+    public static IReadOnlyList<string> StdChoices(string kind) =>
         kind == Role ? Roles : kind == Need ? Needs : [];
 
-    /// Название варианта на языке фраз — так, как оно встаёт в середину фразы.
+    /// Стандартное название варианта на языке фраз — так, как оно встаёт в середину фразы.
     public static string ChoiceName(string lang, string kind, string key) =>
         Loc.TIn(lang, $"phrases.{(kind == Role ? "roles" : "needs")}.{key}");
+
+    // ── Варианты выбора — у каждой кнопки свои. null — стандартные варианты
+    //    вида на языке фраз (идут за языком); список — «свои варианты»: при
+    //    переключении туда он начинается копией стандартных (слово владельца
+    //    25.11: «выбираются такие же стандартные, которые можно редактировать»).
+
+    /// Больше вариантов список над кнопкой не вмещает без прокрутки.
+    public const int MaxChoices = 12;
+
+    public static ChoiceItem[] DefaultChoices(string kind) =>
+        StdChoices(kind).Select(k => new ChoiceItem { Key = k }).ToArray();
+
+    /// Свои ли варианты у кнопки (иначе — стандартные).
+    public static bool OwnChoices(ChatButton b) => b.Choices is not null;
+
+    /// Варианты кнопки по порядку редактора.
+    public static IReadOnlyList<ChoiceItem> ChoiceItems(ChatButton b) => b.Choices ?? DefaultChoices(b.Kind);
+
+    /// Название варианта: своё, а без него — стандартное на языке фраз.
+    public static string Name(AppSettings s, string kind, ChoiceItem c) =>
+        c.Text.Length > 0 ? c.Text : c.Key.Length > 0 ? ChoiceName(Lang(s), kind, c.Key) : "";
+
+    /// Что видно в списке кнопки: вариант и его название; пустые — нет.
+    public static IReadOnlyList<(ChoiceItem Item, string Name)> Options(AppSettings s, ChatButton b) =>
+        ChoiceItems(b).Select(c => (c, Name(s, b.Kind, c))).Where(x => x.Item2.Length > 0).ToList();
+
+    /// <summary>
+    /// Стандартные или свои варианты у кнопки i. Свои начинаются копией
+    /// стандартных — с названиями на языке фраз, уже как своими: дальше они
+    /// не идут за языком, их правят. Ключ остаётся — по нему у роли иконка.
+    /// </summary>
+    public static void SetOwnChoices(AppSettings s, int i, bool own)
+    {
+        var list = Buttons(s).ToList();
+        if (i < 0 || i >= list.Count || !IsChoice(list[i]) || OwnChoices(list[i]) == own) return;
+        var b = list[i];
+        list[i] = b with
+        {
+            Choices = own
+                ? DefaultChoices(b.Kind).Select(c => c with { Text = ChoiceName(Lang(s), b.Kind, c.Key) }).ToArray()
+                : null,
+        };
+        Store(s, list);
+    }
+
+    /// Название варианта j у кнопки i (только у своих вариантов).
+    public static void SetChoiceText(AppSettings s, int i, int j, string text) =>
+        EditChoices(s, i, c => { if (j < c.Count) c[j] = c[j] with { Text = DraftChat.Clean(text) }; });
+
+    /// Новый пустой вариант в конец; полный список — ничего.
+    public static void AddChoice(AppSettings s, int i) =>
+        EditChoices(s, i, c => { if (c.Count < MaxChoices) c.Add(new ChoiceItem()); });
+
+    public static void RemoveChoice(AppSettings s, int i, int j) =>
+        EditChoices(s, i, c => { if (j < c.Count) c.RemoveAt(j); });
+
+    // Свои варианты кнопки — копией, правкой и новым массивом: как и сам набор
+    // кнопок, их делит копия настроек в окне настроек.
+    private static void EditChoices(AppSettings s, int i, Action<List<ChoiceItem>> edit)
+    {
+        var list = Buttons(s).ToList();
+        if (i < 0 || i >= list.Count || list[i].Choices is not { } own) return;
+        var items = own.ToList();
+        edit(items);
+        list[i] = list[i] with { Choices = [.. items] };
+        Store(s, list);
+    }
+
+    /// <summary>
+    /// Привести свои варианты в порядок: стандартный ключ — только свой для
+    /// вида, название чистое, не больше <see cref="MaxChoices"/>, пустые без
+    /// ключа — прочь (кроме правки). В стандартные сами не превращаются: «свои»
+    /// — выбор человека, даже если совпали. Пустой список — пустой: все
+    /// варианты убраны, кнопка пропадёт с полосы.
+    /// </summary>
+    public static ChoiceItem[]? NormalizeChoices(string kind, ChoiceItem[]? src, bool keepEmpty = false)
+    {
+        if (src is null || kind == Plain) return null;
+        var std = StdChoices(kind);
+        var list = new List<ChoiceItem>();
+        foreach (var c in src)
+        {
+            if (c is null) continue;
+            var key = std.Contains(c.Key) ? c.Key : "";
+            var text = DraftChat.Clean(c.Text);
+            if (key.Length == 0 && text.Length == 0 && !keepEmpty) continue;
+            list.Add(new ChoiceItem { Key = key, Text = text });
+            if (list.Count == MaxChoices) break;
+        }
+        return [.. list];
+    }
 
     /// <summary>
     /// Фраза с выбранным: выбор — на место «…» (или «...»); места нет — в конец
@@ -144,7 +253,7 @@ public static class ChatPhrases
         if (i < 0 || i >= list.Count || !Kinds.Contains(kind) || list[i].Kind == kind) return;
         var b = list[i];
         list[i] = b.Std.Length > 0 && StdKind(b.Std) == kind
-            ? b with { Kind = kind }
+            ? b with { Kind = kind, Choices = null }   // варианты другого вида сюда не годятся
             : new ChatButton { Kind = kind, Text = Text(s, b) };
         Store(s, list);
     }
@@ -198,7 +307,7 @@ public static class ChatPhrases
                 else kind = StdKind(std);           // текста нет — остаётся стандартной
             }
             if (std.Length == 0 && text.Length == 0 && !keepEmpty) continue;
-            list.Add(new ChatButton { Kind = kind, Std = std, Text = text });
+            list.Add(new ChatButton { Kind = kind, Std = std, Text = text, Choices = NormalizeChoices(kind, b.Choices, keepEmpty) });
             if (list.Count == Max) break;
         }
         return list.SequenceEqual(Defaults()) ? null : [.. list];
