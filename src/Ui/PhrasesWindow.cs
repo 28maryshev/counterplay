@@ -15,6 +15,9 @@ namespace Counterplay;
 public sealed class PhrasesWindow : Window
 {
     private readonly AppSettings _draft = AppSettings.Current.Clone();
+
+    /// Для проверок: правленая копия настроек (уйдёт в программу по «Сохранить»).
+    public AppSettings Draft => _draft;
     private readonly System.Windows.Controls.Button _save;
 
     public PhrasesWindow()

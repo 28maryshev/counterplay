@@ -1032,6 +1032,7 @@
     "stdTick": "Câu mặc định",
     "ownTick": "Câu riêng",
     "ownHint": "Ban đầu là bản sao câu mặc định: sửa, thêm và bỏ nút.",
+    "ownOff": "Đánh dấu “Câu riêng” để sửa",
     "add": "+ Thêm nút",
     "remove": "Bỏ nút",
     "slotHint": "Khối trong ô là chỗ điền lựa chọn: bấm trước hoặc sau nó rồi viết chữ. Nút có lựa chọn xếp đầu tiên.",

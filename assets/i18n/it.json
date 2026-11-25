@@ -1032,6 +1032,7 @@
     "stdTick": "Frasi standard",
     "ownTick": "Frasi mie",
     "ownHint": "Parte come copia di quelle standard: modifica, aggiungi e rimuovi pulsanti.",
+    "ownOff": "Spunta «Frasi mie» per modificare",
     "add": "+ Aggiungi pulsante",
     "remove": "Rimuovi pulsante",
     "slotHint": "Il blocco nel campo è dove va la scelta: clicca prima o dopo e scrivi il tuo testo. I pulsanti con scelta vengono per primi.",

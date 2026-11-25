@@ -1032,6 +1032,7 @@
     "stdTick": "Phrases standard",
     "ownTick": "Mes phrases",
     "ownHint": "Copie des phrases standard au départ : modifiez, ajoutez et retirez des boutons.",
+    "ownOff": "Cochez « Mes phrases » pour modifier",
     "add": "+ Ajouter un bouton",
     "remove": "Retirer le bouton",
     "slotHint": "Le bloc dans le champ marque l'endroit du choix : cliquez avant ou après et écrivez votre texte. Les boutons à choix passent en premier.",

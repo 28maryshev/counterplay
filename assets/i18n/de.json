@@ -1032,6 +1032,7 @@
     "stdTick": "Standardsätze",
     "ownTick": "Eigene Sätze",
     "ownHint": "Startet als Kopie der Standardsätze: bearbeiten, hinzufügen, entfernen.",
+    "ownOff": "„Eigene Sätze“ ankreuzen zum Bearbeiten",
     "add": "+ Button hinzufügen",
     "remove": "Button entfernen",
     "slotHint": "Der Block im Feld ist die Stelle für die Auswahl: Klick davor oder dahinter und schreib deinen Text. Buttons mit Auswahl stehen vorne.",

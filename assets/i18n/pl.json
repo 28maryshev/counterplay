@@ -1032,6 +1032,7 @@
     "stdTick": "Standardowe frazy",
     "ownTick": "Własne frazy",
     "ownHint": "Na start — kopia standardowych: edytuj, dodawaj i usuwaj przyciski.",
+    "ownOff": "Zaznacz „Własne frazy”, aby edytować",
     "add": "+ Dodaj przycisk",
     "remove": "Usuń przycisk",
     "slotHint": "Blok w polu to miejsce wyboru: kliknij przed nim lub za nim i dopisz tekst. Przyciski z wyborem są pierwsze.",

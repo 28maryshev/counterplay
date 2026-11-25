@@ -1032,6 +1032,7 @@
     "stdTick": "Standart ifadeler",
     "ownTick": "Kendi ifadelerim",
     "ownHint": "Başta standartların kopyasıdır: düğmeleri düzenle, ekle ve kaldır.",
+    "ownOff": "Düzenlemek için “Kendi ifadelerim”i işaretle",
     "add": "+ Düğme ekle",
     "remove": "Düğmeyi kaldır",
     "slotHint": "Alandaki blok seçimin geleceği yerdir: önüne ya da arkasına tıklayıp metnini yaz. Seçimli düğmeler önce gelir.",

@@ -460,11 +460,17 @@ internal static class Program
         var edit = w.OpenPhrases();
         ShowHidden(edit);
         Pump();
-        Check(edit.Fields().Count == 0 && !ChatPhrases.Own(AppSettings.Current),
-              "окно фраз: стандартные фразы, полей правки нет", $"{edit.Fields().Count}");
+        var stdFields = edit.Fields();
+        Check(stdFields.Count == 6 && stdFields.All(f => !f.IsEnabled) && !ChatPhrases.Own(AppSettings.Current),
+              "окно фраз: стандартные фразы, поля своих видны, но не активны", $"{stdFields.Count}, активных {stdFields.Count(f => f.IsEnabled)}");
         if (snap is not null) Snap(edit, snap, "phrases-std.png");
-        PhraseEditor.Pick(edit, "own");
+        // Щелчок по приглушённым своим фразам включает их.
+        PhrasesWindow.Find<System.Windows.Controls.Border>(edit).First(b => (string?)b.Tag == "ownPreview")
+            .RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0,
+                System.Windows.Input.MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
         Pump();
+        Check(ChatPhrases.Own(edit.Draft) && edit.Fields().All(f => f.IsEnabled),
+              "щелчок по приглушённым своим фразам — галочка «Свои фразы», поля активны");
         var fields = edit.Fields();
         Check(fields.Count == 6, "галочка «Свои фразы» — шесть полей, копия стандартных", $"{fields.Count}");
         if (snap is not null) Snap(edit, snap, "phrases-window.png");

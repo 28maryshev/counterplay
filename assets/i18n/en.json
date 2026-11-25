@@ -1032,6 +1032,7 @@
     "stdTick": "Standard phrases",
     "ownTick": "My phrases",
     "ownHint": "Starts as a copy of the standard ones: edit, add and remove buttons.",
+    "ownOff": "Tick My phrases to edit",
     "add": "+ Add button",
     "remove": "Remove button",
     "slotHint": "The block in the field is where the choice goes: click before or after it and type your text. Buttons with a choice come first on the bar.",

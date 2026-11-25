@@ -1032,6 +1032,7 @@
     "stdTick": "Frases estándar",
     "ownTick": "Frases propias",
     "ownHint": "Empieza como copia de las estándar: edita, añade y quita botones.",
+    "ownOff": "Marca «Frases propias» para editar",
     "add": "+ Añadir botón",
     "remove": "Quitar botón",
     "slotHint": "El bloque del campo es donde va la elección: haz clic antes o después y escribe tu texto. Los botones con elección van primero.",

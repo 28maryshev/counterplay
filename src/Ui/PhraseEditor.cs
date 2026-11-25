@@ -110,13 +110,39 @@ public static class PhraseEditor
         root.Children.Add(list);
     }
 
-    /// Низ: «Свои фразы» и, когда они выбраны, правка кнопок.
+    /// <summary>
+    /// Низ: «Свои фразы» и правка кнопок. Пока стоят стандартные, правка тоже
+    /// видна — та самая, что откроется (копия стандартных или прежние свои
+    /// кнопки), только приглушённая и неактивная (слово владельца 25.11: «те же
+    /// поля, только не активны, чтобы игрок понимал, что может активировать их
+    /// и редактировать»). Щелчок по ней включает «Свои фразы».
+    /// </summary>
     private static void Own(Ctx ctx, StackPanel root)
     {
-        var s = ctx.S;
-        var own = ChatPhrases.Own(s);
+        var own = ChatPhrases.Own(ctx.S);
         root.Children.Add(Tick(Loc.T("phrases.ownTick"), own, "own", () => SetOwn(ctx, true)));
-        if (!own) return;
+        if (own) { OwnEditor(ctx, root); return; }
+
+        // Правка на копии настроек с галочкой «свои» — ничего не пишет: поля
+        // выключены, а сама копия никуда не уходит.
+        var view = ctx.S.Clone();
+        ChatPhrases.SetOwn(view, true);
+        var area = new StackPanel { IsEnabled = false, Opacity = 0.45 };
+        OwnEditor(new Ctx(view, () => { }), area);
+        // Выключенные поля мышь не ловят — щелчок достаётся рамке вокруг.
+        var cover = new Border
+        {
+            Child = area, Background = Brushes.Transparent, Cursor = Cursors.Hand,
+            ToolTip = Loc.T("phrases.ownOff"), Tag = "ownPreview",
+        };
+        cover.MouseLeftButtonDown += (_, e) => { e.Handled = true; SetOwn(ctx, true); };
+        root.Children.Add(cover);
+    }
+
+    /// Правка своих кнопок: подсказка, строки, «+ Добавить кнопку», «Вернуть стандартные».
+    private static void OwnEditor(Ctx ctx, StackPanel root)
+    {
+        var s = ctx.S;
         root.Children.Add(Hint(Loc.T("phrases.ownHint"), new Thickness(26, 2, 0, 10)));
 
         var list = ChatPhrases.Buttons(s);
