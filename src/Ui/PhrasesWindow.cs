@@ -59,20 +59,23 @@ public sealed class PhrasesWindow : Window
         // Копию, а не сам _draft: редактор держит ссылку на него (см. SettingsWindow).
         // Остальное берём из живых настроек — пока окно было открыто, их могли
         // поменять, и откатывать чужие правки фразами нельзя.
+        // Переносится только набор текущего аккаунта (пустые новые кнопки и
+        // варианты — прочь): наборы других аккаунтов остаются как в живых.
         var next = AppSettings.Current.Clone();
-        next.PhraseLang = _draft.PhraseLang;
-        next.ChatButtons = ChatPhrases.Normalize(_draft.ChatButtons);   // пустые новые кнопки — прочь
+        ChatPhrases.CopySet(_draft, next);
         AppSettings.Apply(next);
         Close();
     }
 
-    /// Для проверок: поля текста кнопок по порядку (у поля — номер кнопки).
-    public IReadOnlyList<System.Windows.Controls.TextBox> Fields() =>
-        Find<System.Windows.Controls.TextBox>(this).Where(t => t.Tag is int).ToList();
+    /// <summary>
+    /// Для проверок: поля текста кнопок по порядку (у поля — номер кнопки). У
+    /// простых — TextBox, у кнопок с выбором — RichTextBox внутри SlotBox.
+    /// </summary>
+    public IReadOnlyList<System.Windows.Controls.Primitives.TextBoxBase> Fields() =>
+        Find<System.Windows.Controls.Primitives.TextBoxBase>(this).Where(t => t.Tag is int).ToList();
 
-    /// Для проверок: поля раскрытых своих вариантов («choice:N»).
-    public IReadOnlyList<System.Windows.Controls.TextBox> ChoiceFields() =>
-        Find<System.Windows.Controls.TextBox>(this).Where(t => t.Tag is string tag && tag.StartsWith("choice:")).ToList();
+    /// Для проверок: окно вариантов кнопки i на той же копии настроек — не показанным.
+    public ChoicesWindow ChoicesFor(int i) => new(_draft, i, () => _save.IsEnabled = true) { Owner = this };
 
     /// Для проверок: элементы окна по логическому дереву.
     public static IEnumerable<T> Find<T>(DependencyObject d) where T : DependencyObject

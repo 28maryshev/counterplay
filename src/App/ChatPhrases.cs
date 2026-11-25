@@ -15,10 +15,14 @@ public sealed record ChatButton
     public string Text { get; init; } = "";
     /// Свои варианты выбора (ChatPhrases.SetOwnChoices); null — стандартные вида.
     public ChoiceItem[]? Choices { get; init; }
+    /// Язык стандартных вариантов (окно вариантов, справа от «Стандартные
+    /// варианты»); пусто — язык фраз.
+    public string ChoiceLang { get; init; } = "";
 
     // Для журнала настроек (AppSettings.Apply пишет, что поменялось).
     public override string ToString() =>
-        $"{Kind}/{(Std.Length > 0 ? Std : "своя")}/{Text}" + (Choices is null ? "" : "/{" + string.Join(", ", Choices.Select(c => c.ToString())) + "}");
+        $"{Kind}/{(Std.Length > 0 ? Std : "своя")}/{Text}" + (ChoiceLang.Length > 0 ? $"/{ChoiceLang}" : "")
+        + (Choices is null ? "" : "/{" + string.Join(", ", Choices.Select(c => c.ToString())) + "}");
 }
 
 /// <summary>
@@ -36,13 +40,30 @@ public sealed record ChoiceItem
 }
 
 /// <summary>
+/// Фразы одного аккаунта: язык фраз (пусто — язык программы) и кнопки (null —
+/// стандартный набор: идёт за языком и за новыми стандартными кнопками).
+/// </summary>
+public sealed record PhraseSet
+{
+    public string Lang { get; init; } = "";
+    public ChatButton[]? Buttons { get; init; }
+
+    public override string ToString() =>
+        $"{(Lang.Length > 0 ? Lang : "язык программы")}: " + (Buttons is null ? "стандартные" : string.Join(" | ", Buttons.Select(b => b.ToString())));
+}
+
+/// <summary>
 /// Кнопки фраз для чата драфта (полоса в OverlayWindow.Phrases).
 ///
-/// Набор кнопок хранится в настройках (<see cref="AppSettings.ChatButtons"/>);
-/// null — стандартный набор, и тогда он идёт за сменой языка и за новыми
-/// стандартными кнопками программы. У кнопки с выбором в тексте есть место
-/// «…»: по нажатию открывается список (роль или что нужно команде), и выбранное
-/// встаёт на это место — «Мид, кого будешь брать?».
+/// Фразы — у каждого аккаунта свои (слово владельца 25.11: «должно
+/// привязываться к аккаунту и синхронизироваться»): словарь
+/// <see cref="AppSettings.PhraseSets"/>, ключ — puuid аккаунта в клиенте (тот
+/// же, что у пулов), "" — пока аккаунт неизвестен. Лежит в ui.json, а его
+/// синхронизация уже переносит между компьютерами. У аккаунта без своего
+/// набора — общий (""), без общего — стандартный. У кнопки с выбором в тексте
+/// есть место «…» (в поле редактора — блок): по нажатию открывается список
+/// (роль или что нужно команде), и выбранное встаёт на это место — «Мид, кого
+/// будешь брать?».
 ///
 /// Язык фраз отдельный от языка программы: с русской программой играют на
 /// западных серверах, и союзникам нужен английский.
@@ -54,7 +75,7 @@ public static class ChatPhrases
     /// Больше кнопок полоса не вмещает: при восьми на кнопку ~90 px, две строки.
     public const int Max = 8;
 
-    /// Место для выбора в тексте кнопки; три точки подряд — тоже оно.
+    /// Место для выбора в тексте кнопки (в поле редактора — блок, SlotBox).
     public const string Slot = "…";
 
     // Стандартный набор по порядку. Слово владельца 25.11: кнопки с выбором —
@@ -78,12 +99,58 @@ public static class ChatPhrases
     public static ChatButton[] Defaults() =>
         Standard.Select(x => new ChatButton { Kind = x.Kind, Std = x.Std }).ToArray();
 
+    // ── Набор аккаунта ────────────────────────────────────────────────────────
+
+    /// Для проверок: чей набор, вместо аккаунта в клиенте.
+    public static string? AccountOverride { get; set; }
+
+    /// Чей набор читается и пишется: аккаунт в клиенте, без клиента — "".
+    public static string Account => AccountOverride ?? PoolStore.AccountPuuid ?? "";
+
+    /// Набор текущего аккаунта; своего нет — общий (""), нет и его — стандартный.
+    public static PhraseSet Set(AppSettings s) =>
+        s.PhraseSets is { } d && (d.TryGetValue(Account, out var mine) || d.TryGetValue("", out mine)) && mine is not null
+            ? mine : new PhraseSet();
+
+    /// <summary>
+    /// Записать набор текущего аккаунта — новым словарём: копия настроек в окне
+    /// настроек (AppSettings.Clone) делит его с оригиналом. Стандартный набор у
+    /// аккаунта тоже пишется явно, если есть общий: иначе аккаунт после «Вернуть
+    /// стандартные» увидел бы общий, а не стандартный.
+    /// </summary>
+    public static void PutSet(AppSettings s, PhraseSet set)
+    {
+        var d = s.PhraseSets is null ? new Dictionary<string, PhraseSet>() : new Dictionary<string, PhraseSet>(s.PhraseSets);
+        var plain = set.Lang.Length == 0 && set.Buttons is null;
+        if (plain && (Account.Length == 0 || !d.ContainsKey(""))) d.Remove(Account);
+        else d[Account] = set;
+        s.PhraseSets = d.Count == 0 ? null : d;
+    }
+
+    /// <summary>
+    /// Перенести набор текущего аккаунта из правленой копии в другие настройки
+    /// (окно фраз сохраняет в живые: остальное там могли поменять, пока оно
+    /// было открыто). Пустые новые кнопки и варианты — прочь.
+    /// </summary>
+    public static void CopySet(AppSettings from, AppSettings to)
+    {
+        var set = Set(from);
+        PutSet(to, set with { Buttons = Normalize(set.Buttons) });
+    }
+
     /// Язык фраз: выбранный в окне фраз, а пока не выбирали — язык программы.
     public static string Lang(AppSettings s) =>
-        Loc.Languages.Any(l => l.Code == s.PhraseLang) ? s.PhraseLang : Loc.Current;
+        Loc.Languages.Any(l => l.Code == Set(s).Lang) ? Set(s).Lang : Loc.Current;
+
+    /// Сменить язык фраз аккаунта; совпал с языком программы — хранится пустым.
+    public static void SetLang(AppSettings s, string code)
+    {
+        if (Loc.Languages.All(l => l.Code != code)) return;
+        PutSet(s, Set(s) with { Lang = code == Loc.Current ? "" : code });
+    }
 
     /// Кнопки по порядку редактора: свои, а без них — стандартный набор.
-    public static IReadOnlyList<ChatButton> Buttons(AppSettings s) => s.ChatButtons ?? Defaults();
+    public static IReadOnlyList<ChatButton> Buttons(AppSettings s) => Set(s).Buttons ?? Defaults();
 
     /// Кнопки на полосе: с выбором первыми, внутри — как в редакторе; пустые и
     /// с выбором, у которых не осталось ни одного варианта, — нет.
@@ -130,16 +197,32 @@ public static class ChatPhrases
     public static IReadOnlyList<ChoiceItem> ChoiceItems(ChatButton b) => b.Choices ?? DefaultChoices(b.Kind);
 
     /// Название варианта: своё, а без него — стандартное на языке фраз.
-    public static string Name(AppSettings s, string kind, ChoiceItem c) =>
-        c.Text.Length > 0 ? c.Text : c.Key.Length > 0 ? ChoiceName(Lang(s), kind, c.Key) : "";
+    public static string Name(AppSettings s, ChatButton b, ChoiceItem c) =>
+        c.Text.Length > 0 ? c.Text : c.Key.Length > 0 ? ChoiceName(ChoiceLang(s, b), b.Kind, c.Key) : "";
+
+    /// Язык стандартных вариантов кнопки: выбранный в окне вариантов, иначе язык фраз.
+    public static string ChoiceLang(AppSettings s, ChatButton b) =>
+        Loc.Languages.Any(l => l.Code == b.ChoiceLang) ? b.ChoiceLang : Lang(s);
+
+    /// <summary>
+    /// Язык стандартных вариантов кнопки i. Совпал с языком фраз — хранится
+    /// пустым: так варианты пойдут за языком фраз.
+    /// </summary>
+    public static void SetChoiceLang(AppSettings s, int i, string code)
+    {
+        var list = Buttons(s).ToList();
+        if (i < 0 || i >= list.Count || Loc.Languages.All(l => l.Code != code)) return;
+        list[i] = list[i] with { ChoiceLang = code == Lang(s) ? "" : code };
+        Store(s, list);
+    }
 
     /// Что видно в списке кнопки: вариант и его название; пустые — нет.
     public static IReadOnlyList<(ChoiceItem Item, string Name)> Options(AppSettings s, ChatButton b) =>
-        ChoiceItems(b).Select(c => (c, Name(s, b.Kind, c))).Where(x => x.Item2.Length > 0).ToList();
+        ChoiceItems(b).Select(c => (c, Name(s, b, c))).Where(x => x.Item2.Length > 0).ToList();
 
     /// <summary>
     /// Стандартные или свои варианты у кнопки i. Свои начинаются копией
-    /// стандартных — с названиями на языке фраз, уже как своими: дальше они
+    /// стандартных — с названиями на языке вариантов, уже как своими: дальше они
     /// не идут за языком, их правят. Ключ остаётся — по нему у роли иконка.
     /// </summary>
     public static void SetOwnChoices(AppSettings s, int i, bool own)
@@ -150,7 +233,7 @@ public static class ChatPhrases
         list[i] = b with
         {
             Choices = own
-                ? DefaultChoices(b.Kind).Select(c => c with { Text = ChoiceName(Lang(s), b.Kind, c.Key) }).ToArray()
+                ? DefaultChoices(b.Kind).Select(c => c with { Text = ChoiceName(ChoiceLang(s, b), b.Kind, c.Key) }).ToArray()
                 : null,
         };
         Store(s, list);
@@ -204,7 +287,7 @@ public static class ChatPhrases
     }
 
     /// <summary>
-    /// Фраза с выбранным: выбор — на место «…» (или «...»); места нет — в конец
+    /// Фраза с выбранным: выбор — на место блока «…»; места нет — в конец
     /// через пробел. В начале фразы выбор пишется с заглавной («Мид, кого…»), в
     /// середине — как есть («Можно мне мид?»). Заглавная — по правилам языка
     /// фраз: у турецкого «i» → «İ».
@@ -213,7 +296,6 @@ public static class ChatPhrases
     {
         var at = template.IndexOf(Slot, StringComparison.Ordinal);
         var len = Slot.Length;
-        if (at < 0) { at = template.IndexOf("...", StringComparison.Ordinal); len = 3; }
         if (at < 0) return DraftChat.Clean(template.TrimEnd() + " " + choice);
         if (template[..at].Trim().Length == 0 && choice.Length > 0)
         {
@@ -253,10 +335,19 @@ public static class ChatPhrases
         if (i < 0 || i >= list.Count || !Kinds.Contains(kind) || list[i].Kind == kind) return;
         var b = list[i];
         list[i] = b.Std.Length > 0 && StdKind(b.Std) == kind
-            ? b with { Kind = kind, Choices = null }   // варианты другого вида сюда не годятся
-            : new ChatButton { Kind = kind, Text = Text(s, b) };
+            ? b with { Kind = kind, Choices = null, ChoiceLang = "" }   // варианты другого вида сюда не годятся
+            : new ChatButton { Kind = kind, Text = kind == Plain ? WithoutSlot(Text(s, b)) : WithSlot(Text(s, b)) };
         Store(s, list);
     }
+
+    /// Текст с блоком: нет его — в конец (пустая — один блок, дальше дописывают вокруг).
+    public static string WithSlot(string text) =>
+        text.Contains(Slot) ? text : (text.TrimEnd() + " " + Slot).TrimStart();
+
+    /// Текст без блока: простой фразе вставлять некуда. Знак, оставшийся от
+    /// блока в начале («…, кого будешь брать?»), уходит вместе с ним.
+    public static string WithoutSlot(string text) =>
+        DraftChat.Clean(text.Replace(Slot, " ").Replace("  ", " ")).TrimStart(',', ';', ':', '，', '、', ' ');
 
     /// Новая пустая кнопка в конец; полный набор — ничего.
     public static void Add(AppSettings s)
@@ -276,12 +367,32 @@ public static class ChatPhrases
     }
 
     /// Стандартный набор (и дальше — за ним).
-    public static void Reset(AppSettings s) => s.ChatButtons = null;
+    public static void Reset(AppSettings s) => PutSet(s, Set(s) with { Buttons = null });
 
     // Пустые кнопки в редакторе живут, пока их не дописали: строка с полем на
     // экране и запись в списке должны совпадать по номеру.
     private static void Store(AppSettings s, List<ChatButton> list) =>
-        s.ChatButtons = Normalize([.. list], keepEmpty: true);
+        PutSet(s, Set(s) with { Buttons = Normalize([.. list], keepEmpty: true) });
+
+    /// <summary>
+    /// Привести в порядок все наборы (чтение ui.json): язык — из известных,
+    /// кнопки — <see cref="Normalize"/>; пустой словарь — null.
+    /// </summary>
+    public static Dictionary<string, PhraseSet>? NormalizeSets(Dictionary<string, PhraseSet>? src)
+    {
+        if (src is null) return null;
+        var d = new Dictionary<string, PhraseSet>();
+        foreach (var (key, set) in src)
+        {
+            if (key is null || set is null) continue;
+            d[key] = new PhraseSet
+            {
+                Lang = Loc.Languages.Any(l => l.Code == set.Lang) ? set.Lang : "",
+                Buttons = Normalize(set.Buttons),
+            };
+        }
+        return d.Count == 0 ? null : d;
+    }
 
     private static string StdKind(string std) => Standard.FirstOrDefault(x => x.Std == std).Kind ?? Plain;
 
@@ -307,7 +418,12 @@ public static class ChatPhrases
                 else kind = StdKind(std);           // текста нет — остаётся стандартной
             }
             if (std.Length == 0 && text.Length == 0 && !keepEmpty) continue;
-            list.Add(new ChatButton { Kind = kind, Std = std, Text = text, Choices = NormalizeChoices(kind, b.Choices, keepEmpty) });
+            var choiceLang = kind != Plain && Loc.Languages.Any(l => l.Code == b.ChoiceLang) ? b.ChoiceLang : "";
+            list.Add(new ChatButton
+            {
+                Kind = kind, Std = std, Text = text, ChoiceLang = choiceLang,
+                Choices = NormalizeChoices(kind, b.Choices, keepEmpty),
+            });
             if (list.Count == Max) break;
         }
         return list.SequenceEqual(Defaults()) ? null : [.. list];

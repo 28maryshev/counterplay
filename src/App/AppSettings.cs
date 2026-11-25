@@ -138,16 +138,15 @@ public sealed class AppSettings
     // ── Фразы в чат драфта (ChatPhrases) ────────────────────────────────────
     /// Полоса кнопок-фраз внизу центра драфта.
     public bool DraftPhrases { get; set; } = true;
-    /// Язык фраз; пусто — язык программы.
-    public string PhraseLang { get; set; } = "";
     /// <summary>
-    /// Кнопки фраз по порядку редактора; null — стандартный набор (идёт за
-    /// языком и за новыми стандартными кнопками). Менять только заменой массива
-    /// (ChatPhrases.SetText и др.): Clone делит его с оригиналом. Имя новое, не
-    /// Phrases: в ui.json у тех, кто запускал сборку 25.11, там лежат строки, и
-    /// чтение их в кнопки уронило бы весь файл настроек.
+    /// Фразы по аккаунтам: ключ — puuid аккаунта в клиенте, "" — пока аккаунт
+    /// неизвестен; значение — язык фраз и кнопки (<see cref="PhraseSet"/>).
+    /// null — у всех стандартные. Менять только через ChatPhrases (новым
+    /// словарём): Clone делит словарь с оригиналом. Имя новое, не Phrases и не
+    /// ChatButtons: так звались поля сборок 25.11 другого вида, и чтение их в
+    /// словарь уронило бы весь файл настроек.
     /// </summary>
-    public ChatButton[]? ChatButtons { get; set; }
+    public Dictionary<string, PhraseSet>? PhraseSets { get; set; }
 
     // ── Окно в драфте ───────────────────────────────────────────────────────
     /// Куда ставить оверлей, когда начинается драфт:
@@ -247,8 +246,7 @@ public sealed class AppSettings
         if (DraftPlacement is not ("right" or "cover" or "allies" or "center" or "remember"))
             DraftPlacement = "remember";
         if (BansTierMode is not ("picks" or "bans")) BansTierMode = "picks";
-        if (Loc.Languages.All(l => l.Code != PhraseLang)) PhraseLang = "";
-        ChatButtons = ChatPhrases.Normalize(ChatButtons);
+        PhraseSets = ChatPhrases.NormalizeSets(PhraseSets);
 
         // Запомненная геометрия: мусор здесь — это окно нулевого размера или
         // окно за пределами всех мониторов. Просто забываем её, тогда раскладка

@@ -6,8 +6,6 @@ using Color = System.Windows.Media.Color;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 using Cursors = System.Windows.Input.Cursors;
-using HorizontalAlignment = System.Windows.HorizontalAlignment;
-using Image = System.Windows.Controls.Image;
 using TextBox = System.Windows.Controls.TextBox;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 
@@ -15,31 +13,30 @@ namespace Counterplay;
 
 /// <summary>
 /// Правка кнопок фраз для чата драфта: язык фраз и кнопки — у каждой вид
-/// (просто фраза, с выбором роли, с выбором «что нужно»), текст и «убрать»; у
-/// кнопки с выбором — стандартные варианты или свои (копия стандартных, которую
-/// правят, дополняют и сокращают). Внизу «+ Добавить кнопку» и «Вернуть
-/// стандартные».
+/// (просто фраза, с выбором роли, с выбором «что нужно»), текст и «убрать».
+/// У кнопки с выбором поле — с блоком, куда встанет выбор (<see cref="SlotBox"/>),
+/// а под видом — «✎ Редактировать»: окно вариантов (<see cref="ChoicesWindow"/>).
+/// Внизу «+ Добавить кнопку» и «Вернуть стандартные».
 ///
 /// Один и тот же блок в двух местах — в окне с карандаша полосы фраз
 /// (<see cref="PhrasesWindow"/>) и в разделе «Драфт» окна настроек. Пишет в
-/// переданную копию настроек и зовёт <c>changed</c>; когда эта копия уйдёт в
-/// программу, решает окно: настройки — по «Применить», окно фраз — по «Сохранить».
-/// Нужен словарь стилей PoolUi в окне (тёмные поля и выпадающий список).
+/// переданную копию настроек — в набор текущего аккаунта (ChatPhrases.Set) — и
+/// зовёт <c>changed</c>; когда эта копия уйдёт в программу, решает окно:
+/// настройки — по «Применить», окно фраз — по «Сохранить». Нужен словарь
+/// стилей PoolUi в окне (тёмные поля и выпадающий список).
 /// </summary>
 public static class PhraseEditor
 {
     private static readonly Color Text = Color.FromRgb(0xC9, 0xD2, 0xDC);
-    private static readonly Color Mute = Color.FromRgb(0x8A, 0xA0, 0xB2);
-    private static readonly Color Gold = Color.FromRgb(0xC8, 0x9B, 0x3C);
+    internal static readonly Color Mute = Color.FromRgb(0x8A, 0xA0, 0xB2);
+    internal static readonly Color Gold = Color.FromRgb(0xC8, 0x9B, 0x3C);
 
-    /// Редактор на одной копии настроек: что раскрыто и как перестроиться.
+    /// Редактор на одной копии настроек: как перестроиться.
     private sealed class Ctx(AppSettings s, Action changed)
     {
         public AppSettings S { get; } = s;
         public Action Changed { get; } = changed;
         public Action Rebuild { get; set; } = () => { };
-        /// Кнопки, у которых раскрыт список своих вариантов.
-        public HashSet<int> Open { get; } = [];
     }
 
     public static FrameworkElement Build(AppSettings s, Action changed)
@@ -69,21 +66,12 @@ public static class PhraseEditor
             Text = Loc.T("phrases.lang"), FontFamily = SettingsWindow.Font("UiFont"), FontSize = 13,
             Foreground = new SolidColorBrush(Text), VerticalAlignment = VerticalAlignment.Center,
         });
-        var langs = new ComboBox
+        var langs = LangCombo(ChatPhrases.Lang(s), code =>
         {
-            MinWidth = 190, Padding = new Thickness(8, 4, 8, 4), Cursor = Cursors.Hand,
-            FontFamily = SettingsWindow.Font("UiFont"), FontSize = 13,
-        };
-        foreach (var l in Loc.Languages)
-            langs.Items.Add(new ComboBoxItem { Content = SettingsWindow.LangRow(l), Tag = l.Code });
-        langs.SelectedIndex = Math.Max(0, Loc.Languages.ToList().FindIndex(l => l.Code == ChatPhrases.Lang(s)));
-        langs.SelectionChanged += (_, _) =>
-        {
-            if (langs.SelectedItem is not ComboBoxItem { Tag: string code } || code == ChatPhrases.Lang(s)) return;
-            s.PhraseLang = code;   // свои фразы и варианты остаются, стандартные встают на новом языке
+            ChatPhrases.SetLang(s, code);   // свои фразы и варианты остаются, стандартные встают на новом языке
             ctx.Rebuild();
             changed();
-        };
+        });
         Grid.SetColumn(langs, 1);
         langRow.Children.Add(langs);
         root.Children.Add(langRow);
@@ -98,7 +86,7 @@ public static class PhraseEditor
         add.Click += (_, _) => { ChatPhrases.Add(s); ctx.Rebuild(); changed(); };
         var reset = PoolUi.Btn(Loc.T("phrases.reset"));
         reset.FontSize = 12;
-        reset.Click += (_, _) => { ChatPhrases.Reset(s); ctx.Open.Clear(); ctx.Rebuild(); changed(); };
+        reset.Click += (_, _) => { ChatPhrases.Reset(s); ctx.Rebuild(); changed(); };
         DockPanel.SetDock(reset, Dock.Right);
         bottom.Children.Add(reset);
         bottom.Children.Add(add);
@@ -109,10 +97,10 @@ public static class PhraseEditor
     }
 
     /// <summary>
-    /// Строка кнопки: номер, вид, текст, «убрать». Под кнопкой с выбором — как
-    /// фраза уйдёт в чат с первым вариантом («→ Топ, кого будешь брать?»), чтобы
-    /// было видно, куда встаёт выбор, и «Стандартные варианты / Свои варианты».
-    /// У своих — сводка «топчик, лес, мид… ✎», под ней по щелчку — их список.
+    /// Строка кнопки: номер, вид, текст, «убрать». У кнопки с выбором поле — с
+    /// блоком (<see cref="SlotBox"/>): текст пишется до него и после; под видом
+    /// — «✎ Редактировать» (окно вариантов), справа — как фраза уйдёт в чат с
+    /// первым вариантом («→ Топ, кого будешь брать?»).
     /// </summary>
     private static FrameworkElement Row(Ctx ctx, int i, ChatButton b)
     {
@@ -122,7 +110,8 @@ public static class PhraseEditor
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(118) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        for (int r = 0; r < 4; r++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         grid.Children.Add(new TextBlock
         {
@@ -134,9 +123,8 @@ public static class PhraseEditor
         var kind = Combo(ChatPhrases.Kinds.Select(k => (k, KindName(k))), b.Kind, k =>
         {
             ChatPhrases.SetKind(s, i, k);
-            ctx.Open.Remove(i);
             ctx.Changed();
-            ctx.Rebuild();   // подсказка и варианты появляются или пропадают
+            ctx.Rebuild();   // поле с блоком или без, «Редактировать» и «→ …»
         });
         kind.Margin = new Thickness(0, 0, 6, 0);
         Grid.SetColumn(kind, 1);
@@ -145,58 +133,65 @@ public static class PhraseEditor
         var preview = new TextBlock
         {
             FontFamily = SettingsWindow.Font("UiFont"), FontSize = 11, Foreground = new SolidColorBrush(Mute),
-            TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 6, 0),
-            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 3, 0, 0),
         };
-        // Сводка своих вариантов и подсказка «→ …» читают кнопку заново: её
-        // правят и поле текста, и поля вариантов, а запись b — снимок.
-        var summary = Link("", () =>
-        {
-            if (!ctx.Open.Remove(i)) ctx.Open.Add(i);
-            ctx.Rebuild();
-        });
-        summary.Tag = "choices";
+        // «→ …» читает кнопку заново: её правит поле, а запись b — снимок.
         void Refresh()
         {
             var cur = ChatPhrases.Buttons(s)[i];
-            var lang = ChatPhrases.Lang(s);
             var first = ChatPhrases.Options(s, cur).Select(o => o.Name).FirstOrDefault();
-            preview.Text = first is null ? "" : "→ " + ChatPhrases.Compose(lang, ChatPhrases.Text(s, cur), first);
-            var names = string.Join(", ", ChatPhrases.Options(s, cur).Select(o => o.Name));
-            summary.Text = (names.Length > 0 ? names : "—") + (ctx.Open.Contains(i) ? "  ▴" : "  ✎");
+            preview.Text = first is null ? "" : "→ " + ChatPhrases.Compose(ChatPhrases.ChoiceLang(s, cur), ChatPhrases.Text(s, cur), first);
         }
 
-        var filling = false;   // поле заполняет код — это не правка человека
-        var box = new TextBox
+        FrameworkElement field;
+        if (ChatPhrases.IsChoice(b))
         {
-            MaxLength = DraftChat.MaxLength, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 13,
-            AcceptsReturn = false, Tag = i, ToolTip = Loc.T("phrases.field", i + 1),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        void Fill()
-        {
-            filling = true;
-            box.Text = ChatPhrases.Text(s, ChatPhrases.Buttons(s)[i]);
-            filling = false;
+            var slot = new SlotBox(Loc.T(b.Kind == ChatPhrases.Role ? "phrases.chipRole" : "phrases.chipNeed"),
+                                   Loc.T("phrases.slotTip"), ChatPhrases.Text(s, b))
+            {
+                VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("phrases.field", i + 1),
+            };
+            slot.Box.Tag = i;   // PhrasesWindow.Fields() находит поле кнопки по номеру
+            slot.Changed += text =>
+            {
+                ChatPhrases.SetText(s, i, text);
+                ctx.Changed();
+                Refresh();
+            };
+            field = slot;
         }
-        Fill();
-        box.TextChanged += (_, _) =>
+        else
         {
-            if (!filling) { ChatPhrases.SetText(s, i, box.Text); ctx.Changed(); }
-            Refresh();
-        };
-        // Поле стандартной кнопки очистили и ушли — в нём снова стандартная.
-        box.LostKeyboardFocus += (_, _) => { if (box.Text.Trim().Length == 0) Fill(); };
-        Grid.SetColumn(box, 2);
-        grid.Children.Add(box);
+            var filling = false;   // поле заполняет код — это не правка человека
+            var box = new TextBox
+            {
+                MaxLength = DraftChat.MaxLength, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 13,
+                AcceptsReturn = false, Tag = i, ToolTip = Loc.T("phrases.field", i + 1),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            void Fill()
+            {
+                filling = true;
+                box.Text = ChatPhrases.Text(s, ChatPhrases.Buttons(s)[i]);
+                filling = false;
+            }
+            Fill();
+            box.TextChanged += (_, _) =>
+            {
+                if (filling) return;
+                ChatPhrases.SetText(s, i, box.Text);
+                ctx.Changed();
+            };
+            // Поле стандартной кнопки очистили и ушли — в нём снова стандартная.
+            box.LostKeyboardFocus += (_, _) => { if (box.Text.Trim().Length == 0) Fill(); };
+            field = box;
+        }
+        Grid.SetColumn(field, 2);
+        grid.Children.Add(field);
 
         var remove = SmallX(Loc.T("phrases.remove"), () =>
         {
             ChatPhrases.Remove(s, i);
-            // Номера строк ниже сдвинулись — раскрытые сдвигаются с ними.
-            var open = ctx.Open.Where(x => x != i).Select(x => x > i ? x - 1 : x).ToList();
-            ctx.Open.Clear();
-            ctx.Open.UnionWith(open);
             ctx.Changed();
             ctx.Rebuild();
         });
@@ -205,129 +200,52 @@ public static class PhraseEditor
 
         if (ChatPhrases.IsChoice(b))
         {
-            // Строка 2: «→ …» и стандартные или свои варианты.
-            var line = new DockPanel { Margin = new Thickness(0, 4, 0, 0), LastChildFill = true };
-            var mode = Combo([("std", Loc.T("phrases.choicesStd")), ("own", Loc.T("phrases.choicesOwn"))],
-                ChatPhrases.OwnChoices(b) ? "own" : "std", m =>
-                {
-                    ChatPhrases.SetOwnChoices(s, i, m == "own");
-                    if (m == "own") ctx.Open.Add(i); else ctx.Open.Remove(i);   // свои — сразу раскрыты
-                    ctx.Changed();
-                    ctx.Rebuild();
-                });
-            mode.FontSize = 11;
-            mode.Tag = "choiceMode";
-            DockPanel.SetDock(mode, Dock.Right);
-            line.Children.Add(mode);
-            line.Children.Add(preview);
-            Grid.SetRow(line, 1);
-            Grid.SetColumn(line, 2);
-            Grid.SetColumnSpan(line, 2);
-            grid.Children.Add(line);
-
-            if (ChatPhrases.OwnChoices(b))
+            // «✎ Редактировать» — под выбором вида (слово владельца 25.11: «там,
+            // где выпадающий список „что нужно“, внизу „редактировать“»). Окно
+            // модальное: пока оно открыто, строки под ним не перестроятся и номер
+            // кнопки не уедет.
+            TextBlock edit = null!;
+            edit = Link(Loc.T("phrases.editChoices"), () =>
             {
-                summary.Margin = new Thickness(2, 4, 0, 0);
-                Grid.SetRow(summary, 2);
-                Grid.SetColumn(summary, 2);
-                Grid.SetColumnSpan(summary, 2);
-                grid.Children.Add(summary);
-                if (ctx.Open.Contains(i))
-                {
-                    var panel = ChoicesPanel(ctx, i, b, Refresh);
-                    Grid.SetRow(panel, 3);
-                    Grid.SetColumn(panel, 2);
-                    Grid.SetColumnSpan(panel, 2);
-                    grid.Children.Add(panel);
-                }
-            }
+                var w = new ChoicesWindow(s, i, ctx.Changed) { Owner = Window.GetWindow(edit) };
+                w.ShowDialog();
+                ctx.Rebuild();   // «→ …» с новыми вариантами
+            });
+            edit.Tag = "editChoices";
+            edit.Margin = new Thickness(2, 3, 6, 0);
+            edit.TextWrapping = TextWrapping.Wrap;
+            Grid.SetRow(edit, 1);
+            Grid.SetColumn(edit, 1);
+            grid.Children.Add(edit);
+
+            Grid.SetRow(preview, 1);
+            Grid.SetColumn(preview, 2);
+            Grid.SetColumnSpan(preview, 2);
+            grid.Children.Add(preview);
+            Refresh();
         }
-        Refresh();
         return grid;
     }
 
-    /// <summary>
-    /// Свои варианты кнопки i: поле на вариант (у роли — её иконка; у
-    /// переименованной тоже — «топчик» остаётся топом), «✕» и «+ Вариант».
-    /// Поле стандартного варианта очистили и ушли — в нём снова стандартное
-    /// название на языке фраз.
-    /// </summary>
-    private static FrameworkElement ChoicesPanel(Ctx ctx, int i, ChatButton b, Action refresh)
+    // ── Мелкие блоки (их же берёт окно вариантов) ────────────────────────────
+
+    /// Список языков с флагами, как у языка программы.
+    internal static ComboBox LangCombo(string value, Action<string> onSet)
     {
-        var s = ctx.S;
-        var stack = new StackPanel();
-        stack.Children.Add(Hint(Loc.T("phrases.choicesHint"), new Thickness(0, 0, 0, 6)));
-        var items = ChatPhrases.ChoiceItems(b);
-        for (int n = 0; n < items.Count; n++)
+        var langs = new ComboBox
         {
-            var j = n;
-            var c = items[j];
-            var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            if (b.Kind == ChatPhrases.Role && c.Key.Length > 0
-                && RoleIcons.Get(ChatPhrases.RolePositions[Array.IndexOf(ChatPhrases.Roles, c.Key)]) is { } icon)
-                row.Children.Add(new Image
-                {
-                    Source = icon, Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Center,
-                });
-
-            var filling = false;
-            var box = new TextBox
-            {
-                MaxLength = 40, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 12,
-                Padding = new Thickness(6, 3, 6, 3), Tag = $"choice:{j}",
-            };
-            void Fill()
-            {
-                filling = true;
-                box.Text = ChatPhrases.Name(s, b.Kind, ChatPhrases.ChoiceItems(ChatPhrases.Buttons(s)[i])[j]);
-                filling = false;
-            }
-            Fill();
-            box.TextChanged += (_, _) =>
-            {
-                if (filling) return;
-                ChatPhrases.SetChoiceText(s, i, j, box.Text);
-                ctx.Changed();
-                refresh();
-            };
-            box.LostKeyboardFocus += (_, _) => { if (box.Text.Trim().Length == 0) Fill(); };
-            Grid.SetColumn(box, 1);
-            row.Children.Add(box);
-
-            var remove = SmallX(Loc.T("phrases.removeChoice"), () =>
-            {
-                ChatPhrases.RemoveChoice(s, i, j);
-                ctx.Changed();
-                ctx.Rebuild();
-            });
-            Grid.SetColumn(remove, 2);
-            row.Children.Add(remove);
-            stack.Children.Add(row);
-        }
-
-        var add = PoolUi.Btn(Loc.T("phrases.addChoice"));
-        add.FontSize = 11;
-        add.Padding = new Thickness(10, 3, 10, 3);
-        add.HorizontalAlignment = HorizontalAlignment.Left;
-        add.Margin = new Thickness(24, 2, 0, 0);
-        add.IsEnabled = items.Count < ChatPhrases.MaxChoices;
-        add.Click += (_, _) => { ChatPhrases.AddChoice(s, i); ctx.Changed(); ctx.Rebuild(); };
-        stack.Children.Add(add);
-
-        return new Border
-        {
-            Child = stack, Margin = new Thickness(0, 6, 0, 2), Padding = new Thickness(10, 8, 10, 8),
-            CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
-            Background = new SolidColorBrush(Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x40, 0xC8, 0x9B, 0x3C)),
+            MinWidth = 190, Padding = new Thickness(8, 4, 8, 4), Cursor = Cursors.Hand,
+            FontFamily = SettingsWindow.Font("UiFont"), FontSize = 13,
         };
+        foreach (var l in Loc.Languages)
+            langs.Items.Add(new ComboBoxItem { Content = SettingsWindow.LangRow(l), Tag = l.Code });
+        langs.SelectedIndex = Math.Max(0, Loc.Languages.ToList().FindIndex(l => l.Code == value));
+        langs.SelectionChanged += (_, _) =>
+        {
+            if (langs.SelectedItem is ComboBoxItem { Tag: string code } && code != value) { value = code; onSet(code); }
+        };
+        return langs;
     }
-
-    // ── Мелкие блоки ─────────────────────────────────────────────────────────
 
     private static ComboBox Combo(IEnumerable<(string Key, string Label)> options, string value, Action<string> onSet)
     {
@@ -345,7 +263,7 @@ public static class PhraseEditor
         return combo;
     }
 
-    private static Button SmallX(string tip, Action onClick)
+    internal static Button SmallX(string tip, Action onClick)
     {
         var x = new Button
         {
@@ -358,7 +276,7 @@ public static class PhraseEditor
     }
 
     /// Ссылка золотом: подчёркивание под курсором.
-    private static TextBlock Link(string text, Action onClick)
+    internal static TextBlock Link(string text, Action onClick)
     {
         var t = new TextBlock
         {
@@ -371,14 +289,14 @@ public static class PhraseEditor
         return t;
     }
 
-    private static string KindName(string kind) => Loc.T(kind switch
+    internal static string KindName(string kind) => Loc.T(kind switch
     {
         ChatPhrases.Role => "phrases.kindRole",
         ChatPhrases.Need => "phrases.kindNeed",
         _ => "phrases.kindText",
     });
 
-    private static TextBlock Hint(string text, Thickness margin) => new()
+    internal static TextBlock Hint(string text, Thickness margin) => new()
     {
         Text = text, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 11,
         Foreground = new SolidColorBrush(Mute), TextWrapping = TextWrapping.Wrap, Margin = margin,
