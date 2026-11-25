@@ -111,15 +111,24 @@ sealed partial class TestPanel : Window
 
     private int[][] _simGroups = GroupsMyFirst;
 
-    // Каждый бот пикает в СВОЁ время (3..10 с от начала хода) — даже в парном
-    // ходе пики разнесены, и видно, как подбор реагирует на каждый по отдельности.
-    private const int MaxTurnSeconds = 10;
+    // Сроки драфта — как в ранкеде (владелец, 25.11). Вики League, «Blind-Ban
+    // Draft» (очереди Ущелья): объявление 15 с (PlanSeconds), баны 30, ход пика
+    // 30 — у каждого, и у меня, и у ботов; финализация 30 — её песочница не
+    // разыгрывает. Таблица там до 26.1, а в 26.1 Riot срезал таймеры драфта
+    // «примерно на 30 секунд», не сказав где: настоящие сроки клиента пишет в
+    // журнал программы DraftTimer.LogTurn («таймер драфта: …») — по ним сверять.
+    private const int PickTurnSeconds = 30;
+    internal static double BanPhaseSeconds = 30;   // проверки укорачивают
+
+    // Каждый бот пикает в СВОЁ время — от 3 до 25 секунд хода, как люди: кто
+    // сразу, кто под конец. Даже в парном ходе пики разнесены, и видно, как
+    // подбор реагирует на каждый по отдельности. До 25.11 — 3..10 с.
+    private const int BotPickMaxSeconds = 25;
 
     private readonly Dictionary<int, DateTime> _pickAt = new();   // cell (не я) → момент пика: наведённый берётся, пустой слот заполняет бот
 
-    // Мой ход длиннее хода бота: успеть нажать «Выбрать» или сменить наведённого.
-    // Конец хода — момент, когда клиент сам берёт наведённого.
-    private const int MyTurnSeconds = MaxTurnSeconds + 5;
+    // Конец моего хода — момент, когда клиент сам берёт наведённого. До 25.11
+    // мой ход был 15 с, ход ботов — 11.
     private DateTime? _myTurnEnd;   // конец моего хода; null — ход не мой
 
     private readonly HashSet<int> _autoPicked = new();  // клетки, занятые авто-драфтом
@@ -191,6 +200,11 @@ sealed partial class TestPanel : Window
     private DateTime? _banEndAt;
 
     private const double BanEndSeconds = 1;
+
+    // Срок фазы банов: конец объявления + BanPhaseSeconds. Вышел — кто не
+    // забанил, тот пропустил бан, и я тоже, как в клиенте. До 25.11 фаза ждала
+    // моего бана сколько угодно.
+    private DateTime? _banPhaseEndAt;
 
     // Итог фазы банов — уходит в драфт: эти чемпионы недоступны ни подбору, ни ботам.
     private List<int> _ourBans = [];

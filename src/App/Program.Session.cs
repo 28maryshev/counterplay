@@ -515,6 +515,7 @@ partial class Program
                         if (!replay)
                         {
                             var timer = DraftTimer.Parse(ev.Data);
+                            DraftTimer.LogTurn(timer);   // настоящие сроки ходов — в журнал
                             draftTray.OnTimer(timer.Phase, timer.LeftMs);
                             overlay.SetPickTimer(timer.PickTurnDeadline(draft, DateTime.UtcNow), timer.TotalMs,
                                                  mine: draft.MyPickInProgress);

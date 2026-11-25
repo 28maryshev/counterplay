@@ -40,6 +40,26 @@ public readonly record struct DraftTimer(string Phase, double LeftMs, double Tot
         !draft.IsAram && (draft.MyPickInProgress || draft.ActiveCells.Count > 0) && !Infinite && LeftMs > 0
             ? nowUtc.AddMilliseconds(LeftMs) : null;
 
+    private static (string Phase, double Left) _last;
+
+    /// <summary>
+    /// Начало каждого хода — строкой в журнал программы: фаза, длина хода,
+    /// сколько осталось. Ход начался — фаза сменилась или остаток подскочил
+    /// (в фазе пиков клиент заводит таймер заново на каждый ход). Так видно
+    /// настоящие сроки драфта: у Riot их таблицы нет, вики — до 26.1, а в 26.1
+    /// таймеры срезали «примерно на 30 секунд». По этим строкам сверены сроки
+    /// песочницы (TestPanel.PickTurnSeconds и соседи). Строк — около десяти
+    /// на драфт.
+    /// </summary>
+    public static void LogTurn(DraftTimer t)
+    {
+        var turn = t.Phase != _last.Phase || t.LeftMs > _last.Left + 1000;
+        _last = (t.Phase, t.LeftMs);
+        if (!turn || t.Phase.Length == 0) return;
+        Log.Write($"таймер драфта: {t.Phase}, ход {t.TotalMs / 1000:0.0} с, осталось {t.LeftMs / 1000:0.0} с" +
+                  (t.Infinite ? ", без срока" : ""));
+    }
+
     private static double? Num(JsonElement o, string name) =>
         o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
 }

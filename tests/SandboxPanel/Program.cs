@@ -476,7 +476,9 @@ internal static class Program
     /// драфтом руками — мой ход уже идёт, — а срок хода окну отдавал только
     /// авто-драфт, и только в мой ход по очереди. Теперь драфт руками — ход
     /// 30 секунд, как пик в ранкеде, по концу начинается заново; авто-драфт —
-    /// свои 15 секунд. Пик взят — отсчёта нет.
+    /// тоже 30 секунд на ход, у всех («сделай такие же сроки, как в настоящем
+    /// драфте ранкеда»). Пик взят — отсчёта нет. Баны — 30 секунд: не успел —
+    /// бан пропущен, драфт идёт дальше.
     /// </summary>
     private static void PickTimer(Window panel, OverlayWindow overlay)
     {
@@ -517,7 +519,7 @@ internal static class Program
         }
         finally { turnField.SetValue(null, was); }
 
-        // Авто-драфт, мой ход первым: 15 секунд.
+        // Авто-драфт, мой ход первым: 30 секунд, как в ранкеде.
         Call(panel, "ResetDraft");
         meRadio[2].IsChecked = true;
         Call(panel, "ToggleSim");
@@ -527,11 +529,11 @@ internal static class Program
         Call(panel, "StartTurn");
         Call(panel, "Recompute");
         Pump();
-        Check("авто-драфт, мой ход: отсчёт 15 секунд",
-              clock.Visibility == Visibility.Visible && clock.Seconds is "15" or "14", Shown());
+        Check("авто-драфт, мой ход: отсчёт 30 секунд",
+              clock.Visibility == Visibility.Visible && clock.Seconds is "30" or "29", Shown());
 
         // Ход ботов-врагов (владелец, 25.11: «таймер должен быть у всех»): отсчёт
-        // у обоих, 11 секунд; взял один — у него отсчёта больше нет.
+        // у обоих, тоже 30 секунд; взял один — у него отсчёта больше нет.
         panel.GetType().GetField("_simGroups", BindingFlags.Instance | BindingFlags.NonPublic)!
              .SetValue(panel, new[] { new[] { 5, 6 }, new[] { 2 }, new[] { 0, 1 }, new[] { 7, 8 }, new[] { 3, 4 }, new[] { 9 } });
         Call(panel, "StartTurn");
@@ -540,9 +542,13 @@ internal static class Program
         var enemies = (ItemsControl)overlay.FindName("EnemyTeamList");
         var mine = (ItemsControl)overlay.FindName("MyTeamList");
         PickClock SlotClock(ItemsControl l, int i) => ((ChampSlotCard)l.Items[i]).Clock;
-        Check("авто-драфт, ход врагов: отсчёт у обоих, 11 секунд, у меня нет",
+        Check("авто-драфт, ход врагов: отсчёт у обоих, 30 секунд, у меня нет",
               ReferenceEquals(SlotClock(enemies, 0), clock) && ReferenceEquals(SlotClock(enemies, 1), clock)
-              && clock.Seconds is "11" or "10" && ReferenceEquals(SlotClock(mine, 2), PickClock.None), Shown());
+              && clock.Seconds is "30" or "29" && ReferenceEquals(SlotClock(mine, 2), PickClock.None), Shown());
+        var pickAt = Get<Dictionary<int, DateTime>>(panel, "_pickAt")!;
+        var span = pickAt.Values.Select(t => (t - DateTime.UtcNow).TotalSeconds).ToList();
+        Check("боты берут в разные моменты хода, не позже 25-й секунды",
+              span.Count == 2 && span.All(x => x is > 1.5 and <= 25.1), string.Join(", ", span.Select(x => $"{x:0.0} с")));
         Call(panel, "AutoPick", 5);
         Pump();
         Check("авто-драфт: враг взял — у него отсчёта нет, у второго остался",
@@ -551,6 +557,37 @@ internal static class Program
         Call(panel, "StopSim");
         Call(panel, "ResetDraft");
         Pump();
+
+        // Баны: срок вышел, а я не забанил — бан пропущен, как в клиенте, и
+        // драфт пошёл дальше. До 25.11 фаза ждала моего бана сколько угодно.
+        // Объявление и баны на проверку — по секунде.
+        var planField = panel.GetType().GetField("PlanSeconds", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var banField = panel.GetType().GetField("BanPhaseSeconds", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var (planWas, banWas) = (planField.GetValue(null)!, banField.GetValue(null)!);
+        planField.SetValue(null, 1.0);
+        banField.SetValue(null, 1.0);
+        try
+        {
+            Call(panel, "ResetDraft");
+            meRadio[2].IsChecked = true;
+            Call(panel, "StartBanSim");
+            Wait(5000);   // объявление 1 + баны 1 + раскрытие 1 + такт 0,5
+            var bans = Get<System.Collections.IList>(panel, "_bans")!.Cast<object>()
+                .Select(b => ((int)b.GetType().GetField("Item1")!.GetValue(b)!, (int)b.GetType().GetField("Item2")!.GetValue(b)!))
+                .ToList();
+            var simTurn = (int)panel.GetType().GetField("_simTurn", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!;
+            Check("баны: срок вышел — мой бан пропущен, начались пики",
+                  bans.Contains((2, 0)) && simTurn >= 0,
+                  $"мой бан {(bans.Any(b => b.Item1 == 2) ? bans.First(b => b.Item1 == 2).Item2.ToString() : "не записан")}, ход пиков {simTurn}");
+        }
+        finally
+        {
+            planField.SetValue(null, planWas);
+            banField.SetValue(null, banWas);
+            Call(panel, "StopSim");
+            Call(panel, "ResetDraft");
+            Pump();
+        }
     }
 
     /// <summary>

@@ -109,6 +109,17 @@ internal static class Program
 
         (d, t) = Session(null, inProgress: true, completed: false);
         Check("таймера в событии нет — отсчёта нет", t.PickTurnDeadline(d, now) is null, Show(t.PickTurnDeadline(d, now), now));
+
+        // Журнал: строка на начало каждого хода — смена фазы или остаток
+        // подскочил (новый ход пика), а не на каждое событие.
+        int Lines() => Log.Tail(400).Split('\n').Count(l => l.Contains("таймер драфта:"));
+        var before = Lines();
+        foreach (var (ph, left) in new[] { ("PLANNING", 15000.0), ("PLANNING", 9000.0), ("BAN_PICK", 30000.0),
+                                           ("BAN_PICK", 21000.0), ("BAN_PICK", 30000.0), ("BAN_PICK", 12000.0),
+                                           ("FINALIZATION", 30000.0) })
+            DraftTimer.LogTurn(new DraftTimer(ph, left, 30000, false));
+        Check("в журнал — начало каждого хода: объявление, баны, ход пика, финализация",
+              Lines() - before == 4, $"строк {Lines() - before}");
     }
 
     // Сессия чемп-селекта, как её присылает клиент: я — саппорт, клетка 3, мой

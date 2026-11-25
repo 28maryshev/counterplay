@@ -101,23 +101,24 @@ sealed partial class TestPanel
         Recompute();
     }
 
-    // Раздаёт клеткам текущей группы персональные моменты пика (3..10 с): кто
-    // наводил — берёт наведённого, пустой слот заполняет бот. Мой ход кончается
-    // через MyTurnSeconds: наведённого к тому времени клиент берёт сам, пустой
-    // слот ждёт ручного пика. Срок хода для отсчёта в окне — мой ход или
-    // последний момент бота с запасом на такт SimTick (0,5 с).
+    // Раздаёт клеткам текущей группы персональные моменты пика (3..25 с): кто
+    // наводил — берёт наведённого, пустой слот заполняет бот. Ход — 30 секунд
+    // у всех, как в ранкеде (PickTurnSeconds); кончается раньше, когда взяли
+    // все. Мой ход кончается сроком: наведённого к тому времени клиент берёт
+    // сам, пустой слот ждёт ручного пика (в клиенте был бы додж).
     private void StartTurn()
     {
         _pickAt.Clear();
+        var now = DateTime.UtcNow;
+        _turnSeconds = PickTurnSeconds;
+        _turnEnd = now.AddSeconds(PickTurnSeconds);
         _myTurnEnd = null;
         int meCell = MeCell();
         foreach (var cell in _simGroups[_simTurn])
         {
-            if (cell == meCell) _myTurnEnd = DateTime.UtcNow.AddSeconds(MyTurnSeconds);
-            else _pickAt[cell] = DateTime.UtcNow.AddSeconds(_rng.Next(3, MaxTurnSeconds + 1));
+            if (cell == meCell) _myTurnEnd = _turnEnd;
+            else _pickAt[cell] = now.AddSeconds(_rng.Next(3, BotPickMaxSeconds + 1));
         }
-        _turnSeconds = _myTurnEnd is null ? MaxTurnSeconds + 1 : MyTurnSeconds;
-        _turnEnd = DateTime.UtcNow.AddSeconds(_turnSeconds);
     }
 
     // Клетка своё в этом ходе уже сделала — как у клиента, где завершённое
@@ -303,18 +304,18 @@ sealed partial class TestPanel
     private DateTime? _turnEnd;
     private int _turnSeconds;
 
-    // Ход пика в драфте руками — как в ранкеде.
-    internal static double ManualTurnSeconds = 30;
+    // Ход пика в драфте руками — как в ранкеде (проверка укорачивает).
+    internal static double ManualTurnSeconds = PickTurnSeconds;
     private DateTime? _manualTurnEnd;          // конец моего хода в драфте руками; null — ход не идёт
     private DispatcherTimer? _manualTurnTimer; // начинает ход заново, когда время вышло
 
     /// <summary>
     /// Срок нынешнего хода — окну, как его дал бы клиент: отсчёт в слотах
     /// всех, чей ход (<c>ActiveCells</c>), и рамка последних 5 секунд, если
-    /// ход мой. Авто-драфт — ход по очереди (<c>_turnEnd</c>: мой — 15 с,
-    /// ботов — 11), у союзников и врагов тоже (владелец, 25.11: «таймер должен
-    /// быть у всех»). Драфт руками — только мой ход, 30 секунд, как пик в
-    /// ранкеде; вышло — ход начинается заново: в драфте руками песочница сама
+    /// ход мой. Авто-драфт — ход по очереди (<c>_turnEnd</c>, 30 с у всех, как в
+    /// ранкеде), у союзников и врагов тоже (владелец, 25.11: «таймер должен
+    /// быть у всех»). Драфт руками — только мой ход, тоже 30 секунд; вышло —
+    /// ход начинается заново: в драфте руками песочница сама
     /// ничего не берёт (сцену собирают дольше 30 секунд), а отсчёт виден, пока
     /// ход мой. null — драфта нет (лобби).
     /// </summary>

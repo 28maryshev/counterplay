@@ -37,6 +37,7 @@ sealed partial class TestPanel
             // Объявление: союзники наводят уже в нём, баны — после.
             var now = DateTime.UtcNow;
             _planEndAt = now.AddSeconds(PlanSeconds);
+            _banPhaseEndAt = _planEndAt.Value.AddSeconds(BanPhaseSeconds);
             PlanHovers(now);
             int me = MeCell();
             for (int cell = 0; cell < 10; cell++)
@@ -99,7 +100,7 @@ sealed partial class TestPanel
     {
         _bans.Clear(); _banAt.Clear(); _hoverPlan.Clear(); _hoversShown.Clear();
         _intent.Clear(); _hoverHistory.Clear();
-        _myBanDone = false; _banEndAt = null; _planEndAt = null;
+        _myBanDone = false; _banEndAt = null; _planEndAt = null; _banPhaseEndAt = null;
         _ourBans = []; _theirBans = [];
     }
 
@@ -146,6 +147,21 @@ sealed partial class TestPanel
                 if (champ > 0) { _bans.Add((cell, champ)); changed = true; }
                 else _bans.Add((cell, 0));   // некого — бан пропущен, как по таймеру
             }
+
+        // Срок банов вышел (30 с, как в ранкеде): кто не забанил — пропустил,
+        // мой бан тоже; дальше — как будто добанили все.
+        if (_banPhaseEndAt is { } limit && now >= limit && _banEndAt is null)
+        {
+            foreach (var cell in _banAt.Keys)
+                if (_bans.All(b => b.Cell != cell)) _bans.Add((cell, 0));
+            if (!_myBanDone)
+            {
+                _bans.Add((MeCell(), 0));
+                _myBanDone = true;
+                Log.Write("песочница: срок банов вышел — мой бан пропущен");
+            }
+            changed = true;
+        }
 
         bool botsDone = _banAt.Keys.All(c => _bans.Any(b => b.Cell == c));
         if (botsDone && _myBanDone && _banEndAt is null) _banEndAt = now.AddSeconds(BanEndSeconds);
