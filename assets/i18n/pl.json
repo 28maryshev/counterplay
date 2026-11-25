@@ -669,6 +669,9 @@
     "draftDamageHint": "Podział na obrażenia fizyczne i magiczne w drużynie",
     "draftRunes": "Runy i build",
     "draftRunesHint": "Runy, czary przywoływacza i przedmioty po wyborze bohatera",
+    "groupPhrases": "Frazy na czacie",
+    "draftPhrases": "Przyciski fraz do czatu draftu",
+    "draftPhrasesHint": "Pięć przycisków na dole draftu: kliknięcie wysyła frazę na czat. Ołówek po lewej je edytuje.",
     "bansTier": "Tier lista",
     "bansTierHint": "Najsilniejsi bohaterowie patcha wg ról, pod listą banów",
     "bansTierMode": "Domyślna tier lista",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Będą pokować przed obiektami i łapać odstających — nie chodźcie pojedynczo i szybko skracajcie dystans.",
     "enemyPlanEarly": "Są silni na początku gry — przetrwajcie pierwsze 20 minut, potem gra należy do was.",
     "enemyPlanLate": "Rozkręcają się późno — dociskajcie ich od początku i nie przeciągajcie gry."
+  },
+  "phrases": {
+    "p1": "Zamienimy się?",
+    "p2": "Pokażcie swoich bohaterów, pls",
+    "p3": "Nie banujcie mojego bohatera, pls",
+    "p4": "Mogę mieć last picka?",
+    "p5": "Powodzenia, miłej gry!",
+    "editTip": "Edytuj frazy",
+    "windowTitle": "Frazy do czatu draftu",
+    "lang": "Język fraz",
+    "langHint": "Frazy standardowe przełączą się na ten język. Twoje zostaną bez zmian.",
+    "fieldsHint": "Wyczyść pole, aby wrócić do frazy standardowej.",
+    "reset": "Przywróć standardowe",
+    "save": "Zapisz",
+    "failed": "Nie wysłano — nie znaleziono czatu draftu",
+    "field": "Fraza {0}"
   }
 }

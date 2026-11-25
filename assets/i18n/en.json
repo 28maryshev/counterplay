@@ -669,6 +669,9 @@
     "draftDamageHint": "Physical and magic damage split across the team",
     "draftRunes": "Runes and build",
     "draftRunesHint": "Runes, summoner spells and items once a champion is picked",
+    "groupPhrases": "Chat phrases",
+    "draftPhrases": "Phrase buttons in draft chat",
+    "draftPhrasesHint": "Five buttons at the bottom of the draft: a click posts the phrase to draft chat. The pencil on the left edits them.",
     "bansTier": "Tier list",
     "bansTierHint": "Strongest champions of the patch by role, under the ban list",
     "bansTierMode": "Default tier list",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "They will poke before objectives and catch stragglers — don't walk alone, close the distance fast.",
     "enemyPlanEarly": "They are strong early — survive the first 20 minutes and the game turns your way.",
     "enemyPlanLate": "They come online late — press them early and don't drag the game out."
+  },
+  "phrases": {
+    "p1": "Wanna swap?",
+    "p2": "Hover your champs pls",
+    "p3": "Pls don't ban my champ",
+    "p4": "Can I last pick?",
+    "p5": "GL HF!",
+    "editTip": "Edit phrases",
+    "windowTitle": "Draft chat phrases",
+    "lang": "Phrase language",
+    "langHint": "Standard phrases switch to this language. Your own phrases stay as they are.",
+    "fieldsHint": "Clear a field to bring back the standard phrase.",
+    "reset": "Restore standard",
+    "save": "Save",
+    "failed": "Not sent — draft chat not found",
+    "field": "Phrase {0}"
   }
 }

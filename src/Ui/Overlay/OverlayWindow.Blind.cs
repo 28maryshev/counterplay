@@ -50,7 +50,7 @@ public partial class OverlayWindow
         // Взять чемпиона вслепую можно (в объявлении — нет): плашку «Выбрать»
         // ставит UpdatePickBar, здесь — только место под неё.
         if (PickBar.Visibility == Visibility.Visible)
-            PlanPanel.Margin = new Thickness(0, 6, 0, BlindPickBarRoom);
+            PlanPanel.Margin = new Thickness(0, 6, 0, BlindPickBarRoom + PhraseRoomNow);
 
         // Нижняя строка: руны, пришедшие при другом виде, ждут — встают сейчас.
         if (_runesWaiting && _runeStats is { Keystones.Count: > 0 } && AppSettings.Current.DraftRunes)

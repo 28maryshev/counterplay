@@ -669,6 +669,9 @@
     "draftDamageHint": "Répartition des dégâts physiques et magiques dans l'équipe",
     "draftRunes": "Runes et build",
     "draftRunesHint": "Runes, sorts d'invocateur et objets une fois le champion pris",
+    "groupPhrases": "Phrases de chat",
+    "draftPhrases": "Boutons de phrases pour le chat de draft",
+    "draftPhrasesHint": "Cinq boutons en bas du draft : un clic écrit la phrase dans le chat. Le crayon à gauche les modifie.",
     "bansTier": "Tier list",
     "bansTierHint": "Les champions les plus forts du patch par rôle, sous les bans",
     "bansTierMode": "Tier list par défaut",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Ils pokeront avant les objectifs et attraperont les joueurs isolés ; ne vous baladez pas seuls et allez vite au contact.",
     "enemyPlanEarly": "Ils sont forts en début de partie ; tenez les 20 premières minutes, et la partie tournera en votre faveur.",
     "enemyPlanLate": "Ils montent en puissance tard ; mettez-leur la pression tôt et ne faites pas traîner la partie."
+  },
+  "phrases": {
+    "p1": "On échange ?",
+    "p2": "Montrez vos champions svp",
+    "p3": "Ne bannissez pas mon champion svp",
+    "p4": "Je peux last pick ?",
+    "p5": "Bonne chance, amusez-vous !",
+    "editTip": "Modifier les phrases",
+    "windowTitle": "Phrases pour le chat de draft",
+    "lang": "Langue des phrases",
+    "langHint": "Les phrases standard passent dans cette langue. Les vôtres restent telles quelles.",
+    "fieldsHint": "Videz un champ pour retrouver la phrase standard.",
+    "reset": "Rétablir les standard",
+    "save": "Enregistrer",
+    "failed": "Non envoyé — chat de draft introuvable",
+    "field": "Phrase {0}"
   }
 }

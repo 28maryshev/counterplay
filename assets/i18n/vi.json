@@ -669,6 +669,9 @@
     "draftDamageHint": "Tỉ lệ sát thương vật lý và phép của cả đội",
     "draftRunes": "Ngọc và trang bị",
     "draftRunesHint": "Ngọc, phép bổ trợ và trang bị sau khi đã chọn tướng",
+    "groupPhrases": "Câu chat",
+    "draftPhrases": "Nút câu chat khi chọn tướng",
+    "draftPhrasesHint": "Năm nút ở dưới màn chọn tướng: bấm là gửi câu vào chat. Bút chì bên trái để sửa câu.",
     "bansTier": "Tier list",
     "bansTierHint": "Tướng mạnh nhất bản này theo vị trí, nằm dưới danh sách cấm",
     "bansTierMode": "Tier list mặc định",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Họ sẽ poke trước mục tiêu và bắt lẻ người đi một mình — đừng đi lẻ, hãy áp sát họ thật nhanh.",
     "enemyPlanEarly": "Họ mạnh sớm — cầm cự qua 20 phút đầu, sau đó thế trận sẽ nghiêng về phía bạn.",
     "enemyPlanLate": "Họ mạnh muộn — hãy ép họ sớm và đừng để trận đấu kéo dài."
+  },
+  "phrases": {
+    "p1": "Đổi tướng không?",
+    "p2": "Mọi người cho xem tướng đi",
+    "p3": "Đừng cấm tướng của mình nhé",
+    "p4": "Cho mình chọn cuối được không?",
+    "p5": "Chúc may mắn, chơi vui nhé!",
+    "editTip": "Sửa câu",
+    "windowTitle": "Câu cho chat khi chọn tướng",
+    "lang": "Ngôn ngữ của câu",
+    "langHint": "Câu mặc định sẽ chuyển sang ngôn ngữ này. Câu của bạn giữ nguyên.",
+    "fieldsHint": "Xoá trống ô để lấy lại câu mặc định.",
+    "reset": "Khôi phục mặc định",
+    "save": "Lưu",
+    "failed": "Chưa gửi — không thấy chat chọn tướng",
+    "field": "Câu {0}"
   }
 }

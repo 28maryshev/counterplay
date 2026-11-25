@@ -669,6 +669,9 @@
     "draftDamageHint": "Takımdaki fiziksel ve büyü hasarı dağılımı",
     "draftRunes": "Rünler ve dizilim",
     "draftRunesHint": "Şampiyon seçildikten sonra rünler, büyüler ve eşyalar",
+    "groupPhrases": "Sohbet ifadeleri",
+    "draftPhrases": "Seçim sohbeti için ifade düğmeleri",
+    "draftPhrasesHint": "Seçimin altında beş düğme: tıklayınca ifade sohbete yazılır. Soldaki kalem ifadeleri düzenler.",
     "bansTier": "Tier listesi",
     "bansTierHint": "Ban listesinin altında, role göre yamanın en güçlüleri",
     "bansTierMode": "Varsayılan tier listesi",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Objelerden önce poke yapıp yalnız kalanları avlayacaklar — tek başına gezmeyin, mesafeyi hızla kapatın.",
     "enemyPlanEarly": "Erken güçlüler — ilk 20 dakikayı atlatın, sonrası sizin.",
     "enemyPlanLate": "Geç açılıyorlar — erken baskı yapın ve oyunu uzatmayın."
+  },
+  "phrases": {
+    "p1": "Takas yapalım mı?",
+    "p2": "Şampiyonlarınızı gösterin lütfen",
+    "p3": "Lütfen şampiyonumu banlamayın",
+    "p4": "Son seçimi ben yapabilir miyim?",
+    "p5": "İyi şanslar, iyi oyunlar!",
+    "editTip": "İfadeleri düzenle",
+    "windowTitle": "Seçim sohbeti için ifadeler",
+    "lang": "İfadelerin dili",
+    "langHint": "Standart ifadeler bu dile geçer. Kendi ifadelerin olduğu gibi kalır.",
+    "fieldsHint": "Standart ifadeye dönmek için alanı boşalt.",
+    "reset": "Standartlara dön",
+    "save": "Kaydet",
+    "failed": "Gönderilmedi — seçim sohbeti bulunamadı",
+    "field": "İfade {0}"
   }
 }

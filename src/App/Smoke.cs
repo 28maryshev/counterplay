@@ -292,6 +292,35 @@ internal static class Smoke
                 card.RaiseEvent(new System.Windows.Input.MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent });
                 card.RaiseEvent(new System.Windows.Input.MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseLeaveEvent });
             });
+            await Step("фразы в чат", async () =>
+            {
+                // Полоса видна, пока есть куда писать: подставной чат ловит фразу.
+                var sent = new List<string>();
+                w.ChatHandler = t => { sent.Add(t); return Task.FromResult(200); };
+                var d = Draft(ban: false);
+                w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
+                await Settle();
+                if (((FrameworkElement)w.FindName("PhraseBar")).Visibility != Visibility.Visible)
+                    throw new InvalidOperationException("в драфте нет полосы фраз");
+                var list = (ItemsControl)w.FindName("PhraseList");
+                if (list.Items.Count != ChatPhrases.Count)
+                    throw new InvalidOperationException($"кнопок фраз {list.Items.Count}, а не {ChatPhrases.Count}");
+                var chip = Find<System.Windows.Controls.Border>(list.ItemContainerGenerator.ContainerFromIndex(0), b => b.Tag is int)
+                           ?? throw new InvalidOperationException("кнопка фразы не найдена");
+                Press(chip);
+                await Settle();
+                var want = ChatPhrases.Text(AppSettings.Current, 0);
+                if (sent is not [var got] || got != want)
+                    throw new InvalidOperationException($"кнопка отправила «{string.Join(" | ", sent)}», а не «{want}»");
+                // Окно правки — то, что открывает карандаш; показываем невидимым.
+                var edit = w.OpenPhrases();
+                ShowHidden(edit);
+                await Settle();
+                if (edit.Fields().Count != ChatPhrases.Count)
+                    throw new InvalidOperationException($"в окне фраз {edit.Fields().Count} полей");
+                edit.Close();
+                w.ChatHandler = null;
+            });
             await Step("руны и сборка", async () =>
             {
                 // Макет рун: дымовой проверке нужна отрисовка панели, а не сеть.

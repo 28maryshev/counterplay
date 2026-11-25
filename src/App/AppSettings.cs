@@ -135,6 +135,15 @@ public sealed class AppSettings
     public bool DraftChampTip   { get; set; } = true;  // карточка чемпиона при наведении на слот
     public bool DraftRunes      { get; set; } = true;  // панель рун и сборки после пика
 
+    // ── Фразы в чат драфта (ChatPhrases) ────────────────────────────────────
+    /// Полоса из пяти кнопок-фраз внизу центра драфта.
+    public bool DraftPhrases { get; set; } = true;
+    /// Язык фраз; пусто — язык программы.
+    public string PhraseLang { get; set; } = "";
+    /// Свои фразы по кнопкам, ровно пять; пустая строка — стандартная фраза
+    /// языка. Менять только заменой массива (ChatPhrases.Set): Clone делит его.
+    public string[] Phrases { get; set; } = ChatPhrases.Normalize(null);
+
     // ── Окно в драфте ───────────────────────────────────────────────────────
     /// Куда ставить оверлей, когда начинается драфт:
     ///   "right"    — справа от клиента (как было);
@@ -233,6 +242,8 @@ public sealed class AppSettings
         if (DraftPlacement is not ("right" or "cover" or "allies" or "center" or "remember"))
             DraftPlacement = "remember";
         if (BansTierMode is not ("picks" or "bans")) BansTierMode = "picks";
+        if (Loc.Languages.All(l => l.Code != PhraseLang)) PhraseLang = "";
+        Phrases = ChatPhrases.Normalize(Phrases);
 
         // Запомненная геометрия: мусор здесь — это окно нулевого размера или
         // окно за пределами всех мониторов. Просто забываем её, тогда раскладка
@@ -316,10 +327,13 @@ public sealed class AppSettings
         // В журнал — ЧТО именно изменилось. Без этого по жалобе «стало криво»
         // приходится гадать, какие настройки у человека стоят.
         var before = Current;
+        // Массив (фразы) сравниваем и пишем по содержимому: по ссылке любая
+        // копия «изменилась», а в журнал ушло бы «System.String[]».
+        static string Shown(object? v) => v is string[] a ? "[" + string.Join(" | ", a) + "]" : $"{v}";
         var changes = typeof(AppSettings).GetProperties()
             .Where(p => p.CanRead && p.CanWrite)
-            .Select(p => (p.Name, Old: p.GetValue(before), New: p.GetValue(edited)))
-            .Where(x => !Equals(x.Old, x.New))
+            .Select(p => (p.Name, Old: Shown(p.GetValue(before)), New: Shown(p.GetValue(edited))))
+            .Where(x => x.Old != x.New)
             .Select(x => $"{x.Name} {x.Old}→{x.New}")
             .ToList();
         if (changes.Count > 0) Log.Write("настройки: " + string.Join(", ", changes));

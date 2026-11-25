@@ -669,6 +669,9 @@
     "draftDamageHint": "Reparto de daño físico y mágico en el equipo",
     "draftRunes": "Runas y build",
     "draftRunesHint": "Runas, hechizos y objetos cuando ya tienes campeón",
+    "groupPhrases": "Frases de chat",
+    "draftPhrases": "Botones de frases para el chat del draft",
+    "draftPhrasesHint": "Cinco botones abajo en el draft: un clic escribe la frase en el chat. El lápiz de la izquierda las edita.",
     "bansTier": "Tier list",
     "bansTierHint": "Los campeones más fuertes del parche por rol, bajo los baneos",
     "bansTierMode": "Tier list por defecto",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Harán poke antes de los objetivos y cazarán a los rezagados: no vayáis solos y acortad distancias rápido.",
     "enemyPlanEarly": "Son fuertes al principio: aguantad los primeros 20 minutos y luego la partida será vuestra.",
     "enemyPlanLate": "Necesitan tiempo para escalar: presionadlos desde el principio y no alarguéis la partida."
+  },
+  "phrases": {
+    "p1": "¿Cambiamos?",
+    "p2": "Mostrad vuestros campeones, porfa",
+    "p3": "No baneéis a mi campeón, porfa",
+    "p4": "¿Puedo pickear el último?",
+    "p5": "¡Suerte y a disfrutar!",
+    "editTip": "Editar frases",
+    "windowTitle": "Frases para el chat del draft",
+    "lang": "Idioma de las frases",
+    "langHint": "Las frases estándar cambian a este idioma. Las tuyas se quedan como están.",
+    "fieldsHint": "Vacía un campo para recuperar la frase estándar.",
+    "reset": "Restaurar estándar",
+    "save": "Guardar",
+    "failed": "No enviado: no se encuentra el chat del draft",
+    "field": "Frase {0}"
   }
 }

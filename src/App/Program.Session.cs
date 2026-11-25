@@ -140,6 +140,8 @@ partial class Program
         overlay.LockHandler     = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
         overlay.BanHoverHandler = champId => RunesImporter.HoverChampionAsync(http, myBanActionId, champId, ct);
         overlay.BanLockHandler  = champId => RunesImporter.LockChampionAsync(http, myBanActionId, champId, ct);
+        // Кнопки фраз — в чат драфта; беседу DraftChat находит сам при каждой отправке.
+        overlay.ChatHandler     = text => DraftChat.SendAsync(http, text, ct);
 
         RecommendationEngine? engine = null;
         // Закрыть движок при ЛЮБОМ выходе: обрыв связи выходит отсюда

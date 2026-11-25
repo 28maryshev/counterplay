@@ -135,6 +135,7 @@ public partial class OverlayWindow
         if (!s.DraftRunes) RunesBar.Visibility = Visibility.Collapsed;
         if (!s.DraftRolePool) RolePoolBar.Visibility = Visibility.Collapsed;
         if (!s.BansTierList) TierListBar.Visibility = Visibility.Collapsed;
+        UpdatePhraseBar();   // включили/выключили полосу или поменяли фразы
 
         // Прозрачность, масштаб и «поверх всех» — свойства самого окна.
         Opacity = Math.Clamp(s.Opacity, 0.5, 1.0);

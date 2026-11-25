@@ -157,6 +157,13 @@ sealed partial class SettingsWindow
             s.DraftRolePool, v => { s.DraftRolePool = v; MarkDirty(); }), "DraftRolePool"));
         body.Children.Add(Row(Loc.T("settings.draftRunes"),    Loc.T("settings.draftRunesHint"),
             s.DraftRunes,    v => { s.DraftRunes = v;    MarkDirty(); }));
+
+        // Фразы в чат: тумблер полосы и тот же редактор, что открывает карандаш
+        // на ней (PhraseEditor), — здесь правки уходят по «Применить».
+        body.Children.Add(Group(Loc.T("settings.groupPhrases")));
+        body.Children.Add(Row(Loc.T("settings.draftPhrases"), Loc.T("settings.draftPhrasesHint"),
+            s.DraftPhrases, v => { s.DraftPhrases = v; MarkDirty(); }));
+        body.Children.Add(PhraseEditor.Build(s, MarkDirty));
     }
 
     private void AddPlacement(StackPanel body, AppSettings s)

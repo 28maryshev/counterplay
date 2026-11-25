@@ -28,6 +28,7 @@
         <loc:RuneTemplates/>
         <loc:DislikeTemplates/>
         <loc:PollTemplates/>
+        <loc:PhraseTemplates/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Window.Resources>
@@ -935,6 +936,8 @@
                 <ItemsControl x:Name="FullRecList">
                   <ItemsControl.ItemTemplate><StaticResource ResourceKey="PickCardTemplate"/></ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <!-- Место под полосой фраз: последнюю карточку можно докрутить над ней -->
+                <Border x:Name="RecTail" Height="0"/>
               </StackPanel>
             </ScrollViewer>
 
@@ -963,6 +966,7 @@
                 <ItemsControl x:Name="BanFullList">
                   <ItemsControl.ItemTemplate><StaticResource ResourceKey="BanCardTemplate"/></ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <Border x:Name="BanTail" Height="0"/>
               </StackPanel>
             </ScrollViewer>
 
@@ -1074,9 +1078,12 @@
                       CornerRadius="8" BorderBrush="#2A3A4F" BorderThickness="1"/>
             </Grid>
 
+            <!-- Низ верхней строки центра: кнопки выбора и бана, под ними полоса
+                 фраз. Одной стопкой — кнопка выбора встаёт над полосой, а не на неё. -->
+            <StackPanel Grid.Row="0" VerticalAlignment="Bottom">
             <!-- Кнопка выбора чемпиона: наведён кликом по карточке → лочим
                  в клиенте. Плавает над списком, показывается только в свой ход. -->
-            <Border x:Name="PickBar" Grid.Row="0" VerticalAlignment="Bottom"
+            <Border x:Name="PickBar"
                     Visibility="Collapsed" Margin="0,0,0,4" CornerRadius="7"
                     Cursor="Hand" MouseLeftButtonDown="PickConfirm_Click"
                     Background="#1E7A2E" BorderBrush="#3FD16A" BorderThickness="1.5"
@@ -1105,7 +1112,7 @@
 
             <!-- Кнопка бана: наведён кликом по карточке бана → банит в клиенте.
                  Красная, показывается только когда мой ход банить. -->
-            <Border x:Name="BanBar" Grid.Row="0" VerticalAlignment="Bottom"
+            <Border x:Name="BanBar"
                     Visibility="Collapsed" Margin="0,0,0,4" CornerRadius="7"
                     Cursor="Hand" MouseLeftButtonDown="BanConfirm_Click"
                     Background="#7A1E1E" BorderBrush="#E0584F" BorderThickness="1.5"
@@ -1129,6 +1136,48 @@
                 </TextBlock>
               </StackPanel>
             </Border>
+
+            <!-- Фразы в чат драфта (OverlayWindow.Phrases): карандаш слева
+                 открывает окно правки, дальше пять кнопок поровну. Полупрозрачные
+                 поверх низа списка, под курсором — в полную силу. Видна весь
+                 драфт, пока есть связь с клиентом. Место под ней держат RecTail,
+                 BanTail и нижние поля панелей (PhraseRoom). -->
+            <Grid x:Name="PhraseBar" Visibility="Collapsed" Margin="0,4,0,6">
+              <Grid.Style>
+                <Style TargetType="Grid">
+                  <Setter Property="Opacity" Value="0.75"/>
+                  <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter Property="Opacity" Value="1"/>
+                    </Trigger>
+                  </Style.Triggers>
+                </Style>
+              </Grid.Style>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Border x:Name="PhraseEdit" Style="{StaticResource PhraseChipFrame}" Width="32"
+                      Margin="0,0,4,0" ToolTip="{loc:T phrases.editTip}"
+                      MouseLeftButtonDown="PhraseEdit_Click">
+                <!-- pencil (Tabler Icons, MIT) -->
+                <Viewbox Width="15" Height="15">
+                  <Canvas Width="24" Height="24">
+                    <Path Data="M 4 20 h 4 l 10.5 -10.5 a 2.828 2.828 0 1 0 -4 -4 l -10.5 10.5 v 4 M 13.5 6.5 l 4 4"
+                          Stroke="#C89B3C" StrokeThickness="2" StrokeLineJoin="Round"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                  </Canvas>
+                </Viewbox>
+              </Border>
+              <!-- Правое поле −4 съедает поле последней кнопки: край ровно по колонке -->
+              <ItemsControl x:Name="PhraseList" Grid.Column="1" Margin="0,0,-4,0"
+                            ItemTemplate="{StaticResource PhraseChipTemplate}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </Grid>
+            </StackPanel>
 
             <!-- ══ ТИР-ЛИСТ ПАТЧА (под банами) ═══════════════════════════
                  Лучшие по винрейту чемпионы, разложенные по ролям. Высота

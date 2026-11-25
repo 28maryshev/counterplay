@@ -36,7 +36,7 @@ sealed partial class SettingsWindow : Window
     /// Шрифты объявлены в ресурсах ОКНА оверлея, а не приложения, поэтому
     /// Application.Current.FindResource на них падает (и роняет программу при
     /// открытии настроек). Ищем по открытым окнам, а если не нашли — системный.
-    private static FontFamily Font(string key)
+    internal static FontFamily Font(string key)
     {
         if (Application.Current is { } app)
         {
@@ -99,7 +99,7 @@ sealed partial class SettingsWindow : Window
     /// Строка списка языков: флаг + родное название. Флаг — чтобы человек,
     /// случайно переключившийся на незнакомый язык, нашёл свой по картинке,
     /// а не по надписи, которую он не может прочитать.
-    private static UIElement LangRow(Loc.Lang l)
+    internal static UIElement LangRow(Loc.Lang l)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         if (FlagImage(l.Code) is { } flag)

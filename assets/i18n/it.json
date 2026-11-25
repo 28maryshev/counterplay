@@ -669,6 +669,9 @@
     "draftDamageHint": "Ripartizione tra danno fisico e magico nella squadra",
     "draftRunes": "Rune e build",
     "draftRunesHint": "Rune, summoner e item quando il campione è scelto",
+    "groupPhrases": "Frasi in chat",
+    "draftPhrases": "Pulsanti frasi per la chat del draft",
+    "draftPhrasesHint": "Cinque pulsanti in basso nel draft: un clic scrive la frase in chat. La matita a sinistra le modifica.",
     "bansTier": "Tier list",
     "bansTierHint": "I campioni più forti della patch per ruolo, sotto i ban",
     "bansTierMode": "Tier list predefinita",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Pokkeranno prima degli obiettivi e cacceranno chi resta isolato: non muovetevi da soli e accorciate le distanze in fretta.",
     "enemyPlanEarly": "Sono forti nell'early game: resistete per i primi 20 minuti e la partita girerà a vostro favore.",
     "enemyPlanLate": "Sono da late game: metteteli sotto pressione presto e non allungate la partita."
+  },
+  "phrases": {
+    "p1": "Facciamo scambio?",
+    "p2": "Mostrate i vostri campioni, pls",
+    "p3": "Non bannate il mio campione, pls",
+    "p4": "Posso fare last pick?",
+    "p5": "Buona fortuna, divertiamoci!",
+    "editTip": "Modifica frasi",
+    "windowTitle": "Frasi per la chat del draft",
+    "lang": "Lingua delle frasi",
+    "langHint": "Le frasi standard passano a questa lingua. Le tue restano come sono.",
+    "fieldsHint": "Svuota un campo per tornare alla frase standard.",
+    "reset": "Ripristina standard",
+    "save": "Salva",
+    "failed": "Non inviato: chat del draft non trovata",
+    "field": "Frase {0}"
   }
 }

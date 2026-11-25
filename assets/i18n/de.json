@@ -669,6 +669,9 @@
     "draftDamageHint": "Verteilung von physischem und magischem Schaden im Team",
     "draftRunes": "Runen und Build",
     "draftRunesHint": "Runen, Beschwörerzauber und Items nach deinem Pick",
+    "groupPhrases": "Chat-Sätze",
+    "draftPhrases": "Satz-Buttons für den Draft-Chat",
+    "draftPhrasesHint": "Fünf Buttons unten im Draft: Ein Klick schreibt den Satz in den Draft-Chat. Der Stift links bearbeitet sie.",
     "bansTier": "Tier-Liste",
     "bansTierHint": "Die stärksten Champions des Patches pro Rolle, unter den Banns",
     "bansTierMode": "Standard-Tier-Liste",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Sie poken vor Objectives und schnappen sich Nachzügler — lauft nicht allein herum und überbrückt die Distanz schnell.",
     "enemyPlanEarly": "Sie sind früh stark — übersteht die ersten 20 Minuten, dann gehört das Spiel euch.",
     "enemyPlanLate": "Sie werden erst spät stark — setzt sie früh unter Druck und zieht das Spiel nicht in die Länge."
+  },
+  "phrases": {
+    "p1": "Wollen wir tauschen?",
+    "p2": "Hovert bitte eure Champs",
+    "p3": "Bitte bannt nicht meinen Champ",
+    "p4": "Darf ich Last Pick?",
+    "p5": "Viel Glück, viel Spaß!",
+    "editTip": "Sätze bearbeiten",
+    "windowTitle": "Sätze für den Draft-Chat",
+    "lang": "Sprache der Sätze",
+    "langHint": "Standardsätze wechseln in diese Sprache. Eigene Sätze bleiben unverändert.",
+    "fieldsHint": "Feld leeren, um den Standardsatz zurückzuholen.",
+    "reset": "Standard wiederherstellen",
+    "save": "Speichern",
+    "failed": "Nicht gesendet — Draft-Chat nicht gefunden",
+    "field": "Satz {0}"
   }
 }

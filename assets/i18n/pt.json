@@ -669,6 +669,9 @@
     "draftDamageHint": "Divisão de dano físico e mágico no time",
     "draftRunes": "Runas e build",
     "draftRunesHint": "Runas, feitiços e itens depois que o campeão é escolhido",
+    "groupPhrases": "Frases no chat",
+    "draftPhrases": "Botões de frases para o chat da seleção",
+    "draftPhrasesHint": "Cinco botões embaixo na seleção: um clique envia a frase no chat. O lápis à esquerda edita as frases.",
     "bansTier": "Tier list",
     "bansTierHint": "Os campeões mais fortes do patch por rota, abaixo dos bans",
     "bansTierMode": "Tier list padrão",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "Vão dar poke antes dos objetivos e pegar quem estiver isolado — andem juntos e encurtem a distância rápido.",
     "enemyPlanEarly": "São fortes no early — sobrevivam aos primeiros 20 minutos e o jogo vira a favor de vocês.",
     "enemyPlanLate": "Só ficam fortes no late game — pressionem cedo e não deixem o jogo se arrastar."
+  },
+  "phrases": {
+    "p1": "Bora trocar?",
+    "p2": "Mostrem seus campeões, pfv",
+    "p3": "Não banam meu campeão, pfv",
+    "p4": "Posso ser o último pick?",
+    "p5": "Boa sorte, bom jogo!",
+    "editTip": "Editar frases",
+    "windowTitle": "Frases para o chat da seleção",
+    "lang": "Idioma das frases",
+    "langHint": "As frases padrão mudam para este idioma. As suas ficam como estão.",
+    "fieldsHint": "Apague um campo para voltar à frase padrão.",
+    "reset": "Restaurar padrão",
+    "save": "Salvar",
+    "failed": "Não enviado — chat da seleção não encontrado",
+    "field": "Frase {0}"
   }
 }

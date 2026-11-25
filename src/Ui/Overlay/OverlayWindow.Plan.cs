@@ -192,7 +192,7 @@ public partial class OverlayWindow
         BanScroll.Visibility     = Visibility.Collapsed;
         BansDonePanel.Visibility = Visibility.Collapsed;
         PlanPanel.Visibility     = Visibility.Visible;
-        PlanPanel.Margin         = new Thickness(0, 6, 0, 0);
+        PlanPanel.Margin         = new Thickness(0, 6, 0, PhraseRoomNow);   // панель по содержимому — под полосу фраз
         _banHoverId = 0;                                   // банить нечего
         BanBar.Visibility        = Visibility.Collapsed;
         RolePoolBar.Visibility   = Visibility.Collapsed;

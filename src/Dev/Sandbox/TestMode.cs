@@ -135,6 +135,8 @@ static partial class TestMode
         overlay.BanHoverHandler = async _ => { await Task.Delay(150, ct); return 200; };
         // Бан — в фазу банов панели: мой бан сделан, окно переходит к банам команд.
         overlay.BanLockHandler  = async id => { await Task.Delay(300, ct); panel?.LockMyBan(id); return 200; };
+        // Фразы: чата у песочницы нет — фраза уходит в журнал, кнопка вспыхивает «ушло».
+        overlay.ChatHandler = async text => { await Task.Delay(150, ct); Log.Write($"песочница: в чат «{text}»"); return 200; };
 
         var dbPath = RecommendationEngine.FindDb();
         if (dbPath is null)
@@ -368,6 +370,7 @@ static partial class TestMode
             overlay.LockHandler = null;
             overlay.BanHoverHandler = null;
             overlay.BanLockHandler = null;
+            overlay.ChatHandler = null;
         });
         RunesClient.UseMock = false;   // руны — настоящие, из базы
     }

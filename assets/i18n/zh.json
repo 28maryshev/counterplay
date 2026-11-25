@@ -669,6 +669,9 @@
     "draftDamageHint": "队伍中物理与魔法伤害的比例",
     "draftRunes": "符文与出装",
     "draftRunesHint": "选定英雄后显示符文、技能与装备",
+    "groupPhrases": "聊天短语",
+    "draftPhrases": "选人聊天短语按钮",
+    "draftPhrasesHint": "选人界面底部五个按钮：点击即把短语发到聊天。左侧铅笔用于编辑。",
     "bansTier": "梯队榜",
     "bansTierHint": "Ban 位下方按位置列出版本最强英雄",
     "bansTierMode": "默认梯队榜",
@@ -1014,5 +1017,21 @@
     "enemyPlanPoke": "他们会在打资源前消耗、抓落单的人——别单独行动，找机会迅速贴近开团。",
     "enemyPlanEarly": "他们前期强势——撑过前 20 分钟，后面就是你们的节奏。",
     "enemyPlanLate": "他们后期发力——前期多施压，别把比赛拖到后期。"
+  },
+  "phrases": {
+    "p1": "要不要换一下？",
+    "p2": "请亮一下英雄",
+    "p3": "请不要禁我的英雄",
+    "p4": "我可以最后选吗？",
+    "p5": "祝好运，玩得开心！",
+    "editTip": "编辑短语",
+    "windowTitle": "选人聊天短语",
+    "lang": "短语语言",
+    "langHint": "默认短语会切换为该语言，自定义短语保持不变。",
+    "fieldsHint": "清空输入框即可恢复默认短语。",
+    "reset": "恢复默认",
+    "save": "保存",
+    "failed": "未发送——找不到选人聊天",
+    "field": "短语 {0}"
   }
 }
