@@ -9,7 +9,7 @@ namespace Counterplay;
 /// <summary>
 /// Окно «Фразы для чата драфта» — открывает карандаш слева на полосе фраз
 /// (OverlayWindow.Phrases). Внутри — общий редактор <see cref="PhraseEditor"/>:
-/// язык фраз и пять полей. Правки уходят в программу по «Сохранить»; закрыть
+/// язык фраз и кнопки. Правки уходят в программу по «Сохранить»; закрыть
 /// крестиком — отказаться от них, как в окне настроек.
 /// </summary>
 public sealed class PhrasesWindow : Window
@@ -20,7 +20,7 @@ public sealed class PhrasesWindow : Window
     public PhrasesWindow()
     {
         Title = Loc.T("phrases.windowTitle");
-        Width = 460;
+        Width = 580;
         SizeToContent = SizeToContent.Height;
         // Поверх всего, как настройки: окно драфта по своей логике ныряет под
         // окно клиента и унесло бы это окно с собой.
@@ -54,7 +54,7 @@ public sealed class PhrasesWindow : Window
         // поменять, и откатывать чужие правки фразами нельзя.
         var next = AppSettings.Current.Clone();
         next.PhraseLang = _draft.PhraseLang;
-        next.Phrases = ChatPhrases.Normalize(_draft.Phrases);
+        next.ChatButtons = ChatPhrases.Normalize(_draft.ChatButtons);   // пустые новые кнопки — прочь
         AppSettings.Apply(next);
         Close();
     }

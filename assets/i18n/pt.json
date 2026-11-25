@@ -671,7 +671,7 @@
     "draftRunesHint": "Runas, feitiços e itens depois que o campeão é escolhido",
     "groupPhrases": "Frases no chat",
     "draftPhrases": "Botões de frases para o chat da seleção",
-    "draftPhrasesHint": "Cinco botões embaixo na seleção: um clique envia a frase no chat. O lápis à esquerda edita as frases.",
+    "draftPhrasesHint": "Os botões embaixo enviam uma frase no chat da seleção; os com ▾ pedem antes uma rota ou o que falta. O lápis à esquerda edita.",
     "bansTier": "Tier list",
     "bansTierHint": "Os campeões mais fortes do patch por rota, abaixo dos bans",
     "bansTierMode": "Tier list padrão",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Só ficam fortes no late game — pressionem cedo e não deixem o jogo se arrastar."
   },
   "phrases": {
-    "p1": "Bora trocar?",
-    "p2": "Mostrem seus campeões, pfv",
-    "p3": "Não banam meu campeão, pfv",
-    "p4": "Posso ser o último pick?",
-    "p5": "Boa sorte, bom jogo!",
+    "who": "…, quem você vai pegar?",
+    "canI": "Posso ir …?",
+    "need": "Precisamos de …",
+    "swap": "Bora trocar?",
+    "show": "Mostrem seus campeões, pfv",
+    "glhf": "Boa sorte, bom jogo!",
+    "kindText": "Texto",
+    "kindRole": "Com rota",
+    "kindNeed": "O que falta",
+    "add": "+ Adicionar botão",
+    "remove": "Remover botão",
+    "slotHint": "“…” marca onde entra a escolha: uma rota ou o que falta ao time. Botões com escolha vêm primeiro.",
     "editTip": "Editar frases",
     "windowTitle": "Frases para o chat da seleção",
     "lang": "Idioma das frases",
@@ -1032,6 +1039,23 @@
     "reset": "Restaurar padrão",
     "save": "Salvar",
     "failed": "Não enviado — chat da seleção não encontrado",
-    "field": "Frase {0}"
+    "field": "Frase {0}",
+    "roles": {
+      "top": "top",
+      "jungle": "jungle",
+      "mid": "mid",
+      "adc": "ADC",
+      "support": "suporte"
+    },
+    "needs": {
+      "front": "frontline",
+      "poke": "poke",
+      "waveclear": "waveclear",
+      "cc": "controle",
+      "engage": "engage",
+      "ap": "dano AP",
+      "ad": "dano AD",
+      "disengage": "disengage"
+    }
   }
 }

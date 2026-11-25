@@ -317,20 +317,32 @@ internal static class Smoke
                 if (((FrameworkElement)w.FindName("PhraseBar")).Visibility != Visibility.Visible)
                     throw new InvalidOperationException("в драфте нет полосы фраз");
                 var list = (ItemsControl)w.FindName("PhraseList");
-                if (list.Items.Count != ChatPhrases.Count)
-                    throw new InvalidOperationException($"кнопок фраз {list.Items.Count}, а не {ChatPhrases.Count}");
-                var chip = Find<System.Windows.Controls.Border>(list.ItemContainerGenerator.ContainerFromIndex(0), b => b.Tag is int)
+                var bar = ChatPhrases.Bar(AppSettings.Current);
+                if (list.Items.Count != bar.Count)
+                    throw new InvalidOperationException($"кнопок фраз {list.Items.Count}, а не {bar.Count}");
+                // Простая фраза — сразу в чат.
+                var plain = bar.ToList().FindIndex(b => !ChatPhrases.IsChoice(b));
+                var chip = Find<System.Windows.Controls.Border>(list.ItemContainerGenerator.ContainerFromIndex(plain), b => b.Tag is int)
                            ?? throw new InvalidOperationException("кнопка фразы не найдена");
                 Press(chip);
                 await Settle();
-                var want = ChatPhrases.Text(AppSettings.Current, 0);
+                var want = ChatPhrases.Text(AppSettings.Current, bar[plain]);
                 if (sent is not [var got] || got != want)
                     throw new InvalidOperationException($"кнопка отправила «{string.Join(" | ", sent)}», а не «{want}»");
+                // С выбором — список (не открываем: окно появилось бы на экране),
+                // пункт отдаёт фразу с выбранным. Пауза — меньше 1,5 с вторую не шлём.
+                await Task.Delay(1600);
+                var menu = w.PhraseMenu(0);
+                if (menu.Items.Count == 0) throw new InvalidOperationException("у первой кнопки нет списка выбора");
+                ((MenuItem)menu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                await Settle();
+                if (sent.Count != 2 || sent[1].Contains(ChatPhrases.Slot))
+                    throw new InvalidOperationException($"выбор отправил «{string.Join(" | ", sent)}»");
                 // Окно правки — то, что открывает карандаш; показываем невидимым.
                 var edit = w.OpenPhrases();
                 ShowHidden(edit);
                 await Settle();
-                if (edit.Fields().Count != ChatPhrases.Count)
+                if (edit.Fields().Count != ChatPhrases.Buttons(AppSettings.Current).Count)
                     throw new InvalidOperationException($"в окне фраз {edit.Fields().Count} полей");
                 edit.Close();
                 w.ChatHandler = null;

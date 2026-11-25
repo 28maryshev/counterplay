@@ -671,7 +671,7 @@
     "draftRunesHint": "Ngọc, phép bổ trợ và trang bị sau khi đã chọn tướng",
     "groupPhrases": "Câu chat",
     "draftPhrases": "Nút câu chat khi chọn tướng",
-    "draftPhrasesHint": "Năm nút ở dưới màn chọn tướng: bấm là gửi câu vào chat. Bút chì bên trái để sửa câu.",
+    "draftPhrasesHint": "Các nút ở dưới gửi câu vào chat chọn tướng; nút có ▾ cho chọn vai trò hoặc thứ đội cần trước. Bút chì bên trái để sửa.",
     "bansTier": "Tier list",
     "bansTierHint": "Tướng mạnh nhất bản này theo vị trí, nằm dưới danh sách cấm",
     "bansTierMode": "Tier list mặc định",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Họ mạnh muộn — hãy ép họ sớm và đừng để trận đấu kéo dài."
   },
   "phrases": {
-    "p1": "Đổi tướng không?",
-    "p2": "Mọi người cho xem tướng đi",
-    "p3": "Đừng cấm tướng của mình nhé",
-    "p4": "Cho mình chọn cuối được không?",
-    "p5": "Chúc may mắn, chơi vui nhé!",
+    "who": "…, bạn chọn tướng gì?",
+    "canI": "Cho mình đi … được không?",
+    "need": "Team mình cần …",
+    "swap": "Đổi tướng không?",
+    "show": "Mọi người cho xem tướng đi",
+    "glhf": "Chúc may mắn, chơi vui nhé!",
+    "kindText": "Chữ",
+    "kindRole": "Chọn vai trò",
+    "kindNeed": "Cần gì",
+    "add": "+ Thêm nút",
+    "remove": "Bỏ nút",
+    "slotHint": "“…” là chỗ điền lựa chọn: vai trò hoặc thứ đội cần. Nút có lựa chọn xếp đầu tiên.",
     "editTip": "Sửa câu",
     "windowTitle": "Câu cho chat khi chọn tướng",
     "lang": "Ngôn ngữ của câu",
@@ -1032,6 +1039,23 @@
     "reset": "Khôi phục mặc định",
     "save": "Lưu",
     "failed": "Chưa gửi — không thấy chat chọn tướng",
-    "field": "Câu {0}"
+    "field": "Câu {0}",
+    "roles": {
+      "top": "top",
+      "jungle": "rừng",
+      "mid": "mid",
+      "adc": "xạ thủ",
+      "support": "hỗ trợ"
+    },
+    "needs": {
+      "front": "đỡ đòn",
+      "poke": "cấu rỉa",
+      "waveclear": "dọn lính",
+      "cc": "khống chế",
+      "engage": "mở giao tranh",
+      "ap": "sát thương phép",
+      "ad": "sát thương vật lý",
+      "disengage": "thoát giao tranh"
+    }
   }
 }

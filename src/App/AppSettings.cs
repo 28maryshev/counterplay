@@ -136,13 +136,18 @@ public sealed class AppSettings
     public bool DraftRunes      { get; set; } = true;  // панель рун и сборки после пика
 
     // ── Фразы в чат драфта (ChatPhrases) ────────────────────────────────────
-    /// Полоса из пяти кнопок-фраз внизу центра драфта.
+    /// Полоса кнопок-фраз внизу центра драфта.
     public bool DraftPhrases { get; set; } = true;
     /// Язык фраз; пусто — язык программы.
     public string PhraseLang { get; set; } = "";
-    /// Свои фразы по кнопкам, ровно пять; пустая строка — стандартная фраза
-    /// языка. Менять только заменой массива (ChatPhrases.Set): Clone делит его.
-    public string[] Phrases { get; set; } = ChatPhrases.Normalize(null);
+    /// <summary>
+    /// Кнопки фраз по порядку редактора; null — стандартный набор (идёт за
+    /// языком и за новыми стандартными кнопками). Менять только заменой массива
+    /// (ChatPhrases.SetText и др.): Clone делит его с оригиналом. Имя новое, не
+    /// Phrases: в ui.json у тех, кто запускал сборку 25.11, там лежат строки, и
+    /// чтение их в кнопки уронило бы весь файл настроек.
+    /// </summary>
+    public ChatButton[]? ChatButtons { get; set; }
 
     // ── Окно в драфте ───────────────────────────────────────────────────────
     /// Куда ставить оверлей, когда начинается драфт:
@@ -243,7 +248,7 @@ public sealed class AppSettings
             DraftPlacement = "remember";
         if (BansTierMode is not ("picks" or "bans")) BansTierMode = "picks";
         if (Loc.Languages.All(l => l.Code != PhraseLang)) PhraseLang = "";
-        Phrases = ChatPhrases.Normalize(Phrases);
+        ChatButtons = ChatPhrases.Normalize(ChatButtons);
 
         // Запомненная геометрия: мусор здесь — это окно нулевого размера или
         // окно за пределами всех мониторов. Просто забываем её, тогда раскладка
@@ -327,9 +332,10 @@ public sealed class AppSettings
         // В журнал — ЧТО именно изменилось. Без этого по жалобе «стало криво»
         // приходится гадать, какие настройки у человека стоят.
         var before = Current;
-        // Массив (фразы) сравниваем и пишем по содержимому: по ссылке любая
-        // копия «изменилась», а в журнал ушло бы «System.String[]».
-        static string Shown(object? v) => v is string[] a ? "[" + string.Join(" | ", a) + "]" : $"{v}";
+        // Массив (кнопки фраз) сравниваем и пишем по содержимому: по ссылке
+        // любая копия «изменилась», а в журнал ушло бы «ChatButton[]».
+        static string Shown(object? v) => v is System.Collections.IEnumerable e and not string
+            ? "[" + string.Join(" | ", e.Cast<object>()) + "]" : $"{v}";
         var changes = typeof(AppSettings).GetProperties()
             .Where(p => p.CanRead && p.CanWrite)
             .Select(p => (p.Name, Old: Shown(p.GetValue(before)), New: Shown(p.GetValue(edited))))

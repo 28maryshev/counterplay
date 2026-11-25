@@ -671,7 +671,7 @@
     "draftRunesHint": "Runen, Beschwörerzauber und Items nach deinem Pick",
     "groupPhrases": "Chat-Sätze",
     "draftPhrases": "Satz-Buttons für den Draft-Chat",
-    "draftPhrasesHint": "Fünf Buttons unten im Draft: Ein Klick schreibt den Satz in den Draft-Chat. Der Stift links bearbeitet sie.",
+    "draftPhrasesHint": "Buttons unten im Draft schreiben einen Satz in den Draft-Chat; bei ▾ wählst du zuerst Rolle oder Team-Bedarf. Der Stift links bearbeitet sie.",
     "bansTier": "Tier-Liste",
     "bansTierHint": "Die stärksten Champions des Patches pro Rolle, unter den Banns",
     "bansTierMode": "Standard-Tier-Liste",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Sie werden erst spät stark — setzt sie früh unter Druck und zieht das Spiel nicht in die Länge."
   },
   "phrases": {
-    "p1": "Wollen wir tauschen?",
-    "p2": "Hovert bitte eure Champs",
-    "p3": "Bitte bannt nicht meinen Champ",
-    "p4": "Darf ich Last Pick?",
-    "p5": "Viel Glück, viel Spaß!",
+    "who": "…, wen pickst du?",
+    "canI": "Darf ich … spielen?",
+    "need": "Wir brauchen …",
+    "swap": "Wollen wir tauschen?",
+    "show": "Hovert bitte eure Champs",
+    "glhf": "Viel Glück, viel Spaß!",
+    "kindText": "Text",
+    "kindRole": "Mit Rolle",
+    "kindNeed": "Team braucht",
+    "add": "+ Button hinzufügen",
+    "remove": "Button entfernen",
+    "slotHint": "„…“ markiert die Stelle für die Auswahl: Rolle oder was das Team braucht. Buttons mit Auswahl stehen vorne.",
     "editTip": "Sätze bearbeiten",
     "windowTitle": "Sätze für den Draft-Chat",
     "lang": "Sprache der Sätze",
@@ -1032,6 +1039,23 @@
     "reset": "Standard wiederherstellen",
     "save": "Speichern",
     "failed": "Nicht gesendet — Draft-Chat nicht gefunden",
-    "field": "Satz {0}"
+    "field": "Satz {0}",
+    "roles": {
+      "top": "Top",
+      "jungle": "Jungle",
+      "mid": "Mid",
+      "adc": "ADC",
+      "support": "Support"
+    },
+    "needs": {
+      "front": "Frontline",
+      "poke": "Poke",
+      "waveclear": "Waveclear",
+      "cc": "CC",
+      "engage": "Engage",
+      "ap": "AP-Schaden",
+      "ad": "AD-Schaden",
+      "disengage": "Disengage"
+    }
   }
 }

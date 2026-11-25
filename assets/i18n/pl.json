@@ -671,7 +671,7 @@
     "draftRunesHint": "Runy, czary przywoływacza i przedmioty po wyborze bohatera",
     "groupPhrases": "Frazy na czacie",
     "draftPhrases": "Przyciski fraz do czatu draftu",
-    "draftPhrasesHint": "Pięć przycisków na dole draftu: kliknięcie wysyła frazę na czat. Ołówek po lewej je edytuje.",
+    "draftPhrasesHint": "Przyciski na dole wysyłają frazę na czat draftu; przy ▾ najpierw wybierasz rolę lub potrzebę drużyny. Ołówek po lewej je edytuje.",
     "bansTier": "Tier lista",
     "bansTierHint": "Najsilniejsi bohaterowie patcha wg ról, pod listą banów",
     "bansTierMode": "Domyślna tier lista",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Rozkręcają się późno — dociskajcie ich od początku i nie przeciągajcie gry."
   },
   "phrases": {
-    "p1": "Zamienimy się?",
-    "p2": "Pokażcie swoich bohaterów, pls",
-    "p3": "Nie banujcie mojego bohatera, pls",
-    "p4": "Mogę mieć last picka?",
-    "p5": "Powodzenia, miłej gry!",
+    "who": "…, kogo bierzesz?",
+    "canI": "Mogę wziąć …?",
+    "need": "Potrzebujemy …",
+    "swap": "Zamienimy się?",
+    "show": "Pokażcie swoich bohaterów, pls",
+    "glhf": "Powodzenia, miłej gry!",
+    "kindText": "Tekst",
+    "kindRole": "Z rolą",
+    "kindNeed": "Czego trzeba",
+    "add": "+ Dodaj przycisk",
+    "remove": "Usuń przycisk",
+    "slotHint": "„…” oznacza miejsce wyboru: rola albo czego trzeba drużynie. Przyciski z wyborem są pierwsze.",
     "editTip": "Edytuj frazy",
     "windowTitle": "Frazy do czatu draftu",
     "lang": "Język fraz",
@@ -1032,6 +1039,23 @@
     "reset": "Przywróć standardowe",
     "save": "Zapisz",
     "failed": "Nie wysłano — nie znaleziono czatu draftu",
-    "field": "Fraza {0}"
+    "field": "Fraza {0}",
+    "roles": {
+      "top": "top",
+      "jungle": "jungle",
+      "mid": "mid",
+      "adc": "ADC",
+      "support": "support"
+    },
+    "needs": {
+      "front": "frontline",
+      "poke": "poke",
+      "waveclear": "waveclear",
+      "cc": "CC",
+      "engage": "engage",
+      "ap": "dmg AP",
+      "ad": "dmg AD",
+      "disengage": "disengage"
+    }
   }
 }

@@ -671,7 +671,7 @@
     "draftRunesHint": "Şampiyon seçildikten sonra rünler, büyüler ve eşyalar",
     "groupPhrases": "Sohbet ifadeleri",
     "draftPhrases": "Seçim sohbeti için ifade düğmeleri",
-    "draftPhrasesHint": "Seçimin altında beş düğme: tıklayınca ifade sohbete yazılır. Soldaki kalem ifadeleri düzenler.",
+    "draftPhrasesHint": "Alttaki düğmeler seçim sohbetine ifade yazar; ▾ olanlar önce rol ya da takım ihtiyacı sorar. Soldaki kalem düzenler.",
     "bansTier": "Tier listesi",
     "bansTierHint": "Ban listesinin altında, role göre yamanın en güçlüleri",
     "bansTierMode": "Varsayılan tier listesi",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Geç açılıyorlar — erken baskı yapın ve oyunu uzatmayın."
   },
   "phrases": {
-    "p1": "Takas yapalım mı?",
-    "p2": "Şampiyonlarınızı gösterin lütfen",
-    "p3": "Lütfen şampiyonumu banlamayın",
-    "p4": "Son seçimi ben yapabilir miyim?",
-    "p5": "İyi şanslar, iyi oyunlar!",
+    "who": "…, kimi alacaksın?",
+    "canI": "… alabilir miyim?",
+    "need": "… lazım",
+    "swap": "Takas yapalım mı?",
+    "show": "Şampiyonlarınızı gösterin lütfen",
+    "glhf": "İyi şanslar, iyi oyunlar!",
+    "kindText": "Metin",
+    "kindRole": "Rol seçimi",
+    "kindNeed": "İhtiyaç",
+    "add": "+ Düğme ekle",
+    "remove": "Düğmeyi kaldır",
+    "slotHint": "“…” seçimin geleceği yeri gösterir: rol ya da takımın ihtiyacı. Seçimli düğmeler önce gelir.",
     "editTip": "İfadeleri düzenle",
     "windowTitle": "Seçim sohbeti için ifadeler",
     "lang": "İfadelerin dili",
@@ -1032,6 +1039,23 @@
     "reset": "Standartlara dön",
     "save": "Kaydet",
     "failed": "Gönderilmedi — seçim sohbeti bulunamadı",
-    "field": "İfade {0}"
+    "field": "İfade {0}",
+    "roles": {
+      "top": "top",
+      "jungle": "orman",
+      "mid": "mid",
+      "adc": "ADC",
+      "support": "destek"
+    },
+    "needs": {
+      "front": "frontline",
+      "poke": "poke",
+      "waveclear": "dalga temizliği",
+      "cc": "kitle kontrolü",
+      "engage": "engage",
+      "ap": "AP hasarı",
+      "ad": "AD hasarı",
+      "disengage": "disengage"
+    }
   }
 }

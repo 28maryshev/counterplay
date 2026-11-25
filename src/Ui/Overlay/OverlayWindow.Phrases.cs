@@ -3,8 +3,9 @@ using System.Windows.Input;
 
 namespace Counterplay;
 
-// Окно драфта — фразы в чат драфта: полоса из пяти кнопок внизу центра и
-// карандаш слева, который открывает окно правки (PhrasesWindow).
+// Окно драфта — фразы в чат драфта: полоса кнопок внизу центра (у кнопок с
+// выбором — список ролей или «что нужно») и карандаш слева, который открывает
+// окно правки (PhrasesWindow).
 public partial class OverlayWindow
 {
     /// Написать текст в чат драфта. Текст → HTTP-код отправки (0 — сорвалось).
@@ -23,7 +24,6 @@ public partial class OverlayWindow
     private DateTime _phraseNext;
     private int _phraseFlash = -1;           // какая кнопка вспыхивает (-1 — никакая)
     private string _phraseFlashState = "";
-    private int _phraseFlashTicket;          // новая вспышка отменяет гашение прошлой
     private PhrasesWindow? _phrasesWindow;
 
     /// Место, которое сейчас занимает полоса (0 — её нет).
@@ -47,44 +47,129 @@ public partial class OverlayWindow
     private void RenderPhrases()
     {
         var s = AppSettings.Current;
-        PhraseList.ItemsSource = Enumerable.Range(0, ChatPhrases.Count).Select(i =>
+        PhraseList.ItemsSource = ChatPhrases.Bar(s).Select((b, i) =>
         {
-            var text = ChatPhrases.Text(s, i);
             var state = i == _phraseFlash ? _phraseFlashState : "";
             return new PhraseChip
             {
                 Index = i,
-                Text  = state switch { "sent" => "✓ " + text, "fail" => Loc.T("phrases.failed"), _ => text },
-                Tip   = text,
+                Text  = state switch
+                {
+                    "sent" => "✓ " + (_phraseFlashText.Length > 0 ? _phraseFlashText : ChatPhrases.Text(s, b)),
+                    "fail" => Loc.T("phrases.failed"),
+                    _      => ChatPhrases.Label(s, b),
+                },
+                Tip   = ChatPhrases.Text(s, b),
                 State = state,
             };
         }).ToList();
     }
 
-    /// Клик по кнопке фразы (шаблон PhraseTemplates): фраза уходит в чат драфта.
-    internal async void Phrase_Click(object sender)
+    private string _phraseFlashText = "";   // что ушло — у кнопки с выбором это уже готовая фраза
+
+    /// <summary>
+    /// Клик по кнопке фразы (шаблон PhraseTemplates). Просто фраза уходит в чат
+    /// сразу; у кнопки с выбором сначала список (<see cref="PhraseMenu"/>) над
+    /// кнопкой, и в чат уходит фраза с выбранным.
+    /// </summary>
+    internal void Phrase_Click(object sender)
     {
-        if (sender is not FrameworkElement { Tag: int i } || ChatHandler is null) return;
+        if (sender is not FrameworkElement { Tag: int i } fe || ChatHandler is null) return;
+        var bar = ChatPhrases.Bar(AppSettings.Current);
+        if (i >= bar.Count) return;
+        if (!ChatPhrases.IsChoice(bar[i])) { SendPhrase(i, ChatPhrases.Text(AppSettings.Current, bar[i])); return; }
+
+        var menu = PhraseMenu(i);
+        menu.PlacementTarget = fe;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
+        menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// Список выбора кнопки i полосы: роли (с иконками) или что нужно команде,
+    /// названия на языке фраз. Пункт отправляет готовую фразу. Не открывает —
+    /// это делает клик; проверки зовут пункты сами, не показывая список.
+    /// </summary>
+    public System.Windows.Controls.ContextMenu PhraseMenu(int i)
+    {
+        var s = AppSettings.Current;
+        var menu = new System.Windows.Controls.ContextMenu { Style = (Style)FindResource("RoleMenuStyle") };
+        var bar = ChatPhrases.Bar(s);
+        if (i < 0 || i >= bar.Count) return menu;
+        var b = bar[i];
+        var lang = ChatPhrases.Lang(s);
+        var itemStyle = (Style)FindResource("RoleMenuItemStyle");
+        var keys = ChatPhrases.Choices(b.Kind);
+        foreach (var key in keys)
+        {
+            var name = ChatPhrases.ChoiceName(lang, b.Kind, key);
+            var header = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            if (b.Kind == ChatPhrases.Role
+                && RoleIcons.Get(ChatPhrases.RolePositions[Array.IndexOf(ChatPhrases.Roles, key)]) is { } icon)
+                header.Children.Add(new System.Windows.Controls.Image
+                {
+                    Source = icon, Width = 16, Height = 16, Margin = new Thickness(0, 0, 8, 0),
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                });
+            header.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = name, VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            });
+            var item = new System.Windows.Controls.MenuItem { Header = header, Style = itemStyle, Tag = key };
+            var text = ChatPhrases.Compose(lang, ChatPhrases.Text(s, b), name);
+            item.ToolTip = text;
+            item.Click += (_, _) => SendPhrase(i, text);
+            menu.Items.Add(item);
+        }
+        return menu;
+    }
+
+    /// Фразу — в чат драфта: не чаще раза в PhraseCooldown, затем вспышка кнопки i.
+    private async void SendPhrase(int i, string text)
+    {
+        if (ChatHandler is null || text.Length == 0) return;
         var now = DateTime.UtcNow;
         if (now < _phraseNext) return;
         _phraseNext = now + PhraseCooldown;
 
-        var code = await ChatHandler(ChatPhrases.Text(AppSettings.Current, i));
-        Flash(i, code is >= 200 and < 300 ? "sent" : "fail");
+        var code = await ChatHandler(text);
+        // Ответ мог прийти не в потоке окна (обработчик — сетевой запрос) —
+        // вспышка трогает разметку, поэтому через Dispatcher.
+        Dispatcher.Invoke(() =>
+        {
+            _phraseFlashText = text;
+            Flash(i, code is >= 200 and < 300 ? "sent" : "fail");
+        });
     }
 
-    private async void Flash(int i, string state)
+    /// <summary>
+    /// Вспышка кнопки i: 1,2 с «ушло», 2,5 с «не ушло». Гасит таймер окна, а не
+    /// Task.Delay: продолжение после Task.Delay приходит в потоке окна, только
+    /// если он сам ждёт в цикле сообщений, а иначе — в чужом, и разметка там
+    /// падает. Новая вспышка отменяет гашение прошлой.
+    /// </summary>
+    private void Flash(int i, string state)
     {
         _phraseFlash = i;
         _phraseFlashState = state;
-        var ticket = ++_phraseFlashTicket;
+        _phraseFlashTimer?.Stop();
         if (PhraseBar.Visibility == Visibility.Visible) RenderPhrases();
-        await Task.Delay(state == "fail" ? 2500 : 1200);
-        if (ticket != _phraseFlashTicket) return;
-        _phraseFlash = -1;
-        _phraseFlashState = "";
-        if (PhraseBar.Visibility == Visibility.Visible) RenderPhrases();
+        var timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Normal, Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(state == "fail" ? 2500 : 1200),
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _phraseFlash = -1;
+            _phraseFlashState = "";
+            if (PhraseBar.Visibility == Visibility.Visible) RenderPhrases();
+        };
+        _phraseFlashTimer = timer;
+        timer.Start();
     }
+
+    private System.Windows.Threading.DispatcherTimer? _phraseFlashTimer;
 
     private void PhraseEdit_Click(object sender, MouseButtonEventArgs e)
     {

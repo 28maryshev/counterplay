@@ -671,7 +671,7 @@
     "draftRunesHint": "Rune, summoner e item quando il campione è scelto",
     "groupPhrases": "Frasi in chat",
     "draftPhrases": "Pulsanti frasi per la chat del draft",
-    "draftPhrasesHint": "Cinque pulsanti in basso nel draft: un clic scrive la frase in chat. La matita a sinistra le modifica.",
+    "draftPhrasesHint": "I pulsanti in basso scrivono una frase nella chat del draft; quelli con ▾ chiedono prima un ruolo o cosa serve. La matita a sinistra li modifica.",
     "bansTier": "Tier list",
     "bansTierHint": "I campioni più forti della patch per ruolo, sotto i ban",
     "bansTierMode": "Tier list predefinita",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Sono da late game: metteteli sotto pressione presto e non allungate la partita."
   },
   "phrases": {
-    "p1": "Facciamo scambio?",
-    "p2": "Mostrate i vostri campioni, pls",
-    "p3": "Non bannate il mio campione, pls",
-    "p4": "Posso fare last pick?",
-    "p5": "Buona fortuna, divertiamoci!",
+    "who": "…, chi prendi?",
+    "canI": "Posso andare …?",
+    "need": "Ci serve …",
+    "swap": "Facciamo scambio?",
+    "show": "Mostrate i vostri campioni, pls",
+    "glhf": "Buona fortuna, divertiamoci!",
+    "kindText": "Testo",
+    "kindRole": "Con ruolo",
+    "kindNeed": "Cosa serve",
+    "add": "+ Aggiungi pulsante",
+    "remove": "Rimuovi pulsante",
+    "slotHint": "«…» indica dove va la scelta: un ruolo o cosa serve alla squadra. I pulsanti con scelta vengono per primi.",
     "editTip": "Modifica frasi",
     "windowTitle": "Frasi per la chat del draft",
     "lang": "Lingua delle frasi",
@@ -1032,6 +1039,23 @@
     "reset": "Ripristina standard",
     "save": "Salva",
     "failed": "Non inviato: chat del draft non trovata",
-    "field": "Frase {0}"
+    "field": "Frase {0}",
+    "roles": {
+      "top": "top",
+      "jungle": "jungle",
+      "mid": "mid",
+      "adc": "ADC",
+      "support": "support"
+    },
+    "needs": {
+      "front": "frontline",
+      "poke": "poke",
+      "waveclear": "waveclear",
+      "cc": "CC",
+      "engage": "engage",
+      "ap": "danno AP",
+      "ad": "danno AD",
+      "disengage": "disengage"
+    }
   }
 }

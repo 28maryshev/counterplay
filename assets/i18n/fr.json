@@ -671,7 +671,7 @@
     "draftRunesHint": "Runes, sorts d'invocateur et objets une fois le champion pris",
     "groupPhrases": "Phrases de chat",
     "draftPhrases": "Boutons de phrases pour le chat de draft",
-    "draftPhrasesHint": "Cinq boutons en bas du draft : un clic écrit la phrase dans le chat. Le crayon à gauche les modifie.",
+    "draftPhrasesHint": "Les boutons en bas écrivent une phrase dans le chat de draft ; ceux avec ▾ demandent d'abord un rôle ou un besoin. Le crayon à gauche les modifie.",
     "bansTier": "Tier list",
     "bansTierHint": "Les champions les plus forts du patch par rôle, sous les bans",
     "bansTierMode": "Tier list par défaut",
@@ -1019,11 +1019,18 @@
     "enemyPlanLate": "Ils montent en puissance tard ; mettez-leur la pression tôt et ne faites pas traîner la partie."
   },
   "phrases": {
-    "p1": "On échange ?",
-    "p2": "Montrez vos champions svp",
-    "p3": "Ne bannissez pas mon champion svp",
-    "p4": "Je peux last pick ?",
-    "p5": "Bonne chance, amusez-vous !",
+    "who": "…, tu prends qui ?",
+    "canI": "Je peux aller … ?",
+    "need": "On a besoin de …",
+    "swap": "On échange ?",
+    "show": "Montrez vos champions svp",
+    "glhf": "Bonne chance, amusez-vous !",
+    "kindText": "Texte",
+    "kindRole": "Avec rôle",
+    "kindNeed": "Besoin",
+    "add": "+ Ajouter un bouton",
+    "remove": "Retirer le bouton",
+    "slotHint": "« … » marque l'endroit du choix : un rôle ou ce dont l'équipe a besoin. Les boutons à choix passent en premier.",
     "editTip": "Modifier les phrases",
     "windowTitle": "Phrases pour le chat de draft",
     "lang": "Langue des phrases",
@@ -1032,6 +1039,23 @@
     "reset": "Rétablir les standard",
     "save": "Enregistrer",
     "failed": "Non envoyé — chat de draft introuvable",
-    "field": "Phrase {0}"
+    "field": "Phrase {0}",
+    "roles": {
+      "top": "top",
+      "jungle": "jungle",
+      "mid": "mid",
+      "adc": "ADC",
+      "support": "support"
+    },
+    "needs": {
+      "front": "frontline",
+      "poke": "poke",
+      "waveclear": "waveclear",
+      "cc": "CC",
+      "engage": "engage",
+      "ap": "dégâts AP",
+      "ad": "dégâts AD",
+      "disengage": "disengage"
+    }
   }
 }
