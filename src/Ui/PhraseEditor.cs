@@ -96,16 +96,26 @@ public static class PhraseEditor
         root.Children.Add(top);
         root.Children.Add(Hint(Loc.T("phrases.stdHint"), new Thickness(26, 0, 0, 6)));
 
+        // Каждая фраза — отдельной кнопкой в рамке, как на полосе в драфте, и
+        // в том же порядке (владелец 26.11: «раздели их, укажи, что это
+        // отдельные кнопки»).
         var list = new StackPanel { Margin = new Thickness(26, 0, 0, 0), Opacity = own ? 0.45 : 1 };
         var lang = ChatPhrases.Lang(s);
-        foreach (var b in ChatPhrases.Defaults())
+        foreach (var b in ChatPhrases.Defaults())   // уже в порядке полосы: приветствие, с выбором, остальные
         {
             var line = SlotBox.Display(ChatPhrases.StdText(lang, b.Std), ChipName(b.Kind, lang), Loc.T("phrases.slotTip"));
             line.FontFamily = SettingsWindow.Font("UiFont");
             line.FontSize = 12.5;
             line.Foreground = new SolidColorBrush(Text);
-            line.Margin = new Thickness(0, 0, 0, 5);
-            list.Children.Add(line);
+            if (ChatPhrases.IsChoice(b)) line.Inlines.Add(new System.Windows.Documents.Run(" ▾") { Foreground = new SolidColorBrush(Mute) });
+            list.Children.Add(new Border
+            {
+                Child = line, Tag = "stdButton", HorizontalAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(9, 3, 9, 3), Margin = new Thickness(0, 0, 0, 5),
+                CornerRadius = new CornerRadius(5), BorderThickness = new Thickness(1),
+                Background = new SolidColorBrush(Color.FromArgb(0xB3, 0x0E, 0x16, 0x20)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x59, 0x4F, 0x6B, 0x85)),
+            });
         }
         root.Children.Add(list);
     }

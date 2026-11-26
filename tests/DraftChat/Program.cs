@@ -104,52 +104,52 @@ internal static class Program
         var s = AppSettings.Defaults();
         var std = ChatPhrases.Buttons(s);
         Check(ChatPhrases.Set(s).Buttons is null && std.Count == 6, "по умолчанию стандартный набор из шести", $"{std.Count}");
-        Check(std.Take(3).All(ChatPhrases.IsChoice) && !std.Skip(3).Any(ChatPhrases.IsChoice),
-              "стандартные с выбором — первыми (кого берёшь, можно мне, нам нужен)",
+        Check(std[0].Std == ChatPhrases.Hello && !ChatPhrases.IsChoice(std[0]) && std.Skip(1).Take(3).All(ChatPhrases.IsChoice) && !std.Skip(4).Any(ChatPhrases.IsChoice),
+              "первое — приветствие, за ним стандартные с выбором (кого берёшь, можно мне, нам нужен)",
               string.Join(" ", std.Select(b => b.Kind)));
-        Check(std[0].Kind == ChatPhrases.Role && std[1].Kind == ChatPhrases.Role && std[2].Kind == ChatPhrases.List,
+        Check(std[1].Kind == ChatPhrases.Role && std[2].Kind == ChatPhrases.Role && std[3].Kind == ChatPhrases.List,
               "две кнопки с выбором роли и одна — что нужно команде");
 
         ChatPhrases.SetLang(s, "en");
         var enSwap = ChatPhrases.StdText("en", "swap");
-        Check(ChatPhrases.Text(s, std[3]) == enSwap, "без своей — стандартная на языке фраз", ChatPhrases.Text(s, std[3]));
+        Check(ChatPhrases.Text(s, std[4]) == enSwap, "без своей — стандартная на языке фраз", ChatPhrases.Text(s, std[4]));
 
         // Копия настроек (окно настроек) правит кнопку — оригинал не меняется.
         var copy = s.Clone();
-        ChatPhrases.SetText(copy, 4, "mid or feed");
-        Check(ChatPhrases.Set(s).Buttons is null && ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[4]) == "mid or feed",
+        ChatPhrases.SetText(copy, 5, "mid or feed");
+        Check(ChatPhrases.Set(s).Buttons is null && ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[5]) == "mid or feed",
               "правка копии не задела оригинал (массив не общий)",
-              $"оригинал «{ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4])}»");
+              $"оригинал «{ChatPhrases.Text(s, ChatPhrases.Buttons(s)[5])}»");
         // Вторая правка копии — по уже своему массиву: оригинал всё так же цел.
         var own = s.Clone();
-        ChatPhrases.SetText(own, 4, "раз");
+        ChatPhrases.SetText(own, 5, "раз");
         var keep = own.Clone();
-        ChatPhrases.SetText(own, 4, "два");
-        Check(ChatPhrases.Text(keep, ChatPhrases.Buttons(keep)[4]) == "раз",
-              "правка копии своего набора не задела оригинал", ChatPhrases.Text(keep, ChatPhrases.Buttons(keep)[4]));
+        ChatPhrases.SetText(own, 5, "два");
+        Check(ChatPhrases.Text(keep, ChatPhrases.Buttons(keep)[5]) == "раз",
+              "правка копии своего набора не задела оригинал", ChatPhrases.Text(keep, ChatPhrases.Buttons(keep)[5]));
 
         // Вписали ровно стандартную — хранится стандартной и пойдёт за языком.
-        ChatPhrases.SetText(copy, 3, "  " + enSwap + " ");
-        Check(ChatPhrases.Buttons(copy)[3].Text == "", "стандартная, вписанная руками, хранится как стандартная",
-              ChatPhrases.Buttons(copy)[3].Text);
-        ChatPhrases.SetText(copy, 4, ChatPhrases.StdText("en", "show"));
+        ChatPhrases.SetText(copy, 4, "  " + enSwap + " ");
+        Check(ChatPhrases.Buttons(copy)[4].Text == "", "стандартная, вписанная руками, хранится как стандартная",
+              ChatPhrases.Buttons(copy)[4].Text);
+        ChatPhrases.SetText(copy, 5, ChatPhrases.StdText("en", "show"));
         Check(ChatPhrases.Set(copy).Buttons is null, "всё снова как в стандартном наборе — набор опять стандартный (идёт за программой)");
 
-        ChatPhrases.SetText(copy, 4, "mid or feed");
+        ChatPhrases.SetText(copy, 5, "mid or feed");
         ChatPhrases.SetLang(copy, "ru");
-        var b3 = ChatPhrases.Buttons(copy)[3];
+        var b3 = ChatPhrases.Buttons(copy)[4];
         Check(ChatPhrases.Text(copy, b3) == ChatPhrases.StdText("ru", "swap"), "смена языка: стандартная встала на новом языке",
               ChatPhrases.Text(copy, b3));
-        Check(ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[4]) == "mid or feed", "смена языка: своя фраза осталась");
+        Check(ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[5]) == "mid or feed", "смена языка: своя фраза осталась");
 
         // Вид кнопки: стандартная другого вида становится своей, текст — как был.
-        var who = ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[0]);
-        ChatPhrases.SetKind(copy, 0, ChatPhrases.Plain);
-        var b0 = ChatPhrases.Buttons(copy)[0];
+        var who = ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[1]);
+        ChatPhrases.SetKind(copy, 1, ChatPhrases.Plain);
+        var b0 = ChatPhrases.Buttons(copy)[1];
         Check(b0.Kind == ChatPhrases.Plain && b0.Std == "" && b0.Text == "кого будешь брать?",
               "стандартная с выбором → простая: своя, блок и знак перед ним ушли из текста", b0.ToString());
         ChatPhrases.SetKind(copy, 5, ChatPhrases.List);
-        Check(ChatPhrases.Buttons(copy)[5].Kind == ChatPhrases.List && ChatPhrases.Buttons(copy)[5].Text == "Удачи, хорошей игры! …",
+        Check(ChatPhrases.Buttons(copy)[5].Kind == ChatPhrases.List && ChatPhrases.Buttons(copy)[5].Text == "mid or feed …",
               "простую можно сделать кнопкой с выбором — блок встаёт в конец", ChatPhrases.Buttons(copy)[5].Text);
         // Новый перечень — пустой, а не стандартные нужды (владелец 26.11); пока
         // пуст, на полосе его нет. У стандартной «Нам нужен» — нужды.
@@ -157,15 +157,15 @@ internal static class Program
         Check(ChatPhrases.ChoiceItems(newList).Count == 0 && !ChatPhrases.Bar(copy).Contains(newList),
               "новый перечень — без вариантов, пока пуст — его нет на полосе",
               string.Join(", ", ChatPhrases.ChoiceItems(newList).Select(c => c.ToString())));
-        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[2]).Count == ChatPhrases.Needs.Length,
+        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[3]).Count == ChatPhrases.Needs.Length,
               "у стандартной «Нам нужен …» — стандартный перечень");
         ChatPhrases.SetOwnChoices(copy, 5, true);
         ChatPhrases.AddChoice(copy, 5);
         ChatPhrases.SetChoiceText(copy, 5, 0, "хил");
         Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[5]) is [(_, "хил")], "в новый перечень вписан свой вариант «хил»");
         var bar = ChatPhrases.Bar(copy);
-        Check(bar.Take(3).All(ChatPhrases.IsChoice) && bar[2].Kind == ChatPhrases.List && !bar.Skip(3).Any(ChatPhrases.IsChoice),
-              "на полосе кнопки с выбором — первыми, в своём порядке", string.Join(" ", bar.Select(b => b.Kind)));
+        Check(bar[0].Std == ChatPhrases.Hello && bar.Skip(1).Take(3).All(ChatPhrases.IsChoice) && bar[3].Kind == ChatPhrases.List && !bar.Skip(4).Any(ChatPhrases.IsChoice),
+              "на полосе приветствие первым, за ним кнопки с выбором в своём порядке", string.Join(" ", bar.Select(b => b.Kind)));
 
         // Добавить и убрать; не больше восьми; пустая новая — не на полосе и не сохраняется.
         ChatPhrases.Add(copy);
@@ -175,7 +175,7 @@ internal static class Program
         ChatPhrases.SetText(copy, 6, "Кто в лес?");
         ChatPhrases.Add(copy); ChatPhrases.Add(copy); ChatPhrases.Add(copy);
         Check(ChatPhrases.Buttons(copy).Count == ChatPhrases.Max, $"кнопок не больше {ChatPhrases.Max}", $"{ChatPhrases.Buttons(copy).Count}");
-        ChatPhrases.Remove(copy, 1);
+        ChatPhrases.Remove(copy, 2);
         Check(ChatPhrases.Buttons(copy).Count == ChatPhrases.Max - 1 && ChatPhrases.Buttons(copy).All(b => b.Std != "canI"),
               "убрать — убирает именно эту кнопку");
         ChatPhrases.Reset(copy);
@@ -199,7 +199,7 @@ internal static class Program
         Console.WriteLine("варианты выбора:");
         var s = AppSettings.Defaults();
         ChatPhrases.SetLang(s, "ru");
-        var who = ChatPhrases.Buttons(s)[0];
+        var who = ChatPhrases.Buttons(s)[1];
         var names = ChatPhrases.Options(s, who).Select(o => o.Name).ToList();
         Check(!ChatPhrases.OwnChoices(who) && names.SequenceEqual(["топ", "лес", "мид", "АДК", "саппорт"]),
               "по умолчанию — стандартные роли на языке фраз", string.Join(", ", names));
@@ -210,67 +210,67 @@ internal static class Program
 
         // Свои — копия стандартных, уже своими словами; оригинал настроек цел.
         var copy = s.Clone();
-        ChatPhrases.SetOwnChoices(copy, 0, true);
-        var own = ChatPhrases.Buttons(copy)[0];
+        ChatPhrases.SetOwnChoices(copy, 1, true);
+        var own = ChatPhrases.Buttons(copy)[1];
         Check(ChatPhrases.OwnChoices(own) && own.Choices!.Select(c => c.Text).SequenceEqual(names)
               && own.Choices!.Select(c => c.Key).SequenceEqual(ChatPhrases.Roles),
               "«свои варианты» начинаются копией стандартных, с ключами ролей (для иконок)",
               string.Join(", ", own.Choices!.Select(c => c.ToString())));
-        Check(!ChatPhrases.OwnChoices(ChatPhrases.Buttons(s)[0]), "включили свои в копии — оригинал не задет");
+        Check(!ChatPhrases.OwnChoices(ChatPhrases.Buttons(s)[1]), "включили свои в копии — оригинал не задет");
 
         // Топчик — только у этой кнопки, у соседней роли стандартные.
-        ChatPhrases.SetChoiceText(copy, 0, 0, "топчик");
-        var first = ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[0])[0];
+        ChatPhrases.SetChoiceText(copy, 1, 0, "топчик");
+        var first = ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1])[0];
         Check(first.Name == "топчик" && first.Item.Key == "top", "переименовали топ в «топчик» — ключ роли остался",
               first.Item.ToString());
-        var sent = ChatPhrases.Compose("ru", ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[0]), first.Name);
+        var sent = ChatPhrases.Compose("ru", ChatPhrases.Text(copy, ChatPhrases.Buttons(copy)[1]), first.Name);
         Check(sent == "Топчик, кого будешь брать?", "фраза с ним: «Топчик, кого будешь брать?»", sent);
-        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1])[0].Name == "топ",
+        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[2])[0].Name == "топ",
               "у каждой кнопки свои варианты — у «Можно мне …?» по-прежнему «топ»");
         // Копия настроек со своими вариантами правит их — оригинал цел.
         var before = copy.Clone();
-        ChatPhrases.SetChoiceText(copy, 0, 1, "лесник");
-        Check(ChatPhrases.Options(before, ChatPhrases.Buttons(before)[0])[1].Name == "лес",
+        ChatPhrases.SetChoiceText(copy, 1, 1, "лесник");
+        Check(ChatPhrases.Options(before, ChatPhrases.Buttons(before)[1])[1].Name == "лес",
               "правка своих вариантов в копии не задела оригинал",
-              ChatPhrases.Options(before, ChatPhrases.Buttons(before)[0])[1].Name);
-        ChatPhrases.SetChoiceText(copy, 0, 1, "лес");
+              ChatPhrases.Options(before, ChatPhrases.Buttons(before)[1])[1].Name);
+        ChatPhrases.SetChoiceText(copy, 1, 1, "лес");
 
         // Смена языка: свои остаются своими, стандартные соседа — на новом языке.
         ChatPhrases.SetLang(copy, "en");
-        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[0])[1].Name == "лес"
-              && ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1])[0].Name == "top",
+        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1])[1].Name == "лес"
+              && ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[2])[0].Name == "top",
               "смена языка: свои варианты как есть, стандартные — на новом языке");
         ChatPhrases.SetLang(copy, "ru");
 
         // Добавить свой, убрать, предел, пустой не виден.
-        ChatPhrases.AddChoice(copy, 0);
-        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[0]).Count == 6
-              && ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[0]).Count == 5,
+        ChatPhrases.AddChoice(copy, 1);
+        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[1]).Count == 6
+              && ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1]).Count == 5,
               "новый вариант пустой — в редакторе есть, в списке нет");
-        ChatPhrases.SetChoiceText(copy, 0, 5, "филл");
-        var last = ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[0])[^1];
+        ChatPhrases.SetChoiceText(copy, 1, 5, "филл");
+        var last = ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1])[^1];
         Check(last.Name == "филл" && last.Item.Key == "", "свой вариант «филл» — без ключа", last.Item.ToString());
-        ChatPhrases.RemoveChoice(copy, 0, 0);
-        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[0])[0].Name == "лес", "убрать — убирает именно его");
-        for (int n = 0; n < 20; n++) ChatPhrases.AddChoice(copy, 0);
-        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[0]).Count == ChatPhrases.MaxChoices,
+        ChatPhrases.RemoveChoice(copy, 1, 0);
+        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[1])[0].Name == "лес", "убрать — убирает именно его");
+        for (int n = 0; n < 20; n++) ChatPhrases.AddChoice(copy, 1);
+        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[1]).Count == ChatPhrases.MaxChoices,
               $"вариантов не больше {ChatPhrases.MaxChoices}");
         var saved = ChatPhrases.Normalize(ChatPhrases.Set(copy).Buttons)!;
-        Check(saved[0].Choices!.Length == 5, "пустые новые варианты не сохраняются", $"{saved[0].Choices!.Length}");
+        Check(saved[1].Choices!.Length == 5, "пустые новые варианты не сохраняются", $"{saved[1].Choices!.Length}");
 
         // Все варианты убраны — кнопке нечего предложить, на полосе её нет.
         var bare = s.Clone();
-        ChatPhrases.SetOwnChoices(bare, 2, true);
-        for (int n = 0; n < ChatPhrases.Needs.Length; n++) ChatPhrases.RemoveChoice(bare, 2, 0);
-        Check(ChatPhrases.Bar(bare).All(b => b.Std != "need") && ChatPhrases.Buttons(bare)[2].Choices is { Length: 0 },
+        ChatPhrases.SetOwnChoices(bare, 3, true);
+        for (int n = 0; n < ChatPhrases.Needs.Length; n++) ChatPhrases.RemoveChoice(bare, 3, 0);
+        Check(ChatPhrases.Bar(bare).All(b => b.Std != "need") && ChatPhrases.Buttons(bare)[3].Choices is { Length: 0 },
               "все варианты убраны — кнопки нет на полосе (а не стандартные назад)");
 
         // Обратно к стандартным; смена вида — стандартные нового вида.
-        ChatPhrases.SetOwnChoices(copy, 0, false);
-        Check(!ChatPhrases.OwnChoices(ChatPhrases.Buttons(copy)[0]), "«Стандартные варианты» — снова стандартные");
-        ChatPhrases.SetOwnChoices(copy, 1, true);
-        ChatPhrases.SetKind(copy, 1, ChatPhrases.List);
-        var b1 = ChatPhrases.Buttons(copy)[1];
+        ChatPhrases.SetOwnChoices(copy, 1, false);
+        Check(!ChatPhrases.OwnChoices(ChatPhrases.Buttons(copy)[1]), "«Стандартные варианты» — снова стандартные");
+        ChatPhrases.SetOwnChoices(copy, 2, true);
+        ChatPhrases.SetKind(copy, 2, ChatPhrases.List);
+        var b1 = ChatPhrases.Buttons(copy)[2];
         Check(!ChatPhrases.OwnChoices(b1) && ChatPhrases.Options(copy, b1).Count == 0,
               "роль сменили на перечень — новый перечень пуст (стандартные нужды — только у «Нам нужен»)");
         Check(ChatPhrases.NormalizeChoices(ChatPhrases.Plain, [new ChoiceItem { Text = "x" }]) is null,
@@ -291,44 +291,44 @@ internal static class Program
         Console.WriteLine("по аккаунтам:");
         var s = AppSettings.Defaults();
         ChatPhrases.AccountOverride = "";
-        ChatPhrases.SetText(s, 3, "общая фраза");
+        ChatPhrases.SetText(s, 4, "общая фраза");
         ChatPhrases.AccountOverride = "A";
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == "общая фраза", "у аккаунта без своего набора — общий");
-        ChatPhrases.SetText(s, 3, "фраза A");
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == "общая фраза", "у аккаунта без своего набора — общий");
+        ChatPhrases.SetText(s, 4, "фраза A");
         ChatPhrases.AccountOverride = "B";
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == "общая фраза", "правка A не видна B");
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == "общая фраза", "правка A не видна B");
         ChatPhrases.Reset(s);
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == ChatPhrases.StdText("ru", "swap"),
-              "«Вернуть стандартные» у B — стандартные, а не общий набор", ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]));
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == ChatPhrases.StdText("ru", "swap"),
+              "«Вернуть стандартные» у B — стандартные, а не общий набор", ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]));
         ChatPhrases.AccountOverride = "A";
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == "фраза A", "у A — его правка");
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == "фраза A", "у A — его правка");
 
         // Копия настроек: правка набора A в копии не задевает оригинал.
         var copy = s.Clone();
-        ChatPhrases.SetText(copy, 3, "фраза A2");
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == "фраза A", "правка копии не задела оригинал (словарь не общий)",
-              ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]));
+        ChatPhrases.SetText(copy, 4, "фраза A2");
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == "фраза A", "правка копии не задела оригинал (словарь не общий)",
+              ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]));
 
         // Галочки окна фраз: при «Стандартных» — стандартный набор, свои
         // кнопки хранятся; снова «Свои» — они на месте.
         Check(ChatPhrases.Own(s), "правка кнопки — это свои фразы (галочка «Свои фразы»)");
         ChatPhrases.SetOwn(s, false);
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == ChatPhrases.StdText("ru", "swap"),
-              "галочка «Стандартные фразы» — стандартный набор", ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]));
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == ChatPhrases.StdText("ru", "swap"),
+              "галочка «Стандартные фразы» — стандартный набор", ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]));
         ChatPhrases.SetOwn(s, true);
-        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[3]) == "фраза A", "снова «Свои фразы» — свои кнопки на месте");
-        ChatPhrases.SetOwnChoices(s, 1, true);
-        Check(ChatPhrases.Buttons(s)[1].Choices![2].Text == "мид", "свои варианты начинаются копией стандартных на языке фраз",
-              ChatPhrases.Buttons(s)[1].Choices![2].Text);
+        Check(ChatPhrases.Text(s, ChatPhrases.Buttons(s)[4]) == "фраза A", "снова «Свои фразы» — свои кнопки на месте");
+        ChatPhrases.SetOwnChoices(s, 2, true);
+        Check(ChatPhrases.Buttons(s)[2].Choices![2].Text == "мид", "свои варианты начинаются копией стандартных на языке фраз",
+              ChatPhrases.Buttons(s)[2].Choices![2].Text);
 
         // Запись ui.json и чтение обратно.
         var json = System.Text.Json.JsonSerializer.Serialize(s, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         var back = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!;
-        Check(ChatPhrases.Text(back, ChatPhrases.Buttons(back)[3]) == "фраза A"
-              && ChatPhrases.Buttons(back)[1].Choices![2].Text == "мид" && ChatPhrases.Own(back),
+        Check(ChatPhrases.Text(back, ChatPhrases.Buttons(back)[4]) == "фраза A"
+              && ChatPhrases.Buttons(back)[2].Choices![2].Text == "мид" && ChatPhrases.Own(back),
               "наборы по аккаунтам переживают запись ui.json и чтение", json.Length.ToString());
         ChatPhrases.AccountOverride = "B";
-        Check(ChatPhrases.Text(back, ChatPhrases.Buttons(back)[3]) == ChatPhrases.StdText("ru", "swap"),
+        Check(ChatPhrases.Text(back, ChatPhrases.Buttons(back)[4]) == ChatPhrases.StdText("ru", "swap"),
               "из файла у B — стандартные");
         ChatPhrases.AccountOverride = null;
     }
@@ -385,7 +385,7 @@ internal static class Program
             }
             // Стандартные фразы переведены, а не скопированы с английского.
             if (l.Code != "en")
-                foreach (var std in new[] { "who", "canI", "need", "swap", "show", "glhf" })
+                foreach (var std in new[] { "who", "canI", "need", "swap", "show", "hello" })
                     if (ChatPhrases.StdText(l.Code, std) == ChatPhrases.StdText("en", std))
                         missing.Add($"{l.Code}:{std} по-английски");
             // У шаблонов с выбором есть место для него.
@@ -450,14 +450,14 @@ internal static class Program
         Check(list.Items.Count == 6, "шесть кнопок фраз", $"{list.Items.Count}");
         Check(((FrameworkElement)w.FindName("RecTail")).ActualHeight > 0, "в конце списка пиков есть место под полосу");
         var labels = list.Items.OfType<PhraseChip>().Select(c => c.Text).ToList();
-        Check(labels.Count == 6 && labels[0] == "…, кого будешь брать? ▾" && labels[2] == "Нам нужен … ▾"
-              && labels[3] == "Давай свапнемся?",
+        Check(labels.Count == 6 && labels[0] == "Всем привет!" && labels[1] == "…, кого будешь брать? ▾" && labels[3] == "Нам нужен … ▾"
+              && labels[4] == "Давай свапнемся?",
               "на кнопках стандартные фразы языка программы, у кнопок с выбором — ▾", string.Join(" | ", labels));
         if (snap is not null) Snap(w, snap, "draft-phrases.png");
 
         // Кнопка с выбором: список ролей (не открываем — окно было бы на экране),
         // пункт «мид» — фраза с выбранным.
-        var menu = w.PhraseMenu(0);
+        var menu = w.PhraseMenu(1);
         var items = menu.Items.OfType<MenuItem>().ToList();
         // Иконка — только если картинки ролей грузятся: ресурсы лежат в сборке
         // программы, а pack://application ищет их у запущенного exe — у
@@ -468,13 +468,13 @@ internal static class Program
         items.First(i => (string)i.Tag == "mid").RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Pump();
         Check(sent is ["Мид, кого будешь брать?"], "выбрал «мид» — в чат «Мид, кого будешь брать?»", string.Join(" | ", sent));
-        var flashed = list.Items.OfType<PhraseChip>().FirstOrDefault();
+        var flashed = list.Items.OfType<PhraseChip>().ElementAtOrDefault(1);
         Check(flashed is { State: "sent" } && flashed.Text == "✓ Мид, кого будешь брать?",
               "кнопка вспыхнула отправленной фразой", flashed?.Text ?? "нет");
-        var needs = w.PhraseMenu(2).Items.Count;
+        var needs = w.PhraseMenu(3).Items.Count;
         Check(needs == ChatPhrases.Needs.Length, $"у «нам нужен» {ChatPhrases.Needs.Length} вариантов", $"{needs}");
         // Второй выбор сразу — не уходит (не чаще раза в 1,5 с).
-        ((MenuItem)w.PhraseMenu(1).Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        ((MenuItem)w.PhraseMenu(2).Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Pump();
         Check(sent.Count == 1, "вторая фраза сразу за первой не уходит", $"{sent.Count}");
 
@@ -497,17 +497,17 @@ internal static class Program
         var fields = edit.Fields();
         Check(fields.Count == 6, "галочка «Свои фразы» — шесть полей, копия стандартных", $"{fields.Count}");
         if (snap is not null) Snap(edit, snap, "phrases-window.png");
-        ((System.Windows.Controls.TextBox)fields[3]).Text = "Не баньте Сону, я на ней";
+        ((System.Windows.Controls.TextBox)fields[4]).Text = "Не баньте Сону, я на ней";
         var kinds = Find<System.Windows.Controls.ComboBox>(edit).Where(c => c.Items.Count == ChatPhrases.Kinds.Length).ToList();
         Check(kinds.Count == 6, "у каждой кнопки выбор вида", $"{kinds.Count}");
-        kinds[5].SelectedIndex = Array.IndexOf(ChatPhrases.Kinds, ChatPhrases.Role);   // «Удачи…» → роль
+        kinds[5].SelectedIndex = Array.IndexOf(ChatPhrases.Kinds, ChatPhrases.Role);   // «Покажите своих чемпионов» → роль
         Pump();
         edit.Save();
         Pump();
         labels = list.Items.OfType<PhraseChip>().Select(c => c.Text).ToList();
         Check(labels.Contains("Не баньте Сону, я на ней"), "своя фраза — на кнопке после «Сохранить»", string.Join(" | ", labels));
-        Check(labels.Count == 6 && labels[3] == "Удачи, хорошей игры! … ▾",
-              "ставшая кнопкой с выбором — четвёртой, после стандартных с выбором", string.Join(" | ", labels));
+        Check(labels.Count == 6 && labels[4] == "Покажите своих чемпионов … ▾",
+              "ставшая кнопкой с выбором — пятой: после приветствия и стандартных с выбором", string.Join(" | ", labels));
 
         // Свои варианты в окне: «Свои варианты» у первой кнопки — копия ролей,
         // «топ» → «топчик», «Сохранить» — в списке над кнопкой «топчик».
@@ -519,7 +519,7 @@ internal static class Program
         var links = PhrasesWindow.Find<TextBlock>(edit2).Count(x => (string?)x.Tag == "editChoices");
         var choiceButtons = ChatPhrases.Buttons(AppSettings.Current).Count(ChatPhrases.IsChoice);
         Check(links == choiceButtons, "«✎ Редактировать» — у каждой кнопки с выбором", $"{links} из {choiceButtons}");
-        var cw = edit2.ChoicesFor(0);
+        var cw = edit2.ChoicesFor(1);
         ShowHidden(cw);
         Pump();
         var resetLabel = Loc.T("phrases.reset");
@@ -528,13 +528,13 @@ internal static class Program
               && PhrasesWindow.Find<System.Windows.Controls.Button>(cw).First(x => (string)x.Content == resetLabel).Visibility == Visibility.Visible,
               "окно вариантов роли: заголовок с блоком «[Роль]», подсказка про стандартные, «Вернуть стандартные» есть", cw.Title);
         var choiceFields = cw.Fields();
-        Check(choiceFields.Count == 5 && choiceFields[0].Text == "топ" && !ChatPhrases.OwnChoices(ChatPhrases.Buttons(AppSettings.Current)[0]),
+        Check(choiceFields.Count == 5 && choiceFields[0].Text == "топ" && !ChatPhrases.OwnChoices(ChatPhrases.Buttons(AppSettings.Current)[1]),
               "окно вариантов: пять стандартных ролей в полях, первая «топ»", string.Join(", ", choiceFields.Select(f => f.Text)));
         if (snap is not null) Snap(cw, snap, "choices.png");
         choiceFields[0].Text = "топчик";
         cw.Close();
         // Поле с блоком: у кнопки с выбором вписать текст до блока.
-        var slotField = (System.Windows.Controls.RichTextBox)edit2.Fields()[2];
+        var slotField = (System.Windows.Controls.RichTextBox)edit2.Fields()[3];
         Check(SlotBox.Read(slotField.Document) == "Нам нужен …", "в поле «Нам нужен» — текст и блок на месте «…»",
               SlotBox.Read(slotField.Document));
         var para = (System.Windows.Documents.Paragraph)slotField.Document.Blocks.FirstBlock;
@@ -544,10 +544,10 @@ internal static class Program
               SlotBox.Read(slotField.Document));
         if (snap is not null) Snap(edit2, snap, "phrases-slot.png");
         if (snap is not null) SnapZoom((FrameworkElement)slotField.Parent, snap, "slot-zoom.png");
-        if (snap is not null) SnapZoom(PhrasesWindow.Find<System.Windows.Controls.Grid>(edit2).First(g => g.Tag is 2), snap, "row-zoom.png", 2);
+        if (snap is not null) SnapZoom(PhrasesWindow.Find<System.Windows.Controls.Grid>(edit2).First(g => g.Tag is 3), snap, "row-zoom.png", 2);
         edit2.Save();
         Pump();
-        var needMenu = w.PhraseMenu(2).Items.OfType<MenuItem>().FirstOrDefault();
+        var needMenu = w.PhraseMenu(3).Items.OfType<MenuItem>().FirstOrDefault();
         Check((string?)needMenu?.ToolTip == "Нам нужен фронтлайн срочно", "в драфте выбор встаёт на место блока, текст вокруг — свой",
               needMenu?.ToolTip?.ToString() ?? "нет");
         // Запомнится ли до следующего запуска: «Сохранить» пишет ui.json; читаем
@@ -557,16 +557,16 @@ internal static class Program
         AppSettings.Reload();
         Pump();
         var reread = AppSettings.Current;
-        var first = ChatPhrases.Buttons(reread)[0];
+        var first = ChatPhrases.Buttons(reread)[1];
         Check(File.Exists(uiPath) && ChatPhrases.Own(reread)
-              && ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[2]) == "Нам нужен … срочно"
+              && ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[3]) == "Нам нужен … срочно"
               && ChatPhrases.Name(reread, first, ChatPhrases.ChoiceItems(first)[0]) == "топчик",
               "после «Сохранить» и чтения ui.json с диска (как при запуске) — галочка, свой текст и свои варианты на месте",
-              $"{File.Exists(uiPath)} {ChatPhrases.Own(reread)} «{ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[2])}»");
-        var own = w.PhraseMenu(0).Items.OfType<MenuItem>().ToList();
+              $"{File.Exists(uiPath)} {ChatPhrases.Own(reread)} «{ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[3])}»");
+        var own = w.PhraseMenu(1).Items.OfType<MenuItem>().ToList();
         Check(own.Count == 5 && (string?)own[0].ToolTip == "Топчик, кого будешь брать?",
               "в списке над кнопкой — «Топчик, кого будешь брать?»", own.FirstOrDefault()?.ToolTip?.ToString() ?? "нет");
-        var neighbour = w.PhraseMenu(1).Items.OfType<MenuItem>().FirstOrDefault();
+        var neighbour = w.PhraseMenu(2).Items.OfType<MenuItem>().FirstOrDefault();
         Check((string?)neighbour?.ToolTip == "Можно мне топ?", "у соседней кнопки «Можно мне топ?» — свои варианты только у первой",
               neighbour?.ToolTip?.ToString() ?? "нет");
 
@@ -596,9 +596,9 @@ internal static class Program
         var edit3 = w.OpenPhrases();
         ShowHidden(edit3);
         Pump();
-        var kind0 = PhrasesWindow.Find<System.Windows.Controls.ComboBox>(edit3).First(c => c.Items.Count == ChatPhrases.Kinds.Length);
+        var kind0 = PhrasesWindow.Find<System.Windows.Controls.ComboBox>(edit3).Where(c => c.Items.Count == ChatPhrases.Kinds.Length).ElementAt(1);   // 0 — приветствие
         var kindLabel = (kind0.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content as string;
-        var chipLabel = ChipText((System.Windows.Controls.RichTextBox)edit3.Fields()[0]);
+        var chipLabel = ChipText((System.Windows.Controls.RichTextBox)edit3.Fields()[1]);
         Check(kindLabel == "Role" && chipLabel == "Role", "язык фраз английский — вид кнопки и подпись блока «Role»",
               $"{kindLabel} / {chipLabel}");
         edit3.Close();

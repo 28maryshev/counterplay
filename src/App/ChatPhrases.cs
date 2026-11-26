@@ -84,12 +84,17 @@ public static class ChatPhrases
 
     // Стандартный набор по порядку. Слово владельца 25.11: кнопки с выбором —
     // первыми; «Можно мне …» и «Нам нужен …» встали на место «Не баньте моего
-    // чемпиона» и «Можно я пикну последним?».
+    // чемпиона» и «Можно я пикну последним?». 26.11: вместо «Удачи, хорошей
+    // игры!» — приветствие, и оно первое.
     private static readonly (string Std, string Kind)[] Standard =
     [
+        ("hello", Plain),
         ("who", Role), ("canI", Role), ("need", List),
-        ("swap", Plain), ("show", Plain), ("glhf", Plain),
+        ("swap", Plain), ("show", Plain),
     ];
+
+    /// Стандартная кнопка-приветствие — первая на полосе, даже перед кнопками с выбором.
+    public const string Hello = "hello";
 
     /// Роли для выбора (ключи phrases.roles.*) и позиции клиента к ним — для иконок.
     public static readonly string[] Roles = ["top", "jungle", "mid", "adc", "support"];
@@ -168,11 +173,16 @@ public static class ChatPhrases
     public static IReadOnlyList<ChatButton> Buttons(AppSettings s) =>
         Set(s) is { Own: true, Buttons: { } own } ? own : Defaults();
 
-    /// Кнопки на полосе: с выбором первыми, внутри — как в редакторе; пустые и
-    /// с выбором, у которых не осталось ни одного варианта, — нет.
+    /// <summary>
+    /// Кнопки на полосе: приветствие (стандартная «Всем привет!», и
+    /// переписанная — тоже), затем кнопки с выбором, затем остальные; внутри —
+    /// как в редакторе. Пустые и с выбором без единого варианта — не видны.
+    /// Приветствие говорят первым, поэтому оно и стоит первым (владелец 26.11);
+    /// кнопки с выбором — сразу за ним (владелец 25.11).
+    /// </summary>
     public static IReadOnlyList<ChatButton> Bar(AppSettings s) =>
         Buttons(s).Where(b => Text(s, b).Length > 0 && (!IsChoice(b) || Options(s, b).Count > 0))
-                  .OrderBy(b => IsChoice(b) ? 0 : 1)   // OrderBy устойчив: порядок внутри сохраняется
+                  .OrderBy(b => b.Std == Hello ? 0 : IsChoice(b) ? 1 : 2)   // OrderBy устойчив: порядок внутри сохраняется
                   .ToList();
 
     public static bool IsChoice(ChatButton b) => b.Kind != Plain;

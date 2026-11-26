@@ -332,8 +332,9 @@ internal static class Smoke
                 // С выбором — список (не открываем: окно появилось бы на экране),
                 // пункт отдаёт фразу с выбранным. Пауза — меньше 1,5 с вторую не шлём.
                 await Task.Delay(1600);
-                var menu = w.PhraseMenu(0);
-                if (menu.Items.Count == 0) throw new InvalidOperationException("у первой кнопки нет списка выбора");
+                // Первая на полосе — приветствие; список — у первой кнопки с выбором.
+                var menu = w.PhraseMenu(bar.ToList().FindIndex(ChatPhrases.IsChoice));
+                if (menu.Items.Count == 0) throw new InvalidOperationException("у кнопки с выбором нет списка выбора");
                 ((MenuItem)menu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 await Settle();
                 if (sent.Count != 2 || sent[1].Contains(ChatPhrases.Slot))
@@ -349,7 +350,7 @@ internal static class Smoke
                     throw new InvalidOperationException($"в окне фраз {edit.Fields().Count} полей своих фраз");
                 // Окно вариантов («✎ Редактировать»): поле под каждую роль.
                 // Правка копии окна фраз, без «Сохранить».
-                var choices = edit.ChoicesFor(0);
+                var choices = edit.ChoicesFor(ChatPhrases.Buttons(edit.Draft).ToList().FindIndex(b => b.Kind == ChatPhrases.Role));
                 ShowHidden(choices);
                 await Settle();
                 if (choices.Fields().Count != ChatPhrases.Roles.Length)
