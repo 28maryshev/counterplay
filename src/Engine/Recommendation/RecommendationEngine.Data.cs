@@ -167,23 +167,24 @@ public sealed partial class RecommendationEngine
             ("@c", champId), ("@r", role), ("@v", vsId)));
     }
 
-    private readonly Dictionary<(int, string), Dictionary<int, (double g, double w)>> _matchupsOf = new();
+    private readonly Dictionary<(int, string), Dictionary<int, (double g, double w, double n)>> _matchupsOf = new();
 
     /// <summary>
     /// Все матчапы чемпиона на роли разом: соперник → (games, wins) нашего
     /// чемпиона против него — то же, что RawMatchup по каждой паре, со сводкой
-    /// по дивизионам. Советам банов нужны все соперники каждого защищаемого, и
-    /// по запросу на пару выходили сотни запросов на каждое событие драфта.
+    /// по дивизионам, и n — игры шума (NoiseGames). Советам банов нужны все
+    /// соперники каждого защищаемого, и по запросу на пару выходили сотни
+    /// запросов на каждое событие драфта.
     /// Кэш на жизнь движка.
     /// </summary>
-    private Dictionary<int, (double g, double w)> MatchupsOf(int champId, string role)
+    private Dictionary<int, (double g, double w, double n)> MatchupsOf(int champId, string role)
     {
         if (_matchupsOf.TryGetValue((champId, role), out var cached)) return cached;
         return _matchupsOf[(champId, role)] =
             VsRows("matchup", champId, role, cross: false).ToDictionary(kv => kv.Key.Vs, kv => kv.Value);
     }
 
-    private readonly Dictionary<(int, string), Dictionary<(int Vs, string VsRole), (double g, double w)>> _crossOf = new();
+    private readonly Dictionary<(int, string), Dictionary<(int Vs, string VsRole), (double g, double w, double n)>> _crossOf = new();
 
     /// <summary>
     /// Чемпион на роли против врагов на ДРУГИХ ролях в той же игре: (соперник,
@@ -193,7 +194,7 @@ public sealed partial class RecommendationEngine
     /// Советы банов по ней считают, мешает ли моему пулу кандидат с любой
     /// линии. Нет таблицы (старая база) — пусто. Кэш на жизнь движка.
     /// </summary>
-    private Dictionary<(int Vs, string VsRole), (double g, double w)> CrossOf(int champId, string role)
+    private Dictionary<(int Vs, string VsRole), (double g, double w, double n)> CrossOf(int champId, string role)
     {
         if (_crossOf.TryGetValue((champId, role), out var cached)) return cached;
         return _crossOf[(champId, role)] = VsRows("botlane_matchup", champId, role, cross: true);
@@ -202,17 +203,21 @@ public sealed partial class RecommendationEngine
     // Соперники чемпиона на роли из таблицы пар: свой бакет с весами патчей и
     // сводка по дивизионам поверх (WithPool, как у RawMatchup). У матчапа на
     // линии роль соперника та же, у кросс-ролевой таблицы — своя (vs_role).
-    private Dictionary<(int Vs, string VsRole), (double g, double w)> VsRows(string table, int champId, string role, bool cross)
+    // n — сколько настоящих игр стоит шум пары (NoiseGames): g для этого не
+    // годится, это взвешенная сумма с псевдо-играми.
+    private Dictionary<(int Vs, string VsRole), (double g, double w, double n)> VsRows(string table, int champId, string role, bool cross)
     {
-        var own  = new Dictionary<(int, string), (double g, double w)>();
-        var pool = new Dictionary<(int, string), (double g, double w)>();
+        var own  = new Dictionary<(int, string), (double g, double w, double g2)>();
+        var pool = new Dictionary<(int, string), (double g, double w, double g2)>();
         var vsRole = cross ? "vs_role" : "role";
         // Свой бакет — с весами патчей, сводка — как есть (у неё патч 'all').
-        void Read(Dictionary<(int, string), (double g, double w)> into, string where, string weight)
+        // Третья колонка — Σ игр·вес²: по ней считается шум взвешенной доли.
+        void Read(Dictionary<(int, string), (double g, double w, double g2)> into, string where, string weight)
         {
             var cmd = _db.CreateCommand();
             cmd.CommandText = $@"
-                SELECT vs_champion_id, {vsRole}, COALESCE(SUM(games*{weight}),0), COALESCE(SUM(wins*{weight}),0)
+                SELECT vs_champion_id, {vsRole}, COALESCE(SUM(games*{weight}),0), COALESCE(SUM(wins*{weight}),0),
+                       COALESCE(SUM(games*({weight})*({weight})),0)
                 FROM {table} WHERE champion_id=@c AND role=@r AND {where}
                 GROUP BY vs_champion_id, {vsRole}";
             cmd.Parameters.AddWithValue("@c",  champId);
@@ -223,7 +228,8 @@ public sealed partial class RecommendationEngine
             cmd.Parameters.AddWithValue("@p3", _p3);
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
-                into[(rd.GetInt32(0), rd.GetString(1))] = (Convert.ToDouble(rd.GetValue(2)), Convert.ToDouble(rd.GetValue(3)));
+                into[(rd.GetInt32(0), rd.GetString(1))] = (Convert.ToDouble(rd.GetValue(2)), Convert.ToDouble(rd.GetValue(3)),
+                                                            Convert.ToDouble(rd.GetValue(4)));
         }
         try
         {
@@ -232,10 +238,43 @@ public sealed partial class RecommendationEngine
         }
         catch { /* нет таблицы или данных — пусто */ }
 
-        var res = new Dictionary<(int Vs, string VsRole), (double g, double w)>();
+        var res = new Dictionary<(int Vs, string VsRole), (double g, double w, double n)>();
         foreach (var key in own.Keys.Union(pool.Keys))
-            res[key] = WithPool(own.GetValueOrDefault(key), pool.GetValueOrDefault(key));
+        {
+            var o = own.GetValueOrDefault(key);
+            var p = pool.GetValueOrDefault(key);
+            var (g, w) = WithPool((o.g, o.w), (p.g, p.w));
+            res[key] = (g, w, NoiseGames(o.g, o.g2, p.g));
+        }
         return res;
+    }
+
+    /// <summary>
+    /// Сколько настоящих игр стоит шум пары из VsRows — для «выше ожидаемого»
+    /// вслепую (BlindCells), где истинный разброс = наблюдаемый² − шум², и шум
+    /// должен быть ровно тем, что сидит в данных.
+    ///
+    /// Доля пары — (W + c·Wсв/P) / (G + c), c = POOL_PRIOR: G и W — свои игры и
+    /// победы с весами патчей, P и Wсв — сводка по всем дивизионам тех же
+    /// патчей (publish_data.py), и свои игры в ней есть. Её дисперсия —
+    /// p(1−p)·(Σw²n + 2c·G/P + c²/P) / (G + c)², откуда эффективное число игр —
+    /// (G + c)² / (Σw²n + 2c·G/P + c²/P). Без сводки — G²/Σw²n.
+    ///
+    /// До 27.11.2026 шум считали по g как по настоящим играм. Взвешенная доля
+    /// шумит меньше (с весом 0,6 у прошлого патча — в G/Σw²n раз, до ×1,4 на
+    /// маленьком свежем), и шум выходил завышен: разброс проседал, и у
+    /// саппорта на окне 16.23 + 16.22 типичный шанс контры упал с 28% до 8%, у
+    /// леса — до 3,5%. Псевдо-игры сводки бесшумными считать тоже нельзя:
+    /// свой шум возвращается через свои игры в сводке (член 2c·G/P).
+    /// Своих игр нет — сводка лишь приор, а не замер в этом бакете: шум
+    /// как у c игр, как и раньше (tests/BlindNoise).
+    /// </summary>
+    private static double NoiseGames(double g, double g2, double poolG)
+    {
+        if (poolG < POOL_MIN) return g2 > 0 ? g * g / g2 : 0;
+        if (g <= 0 || g2 <= 0) return POOL_PRIOR;
+        const double c = POOL_PRIOR;
+        return (g + c) * (g + c) / (g2 + 2 * c * g / poolG + c * c / poolG);
     }
 
     // Кросс-ролевой матчап на боте: мой чемпион (role) против вражеского дуо-партнёра

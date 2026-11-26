@@ -47,7 +47,9 @@ public static class BlindMath
         return p / (1 - p);
     }
 
-    /// Шум пары в пп²: биномиальная дисперсия доли побед на g играх.
+    /// Шум пары в пп²: биномиальная дисперсия доли побед на games играх —
+    /// настоящих, не взвешенных: движок передаёт эффективное число
+    /// (RecommendationEngine.NoiseGames).
     public static double Noise2(double expected, double games) =>
         games > 0 ? expected * (1 - expected) / games * 1e4 : double.PositiveInfinity;
 

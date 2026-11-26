@@ -287,7 +287,7 @@ public sealed partial class RecommendationEngine
             var (bg, bw) = RawBase(v.Id, v.Role);
             if (bg <= 0) continue;
             var baseD = Delta(bg, bw, K);
-            foreach (var (x, (mg, mw)) in MatchupsOf(v.Id, v.Role))
+            foreach (var (x, (mg, mw, _)) in MatchupsOf(v.Id, v.Role))
             {
                 if (x == v.Id || mg <= 0) continue;   // сам себе не контра
                 var s = (baseD - Delta(mg, mw, K_PAIR)) * (mg / (mg + MATCHUP_CONF));
@@ -332,7 +332,7 @@ public sealed partial class RecommendationEngine
         // доверие к паре набирается медленнее (CROSS_CONF).
         void AddCross(int i, BanVictim v, double baseD)
         {
-            foreach (var ((x, vr), (g, w)) in CrossOf(v.Id, v.Role))
+            foreach (var ((x, vr), (g, w, _)) in CrossOf(v.Id, v.Role))
             {
                 if (x == v.Id || g <= 0 || vr == v.Role || !DbRoles.Contains(vr)) continue;
                 if (On(x, vr) is not { } c) continue;

@@ -38,7 +38,9 @@ public sealed partial class RecommendationEngine
 
     // Пары чемпиона против соперников одной роли: «выше ожидаемого» по шансам
     // и шум. Своя линия — таблица matchup, чужая — кросс-ролевая (CrossOf).
-    // Обе уже со сводкой по дивизионам (WithPool), как во всём подборе.
+    // Обе уже со сводкой по дивизионам (WithPool), как во всём подборе. Шум —
+    // по играм шума p.n, а не по p.g: p.g — взвешенная сумма с псевдо-играми,
+    // и шум по ней завышен (NoiseGames).
     private List<BlindMath.Cell> BlindCells(int champId, string myRole, string vsRole)
     {
         var mine = RoleField(myRole).FirstOrDefault(x => x.Id == champId);
@@ -55,7 +57,7 @@ public sealed partial class RecommendationEngine
         {
             if (x.Id == champId || !pairs.TryGetValue(x.Id, out var p) || p.g <= 0) continue;
             var e = BlindMath.ExpectedWr(wr, x.Wr);
-            cells.Add(new BlindMath.Cell(x.Id, x.Share, (p.w / p.g - e) * 100, BlindMath.Noise2(e, p.g), p.g));
+            cells.Add(new BlindMath.Cell(x.Id, x.Share, (p.w / p.g - e) * 100, BlindMath.Noise2(e, p.n), p.g));
         }
         return cells;
     }
