@@ -520,9 +520,13 @@ public partial class OverlayWindow
                 Name        = hasChamp ? DataDragon.Name(champId).ToUpperInvariant() : "—",
                 // У врага с чемпионом роль кликабельна («▾»): игрок может задать её
                 // вручную, если знает, куда пойдёт флекс-пик.
+                // Союзник ещё не выбрал — роль всё равно подписана (владелец,
+                // 26.11: «чтобы было подписано, какая роль у каждого»): кто куда
+                // идёт, видно до пика. Вслепую ролей нет — пусто, не «—».
                 Role        = hasChamp
                     ? (ally ? RoleName(p.Position) : RoleName(p.Position) + " ▾")
-                    : (isMe ? Loc.T("slot.youPick") : ""),
+                    : isMe ? Loc.T("slot.youPick")
+                    : ally && !string.IsNullOrEmpty(p.Position) ? RoleName(p.Position) : "",
                 RoleCellId  = (!ally && hasChamp) ? p.CellId : -1,
                 // Мой слот — золотом, как и вся его строка (подложка в шаблоне).
                 RoleColor   = isMe || (!ally && roleOverrides != null && roleOverrides.ContainsKey(p.CellId))
