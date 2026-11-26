@@ -199,6 +199,22 @@
         <ColumnDefinition Width="76"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
+      <!-- Подложка моего слота (владелец, 26.11: «пусть область твоего пика
+           выделяется особым цветом»): золото — мой цвет, как кольцо и
+           «ТЫ ВЫБИРАЕШЬ». Видна всегда; в мой ход поверх неё идёт волна
+           «сейчас пикает», у меня тоже золотая. Под волной: та при
+           появлении вспыхивает поверх. -->
+      <Border Grid.ColumnSpan="2" Margin="-4,-3,-4,-8" CornerRadius="6"
+              IsHitTestVisible="False" Visibility="{Binding MeVisibility}"
+              BorderBrush="#8CF5D77A" BorderThickness="1">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#52F5D77A" Offset="0"/>
+            <GradientStop Color="#24F5D77A" Offset="0.6"/>
+            <GradientStop Color="#12F5D77A" Offset="1"/>
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
       <!-- Подсветка «сейчас пикает». Появление: короткая ВСПЫШКА,
            затем ВОЛНА вбок — заливка-градиент растёт от края к
            центру (затухание неполное), следом бежит блик. У

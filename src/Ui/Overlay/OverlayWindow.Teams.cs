@@ -513,7 +513,8 @@ public partial class OverlayWindow
                     ? (ally ? RoleName(p.Position) : RoleName(p.Position) + " ▾")
                     : (isMe ? Loc.T("slot.youPick") : ""),
                 RoleCellId  = (!ally && hasChamp) ? p.CellId : -1,
-                RoleColor   = (!ally && roleOverrides != null && roleOverrides.ContainsKey(p.CellId))
+                // Мой слот — золотом, как и вся его строка (подложка в шаблоне).
+                RoleColor   = isMe || (!ally && roleOverrides != null && roleOverrides.ContainsKey(p.CellId))
                     ? "#F5D77A" : "#8AA0B2",
                 RoleTip     = (!ally && hasChamp) ? Loc.T("slot.roleTip") : null,
                 Icon        = hasChamp ? IconCache.Get(champId) : null,
@@ -538,9 +539,12 @@ public partial class OverlayWindow
                 ArchDim     = archDim,
                 IsPicking   = isPicking,
                 // Союзник пикает — синяя волна слева, враг — красная справа.
-                PickGradStrong  = ally ? "#5C36D6E7" : "#5CFF5A4D",
-                PickGradWeak    = ally ? "#1A36D6E7" : "#1AFF5A4D",
-                PickAccentColor = ally ? "#36D6E7"   : "#FF5A4D",
+                // Мой ход — золотая волна поверх золотой подложки (владелец,
+                // 26.11: «пусть область твоего пика выделяется особым цветом»):
+                // бирюзовая на золоте мутнела бы.
+                PickGradStrong  = isMe ? "#66F5D77A" : ally ? "#5C36D6E7" : "#5CFF5A4D",
+                PickGradWeak    = isMe ? "#1FF5D77A" : ally ? "#1A36D6E7" : "#1AFF5A4D",
+                PickAccentColor = isMe ? "#F5D77A"   : ally ? "#36D6E7"   : "#FF5A4D",
                 PickMirror      = ally ? 1.0 : -1.0,
                 IsFirstPick = p.CellId == firstPickCell,
                 FirstPickLabel = Loc.T("slot.firstPick"),

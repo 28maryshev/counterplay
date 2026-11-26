@@ -54,6 +54,8 @@ public sealed class ChampSlotCard
 
     // Выделение слота локального игрока (мой пик)
     public bool         IsMe            { get; init; }
+    // Золотая подложка всей строки моего слота — видна всегда, не только в мой ход.
+    public Visibility   MeVisibility    => IsMe ? Visibility.Visible : Visibility.Collapsed;
     public double       BorderThickness { get; init; } = 2.0;
     public ImageSource? RoleIcon        { get; init; }  // иконка роли в пустом моём слоте
     public Visibility   RoleIconVisibility =>
