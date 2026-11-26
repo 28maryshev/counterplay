@@ -203,14 +203,20 @@ public static class ChatPhrases
     /// Больше вариантов список над кнопкой не вмещает без прокрутки.
     public const int MaxChoices = 12;
 
-    public static ChoiceItem[] DefaultChoices(string kind) =>
-        StdChoices(kind).Select(k => new ChoiceItem { Key = k }).ToArray();
+    /// <summary>
+    /// Стандартные варианты кнопки. У роли — пять ролей. У перечня — нужды
+    /// команды только у стандартной «Нам нужен …»; новый перечень, заведённый
+    /// человеком, пуст: его заполняют своими (владелец 26.11: «при добавлении
+    /// нового перечня пусть не сохраняются варианты стандартного»).
+    /// </summary>
+    public static ChoiceItem[] DefaultChoices(ChatButton b) =>
+        b.Kind == List && b.Std.Length == 0 ? [] : StdChoices(b.Kind).Select(k => new ChoiceItem { Key = k }).ToArray();
 
     /// Свои ли варианты у кнопки (иначе — стандартные).
     public static bool OwnChoices(ChatButton b) => b.Choices is not null;
 
     /// Варианты кнопки по порядку редактора.
-    public static IReadOnlyList<ChoiceItem> ChoiceItems(ChatButton b) => b.Choices ?? DefaultChoices(b.Kind);
+    public static IReadOnlyList<ChoiceItem> ChoiceItems(ChatButton b) => b.Choices ?? DefaultChoices(b);
 
     /// Название варианта: своё, а без него — стандартное на языке фраз.
     public static string Name(AppSettings s, ChatButton b, ChoiceItem c) =>
@@ -233,7 +239,7 @@ public static class ChatPhrases
         list[i] = b with
         {
             Choices = own
-                ? DefaultChoices(b.Kind).Select(c => c with { Text = ChoiceName(Lang(s), b.Kind, c.Key) }).ToArray()
+                ? DefaultChoices(b).Select(c => c with { Text = ChoiceName(Lang(s), b.Kind, c.Key) }).ToArray()
                 : null,
         };
         Store(s, list);

@@ -151,6 +151,18 @@ internal static class Program
         ChatPhrases.SetKind(copy, 5, ChatPhrases.List);
         Check(ChatPhrases.Buttons(copy)[5].Kind == ChatPhrases.List && ChatPhrases.Buttons(copy)[5].Text == "Удачи, хорошей игры! …",
               "простую можно сделать кнопкой с выбором — блок встаёт в конец", ChatPhrases.Buttons(copy)[5].Text);
+        // Новый перечень — пустой, а не стандартные нужды (владелец 26.11); пока
+        // пуст, на полосе его нет. У стандартной «Нам нужен» — нужды.
+        var newList = ChatPhrases.Buttons(copy)[5];
+        Check(ChatPhrases.ChoiceItems(newList).Count == 0 && !ChatPhrases.Bar(copy).Contains(newList),
+              "новый перечень — без вариантов, пока пуст — его нет на полосе",
+              string.Join(", ", ChatPhrases.ChoiceItems(newList).Select(c => c.ToString())));
+        Check(ChatPhrases.ChoiceItems(ChatPhrases.Buttons(copy)[2]).Count == ChatPhrases.Needs.Length,
+              "у стандартной «Нам нужен …» — стандартный перечень");
+        ChatPhrases.SetOwnChoices(copy, 5, true);
+        ChatPhrases.AddChoice(copy, 5);
+        ChatPhrases.SetChoiceText(copy, 5, 0, "хил");
+        Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[5]) is [(_, "хил")], "в новый перечень вписан свой вариант «хил»");
         var bar = ChatPhrases.Bar(copy);
         Check(bar.Take(3).All(ChatPhrases.IsChoice) && bar[2].Kind == ChatPhrases.List && !bar.Skip(3).Any(ChatPhrases.IsChoice),
               "на полосе кнопки с выбором — первыми, в своём порядке", string.Join(" ", bar.Select(b => b.Kind)));
@@ -259,8 +271,8 @@ internal static class Program
         ChatPhrases.SetOwnChoices(copy, 1, true);
         ChatPhrases.SetKind(copy, 1, ChatPhrases.List);
         var b1 = ChatPhrases.Buttons(copy)[1];
-        Check(!ChatPhrases.OwnChoices(b1) && ChatPhrases.Options(copy, b1)[0].Name == "фронтлайн",
-              "сменили вид — варианты нового вида, стандартные");
+        Check(!ChatPhrases.OwnChoices(b1) && ChatPhrases.Options(copy, b1).Count == 0,
+              "роль сменили на перечень — новый перечень пуст (стандартные нужды — только у «Нам нужен»)");
         Check(ChatPhrases.NormalizeChoices(ChatPhrases.Plain, [new ChoiceItem { Text = "x" }]) is null,
               "у простой фразы вариантов нет");
         var junk = ChatPhrases.NormalizeChoices(ChatPhrases.List, [new ChoiceItem { Key = "mid", Text = "мид" }, new ChoiceItem()]);
@@ -522,6 +534,19 @@ internal static class Program
         var needMenu = w.PhraseMenu(2).Items.OfType<MenuItem>().FirstOrDefault();
         Check((string?)needMenu?.ToolTip == "Нам нужен фронтлайн срочно", "в драфте выбор встаёт на место блока, текст вокруг — свой",
               needMenu?.ToolTip?.ToString() ?? "нет");
+        // Запомнится ли до следующего запуска: «Сохранить» пишет ui.json; читаем
+        // его заново, как программа при старте (владелец 26.11: «программа
+        // запоминает выбор и текст, если сохранить?»).
+        var uiPath = Path.Combine(AppPaths.Root, "ui.json");
+        AppSettings.Reload();
+        Pump();
+        var reread = AppSettings.Current;
+        var first = ChatPhrases.Buttons(reread)[0];
+        Check(File.Exists(uiPath) && ChatPhrases.Own(reread)
+              && ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[2]) == "Нам нужен … срочно"
+              && ChatPhrases.Name(reread, first, ChatPhrases.ChoiceItems(first)[0]) == "топчик",
+              "после «Сохранить» и чтения ui.json с диска (как при запуске) — галочка, свой текст и свои варианты на месте",
+              $"{File.Exists(uiPath)} {ChatPhrases.Own(reread)} «{ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[2])}»");
         var own = w.PhraseMenu(0).Items.OfType<MenuItem>().ToList();
         Check(own.Count == 5 && (string?)own[0].ToolTip == "Топчик, кого будешь брать?",
               "в списке над кнопкой — «Топчик, кого будешь брать?»", own.FirstOrDefault()?.ToolTip?.ToString() ?? "нет");
