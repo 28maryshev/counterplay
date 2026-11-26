@@ -1927,7 +1927,10 @@ dotnet run --project tests/DraftChat/DraftChat.csproj -c Release
 
 `CP_SNAP=<папка>` — снимки `draft-phrases.png`, `phrases-std.png` (окно фраз
 со стандартными), `phrases-window.png` (свои фразы), `phrases-slot.png` (поля с
-блоком), `choices.png` (окно вариантов).
+блоком), `choices.png` (окно вариантов), `slot-zoom.png` (поле с блоком втрое
+крупнее — ровно ли стоит надпись в плашке) и `row-zoom.png` (строка кнопки
+вдвое крупнее — выбор вида вровень с верхом поля, «✎ Редактировать» — с
+низом).
 
 ## PoolHint — подсказка режима пула в лобби
 

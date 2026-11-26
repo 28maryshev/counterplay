@@ -172,9 +172,8 @@ public static class PhraseEditor
         ctx.Changed();
     }
 
-    /// Подпись блока по виду: «роль» или «перечень».
-    internal static string ChipName(string kind) =>
-        Loc.T(kind == ChatPhrases.Role ? "phrases.chipRole" : "phrases.chipList");
+    /// Подпись блока по виду — то же слово, что у вида: «Роль» или «Перечень».
+    internal static string ChipName(string kind) => KindName(kind);   // с большой буквы, как вид (владелец 26.11)
 
     /// <summary>
     /// Строка кнопки: номер, вид, текст, «убрать». У кнопки с выбором поле — с
@@ -207,8 +206,16 @@ public static class PhraseEditor
             ctx.Rebuild();   // поле с блоком или без, «Редактировать» и «→ …»
         });
         kind.Margin = new Thickness(0, 0, 6, 0);
-        Grid.SetColumn(kind, 1);
-        grid.Children.Add(kind);
+        // У кнопки с выбором колонка вида — выбор вверху, «✎ Редактировать»
+        // внизу, а поле тянется на всю их высоту: выбор вровень с верхом поля,
+        // ссылка — с низом (владелец 26.11). У простой — выбор по центру.
+        var kindCell = new Grid();
+        kindCell.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        kindCell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        kind.VerticalAlignment = ChatPhrases.IsChoice(b) ? VerticalAlignment.Top : VerticalAlignment.Center;
+        kindCell.Children.Add(kind);
+        Grid.SetColumn(kindCell, 1);
+        grid.Children.Add(kindCell);
 
         var preview = new TextBlock
         {
@@ -229,7 +236,7 @@ public static class PhraseEditor
             var slot = new SlotBox(ChipName(b.Kind),
                                    Loc.T("phrases.slotTip"), ChatPhrases.Text(s, b))
             {
-                VerticalAlignment = VerticalAlignment.Center, ToolTip = Loc.T("phrases.field", i + 1),
+                VerticalAlignment = VerticalAlignment.Stretch, ToolTip = Loc.T("phrases.field", i + 1),
             };
             slot.Box.Tag = i;   // PhrasesWindow.Fields() находит поле кнопки по номеру
             slot.Changed += text =>
@@ -280,10 +287,10 @@ public static class PhraseEditor
 
         if (ChatPhrases.IsChoice(b))
         {
-            // «✎ Редактировать» — под выбором вида (слово владельца 25.11: «там,
-            // где выпадающий список „что нужно“, внизу „редактировать“»). Окно
-            // модальное: пока оно открыто, строки под ним не перестроятся и номер
-            // кнопки не уедет.
+            // «✎ Редактировать» — под выбором вида, вровень с низом поля (слово
+            // владельца 25.11: «там, где выпадающий список „что нужно“, внизу
+            // „редактировать“»). Окно модальное: пока оно открыто, строки под
+            // ним не перестроятся и номер кнопки не уедет.
             TextBlock edit = null!;
             edit = Link(Loc.T("phrases.editChoices"), () =>
             {
@@ -292,11 +299,11 @@ public static class PhraseEditor
                 ctx.Rebuild();   // «→ …» с новыми вариантами
             });
             edit.Tag = "editChoices";
-            edit.Margin = new Thickness(2, 3, 6, 0);
+            edit.Margin = new Thickness(2, 4, 6, 0);
             edit.TextWrapping = TextWrapping.Wrap;
+            edit.VerticalAlignment = VerticalAlignment.Bottom;
             Grid.SetRow(edit, 1);
-            Grid.SetColumn(edit, 1);
-            grid.Children.Add(edit);
+            kindCell.Children.Add(edit);
 
             Grid.SetRow(preview, 1);
             Grid.SetColumn(preview, 2);

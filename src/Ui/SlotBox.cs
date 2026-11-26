@@ -60,6 +60,7 @@ public sealed class SlotBox : Border
             VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
             FontFamily = SettingsWindow.Font("UiFont"), FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,   // поле бывает выше строки — текст по центру
         };
         _box.Document.PagePadding = new Thickness(0);
         SpellCheck.SetIsEnabled(_box, false);
@@ -113,15 +114,22 @@ public sealed class SlotBox : Border
 
     private static InlineUIContainer Chip(string chip, string tip)
     {
+        // Надпись — по центру плашки (владелец 26.11). Строка шрифта несёт место
+        // под хвосты букв, и по одной раскладке надпись сидела выше середины:
+        // отступы у рамки её не двигали (плашку растягивает строка поля).
+        // Поэтому высота плашки задана, надпись по центру и опущена сдвигом —
+        // он вида не меняет, только рисует ниже.
         var label = new TextBlock
         {
             Text = chip, FontFamily = SettingsWindow.Font("UiFont"), FontSize = 11.5, FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0xD7, 0x7A)),
+            VerticalAlignment = VerticalAlignment.Center,
+            RenderTransform = new TranslateTransform(0, 3),
         };
         var plate = new Border
         {
             Child = label, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1),
-            Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(1, 0, 1, 0),
+            Height = 21, Padding = new Thickness(6, 0, 6, 0), Margin = new Thickness(1, 0, 1, 0),
             Background = new SolidColorBrush(Color.FromArgb(0x33, 0xC8, 0x9B, 0x3C)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0xC8, 0x9B, 0x3C)),
             ToolTip = tip,

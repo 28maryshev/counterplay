@@ -515,6 +515,8 @@ internal static class Program
         Check(SlotBox.Read(slotField.Document) == "Нам нужен … срочно", "текст после блока дописывается",
               SlotBox.Read(slotField.Document));
         if (snap is not null) Snap(edit2, snap, "phrases-slot.png");
+        if (snap is not null) SnapZoom((FrameworkElement)slotField.Parent, snap, "slot-zoom.png");
+        if (snap is not null) SnapZoom(PhrasesWindow.Find<System.Windows.Controls.Grid>(edit2).First(g => g.Tag is 2), snap, "row-zoom.png", 2);
         edit2.Save();
         Pump();
         var needMenu = w.PhraseMenu(2).Items.OfType<MenuItem>().FirstOrDefault();
@@ -618,6 +620,23 @@ internal static class Program
         w.AllowsTransparency = true;
         w.Opacity = 0;
         w.Show();
+    }
+
+    /// Снимок одного элемента крупно (во столько-то раз) — разглядеть мелкое:
+    /// ровно ли стоит надпись в плашке блока.
+    private static void SnapZoom(FrameworkElement el, string dir, string file, double k = 3)
+    {
+        Directory.CreateDirectory(dir);
+        var bmp = new RenderTargetBitmap((int)(el.ActualWidth * k), (int)(el.ActualHeight * k), 96 * k, 96 * k, PixelFormats.Pbgra32);
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+            dc.DrawRectangle(new VisualBrush(el), null, new Rect(0, 0, el.ActualWidth, el.ActualHeight));
+        bmp.Render(visual);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = File.Create(Path.Combine(dir, file));
+        enc.Save(fs);
+        Console.WriteLine($"  снимок: {Path.Combine(dir, file)}");
     }
 
     /// Снимок содержимого окна — посмотреть глазами; окно невидимо, дерево рисуется.
