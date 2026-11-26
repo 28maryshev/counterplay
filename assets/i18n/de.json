@@ -1023,7 +1023,7 @@
     "canI": "Darf ich … spielen?",
     "need": "Wir brauchen …",
     "hello": "Hallo zusammen!",
-    "swap": "…, wollen wir tauschen?",
+    "swap": "Darf ich als … picken?",
     "show": "Hovert bitte eure Champs",
     "kindText": "Text",
     "kindRole": "Rolle",
@@ -1068,6 +1068,13 @@
       "ap": "AP-Schaden",
       "ad": "AD-Schaden",
       "disengage": "Disengage"
+    },
+    "order": {
+      "first": "Erster",
+      "second": "Zweiter",
+      "third": "Dritter",
+      "fourth": "Vierter",
+      "fifth": "Fünfter"
     }
   }
 }

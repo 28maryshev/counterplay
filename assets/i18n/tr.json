@@ -1023,7 +1023,7 @@
     "canI": "… alabilir miyim?",
     "need": "… lazım",
     "hello": "Herkese selam!",
-    "swap": "…, takas yapalım mı?",
+    "swap": "… sırada pick atabilir miyim?",
     "show": "Şampiyonlarınızı gösterin lütfen",
     "kindText": "Metin",
     "kindRole": "Rol",
@@ -1068,6 +1068,13 @@
       "ap": "AP hasarı",
       "ad": "AD hasarı",
       "disengage": "disengage"
+    },
+    "order": {
+      "first": "birinci",
+      "second": "ikinci",
+      "third": "üçüncü",
+      "fourth": "dördüncü",
+      "fifth": "beşinci"
     }
   }
 }

@@ -85,14 +85,20 @@ public static class ChatPhrases
     // Стандартный набор по порядку. Слово владельца 25.11: кнопки с выбором —
     // первыми; «Можно мне …» и «Нам нужен …» встали на место «Не баньте моего
     // чемпиона» и «Можно я пикну последним?». 26.11: вместо «Удачи, хорошей
-    // игры!» — приветствие, и оно первое; «Давай свапнемся?» — тоже с выбором
-    // роли: «Мид, давай свапнемся?».
+    // игры!» — приветствие, и оно первое. «swap» — просьба поменяться
+    // очередью пика: сперва «Мид, давай свапнемся?» с выбором роли, с 26.11 —
+    // «Можно я пикну …?» с выбором места в очереди (владелец: «wanna swap
+    // замени на can I pick и перечисление позиций 1–5 словами»). Ключ прежний:
+    // по нему кнопку узнают сохранённые наборы.
     private static readonly (string Std, string Kind)[] Standard =
     [
         ("hello", Plain),
         ("who", Role), ("canI", Role), ("need", List),
-        ("swap", Role), ("show", Plain),
+        (Swap, List), ("show", Plain),
     ];
+
+    /// Стандартная «Можно я пикну …?» — у её перечня свои варианты: места в очереди пика.
+    public const string Swap = "swap";
 
     /// Стандартная кнопка-приветствие — первая на полосе, даже перед кнопками с выбором.
     public const string Hello = "hello";
@@ -103,6 +109,9 @@ public static class ChatPhrases
 
     /// Стандартный перечень — что может понадобиться команде (ключи phrases.needs.*).
     public static readonly string[] Needs = ["front", "poke", "waveclear", "cc", "engage", "ap", "ad", "disengage"];
+
+    /// Места в очереди пика — перечень «Можно я пикну …?» (ключи phrases.order.*: «первым»…«пятым»).
+    public static readonly string[] Order = ["first", "second", "third", "fourth", "fifth"];
 
     public static readonly string[] Kinds = [Plain, Role, List];
 
@@ -206,13 +215,24 @@ public static class ChatPhrases
     /// Подпись на полосе: у кнопки с выбором — знак списка.
     public static string Label(AppSettings s, ChatButton b) => IsChoice(b) ? Text(s, b) + " ▾" : Text(s, b);
 
-    /// Стандартные варианты вида kind (ключи).
-    public static IReadOnlyList<string> StdChoices(string kind) =>
-        kind == Role ? Roles : kind == List ? Needs : [];
+    // Чей стандартный перечень у кнопки (раздел phrases.* с названиями): у
+    // роли — роли; у перечня «Можно я пикну …?» — места в очереди, у прочих
+    // перечней — что нужно команде.
+    private static string Catalog(string kind, string std) =>
+        kind == Role ? "roles" : kind != List ? "" : std == Swap ? "order" : "needs";
+
+    /// Стандартные варианты кнопки вида kind (стандартной std, у своей — пусто), ключи.
+    public static IReadOnlyList<string> StdChoices(string kind, string std = "") => Catalog(kind, std) switch
+    {
+        "roles" => Roles,
+        "needs" => Needs,
+        "order" => Order,
+        _ => [],
+    };
 
     /// Стандартное название варианта на языке фраз — так, как оно встаёт в середину фразы.
-    public static string ChoiceName(string lang, string kind, string key) =>
-        Loc.TIn(lang, $"phrases.{(kind == Role ? "roles" : "needs")}.{key}");
+    public static string ChoiceName(string lang, string kind, string key, string std = "") =>
+        Loc.TIn(lang, $"phrases.{Catalog(kind, std)}.{key}");
 
     // ── Варианты выбора — у каждой кнопки свои. null — стандартные варианты
     //    вида на языке фраз (идут за языком); список — «свои варианты»: при
@@ -224,12 +244,13 @@ public static class ChatPhrases
 
     /// <summary>
     /// Стандартные варианты кнопки. У роли — пять ролей. У перечня — нужды
-    /// команды только у стандартной «Нам нужен …»; новый перечень, заведённый
+    /// команды у стандартной «Нам нужен …», места в очереди пика — у «Можно я
+    /// пикну …?»; новый перечень, заведённый
     /// человеком, пуст: его заполняют своими (владелец 26.11: «при добавлении
     /// нового перечня пусть не сохраняются варианты стандартного»).
     /// </summary>
     public static ChoiceItem[] DefaultChoices(ChatButton b) =>
-        b.Kind == List && b.Std.Length == 0 ? [] : StdChoices(b.Kind).Select(k => new ChoiceItem { Key = k }).ToArray();
+        b.Kind == List && b.Std.Length == 0 ? [] : StdChoices(b.Kind, b.Std).Select(k => new ChoiceItem { Key = k }).ToArray();
 
     /// Свои ли варианты у кнопки (иначе — стандартные).
     public static bool OwnChoices(ChatButton b) => b.Choices is not null;
@@ -239,7 +260,7 @@ public static class ChatPhrases
 
     /// Название варианта: своё, а без него — стандартное на языке фраз.
     public static string Name(AppSettings s, ChatButton b, ChoiceItem c) =>
-        c.Text.Length > 0 ? c.Text : c.Key.Length > 0 ? ChoiceName(Lang(s), b.Kind, c.Key) : "";
+        c.Text.Length > 0 ? c.Text : c.Key.Length > 0 ? ChoiceName(Lang(s), b.Kind, c.Key, b.Std) : "";
 
     /// Что видно в списке кнопки: вариант и его название; пустые — нет.
     public static IReadOnlyList<(ChoiceItem Item, string Name)> Options(AppSettings s, ChatButton b) =>
@@ -258,7 +279,7 @@ public static class ChatPhrases
         list[i] = b with
         {
             Choices = own
-                ? DefaultChoices(b).Select(c => c with { Text = ChoiceName(Lang(s), b.Kind, c.Key) }).ToArray()
+                ? DefaultChoices(b).Select(c => c with { Text = ChoiceName(Lang(s), b.Kind, c.Key, b.Std) }).ToArray()
                 : null,
         };
         Store(s, list);
@@ -288,16 +309,16 @@ public static class ChatPhrases
     }
 
     /// <summary>
-    /// Привести свои варианты в порядок: стандартный ключ — только свой для
-    /// вида, название чистое, не больше <see cref="MaxChoices"/>, пустые без
+    /// Привести свои варианты в порядок: стандартный ключ — только из перечня
+    /// кнопки (вид kind, стандартная std), название чистое, не больше <see cref="MaxChoices"/>, пустые без
     /// ключа — прочь (кроме правки). В стандартные сами не превращаются: «свои»
     /// — выбор человека, даже если совпали. Пустой список — пустой: все
     /// варианты убраны, кнопка пропадёт с полосы.
     /// </summary>
-    public static ChoiceItem[]? NormalizeChoices(string kind, ChoiceItem[]? src, bool keepEmpty = false)
+    public static ChoiceItem[]? NormalizeChoices(string kind, string stdButton, ChoiceItem[]? src, bool keepEmpty = false)
     {
         if (src is null || kind == Plain) return null;
-        var std = StdChoices(kind);
+        var std = StdChoices(kind, stdButton);
         var list = new List<ChoiceItem>();
         foreach (var c in src)
         {
@@ -439,16 +460,24 @@ public static class ChatPhrases
             var kind = b.Kind == "need" ? List : Kinds.Contains(b.Kind) ? b.Kind : Plain;
             var std = Standard.Any(x => x.Std == b.Std) ? b.Std : "";
             var text = DraftChat.Clean(b.Text);
+            var choices = b.Choices;
             if (std.Length > 0 && StdKind(std) != kind)
             {
                 if (text.Length > 0) std = "";      // свой текст под другим видом — своя кнопка
-                else kind = StdKind(std);           // текста нет — остаётся стандартной
+                else
+                {
+                    // Текста нет — остаётся стандартной, а её вид сменился (у «swap»
+                    // 26.11 роли стали очередью пика): свои варианты прежнего вида
+                    // сюда не годятся — снова стандартные.
+                    kind = StdKind(std);
+                    choices = null;
+                }
             }
             if (std.Length == 0 && text.Length == 0 && !keepEmpty) continue;
             list.Add(new ChatButton
             {
                 Kind = kind, Std = std, Text = text,
-                Choices = NormalizeChoices(kind, b.Choices, keepEmpty),
+                Choices = NormalizeChoices(kind, std, choices, keepEmpty),
             });
             if (list.Count == Max) break;
         }

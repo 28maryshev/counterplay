@@ -1023,7 +1023,7 @@
     "canI": "Can I go …?",
     "need": "We need …",
     "hello": "Hi all!",
-    "swap": "…, wanna swap?",
+    "swap": "Can I pick …?",
     "show": "Hover your champs pls",
     "kindText": "Text",
     "kindRole": "Role",
@@ -1068,6 +1068,13 @@
       "ap": "AP damage",
       "ad": "AD damage",
       "disengage": "disengage"
+    },
+    "order": {
+      "first": "first",
+      "second": "second",
+      "third": "third",
+      "fourth": "fourth",
+      "fifth": "fifth"
     }
   }
 }

@@ -1023,7 +1023,7 @@
     "canI": "Posso andare …?",
     "need": "Ci serve …",
     "hello": "Ciao a tutti!",
-    "swap": "…, facciamo scambio?",
+    "swap": "Posso pickare per …?",
     "show": "Mostrate i vostri campioni, pls",
     "kindText": "Testo",
     "kindRole": "Ruolo",
@@ -1068,6 +1068,13 @@
       "ap": "danno AP",
       "ad": "danno AD",
       "disengage": "disengage"
+    },
+    "order": {
+      "first": "primo",
+      "second": "secondo",
+      "third": "terzo",
+      "fourth": "quarto",
+      "fifth": "quinto"
     }
   }
 }

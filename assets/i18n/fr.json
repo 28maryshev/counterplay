@@ -1023,7 +1023,7 @@
     "canI": "Je peux aller … ?",
     "need": "On a besoin de …",
     "hello": "Salut tout le monde !",
-    "swap": "…, on échange ?",
+    "swap": "Je peux pick en … ?",
     "show": "Montrez vos champions svp",
     "kindText": "Texte",
     "kindRole": "Rôle",
@@ -1068,6 +1068,13 @@
       "ap": "dégâts AP",
       "ad": "dégâts AD",
       "disengage": "disengage"
+    },
+    "order": {
+      "first": "premier",
+      "second": "deuxième",
+      "third": "troisième",
+      "fourth": "quatrième",
+      "fifth": "cinquième"
     }
   }
 }

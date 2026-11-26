@@ -105,10 +105,10 @@ internal static class Program
         var std = ChatPhrases.Buttons(s);
         Check(ChatPhrases.Set(s).Buttons is null && std.Count == 6, "по умолчанию стандартный набор из шести", $"{std.Count}");
         Check(std[0].Std == ChatPhrases.Hello && !ChatPhrases.IsChoice(std[0]) && std.Skip(1).Take(4).All(ChatPhrases.IsChoice) && !std.Skip(5).Any(ChatPhrases.IsChoice),
-              "первое — приветствие, за ним стандартные с выбором (кого берёшь, можно мне, нам нужен, свапнемся)",
+              "первое — приветствие, за ним стандартные с выбором (кого берёшь, можно мне, нам нужен, можно я пикну)",
               string.Join(" ", std.Select(b => b.Kind)));
-        Check(std[1].Kind == ChatPhrases.Role && std[2].Kind == ChatPhrases.Role && std[3].Kind == ChatPhrases.List && std[4].Kind == ChatPhrases.Role,
-              "две кнопки с выбором роли и одна — что нужно команде");
+        Check(std[1].Kind == ChatPhrases.Role && std[2].Kind == ChatPhrases.Role && std[3].Kind == ChatPhrases.List && std[4].Kind == ChatPhrases.List,
+              "две кнопки с выбором роли, два перечня (что нужно команде, место в очереди пика)");
 
         ChatPhrases.SetLang(s, "en");
         var enSwap = ChatPhrases.StdText("en", "swap");
@@ -287,11 +287,47 @@ internal static class Program
         var b1 = ChatPhrases.Buttons(copy)[2];
         Check(!ChatPhrases.OwnChoices(b1) && ChatPhrases.Options(copy, b1).Count == 0,
               "роль сменили на перечень — новый перечень пуст (стандартные нужды — только у «Нам нужен»)");
-        Check(ChatPhrases.NormalizeChoices(ChatPhrases.Plain, [new ChoiceItem { Text = "x" }]) is null,
+        Check(ChatPhrases.NormalizeChoices(ChatPhrases.Plain, "", [new ChoiceItem { Text = "x" }]) is null,
               "у простой фразы вариантов нет");
-        var junk = ChatPhrases.NormalizeChoices(ChatPhrases.List, [new ChoiceItem { Key = "mid", Text = "мид" }, new ChoiceItem()]);
+        var junk = ChatPhrases.NormalizeChoices(ChatPhrases.List, "need", [new ChoiceItem { Key = "mid", Text = "мид" }, new ChoiceItem()]);
         Check(junk is [{ Key: "", Text: "мид" }], "чужой ключ (роль у «что нужно») отброшен, пустой — прочь",
               string.Join(", ", junk?.Select(c => c.ToString()) ?? []));
+        var order = ChatPhrases.NormalizeChoices(ChatPhrases.List, ChatPhrases.Swap, [new ChoiceItem { Key = "front" }, new ChoiceItem { Key = "second" }]);
+        Check(order is [{ Key: "second" }], "у «Можно я пикну» ключи — только места в очереди",
+              string.Join(", ", order?.Select(c => c.ToString()) ?? []));
+
+        // «Можно я пикну …?» (владелец 26.11: вместо «wanna swap» — «can I pick»
+        // и места в очереди словами): стандартный перечень — первым…пятым.
+        var swap = ChatPhrases.Buttons(s)[4];
+        var places = ChatPhrases.Options(s, swap).Select(o => o.Name).ToList();
+        Check(swap.Std == ChatPhrases.Swap && swap.Kind == ChatPhrases.List
+              && places.SequenceEqual(["первым", "вторым", "третьим", "четвёртым", "пятым"]),
+              "у «Можно я пикну …?» — места в очереди пика словами", string.Join(", ", places));
+        ChatPhrases.SetLang(s, "en");
+        places = ChatPhrases.Options(s, swap).Select(o => o.Name).ToList();
+        Check(places.SequenceEqual(["first", "second", "third", "fourth", "fifth"]),
+              "по-английски — first…fifth", string.Join(", ", places));
+        ChatPhrases.SetLang(s, "ru");
+        var ownOrder = s.Clone();
+        ChatPhrases.SetOwnChoices(ownOrder, 4, true);
+        Check(ChatPhrases.Buttons(ownOrder)[4].Choices!.Select(c => c.Key).SequenceEqual(ChatPhrases.Order)
+              && ChatPhrases.Buttons(ownOrder)[4].Choices![0].Text == "первым",
+              "свои варианты «Можно я пикну» начинаются копией мест в очереди",
+              string.Join(", ", ChatPhrases.Buttons(ownOrder)[4].Choices!.Select(c => c.ToString())));
+
+        // Наборы, сохранённые, пока «swap» была с выбором роли («Мид, давай
+        // свапнемся?»): без своего текста — снова стандартная, с местами в
+        // очереди (свои роли туда не годятся); со своим текстом — своя кнопка с ролью.
+        var roleChoices = new[] { new ChoiceItem { Key = "mid", Text = "мидер" } };
+        var old = ChatPhrases.Normalize(
+        [
+            new ChatButton { Kind = ChatPhrases.Role, Std = ChatPhrases.Swap, Choices = roleChoices },
+            new ChatButton { Kind = ChatPhrases.Role, Std = ChatPhrases.Swap, Text = "…, меняемся?", Choices = roleChoices },
+        ])!;
+        Check(old[0] is { Kind: ChatPhrases.List, Std: ChatPhrases.Swap, Choices: null },
+              "старая «swap» без своего текста — стандартная «Можно я пикну» со стандартными местами", old[0].ToString());
+        Check(old[1] is { Kind: ChatPhrases.Role, Std: "", Text: "…, меняемся?", Choices: [{ Key: "mid", Text: "мидер" }] },
+              "старая «swap» со своим текстом — своя кнопка с ролью, варианты целы", old[1].ToString());
     }
 
     /// <summary>
@@ -351,7 +387,7 @@ internal static class Program
     {
         Console.WriteLine("фраза с выбором:");
         string C(string lang, string std, string kind, string key) =>
-            ChatPhrases.Compose(lang, ChatPhrases.StdText(lang, std), ChatPhrases.ChoiceName(lang, kind, key));
+            ChatPhrases.Compose(lang, ChatPhrases.StdText(lang, std), ChatPhrases.ChoiceName(lang, kind, key, std));
         var r = C("ru", "who", ChatPhrases.Role, "mid");
         Check(r == "Мид, кого будешь брать?", "в начале фразы — с заглавной", r);
         r = C("ru", "canI", ChatPhrases.Role, "jungle");
@@ -360,14 +396,20 @@ internal static class Program
         Check(r == "Нам нужен фронтлайн", "нам нужен фронтлайн", r);
         r = C("en", "who", ChatPhrases.Role, "adc");
         Check(r == "ADC, who are you picking?", "английский: ADC, who are you picking?", r);
+        r = C("en", "swap", ChatPhrases.List, "first");
+        Check(r == "Can I pick first?", "английский: Can I pick first?", r);
+        r = C("ru", "swap", ChatPhrases.List, "second");
+        Check(r == "Можно я пикну вторым?", "можно я пикну вторым", r);
+        r = C("tr", "swap", ChatPhrases.List, "first");
+        Check(r == "Birinci sırada pick atabilir miyim?", "в начале фразы место в очереди — с заглавной (турецкий)", r);
         r = ChatPhrases.Compose("tr", "… lazım", "istek");
         Check(r == "İstek lazım", "заглавная по правилам языка (турецкое i → İ)", r);
         r = ChatPhrases.Compose("ru", "Ну... нам нужен …", "танк");
         Check(r == "Ну... нам нужен танк", "три точки — просто текст: место для выбора только у блока", r);
         r = ChatPhrases.Compose("ru", "Кто идёт", "мид");
         Check(r == "Кто идёт мид", "места нет — выбор в конец через пробел", r);
-        var bad = Loc.Languages.SelectMany(l => new[] { ("who", ChatPhrases.Role), ("canI", ChatPhrases.Role), ("need", ChatPhrases.List), ("swap", ChatPhrases.Role) }
-                .SelectMany(x => ChatPhrases.StdChoices(x.Item2).Select(k => (l.Code, Text: C(l.Code, x.Item1, x.Item2, k)))))
+        var bad = Loc.Languages.SelectMany(l => new[] { ("who", ChatPhrases.Role), ("canI", ChatPhrases.Role), ("need", ChatPhrases.List), ("swap", ChatPhrases.List) }
+                .SelectMany(x => ChatPhrases.StdChoices(x.Item2, x.Item1).Select(k => (l.Code, Text: C(l.Code, x.Item1, x.Item2, k)))))
             .Where(x => x.Text.Contains(ChatPhrases.Slot) || x.Text.Contains("phrases.")).ToList();
         Check(bad.Count == 0, "на всех языках выбор встаёт на место, ключей в тексте нет",
               string.Join(" | ", bad.Take(5).Select(x => $"{x.Code}: {x.Text}")));
@@ -467,7 +509,7 @@ internal static class Program
         Check(((FrameworkElement)w.FindName("RecTail")).ActualHeight > 0, "в конце списка пиков есть место под полосу");
         var labels = list.Items.OfType<PhraseChip>().Select(c => c.Text).ToList();
         Check(labels.Count == 6 && labels[0] == "Всем привет!" && labels[1] == "…, кого будешь брать? ▾" && labels[3] == "Нам нужен … ▾"
-              && labels[4] == "…, давай свапнемся? ▾",
+              && labels[4] == "Можно я пикну …? ▾",
               "на кнопках стандартные фразы языка программы, у кнопок с выбором — ▾", string.Join(" | ", labels));
         if (snap is not null) Snap(w, snap, "draft-phrases.png");
 
@@ -492,6 +534,8 @@ internal static class Program
               "кнопка вспыхнула отправленной фразой", flashed?.Text ?? "нет");
         var needs = w.PhraseMenu(3).Items.Count;
         Check(needs == ChatPhrases.Needs.Length, $"у «нам нужен» {ChatPhrases.Needs.Length} вариантов", $"{needs}");
+        var picks = w.PhraseMenu(4).Items.OfType<MenuItem>().Select(i => (string)i.Tag).ToList();
+        Check(picks.SequenceEqual(ChatPhrases.Order), "у «Можно я пикну» в списке пять мест в очереди", string.Join(", ", picks));
         // Второй выбор сразу — не уходит (не чаще раза в 1,5 с).
         ((MenuItem)w.PhraseMenu(2).Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Pump();
