@@ -11,7 +11,7 @@ namespace Counterplay.Tests;
 
 /// <summary>
 /// Таймер хода пика (владелец, 25.11.2026): в слоте — сколько осталось до
-/// конца хода; пикнул — отсчёт пропадает; в мой ход последние 5 секунд центр
+/// конца хода; пикнул — отсчёт пропадает; в мой ход последние 8 секунд центр
 /// окна мигает рамкой по краю. Отсчёт — у всех, чей ход, союзников и врагов
 /// («таймер должен быть у всех»), рамка — только мой ход.
 ///
@@ -180,7 +180,7 @@ internal static class Program
         Check("у взявших и у врагов не в их ход отсчёта нет",
               new[] { 0, 1, 2 }.All(i => ReferenceEquals(Slot(list, i).Clock, PickClock.None))
               && Enumerable.Range(0, 5).All(i => ReferenceEquals(Slot(enemies, i).Clock, PickClock.None)), "");
-        Check("до последних 5 секунд рамки нет", frame.Visibility != Visibility.Visible, frame.Visibility.ToString());
+        Check("до последних 8 секунд рамки нет", frame.Visibility != Visibility.Visible, frame.Visibility.ToString());
         Check("цвет — свой, золотой", !Clock().Urgent, Clock().Color);
         Snap(w, "calm");
         var row = list.ItemContainerGenerator.ContainerFromIndex(3);
@@ -208,12 +208,20 @@ internal static class Program
               ReferenceEquals(row, list.ItemContainerGenerator.ContainerFromIndex(3)), "");
         Check("событие выровняло отсчёт", Clock().Seconds is "21" or "20", $"«{Clock().Seconds}»");
 
-        // Последние секунды.
+        // Последние секунды: рамка и красный — с 8 секунд (владелец, 26.11).
+        w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(9500), 30000, mine: true);
+        Pump();
+        Check("9 секунд: ещё не пора — рамки нет, отсчёт золотой",
+              frame.Visibility != Visibility.Visible && !Clock().Urgent, $"рамка {frame.Visibility}, {Clock().Color}");
+        w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(7500), 30000, mine: true);
+        Pump();
+        Check("8 секунд: рамка центра мигает", frame.Visibility == Visibility.Visible && frame.HasAnimatedProperties,
+              $"{frame.Visibility}, анимация {(frame.HasAnimatedProperties ? "есть" : "нет")}");
+        Check("8 секунд: отсчёт красный", Clock().Urgent && Clock().Seconds == "8", $"{Clock().Color}, «{Clock().Seconds}»");
         w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(4500), 30000, mine: true);
         Pump();
-        Check("5 секунд: рамка центра мигает", frame.Visibility == Visibility.Visible && frame.HasAnimatedProperties,
-              $"{frame.Visibility}, анимация {(frame.HasAnimatedProperties ? "есть" : "нет")}");
-        Check("5 секунд: отсчёт красный", Clock().Urgent && Clock().Seconds == "5", $"{Clock().Color}, «{Clock().Seconds}»");
+        Check("5 секунд: всё ещё мигает и красный", frame.Visibility == Visibility.Visible && Clock().Urgent,
+              $"рамка {frame.Visibility}, {Clock().Color}");
         Snap(w, "alarm");
 
         // Пик залочен — следующее событие приносит «срока нет».
