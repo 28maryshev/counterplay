@@ -192,6 +192,20 @@ internal static class Program
         Check(ChatPhrases.Lang(copy) == Loc.Current, "язык фраз не выбран — язык программы", ChatPhrases.Lang(copy));
         ChatPhrases.PutSet(copy, ChatPhrases.Set(copy) with { Lang = "xx" });
         Check(ChatPhrases.Lang(copy) == Loc.Current, "неизвестный язык — язык программы", ChatPhrases.Lang(copy));
+
+        // Выбранный язык фраз держится, даже если он совпал с языком программы,
+        // а программу потом переключили (владелец 26.11: «язык должен
+        // запоминаться и стоять в фразах такой, как выбрал пользователь»).
+        var chosen = AppSettings.Defaults();
+        ChatPhrases.SetLang(chosen, "ru");             // программа сейчас по-русски
+        var json = System.Text.Json.JsonSerializer.Serialize(chosen);
+        Loc.SetLanguage("en");                          // переключили язык программы
+        var reread = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json)!;
+        var whoText = ChatPhrases.Text(reread, ChatPhrases.Buttons(reread)[1]);
+        Loc.SetLanguage("ru");
+        Check(ChatPhrases.Lang(reread) == "ru" && whoText == "…, кого будешь брать?",
+              "выбрали русские фразы, программу переключили на английский — фразы русские (и после записи на диск)",
+              $"{ChatPhrases.Lang(reread)}: {whoText}");
     }
 
     private static void Choices()
@@ -427,7 +441,9 @@ internal static class Program
         var s = AppSettings.Current;
         s.DraftWidth = 1400; s.DraftHeight = 900; s.DraftPlacement = "remember";
         s.DraftLeft = -32000; s.DraftTop = -32000;
-        var w = new OverlayWindow();
+        // Настоящий клиент LoL проверке не указ: свёрнут — окно ушло бы в трей,
+        // и кадры вышли бы пустыми (так падала SettingPreviews 26.11).
+        var w = new OverlayWindow { FollowClient = false };
         ShowHidden(w);
         w.SetEngine(engine);
         var sent = new List<string>();

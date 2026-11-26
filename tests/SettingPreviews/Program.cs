@@ -237,7 +237,9 @@ internal static class Program
         var d = Task.Run(() => SessionTracker.RefreshAsync(http, CancellationToken.None)).GetAwaiter().GetResult();
 
         Defaults();
-        var w = new OverlayWindow();
+        // Настоящий клиент LoL проверке не указ: свёрнут — окно ушло бы в трей,
+        // и кадры вышли бы пустыми (так падала SettingPreviews 26.11).
+        var w = new OverlayWindow { FollowClient = false };
         ShowHidden(w);
         try
         {
@@ -284,7 +286,9 @@ internal static class Program
             MyBanActionId: 0, MyBanInProgress: true);
 
         Defaults();
-        var w = new OverlayWindow();
+        // Настоящий клиент LoL проверке не указ: свёрнут — окно ушло бы в трей,
+        // и кадры вышли бы пустыми (так падала SettingPreviews 26.11).
+        var w = new OverlayWindow { FollowClient = false };
         ShowHidden(w);
         w.SetEngine(engine);
         Pump();
