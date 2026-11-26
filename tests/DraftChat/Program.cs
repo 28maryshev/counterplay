@@ -104,10 +104,10 @@ internal static class Program
         var s = AppSettings.Defaults();
         var std = ChatPhrases.Buttons(s);
         Check(ChatPhrases.Set(s).Buttons is null && std.Count == 6, "по умолчанию стандартный набор из шести", $"{std.Count}");
-        Check(std[0].Std == ChatPhrases.Hello && !ChatPhrases.IsChoice(std[0]) && std.Skip(1).Take(3).All(ChatPhrases.IsChoice) && !std.Skip(4).Any(ChatPhrases.IsChoice),
-              "первое — приветствие, за ним стандартные с выбором (кого берёшь, можно мне, нам нужен)",
+        Check(std[0].Std == ChatPhrases.Hello && !ChatPhrases.IsChoice(std[0]) && std.Skip(1).Take(4).All(ChatPhrases.IsChoice) && !std.Skip(5).Any(ChatPhrases.IsChoice),
+              "первое — приветствие, за ним стандартные с выбором (кого берёшь, можно мне, нам нужен, свапнемся)",
               string.Join(" ", std.Select(b => b.Kind)));
-        Check(std[1].Kind == ChatPhrases.Role && std[2].Kind == ChatPhrases.Role && std[3].Kind == ChatPhrases.List,
+        Check(std[1].Kind == ChatPhrases.Role && std[2].Kind == ChatPhrases.Role && std[3].Kind == ChatPhrases.List && std[4].Kind == ChatPhrases.Role,
               "две кнопки с выбором роли и одна — что нужно команде");
 
         ChatPhrases.SetLang(s, "en");
@@ -164,7 +164,7 @@ internal static class Program
         ChatPhrases.SetChoiceText(copy, 5, 0, "хил");
         Check(ChatPhrases.Options(copy, ChatPhrases.Buttons(copy)[5]) is [(_, "хил")], "в новый перечень вписан свой вариант «хил»");
         var bar = ChatPhrases.Bar(copy);
-        Check(bar[0].Std == ChatPhrases.Hello && bar.Skip(1).Take(3).All(ChatPhrases.IsChoice) && bar[3].Kind == ChatPhrases.List && !bar.Skip(4).Any(ChatPhrases.IsChoice),
+        Check(bar[0].Std == ChatPhrases.Hello && bar.Skip(1).Take(4).All(ChatPhrases.IsChoice) && bar[2].Kind == ChatPhrases.List && bar[4].Kind == ChatPhrases.List && !bar.Skip(5).Any(ChatPhrases.IsChoice),
               "на полосе приветствие первым, за ним кнопки с выбором в своём порядке", string.Join(" ", bar.Select(b => b.Kind)));
 
         // Добавить и убрать; не больше восьми; пустая новая — не на полосе и не сохраняется.
@@ -389,7 +389,7 @@ internal static class Program
                     if (ChatPhrases.StdText(l.Code, std) == ChatPhrases.StdText("en", std))
                         missing.Add($"{l.Code}:{std} по-английски");
             // У шаблонов с выбором есть место для него.
-            foreach (var std in new[] { "who", "canI", "need" })
+            foreach (var std in new[] { "who", "canI", "need", "swap" })
                 if (!ChatPhrases.StdText(l.Code, std).Contains(ChatPhrases.Slot))
                     missing.Add($"{l.Code}:{std} без «…»");
         }
@@ -451,7 +451,7 @@ internal static class Program
         Check(((FrameworkElement)w.FindName("RecTail")).ActualHeight > 0, "в конце списка пиков есть место под полосу");
         var labels = list.Items.OfType<PhraseChip>().Select(c => c.Text).ToList();
         Check(labels.Count == 6 && labels[0] == "Всем привет!" && labels[1] == "…, кого будешь брать? ▾" && labels[3] == "Нам нужен … ▾"
-              && labels[4] == "Давай свапнемся?",
+              && labels[4] == "…, давай свапнемся? ▾",
               "на кнопках стандартные фразы языка программы, у кнопок с выбором — ▾", string.Join(" | ", labels));
         if (snap is not null) Snap(w, snap, "draft-phrases.png");
 
@@ -466,9 +466,12 @@ internal static class Program
         Check(items.Count == 5 && items.All(i => i.Header is StackPanel { Children.Count: var n } && n == (iconsLoad ? 2 : 1)),
               $"у «кого будешь брать» пять ролей{(iconsLoad ? " с иконками" : "")}", $"{items.Count}");
         items.First(i => (string)i.Tag == "mid").RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        // Вспышку смотреть сразу, до Pump: она ставится в самом нажатии, а гаснет
+        // через 1,2 с — медленная отрисовка в Pump (со снимками) успевала её
+        // погасить, и пункт падал через раз.
+        var flashed = list.Items.OfType<PhraseChip>().ElementAtOrDefault(1);
         Pump();
         Check(sent is ["Мид, кого будешь брать?"], "выбрал «мид» — в чат «Мид, кого будешь брать?»", string.Join(" | ", sent));
-        var flashed = list.Items.OfType<PhraseChip>().ElementAtOrDefault(1);
         Check(flashed is { State: "sent" } && flashed.Text == "✓ Мид, кого будешь брать?",
               "кнопка вспыхнула отправленной фразой", flashed?.Text ?? "нет");
         var needs = w.PhraseMenu(3).Items.Count;
@@ -497,7 +500,7 @@ internal static class Program
         var fields = edit.Fields();
         Check(fields.Count == 6, "галочка «Свои фразы» — шесть полей, копия стандартных", $"{fields.Count}");
         if (snap is not null) Snap(edit, snap, "phrases-window.png");
-        ((System.Windows.Controls.TextBox)fields[4]).Text = "Не баньте Сону, я на ней";
+        ((System.Windows.Controls.TextBox)fields[0]).Text = "Не баньте Сону, я на ней";   // приветствие — простое поле
         var kinds = Find<System.Windows.Controls.ComboBox>(edit).Where(c => c.Items.Count == ChatPhrases.Kinds.Length).ToList();
         Check(kinds.Count == 6, "у каждой кнопки выбор вида", $"{kinds.Count}");
         kinds[5].SelectedIndex = Array.IndexOf(ChatPhrases.Kinds, ChatPhrases.Role);   // «Покажите своих чемпионов» → роль
@@ -505,9 +508,10 @@ internal static class Program
         edit.Save();
         Pump();
         labels = list.Items.OfType<PhraseChip>().Select(c => c.Text).ToList();
-        Check(labels.Contains("Не баньте Сону, я на ней"), "своя фраза — на кнопке после «Сохранить»", string.Join(" | ", labels));
-        Check(labels.Count == 6 && labels[4] == "Покажите своих чемпионов … ▾",
-              "ставшая кнопкой с выбором — пятой: после приветствия и стандартных с выбором", string.Join(" | ", labels));
+        Check(labels.Count > 0 && labels[0] == "Не баньте Сону, я на ней", "своя фраза — на кнопке после «Сохранить» (переписанное приветствие — всё ещё первое)",
+              string.Join(" | ", labels));
+        Check(labels.Count == 6 && labels[5] == "Покажите своих чемпионов … ▾",
+              "ставшая кнопкой с выбором — шестой: после приветствия и стандартных с выбором", string.Join(" | ", labels));
 
         // Свои варианты в окне: «Свои варианты» у первой кнопки — копия ролей,
         // «топ» → «топчик», «Сохранить» — в списке над кнопкой «топчик».
