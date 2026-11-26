@@ -5,9 +5,9 @@ namespace Counterplay;
 ///
 /// Идёт драфт — окну можно на экран, а ручное скрытие крестиком снимается
 /// один раз за драфт: закрыл окно раньше — на новом драфте оно всё равно
-/// вернётся (закрыть его в течение драфта по-прежнему можно). За 5 секунд до
-/// конца финализации окно уходит в трей: прозрачное окно поверх всех мешает
-/// входу в игру.
+/// вернётся (закрыть его в течение драфта по-прежнему можно). За секунду до
+/// конца финализации (<see cref="HideLead"/>) окно уходит в трей: прозрачное
+/// окно поверх всех мешает входу в игру.
 ///
 /// Зовёт цикл событий клиента (<c>Program.RunSessionAsync</c>); отдельно от
 /// него — чтобы проверка могла провести через это окно настоящую
@@ -15,6 +15,11 @@ namespace Counterplay;
 /// </summary>
 public sealed class DraftTray(OverlayWindow overlay, CancellationToken ct)
 {
+    /// За сколько до конца финализации окно уходит в трей. До 27 ноября 2026
+    /// было 5 секунд — владелец: «уходит за 5 секунд, поставь за 1»: последние
+    /// секунды драфта окно ещё нужно (сборка, руны).
+    public static readonly TimeSpan HideLead = TimeSpan.FromSeconds(1);
+
     private CancellationTokenSource? _hide;   // запланированное скрытие в трей
     private bool _unhidden;                   // ручное скрытие на этом драфте уже снято
 
@@ -33,7 +38,7 @@ public sealed class DraftTray(OverlayWindow overlay, CancellationToken ct)
         if (phase == "FINALIZATION")
         {
             _hide = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var delay = Math.Max(0, leftMs - 5000);
+            var delay = Math.Max(0, leftMs - HideLead.TotalMilliseconds);
             var token = _hide.Token;
             _ = Task.Run(async () =>
             {

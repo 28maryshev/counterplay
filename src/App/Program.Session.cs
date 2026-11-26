@@ -513,7 +513,7 @@ partial class Program
                             SessionTracker.NoteDraftRole(meNow.ChampionId,
                                 RecommendationEngine.LcuToDbRole(draft.MyPosition));
 
-                        // За 5 секунд до конца финализации — в трей; идёт драфт —
+                        // За секунду до конца финализации — в трей; идёт драфт —
                         // окну можно на экран (DraftTray). Идёт ход пика —
                         // отсчёт в слотах тех, чей ход; мой — ещё и рамка центра
                         // за 8 секунд до конца. До отпечатка: остаток таймера в

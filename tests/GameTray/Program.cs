@@ -97,14 +97,19 @@ internal static class Program
         Check("1. идёт драфт — окно на экране, игра не идёт", !w.InTray && w.IsVisible && !w.GameActive,
               State(w));
 
-        // ── 2. Финализация: за 5 секунд до конца — в трей ─────────────────
-        // Осталось 5,6 с — скрытие через 0,6 с. Клиент шлёт событие за
+        // ── 2. Финализация: за 1 секунду до конца — в трей ────────────────
+        // Осталось 3 с — скрытие через 2 с; через секунду окно ещё на экране
+        // (до 27.11 уходило за 5 с — то есть сразу). Клиент шлёт событие за
         // событием, и все с той же фазой.
-        draft.OnTimer("FINALIZATION", 5_600);
-        draft.OnTimer("FINALIZATION", 5_400);
+        draft.OnTimer("FINALIZATION", 3_000);
+        draft.OnTimer("FINALIZATION", 2_800);
+        WaitFor(() => w.InTray, 1000);
+        var early = w.InTray;
         WaitFor(() => w.InTray, 3000);
         HideTrayIcon(w);
-        Check("2. за 5 с до конца финализации — в трей", w.InTray && !w.IsVisible && w.GameActive, State(w));
+        Check("2. финализация: за 2 с до конца окно на экране, за 1 с — в трее",
+              !early && w.InTray && !w.IsVisible && w.GameActive,
+              (early ? "ушло в трей раньше срока; " : "") + State(w));
 
         // ── 3. Финализация кончилась: GAME_STARTING, окна игры ещё нет ─────
         draft.OnTimer("GAME_STARTING", 0);
@@ -173,7 +178,8 @@ internal static class Program
               $"после крестика {(closed ? "в трее" : "НЕ в трее")}, на драфте {State(w)}");
 
         // ── 9. Додж на финализации — скрытие отменено, окно остаётся ──────
-        draft.OnTimer("FINALIZATION", 5_600);
+        // Осталось 1,6 с — без отмены окно ушло бы через 0,6 с, внутри ожидания.
+        draft.OnTimer("FINALIZATION", 1_600);
         draft.Ended();   // драфт удалён: кто-то вышел
         WaitFor(() => w.InTray, 1500);
         Check("9. додж на финализации — окно не уходит в трей", !w.InTray && w.IsVisible && !w.GameActive,
