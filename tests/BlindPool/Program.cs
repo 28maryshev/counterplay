@@ -18,7 +18,7 @@ namespace Counterplay.Tests;
 /// 1. Строки на всех языках.
 /// 2. Мои чемпионы за месяц на всех ролях — с ролью, на которой я играл чаще.
 /// 3. Окно: никто не показал — наигранные за месяц (без игр — пул); союзник
-///    показал Ясуо — пул в порядке синергии с ним, как её считает движок
+///    показал чемпиона — пул в порядке синергии с ним, как её считает движок
 ///    (подбор пика); взятые и забаненные не предлагаются; клик — показ пика, плашка
 ///    «Выбрать» под панелью; руны моего чемпиона в нижней строке, без них —
 ///    тир-лист; без базы — заглушка.
@@ -211,31 +211,61 @@ internal static class Program
               $"{Names(rows)} ({rows.FirstOrDefault()?.Note})");
         SessionTracker.PreviewGames = history;
 
-        // Союзник показал Ясуо — пул по синергии с ним.
-        w.UpdateRecommendations([], Blind([Yasuo]), engine);
+        // Союзник показал чемпиона — пул по синергии с ним. Кого — решают
+        // данные: нужен союзник, с которым в пуле есть и явный плюс, и явный
+        // минус, иначе зелёный и красный не проверить. До 27.11 здесь стоял
+        // Ясуо, но на базе 26.11 лучший из пула с ним — Мальфит +0,24, серым:
+        // пункт падал при любом коде. Ясуо берётся, если он подходит.
+        var poolRoles = new[] { (Malphite, "top"), (Garen, "top"), (Ashe, "adc"), (Sona, "support"), (Yuumi, "support") };
+        var poolIds = poolRoles.Select(x => x.Item1).ToHashSet();
+        var synColor = (double)typeof(OverlayWindow).GetField("BlindSynColor", BindingFlags.NonPublic | BindingFlags.Static)!
+                                                    .GetValue(null)!;
+        List<(int Id, double Syn)> SynWith(int ally) =>
+            [.. poolRoles.Select(x => (Id: x.Item1, Syn: engine.BlindSynergy(x.Item1, x.Item2, [(ally, "")]).Delta))];
+        // Запас 0,2 от порога цвета: на самом пороге цвет решает округление.
+        bool Fits(List<(int Id, double Syn)> syn) =>
+            syn.Max(x => x.Syn) >= synColor + 0.2 && syn.Min(x => x.Syn) <= -synColor - 0.2;
+        var candidates = new[] { "mid", "jungle", "top", "adc", "support" }
+            .SelectMany(role => engine.FieldShares(role)).OrderByDescending(x => x.Share).Select(x => x.Id)
+            .Where(id => !poolIds.Contains(id)).Distinct().Prepend(Yasuo).ToList();
+        // Лучше — с кем в пуле есть ещё и серая строка (около нуля): без неё
+        // сверка цвета ниже не отличит порог от одного знака.
+        bool Grey(List<(int Id, double Syn)> syn) => syn.Any(x => Math.Abs(x.Syn) <= synColor - 0.1);
+        var ally = candidates.FirstOrDefault(id => SynWith(id) is var syn && Fits(syn) && Grey(syn));
+        if (ally == 0) ally = candidates.FirstOrDefault(id => Fits(SynWith(id)));
+        Check("в данных есть союзник, с которым в пуле и явный плюс, и явный минус", ally != 0,
+              $"порог цвета ±{synColor:0.0#}; с Ясуо: " + string.Join(", ", SynWith(Yasuo).Select(x => $"{x.Id}:{x.Syn:+0.00;-0.00}")));
+        if (ally == 0) ally = Yasuo;
+        w.UpdateRecommendations([], Blind([ally]), engine);
         Pump();
         rows = Rows();
         var played = SessionTracker.RecentChamps(null).ToDictionary(c => c.ChampionId, c => c.Games);
-        var expected = new[] { (Malphite, "top"), (Garen, "top"), (Ashe, "adc"), (Sona, "support"), (Yuumi, "support") }
-            .Select(x => (Id: x.Item1, Syn: engine.BlindSynergy(x.Item1, x.Item2, [(Yasuo, "")]).Delta))
+        var expected = SynWith(ally)
             .OrderByDescending(x => x.Syn).ThenByDescending(x => played.GetValueOrDefault(x.Id))
             .ToList();
-        Console.WriteLine("  синергия с Ясуо: " + string.Join(", ", expected.Select(x => $"{x.Id}:{x.Syn:+0.00;-0.00}")));
+        var allyName = DataDragon.Name(ally);
+        Console.WriteLine($"  синергия с союзником ({allyName}): " + string.Join(", ", expected.Select(x => $"{x.Id}:{x.Syn:+0.00;-0.00}")));
         // Синергия живая: разброс по пулу — пункты, а не ноль у всех.
-        Check("союзник показал Ясуо — пул в порядке синергии с ним",
+        Check($"союзник показал {allyName} — пул в порядке синергии с ним",
               rows.Select(r => r.ChampionId).SequenceEqual(expected.Select(x => x.Id))
               && expected[0].Syn - expected[^1].Syn > 1,
               Names(rows));
         var best  = rows.FirstOrDefault();
         var worst = rows.LastOrDefault();
-        var yasuo = DataDragon.Name(Yasuo);
-        Check("у лучшего — «синергия +N с Ясуо» зелёным, вклад союзника в подсказке",
-              best is not null && best.Note == Loc.T("blind.synOne", $"+{expected[0].Syn:F1}", yasuo)
+        Check($"у лучшего — «синергия +N с {allyName}» зелёным, вклад союзника в подсказке",
+              best is not null && best.Note == Loc.T("blind.synOne", $"+{expected[0].Syn:F1}", allyName)
               && best.NoteBrush == "#57C98A"
-              && best.Tip?.Contains(Loc.T("blind.tipAlly", yasuo, "").TrimEnd()) == true,
+              && best.Tip?.Contains(Loc.T("blind.tipAlly", allyName, "").TrimEnd()) == true,
               $"{best?.Note} {best?.NoteBrush} | {(best?.Tip ?? "").Replace("\n", " | ")}");
-        Check("у худшего — минус красным", worst is not null && worst.Note.Contains(yasuo) && worst.NoteBrush == "#E05B5B",
+        Check("у худшего — минус красным", worst is not null && worst.Note.Contains(allyName) && worst.NoteBrush == "#E05B5B",
               $"{worst?.Note} {worst?.NoteBrush}");
+        // Цвет каждой строки — по порогу: от +порога зелёный, до −порога
+        // красный, между ними серый.
+        var badColor = rows.Zip(expected).Where(x =>
+            x.First.NoteBrush != (x.Second.Syn >= synColor ? "#57C98A" : x.Second.Syn <= -synColor ? "#E05B5B" : "#6E8598"))
+            .Select(x => $"{x.First.Name} {x.Second.Syn:+0.00;-0.00} {x.First.NoteBrush}").ToList();
+        Check($"цвет каждой строки — по порогу ±{synColor:0.0#}", rows.Count == expected.Count && badColor.Count == 0,
+              string.Join(", ", badColor));
         Check("заголовок — «под союзников»", Text(w, "PlanTitle") == Loc.T("blind.title"), Text(w, "PlanTitle"));
         if (snap is { Length: > 0 }) Snap(w, snap, "blind-2-synergy.png");
 

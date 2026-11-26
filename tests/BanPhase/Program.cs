@@ -433,9 +433,15 @@ internal static partial class Program
     /// последней (−2,5 против 9,4 у Соны: винрейт в патче −5,7).
     ///
     /// Держим: доля каждого чемпиона пула в весе пула = exp(очки Recommend / 3),
-    /// нормированные, — на том же драфте; у Эш доля меньше 2%, и «жёсткой
-    /// контры» против неё в пятёрке нет. Ранние заходы того же дня (иконки
+    /// нормированные, — на том же драфте; доли идут в порядке очков подбора, а
+    /// не игр за месяц; последний у подбора весит меньше всех, и «жёсткой
+    /// контры» против него в пятёрке нет. Ранние заходы того же дня (иконки
     /// синергии, затем синергия × 0,15) сняты: синергия уже внутри очков подбора.
+    ///
+    /// До 27.11 стояло «у Эш доля меньше 2%»: число с одного замера, когда Эш
+    /// отставала от первого на 12 очков. На базе 26.11 разрыв 7,5, доля 3,5% —
+    /// по той же формуле, а пункт падал при любом коде. Кто последний —
+    /// решают данные; сейчас это по-прежнему Эш.
     /// </summary>
     private static void Partners(RecommendationEngine engine)
     {
@@ -465,14 +471,28 @@ internal static partial class Program
             Check($"   {DataDragon.Name(id)}: подбор {score[id]:F2} → доля {want:P1}",
                   Math.Abs(weights[id] / total - want) < 1e-9, $"{weights[id] / total:P1}");
         }
-        Check("Эш (у подбора последняя) — меньше 2% пула", weights.GetValueOrDefault(22) / total < 0.02,
-              $"{weights.GetValueOrDefault(22) / total:P1}");
+        var byScore = weights.Keys.OrderByDescending(id => score[id]).ToList();
+        var byWeight = weights.Keys.OrderByDescending(id => weights[id]).ToList();
+        var games = new Dictionary<int, int> { [37] = 32, [201] = 22, [22] = 19, [161] = 15, [910] = 12, [101] = 8, [78] = 8, [117] = 6 };
+        var byGames = weights.Keys.OrderByDescending(id => games[id]).ToList();
+        string NamesOf(IEnumerable<int> ids) => string.Join(", ", ids.Select(DataDragon.Name));
+        Check("доли пула — в порядке очков подбора", byWeight.SequenceEqual(byScore),
+              $"по долям: {NamesOf(byWeight)}; по подбору: {NamesOf(byScore)}");
+        // Без расхождения подбора с играми пункт выше не отличил бы вес по
+        // очкам от веса по играм — так считалось до 14.10.
+        Check("подбор ставит пул не так, как игры за месяц (иначе нечего проверять)", !byScore.SequenceEqual(byGames),
+              $"по играм: {NamesOf(byGames)}");
+        var last = byScore[^1];
+        var lastName = DataDragon.Name(last);
+        Check($"{lastName} (у подбора последняя, {games[last]} игр) весит меньше всех и меньше, чем по играм",
+              weights[last] == weights.Values.Min() && weights[last] / total < (double)games[last] / games.Values.Sum(),
+              $"доля {weights[last] / total:P1}, по играм была бы {(double)games[last] / games.Values.Sum():P1}");
         var hist = new Dictionary<int, HashSet<int>> { [0] = [75, 36], [1] = [141], [2] = [90], [3] = [222] };
         var bans = engine.RecommendBans(state, hist, top: 5);
         foreach (var b in bans)
             Console.WriteLine($"  {DataDragon.Name(b.ChampionId),-14} {b.Score,5:F1}  {string.Join(" | ", b.Reasons.Take(2))}");
-        var hardAshe = Loc.T("reason.hardCounter", DataDragon.Name(22), "\u0001").Split('\u0001')[0];
-        Check("«жёсткой контры» против Эш в пятёрке нет",
+        var hardAshe = Loc.T("reason.hardCounter", lastName, "\u0001").Split('\u0001')[0];
+        Check($"«жёсткой контры» против {lastName} в пятёрке нет",
               !bans.Any(b => b.Reasons.Any(r => r.StartsWith(hardAshe, StringComparison.Ordinal))),
               string.Join(", ", bans.Where(b => b.Reasons.Any(r => r.StartsWith(hardAshe, StringComparison.Ordinal)))
                                     .Select(b => DataDragon.Name(b.ChampionId))));

@@ -18,8 +18,10 @@ namespace Counterplay.Tests;
 /// Первая половина — математика на подставных числах: она обязана повторять
 /// известные примеры (Ари против Мел, 85% у Ясуо) и честно вычитать шум.
 /// Вторая — подбор на живой базе (только чтение): Ари вслепую выше Ясуо,
-/// баны его контр это меняют, известный соперник выключает расчёт, у бота
-/// невыбранный дуо врага считается так же.
+/// баны контр чемпиона мида это меняют, известный соперник выключает расчёт,
+/// у бота невыбранный дуо врага считается так же. Пункты, которым нужен
+/// чемпион с особым свойством (две контры, теги вслепую), берут его из
+/// данных, а не по имени: база меняется каждый день.
 /// </summary>
 internal static class Program
 {
@@ -356,23 +358,41 @@ internal static class Program
         }
 
         // ── Этап 2: часть врагов видна, мид ещё нет ─────────────────────────
-        // Главная контра Ясуо взята врагом на топ, вторая забанена. Ясуо от
-        // этого надёжнее: из пула соперника ушли лучшие ответы.
-        if (ry.Counters.Count >= 2)
+        // Главная контра чемпиона взята врагом на топ, вторая забанена. Он от
+        // этого надёжнее: из пула соперника ушли лучшие ответы. Кто именно —
+        // решают данные: до 27.11 здесь стоял Ясуо, но на базе 26.11 у него
+        // осталась одна названная контра, и этап молча не проверялся. Теперь
+        // берётся Ясуо, если у него их две, иначе — самый рискованный мид с
+        // двумя названными контрами.
+        var subject = risks.Where(x => x.Risk.Counters.Count >= 2)
+                           .OrderByDescending(x => x.Card.ChampionId == Yasuo)
+                           .ThenByDescending(x => x.Risk.Chance)
+                           .Select(x => (Id: x.Card.ChampionId, x.Risk)).FirstOrDefault();
+        Check("на миде есть чемпион с двумя названными контрами", subject.Id != 0,
+              subject.Id != 0 ? $"{DataDragon.Name(subject.Id)}: {string.Join(", ", subject.Risk.Counters.Select(DataDragon.Name))}"
+                              : $"карточек мида {risks.Count}, с контрами {risks.Count(x => x.Risk.Counters.Count > 0)}");
+        if (subject.Id != 0)
         {
-            var c0 = ry.Counters[0]; var c1 = ry.Counters[1];
+            var (sid, rs) = subject;
+            var c0 = rs.Counters[0]; var c1 = rs.Counters[1];
             var st = Draft("middle", enemies: [new DraftPlayer(5, c0, 0, "top", false)], bans: [c1]);
-            var y2 = engine.Recommend(st, 1, [Yasuo]).First();
+            var s2 = engine.Recommend(st, 1, [sid]).First();
             var taken = new HashSet<int> { c0, c1 };
             // Взятый врагом топ ещё и сдвигает поле их мида (кто с кем в одной команде).
-            var ry2 = engine.Blind(Yasuo, "mid", "mid", taken, [(c0, "top")]);
-            Check("видна часть врагов, мида нет — по-прежнему вслепую", y2.Blind, "");
-            Check($"контры Ясуо ({DataDragon.Name(c0)}, {DataDragon.Name(c1)}) заняты — шанс ниже, ожидаемое выше",
-                  ry2.Chance < ry.Chance && ry2.Value > ry.Value,
-                  $"шанс {100 * ry.Chance:F0}% → {100 * ry2.Chance:F0}%, ожидаемое {ry.Value:+0.00;-0.00} → {ry2.Value:+0.00;-0.00}");
-            Check("в карточке — то же ожидаемое", Math.Abs(y2.DirectDelta - ry2.Value) < 1e-9, $"{y2.DirectDelta:+0.00;-0.00}");
+            var rs2 = engine.Blind(sid, "mid", "mid", taken, [(c0, "top")]);
+            Check("видна часть врагов, мида нет — по-прежнему вслепую", s2.Blind, DataDragon.Name(sid));
+            Check($"контры {DataDragon.Name(sid)} ({DataDragon.Name(c0)}, {DataDragon.Name(c1)}) заняты — шанс ниже, ожидаемое выше",
+                  rs2.Chance < rs.Chance && rs2.Value > rs.Value,
+                  $"шанс {100 * rs.Chance:F0}% → {100 * rs2.Chance:F0}%, ожидаемое {rs.Value:+0.00;-0.00} → {rs2.Value:+0.00;-0.00}");
+            Check("в карточке — то же ожидаемое", Math.Abs(s2.DirectDelta - rs2.Value) < 1e-9, $"{s2.DirectDelta:+0.00;-0.00}");
+            // Отдельно от сдвига поля известным врагом: обе контры только в
+            // бане. Пункт выше проходит и тогда, когда занятые остаются в поле
+            // соперника, — шанс снижает один сдвиг поля (проверено 27.11).
+            var rb = engine.Blind(sid, "mid", "mid", taken);
+            Check("обе контры в бане — их больше не называют, шанс ниже",
+                  !rb.Counters.Contains(c0) && !rb.Counters.Contains(c1) && rb.Chance < rs.Chance,
+                  $"шанс {100 * rs.Chance:F0}% → {100 * rb.Chance:F0}%, контры: {string.Join(", ", rb.Counters.Select(DataDragon.Name))}");
         }
-        else Check("у Ясуо нашлись две контры", false, string.Join(", ", ry.Counters));
 
         // ── Последний пик: соперник ответить не успеет — не вслепую ─────────
         // Никто из врагов не пикает после меня — к моему ходу оппонент будет
@@ -423,28 +443,62 @@ internal static class Program
     // тега нет: вывод требовал ещё и ожидаемого не меньше +0,15 пп, а у неё
     // +0,14. Порог не был объяснён нигде; задумано (журнал 04.11) — вывод по
     // шансу, со знаком очков не спорит: «надёжен» — только при плюсе.
+    //
+    // До 27.11 здесь стояла сама Сорака на живой базе. На базе 26.11 типичный
+    // шанс у саппорта упал до 9%, и на 10 пунктов ниже него не может быть
+    // никто: пункт падал при любом коде. Теперь граница проверяется на самом
+    // правиле (Verdict) с числами Сораки от 22.11, а теги на живой базе
+    // сверяются с правилом по всем ролям — кто бы там ни оказался.
     private static void SafeVerdict(RecommendationEngine engine)
     {
-        const int Soraka = 16;
-        int[] bans = [117, 246, 235, Thresh, 54, 11, 25, 910, Yasuo, 39];
-        var st = Draft("utility", bans: [.. bans]);
-        var taken = bans.ToHashSet();
-        var sor = engine.Blind(Soraka, "support", "support", taken);
-        Check("саппорт с банами песочницы: Сорака — «надёжна вслепую»", sor.Verdict == 1,
-              $"ожидание {sor.Value:+0.00;-0.00} пп, шанс контры {100 * sor.Chance:F0}% при типичном {100 * sor.Typical:F0}%");
-        // Правило целиком, по всем саппортам этого драфта: шанс на 10 пунктов
-        // ниже типичного и ожидание в плюсе — «надёжен», и только тогда.
-        var cards = engine.Recommend(st, 200);
-        var wrong = cards.Where(r =>
+        var verdict = typeof(RecommendationEngine).GetMethod("Verdict",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Check("правило вывода найдено (RecommendationEngine.Verdict)", verdict is not null, "");
+        if (verdict is not null)
         {
-            var b = engine.Blind(r.ChampionId, "support", "support", taken);
-            var safe = b.Value > 0 && b.Chance <= b.Typical - 0.10;
-            var tag = r.Badges?.Tags.Any(t => t.Kind == "blind" && t.Sign > 0) == true;
-            return safe != tag;
-        }).Select(r => DataDragon.Name(r.ChampionId)).ToList();
-        Check("«надёжен вслепую» — ровно у тех, у кого шанс контры на 10 ниже типичного и ожидание в плюсе",
-              cards.Count > 0 && wrong.Count == 0,
-              wrong.Count == 0 ? $"карточек {cards.Count}" : string.Join(", ", wrong));
+            int V(double value, double chance, double typical) => (int)verdict.Invoke(null, [value, chance, typical])!;
+            foreach (var (what, value, chance, typical, want) in new[]
+            {
+                ("Сорака 22.11: +0,14 пп, шанс 9% при типичном 28% — надёжна", 0.14, 0.09, 0.28, 1),
+                ("чуть выше нуля и шанс на 11 ниже типичного — надёжен", 0.01, 0.17, 0.28, 1),
+                ("шанс низкий, но ожидаемое ноль — не надёжен", 0.0, 0.05, 0.28, 0),
+                ("ожидаемое в плюсе, но шанс ниже типичного всего на 8 — как все", 0.50, 0.20, 0.28, 0),
+                ("типичный 9%: на 10 ниже некуда — как все", 0.30, 0.0, 0.09, 0),
+                ("ожидаемое в минусе и шанс на 11 выше — рискован", -0.10, 0.39, 0.28, -1),
+                ("шанс высокий, но ожидаемое в плюсе — не рискован", 0.10, 0.50, 0.28, 0),
+            })
+                Check($"правило: {what}", V(value, chance, typical) == want, $"вывод {V(value, chance, typical)}");
+        }
+
+        // Правило целиком, по всем ролям с банами песочницы: шанс на 10 пунктов
+        // ниже типичного и ожидание в плюсе — «надёжен»; на 10 выше и не в
+        // плюсе — «рискован»; тег стоит ровно у тех.
+        int[] bans = [117, 246, 235, Thresh, 54, 11, 25, 910, Yasuo, 39];
+        var taken = bans.ToHashSet();
+        int safeSeen = 0, riskySeen = 0, cardsSeen = 0;
+        foreach (var (role, pos) in new[] { ("top", "top"), ("jungle", "jungle"), ("mid", "middle"),
+                                            ("adc", "bottom"), ("support", "utility") })
+        {
+            var cards = engine.Recommend(Draft(pos, bans: [.. bans]), 200);
+            var wrong = new List<string>();
+            foreach (var r in cards)
+            {
+                var b = engine.Blind(r.ChampionId, role, role, taken);
+                var want = b.Value > 0 && b.Chance <= b.Typical - 0.10 ? 1
+                         : b.Value <= 0 && b.Chance >= b.Typical + 0.10 ? -1 : 0;
+                var tag = r.Badges?.Tags.FirstOrDefault(t => t.Kind == "blind")?.Sign ?? 0;
+                if (want != Math.Sign(tag)) wrong.Add($"{DataDragon.Name(r.ChampionId)} (тег {tag}, по правилу {want})");
+                if (want > 0) safeSeen++;
+                if (want < 0) riskySeen++;
+            }
+            cardsSeen += cards.Count;
+            Check($"{role}: «надёжен» и «рискован вслепую» — ровно у тех, кому это даёт правило",
+                  cards.Count > 0 && wrong.Count == 0,
+                  wrong.Count == 0 ? $"карточек {cards.Count}" : string.Join(", ", wrong.Take(4)));
+        }
+        // Без единого тега сверка выше пройдёт и на сломанном выводе.
+        Check("на живой базе есть и «надёжные», и «рискованные»", safeSeen > 0 && riskySeen > 0,
+              $"надёжных {safeSeen}, рискованных {riskySeen} из {cardsSeen}");
     }
 
     // ── Поле соперника по уже взятым врагам ─────────────────────────────────
