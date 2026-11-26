@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Отчёт о действиях в клиенте за драфт: счётчики исходов (пик, бан,
+       чат, спеллы, предметы), тело отчёта, совпадение имён с сайтом и
+       исходы чата и спеллов на подставном клиенте. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Counterplay.Tests</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Counterplay.csproj" />
+    <Compile Include="..\Shared\FakeLcu.cs" />
+  </ItemGroup>
+
+</Project>

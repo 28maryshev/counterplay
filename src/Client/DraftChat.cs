@@ -16,8 +16,11 @@ public static class DraftChat
     public const int MaxLength = 150;
 
     /// <summary>
-    /// Отправить текст в чат текущего драфта. Ответ — HTTP-код отправки:
-    /// 404 — беседы драфта нет (драфт кончился или ещё не открыт), 0 — сорвалось.
+    /// Отправить текст в чат текущего драфта. Ответ — HTTP-код отправки;
+    /// <see cref="ClientActionStats.NoConversation"/> — беседы драфта нет
+    /// (драфт кончился или ещё не открыт), 0 — сорвалось. Исход учитывается в
+    /// <see cref="ClientActionStats"/>: список бесед не отдался — его код с
+    /// пометкой `list`; беседы драфта нет — какие беседы были.
     /// </summary>
     public static async Task<int> SendAsync(LcuHttpClient http, string text, CancellationToken ct)
     {
@@ -26,20 +29,52 @@ public static class DraftChat
         try
         {
             var (s, list) = await http.GetAsync("/lol-chat/v1/conversations", ct);
-            var id = s is >= 200 and < 300 ? FindConversation(list) : null;
+            if (s is < 200 or >= 300)
+            {
+                Log.Write($"чат драфта: список бесед → {s}");
+                return ClientActionStats.Record(ClientActionStats.Chat, s, "list");
+            }
+            var id = FindConversation(list);
             if (id is null)
             {
-                Log.Write($"чат драфта: беседы нет (беседы → {s}: {Kinds(list)})");
-                return 404;
+                Log.Write($"чат драфта: беседы нет (беседы: {Kinds(list)})");
+                return ClientActionStats.Record(ClientActionStats.Chat, ClientActionStats.NoConversation, TypesOf(list));
             }
             var (code, resp) = await http.PostAsync(
                 $"/lol-chat/v1/conversations/{Uri.EscapeDataString(id)}/messages", Message(body), ct);
             Log.Write(code is >= 200 and < 300
                 ? $"чат драфта: отправлено {body.Length} знаков"
                 : $"чат драфта: {code}: {Trim(resp)}");
-            return code;
+            return ClientActionStats.Record(ClientActionStats.Chat, code);
         }
-        catch (Exception ex) { Log.Write($"чат драфта: сорвалось — {ex.Message}"); return 0; }
+        catch (Exception ex)
+        {
+            Log.Write($"чат драфта: сорвалось — {ex.Message}");
+            return ClientActionStats.Record(ClientActionStats.Chat, ClientActionStats.NoAnswer);
+        }
+    }
+
+    /// <summary>
+    /// Какие виды бесед есть в клиенте — для отчёта, когда беседы драфта
+    /// среди них нет: `chat,customGame`. По этому видно, как беседу драфта
+    /// зовёт клиент, у которого она не нашлась (клиент Tencent не видели).
+    /// Не список — null.
+    /// </summary>
+    public static string? TypesOf(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+            var types = doc.RootElement.EnumerateArray()
+                .Select(c => c.ValueKind == JsonValueKind.Object && c.TryGetProperty("type", out var t)
+                             && t.ValueKind == JsonValueKind.String ? t.GetString() : null)
+                .Where(t => !string.IsNullOrEmpty(t))
+                .Distinct()
+                .Order(StringComparer.Ordinal);
+            return string.Join(",", types) is { Length: > 0 } s ? s : "none";
+        }
+        catch (JsonException) { return null; }
     }
 
     /// Адрес беседы драфта из списка бесед клиента; нет такой — null.

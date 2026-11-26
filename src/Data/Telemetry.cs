@@ -87,6 +87,36 @@ public static class Telemetry
         catch { /* как и пинг: не дошло — не беда */ }
     }
 
+    /// <summary>
+    /// Отчёт о действиях в клиенте за драфт: по каждому виду — сколько
+    /// удалось, сколько нет, код и пояснение последней неудачи. Шлёт
+    /// `Program.FlushClientActions`, когда драфт кончился. Ни чемпионов, ни
+    /// текста фраз — только счёт и коды клиента. Сервер и версию сайт берёт
+    /// из отчёта о подключении этой установки.
+    /// </summary>
+    public static async Task ReportActionsAsync(IReadOnlyList<ClientActionStats.Entry> entries)
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            if (Secret.Length > 0)
+                http.DefaultRequestHeaders.Add("x-telemetry-secret", Secret);
+            using var content = new StringContent(
+                ActionsReportJson(DeviceId(), entries), Encoding.UTF8, "application/json");
+            await http.PostAsync(Url + "/actions", content);
+        }
+        catch { /* как и пинг: не дошло — не беда */ }
+    }
+
+    /// Тело отчёта о действиях. Имена полей читает сайт
+    /// (`app/api/telemetry/actions/route.ts`) — менять только вместе.
+    public static string ActionsReportJson(string installId, IReadOnlyList<ClientActionStats.Entry> entries) =>
+        JsonSerializer.Serialize(new
+        {
+            installId,
+            actions = entries.Select(e => new { kind = e.Kind, ok = e.Ok, fail = e.Fail, code = e.Code, detail = e.Detail })
+        });
+
     /// Тело отчёта о подключении. Имена полей читает сайт
     /// (`app/api/telemetry/client/route.ts`) — менять только вместе.
     public static string ClientReportJson(

@@ -36,6 +36,16 @@ internal sealed class FakeLcu : IDisposable
     /// Куда стучаться: <c>new LcuHttpClient(fake.Credentials)</c>.
     public LcuCredentials Credentials { get; }
 
+    /// <summary>
+    /// Ответы, заданные проверкой: путь → (код, тело). Проверяются первыми и
+    /// при любом методе, в обход журнала игр. Нужны тем, кому мало журнала:
+    /// чат драфта, спеллы, наборы предметов (ClientActions).
+    /// </summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<string, (int Status, string Body)> Fixed { get; } = [];
+
+    /// Что спрашивали — «МЕТОД путь», по порядку прихода.
+    public System.Collections.Concurrent.ConcurrentQueue<string> Requests { get; } = [];
+
     /// Подробные игры по номеру (<c>/lol-match-history/v1/games/{id}</c>) —
     /// тело как у клиента; номера нет — 404.
     public Dictionary<long, string> Details { get; } = [];
@@ -119,10 +129,11 @@ internal sealed class FakeLcu : IDisposable
         {
             using var ssl = new SslStream(c.GetStream());
             await ssl.AuthenticateAsServerAsync(_cert);
-            var path = await ReadPath(ssl);
-            var (status, body) = Route(path);
+            var (method, path) = await ReadRequest(ssl);
+            Requests.Enqueue($"{method} {path}");
+            var (status, body) = Fixed.TryGetValue(path, out var f) ? f : Route(path);
             var bytes = Encoding.UTF8.GetBytes(body);
-            var head = $"HTTP/1.1 {status} {(status == 200 ? "OK" : "Not Found")}\r\n"
+            var head = $"HTTP/1.1 {status} {(status is >= 200 and < 300 ? "OK" : "Not Found")}\r\n"
                      + "Content-Type: application/json\r\n"
                      + $"Content-Length: {bytes.Length}\r\nConnection: close\r\n\r\n";
             await ssl.WriteAsync(Encoding.ASCII.GetBytes(head));
@@ -132,19 +143,45 @@ internal sealed class FakeLcu : IDisposable
         catch { /* клиент закрыл соединение — его дело */ }
     }
 
-    /// Строка запроса до пустой строки заголовков; тела у GET нет.
-    private static async Task<string> ReadPath(Stream s)
+    /// <summary>
+    /// Метод и путь из строки запроса. Тело (у PATCH, POST, PUT) дочитывается
+    /// по Content-Length: закрыть соединение с непрочитанным телом — значит
+    /// оборвать его, и клиент может не получить ответ. У GET тела нет.
+    /// </summary>
+    private static async Task<(string Method, string Path)> ReadRequest(Stream s)
     {
         var buf = new byte[8192];
-        var sb = new StringBuilder();
-        while (!sb.ToString().Contains("\r\n\r\n"))
+        var data = new List<byte>();
+        int headEnd;
+        while ((headEnd = HeadEnd(data)) < 0)
         {
             var n = await s.ReadAsync(buf);
             if (n == 0) break;
-            sb.Append(Encoding.ASCII.GetString(buf, 0, n));
+            data.AddRange(buf.AsSpan(0, n).ToArray());
         }
-        var line = sb.ToString().Split("\r\n")[0].Split(' ');
-        return line.Length > 1 ? line[1] : "";
+        var head = Encoding.ASCII.GetString(data.ToArray(), 0, headEnd < 0 ? data.Count : headEnd);
+        var lines = head.Split("\r\n");
+        var length = lines.Skip(1)
+            .Select(l => l.Split(':', 2))
+            .Where(p => p.Length == 2 && p[0].Trim().Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
+            .Select(p => int.TryParse(p[1].Trim(), out var v) ? v : 0)
+            .FirstOrDefault();
+        var have = headEnd < 0 ? 0 : data.Count - headEnd - 4;
+        while (have < length)
+        {
+            var n = await s.ReadAsync(buf);
+            if (n == 0) break;
+            have += n;
+        }
+        var line = lines[0].Split(' ');
+        return (line[0], line.Length > 1 ? line[1] : "");
+    }
+
+    private static int HeadEnd(List<byte> d)
+    {
+        for (int i = 0; i + 3 < d.Count; i++)
+            if (d[i] == '\r' && d[i + 1] == '\n' && d[i + 2] == '\r' && d[i + 3] == '\n') return i;
+        return -1;
     }
 
     private (int, string) Route(string path)

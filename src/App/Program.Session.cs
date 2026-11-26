@@ -136,10 +136,15 @@ partial class Program
         // Очередь текущей игры — из геймфлоу: по ней драфт Swiftplay не
         // показывается, а ARAM: Mayhem идёт как ARAM (см. ForQueue).
         int queueId = 0;
-        overlay.HoverHandler    = champId => RunesImporter.HoverChampionAsync(http, myPickActionId, champId, ct);
-        overlay.LockHandler     = champId => RunesImporter.LockChampionAsync(http, myPickActionId, champId, ct);
-        overlay.BanHoverHandler = champId => RunesImporter.HoverChampionAsync(http, myBanActionId, champId, ct);
-        overlay.BanLockHandler  = champId => RunesImporter.LockChampionAsync(http, myBanActionId, champId, ct);
+        // Исход каждого действия — в отчёт о действиях за драфт (Program.ClientActions).
+        overlay.HoverHandler    = Tracked(ClientActionStats.Hover, () => myPickActionId,
+                                          (a, c) => RunesImporter.HoverChampionAsync(http, a, c, ct));
+        overlay.LockHandler     = Tracked(ClientActionStats.Pick, () => myPickActionId,
+                                          (a, c) => RunesImporter.LockChampionAsync(http, a, c, ct));
+        overlay.BanHoverHandler = Tracked(ClientActionStats.BanHover, () => myBanActionId,
+                                          (a, c) => RunesImporter.HoverChampionAsync(http, a, c, ct));
+        overlay.BanLockHandler  = Tracked(ClientActionStats.Ban, () => myBanActionId,
+                                          (a, c) => RunesImporter.LockChampionAsync(http, a, c, ct));
         // Кнопки фраз — в чат драфта; беседу DraftChat находит сам при каждой отправке.
         overlay.ChatHandler     = text => DraftChat.SendAsync(http, text, ct);
 
@@ -421,6 +426,8 @@ partial class Program
                     // для НЕЁ (соло-дуо не переезжает во флекс, и наоборот).
                     if (QueueKeyOf(ev.Data) is { } qk && PoolStore.SetQueue(qk))
                         overlay.RefreshPoolMode();
+                    // Драфт кончился — отчёт о действиях в нём (один: счётчики обнуляются).
+                    if (phase != "ChampSelect") FlushClientActions();
                     // Фаза геймфлоу — единственный источник правды для трея.
                     if (phase is "GameStart" or "InProgress" or "Reconnect")
                     {

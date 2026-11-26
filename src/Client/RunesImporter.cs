@@ -90,9 +90,13 @@ public static class RunesImporter
             });
 
             var (s, _) = await http.PostAsync("/lol-perks/v1/pages", payload, ct);
-            return s is >= 200 and < 300;
+            return ClientActionStats.Succeeded(ClientActionStats.Record(ClientActionStats.Runes, s));
         }
-        catch { return false; }
+        catch
+        {
+            ClientActionStats.Record(ClientActionStats.Runes, ClientActionStats.NoAnswer);
+            return false;
+        }
     }
 
     /// <summary>
@@ -187,9 +191,13 @@ public static class RunesImporter
 
             var payload = JsonSerializer.Serialize(new { spell1Id = a, spell2Id = b });
             var (ps, _) = await http.PatchAsync("/lol-champ-select/v1/session/my-selection", payload, ct);
-            return ps is >= 200 and < 300;
+            return ClientActionStats.Succeeded(ClientActionStats.Record(ClientActionStats.Spells, ps));
         }
-        catch { return false; }
+        catch
+        {
+            ClientActionStats.Record(ClientActionStats.Spells, ClientActionStats.NoAnswer);
+            return false;
+        }
     }
 
     private static long GetLong(JsonElement e, string name) =>
@@ -323,7 +331,12 @@ public static class RunesImporter
         try
         {
             var (ss, sbody) = await http.GetAsync("/lol-summoner/v1/current-summoner", ct);
-            if (ss != 200) return false;
+            if (ss != 200)
+            {
+                // Без номера призывателя набор не положить — неудача на шаге «кто я».
+                ClientActionStats.Record(ClientActionStats.Items, ss, "summoner");
+                return false;
+            }
             using var sdoc = JsonDocument.Parse(sbody);
             var summonerId = sdoc.RootElement.GetProperty("summonerId").GetInt64();
 
@@ -403,8 +416,12 @@ public static class RunesImporter
 
             var payload = JsonSerializer.Serialize(new { accountId = 0, itemSets = sets, timestamp = 0 });
             var (ps, _) = await http.PutAsync($"/lol-item-sets/v1/item-sets/{summonerId}/sets", payload, ct);
-            return ps is >= 200 and < 300;
+            return ClientActionStats.Succeeded(ClientActionStats.Record(ClientActionStats.Items, ps));
         }
-        catch { return false; }
+        catch
+        {
+            ClientActionStats.Record(ClientActionStats.Items, ClientActionStats.NoAnswer);
+            return false;
+        }
     }
 }
