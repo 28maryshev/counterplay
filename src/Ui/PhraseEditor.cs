@@ -100,7 +100,7 @@ public static class PhraseEditor
         var lang = ChatPhrases.Lang(s);
         foreach (var b in ChatPhrases.Defaults())
         {
-            var line = SlotBox.Display(ChatPhrases.StdText(lang, b.Std), ChipName(b.Kind), Loc.T("phrases.slotTip"));
+            var line = SlotBox.Display(ChatPhrases.StdText(lang, b.Std), ChipName(b.Kind, lang), Loc.T("phrases.slotTip"));
             line.FontFamily = SettingsWindow.Font("UiFont");
             line.FontSize = 12.5;
             line.Foreground = new SolidColorBrush(Text);
@@ -172,8 +172,8 @@ public static class PhraseEditor
         ctx.Changed();
     }
 
-    /// Подпись блока по виду — то же слово, что у вида: «Роль» или «Перечень».
-    internal static string ChipName(string kind) => KindName(kind);   // с большой буквы, как вид (владелец 26.11)
+    /// Подпись блока по виду — то же слово, что у вида, на языке фраз: «Роль» или «Перечень».
+    internal static string ChipName(string kind, string lang) => KindName(kind, lang);   // с большой буквы, как вид (владелец 26.11)
 
     /// <summary>
     /// Строка кнопки: номер, вид, текст, «убрать». У кнопки с выбором поле — с
@@ -199,7 +199,7 @@ public static class PhraseEditor
             VerticalAlignment = VerticalAlignment.Center,
         });
 
-        var kind = Combo(ChatPhrases.Kinds.Select(k => (k, KindName(k))), b.Kind, k =>
+        var kind = Combo(ChatPhrases.Kinds.Select(k => (k, KindName(k, ChatPhrases.Lang(s)))), b.Kind, k =>
         {
             ChatPhrases.SetKind(s, i, k);
             ctx.Changed();
@@ -233,7 +233,7 @@ public static class PhraseEditor
         FrameworkElement field;
         if (ChatPhrases.IsChoice(b))
         {
-            var slot = new SlotBox(ChipName(b.Kind),
+            var slot = new SlotBox(ChipName(b.Kind, ChatPhrases.Lang(s)),
                                    Loc.T("phrases.slotTip"), ChatPhrases.Text(s, b))
             {
                 VerticalAlignment = VerticalAlignment.Stretch, ToolTip = Loc.T("phrases.field", i + 1),
@@ -417,7 +417,12 @@ public static class PhraseEditor
             ?.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0,
                 System.Windows.Input.MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
 
-    internal static string KindName(string kind) => Loc.T(kind switch
+    /// <summary>
+    /// Название вида кнопки — на языке фраз, а не программы: вид и блок — часть
+    /// самой фразы, и с английскими фразами блок читается «Role» (владелец
+    /// 26.11: «я переключил язык, а выпадающий список остался на том же»).
+    /// </summary>
+    internal static string KindName(string kind, string lang) => Loc.TIn(lang, kind switch
     {
         ChatPhrases.Role => "phrases.kindRole",
         ChatPhrases.List => "phrases.kindList",

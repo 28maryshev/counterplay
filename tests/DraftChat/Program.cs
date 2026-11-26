@@ -529,6 +529,25 @@ internal static class Program
         Check((string?)neighbour?.ToolTip == "Можно мне топ?", "у соседней кнопки «Можно мне топ?» — свои варианты только у первой",
               neighbour?.ToolTip?.ToString() ?? "нет");
 
+        // Язык фраз английский — вид кнопки и подпись блока тоже по-английски
+        // (владелец 26.11: «переключил язык, а выпадающий список остался»).
+        var enSettings = AppSettings.Current.Clone();
+        ChatPhrases.SetLang(enSettings, "en");
+        AppSettings.Apply(enSettings);
+        var edit3 = w.OpenPhrases();
+        ShowHidden(edit3);
+        Pump();
+        var kind0 = PhrasesWindow.Find<System.Windows.Controls.ComboBox>(edit3).First(c => c.Items.Count == ChatPhrases.Kinds.Length);
+        var kindLabel = (kind0.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content as string;
+        var chipLabel = ChipText((System.Windows.Controls.RichTextBox)edit3.Fields()[0]);
+        Check(kindLabel == "Role" && chipLabel == "Role", "язык фраз английский — вид кнопки и подпись блока «Role»",
+              $"{kindLabel} / {chipLabel}");
+        edit3.Close();
+        var ruSettings = AppSettings.Current.Clone();
+        ChatPhrases.SetLang(ruSettings, "ru");
+        AppSettings.Apply(ruSettings);
+        Pump();
+
         // Выключили в настройках — полосы нет, места под неё тоже.
         var off = AppSettings.Current.Clone();
         off.DraftPhrases = false;
@@ -621,6 +640,12 @@ internal static class Program
         w.Opacity = 0;
         w.Show();
     }
+
+    /// Подпись первого блока в поле с блоком.
+    private static string? ChipText(System.Windows.Controls.RichTextBox box) =>
+        box.Document.Blocks.OfType<System.Windows.Documents.Paragraph>().SelectMany(p => p.Inlines)
+            .OfType<System.Windows.Documents.InlineUIContainer>()
+            .Select(c => (c.Child as System.Windows.Controls.Border)?.Child).OfType<TextBlock>().FirstOrDefault()?.Text;
 
     /// Снимок одного элемента крупно (во столько-то раз) — разглядеть мелкое:
     /// ровно ли стоит надпись в плашке блока.
