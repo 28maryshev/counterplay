@@ -44,17 +44,30 @@ internal static class Program
     private static void ParsesClientAnswers()
     {
         Console.WriteLine("разбор ответов клиента:");
-        Check(ClientServerInfo.ParseRegion(
-                  """{"locale":"ru_RU","region":"RU","webLanguage":"ru","webRegion":"ru"}""") == "RU",
+        Check(ClientServerInfo.ParseField(
+                  """{"locale":"en_GB","region":"EUW","webLanguage":"en","webRegion":"euw"}""", "region") == "EUW",
               "регион из region-locale");
-        Check(ClientServerInfo.ParseRegion("""{"locale":"zh_CN","region":"TENCENT"}""") == "TENCENT",
+        Check(ClientServerInfo.ParseField("""{"locale":"zh_CN","region":"TENCENT"}""", "region") == "TENCENT",
               "регион китайского клиента");
-        Check(ClientServerInfo.ParseRegion("""{"locale":"en_US"}""") == null, "без поля region — пусто");
-        Check(ClientServerInfo.ParseRegion("<html>") == null, "не JSON — пусто, без исключения");
-        Check(ClientServerInfo.ParseRegion("\"RU\"") == null, "строка вместо объекта — пусто");
+        Check(ClientServerInfo.ParseField("""{"locale":"en_US"}""", "region") == null, "без поля region — пусто");
+        Check(ClientServerInfo.ParseField("<html>", "region") == null, "не JSON — пусто, без исключения");
+        Check(ClientServerInfo.ParseField("\"RU\"", "region") == null, "строка вместо объекта — пусто");
 
-        Check(ClientServerInfo.ParseString("\"EUW1\"") == "EUW1", "платформа — строка JSON");
-        Check(ClientServerInfo.ParseString("\"16.23.725.1234\"") == "16.23.725.1234", "версия игры — строка JSON");
+        // Ответы живого клиента 26.11.2026 (ник и номера игрока заменены).
+        Check(ClientServerInfo.ParseField(
+                  """{"gameName":"x","gameTag":"y","platformId":"EUW1","puuid":"z","summonerId":1}""",
+                  "platformId") == "EUW1",
+              "платформа из /lol-chat/v1/me");
+        Check(ClientServerInfo.ParseField(
+                  """{"environment":"euw1","userId":"1","userName":""}""", "environment") == "euw1",
+              "окружение клиента Riot — запасной путь платформы");
+        Check(ClientServerInfo.ParseField(
+                  """{"errorCode":"RPC_ERROR","httpStatus":404,"message":"Could not find the namespace \\"LoginDataPacket\\""}""",
+                  "platformId") == null,
+              "404 клиента — не платформа");
+        var gv = ClientServerInfo.Version(ClientServerInfo.ParseString(
+            "\"16.23.8418428+branch.releases-16-23.code.public.content.release.anticheat.vanguard\""));
+        Check(gv == "16.23.8418428", $"версия живого клиента — номер без ветки сборки ({gv ?? "пусто"})");
         Check(ClientServerInfo.ParseString(
                   """{"errorCode":"RPC_ERROR","httpStatus":404,"message":"x"}""") == null,
               "ошибка клиента (объект) — не значение");
@@ -77,6 +90,8 @@ internal static class Program
         Check(ClientServerInfo.Code("") == null, "пустая строка — не код");
 
         Check(ClientServerInfo.Version("16.23.725.1234") == "16.23.725.1234", "номер версии проходит");
+        Check(ClientServerInfo.Version("16.23.1+x") == "16.23.1", "хвост после + отрезается");
+        Check(ClientServerInfo.Version("+branch") == null, "без номера перед + — не версия");
         Check(ClientServerInfo.Version("Releases/16.23") == null, "лишние знаки — не версия");
         Check(ClientServerInfo.Version(".23") == null, "с точки — не версия");
         Check(ClientServerInfo.Version(new string('1', 33)) == null, "длиннее 32 — не версия");
