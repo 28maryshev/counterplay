@@ -70,21 +70,10 @@ public partial class OverlayWindow
     }
 
     // Рамка центра: мигание — анимацией прозрачности на эти секунды, снимается
-    // вместе с рамкой (в покое окно не должно рисовать кадров). Меряет
-    // tests/IdleFrames, правила — журнал 2026-11-26-pick-alarm-gpu.
-    //
-    // Кадров — 24 в секунду, а не 60 по умолчанию: окно прозрачное, каждый
-    // кадр — всё окно целиком. 24, а не 20: WPF округляет частоту, и 20 на деле
-    // давали 10 кадров — мигание рвалось; 24 дают 24–25.
-    //
-    // Часы анимации — свои и останавливаются явно (Controller.Stop/Remove).
-    // BeginAnimation(..., null) только отвязывает бесконечную анимацию от
-    // свойства, а её часы тикают дальше, пока их не соберёт сборщик мусора, —
-    // и всё это время окно рисует кадры. Так было в первой версии рамки (25.11):
-    // после хода WPF просил кадры без конца.
-    public const int PickAlarmFps = 24;
-    private AnimationClock? _alarmClock;
-
+    // вместе с рамкой (в покое окно не должно рисовать кадров). 24 кадра в
+    // секунду, часы останавливаются явно — Loops. Меряет tests/IdleFrames.
+    // В первой версии рамки (25.11) мигание снималось BeginAnimation(…, null),
+    // и после хода WPF просил кадры без конца.
     private void SetPickAlarm(bool on)
     {
         if (on == _pickAlarm) return;
@@ -92,21 +81,15 @@ public partial class OverlayWindow
         if (on)
         {
             PickAlarmFrame.Visibility = Visibility.Visible;
-            var blink = new DoubleAnimation(1, 0.15, TimeSpan.FromSeconds(0.45))
+            Loops.Start(PickAlarmFrame, OpacityProperty, new DoubleAnimation(1, 0.15, TimeSpan.FromSeconds(0.45))
             {
                 AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut },
-            };
-            Timeline.SetDesiredFrameRate(blink, PickAlarmFps);
-            _alarmClock = blink.CreateClock();
-            PickAlarmFrame.ApplyAnimationClock(OpacityProperty, _alarmClock);
+            }, Loops.BlinkFps);
         }
         else
         {
-            if (_alarmClock?.Controller is { } c) { c.Stop(); c.Remove(); }
-            _alarmClock = null;
-            PickAlarmFrame.ApplyAnimationClock(OpacityProperty, null);
+            Loops.Stop(PickAlarmFrame, OpacityProperty);
             PickAlarmFrame.Visibility = Visibility.Collapsed;
         }
     }

@@ -75,7 +75,11 @@ internal static class Program
               allowed: ["Dot1", "Dot2", "Dot3"]);
         Scene(w, nextTick, "ожидание клиента, окно в трее", w.Hide);
         w.Show();
-        Scene(w, nextTick, "экран готовности", () => w.ShowReady(Loc.T("status.readyIdle")));
+        // Качается база: по полосе бежит блик — по делу, пока идёт загрузка.
+        // Загрузка кончилась — блик стоит, и часы его анимации тоже.
+        Scene(w, nextTick, "загрузка базы", () => w.ShowProgress("загрузка базы", 0.4),
+              allowed: ["DlBarPulse", "Dot1", "Dot2", "Dot3"]);
+        Scene(w, nextTick, "экран готовности после загрузки", () => w.ShowReady(Loc.T("status.readyIdle")));
         Scene(w, nextTick, "профиль в лобби", () =>
         {
             w.ShowSession(Session());
@@ -97,13 +101,18 @@ internal static class Program
                 var d = Draft(ban: true);
                 w.UpdateBans(engine.RecommendBans(d), d, engine);
             });
-            Scene(w, nextTick, "драфт: пики", () =>
-            {
-                var d = Draft(ban: false);
-                w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
-            });
+            Scene(w, nextTick, "драфт: пики", () => ShowDraft(w, engine, Draft(ban: false)));
+            DamageWarning(w, nextTick, engine);
             PickTurn(w, nextTick, engine);
             Scene(w, nextTick, "после драфта", () => w.DraftEnded());
+            // Драфт кончился, пока полоса урона мигала: окно ушло на экран
+            // ожидания, а мигание на скрытой полосе продолжалось бы до
+            // следующего драфта.
+            Scene(w, nextTick, "после драфта с перекосом урона на экране", () =>
+            {
+                ShowDraft(w, engine, Skewed());
+                w.DraftEnded();
+            });
         }
 
         w.Close();
@@ -155,7 +164,7 @@ internal static class Program
     /// анимация, а смена картинки: WPF кадров сам не просит, окно
     /// перерисовывается, когда меняется кольцо или цифра, — не чаще 4 раз в
     /// секунду. Мигание рамки центра в последние 8 секунд моего хода —
-    /// единственное, что крутится, и не чаще 20 кадров в секунду. В чужой ход
+    /// единственное, что крутится, и около 24 кадров в секунду. В чужой ход
     /// не мигает ничего. Ход кончился — тишина, такт отсчёта стоит.
     /// </summary>
     private static void PickTurn(OverlayWindow w, Func<TimeSpan> nextTick, RecommendationEngine engine)
@@ -186,21 +195,15 @@ internal static class Program
         Check("отсчёт меняет картинку не чаще 4–5 раз в секунду", clock.Visibility == Visibility.Visible && perSec <= 5,
               $"{perSec:0.0} перерисовок в секунду");
 
-        // Последние 8 секунд моего хода: крутится только рамка, 20 кадров в секунду.
+        // Последние 8 секунд моего хода: крутится только рамка, около 24 кадров в секунду.
         w.SetPickTimer(DateTime.UtcNow.AddSeconds(6), 30000, mine: true);
         Wait(TimeSpan.FromMilliseconds(400));
         var moving = Moving(w);
         Check("последние секунды моего хода: крутится только рамка центра",
               frame.IsVisible && moving.All(m => m.StartsWith("PickAlarmFrame.")), string.Join("; ", moving));
-        var opacities = new HashSet<double>();
-        var sampler = new DispatcherTimer(DispatcherPriority.Send) { Interval = TimeSpan.FromMilliseconds(1) };
-        sampler.Tick += (_, _) => opacities.Add(frame.Opacity);
-        sampler.Start();
-        Wait(TimeSpan.FromSeconds(1));
-        sampler.Stop();
-        Check($"мигание рамки — около {OverlayWindow.PickAlarmFps} кадров в секунду, не 60 и не рвётся",
-              opacities.Count is > OverlayWindow.PickAlarmFps / 2 and <= OverlayWindow.PickAlarmFps + 4,
-              $"{opacities.Count} разных кадров за секунду");
+        var fps = FramesPerSecond(frame);
+        Check($"мигание рамки — около {Loops.BlinkFps} кадров в секунду, не 60 и не рвётся",
+              fps is > Loops.BlinkFps / 2 and <= Loops.BlinkFps + 4, $"{fps} кадров за секунду");
 
         // Ход кончился сам: рамка снята, кадров не просит, такт стоит.
         Wait(TimeSpan.FromSeconds(6));
@@ -218,6 +221,45 @@ internal static class Program
         w.SetPickTimer(null, 0, mine: false);
         Wait(TimeSpan.FromMilliseconds(200));
     }
+
+    /// <summary>
+    /// Перекос урона (26.11): у врагов одни физики — полоса урона и подпись
+    /// «чем закрыться» мигают, пока перекос есть, и не чаще 24 кадров в
+    /// секунду (мигание часами в драфте, а каждый кадр — всё окно). Перекос
+    /// ушёл — тишина: мигание снималось BeginAnimation(…, null), и его часы
+    /// тикали до сборки мусора.
+    /// </summary>
+    private static void DamageWarning(OverlayWindow w, Func<TimeSpan> nextTick, RecommendationEngine engine)
+    {
+        var warn = (FrameworkElement)w.FindName("EnemyDmgWarn");
+        Scene(w, nextTick, "драфт: перекос урона у врагов", () => ShowDraft(w, engine, Skewed()),
+              allowed: ["EnemyDmgBar", "EnemyDmgWarn", "MyDmgBar", "MyDmgWarn"]);
+        Check("перекос урона на экране", warn.IsVisible,
+              warn.IsVisible ? "подпись видна" : "подписи нет — в базе нет замеров урона или состав не тот");
+        var fps = FramesPerSecond(warn);
+        Check($"мигание перекоса — около {Loops.BlinkFps} кадров в секунду, не 60",
+              fps is > Loops.BlinkFps / 2 and <= Loops.BlinkFps + 4, $"{fps} кадров за секунду");
+        Scene(w, nextTick, "драфт: перекос урона ушёл", () => ShowDraft(w, engine, Draft(ban: false)));
+    }
+
+    /// Сколько раз за секунду сменилась прозрачность элемента — столько кадров
+    /// анимации WPF ей дал. Считаем смены, а не разные значения: кадры
+    /// выровнены по частоте экрана, и у мигания туда-обратно значения на спаде
+    /// и на подъёме совпадают — разных выходит меньше, чем кадров.
+    private static int FramesPerSecond(UIElement e)
+    {
+        var changes = 0;
+        var last = e.Opacity;
+        var sampler = new DispatcherTimer(DispatcherPriority.Send) { Interval = TimeSpan.FromMilliseconds(1) };
+        sampler.Tick += (_, _) => { if (e.Opacity != last) { changes++; last = e.Opacity; } };
+        sampler.Start();
+        Wait(TimeSpan.FromSeconds(1));
+        sampler.Stop();
+        return changes;
+    }
+
+    private static void ShowDraft(OverlayWindow w, RecommendationEngine engine, DraftState d) =>
+        w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
 
     /// Тень окна — на подложке рядом с содержимым, не на его предке. Эффект
     /// на предке размывается заново на каждый кадр любой анимации внутри — по
@@ -354,6 +396,16 @@ internal static class Program
             MyPickActionId: -1, MyPickInProgress: false, ActiveCells: [],
             FirstPickCell: -1, MyBanActionId: ban ? 0 : -1, MyBanInProgress: ban, MyBanDone: !ban);
     }
+
+    // Тот же драфт, у врагов одни физики: Зед, Ясуо, Дрейвен, Киндред, Пайк.
+    private static DraftState Skewed() => Draft(ban: false) with
+    {
+        TheirTeam =
+        [
+            new(5, 238, 0, "", false), new(6, 157, 0, "", false), new(7, 119, 0, "", false),
+            new(8, 203, 0, "", false), new(9, 555, 0, "", false),
+        ],
+    };
 
     // ── Служебное ─────────────────────────────────────────────────────────────
 

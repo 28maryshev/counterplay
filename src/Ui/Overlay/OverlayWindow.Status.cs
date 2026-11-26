@@ -277,7 +277,11 @@ public partial class OverlayWindow
             ShowIdle();
         });
 
-    // Управление бегущим бликом на полосе прогресса.
+    // Управление бегущим бликом на полосе прогресса. Часы блика
+    // останавливаются явно (Loops): до 26.11 он снимался BeginAnimation(…, null),
+    // и после загрузки окно рисовало кадры до сборки мусора. Частота — полная:
+    // блик едет, а не мигает, на 24 кадрах он шёл бы рывками, и живёт он
+    // только пока идёт загрузка.
     private bool _pulseOn;
 
     private void PulseAnim(bool on)
@@ -287,16 +291,12 @@ public partial class OverlayWindow
         if (on)
         {
             DlBarPulse.Visibility = Visibility.Visible;
-            var anim = new System.Windows.Media.Animation.DoubleAnimation(-70, 260,
-                new Duration(TimeSpan.FromSeconds(1.1)))
-            {
-                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
-            };
-            DlBarPulseT.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, anim);
+            Loops.Start(DlBarPulseT, System.Windows.Media.TranslateTransform.XProperty,
+                new DoubleAnimation(-70, 260, new Duration(TimeSpan.FromSeconds(1.1))));
         }
         else
         {
-            DlBarPulseT.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, null);
+            Loops.Stop(DlBarPulseT, System.Windows.Media.TranslateTransform.XProperty);
             DlBarPulse.Visibility = Visibility.Collapsed;
         }
     }

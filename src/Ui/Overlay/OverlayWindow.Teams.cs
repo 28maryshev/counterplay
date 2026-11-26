@@ -61,6 +61,11 @@ public partial class OverlayWindow
     /// Мигание полосы урона. Включаем и выключаем ровно один раз на переход:
     /// перезапуск анимации на каждой перерисовке сбивал бы её фазу, и полоса
     /// дёргалась бы вместо ровного пульса.
+    ///
+    /// Мигает оно весь драфт, пока перекос есть, поэтому 24 кадра в секунду, а
+    /// часы останавливаются явно (Loops). До 26.11 — 60 кадров, снятие
+    /// BeginAnimation(…, null), после которого окно рисовало кадры до сборки
+    /// мусора, а конец драфта мигание не гасил вовсе (tests/IdleFrames).
     private void SetDamageWarning(Border bar, TextBlock warn, string? text)
     {
         var on = text is not null;
@@ -76,25 +81,31 @@ public partial class OverlayWindow
             // Мигание должно ловиться боковым зрением: человек смотрит на список
             // рекомендаций, а не на полосу. Прежние 0,3 и 0,7 с читались как
             // «что-то там дышит» — провал глубже и ритм быстрее.
-            bar.BeginAnimation(OpacityProperty, new DoubleAnimation
+            Loops.Start(bar, OpacityProperty, new DoubleAnimation
             {
-                From = 1.0, To = 0.12, Duration = TimeSpan.FromSeconds(0.45),
-                AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
-            });
+                From = 1.0, To = 0.12, Duration = TimeSpan.FromSeconds(0.45), AutoReverse = true,
+            }, Loops.BlinkFps);
             // Подпись мигает вместе с полосой: в противофазе это рябило бы.
-            warn.BeginAnimation(OpacityProperty, new DoubleAnimation
+            Loops.Start(warn, OpacityProperty, new DoubleAnimation
             {
-                From = 1.0, To = 0.25, Duration = TimeSpan.FromSeconds(0.45),
-                AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
-            });
+                From = 1.0, To = 0.25, Duration = TimeSpan.FromSeconds(0.45), AutoReverse = true,
+            }, Loops.BlinkFps);
         }
         else
         {
-            bar.BeginAnimation(OpacityProperty, null);
+            Loops.Stop(bar, OpacityProperty);
             bar.Opacity = 1.0;
-            warn.BeginAnimation(OpacityProperty, null);
+            Loops.Stop(warn, OpacityProperty);
             warn.Opacity = 1.0;
         }
+    }
+
+    /// Драфт кончился: мигание перекоса — вместе с ним. Окно уходит на экран
+    /// ожидания, полоса прячется, а мигание на ней шло бы до следующего драфта.
+    private void StopDamageWarnings()
+    {
+        SetDamageWarning(MyDmgBar, MyDmgWarn, null);
+        SetDamageWarning(EnemyDmgBar, EnemyDmgWarn, null);
     }
 
     private void RenderDamageMix(IReadOnlyList<int> champIds, UIElement panel,
