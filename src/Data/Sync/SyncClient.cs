@@ -200,6 +200,28 @@ public static partial class SyncClient
     }
 
     /// <summary>
+    /// Проход после правки, которую человек принял (фразы, настройки:
+    /// <see cref="AppSettings.Apply"/>): молча и только с паролем и аккаунтом,
+    /// как <see cref="AutoAsync"/>, но без порога в минуту, а идущий проход —
+    /// дожидаемся и идём следом. Иначе правка, сохранённая через полминуты
+    /// после прохода при запуске, ждала бы следующего события, а закрыли
+    /// программу — следующего запуска этого компьютера (владелец 26.11:
+    /// «сохраняются ли фразы, если закрывать программу без синхронизации?»).
+    /// </summary>
+    public static async Task AfterEditAsync(string? puuid, string reason, CancellationToken ct = default)
+    {
+        if (Sandbox.Active || !SyncPassword.IsSet || string.IsNullOrEmpty(puuid)) return;
+        try
+        {
+            await Gate.WaitAsync(ct);
+            try { await RunAsync(puuid, reason, ct); }
+            finally { Gate.Release(); }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e) { Log.Write($"синхронизация ({reason}): {e.Message}"); }
+    }
+
+    /// <summary>
     /// Проход по просьбе человека: кнопка «синхронизировать» и только что
     /// заданный пароль. Порог в минуту не действует, идущий проход —
     /// дожидаемся.

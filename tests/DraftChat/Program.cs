@@ -352,7 +352,7 @@ internal static class Program
         Check(r == "Ну... нам нужен танк", "три точки — просто текст: место для выбора только у блока", r);
         r = ChatPhrases.Compose("ru", "Кто идёт", "мид");
         Check(r == "Кто идёт мид", "места нет — выбор в конец через пробел", r);
-        var bad = Loc.Languages.SelectMany(l => new[] { ("who", ChatPhrases.Role), ("canI", ChatPhrases.Role), ("need", ChatPhrases.List) }
+        var bad = Loc.Languages.SelectMany(l => new[] { ("who", ChatPhrases.Role), ("canI", ChatPhrases.Role), ("need", ChatPhrases.List), ("swap", ChatPhrases.Role) }
                 .SelectMany(x => ChatPhrases.StdChoices(x.Item2).Select(k => (l.Code, Text: C(l.Code, x.Item1, x.Item2, k)))))
             .Where(x => x.Text.Contains(ChatPhrases.Slot) || x.Text.Contains("phrases.")).ToList();
         Check(bad.Count == 0, "на всех языках выбор встаёт на место, ключей в тексте нет",

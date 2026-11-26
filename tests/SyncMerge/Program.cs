@@ -65,6 +65,7 @@ internal static class Program
         {
             PairsStayCleaned().GetAwaiter().GetResult();
             SettingsKeepOwnWindows().GetAwaiter().GetResult();
+            PhrasesTravelOnSave(server).GetAwaiter().GetResult();
             StatusLine().GetAwaiter().GetResult();
             SameGameRule();
             SameGameSync().GetAwaiter().GetResult();
@@ -183,6 +184,46 @@ internal static class Program
         Check("и что пулов не приходило", !SyncStatus.Current.GotPools, "");
         Check("про файл сказано тем, кто перечитывает", _pulled.Contains("ui.json"),
               string.Join(",", _pulled));
+    }
+
+    // ── 2а. Фразы уезжают сразу после «Сохранить» ───────────────────────────
+
+    /// <summary>
+    /// Владелец 26.11: «сохраняются ли фразы, если закрывать программу без
+    /// синхронизации?». Принятая правка (<c>AppSettings.Apply</c> — «Сохранить»
+    /// окна фраз, «Применить» настроек) сама отправляет настройки на сервер, и
+    /// внутри минутного порога автоматики: проход при запуске только что был.
+    /// Второй компьютер, с пустой папкой, после прохода видит ту же фразу.
+    /// </summary>
+    private static async Task PhrasesTravelOnSave(FakeSyncServer server)
+    {
+        Console.WriteLine("\nфразы после «Сохранить»:");
+        WipeLocal();
+        AppSettings.Reload();
+        PoolStore.SetAccount(Me, "Проверка");
+        var start = await SyncClient.NowAsync(Me, "запуск");   // проход при запуске: порог автоматики пошёл
+        Check("проход при запуске прошёл", start.Ok, start.Message);
+        int Rev() => server.Rows().Select(r => r.Rev).DefaultIfEmpty(0).Max();
+        var before = Rev();
+
+        var edited = AppSettings.Current.Clone();
+        ChatPhrases.SetText(edited, 4, "фраза для второго компьютера");
+        AppSettings.Apply(edited);   // как «Сохранить» в окне фраз; синхронизацию руками не зовём
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (Rev() <= before && DateTime.UtcNow < deadline) await Task.Delay(50);
+        Check("правка фраз уехала на сервер сама, хоть порог автоматики и не вышел", Rev() > before,
+              $"версия {before} → {Rev()}");
+
+        // Дождаться конца той отправки (проход по просьбе ждёт идущий), затем —
+        // второй компьютер: папка пустая, проход, программа перечитывает ui.json.
+        await SyncClient.NowAsync(Me, "дождаться");
+        WipeLocal();
+        AppSettings.Reload();
+        var got = await SyncClient.NowAsync(Me, "второй компьютер");
+        AppSettings.Reload();
+        var b = ChatPhrases.Buttons(AppSettings.Current);
+        var text = b.Count > 4 ? ChatPhrases.Text(AppSettings.Current, b[4]) : "кнопок нет";
+        Check("на втором компьютере — та же фраза", got.Ok && text == "фраза для второго компьютера", text);
     }
 
     // ── 3. Строка состояния ────────────────────────────────────────────────
