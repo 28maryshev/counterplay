@@ -35,7 +35,11 @@ public sealed class ChoicesWindow : Window
         _s = s;
         _i = i;
         _changed = changed;
-        Title = Loc.T("phrases.choicesTitle", ChatPhrases.Text(s, Button));
+        // В заголовке — фраза, а на месте «…» блок словом вида, как в поле:
+        // «Варианты: Нам нужен [Перечень]», а не «Варианты: …» (владелец 26.11:
+        // «проверь все надписи»).
+        Title = Loc.T("phrases.choicesTitle", ChatPhrases.Text(s, Button).Replace(
+            ChatPhrases.Slot, "[" + PhraseEditor.KindName(Button.Kind, ChatPhrases.Lang(s)) + "]"));
         Width = 420;
         SizeToContent = SizeToContent.Height;
         MaxHeight = SystemParameters.WorkArea.Height * 0.9;
@@ -44,7 +48,7 @@ public sealed class ChoicesWindow : Window
         Background = new SolidColorBrush(PoolSettingsWindow.Bg);
         PoolUi.Apply(this);
 
-        var reset = PoolUi.Btn(Loc.T("phrases.reset"));
+        var reset = _reset;
         reset.FontSize = 12;
         reset.Click += (_, _) =>
         {
@@ -77,12 +81,23 @@ public sealed class ChoicesWindow : Window
 
     private ChatButton Button => ChatPhrases.Buttons(_s)[_i];
 
+    /// «Вернуть стандартные» — только у списка, у которого стандартные есть
+    /// (роли, нужды «Нам нужен …»); у нового перечня возвращать нечего.
+    private readonly System.Windows.Controls.Button _reset = PoolUi.Btn(Loc.T("phrases.reset"));
+
     /// Перестроить список: на «✕», «+ Вариант», «Вернуть стандартные».
     private void Build()
     {
         _body.Children.Clear();
-        _body.Children.Add(PhraseEditor.Hint(Loc.T("phrases.choicesHint"), new Thickness(0, 0, 0, 8)));
         var items = ChatPhrases.ChoiceItems(Button);
+        var hasStd = ChatPhrases.DefaultChoices(Button).Length > 0;
+        // Подсказка — по тому, что в списке: стандартные (правка сделает их
+        // своими), пустой перечень (добавьте), свои (как писать).
+        var hint = items.Count == 0 ? "phrases.choicesHintNew"
+                 : hasStd && !ChatPhrases.OwnChoices(Button) ? "phrases.choicesHint"
+                 : "phrases.choicesWrite";
+        _body.Children.Add(PhraseEditor.Hint(Loc.T(hint), new Thickness(0, 0, 0, 8)));
+        _reset.Visibility = hasStd ? Visibility.Visible : Visibility.Collapsed;
         for (int n = 0; n < items.Count; n++) _body.Children.Add(Row(n, items[n]));
         var add = PoolUi.Btn(Loc.T("phrases.addChoice"));
         add.FontSize = 11;

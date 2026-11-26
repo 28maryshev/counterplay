@@ -395,6 +395,17 @@ internal static class Program
         }
         Check(missing.Count == 0, $"{keys.Count} строк на {Loc.Languages.Count} языках",
               string.Join(", ", missing.Take(10)));
+
+        // Каждая строка фраз, которую зовёт код (Loc.T / TIn / loc:T в разметке),
+        // есть в файле — иначе на экране вместо надписи встал бы ключ.
+        var src = Directory.GetFiles(Path.Combine(repo, "src"), "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".cs") || f.EndsWith(".xaml")).Select(File.ReadAllText);
+        var called = src.SelectMany(text => System.Text.RegularExpressions.Regex.Matches(text, @"""phrases\.([A-Za-z]+)""|loc:T phrases\.([A-Za-z]+)")
+                .Select(m => "phrases." + (m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value)))
+            .Distinct().ToList();
+        var absent = called.Where(k => !keys.Contains(k)).ToList();
+        Check(called.Count > 20 && absent.Count == 0, $"все {called.Count} строк фраз, которые зовёт код, есть в файлах",
+              string.Join(", ", absent));
     }
 
     /// <summary>
@@ -511,6 +522,11 @@ internal static class Program
         var cw = edit2.ChoicesFor(0);
         ShowHidden(cw);
         Pump();
+        var resetLabel = Loc.T("phrases.reset");
+        Check(cw.Title == Loc.T("phrases.choicesTitle", "[Роль], кого будешь брать?")
+              && PhrasesWindow.Find<TextBlock>(cw).Any(x => x.Text == Loc.T("phrases.choicesHint"))
+              && PhrasesWindow.Find<System.Windows.Controls.Button>(cw).First(x => (string)x.Content == resetLabel).Visibility == Visibility.Visible,
+              "окно вариантов роли: заголовок с блоком «[Роль]», подсказка про стандартные, «Вернуть стандартные» есть", cw.Title);
         var choiceFields = cw.Fields();
         Check(choiceFields.Count == 5 && choiceFields[0].Text == "топ" && !ChatPhrases.OwnChoices(ChatPhrases.Buttons(AppSettings.Current)[0]),
               "окно вариантов: пять стандартных ролей в полях, первая «топ»", string.Join(", ", choiceFields.Select(f => f.Text)));
@@ -553,6 +569,24 @@ internal static class Program
         var neighbour = w.PhraseMenu(1).Items.OfType<MenuItem>().FirstOrDefault();
         Check((string?)neighbour?.ToolTip == "Можно мне топ?", "у соседней кнопки «Можно мне топ?» — свои варианты только у первой",
               neighbour?.ToolTip?.ToString() ?? "нет");
+
+        // Новый перечень в окне вариантов: заголовок «[Перечень]», подсказка
+        // «перечень пуст — добавьте», «Вернуть стандартные» нет — нечего.
+        var edit4 = w.OpenPhrases();
+        ShowHidden(edit4);
+        Pump();
+        ChatPhrases.Add(edit4.Draft);
+        var last = ChatPhrases.Buttons(edit4.Draft).Count - 1;
+        ChatPhrases.SetKind(edit4.Draft, last, ChatPhrases.List);
+        var cwNew = edit4.ChoicesFor(last);
+        ShowHidden(cwNew);
+        Pump();
+        Check(cwNew.Title == Loc.T("phrases.choicesTitle", "[Перечень]")
+              && PhrasesWindow.Find<TextBlock>(cwNew).Any(x => x.Text == Loc.T("phrases.choicesHintNew"))
+              && PhrasesWindow.Find<System.Windows.Controls.Button>(cwNew).First(x => (string)x.Content == resetLabel).Visibility != Visibility.Visible,
+              "окно нового перечня: «Варианты: [Перечень]», подсказка «перечень пуст», без «Вернуть стандартные»", cwNew.Title);
+        cwNew.Close();
+        edit4.Close();
 
         // Язык фраз английский — вид кнопки и подпись блока тоже по-английски
         // (владелец 26.11: «переключил язык, а выпадающий список остался»).
