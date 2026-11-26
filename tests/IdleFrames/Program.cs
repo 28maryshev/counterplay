@@ -102,6 +102,7 @@ internal static class Program
                 var d = Draft(ban: false);
                 w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
             });
+            PickTurn(w, nextTick, engine);
             Scene(w, nextTick, "после драфта", () => w.DraftEnded());
         }
 
@@ -146,6 +147,76 @@ internal static class Program
         Check(what, ok, ok
             ? $"крутится только положенное: {string.Join("; ", moving)}"
             : $"через {Settle.TotalSeconds:0} с WPF всё ещё рисует кадр за кадром: {string.Join("; ", moving)}");
+    }
+
+    /// <summary>
+    /// Таймер хода пика (25–26.11, владелец: «проверь, чтобы анимации не
+    /// съедали много GPU, как у нас было до этого»). Отсчёт в слотах — не
+    /// анимация, а смена картинки: WPF кадров сам не просит, окно
+    /// перерисовывается, когда меняется кольцо или цифра, — не чаще 4 раз в
+    /// секунду. Мигание рамки центра в последние 8 секунд моего хода —
+    /// единственное, что крутится, и не чаще 20 кадров в секунду. В чужой ход
+    /// не мигает ничего. Ход кончился — тишина, такт отсчёта стоит.
+    /// </summary>
+    private static void PickTurn(OverlayWindow w, Func<TimeSpan> nextTick, RecommendationEngine engine)
+    {
+        const BindingFlags inst = BindingFlags.Instance | BindingFlags.NonPublic;
+        var clock = (PickClock)typeof(OverlayWindow).GetField("_pickClock", inst)!.GetValue(w)!;
+        DispatcherTimer? Tick() => typeof(OverlayWindow).GetField("_pickTick", inst)!.GetValue(w) as DispatcherTimer;
+        var frame = (FrameworkElement)w.FindName("PickAlarmFrame");
+
+        // Мой ход: навёл, не взял; топ ниже пикает со мной в паре.
+        var full = Draft(ban: false);
+        var team = full.MyTeam.Select(p => p.CellId is 3 or 4 ? p with { ChampionId = 0, PickIntentId = p.ChampionId } : p).ToList();
+        var d = full with { MyTeam = team, Me = team[3], MyPickActionId = 7, MyPickInProgress = true, ActiveCells = [3, 4] };
+        Scene(w, nextTick, "драфт: идёт мой ход, отсчёт в слотах", () =>
+        {
+            w.UpdateRecommendations(engine.Recommend(d, AppSettings.Current.DraftCount), d, engine);
+            w.SetPickTimer(DateTime.UtcNow.AddSeconds(29), 30000, mine: true);
+        });
+
+        // Сколько раз в секунду меняется картинка отсчёта: изменения одного
+        // такта (цифра и кольцо разом) — одна перерисовка.
+        var redraws = new HashSet<long>();
+        void Count(object? s, PropertyChangedEventArgs e) => redraws.Add(Environment.TickCount64 / 20);
+        clock.PropertyChanged += Count;
+        Wait(TimeSpan.FromSeconds(3));
+        clock.PropertyChanged -= Count;
+        var perSec = redraws.Count / 3.0;
+        Check("отсчёт меняет картинку не чаще 4–5 раз в секунду", clock.Visibility == Visibility.Visible && perSec <= 5,
+              $"{perSec:0.0} перерисовок в секунду");
+
+        // Последние 8 секунд моего хода: крутится только рамка, 20 кадров в секунду.
+        w.SetPickTimer(DateTime.UtcNow.AddSeconds(6), 30000, mine: true);
+        Wait(TimeSpan.FromMilliseconds(400));
+        var moving = Moving(w);
+        Check("последние секунды моего хода: крутится только рамка центра",
+              frame.IsVisible && moving.All(m => m.StartsWith("PickAlarmFrame.")), string.Join("; ", moving));
+        var opacities = new HashSet<double>();
+        var sampler = new DispatcherTimer(DispatcherPriority.Send) { Interval = TimeSpan.FromMilliseconds(1) };
+        sampler.Tick += (_, _) => opacities.Add(frame.Opacity);
+        sampler.Start();
+        Wait(TimeSpan.FromSeconds(1));
+        sampler.Stop();
+        Check($"мигание рамки — около {OverlayWindow.PickAlarmFps} кадров в секунду, не 60 и не рвётся",
+              opacities.Count is > OverlayWindow.PickAlarmFps / 2 and <= OverlayWindow.PickAlarmFps + 4,
+              $"{opacities.Count} разных кадров за секунду");
+
+        // Ход кончился сам: рамка снята, кадров не просит, такт стоит.
+        Wait(TimeSpan.FromSeconds(6));
+        Check("ход кончился: рамки нет, кадров не просит, такт отсчёта стоит",
+              !frame.IsVisible && nextTick() < TimeSpan.Zero && Tick()?.IsEnabled != true,
+              $"рамка {frame.Visibility}, следующий кадр {(nextTick() < TimeSpan.Zero ? "не нужен" : "нужен")}, " +
+              $"такт {(Tick()?.IsEnabled == true ? "идёт" : "стоит")}");
+
+        // Чужой ход, последние секунды: отсчёт красный, но не мигает ничего.
+        w.SetPickTimer(DateTime.UtcNow.AddSeconds(6), 30000, mine: false);
+        Wait(TimeSpan.FromMilliseconds(500));
+        Check("последние секунды чужого хода: ничего не крутится",
+              clock.Urgent && !frame.IsVisible && nextTick() < TimeSpan.Zero,
+              nextTick() < TimeSpan.Zero ? "кадров не просит" : string.Join("; ", Moving(w)));
+        w.SetPickTimer(null, 0, mine: false);
+        Wait(TimeSpan.FromMilliseconds(200));
     }
 
     /// Тень окна — на подложке рядом с содержимым, не на его предке. Эффект

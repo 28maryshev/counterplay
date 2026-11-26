@@ -15,9 +15,12 @@ namespace Counterplay;
 /// вставляет строку заново, и волна «сейчас пикает» проигрывалась бы каждую
 /// секунду.
 ///
-/// Свойства меняются только когда меняется видимое: секунда, шаг кольца
-/// (1/240 круга), «срочно». Окно прозрачное, и каждое изменение — перерисовка
-/// всего окна.
+/// Свойства меняются только когда меняется видимое: секунда, шаг кольца,
+/// «срочно». Окно прозрачное, и каждое изменение — перерисовка всего окна,
+/// поэтому кольцо шагает по времени, раз в <see cref="ArcStepMs"/> (4 раза в
+/// секунду, ход в 30 секунд — 120 шагов по 3°, на кольце в 46 px — шаг около
+/// пикселя). До 26.11 шаг был 1/240 круга — 8 перерисовок в секунду на ход в
+/// 30 секунд и больше на короткий; проверка IdleFrames меряет.
 /// </summary>
 public sealed class PickClock : INotifyPropertyChanged
 {
@@ -26,7 +29,7 @@ public sealed class PickClock : INotifyPropertyChanged
 
     /// Размер кольца и толщина линии — под них сверстан шаблон.
     public const double Diameter = 46, Stroke = 3.5;
-    private const int ArcSteps = 240;
+    public const double ArcStepMs = 250;
     private const string Calm = "#F5D77A", Alarm = "#FF5A4D";
 
     public Visibility Visibility { get; private set; } = Visibility.Collapsed;
@@ -46,8 +49,13 @@ public sealed class PickClock : INotifyPropertyChanged
         // Вверх: «1» — пока идёт последняя секунда, ноль не показываем вовсе.
         var sec = ((int)Math.Ceiling(leftMs / 1000)).ToString();
         if (sec != Seconds) { Seconds = sec; Raise(nameof(Seconds)); }
-        var step = (int)Math.Ceiling(Math.Clamp(leftMs / Math.Max(totalMs, 1), 0, 1) * ArcSteps);
-        if (step != _step) { _step = step; Arc = ArcOf((double)step / ArcSteps); Raise(nameof(Arc)); }
+        var step = (int)Math.Ceiling(leftMs / ArcStepMs);
+        if (step != _step)
+        {
+            _step = step;
+            Arc = ArcOf(Math.Clamp(step * ArcStepMs / Math.Max(totalMs, 1), 0, 1));
+            Raise(nameof(Arc));
+        }
         SetUrgent(urgent);
     }
 
