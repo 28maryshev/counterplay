@@ -119,6 +119,10 @@ internal static class Program
         PickTimer(panel, overlay);
 
         Console.WriteLine();
+        Console.WriteLine("смена языка:");
+        LanguageSwitch(panel);
+
+        Console.WriteLine();
         Console.WriteLine("окно драфта:");
         CloseOverlay(panel, overlay);   // последним: закрывает и панель, и программу
         mode.GetMethod("LeaveSandboxData", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, null);
@@ -470,6 +474,57 @@ internal static class Program
     }
 
     // ── Драфт руками: порядок ходов ─────────────────────────────────────────
+
+    /// <summary>
+    /// Владелец (26.11): «в песочнице враг никого не взял». Перед этим язык
+    /// переключили ru → en: имена чемпионов в Data Dragon стали английскими, а
+    /// списки панели («имя → чемпион», выпадающие строки) остались русскими с
+    /// открытия песочницы. Боты искали «Thresh» среди «Треш» — не брали, не
+    /// банили, союзники не наводили, мой слот из окна не ставился. Язык
+    /// меняется так же, как в программе: имена — из кэша Data Dragon.
+    /// </summary>
+    private static void LanguageSwitch(Window panel)
+    {
+        int Cell(int c) => (int)panel.GetType()
+            .GetMethod("CellChamp", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(panel, [c])!;
+        int Bot(string method, int cell, params object[] more) => (int)panel.GetType()
+            .GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(panel, [cell, .. more])!;
+        var meRadio = Get<RadioButton[]>(panel, "_meRadio")!;
+        var stageDraft = Enum.Parse(panel.GetType().GetNestedType("TestStage", BindingFlags.NonPublic)!, "Draft");
+
+        if (!DataDragon.LoadFromCache("en_US"))
+        {
+            Console.WriteLine("  (английских имён в кэше Data Dragon нет — не проверялось)");
+            return;
+        }
+        Loc.SetLanguage("en");
+        try
+        {
+            Call(panel, "ResetDraft");
+            meRadio[2].IsChecked = true;
+            Call(panel, "SetStage", stageDraft);
+            Pump();
+            Call(panel, "AutoPick", 5);
+            Pump();
+            Check("язык ru → en: бот берёт чемпиона", Cell(5) != 0,
+                  Cell(5) == 0 ? "слот пуст" : DataDragon.Name(Cell(5)));
+            var ban = Bot("BotBan", 6);
+            Check("язык ru → en: бот банит", ban > 0, ban == 0 ? "бан пропущен" : DataDragon.Name(ban));
+            var hover = Bot("PopularOn", 0, new HashSet<int>());
+            Check("язык ru → en: союзнику есть кого навести", hover > 0, hover == 0 ? "некого" : DataDragon.Name(hover));
+            Call(panel, "SetMy", Braum);
+            Pump();
+            Check("язык ru → en: мой слот из окна ставится", Cell(2) == Braum,
+                  Cell(2) == 0 ? "слот пуст" : DataDragon.Name(Cell(2)));
+        }
+        finally
+        {
+            Loc.SetLanguage("ru");
+            DataDragon.LoadFromCache("ru_RU");
+            Call(panel, "ResetDraft");
+            Pump();
+        }
+    }
 
     /// <summary>
     /// Владелец (25.11): «в песочнице не вижу цифр пика». Песочница открывается

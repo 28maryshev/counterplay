@@ -150,8 +150,7 @@ sealed partial class TestPanel
     // Ставит заранее выбранный пик в слот клетки (с началом пиков — наведением).
     private void RevealPlanned(int cell, int champ)
     {
-        var name = DataDragon.Name(champ);
-        if (!_idByName.ContainsKey(name)) return;
+        if (!_nameById.TryGetValue(champ, out var name)) return;
         _autoSetting = true;
         (cell < 5 ? _ally[cell] : _enemy[cell - 5]).SelectedItem = name;
         _autoSetting = false;
@@ -255,7 +254,7 @@ sealed partial class TestPanel
         // Друг пикает из своей половины пула, как в жизни. Вся половина на эту
         // роль занята или пуста — берёт кого-то с линии, как любой союзник.
         var pool = _mate is not null && cell == MateCell()
-            ? MatePicks(_mate, dbRole).Where(id => !taken.Contains(id)).ToList()
+            ? MatePicks(_mate, dbRole).Where(id => !taken.Contains(id) && _nameById.ContainsKey(id)).ToList()
             : [];
         if (pool.Count == 0)
             pool = _idByName.Values
@@ -267,7 +266,7 @@ sealed partial class TestPanel
         // SelectionChanged → Recompute. Помечаем клетку как авто-занятую, чтобы
         // следующий запуск авто-драфта её пересобрал (а ручные пики — сохранил).
         _autoSetting = true;
-        cb.SelectedItem = DataDragon.Name(pool[_rng.Next(pool.Count)]);
+        cb.SelectedItem = _nameById[pool[_rng.Next(pool.Count)]];
         _autoSetting = false;
         _autoPicked.Add(cell);
     }

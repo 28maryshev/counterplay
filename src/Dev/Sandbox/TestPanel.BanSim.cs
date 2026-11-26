@@ -240,7 +240,7 @@ sealed partial class TestPanel
     {
         var dbRole = RecommendationEngine.LcuToDbRole(_rowRoles[cell]);
         var pool = _engine.PickRates(dbRole)
-            .Where(kv => kv.Value >= 1.5 && !exclude.Contains(kv.Key) && _idByName.ContainsKey(DataDragon.Name(kv.Key)))
+            .Where(kv => kv.Value >= 1.5 && !exclude.Contains(kv.Key) && _nameById.ContainsKey(kv.Key))
             .ToList();
         return Weighted(pool);
     }
@@ -258,13 +258,13 @@ sealed partial class TestPanel
         if (cell == _mainBanCell)
         {
             var mains = RecommendationEngine.MyMains().Keys
-                .Where(id => !keep.Contains(id) && _idByName.ContainsKey(DataDragon.Name(id))).ToList();
+                .Where(id => !keep.Contains(id) && _nameById.ContainsKey(id)).ToList();
             if (mains.Count > 0) return mains[_rng.Next(mains.Count)];
         }
         if (ally) keep.UnionWith(_intent.Values);
         if (ally && CellChamp(MeCell()) is var mine and > 0) keep.Add(mine);
         var pool = _engine.BanRates()
-            .Where(kv => !keep.Contains(kv.Key) && _idByName.ContainsKey(DataDragon.Name(kv.Key)))
+            .Where(kv => !keep.Contains(kv.Key) && _nameById.ContainsKey(kv.Key))
             .OrderByDescending(kv => kv.Value)
             .Take(20)
             .ToList();

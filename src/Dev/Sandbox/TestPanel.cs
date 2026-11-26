@@ -51,6 +51,13 @@ sealed partial class TestPanel : Window
 
     private readonly Dictionary<string, int> _idByName;   // имя чемпиона → id
 
+    // id → имя в строках панели. Имена панели — на языке, на котором её
+    // открыли, и не меняются; Data Dragon после смены языка отдаёт имена на
+    // новом. Перевод id в строку панели — только отсюда, не через
+    // DataDragon.Name: до 26.11 после ru → en боты искали «Thresh» среди «Треш»
+    // и не брали, не банили, не наводили (tests/SandboxPanel, «смена языка»).
+    private readonly Dictionary<int, string> _nameById;
+
     private readonly List<string> _names;                 // "—" + имена по алфавиту
 
     private readonly ComboBox[]   _ally  = new ComboBox[5];
@@ -249,6 +256,7 @@ sealed partial class TestPanel : Window
             // падать — берём первого.
             .GroupBy(DataDragon.Name)
             .ToDictionary(g => g.Key, g => g.First());
+        _nameById = _idByName.ToDictionary(kv => kv.Value, kv => kv.Key);
         _names = ["—", .. _idByName.Keys.OrderBy(n => n, StringComparer.CurrentCulture)];
 
         Title  = "Counterplay — песочница";
@@ -316,8 +324,7 @@ sealed partial class TestPanel : Window
 
     public void SetMy(int champId)
     {
-        var name = DataDragon.Name(champId);
-        if (_idByName.ContainsKey(name)) _ally[MeCell()].SelectedItem = name;
+        if (_nameById.TryGetValue(champId, out var name)) _ally[MeCell()].SelectedItem = name;
     }
 
     /// Пик подтверждён в окне: чемпион в моём слоте становится взятым. Он мог
