@@ -76,9 +76,10 @@ public sealed class PickClock : INotifyPropertyChanged
         Raise(nameof(Color));
     }
 
-    // Оставшаяся доля хода — дугой от верха по часовой стрелке. Окружность —
-    // та же, что у подложки-кольца в шаблоне (Ellipse рисует линию внутри
-    // своих границ).
+    // Оставшаяся доля хода — дугой от верха против часовой стрелки: тает она
+    // по часовой, край бежит как стрелка часов (владелец, 27.11; до того дуга
+    // шла по часовой и таяла против). Окружность — та же, что у
+    // подложки-кольца в шаблоне (Ellipse рисует линию внутри своих границ).
     private static Geometry ArcOf(double frac)
     {
         if (frac <= 0) return Geometry.Empty;
@@ -93,8 +94,8 @@ public sealed class PickClock : INotifyPropertyChanged
             using (var ctx = s.Open())
             {
                 ctx.BeginFigure(new Point(c, c - r), isFilled: false, isClosed: false);
-                ctx.ArcTo(new Point(c + r * Math.Sin(a), c - r * Math.Cos(a)), new Size(r, r), 0,
-                          isLargeArc: frac > 0.5, SweepDirection.Clockwise, isStroked: true, isSmoothJoin: false);
+                ctx.ArcTo(new Point(c - r * Math.Sin(a), c - r * Math.Cos(a)), new Size(r, r), 0,
+                          isLargeArc: frac > 0.5, SweepDirection.Counterclockwise, isStroked: true, isSmoothJoin: false);
             }
             g = s;
         }

@@ -182,9 +182,28 @@ internal static class Program
               && Enumerable.Range(0, 5).All(i => ReferenceEquals(Slot(enemies, i).Clock, PickClock.None)), "");
         Check("до последних 8 секунд рамки нет", frame.Visibility != Visibility.Visible, frame.Visibility.ToString());
         Check("цвет — свой, золотой", !Clock().Urgent, Clock().Color);
+        // Остаток — от верха против часовой, и тает он по часовой, как стрелка
+        // (владелец, 27.11). Меньше половины хода — дуга вся в левой половине.
+        var half = PickClock.Diameter / 2;
+        var b = Clock().Arc.Bounds;
+        Check("кольцо тает по часовой: остаток слева от верха", b.Right <= half + 0.01 && b.Left < half - 5,
+              $"дуга по x {b.Left:0.#}…{b.Right:0.#}, центр {half}");
         Snap(w, "calm");
         var row = list.ItemContainerGenerator.ContainerFromIndex(3);
         var arc = Clock().Arc;
+
+        // Срок хода на ms вперёд и прогон диспетчера; сколько осталось на самом
+        // деле к сверке. Отсчёт показывает это число секунд вверх или на
+        // секунду больше (такт окна — 100 мс).
+        double SetLeft(double ms)
+        {
+            var end = DateTime.UtcNow.AddMilliseconds(ms);
+            w.SetPickTimer(end, 30000, mine: true);
+            Pump();
+            return (end - DateTime.UtcNow).TotalMilliseconds;
+        }
+        int Due(double ms) => (int)Math.Ceiling(ms / 1000);
+        bool ShowsDue(double ms) => Clock().Seconds == $"{Due(ms)}" || Clock().Seconds == $"{Due(ms) + 1}";
 
         // Событий нет — окно считает само.
         // Сверка с настоящим остатком: машина под нагрузкой ждёт дольше, чем
@@ -202,22 +221,25 @@ internal static class Program
         // Срок в событии заметно дальше счёта окна (~11 с): видно, что отсчёт
         // встал по событию. Пересчёт подбора на шаге — до секунды.
         w.UpdateRecommendations(engine.Recommend(d2, AppSettings.Current.DraftCount), d2, engine);
-        w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(20500), 30000, mine: true);
-        Pump();
+        var left = SetLeft(20500);
         Check("событие посреди хода: строка моего слота та же",
               ReferenceEquals(row, list.ItemContainerGenerator.ContainerFromIndex(3)), "");
-        Check("событие выровняло отсчёт", Clock().Seconds is "21" or "20", $"«{Clock().Seconds}»");
+        Check("событие выровняло отсчёт", left > 12000 && ShowsDue(left), $"«{Clock().Seconds}», по часам {Due(left)}");
 
         // Последние секунды: рамка и красный — с 8 секунд (владелец, 26.11).
-        w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(9500), 30000, mine: true);
-        Pump();
+        // Сверка — по тому, сколько осталось на самом деле: под нагрузкой
+        // прогон диспетчера идёт секундами, и 9,5 с успевали стать меньше 8
+        // (27.11, прогон со снимками).
+        left = SetLeft(9500);
+        for (var i = 0; i < 3 && left <= OverlayWindow.PickAlarmMs; i++) left = SetLeft(9500);
         Check("9 секунд: ещё не пора — рамки нет, отсчёт золотой",
-              frame.Visibility != Visibility.Visible && !Clock().Urgent, $"рамка {frame.Visibility}, {Clock().Color}");
-        w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(7500), 30000, mine: true);
-        Pump();
+              left > OverlayWindow.PickAlarmMs && frame.Visibility != Visibility.Visible && !Clock().Urgent,
+              $"рамка {frame.Visibility}, {Clock().Color}, осталось {left / 1000:0.0} с");
+        left = SetLeft(7500);
         Check("8 секунд: рамка центра мигает", frame.Visibility == Visibility.Visible && frame.HasAnimatedProperties,
               $"{frame.Visibility}, анимация {(frame.HasAnimatedProperties ? "есть" : "нет")}");
-        Check("8 секунд: отсчёт красный", Clock().Urgent && Clock().Seconds == "8", $"{Clock().Color}, «{Clock().Seconds}»");
+        Check("8 секунд: отсчёт красный", Clock().Urgent && ShowsDue(left),
+              $"{Clock().Color}, «{Clock().Seconds}», по часам {Due(left)}");
         w.SetPickTimer(DateTime.UtcNow.AddMilliseconds(4500), 30000, mine: true);
         Pump();
         Check("5 секунд: всё ещё мигает и красный", frame.Visibility == Visibility.Visible && Clock().Urgent,
