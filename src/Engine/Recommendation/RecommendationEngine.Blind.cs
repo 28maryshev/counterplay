@@ -288,11 +288,18 @@ public sealed partial class RecommendationEngine
     /// объяснён, и от любого бана тег пропадал у тех, кто на грани: у Сораки с
     /// банами песочницы владельца шанс контры 9% при типичном 28%, ожидаемое
     /// +0,14 — тега не было (tests/BlindPick, SafeVerdict).
+    /// «Заметно» — на 10 пунктов или на половину типичного, что меньше: у АДК
+    /// при типичном 12% «надёжным» иначе был только шанс до 2% (с 27.11.2026,
+    /// см. BLIND_CHANCE_REL).
     /// </summary>
-    private static int Verdict(double value, double chance, double typical) =>
-        value > 0 && chance <= typical - BLIND_CHANCE_GAP ? 1
-        : value <= 0 && chance >= typical + BLIND_CHANCE_GAP ? -1
-        : 0;
+    private static int Verdict(double value, double chance, double typical)
+    {
+        var gap = Math.Min(BLIND_CHANCE_GAP, BLIND_CHANCE_REL * typical);
+        if (gap <= 0) return 0;   // контр нет ни у кого — отличаться не от чего
+        return value > 0 && chance <= typical - gap ? 1
+             : value <= 0 && chance >= typical + gap ? -1
+             : 0;
+    }
 
     /// Строка в карточке подбора — с шансом и, если они есть, самыми частыми контрами.
     private static string? BlindReason(BlindRisk r)
