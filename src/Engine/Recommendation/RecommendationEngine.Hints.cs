@@ -6,28 +6,49 @@ namespace Counterplay;
 // строки доводов на карточках.
 public sealed partial class RecommendationEngine
 {
-    // Одна строка подсказки: кандидат, объём пары и её винрейт.
+    // Одна строка подсказки: кандидат, объём пары и её винрейт. Games — честное
+    // число игр, а не сумма с весами патчей (см. ReadHintRows).
     private readonly record struct HintRow(int Id, double Games, double Wins)
     {
         public double Wr => Games > 0 ? Wins / Games : 0;
     }
 
+    // Столбцы запроса подсказки после champion_id: игры и победы с весами
+    // патчей и Σ игр·вес² — по ним ReadHintRows считает честное число игр.
+    private const string HintSums =
+        $"SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w, SUM(games*({PW})*({PW})) AS g2";
+
+    // Граница Уилсона и пороги игр ждут настоящее число игр. Сумма с весами
+    // патчей (свежий ×1, прошлый ×0,6) им не является: она недосчитывает
+    // информацию пары (на 16.23 + 16.22 — ×0,72), и граница выходила
+    // осторожнее, чем надо, — тем сильнее, чем меньше свежий патч в окне. Та
+    // же ошибка, что была у шума вслепую (журнал 27.11.2026). Честное число —
+    // эффективное, G²/Σw²n: столько игр без весов дали бы ту же точность.
+    // Победы — в той же пропорции, винрейт пары прежний. Замер по исходам
+    // 27.11.2026 (тройка по окну двух патчей против игр третьего, четыре фазы
+    // окна): тройки по обоим счётам одинаково хороши, разница в пределах шума.
+    // Честный счёт убирает только зависимость набора иконок от фазы патча
+    // (держит tests/SideHints, «счёт игр»).
     private static List<HintRow> ReadHintRows(SqliteCommand cmd)
     {
         var rows = new List<HintRow>();
         using var rd = cmd.ExecuteReader();
         while (rd.Read())
-            rows.Add(new HintRow(rd.GetInt32(0),
-                                 Convert.ToDouble(rd.GetValue(1)),
-                                 Convert.ToDouble(rd.GetValue(2))));
+        {
+            double g = Convert.ToDouble(rd.GetValue(1)), w = Convert.ToDouble(rd.GetValue(2)),
+                   g2 = Convert.ToDouble(rd.GetValue(3));
+            var n = g2 > 0 ? g * g / g2 : g;
+            rows.Add(new HintRow(rd.GetInt32(0), n, g > 0 ? w * n / g : 0));
+        }
         return rows;
     }
 
-    // (champion_id, games, wins) → ранг по нижней границе Уилсона. minEdge отсекает
-    // «неуверенные» пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
-    private static List<HintRow> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE) =>
+    // Строки → ранг по нижней границе Уилсона. minEdge отсекает «неуверенные»
+    // пары (для контр); для синергии minEdge<0 — просто топ-N по LB.
+    private static List<HintRow> RankByWilson(SqliteCommand cmd, int top, double minEdge = HINT_MIN_EDGE,
+                                              double minGames = 0) =>
         ReadHintRows(cmd)
-            .Where(r => WilsonLower(r.Wins, r.Games) > minEdge)
+            .Where(r => r.Games >= minGames && WilsonLower(r.Wins, r.Games) > minEdge)
             .OrderByDescending(r => WilsonLower(r.Wins, r.Games))
             .Take(top).ToList();
 
@@ -80,7 +101,7 @@ public sealed partial class RecommendationEngine
             // По всем дивизионам сразу: данные по парам разрежены, фильтр по бакету
             // добил бы выборку. Ранжируем/фильтруем по Уилсону уже в C#.
             cmd.CommandText = $@"
-                SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
+                SELECT champion_id, {HintSums}
                 FROM   {(cross ? "botlane_matchup" : "matchup")}
                 WHERE  vs_champion_id = @v AND patch IN (@p1, @p2, @p3)
                        {(byRole ? "AND role = @r AND champion_id IN (" + RolePlayersSql + ")" : "")}
@@ -181,23 +202,22 @@ public sealed partial class RecommendationEngine
             // фильтра edge — чтобы стабильно заполнять 3 лучших партнёра по LB.
             // Кандидаты — только те, кто мою роль правда играет: без этого в
             // напарники к Фиддлстиксу на топ выходил Дрэйвен на двенадцати играх.
+            // Порог игр — в C#, по честному числу (ReadHintRows).
             cmd.CommandText = $@"
-                SELECT champion_id, SUM(games*{PW}) AS g, SUM(wins*{PW}) AS w
+                SELECT champion_id, {HintSums}
                 FROM   synergy
                 WHERE  ally_id = @a AND role = @r AND patch IN (@p1, @p2, @p3)
                        {(allyRole is null ? "" : "AND ally_role = @ar")}
                        AND champion_id IN ({RolePlayersSql})
-                GROUP  BY champion_id
-                HAVING SUM(games*{PW}) >= @min";
+                GROUP  BY champion_id";
             cmd.Parameters.AddWithValue("@a",   allyId);
-            cmd.Parameters.AddWithValue("@min", HINT_MIN_SYN);
             cmd.Parameters.AddWithValue("@r",   myRole);
             cmd.Parameters.AddWithValue("@p1",  _p1);
             cmd.Parameters.AddWithValue("@p2",  _p2);
             cmd.Parameters.AddWithValue("@p3",  _p3);
             if (allyRole is not null) cmd.Parameters.AddWithValue("@ar", allyRole);
             AddRolePlayerParams(cmd);
-            return RankByWilson(cmd, top, minEdge: -1.0);
+            return RankByWilson(cmd, top, minEdge: -1.0, minGames: HINT_MIN_SYN);
         }
         catch { return []; }
     }

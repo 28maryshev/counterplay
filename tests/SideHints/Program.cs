@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using Counterplay;
 using Microsoft.Data.Sqlite;
@@ -42,8 +43,14 @@ internal static class Program
         Loc.SetLanguage("ru");
         DataDragon.LoadFromCache("ru_RU");
 
+        HonestGames();
+
         var dbPath = RecommendationEngine.FindDb();
-        if (dbPath is null) { Console.WriteLine("базы нет — проверять нечего"); return 0; }
+        if (dbPath is null)
+        {
+            Console.WriteLine("живой базы нет — дальше проверять нечего");
+            return _fails == 0 ? 0 : 1;
+        }
 
         using var engine = RecommendationEngine.Create(dbPath, "emerald");
         var patches = engine.PatchDisplay.Split(',').Select(s => s.Trim()).ToArray();
@@ -202,6 +209,78 @@ internal static class Program
             ? "ИТОГ: под портретами по три иконки, и все — из нужной роли"
             : $"ИТОГ: провалено — {_fails}");
         return _fails == 0 ? 0 : 1;
+    }
+
+    // ── Счёт игр: честный, а не сумма с весами патчей ───────────────────────
+    //
+    // Граница Уилсона — статистическая формула, ей нужно настоящее число игр.
+    // До 27.11.2026 она получала SUM(games × вес патча): та же ошибка, что
+    // была у шума вслепую, только мягче — у 7–16% портретов набор из трёх
+    // выходил другим, обычно на одну иконку. Подставная база: два кандидата
+    // против одного врага (и с одним союзником), у обоих взвешенная сумма —
+    // 120 игр. А сыграно 120 (только свежий патч, 60%) и 200 (только прошлый,
+    // вес 0,6, 59,5%). По честному счёту выше второй: двухсот игр хватает на
+    // более уверенную границу. По взвешенной сумме выборки равны, и первым
+    // встаёт тот, у кого винрейт выше.
+    private const string Old = "26.1", Fresh = "26.2";
+
+    private const int Enemy = 1, OnFresh = 2, OnOld = 3, Ally = 4;
+
+    private static void HonestGames()
+    {
+        Console.WriteLine("── счёт игр в подсказках (подставная база) ──");
+        var dir = Path.Combine(Path.GetTempPath(), "counterplay-test-root", "SideHints");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "hints.db");
+        SqliteConnection.ClearAllPools();
+        if (File.Exists(path)) File.Delete(path);
+        using (var con = new SqliteConnection($"Data Source={path}"))
+        {
+            con.Open();
+            var cmd = con.CreateCommand();
+            cmd.CommandText = $@"
+                CREATE TABLE base_wr (champion_id INTEGER, role TEXT, tier_bucket TEXT, patch TEXT, games INTEGER, wins INTEGER);
+                CREATE TABLE matchup (champion_id INTEGER, role TEXT, vs_champion_id INTEGER, tier_bucket TEXT, patch TEXT,
+                                      games INTEGER, wins INTEGER);
+                CREATE TABLE synergy (champion_id INTEGER, role TEXT, ally_id INTEGER, ally_role TEXT, tier_bucket TEXT,
+                                      patch TEXT, games INTEGER, wins INTEGER);
+                INSERT INTO base_wr VALUES
+                    ({Enemy},   'mid', 'emerald', '{Old}', 1000, 500), ({Enemy},   'mid', 'emerald', '{Fresh}', 1000, 500),
+                    ({OnFresh}, 'mid', 'emerald', '{Old}', 1000, 500), ({OnFresh}, 'mid', 'emerald', '{Fresh}', 1000, 500),
+                    ({OnOld},   'mid', 'emerald', '{Old}', 1000, 500), ({OnOld},   'mid', 'emerald', '{Fresh}', 1000, 500),
+                    ({Ally}, 'jungle', 'emerald', '{Old}', 1000, 500), ({Ally}, 'jungle', 'emerald', '{Fresh}', 1000, 500);
+                INSERT INTO matchup VALUES
+                    ({OnFresh}, 'mid', {Enemy}, 'emerald', '{Fresh}', 120, 72),
+                    ({OnOld},   'mid', {Enemy}, 'emerald', '{Old}',   200, 119);
+                INSERT INTO synergy VALUES
+                    ({OnFresh}, 'mid', {Ally}, 'jungle', 'emerald', '{Fresh}', 120, 72),
+                    ({OnOld},   'mid', {Ally}, 'jungle', 'emerald', '{Old}',   200, 119);";
+            cmd.ExecuteNonQuery();
+        }
+
+        using (var engine = RecommendationEngine.Create(path, "emerald"))
+            Hints(engine);
+        SqliteConnection.ClearAllPools();
+        Console.WriteLine();
+    }
+
+    private static void Hints(RecommendationEngine engine)
+    {
+        string Names(IEnumerable<int> ids) => string.Join(", ", ids.Select(i => i switch
+        {
+            OnFresh => "120 игр, 60%",
+            OnOld   => "200 игр, 59,5%",
+            _       => i.ToString(),
+        }));
+        var counters = engine.TopCounters(Enemy, "mid", 3, fill: true);
+        Check("контры: первым — кандидат с 200 играми (граница Уилсона по честному числу игр, не по взвешенной сумме)",
+              counters.Count == 2 && counters[0] == OnOld, Names(counters));
+        var partners = engine.TopSynergies(Ally, "mid", 3, "jungle");
+        Check("синергия: первым — напарник с 200 играми (тот же счёт)",
+              partners.Count == 2 && partners[0] == OnOld, Names(partners));
+        var wr = engine.CountersWithWr(Enemy, "mid", 3).FirstOrDefault(p => p.Id == OnOld);
+        Check("винрейт пары в карточке — прежний (59,5%): пересчитано число игр, не доля побед",
+              Math.Abs(wr.Wr - 0.595) < 1e-9, $"{100 * wr.Wr:F2}%");
     }
 
     /// Кто роль правда играет — по своей планке, а не по кодовой.
