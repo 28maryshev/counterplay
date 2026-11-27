@@ -23,10 +23,11 @@ const W_SYN_MAX = 1.5; // …и когда не известен ни один
 const BOTLANE_MIN_GAMES = 20000; // меньше кросс-данных — слагаемое бота молчит
 // Вес контры на линии = очки за настоящий пункт контры × доля правды в цифре
 // контры этой роли. Доли — замер по исходам матчей (pipeline/calibrate.py,
-// 05.11.2026, изумруд 16.21, доверие пары 1000): топ 1,39, мид 1,24, саппорт
-// 1,00, лес 0,91, АДК 0,81, бот 2 на 2 — 0,88. Как в программе (RecommendationEngine.Weights).
+// 05.11.2026, изумруд 16.21, доверие пары 1000): топ 1,39, мид 1,24, лес 0,91,
+// АДК 0,81, бот 2 на 2 — 0,88; саппорт — 0,90 (перемер 27.11.2026, 16.22; было
+// 1,00). Как в программе (RecommendationEngine.Weights).
 const W_COUNTER_PP = 3.7;
-const LANE_TRUST = { top: 1.39, jungle: 0.91, mid: 1.24, adc: 0.81, support: 1.0 };
+const LANE_TRUST = { top: 1.39, jungle: 0.91, mid: 1.24, adc: 0.81, support: 0.9 };
 const W_DIRECT = Object.fromEntries(Object.entries(LANE_TRUST).map(([r, t]) => [r, W_COUNTER_PP * t]));
 const BOT_DUO_TRUST = 0.88;
 const W_BOTLANE = W_COUNTER_PP * BOT_DUO_TRUST; // бот 2 на 2: против вражеского дуо-партнёра
