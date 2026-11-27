@@ -325,7 +325,11 @@ if ($Upload) {
   $latestId = gh api "repos/28maryshev/counterplay/releases/tags/latest" --jq ".id" 2>$null
   if ($latestId) {
     $names = @($feed.Name)
-    foreach ($pg in 1..4) {
+    # Страниц — до пустой: API отдаёт файлы по алфавиту, RELEASES и
+    # releases.win.json идут последними, а пакеты всех версий копятся (27.11.2026 —
+    # 332 файла, 4 страницы; +2 за выпуск). С пределом в 4 страницы с 401-го файла
+    # старый фид не удалялся бы, а проверка не нашла бы RELEASES.
+    foreach ($pg in 1..50) {
       $page = gh api "repos/28maryshev/counterplay/releases/$latestId/assets?per_page=100&page=$pg" 2>$null | ConvertFrom-Json
       if (-not $page -or $page.Count -eq 0) { break }
       foreach ($a in $page) {
@@ -363,7 +367,7 @@ if ($Upload) {
   # ПРЕЖНЕЕ содержимое. Хвост-пустышка в адресе до того кэша не достаёт — на этом
   # проверка дважды роняла исправный выпуск. API отдаёт файл без посредников.
   $relId = $null
-  foreach ($pg in 1..4) {
+  foreach ($pg in 1..50) {
     $page = gh api "repos/28maryshev/counterplay/releases/$latestId/assets?per_page=100&page=$pg" 2>$null | ConvertFrom-Json
     if (-not $page -or $page.Count -eq 0) { break }
     $hit = $page | Where-Object { $_.name -eq "RELEASES" } | Select-Object -First 1
