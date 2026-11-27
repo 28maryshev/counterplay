@@ -36,6 +36,10 @@ namespace Counterplay.Tests;
 /// Проверяемых выборок восемь, сравнивается среднее: одна выборка на 780 пар
 /// шумит на ±5% по разбросу, а шанс контры от разброса зависит круто (−10%
 /// разброса — около −10 пп шанса). Сиды зафиксированы.
+///
+/// Вторая часть — живая база (только чтение): разброс пар, который видит
+/// движок, сверяется по каждой роли с разбросом без шума — ковариацией пар
+/// между двумя патчами окна (LiveChecks).
 /// </summary>
 internal static class Program
 {
@@ -110,6 +114,8 @@ internal static class Program
         Check("сводка по дивизионам: типичный шанс контры — как без шума",
               Near(typical["jungle"].Average(), 0, 0.10),
               $"{100 * typical["jungle"].Average():+0.0;-0.0} пп от эталона {100 * refTypical["jungle"]:F1}% (допуск ±10 пп)");
+
+        LiveChecks();
 
         Console.WriteLine();
         Console.WriteLine(_fails == 0 ? "ИТОГ: шум пар вслепую — по настоящему числу игр"
@@ -227,6 +233,109 @@ internal static class Program
                 }
         }
         tx.Commit();
+    }
+
+    // ── Живая база: разброс, который видит движок, — как разброс без шума ────
+    //
+    // Синтетика ловит известные ошибки формулы, но не всё, что может случиться
+    // с живыми данными. Здесь сверка с правдой, которую можно добыть из самой
+    // базы. «Выше ожидаемого» одной пары в двух патчах окна шумит независимо,
+    // поэтому ковариация по соперникам (центр — по чемпиону, веса — доли поля)
+    // показывает разброс без шума. В неё входит и постоянство игроков (одни и
+    // те же люди в обоих патчах), так что это скорее верхняя оценка.
+    //
+    // Замер 27.11.2026 (16.23 + 16.22): движок / ковариация — саппорт 1,12 / 1,12,
+    // лес 1,11 / 1,15, мид 1,61 / 1,66, топ 1,77 / 1,81, АДК 0,96 / 1,07, в
+    // среднем ×0,96. Со старым шумом (по взвешенной сумме игр) — ×0,63…0,78 по
+    // ролям, в среднем ×0,73: проверки по живой базе тогда были зелёными, хотя
+    // «надёжен вслепую» у саппорта, леса и АДК не выдавался никому. Погрешность
+    // ковариации — около ±6% по роли (больше всех у АДК), ±3% в среднем.
+    private static void LiveChecks()
+    {
+        Console.WriteLine();
+        Console.WriteLine("── живая база: разброс пар движка против разброса без шума ──");
+        // База матчей — настоящая, только чтение; своя папка программы уже стоит.
+        DataDb.DirOverride = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Counterplay");
+        var path = RecommendationEngine.FindDb();
+        if (path is null) { Check("живая база найдена", false, "нет data.db"); return; }
+        using var e = RecommendationEngine.Create(path, "emerald");
+        var patches = e.PatchDisplay.Split(", ");
+        if (patches.Length < 2)
+        {
+            // Одного патча в окне не бывает, пока в базе есть прошлый (удержание
+            // патча); сверять тогда не с чем.
+            Console.WriteLine($"  окно из одного патча ({e.PatchDisplay}) — сверять не с чем, пропуск");
+            return;
+        }
+        using var con = new SqliteConnection($"Data Source={path};Mode=ReadOnly");
+        con.Open();
+
+        var ratios = new List<double>();
+        foreach (var role in new[] { "top", "jungle", "mid", "adc", "support" })
+        {
+            var field = e.FieldShares(role);
+            var w = field.Sum(f => f.Share);
+            var engine = Math.Sqrt(field.Sum(f => f.Share * Math.Pow(e.BlindProfileOf(f.Id, role, role).True, 2)) / w);
+            var clean  = CrossPatchSpread(con, e.TierBucket, role, patches[0], patches[1], field);
+            var ratio  = clean > 0 ? engine / clean : double.NaN;
+            ratios.Add(ratio);
+            Check($"{role}: разброс движка — от 0,75 до 1,3 разброса без шума",
+                  ratio is >= 0.75 and <= 1.30,
+                  $"движок {engine:F2} пп, без шума {clean:F2} пп (×{ratio:F2})");
+        }
+        var mean = ratios.Average();
+        Check("в среднем по ролям разброс движка — как разброс без шума (±15%)", Near(mean, 1, 0.15),
+              $"×{mean:F2}; ниже — шум пар завышен (со счётом взвешенной суммы как игр было ×0,73), " +
+              "выше — занижен");
+    }
+
+    /// Разброс пар без шума: ковариация «выше ожидаемого» пары в двух патчах.
+    private static double CrossPatchSpread(SqliteConnection con, string bucket, string role, string pA, string pB,
+                                           IReadOnlyList<(int Id, double Share)> field)
+    {
+        Dictionary<int, double> Base(string patch)
+        {
+            var c = con.CreateCommand();
+            c.CommandText = "SELECT champion_id, SUM(games), SUM(wins) FROM base_wr " +
+                            "WHERE tier_bucket=@t AND patch=@p AND role=@r GROUP BY champion_id";
+            c.Parameters.AddWithValue("@t", bucket); c.Parameters.AddWithValue("@p", patch); c.Parameters.AddWithValue("@r", role);
+            var d = new Dictionary<int, double>();
+            using var rd = c.ExecuteReader();
+            while (rd.Read()) d[rd.GetInt32(0)] = (rd.GetDouble(2) + 25) / (rd.GetDouble(1) + 50);
+            return d;
+        }
+        Dictionary<(int, int), double> Pairs(string patch)
+        {
+            var c = con.CreateCommand();
+            c.CommandText = "SELECT champion_id, vs_champion_id, SUM(games), SUM(wins) FROM matchup " +
+                            "WHERE tier_bucket=@t AND patch=@p AND role=@r GROUP BY champion_id, vs_champion_id";
+            c.Parameters.AddWithValue("@t", bucket); c.Parameters.AddWithValue("@p", patch); c.Parameters.AddWithValue("@r", role);
+            var d = new Dictionary<(int, int), double>();
+            using var rd = c.ExecuteReader();
+            while (rd.Read()) if (rd.GetDouble(2) > 0) d[(rd.GetInt32(0), rd.GetInt32(1))] = rd.GetDouble(3) / rd.GetDouble(2);
+            return d;
+        }
+        var (bA, bB, pa, pb) = (Base(pA), Base(pB), Pairs(pA), Pairs(pB));
+        double acc = 0, total = 0;
+        foreach (var (a, sa) in field)
+        {
+            if (!bA.ContainsKey(a) || !bB.ContainsKey(a)) continue;
+            var cells = new List<(double W, double X, double Y)>();
+            foreach (var (b, sb) in field)
+            {
+                if (a == b || !bA.ContainsKey(b) || !bB.ContainsKey(b)) continue;
+                if (!pa.TryGetValue((a, b), out var ra) || !pb.TryGetValue((a, b), out var rb)) continue;
+                cells.Add((sb, (ra - BlindMath.ExpectedWr(bA[a], bA[b])) * 100, (rb - BlindMath.ExpectedWr(bB[a], bB[b])) * 100));
+            }
+            var w = cells.Sum(c => c.W);
+            if (w <= 0) continue;
+            var mx = cells.Sum(c => c.W * c.X) / w;
+            var my = cells.Sum(c => c.W * c.Y) / w;
+            acc += sa * cells.Sum(c => c.W * (c.X - mx) * (c.Y - my)) / w;
+            total += sa;
+        }
+        var cov = total > 0 ? acc / total : 0;
+        return Math.Sign(cov) * Math.Sqrt(Math.Abs(cov));
     }
 
     /// Что движок видит по роли: истинный разброс пар (среднее по полю с долями)
